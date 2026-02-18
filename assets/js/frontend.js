@@ -73,6 +73,52 @@
         animateRings();
         $(window).on('scroll', animateRings);
 
+        // === Staff Table Search ===
+        $(document).on('input', '.hl-search-input[data-table]', function() {
+            var query  = $(this).val().toLowerCase();
+            var tableId = $(this).data('table');
+            var $table  = $('#' + tableId);
+
+            $table.find('tbody tr').each(function() {
+                var name = $(this).data('name') || '';
+                $(this).toggle(name.indexOf(query) !== -1);
+            });
+        });
+
+        // === Report Filters (center, team, name) ===
+        $(document).on('input change', '.hl-report-filter, .hl-report-search', function() {
+            var $container = $(this).closest('.hl-reports-container');
+            var center = $container.find('[data-filter="center"]').val() || '';
+            var team   = $container.find('[data-filter="team"]').val() || '';
+            var name   = ($container.find('.hl-report-search').val() || '').toLowerCase();
+
+            $container.find('.hl-report-row').each(function() {
+                var $row = $(this);
+                var match = true;
+
+                if (center && $row.data('center') !== center) match = false;
+                if (team && $row.data('team') !== team) match = false;
+                if (name && ($row.data('name') || '').indexOf(name) === -1) match = false;
+
+                $row.toggle(match);
+
+                // Also hide the detail row if its parent is hidden
+                var detailId = $row.next('.hl-detail-row').attr('id');
+                if (!match && detailId) {
+                    $('#' + detailId).hide();
+                }
+            });
+        });
+
+        // === Detail Row Toggle (Reports Tab) ===
+        $(document).on('click', '.hl-detail-toggle', function(e) {
+            e.preventDefault();
+            var targetId = $(this).data('target');
+            var $detail = $('#' + targetId);
+            $detail.toggle();
+            $(this).text($detail.is(':visible') ? 'Hide' : 'View');
+        });
+
     });
 
 })(jQuery);

@@ -15,6 +15,7 @@ class HL_Shortcodes {
     private function __construct() {
         add_action('init', array($this, 'register_shortcodes'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+        add_action('template_redirect', array('HL_Frontend_My_Cohort', 'handle_export'));
     }
 
     public function register_shortcodes() {
@@ -26,6 +27,7 @@ class HL_Shortcodes {
         add_shortcode('hl_my_programs', array($this, 'render_my_programs'));
         add_shortcode('hl_program_page', array($this, 'render_program_page'));
         add_shortcode('hl_activity_page', array($this, 'render_activity_page'));
+        add_shortcode('hl_my_cohort', array($this, 'render_my_cohort'));
     }
 
     public function enqueue_assets() {
@@ -39,7 +41,8 @@ class HL_Shortcodes {
             || has_shortcode($post->post_content, 'hl_observations')
             || has_shortcode($post->post_content, 'hl_my_programs')
             || has_shortcode($post->post_content, 'hl_program_page')
-            || has_shortcode($post->post_content, 'hl_activity_page');
+            || has_shortcode($post->post_content, 'hl_activity_page')
+            || has_shortcode($post->post_content, 'hl_my_cohort');
 
         if ($has_shortcode) {
             wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
@@ -148,6 +151,19 @@ class HL_Shortcodes {
 
         $atts = shortcode_atts(array(), $atts, 'hl_activity_page');
         $renderer = new HL_Frontend_Activity_Page();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_my_cohort] - Leader's auto-scoped cohort workspace
+     */
+    public function render_my_cohort($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your cohort.', 'hl-core') . '</div>';
+        }
+
+        $atts = shortcode_atts(array(), $atts, 'hl_my_cohort');
+        $renderer = new HL_Frontend_My_Cohort();
         return $renderer->render($atts);
     }
 }

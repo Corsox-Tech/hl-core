@@ -72,6 +72,7 @@ Placeholder pages (planned):
 - **My Programs** `[hl_my_programs]` - Participant's program cards grid: featured image, program name, cohort name, completion %, status badge (Not Started/In Progress/Completed), "Continue"/"Start" button linking to Program Page. Auto-discovers `[hl_program_page]` page URL. Empty state for no enrollments.
 - **Program Page** `[hl_program_page]` - Single program detail page (via `?id=X&enrollment=Y`): hero image, pathway name, description, cohort name, progress ring, details panel (avg time, expiration, status), objectives, syllabus link, activity cards with per-activity status/progress/actions. Activity actions route to Activity Page, LD course permalink, or children assessment page. Breadcrumb back to My Programs.
 - **Activity Page** `[hl_activity_page]` - Single activity page (via `?id=X&enrollment=Y`): renders JFB form for self-assessments/observations (with hidden fields), links to children assessment page, redirects to LD course, shows managed-by-coach notice for coaching. Locked/completed guards with reason display. Breadcrumb back to Program Page.
+- **My Cohort** `[hl_my_cohort]` - Auto-scoped cohort workspace for Center Leaders and District Leaders. Cohort switcher for multi-enrollment users. Scope auto-detection (center_leader → center, district_leader → district, staff → all). Four tabs: Teams (cards with mentor names, member count, avg completion, progress bar, "View Team" link), Staff (searchable table with name/email/team/role/completion), Reports (filterable completion table with institution/team/name filters, expandable per-activity detail rows, CSV download), Classrooms (table with center/age band/child count/teacher names, links to classroom page).
 
 ### Security
 - Custom `manage_hl_core` capability
@@ -165,7 +166,7 @@ _Read docs: 10 (sections 4.1–4.3, 13 Phase A)_
 ### Phase 8: Front-End — Leader Experience
 _Read docs: 10 (sections 5.1, 7.1–7.2, 13 Phase B)_
 
-- [ ] **8.1 My Cohort Page** — `[hl_my_cohort]` shortcode. Auto-detects user scope (Center Leader → center, District Leader → district). Cohort switcher if enrolled in multiple. Tabs: Teams (cards with mentor/member count/avg completion), Staff (sortable table with search), Reports (completion table with expandable per-activity detail, filters, XLSX/CSV download), Classrooms (table linking to classroom pages).
+- [x] **8.1 My Cohort Page** — Created `class-hl-frontend-my-cohort.php` with `[hl_my_cohort]` shortcode. Auto-detects user scope (Center Leader → center, District Leader → district, staff → all). Cohort switcher for multi-enrollment users. Four tabs: Teams (card grid with mentor names, member count, avg completion %, progress bars, "View Team" link to team page), Staff (searchable table with name/email/team/role/completion), Reports (filterable completion table with institution/team/name client-side filters, expandable per-activity detail rows, CSV download via template_redirect handler with nonce + scope verification), Classrooms (table with center/age band/child count/teacher names, links to classroom page). Batch queries for age bands, child counts, and teacher names. CSS for tab show/hide, teams grid, search input, report filters, detail rows. JS for search, filter dropdowns, and detail toggle. Registered in shortcodes class + hl-core.php.
 - [ ] **8.2 Team Page** — `[hl_team_page]` shortcode with `?id=X`. Tabs: Team Members (table with name/email/role/completion), Report (completion table with detail expand and export). Breadcrumb back to cohort.
 - [ ] **8.3 Classroom Page** — `[hl_classroom_page]` shortcode with `?id=X`. Header with classroom info, center, age band, teachers. Children table: name, DOB, age, gender. Sortable. Breadcrumb back to source.
 
@@ -206,7 +207,7 @@ _Read docs: 10 (section 2.4)_
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder integration (2 classes)
     /admin/                      # WP admin pages (13 controllers)
-    /frontend/                   # Shortcode renderers (8 pages + instrument renderer)
+    /frontend/                   # Shortcode renderers (9 pages + instrument renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization helpers
   /assets/

@@ -136,6 +136,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-programs.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-program-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-activity-page.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-cohort.php';
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';

@@ -1024,3 +1024,196 @@
         flex-direction: column;
     }
 }
+
+/* =====================================================
+   TAB CONTENT SHOW / HIDE
+   ===================================================== */
+
+.hl-cohort-content {
+    display: none;
+}
+
+.hl-cohort-content.active {
+    display: block;
+}
+
+/* =====================================================
+   MY COHORT SHORTCODE
+   ===================================================== */
+
+/* --- Header --- */
+.hl-my-cohort-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    background: #f5f5ff;
+    border: 1px solid #c5cae9;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.hl-my-cohort-header-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-scope-indicator {
+    font-size: 14px;
+    color: #555;
+    margin: 0 0 8px;
+    font-style: italic;
+}
+
+/* --- Teams Grid --- */
+.hl-teams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.hl-team-card-item {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 18px;
+    transition: box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.hl-team-card-item:hover {
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+.hl-team-card-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a237e;
+    margin: 0 0 4px;
+}
+
+.hl-team-card-name a {
+    color: #1a237e;
+    text-decoration: none;
+}
+
+.hl-team-card-name a:hover {
+    text-decoration: underline;
+}
+
+.hl-team-card-center {
+    font-size: 13px;
+    color: #888;
+    margin: 0 0 10px;
+}
+
+.hl-team-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 12px;
+}
+
+.hl-team-card-meta strong {
+    font-weight: 600;
+    color: #333;
+}
+
+.hl-team-card-progress {
+    margin-bottom: 12px;
+}
+
+.hl-team-card-action {
+    text-align: right;
+}
+
+/* --- Search Input --- */
+.hl-search-input {
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    min-width: 180px;
+    background: #fff;
+}
+
+.hl-search-input:focus {
+    outline: none;
+    border-color: #3f51b5;
+    box-shadow: 0 0 0 2px rgba(63,81,181,0.15);
+}
+
+/* --- Report Filters Row --- */
+.hl-report-filters {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+/* --- Export Button --- */
+.hl-export-btn {
+    white-space: nowrap;
+}
+
+/* --- Detail Row (expandable) --- */
+.hl-detail-row td {
+    padding: 0 !important;
+    background: #fafafa;
+}
+
+.hl-detail-content {
+    padding: 14px 18px;
+}
+
+.hl-detail-table {
+    margin: 0;
+    font-size: 13px;
+}
+
+.hl-detail-table thead th {
+    padding: 8px 12px;
+    font-size: 11px;
+}
+
+.hl-detail-table tbody td {
+    padding: 6px 12px;
+}
+
+/* --- Detail Toggle Button --- */
+.hl-detail-toggle {
+    font-size: 12px !important;
+    padding: 3px 10px !important;
+}
+
+/* =====================================================
+   RESPONSIVE — MY COHORT
+   ===================================================== */
+
+@media (max-width: 768px) {
+    .hl-my-cohort-header {
+        flex-direction: column;
+    }
+
+    .hl-teams-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hl-report-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hl-report-filters .hl-select,
+    .hl-report-filters .hl-search-input {
+        width: 100%;
+        min-width: 0;
+    }
+}
