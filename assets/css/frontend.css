@@ -1,0 +1,1026 @@
+/* HL Core Frontend Styles */
+
+/* === Base / Dashboard Wrapper === */
+.hl-dashboard {
+    max-width: 960px;
+    margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
+    color: #1e1e1e;
+}
+
+.hl-dashboard *,
+.hl-dashboard *::before,
+.hl-dashboard *::after {
+    box-sizing: border-box;
+}
+
+/* === Notice Messages === */
+.hl-notice {
+    padding: 14px 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.hl-notice-warning {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    color: #6d4c00;
+}
+
+.hl-notice-info {
+    background: #e3f2fd;
+    border: 1px solid #90caf9;
+    color: #0d47a1;
+}
+
+.hl-notice-error {
+    background: #fce4ec;
+    border: 1px solid #ef9a9a;
+    color: #b71c1c;
+}
+
+/* === Cohort Tabs === */
+.hl-cohort-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.hl-tab {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #666;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    margin-bottom: -2px;
+}
+
+.hl-tab:hover {
+    color: #1a237e;
+}
+
+.hl-tab.active {
+    color: #1a237e;
+    border-bottom-color: #1a237e;
+}
+
+/* === Cohort Block === */
+.hl-cohort-block {
+    margin-bottom: 32px;
+}
+
+/* === Section Title === */
+.hl-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #283593;
+    margin: 0 0 14px;
+}
+
+/* === Badges === */
+.hl-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.hl-badge-active { background: #e8f5e9; color: #2e7d32; }
+.hl-badge-paused { background: #fff8e1; color: #f57f17; }
+.hl-badge-draft { background: #f5f5f5; color: #666; }
+.hl-badge-archived { background: #fce4ec; color: #c62828; }
+.hl-badge-role { background: #e8eaf6; color: #283593; margin: 1px 3px; }
+
+/* === Meta Items === */
+.hl-cohort-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    color: #555;
+    margin-top: 4px;
+}
+
+.hl-meta-item strong {
+    font-weight: 600;
+    color: #333;
+}
+
+/* =====================================================
+   MY PROGRESS SHORTCODE
+   ===================================================== */
+
+/* --- Progress Header (ring + info side by side) --- */
+.hl-progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: #f5f5ff;
+    border: 1px solid #c5cae9;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.hl-progress-header-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-cohort-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a237e;
+    margin: 0 0 6px;
+}
+
+/* --- SVG Progress Ring --- */
+.hl-progress-ring-container,
+.hl-team-avg {
+    flex-shrink: 0;
+}
+
+.hl-progress-ring {
+    position: relative;
+    width: 100px;
+    height: 100px;
+}
+
+.hl-progress-ring svg {
+    transform: rotate(-90deg);
+    width: 100%;
+    height: 100%;
+}
+
+.hl-ring-bg {
+    fill: none;
+    stroke: #e8eaf6;
+    stroke-width: 8;
+}
+
+.hl-ring-fill {
+    fill: none;
+    stroke: #3f51b5;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease;
+}
+
+.hl-ring-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    line-height: 1.2;
+}
+
+.hl-ring-percent {
+    display: block;
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a237e;
+}
+
+.hl-ring-label {
+    display: block;
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* --- Activity List --- */
+.hl-activity-list {
+    margin-bottom: 24px;
+}
+
+.hl-activity-list .hl-section-title {
+    margin-bottom: 14px;
+}
+
+/* --- Activity Card --- */
+.hl-activity-card {
+    display: flex;
+    align-items: stretch;
+    gap: 14px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 10px;
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.hl-activity-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.hl-activity-completed {
+    border-left: 4px solid #4caf50;
+    background: #f9fdf6;
+}
+
+.hl-activity-locked {
+    opacity: 0.6;
+    background: #fafafa;
+}
+
+.hl-activity-available {
+    border-left: 4px solid #3f51b5;
+}
+
+/* --- Activity Status Icon --- */
+.hl-activity-status-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    flex-shrink: 0;
+    font-size: 20px;
+}
+
+.hl-icon-check { color: #4caf50; }
+.hl-icon-lock { color: #9e9e9e; font-size: 16px; }
+.hl-icon-progress { color: #3f51b5; }
+
+/* --- Activity Content --- */
+.hl-activity-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.hl-activity-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e1e1e;
+    margin: 0 0 4px;
+}
+
+.hl-activity-title a {
+    color: #1a237e;
+    text-decoration: none;
+}
+
+.hl-activity-title a:hover {
+    text-decoration: underline;
+}
+
+.hl-activity-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 8px;
+}
+
+.hl-activity-type {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #f0f0f0;
+    color: #555;
+}
+
+.hl-activity-date {
+    color: #4caf50;
+}
+
+.hl-activity-lock-reason {
+    color: #b71c1c;
+    font-style: italic;
+}
+
+.hl-activity-progress-text {
+    color: #666;
+}
+
+/* --- Progress Bars --- */
+.hl-progress-bar-container {
+    width: 100%;
+    height: 6px;
+    background: #e8eaf6;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.hl-progress-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+    background: #ccc;
+}
+
+.hl-progress-bar.hl-progress-active {
+    background: #3f51b5;
+}
+
+.hl-progress-bar.hl-progress-complete {
+    background: #4caf50;
+}
+
+.hl-progress-bar.hl-progress-locked {
+    background: #e0e0e0;
+}
+
+/* --- Activity Action (buttons / notices) --- */
+.hl-activity-action {
+    margin: 6px 0 8px;
+}
+
+.hl-activity-notice {
+    display: inline-block;
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+}
+
+/* --- Buttons --- */
+.hl-btn {
+    display: inline-block;
+    padding: 8px 18px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    line-height: 1.4;
+}
+
+.hl-btn-sm {
+    padding: 5px 14px;
+    font-size: 13px;
+}
+
+.hl-btn-primary {
+    background: #3f51b5;
+    color: #fff;
+}
+
+.hl-btn-primary:hover {
+    background: #303f9f;
+    color: #fff;
+    text-decoration: none;
+}
+
+.hl-btn-secondary {
+    background: #e8eaf6;
+    color: #283593;
+}
+
+.hl-btn-secondary:hover {
+    background: #c5cae9;
+    color: #1a237e;
+    text-decoration: none;
+}
+
+/* --- Inline Form View (JFB form embedded in My Progress) --- */
+.hl-inline-form-wrapper {
+    margin-bottom: 24px;
+}
+
+.hl-back-link {
+    display: inline-block;
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: #3f51b5;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.hl-back-link:hover {
+    color: #1a237e;
+    text-decoration: underline;
+}
+
+.hl-inline-form-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a237e;
+    margin: 0 0 8px;
+}
+
+.hl-inline-form-description {
+    font-size: 15px;
+    color: #555;
+    margin: 0 0 20px;
+    line-height: 1.6;
+}
+
+.hl-jfb-form-container {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 24px;
+}
+
+/* === Empty State === */
+.hl-empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: #999;
+}
+
+.hl-empty-state h3 {
+    font-size: 18px;
+    color: #666;
+    margin: 0 0 8px;
+}
+
+.hl-empty-state p {
+    font-size: 15px;
+    margin: 0;
+}
+
+/* =====================================================
+   TEAM PROGRESS SHORTCODE
+   ===================================================== */
+
+/* --- Team Header --- */
+.hl-team-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: #f5f5ff;
+    border: 1px solid #c5cae9;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.hl-team-header-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-team-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a237e;
+    margin: 0 0 6px;
+}
+
+/* --- Team Members --- */
+.hl-team-members {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* --- Member Card --- */
+.hl-member-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.hl-member-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+}
+
+.hl-member-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #c5cae9;
+    color: #283593;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.hl-member-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.hl-member-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e1e1e;
+    margin: 0;
+}
+
+.hl-member-email {
+    font-size: 13px;
+    color: #888;
+    display: block;
+}
+
+.hl-member-role {
+    font-size: 12px;
+    color: #666;
+}
+
+.hl-member-completion {
+    flex-shrink: 0;
+    text-align: right;
+}
+
+.hl-completion-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #3f51b5;
+}
+
+.hl-member-card .hl-progress-bar-container {
+    border-radius: 0;
+    height: 4px;
+}
+
+/* --- Member Details (native <details>) --- */
+.hl-member-details {
+    border-top: 1px solid #f0f0f0;
+    font-size: 14px;
+}
+
+.hl-member-details summary {
+    padding: 10px 18px;
+    cursor: pointer;
+    color: #3f51b5;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.hl-member-details summary:hover {
+    background: #fafafa;
+}
+
+.hl-member-activities {
+    padding: 0 18px 14px;
+}
+
+/* --- Mini Activity Row --- */
+.hl-mini-activity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 13px;
+}
+
+.hl-mini-activity:last-child {
+    border-bottom: none;
+}
+
+.hl-mini-status {
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.hl-mini-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hl-mini-percent {
+    flex-shrink: 0;
+    font-weight: 600;
+    font-size: 12px;
+    min-width: 60px;
+    text-align: right;
+}
+
+.hl-mini-complete .hl-mini-status { color: #4caf50; }
+.hl-mini-complete .hl-mini-title { color: #2e7d32; }
+.hl-mini-complete .hl-mini-percent { color: #4caf50; }
+
+.hl-mini-progress .hl-mini-status { color: #3f51b5; }
+.hl-mini-progress .hl-mini-percent { color: #3f51b5; }
+
+.hl-mini-locked .hl-mini-status { color: #bdbdbd; }
+.hl-mini-locked .hl-mini-title { color: #999; }
+.hl-mini-locked .hl-mini-percent { color: #999; }
+
+/* =====================================================
+   COHORT DASHBOARD SHORTCODE
+   ===================================================== */
+
+/* --- Dashboard Header --- */
+.hl-dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.hl-dashboard-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a237e;
+    margin: 0;
+}
+
+/* --- Cohort Selector --- */
+.hl-cohort-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hl-cohort-selector label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #555;
+}
+
+.hl-select {
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    background: #fff;
+    min-width: 180px;
+}
+
+/* --- Metrics Row --- */
+.hl-metrics-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.hl-metric-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 18px 22px;
+    text-align: center;
+    flex: 1;
+    min-width: 130px;
+}
+
+.hl-metric-value {
+    font-size: 30px;
+    font-weight: 700;
+    color: #1a237e;
+    line-height: 1.2;
+}
+
+.hl-metric-label {
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+}
+
+/* --- Table Container --- */
+.hl-table-container {
+    margin-bottom: 24px;
+}
+
+.hl-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.hl-table-filters {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+/* --- Data Table --- */
+.hl-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.hl-table thead th {
+    background: #f5f5ff;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #666;
+    border-bottom: 2px solid #c5cae9;
+}
+
+.hl-table tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+.hl-table tbody tr:hover {
+    background: #fafafa;
+}
+
+.hl-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* --- Inline Progress (table cells) --- */
+.hl-inline-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hl-progress-inline {
+    flex: 1;
+    min-width: 60px;
+}
+
+.hl-progress-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3f51b5;
+    white-space: nowrap;
+}
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+@media (max-width: 768px) {
+    .hl-progress-header,
+    .hl-team-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .hl-metrics-row {
+        flex-direction: column;
+    }
+
+    .hl-metric-card {
+        min-width: 0;
+    }
+
+    .hl-cohort-tabs {
+        gap: 0;
+    }
+
+    .hl-tab {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+
+    .hl-member-header {
+        flex-wrap: wrap;
+    }
+
+    .hl-dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hl-table {
+        font-size: 13px;
+    }
+
+    .hl-table thead th,
+    .hl-table tbody td {
+        padding: 8px 10px;
+    }
+
+    .hl-cohort-meta {
+        flex-direction: column;
+        gap: 4px;
+    }
+}
+
+@media (max-width: 480px) {
+    .hl-table-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hl-cohort-selector {
+        width: 100%;
+    }
+
+    .hl-select {
+        flex: 1;
+    }
+}
+
+/* =====================================================
+   MY PROGRAMS SHORTCODE
+   ===================================================== */
+
+.hl-programs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.hl-program-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+
+.hl-program-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.hl-program-card-image {
+    height: 160px;
+    background: #e8eaf6;
+    overflow: hidden;
+}
+
+.hl-program-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hl-program-card-body {
+    padding: 18px;
+}
+
+.hl-program-card-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    color: #1a237e;
+}
+
+.hl-program-card-cohort {
+    font-size: 13px;
+    color: #888;
+    margin: 0 0 12px;
+}
+
+.hl-program-card-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.hl-program-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* =====================================================
+   PROGRAM PAGE SHORTCODE
+   ===================================================== */
+
+.hl-program-header {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.hl-program-hero-image {
+    width: 100%;
+    max-height: 240px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.hl-program-hero-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hl-program-header-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-program-details {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: #f5f5ff;
+    border: 1px solid #c5cae9;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+}
+
+.hl-program-detail-item {
+    font-size: 14px;
+    color: #555;
+}
+
+.hl-program-detail-item strong {
+    color: #333;
+}
+
+.hl-program-objectives {
+    margin-bottom: 24px;
+}
+
+.hl-program-objectives h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #283593;
+    margin: 0 0 10px;
+}
+
+/* =====================================================
+   ACTIVITY PAGE SHORTCODE
+   ===================================================== */
+
+.hl-activity-page .hl-activity-type-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #f0f0f0;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 16px;
+}
+
+.hl-activity-locked-view {
+    text-align: center;
+    padding: 48px 20px;
+}
+
+.hl-activity-locked-view .hl-lock-icon {
+    font-size: 48px;
+    color: #9e9e9e;
+    margin-bottom: 16px;
+}
+
+/* Status badges for program cards */
+.hl-badge-not-started {
+    background: #f5f5f5;
+    color: #666;
+}
+
+.hl-badge-in-progress {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.hl-badge-completed {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+/* =====================================================
+   RESPONSIVE — MY PROGRAMS / PROGRAM PAGE / ACTIVITY
+   ===================================================== */
+
+@media (max-width: 768px) {
+    .hl-programs-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hl-program-header {
+        flex-direction: column;
+    }
+
+    .hl-program-details {
+        flex-direction: column;
+    }
+}

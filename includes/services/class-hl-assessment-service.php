@@ -1,0 +1,688 @@
+<?php
+if (!defined('ABSPATH')) exit;
+
+class HL_Assessment_Service {
+
+    // =========================================================================
+    // Teacher Self-Assessment Queries
+    // =========================================================================
+
+    /**
+     * Get teacher self-assessment instances for an enrollment
+     */
+    public function get_teacher_assessments($enrollment_id) {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id = %d ORDER BY phase ASC",
+            $enrollment_id
+        ), ARRAY_A) ?: array();
+    }
+
+    /**
+     * Get teacher self-assessment instances by cohort with user info
+     */
+    public function get_teacher_assessments_by_cohort($cohort_id) {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT tai.*, u.display_name, u.user_email
+             FROM {$wpdb->prefix}hl_teacher_assessment_instance tai
+             JOIN {$wpdb->prefix}hl_enrollment e ON tai.enrollment_id = e.enrollment_id
+             LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+             WHERE tai.cohort_id = %d ORDER BY u.display_name ASC, tai.phase ASC",
+            $cohort_id
+        ), ARRAY_A) ?: array();
+    }
+
+    /**
+     * Get a single teacher assessment instance by ID
+     */
+    public function get_teacher_assessment($instance_id) {
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT tai.*, u.display_name, u.user_email, e.user_id, e.roles, c.cohort_name
+             FROM {$wpdb->prefix}hl_teacher_assessment_instance tai
+             JOIN {$wpdb->prefix}hl_enrollment e ON tai.enrollment_id = e.enrollment_id
+             LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+             LEFT JOIN {$wpdb->prefix}hl_cohort c ON tai.cohort_id = c.cohort_id
+             WHERE tai.instance_id = %d",
+            $instance_id
+        ), ARRAY_A);
+    }
+
+    /**
+     * Get responses for a teacher assessment instance
+     */
+    public function get_teacher_assessment_responses($instance_id) {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_response
+             WHERE instance_id = %d ORDER BY question_id ASC",
+            $instance_id
+        ), ARRAY_A) ?: array();
+    }
+
+    /**
+     * Create a teacher assessment instance
+     */
+    public function create_teacher_assessment_instance($data) {
+        global $wpdb;
+
+        if (empty($data['cohort_id']) || empty($data['enrollment_id']) || empty($data['phase'])) {
+            return new WP_Error('missing_fields', __('Cohort, enrollment, and phase are required.', 'hl-core'));
+        }
+
+        $insert_data = array(
+            'instance_uuid'      => HL_DB_Utils::generate_uuid(),
+            'cohort_id'          => absint($data['cohort_id']),
+            'enrollment_id'      => absint($data['enrollment_id']),
+            'phase'              => sanitize_text_field($data['phase']),
+            'instrument_id'      => !empty($data['instrument_id']) ? absint($data['instrument_id']) : null,
+            'instrument_version' => !empty($data['instrument_version']) ? sanitize_text_field($data['instrument_version']) : null,
+            'status'             => 'not_started',
+        );
+
+        $result = $wpdb->insert($wpdb->prefix . 'hl_teacher_assessment_instance', $insert_data);
+
+        if ($result === false) {
+            return new WP_Error('duplicate', __('A teacher assessment instance already exists for this enrollment and phase.', 'hl-core'));
+        }
+
+        $instance_id = $wpdb->insert_id;
+
+        HL_Audit_Service::log('teacher_assessment.created', array(
+            'entity_type' => 'teacher_assessment_instance',
+            'entity_id'   => $instance_id,
+            'cohort_id'   => $data['cohort_id'],
+            'after_data'  => $insert_data,
+        ));
+
+        return $instance_id;
+    }
+
+    /**
+     * Submit teacher assessment responses
+     *
+     * @param int   $instance_id
+     * @param array $responses Array of ['question_id' => value]
+     * @return true|WP_Error
+     */
+    public function submit_teacher_assessment($instance_id, $responses) {
+        global $wpdb;
+
+        $instance = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE instance_id = %d",
+            $instance_id
+        ), ARRAY_A);
+
+        if (!$instance) {
+            return new WP_Error('not_found', __('Assessment instance not found.', 'hl-core'));
+        }
+
+        if ($instance['status'] === 'submitted') {
+            return new WP_Error('already_submitted', __('This assessment has already been submitted.', 'hl-core'));
+        }
+
+        // Save responses (upsert pattern)
+        foreach ($responses as $question_id => $value) {
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT response_id FROM {$wpdb->prefix}hl_teacher_assessment_response
+                 WHERE instance_id = %d AND question_id = %s",
+                $instance_id, $question_id
+            ));
+
+            if ($existing) {
+                $wpdb->update(
+                    $wpdb->prefix . 'hl_teacher_assessment_response',
+                    array('value' => is_array($value) ? wp_json_encode($value) : $value),
+                    array('response_id' => $existing)
+                );
+            } else {
+                $wpdb->insert($wpdb->prefix . 'hl_teacher_assessment_response', array(
+                    'instance_id' => $instance_id,
+                    'question_id' => sanitize_text_field($question_id),
+                    'value'       => is_array($value) ? wp_json_encode($value) : $value,
+                ));
+            }
+        }
+
+        // Mark as submitted
+        $now = current_time('mysql');
+        $wpdb->update(
+            $wpdb->prefix . 'hl_teacher_assessment_instance',
+            array('status' => 'submitted', 'submitted_at' => $now),
+            array('instance_id' => $instance_id)
+        );
+
+        HL_Audit_Service::log('teacher_assessment.submitted', array(
+            'entity_type' => 'teacher_assessment_instance',
+            'entity_id'   => $instance_id,
+            'cohort_id'   => $instance['cohort_id'],
+        ));
+
+        return true;
+    }
+
+    /**
+     * Check if all teacher assessments are complete for an enrollment in a cohort
+     */
+    public function is_teacher_assessment_complete($enrollment_id, $cohort_id) {
+        global $wpdb;
+        $total = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id = %d AND cohort_id = %d",
+            $enrollment_id, $cohort_id
+        ));
+        if ($total === 0) return true;
+
+        $submitted = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id = %d AND cohort_id = %d AND status = 'submitted'",
+            $enrollment_id, $cohort_id
+        ));
+
+        return $submitted >= $total;
+    }
+
+    // =========================================================================
+    // Children Assessment Queries
+    // =========================================================================
+
+    /**
+     * Get children assessment instances for an enrollment
+     */
+    public function get_children_assessments($enrollment_id) {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_children_assessment_instance WHERE enrollment_id = %d",
+            $enrollment_id
+        ), ARRAY_A) ?: array();
+    }
+
+    /**
+     * Get children assessment instances by cohort with joined data
+     */
+    public function get_children_assessments_by_cohort($cohort_id) {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT cai.*, u.display_name, u.user_email, cr.classroom_name, o.name AS center_name
+             FROM {$wpdb->prefix}hl_children_assessment_instance cai
+             JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
+             LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+             LEFT JOIN {$wpdb->prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
+             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON cai.center_id = o.orgunit_id
+             WHERE cai.cohort_id = %d
+             ORDER BY u.display_name ASC, cr.classroom_name ASC",
+            $cohort_id
+        ), ARRAY_A) ?: array();
+    }
+
+    /**
+     * Get a single children assessment instance by ID
+     */
+    public function get_children_assessment($instance_id) {
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT cai.*, u.display_name, u.user_email, e.user_id, c.cohort_name,
+                    cr.classroom_name, o.name AS center_name
+             FROM {$wpdb->prefix}hl_children_assessment_instance cai
+             JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
+             LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+             LEFT JOIN {$wpdb->prefix}hl_cohort c ON cai.cohort_id = c.cohort_id
+             LEFT JOIN {$wpdb->prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
+             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON cai.center_id = o.orgunit_id
+             WHERE cai.instance_id = %d",
+            $instance_id
+        ), ARRAY_A);
+    }
+
+    /**
+     * Get child rows for a children assessment instance
+     */
+    public function get_children_assessment_childrows($instance_id) {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT cr.*, ch.first_name, ch.last_name, ch.child_display_code, ch.dob
+             FROM {$wpdb->prefix}hl_children_assessment_childrow cr
+             JOIN {$wpdb->prefix}hl_child ch ON cr.child_id = ch.child_id
+             WHERE cr.instance_id = %d
+             ORDER BY ch.last_name ASC, ch.first_name ASC",
+            $instance_id
+        ), ARRAY_A) ?: array();
+    }
+
+    /**
+     * Check if all children assessments are complete for an enrollment
+     */
+    public function is_children_assessment_complete($enrollment_id, $cohort_id) {
+        global $wpdb;
+        $total = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_children_assessment_instance WHERE enrollment_id = %d AND cohort_id = %d",
+            $enrollment_id, $cohort_id
+        ));
+        if ($total === 0) return true;
+
+        $submitted = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_children_assessment_instance WHERE enrollment_id = %d AND cohort_id = %d AND status = 'submitted'",
+            $enrollment_id, $cohort_id
+        ));
+
+        return $submitted >= $total;
+    }
+
+    // =========================================================================
+    // Children Assessment Submission
+    // =========================================================================
+
+    /**
+     * Save children assessment child rows (draft or submit)
+     *
+     * @param int    $instance_id
+     * @param array  $childrows  Array of ['child_id' => int, 'answers_json' => array]
+     * @param string $action     'draft' or 'submit'
+     * @return true|WP_Error
+     */
+    public function save_children_assessment($instance_id, $childrows, $action = 'draft') {
+        global $wpdb;
+
+        $instance = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_children_assessment_instance WHERE instance_id = %d",
+            $instance_id
+        ), ARRAY_A);
+
+        if (!$instance) {
+            return new WP_Error('not_found', __('Children assessment instance not found.', 'hl-core'));
+        }
+
+        if ($instance['status'] === 'submitted') {
+            return new WP_Error('already_submitted', __('This assessment has already been submitted.', 'hl-core'));
+        }
+
+        // Upsert child rows
+        foreach ($childrows as $row) {
+            $child_id = absint($row['child_id']);
+            $answers  = is_array($row['answers_json']) ? wp_json_encode($row['answers_json']) : $row['answers_json'];
+
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT row_id FROM {$wpdb->prefix}hl_children_assessment_childrow
+                 WHERE instance_id = %d AND child_id = %d",
+                $instance_id, $child_id
+            ));
+
+            if ($existing) {
+                $wpdb->update(
+                    $wpdb->prefix . 'hl_children_assessment_childrow',
+                    array('answers_json' => $answers),
+                    array('row_id' => $existing)
+                );
+            } else {
+                $wpdb->insert($wpdb->prefix . 'hl_children_assessment_childrow', array(
+                    'instance_id'  => $instance_id,
+                    'child_id'     => $child_id,
+                    'answers_json' => $answers,
+                ));
+            }
+        }
+
+        // Update instance status
+        $new_status = ($action === 'submit') ? 'submitted' : 'in_progress';
+        $update = array('status' => $new_status);
+        if ($action === 'submit') {
+            $update['submitted_at'] = current_time('mysql');
+        }
+
+        $wpdb->update(
+            $wpdb->prefix . 'hl_children_assessment_instance',
+            $update,
+            array('instance_id' => $instance_id)
+        );
+
+        if ($action === 'submit') {
+            HL_Audit_Service::log('children_assessment.submitted', array(
+                'entity_type' => 'children_assessment_instance',
+                'entity_id'   => $instance_id,
+                'cohort_id'   => $instance['cohort_id'],
+            ));
+
+            // Update activity state if all classroom instances are now submitted
+            $this->update_children_assessment_activity_state(
+                $instance['enrollment_id'],
+                $instance['cohort_id']
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Update the children_assessment activity state for an enrollment
+     *
+     * Checks if all required children assessment instances are submitted.
+     * If so, marks the activity as complete (100%). Otherwise, not_started (0%).
+     *
+     * @param int $enrollment_id
+     * @param int $cohort_id
+     */
+    private function update_children_assessment_activity_state($enrollment_id, $cohort_id) {
+        global $wpdb;
+
+        $is_complete = $this->is_children_assessment_complete($enrollment_id, $cohort_id);
+
+        // Find children_assessment activities in this cohort
+        $activities = $wpdb->get_results($wpdb->prepare(
+            "SELECT a.activity_id FROM {$wpdb->prefix}hl_activity a
+             JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
+             WHERE p.cohort_id = %d
+               AND a.activity_type = 'children_assessment'
+               AND a.status = 'active'",
+            $cohort_id
+        ));
+
+        if (empty($activities)) {
+            return;
+        }
+
+        $now     = current_time('mysql');
+        $percent = $is_complete ? 100 : 0;
+        $status  = $is_complete ? 'complete' : 'not_started';
+
+        foreach ($activities as $activity) {
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT state_id FROM {$wpdb->prefix}hl_activity_state
+                 WHERE enrollment_id = %d AND activity_id = %d",
+                $enrollment_id, $activity->activity_id
+            ));
+
+            $state_data = array(
+                'completion_percent' => $percent,
+                'completion_status'  => $status,
+                'completed_at'       => $is_complete ? $now : null,
+                'last_computed_at'   => $now,
+            );
+
+            if ($existing) {
+                $wpdb->update(
+                    $wpdb->prefix . 'hl_activity_state',
+                    $state_data,
+                    array('state_id' => $existing)
+                );
+            } else {
+                $state_data['enrollment_id'] = $enrollment_id;
+                $state_data['activity_id']   = $activity->activity_id;
+                $wpdb->insert($wpdb->prefix . 'hl_activity_state', $state_data);
+            }
+        }
+
+        // Trigger rollup recomputation
+        do_action('hl_core_recompute_rollups', $enrollment_id);
+    }
+
+    // =========================================================================
+    // Children Assessment Instance Generation
+    // =========================================================================
+
+    /**
+     * Generate children assessment instances for a cohort.
+     *
+     * Canonical rule: For each cohort, for each classroom with a teaching assignment,
+     * for each teacher enrollment assigned to that classroom, ensure one instance exists.
+     *
+     * @param int $cohort_id
+     * @return array ['created' => int, 'existing' => int, 'errors' => array]
+     */
+    public function generate_children_assessment_instances($cohort_id) {
+        global $wpdb;
+
+        $result = array('created' => 0, 'existing' => 0, 'errors' => array());
+
+        // Get all teaching assignments for this cohort (join through enrollment)
+        $assignments = $wpdb->get_results($wpdb->prepare(
+            "SELECT ta.assignment_id, ta.enrollment_id, ta.classroom_id,
+                    cr.center_id, cr.age_band, cr.classroom_name
+             FROM {$wpdb->prefix}hl_teaching_assignment ta
+             JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
+             JOIN {$wpdb->prefix}hl_classroom cr ON ta.classroom_id = cr.classroom_id
+             WHERE e.cohort_id = %d AND e.status = 'active'",
+            $cohort_id
+        ));
+
+        if (empty($assignments)) {
+            return $result;
+        }
+
+        foreach ($assignments as $ta) {
+            // Check if instance already exists
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT instance_id FROM {$wpdb->prefix}hl_children_assessment_instance
+                 WHERE cohort_id = %d AND enrollment_id = %d AND classroom_id = %d",
+                $cohort_id, $ta->enrollment_id, $ta->classroom_id
+            ));
+
+            if ($existing) {
+                $result['existing']++;
+                continue;
+            }
+
+            // Determine age band from classroom
+            $age_band = $ta->age_band;
+            if (empty($age_band) || $age_band === 'mixed') {
+                $age_band = null; // Will need staff review
+            }
+
+            // Find matching instrument (if age band known)
+            $instrument = null;
+            if ($age_band) {
+                $instrument_type = 'children_' . $age_band;
+                $instrument = $wpdb->get_row($wpdb->prepare(
+                    "SELECT instrument_id, version FROM {$wpdb->prefix}hl_instrument
+                     WHERE instrument_type = %s
+                     AND (effective_to IS NULL OR effective_to >= CURDATE())
+                     ORDER BY effective_from DESC LIMIT 1",
+                    $instrument_type
+                ));
+            }
+
+            $insert_data = array(
+                'instance_uuid'      => HL_DB_Utils::generate_uuid(),
+                'cohort_id'          => absint($cohort_id),
+                'enrollment_id'      => absint($ta->enrollment_id),
+                'classroom_id'       => absint($ta->classroom_id),
+                'center_id'          => absint($ta->center_id),
+                'instrument_age_band' => $age_band,
+                'instrument_id'      => $instrument ? $instrument->instrument_id : null,
+                'instrument_version' => $instrument ? $instrument->version : null,
+                'status'             => 'not_started',
+            );
+
+            $insert_result = $wpdb->insert($wpdb->prefix . 'hl_children_assessment_instance', $insert_data);
+
+            if ($insert_result === false) {
+                $result['errors'][] = sprintf(
+                    __('Failed to create instance for enrollment %d in classroom %s.', 'hl-core'),
+                    $ta->enrollment_id,
+                    $ta->classroom_name
+                );
+            } else {
+                $result['created']++;
+            }
+        }
+
+        if ($result['created'] > 0) {
+            HL_Audit_Service::log('children_assessment.instances_generated', array(
+                'entity_type' => 'children_assessment_instance',
+                'cohort_id'   => $cohort_id,
+                'after_data'  => array(
+                    'created'  => $result['created'],
+                    'existing' => $result['existing'],
+                ),
+            ));
+        }
+
+        return $result;
+    }
+
+    // =========================================================================
+    // CSV Export
+    // =========================================================================
+
+    /**
+     * Export teacher assessment data as CSV
+     *
+     * @param int $cohort_id
+     * @return string CSV content
+     */
+    public function export_teacher_assessments_csv($cohort_id) {
+        global $wpdb;
+
+        $instances = $this->get_teacher_assessments_by_cohort($cohort_id);
+
+        $cohort = $wpdb->get_var($wpdb->prepare(
+            "SELECT cohort_name FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d",
+            $cohort_id
+        ));
+
+        $output = fopen('php://temp', 'r+');
+
+        // Collect all unique question IDs across all instances
+        $all_question_ids = array();
+        $instance_responses = array();
+        foreach ($instances as $inst) {
+            $responses = $this->get_teacher_assessment_responses($inst['instance_id']);
+            $instance_responses[$inst['instance_id']] = $responses;
+            foreach ($responses as $r) {
+                if (!in_array($r['question_id'], $all_question_ids)) {
+                    $all_question_ids[] = $r['question_id'];
+                }
+            }
+        }
+        sort($all_question_ids);
+
+        // Header row
+        $header = array('Instance ID', 'Teacher Name', 'Email', 'Phase', 'Status', 'Submitted At');
+        foreach ($all_question_ids as $qid) {
+            $header[] = $qid;
+        }
+        fputcsv($output, $header);
+
+        // Data rows
+        foreach ($instances as $inst) {
+            $row = array(
+                $inst['instance_id'],
+                $inst['display_name'],
+                $inst['user_email'],
+                $inst['phase'],
+                $inst['status'],
+                $inst['submitted_at'] ?: '',
+            );
+
+            // Map responses by question_id
+            $resp_map = array();
+            if (isset($instance_responses[$inst['instance_id']])) {
+                foreach ($instance_responses[$inst['instance_id']] as $r) {
+                    $resp_map[$r['question_id']] = $r['value'];
+                }
+            }
+
+            foreach ($all_question_ids as $qid) {
+                $row[] = isset($resp_map[$qid]) ? $resp_map[$qid] : '';
+            }
+
+            fputcsv($output, $row);
+        }
+
+        rewind($output);
+        $csv = stream_get_contents($output);
+        fclose($output);
+
+        return $csv;
+    }
+
+    /**
+     * Export children assessment data as CSV
+     *
+     * @param int $cohort_id
+     * @return string CSV content
+     */
+    public function export_children_assessments_csv($cohort_id) {
+        global $wpdb;
+
+        $instances = $this->get_children_assessments_by_cohort($cohort_id);
+
+        // Collect all unique question IDs from answers_json across all child rows
+        $all_question_ids = array();
+        $instance_childrows = array();
+        foreach ($instances as $inst) {
+            $childrows = $this->get_children_assessment_childrows($inst['instance_id']);
+            $instance_childrows[$inst['instance_id']] = $childrows;
+            foreach ($childrows as $cr) {
+                $answers = json_decode($cr['answers_json'], true);
+                if (is_array($answers)) {
+                    foreach (array_keys($answers) as $qid) {
+                        if (!in_array($qid, $all_question_ids)) {
+                            $all_question_ids[] = $qid;
+                        }
+                    }
+                }
+            }
+        }
+        sort($all_question_ids);
+
+        $output = fopen('php://temp', 'r+');
+
+        // Header
+        $header = array('Instance ID', 'Teacher Name', 'Classroom', 'Center', 'Age Band', 'Status', 'Child Name', 'Child Code', 'DOB');
+        foreach ($all_question_ids as $qid) {
+            $header[] = $qid;
+        }
+        fputcsv($output, $header);
+
+        // Data rows — one row per child per instance
+        foreach ($instances as $inst) {
+            $childrows = isset($instance_childrows[$inst['instance_id']]) ? $instance_childrows[$inst['instance_id']] : array();
+
+            if (empty($childrows)) {
+                // Write instance row with no child data
+                $row = array(
+                    $inst['instance_id'],
+                    $inst['display_name'],
+                    $inst['classroom_name'],
+                    $inst['center_name'],
+                    $inst['instrument_age_band'] ?: 'N/A',
+                    $inst['status'],
+                    '', '', '',
+                );
+                foreach ($all_question_ids as $qid) {
+                    $row[] = '';
+                }
+                fputcsv($output, $row);
+                continue;
+            }
+
+            foreach ($childrows as $cr) {
+                $answers = json_decode($cr['answers_json'], true) ?: array();
+
+                $row = array(
+                    $inst['instance_id'],
+                    $inst['display_name'],
+                    $inst['classroom_name'],
+                    $inst['center_name'],
+                    $inst['instrument_age_band'] ?: 'N/A',
+                    $inst['status'],
+                    trim($cr['first_name'] . ' ' . $cr['last_name']),
+                    $cr['child_display_code'] ?: '',
+                    $cr['dob'] ?: '',
+                );
+
+                foreach ($all_question_ids as $qid) {
+                    $val = isset($answers[$qid]) ? $answers[$qid] : '';
+                    $row[] = is_array($val) ? wp_json_encode($val) : $val;
+                }
+
+                fputcsv($output, $row);
+            }
+        }
+
+        rewind($output);
+        $csv = stream_get_contents($output);
+        fclose($output);
+
+        return $csv;
+    }
+}
