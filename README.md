@@ -73,6 +73,8 @@ Placeholder pages (planned):
 - **Program Page** `[hl_program_page]` - Single program detail page (via `?id=X&enrollment=Y`): hero image, pathway name, description, cohort name, progress ring, details panel (avg time, expiration, status), objectives, syllabus link, activity cards with per-activity status/progress/actions. Activity actions route to Activity Page, LD course permalink, or children assessment page. Breadcrumb back to My Programs.
 - **Activity Page** `[hl_activity_page]` - Single activity page (via `?id=X&enrollment=Y`): renders JFB form for self-assessments/observations (with hidden fields), links to children assessment page, redirects to LD course, shows managed-by-coach notice for coaching. Locked/completed guards with reason display. Breadcrumb back to Program Page.
 - **My Cohort** `[hl_my_cohort]` - Auto-scoped cohort workspace for Center Leaders and District Leaders. Cohort switcher for multi-enrollment users. Scope auto-detection (center_leader → center, district_leader → district, staff → all). Four tabs: Teams (cards with mentor names, member count, avg completion, progress bar, "View Team" link), Staff (searchable table with name/email/team/role/completion), Reports (filterable completion table with institution/team/name filters, expandable per-activity detail rows, CSV download), Classrooms (table with center/age band/child count/teacher names, links to classroom page).
+- **Team Page** `[hl_team_page]` - Team detail page (via `?id=X`): dark gradient header with team name, center, cohort, member count, mentor names, avg completion metric. Two tabs: Team Members (searchable table with name, email, role badge, completion progress bar), Report (completion report table with per-activity detail expansion and CSV export). Access control: staff, team members, center/district leaders with matching scope. Breadcrumb back to My Cohort.
+- **Classroom Page** `[hl_classroom_page]` - Classroom detail page (via `?id=X`): dark gradient header with classroom name, center name, age band, teacher names. Searchable children table with name, date of birth, computed age (years/months), gender (from metadata JSON). Access control: staff, assigned teachers, center/district leaders with matching scope. Breadcrumb back to My Cohort.
 
 ### Security
 - Custom `manage_hl_core` capability
@@ -167,8 +169,8 @@ _Read docs: 10 (sections 4.1–4.3, 13 Phase A)_
 _Read docs: 10 (sections 5.1, 7.1–7.2, 13 Phase B)_
 
 - [x] **8.1 My Cohort Page** — Created `class-hl-frontend-my-cohort.php` with `[hl_my_cohort]` shortcode. Auto-detects user scope (Center Leader → center, District Leader → district, staff → all). Cohort switcher for multi-enrollment users. Four tabs: Teams (card grid with mentor names, member count, avg completion %, progress bars, "View Team" link to team page), Staff (searchable table with name/email/team/role/completion), Reports (filterable completion table with institution/team/name client-side filters, expandable per-activity detail rows, CSV download via template_redirect handler with nonce + scope verification), Classrooms (table with center/age band/child count/teacher names, links to classroom page). Batch queries for age bands, child counts, and teacher names. CSS for tab show/hide, teams grid, search input, report filters, detail rows. JS for search, filter dropdowns, and detail toggle. Registered in shortcodes class + hl-core.php.
-- [ ] **8.2 Team Page** — `[hl_team_page]` shortcode with `?id=X`. Tabs: Team Members (table with name/email/role/completion), Report (completion table with detail expand and export). Breadcrumb back to cohort.
-- [ ] **8.3 Classroom Page** — `[hl_classroom_page]` shortcode with `?id=X`. Header with classroom info, center, age band, teachers. Children table: name, DOB, age, gender. Sortable. Breadcrumb back to source.
+- [x] **8.2 Team Page** — Created `class-hl-frontend-team-page.php` with `[hl_team_page]` shortcode (`?id=X`). Dark gradient header with team name, center, cohort, member count, mentor names, avg completion stat. Two tabs: Team Members (searchable table with name/email/role badge/completion progress bar), Report (filterable completion table with per-activity detail expand and CSV export via template_redirect handler). Access control: staff, team members, center/district leaders whose scope includes the team's center. Breadcrumb back to My Cohort (teams tab).
+- [x] **8.3 Classroom Page** — Created `class-hl-frontend-classroom-page.php` with `[hl_classroom_page]` shortcode (`?id=X`). Dark gradient header with classroom name, center, age band, teacher names. Searchable children table: name, DOB, age (computed from DOB with yr/mo display), gender (from metadata JSON). Access control: staff, assigned teachers, center/district leaders whose scope includes the classroom's center. Breadcrumb back to My Cohort (classrooms tab).
 
 ### Phase 9: Front-End — Staff/Admin CRM Directory
 _Read docs: 10 (sections 6.1–6.5, 13 Phase C)_
@@ -207,7 +209,7 @@ _Read docs: 10 (section 2.4)_
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder integration (2 classes)
     /admin/                      # WP admin pages (13 controllers)
-    /frontend/                   # Shortcode renderers (9 pages + instrument renderer)
+    /frontend/                   # Shortcode renderers (11 pages + instrument renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization helpers
   /assets/

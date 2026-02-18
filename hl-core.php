@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('HL_CORE_VERSION', '1.0.3');
+define('HL_CORE_VERSION', '1.0.4');
 define('HL_CORE_PLUGIN_FILE', __FILE__);
 define('HL_CORE_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HL_CORE_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -137,6 +137,8 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-program-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-activity-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-cohort.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-team-page.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-classroom-page.php';
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';

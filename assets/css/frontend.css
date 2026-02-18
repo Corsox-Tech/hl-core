@@ -1474,4 +1474,107 @@ body:has(.hl-dashboard) h1.entry-title {
         gap: 10px;
         align-items: flex-start;
     }
+
+    .hl-team-page-header,
+    .hl-classroom-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 20px;
+    }
+}
+
+/* =====================================================
+   31. TEAM PAGE HEADER
+   ===================================================== */
+
+.hl-team-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: linear-gradient(135deg, #1A2B47 0%, #243B5C 100%);
+    border: none;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    color: #FFFFFF;
+}
+
+.hl-team-page-header-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-team-page-header .hl-cohort-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin: 0 0 6px;
+}
+
+.hl-team-page-header .hl-scope-indicator {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 8px;
+    font-style: italic;
+}
+
+.hl-team-page-header .hl-cohort-meta {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.hl-team-page-header .hl-meta-item strong {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.hl-team-page-header-stats .hl-metric-card {
+    min-width: 120px;
+    text-align: center;
+}
+
+/* =====================================================
+   32. CLASSROOM PAGE HEADER
+   ===================================================== */
+
+.hl-classroom-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: linear-gradient(135deg, #1A2B47 0%, #243B5C 100%);
+    border: none;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    color: #FFFFFF;
+}
+
+.hl-classroom-page-header-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-classroom-page-header .hl-cohort-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin: 0 0 6px;
+}
+
+.hl-classroom-page-header .hl-scope-indicator {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 8px;
+    font-style: italic;
+}
+
+.hl-classroom-page-header .hl-cohort-meta {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.hl-classroom-page-header .hl-meta-item strong {
+    color: rgba(255, 255, 255, 0.9);
 }
