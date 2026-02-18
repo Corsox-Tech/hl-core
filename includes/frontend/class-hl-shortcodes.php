@@ -17,6 +17,7 @@ class HL_Shortcodes {
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
         add_action('template_redirect', array('HL_Frontend_My_Cohort', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Team_Page', 'handle_export'));
+        add_action('template_redirect', array('HL_Frontend_Cohort_Workspace', 'handle_export'));
     }
 
     public function register_shortcodes() {
@@ -31,6 +32,11 @@ class HL_Shortcodes {
         add_shortcode('hl_my_cohort', array($this, 'render_my_cohort'));
         add_shortcode('hl_team_page', array($this, 'render_team_page'));
         add_shortcode('hl_classroom_page', array($this, 'render_classroom_page'));
+        add_shortcode('hl_districts_listing', array($this, 'render_districts_listing'));
+        add_shortcode('hl_district_page', array($this, 'render_district_page'));
+        add_shortcode('hl_centers_listing', array($this, 'render_centers_listing'));
+        add_shortcode('hl_center_page', array($this, 'render_center_page'));
+        add_shortcode('hl_cohort_workspace', array($this, 'render_cohort_workspace'));
     }
 
     public function enqueue_assets() {
@@ -47,7 +53,12 @@ class HL_Shortcodes {
             || has_shortcode($post->post_content, 'hl_activity_page')
             || has_shortcode($post->post_content, 'hl_my_cohort')
             || has_shortcode($post->post_content, 'hl_team_page')
-            || has_shortcode($post->post_content, 'hl_classroom_page');
+            || has_shortcode($post->post_content, 'hl_classroom_page')
+            || has_shortcode($post->post_content, 'hl_districts_listing')
+            || has_shortcode($post->post_content, 'hl_district_page')
+            || has_shortcode($post->post_content, 'hl_centers_listing')
+            || has_shortcode($post->post_content, 'hl_center_page')
+            || has_shortcode($post->post_content, 'hl_cohort_workspace');
 
         if ($has_shortcode) {
             wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
@@ -202,6 +213,81 @@ class HL_Shortcodes {
 
         $atts = shortcode_atts(array(), $atts, 'hl_classroom_page');
         $renderer = new HL_Frontend_Classroom_Page();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_districts_listing] - Staff CRM directory of districts
+     */
+    public function render_districts_listing($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts(array(), $atts, 'hl_districts_listing');
+        $renderer = new HL_Frontend_Districts_Listing();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_district_page] - District detail page
+     */
+    public function render_district_page($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts(array(), $atts, 'hl_district_page');
+        $renderer = new HL_Frontend_District_Page();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_centers_listing] - Staff CRM directory of centers
+     */
+    public function render_centers_listing($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts(array(), $atts, 'hl_centers_listing');
+        $renderer = new HL_Frontend_Centers_Listing();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_center_page] - Center detail page
+     */
+    public function render_center_page($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts(array(), $atts, 'hl_center_page');
+        $renderer = new HL_Frontend_Center_Page();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_cohort_workspace] - Full cohort command center with Dashboard tab
+     */
+    public function render_cohort_workspace($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts(array(), $atts, 'hl_cohort_workspace');
+        $renderer = new HL_Frontend_Cohort_Workspace();
         return $renderer->render($atts);
     }
 

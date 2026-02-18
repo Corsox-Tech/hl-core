@@ -75,6 +75,11 @@ Placeholder pages (planned):
 - **My Cohort** `[hl_my_cohort]` - Auto-scoped cohort workspace for Center Leaders and District Leaders. Cohort switcher for multi-enrollment users. Scope auto-detection (center_leader → center, district_leader → district, staff → all). Four tabs: Teams (cards with mentor names, member count, avg completion, progress bar, "View Team" link), Staff (searchable table with name/email/team/role/completion), Reports (filterable completion table with institution/team/name filters, expandable per-activity detail rows, CSV download), Classrooms (table with center/age band/child count/teacher names, links to classroom page).
 - **Team Page** `[hl_team_page]` - Team detail page (via `?id=X`): dark gradient header with team name, center, cohort, member count, mentor names, avg completion metric. Two tabs: Team Members (searchable table with name, email, role badge, completion progress bar), Report (completion report table with per-activity detail expansion and CSV export). Access control: staff, team members, center/district leaders with matching scope. Breadcrumb back to My Cohort.
 - **Classroom Page** `[hl_classroom_page]` - Classroom detail page (via `?id=X`): dark gradient header with classroom name, center name, age band, teacher names. Searchable children table with name, date of birth, computed age (years/months), gender (from metadata JSON). Access control: staff, assigned teachers, center/district leaders with matching scope. Breadcrumb back to My Cohort.
+- **Districts Listing** `[hl_districts_listing]` - Staff CRM directory card grid of all school districts: district name, # centers, # active cohorts (via cohort_center join). Links to District Page. Staff-only access (manage_hl_core).
+- **District Page** `[hl_district_page]` - District detail page (via `?id=X`): dark gradient header with district name and stat boxes (centers, participants). Sections: Active Cohorts (rows with name, status badge, dates, participant count, "Open Cohort" link to Cohort Workspace filtered by district), Centers (card grid with leader names, "View Center" link), Overview stats. Access: staff + district leaders enrolled in that district. Breadcrumb to Districts Listing.
+- **Centers Listing** `[hl_centers_listing]` - Staff CRM card grid of all centers: center name, parent district, leader names. Links to Center Page. Staff-only access (manage_hl_core).
+- **Center Page** `[hl_center_page]` - Center detail page (via `?id=X`): dark gradient header with center name, parent district link. Sections: Active Cohorts (rows with participant count at this center, "Open Cohort" link to Cohort Workspace filtered by center), Classrooms table (age band, children, teachers), Staff table (name, email, role, cohort). Access: staff + center leaders + district leaders of parent. Breadcrumb to parent district or Centers Listing.
+- **Cohort Workspace** `[hl_cohort_workspace]` - Full cohort command center (via `?id=X&orgunit=Y`). My Cohort header with scope indicator and org unit filter dropdown for staff. Five tabs: Dashboard (avg completion %, total participants, completed/in-progress/not-started counts, teacher/mentor/center counts), Teams (card grid reusing team card pattern), Staff (searchable table), Reports (filterable completion table with per-activity detail expansion and CSV export), Classrooms (table). Scope from URL orgunit parameter or enrollment roles. Access: staff + enrolled leaders. Breadcrumb to source district/center page.
 
 ### Security
 - Custom `manage_hl_core` capability
@@ -175,11 +180,11 @@ _Read docs: 10 (sections 5.1, 7.1–7.2, 13 Phase B)_
 ### Phase 9: Front-End — Staff/Admin CRM Directory
 _Read docs: 10 (sections 6.1–6.5, 13 Phase C)_
 
-- [ ] **9.1 Districts Listing** — `[hl_districts_listing]` shortcode. Card grid: district name, # centers, # active cohorts. Click → District Page.
-- [ ] **9.2 District Page** — `[hl_district_page]` shortcode with `?id=X`. Header with district name/logo. Sections: Active Cohorts (list with "Open Cohort" → Cohort Workspace), Centers (card grid → Center Page), Overview stats.
-- [ ] **9.3 Centers Listing** — `[hl_centers_listing]` shortcode. Card grid: center name, parent district, leader names. Click → Center Page.
-- [ ] **9.4 Center Page** — `[hl_center_page]` shortcode with `?id=X`. Header with center name/logo, parent district link. Sections: Active Cohorts, Classrooms table, Staff table.
-- [ ] **9.5 Cohort Workspace** — `[hl_cohort_workspace]` shortcode with `?cohort_id=X&orgunit=Y`. Full command center. Tabs: Dashboard (completion %, On Track/Behind/Not Started counts, staff counts), Teams, Staff, Reports, Classrooms. Org unit filter dropdown.
+- [x] **9.1 Districts Listing** — `[hl_districts_listing]` shortcode. Card grid: district name, # centers (via orgunit parent), # active cohorts (via cohort_center join). Click → District Page. Staff-only (manage_hl_core).
+- [x] **9.2 District Page** — `[hl_district_page]` shortcode with `?id=X`. Dark gradient header with name + stat boxes. Sections: Active Cohorts (cohort rows with "Open Cohort" → Cohort Workspace filtered by district), Centers (card grid with leader names → Center Page), Overview stats. Access: staff + district leaders.
+- [x] **9.3 Centers Listing** — `[hl_centers_listing]` shortcode. Card grid: center name, parent district, center leader names. Click → Center Page. Staff-only (manage_hl_core).
+- [x] **9.4 Center Page** — `[hl_center_page]` shortcode with `?id=X`. Dark gradient header with center name, parent district link. Sections: Active Cohorts (with per-center participant count), Classrooms table (age band, children, teachers), Staff table (name, email, role, cohort). Access: staff + center leaders + district leaders of parent.
+- [x] **9.5 Cohort Workspace** — `[hl_cohort_workspace]` shortcode with `?id=X&orgunit=Y`. Full command center. Tabs: Dashboard (avg completion %, participant counts by status, staff/center counts), Teams (card grid), Staff (searchable table), Reports (filterable table with per-activity detail expand + CSV export), Classrooms (table). Org unit filter dropdown for staff. Scope from URL or enrollment. CSV export handler.
 
 ### Phase 10: Front-End — BuddyBoss Integration (Future)
 _Read docs: 10 (section 2.4)_
@@ -209,7 +214,7 @@ _Read docs: 10 (section 2.4)_
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder integration (2 classes)
     /admin/                      # WP admin pages (13 controllers)
-    /frontend/                   # Shortcode renderers (11 pages + instrument renderer)
+    /frontend/                   # Shortcode renderers (16 pages + instrument renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization helpers
   /assets/

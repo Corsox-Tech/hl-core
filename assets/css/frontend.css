@@ -1578,3 +1578,270 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-classroom-page-header .hl-meta-item strong {
     color: rgba(255, 255, 255, 0.9);
 }
+
+/* =====================================================
+   33. CRM DIRECTORY — SHARED STYLES
+   ===================================================== */
+
+.hl-crm-page-header {
+    margin-bottom: 24px;
+}
+
+.hl-crm-page-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1A2B47;
+    margin: 0;
+}
+
+/* Card grid for districts, centers */
+.hl-crm-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.hl-crm-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.hl-crm-card:hover {
+    border-color: #3B82F6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.hl-crm-card-body {
+    flex: 1;
+}
+
+.hl-crm-card-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1A2B47;
+    margin: 0 0 8px;
+}
+
+.hl-crm-card-title a {
+    color: #1A2B47;
+    text-decoration: none;
+}
+
+.hl-crm-card-title a:hover {
+    color: #3B82F6;
+}
+
+.hl-crm-card-subtitle {
+    font-size: 13px;
+    color: #64748B;
+    margin: 0 0 8px;
+}
+
+.hl-crm-card-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.hl-crm-card-stat {
+    font-size: 13px;
+    color: #64748B;
+}
+
+.hl-crm-card-stat strong {
+    color: #1A2B47;
+    font-weight: 600;
+    margin-right: 3px;
+}
+
+.hl-crm-card-detail {
+    font-size: 13px;
+    color: #64748B;
+    margin: 4px 0 0;
+}
+
+.hl-crm-card-detail strong {
+    color: #475569;
+}
+
+.hl-crm-card-action {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #F1F5F9;
+}
+
+/* =====================================================
+   34. CRM DETAIL PAGE HEADER (District/Center)
+   ===================================================== */
+
+.hl-crm-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: linear-gradient(135deg, #1A2B47 0%, #243B5C 100%);
+    border: none;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    color: #FFFFFF;
+}
+
+.hl-crm-detail-header-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-crm-detail-header .hl-cohort-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin: 0 0 6px;
+}
+
+.hl-crm-detail-header .hl-scope-indicator {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+    font-style: italic;
+}
+
+.hl-crm-detail-header-stats {
+    display: flex;
+    gap: 16px;
+}
+
+.hl-crm-stat-box {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 12px 20px;
+    text-align: center;
+    min-width: 90px;
+}
+
+.hl-crm-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #FFFFFF;
+}
+
+.hl-crm-stat-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 2px;
+}
+
+/* =====================================================
+   35. CRM SECTIONS
+   ===================================================== */
+
+.hl-crm-section {
+    margin-bottom: 32px;
+}
+
+.hl-crm-section .hl-section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1A2B47;
+    margin: 0 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #E2E8F0;
+}
+
+/* Cohort list rows */
+.hl-crm-cohort-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.hl-crm-cohort-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 16px 20px;
+    flex-wrap: wrap;
+}
+
+.hl-crm-cohort-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.hl-crm-cohort-info strong {
+    font-size: 15px;
+    color: #1A2B47;
+}
+
+.hl-crm-cohort-dates {
+    font-size: 13px;
+    color: #64748B;
+}
+
+.hl-crm-cohort-count {
+    font-size: 13px;
+    color: #64748B;
+}
+
+/* Stats row for overview */
+.hl-crm-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+}
+
+/* =====================================================
+   36. COHORT WORKSPACE — DASHBOARD TAB
+   ===================================================== */
+
+.hl-workspace-dashboard .hl-metrics-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .hl-crm-card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hl-crm-detail-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 20px;
+    }
+
+    .hl-crm-detail-header-stats {
+        flex-wrap: wrap;
+    }
+
+    .hl-crm-cohort-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hl-crm-cohort-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+}
