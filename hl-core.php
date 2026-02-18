@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('HL_CORE_VERSION', '1.0.0');
+define('HL_CORE_VERSION', '1.0.1');
 define('HL_CORE_PLUGIN_FILE', __FILE__);
 define('HL_CORE_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HL_CORE_PLUGIN_URL', plugin_dir_url(__FILE__));

@@ -1029,12 +1029,12 @@
    TAB CONTENT SHOW / HIDE
    ===================================================== */
 
-.hl-cohort-content {
-    display: none;
+.hl-frontend-wrap .hl-cohort-content {
+    display: none !important;
 }
 
-.hl-cohort-content.active {
-    display: block;
+.hl-frontend-wrap .hl-cohort-content.active {
+    display: block !important;
 }
 
 /* =====================================================

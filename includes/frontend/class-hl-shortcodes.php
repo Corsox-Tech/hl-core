@@ -162,8 +162,25 @@ class HL_Shortcodes {
             return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your cohort.', 'hl-core') . '</div>';
         }
 
+        // Ensure assets are loaded (fallback if has_shortcode detection missed this page).
+        $this->ensure_frontend_assets();
+
         $atts = shortcode_atts(array(), $atts, 'hl_my_cohort');
         $renderer = new HL_Frontend_My_Cohort();
         return $renderer->render($atts);
+    }
+
+    /**
+     * Ensure frontend CSS and JS are enqueued.
+     * Called from shortcode render methods as a fallback in case
+     * has_shortcode() detection failed (e.g. page builders, widgets).
+     */
+    private function ensure_frontend_assets() {
+        if (!wp_style_is('hl-frontend', 'enqueued')) {
+            wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
+        }
+        if (!wp_script_is('hl-frontend', 'enqueued')) {
+            wp_enqueue_script('hl-frontend', HL_CORE_ASSETS_URL . 'js/frontend.js', array('jquery'), HL_CORE_VERSION, true);
+        }
     }
 }
