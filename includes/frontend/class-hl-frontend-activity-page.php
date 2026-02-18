@@ -147,11 +147,11 @@ class HL_Frontend_Activity_Page {
                 ?></a>
             <?php endif; ?>
 
-            <h1 style="margin:0 0 8px;font-size:24px;color:#1a237e;"><?php echo esc_html($activity->title); ?></h1>
+            <h1 class="hl-cohort-title"><?php echo esc_html($activity->title); ?></h1>
             <p class="hl-activity-type-badge"><?php echo esc_html($type_label); ?></p>
 
             <?php if (!empty($activity->description)) : ?>
-                <p style="font-size:15px;color:#555;margin:0 0 20px;line-height:1.6;"><?php echo esc_html($activity->description); ?></p>
+                <p class="hl-inline-form-description"><?php echo esc_html($activity->description); ?></p>
             <?php endif; ?>
 
             <?php
@@ -177,8 +177,8 @@ class HL_Frontend_Activity_Page {
         ?>
         <div class="hl-activity-locked-view">
             <div class="hl-lock-icon">&#128274;</div>
-            <h3 style="color:#666;margin:0 0 8px;"><?php esc_html_e('This Activity is Locked', 'hl-core'); ?></h3>
-            <p style="color:#888;font-size:15px;margin:0;">
+            <h3><?php esc_html_e('This Activity is Locked', 'hl-core'); ?></h3>
+            <p>
                 <?php echo esc_html($this->get_lock_reason_text($availability)); ?>
             </p>
         </div>
@@ -190,7 +190,7 @@ class HL_Frontend_Activity_Page {
      */
     private function render_completed_view($activity) {
         ?>
-        <div class="hl-notice hl-notice-info" style="text-align:center;">
+        <div class="hl-notice hl-notice-info">
             <strong>&#10003; <?php esc_html_e('This activity has been completed.', 'hl-core'); ?></strong>
         </div>
         <?php
@@ -216,8 +216,8 @@ class HL_Frontend_Activity_Page {
             }
 
             if (!empty($assessment_url)) {
-                echo '<div style="text-align:center;padding:32px 0;">';
-                echo '<p style="font-size:15px;color:#555;margin:0 0 16px;">' . esc_html__('This activity uses the Children Assessment form.', 'hl-core') . '</p>';
+                echo '<div class="hl-empty-state">';
+                echo '<p>' . esc_html__('This activity uses the Children Assessment form.', 'hl-core') . '</p>';
                 echo '<a href="' . esc_url($assessment_url) . '" class="hl-btn hl-btn-primary">' . esc_html__('Go to Children Assessment', 'hl-core') . '</a>';
                 echo '</div>';
             } else {

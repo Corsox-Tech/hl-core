@@ -207,12 +207,10 @@ class HL_Frontend_Program_Page {
                     </div>
                 <?php endif; ?>
                 <div class="hl-program-header-info">
-                    <h1 style="margin:0 0 6px;font-size:26px;color:#1a237e;"><?php echo esc_html($pathway->pathway_name); ?></h1>
+                    <h1 class="hl-cohort-title"><?php echo esc_html($pathway->pathway_name); ?></h1>
                     <p class="hl-program-card-cohort"><?php echo esc_html($cohort ? $cohort->cohort_name : ''); ?></p>
                     <?php if (!empty($pathway->description)) : ?>
-                        <div style="margin-top:10px;font-size:15px;color:#555;line-height:1.6;">
-                            <?php echo wp_kses_post($pathway->description); ?>
-                        </div>
+                        <div class="hl-inline-form-description"><?php echo wp_kses_post($pathway->description); ?></div>
                     <?php endif; ?>
                 </div>
                 <?php $this->render_progress_ring($overall_percent); ?>
@@ -240,7 +238,7 @@ class HL_Frontend_Program_Page {
 
             <!-- Syllabus link -->
             <?php if (!empty($pathway->syllabus_url)) : ?>
-                <div style="margin-bottom:24px;">
+                <div class="hl-activity-action">
                     <a href="<?php echo esc_url($pathway->syllabus_url); ?>" target="_blank" class="hl-btn hl-btn-secondary"><?php esc_html_e('View Syllabus', 'hl-core'); ?></a>
                 </div>
             <?php endif; ?>

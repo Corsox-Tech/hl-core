@@ -1,11 +1,50 @@
-/* HL Core Frontend Styles */
+/* =====================================================
+   HL Core Frontend Styles — Modernized for BuddyBoss
+   =====================================================
+   Color palette aligned with BuddyBoss theme:
+   - Primary (dark navy):  #1A2B47
+   - Accent (green):       #2ECC71
+   - Secondary (blue):     #2C7BE5
+   - Warning (amber):      #F59E0B
+   - Error (red):          #EF4444
+   - Surface:              #FFFFFF
+   - Background:           #F4F5F7
+   - Text primary:         #1A2B47
+   - Text secondary:       #6B7280
+   - Text muted:           #9CA3AF
+   - Border:               #E5E7EB
+   ===================================================== */
 
-/* === Base / Dashboard Wrapper === */
+/* =====================================================
+   1. HIDE BUDDYBOSS THEME PAGE TITLE ON HL PAGES
+   ===================================================== */
+
+.hl-dashboard ~ .entry-title,
+.hl-dashboard ~ h1.entry-title,
+.entry-header:has(+ .entry-content .hl-dashboard),
+.hl-dashboard + .entry-title {
+    display: none !important;
+}
+
+/* Target common BuddyBoss / theme title patterns */
+body:has(.hl-dashboard) .entry-header .entry-title,
+body:has(.hl-dashboard) article > .entry-title,
+body:has(.hl-dashboard) .bb-grid > .entry-title,
+body:has(.hl-dashboard) h1.entry-title {
+    display: none !important;
+}
+
+/* =====================================================
+   2. BASE / DASHBOARD WRAPPER (padding fix)
+   ===================================================== */
+
 .hl-dashboard {
-    max-width: 960px;
+    max-width: 1000px;
     margin: 0 auto;
+    padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
-    color: #1e1e1e;
+    color: #1A2B47;
+    line-height: 1.5;
 }
 
 .hl-dashboard *,
@@ -14,139 +53,215 @@
     box-sizing: border-box;
 }
 
-/* === Notice Messages === */
+/* Remove extra padding from theme content wrappers */
+.entry-content .hl-dashboard,
+.bb-grid .hl-dashboard,
+.site-content .hl-dashboard {
+    padding: 0;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* =====================================================
+   3. TYPOGRAPHY
+   ===================================================== */
+
+.hl-dashboard h1,
+.hl-dashboard h2,
+.hl-dashboard h3,
+.hl-dashboard h4 {
+    color: #1A2B47;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.hl-dashboard h2 {
+    font-size: 24px;
+    margin: 0 0 24px;
+}
+
+/* =====================================================
+   4. NOTICE MESSAGES
+   ===================================================== */
+
 .hl-notice {
-    padding: 14px 18px;
-    border-radius: 6px;
+    padding: 14px 20px;
+    border-radius: 8px;
     font-size: 14px;
-    line-height: 1.5;
-    margin-bottom: 20px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+    border-left: 4px solid transparent;
 }
 
 .hl-notice-warning {
-    background: #fff8e1;
-    border: 1px solid #ffe082;
-    color: #6d4c00;
+    background: #FFFBEB;
+    border-left-color: #F59E0B;
+    color: #92400E;
 }
 
 .hl-notice-info {
-    background: #e3f2fd;
-    border: 1px solid #90caf9;
-    color: #0d47a1;
+    background: #EFF6FF;
+    border-left-color: #2C7BE5;
+    color: #1E40AF;
 }
 
 .hl-notice-error {
-    background: #fce4ec;
-    border: 1px solid #ef9a9a;
-    color: #b71c1c;
+    background: #FEF2F2;
+    border-left-color: #EF4444;
+    color: #991B1B;
 }
 
-/* === Cohort Tabs === */
+/* =====================================================
+   5. TABS — PILL / SEGMENT CONTROL
+   ===================================================== */
+
 .hl-cohort-tabs {
     display: flex;
-    gap: 4px;
-    border-bottom: 2px solid #e0e0e0;
-    margin-bottom: 24px;
+    gap: 6px;
+    margin-bottom: 28px;
     flex-wrap: wrap;
+    background: #F4F5F7;
+    padding: 4px;
+    border-radius: 10px;
+    border: none;
 }
 
 .hl-tab {
-    padding: 10px 20px;
+    padding: 10px 22px;
     font-size: 14px;
     font-weight: 600;
-    color: #666;
-    background: none;
+    color: #6B7280;
+    background: transparent;
     border: none;
-    border-bottom: 3px solid transparent;
+    border-radius: 8px;
     cursor: pointer;
-    transition: color 0.2s, border-color 0.2s;
-    margin-bottom: -2px;
+    transition: all 0.2s ease;
+    margin-bottom: 0;
 }
 
 .hl-tab:hover {
-    color: #1a237e;
+    color: #1A2B47;
+    background: rgba(26, 43, 71, 0.06);
 }
 
 .hl-tab.active {
-    color: #1a237e;
-    border-bottom-color: #1a237e;
+    color: #FFFFFF;
+    background: #1A2B47;
+    box-shadow: 0 1px 3px rgba(26, 43, 71, 0.2);
 }
 
-/* === Cohort Block === */
+/* =====================================================
+   TAB CONTENT SHOW / HIDE
+   ===================================================== */
+
+.hl-frontend-wrap .hl-cohort-content {
+    display: none !important;
+}
+
+.hl-frontend-wrap .hl-cohort-content.active {
+    display: block !important;
+}
+
+/* =====================================================
+   6. COHORT BLOCK
+   ===================================================== */
+
 .hl-cohort-block {
-    margin-bottom: 32px;
+    margin-bottom: 36px;
 }
 
-/* === Section Title === */
+/* =====================================================
+   7. SECTION TITLE
+   ===================================================== */
+
 .hl-section-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: #283593;
-    margin: 0 0 14px;
+    font-size: 17px;
+    font-weight: 700;
+    color: #1A2B47;
+    margin: 0 0 16px;
+    letter-spacing: -0.01em;
 }
 
-/* === Badges === */
+/* =====================================================
+   8. BADGES — PILL SHAPES WITH COLOR FILLS
+   ===================================================== */
+
 .hl-badge {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 10px;
-    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 12px;
+    border-radius: 100px;
+    font-size: 12px;
     font-weight: 600;
     text-transform: capitalize;
+    letter-spacing: 0.01em;
+    line-height: 1.5;
 }
 
-.hl-badge-active { background: #e8f5e9; color: #2e7d32; }
-.hl-badge-paused { background: #fff8e1; color: #f57f17; }
-.hl-badge-draft { background: #f5f5f5; color: #666; }
-.hl-badge-archived { background: #fce4ec; color: #c62828; }
-.hl-badge-role { background: #e8eaf6; color: #283593; margin: 1px 3px; }
+.hl-badge-active       { background: #D1FAE5; color: #065F46; }
+.hl-badge-paused       { background: #FEF3C7; color: #92400E; }
+.hl-badge-draft        { background: #F3F4F6; color: #6B7280; }
+.hl-badge-archived     { background: #FEE2E2; color: #991B1B; }
+.hl-badge-role         { background: #E0E7FF; color: #3730A3; margin: 1px 3px; }
+.hl-badge-not-started  { background: #F3F4F6; color: #6B7280; }
+.hl-badge-in-progress  { background: #DBEAFE; color: #1D4ED8; }
+.hl-badge-completed    { background: #D1FAE5; color: #065F46; }
+.hl-badge-not-started  { background: #F3F4F6; color: #6B7280; }
+.hl-badge-complete     { background: #D1FAE5; color: #065F46; }
 
-/* === Meta Items === */
+/* =====================================================
+   9. META ITEMS
+   ===================================================== */
+
 .hl-cohort-meta {
     display: flex;
-    gap: 16px;
+    gap: 18px;
     flex-wrap: wrap;
     font-size: 14px;
-    color: #555;
-    margin-top: 4px;
+    color: #6B7280;
+    margin-top: 6px;
 }
 
 .hl-meta-item strong {
     font-weight: 600;
-    color: #333;
+    color: #374151;
 }
 
 /* =====================================================
-   MY PROGRESS SHORTCODE
+   10. PROGRESS BARS — GRADIENT, TALLER, ROUNDED
    ===================================================== */
 
-/* --- Progress Header (ring + info side by side) --- */
-.hl-progress-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    background: #f5f5ff;
-    border: 1px solid #c5cae9;
-    border-radius: 8px;
-    padding: 20px 24px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
+.hl-progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background: #E5E7EB;
+    border-radius: 100px;
+    overflow: hidden;
 }
 
-.hl-progress-header-info {
-    flex: 1;
-    min-width: 200px;
+.hl-progress-bar {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 0.5s ease;
+    background: #D1D5DB;
 }
 
-.hl-cohort-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: #1a237e;
-    margin: 0 0 6px;
+.hl-progress-bar.hl-progress-active {
+    background: linear-gradient(90deg, #1A2B47 0%, #2C7BE5 100%);
 }
 
-/* --- SVG Progress Ring --- */
+.hl-progress-bar.hl-progress-complete {
+    background: linear-gradient(90deg, #059669 0%, #2ECC71 100%);
+}
+
+.hl-progress-bar.hl-progress-locked {
+    background: #E5E7EB;
+}
+
+/* =====================================================
+   11. SVG PROGRESS RING
+   ===================================================== */
+
 .hl-progress-ring-container,
 .hl-team-avg {
     flex-shrink: 0;
@@ -154,8 +269,8 @@
 
 .hl-progress-ring {
     position: relative;
-    width: 100px;
-    height: 100px;
+    width: 110px;
+    height: 110px;
 }
 
 .hl-progress-ring svg {
@@ -166,13 +281,13 @@
 
 .hl-ring-bg {
     fill: none;
-    stroke: #e8eaf6;
+    stroke: #E5E7EB;
     stroke-width: 8;
 }
 
 .hl-ring-fill {
     fill: none;
-    stroke: #3f51b5;
+    stroke: #2ECC71;
     stroke-width: 8;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.6s ease;
@@ -189,57 +304,437 @@
 
 .hl-ring-percent {
     display: block;
-    font-size: 22px;
-    font-weight: 700;
-    color: #1a237e;
+    font-size: 24px;
+    font-weight: 800;
+    color: #1A2B47;
 }
 
 .hl-ring-label {
     display: block;
     font-size: 11px;
-    color: #666;
+    color: #9CA3AF;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    font-weight: 600;
 }
 
-/* --- Activity List --- */
+/* =====================================================
+   12. BUTTONS
+   ===================================================== */
+
+.hl-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    line-height: 1.4;
+    gap: 6px;
+}
+
+.hl-btn-sm {
+    padding: 6px 16px;
+    font-size: 13px;
+    border-radius: 6px;
+}
+
+.hl-btn-primary {
+    background: #1A2B47;
+    color: #FFFFFF;
+    border-color: #1A2B47;
+}
+
+.hl-btn-primary:hover {
+    background: #243B5C;
+    border-color: #243B5C;
+    color: #FFFFFF;
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(26, 43, 71, 0.25);
+    transform: translateY(-1px);
+}
+
+.hl-btn-secondary {
+    background: transparent;
+    color: #1A2B47;
+    border-color: #D1D5DB;
+}
+
+.hl-btn-secondary:hover {
+    background: #F4F5F7;
+    border-color: #1A2B47;
+    color: #1A2B47;
+    text-decoration: none;
+}
+
+.hl-btn-success {
+    background: #059669;
+    color: #FFFFFF;
+    border-color: #059669;
+}
+
+.hl-btn-success:hover {
+    background: #047857;
+    border-color: #047857;
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+/* =====================================================
+   13. HEADER PANELS
+   ===================================================== */
+
+.hl-progress-header,
+.hl-team-header,
+.hl-my-cohort-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: linear-gradient(135deg, #1A2B47 0%, #243B5C 100%);
+    border: none;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    color: #FFFFFF;
+}
+
+.hl-progress-header-info,
+.hl-team-header-info,
+.hl-my-cohort-header-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-progress-header .hl-cohort-title,
+.hl-team-header .hl-team-title,
+.hl-my-cohort-header .hl-cohort-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin: 0 0 6px;
+}
+
+.hl-progress-header .hl-cohort-meta,
+.hl-my-cohort-header .hl-cohort-meta {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.hl-progress-header .hl-meta-item strong,
+.hl-my-cohort-header .hl-meta-item strong {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.hl-progress-header .hl-badge,
+.hl-my-cohort-header .hl-badge {
+    background: rgba(255, 255, 255, 0.15);
+    color: #FFFFFF;
+}
+
+.hl-progress-header .hl-ring-percent,
+.hl-my-cohort-header .hl-ring-percent {
+    color: #FFFFFF;
+}
+
+.hl-progress-header .hl-ring-label,
+.hl-my-cohort-header .hl-ring-label {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.hl-progress-header .hl-ring-bg,
+.hl-my-cohort-header .hl-ring-bg {
+    stroke: rgba(255, 255, 255, 0.15);
+}
+
+.hl-progress-header .hl-ring-fill,
+.hl-my-cohort-header .hl-ring-fill {
+    stroke: #2ECC71;
+}
+
+.hl-my-cohort-header .hl-scope-indicator {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 8px;
+    font-style: italic;
+}
+
+.hl-my-cohort-header .hl-cohort-selector label {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.hl-my-cohort-header .hl-cohort-selector .hl-select {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #FFFFFF;
+}
+
+/* =====================================================
+   14. DASHBOARD HEADER (Cohort Dashboard)
+   ===================================================== */
+
+.hl-dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+}
+
+.hl-dashboard-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1A2B47;
+    margin: 0;
+}
+
+/* =====================================================
+   15. COHORT SELECTOR
+   ===================================================== */
+
+.hl-cohort-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hl-cohort-selector label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #6B7280;
+}
+
+/* =====================================================
+   16. SELECT & SEARCH INPUTS
+   ===================================================== */
+
+.hl-select {
+    padding: 8px 14px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #FFFFFF;
+    min-width: 180px;
+    color: #1A2B47;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.hl-select:focus {
+    outline: none;
+    border-color: #2C7BE5;
+    box-shadow: 0 0 0 3px rgba(44, 123, 229, 0.1);
+}
+
+.hl-search-input {
+    padding: 8px 14px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    font-size: 14px;
+    min-width: 200px;
+    background: #FFFFFF;
+    color: #1A2B47;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.hl-search-input:focus {
+    outline: none;
+    border-color: #2C7BE5;
+    box-shadow: 0 0 0 3px rgba(44, 123, 229, 0.1);
+}
+
+.hl-search-input::placeholder {
+    color: #9CA3AF;
+}
+
+/* =====================================================
+   17. METRICS ROW
+   ===================================================== */
+
+.hl-metrics-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.hl-metric-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 20px 24px;
+    text-align: center;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.hl-metric-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+}
+
+.hl-metric-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: #1A2B47;
+    line-height: 1.2;
+}
+
+.hl-metric-label {
+    font-size: 13px;
+    color: #9CA3AF;
+    margin-top: 4px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* =====================================================
+   18. DATA TABLES
+   ===================================================== */
+
+.hl-table-container {
+    margin-bottom: 28px;
+}
+
+.hl-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.hl-table-filters {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.hl-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 14px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.hl-table thead th {
+    background: #1A2B47;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.9);
+    border-bottom: none;
+}
+
+.hl-table tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #F3F4F6;
+    vertical-align: middle;
+    color: #374151;
+}
+
+.hl-table tbody tr:nth-child(even) {
+    background: #FAFBFC;
+}
+
+.hl-table tbody tr:hover {
+    background: #EFF6FF;
+}
+
+.hl-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.hl-table tbody td strong {
+    color: #1A2B47;
+    font-weight: 600;
+}
+
+.hl-table tbody td a {
+    color: #2C7BE5;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.hl-table tbody td a:hover {
+    color: #1D4ED8;
+    text-decoration: underline;
+}
+
+/* --- Inline Progress (table cells) --- */
+.hl-inline-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hl-progress-inline {
+    flex: 1;
+    min-width: 60px;
+}
+
+.hl-progress-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1A2B47;
+    white-space: nowrap;
+    min-width: 36px;
+}
+
+/* =====================================================
+   19. ACTIVITY CARDS
+   ===================================================== */
+
 .hl-activity-list {
-    margin-bottom: 24px;
+    margin-bottom: 28px;
 }
 
 .hl-activity-list .hl-section-title {
-    margin-bottom: 14px;
+    margin-bottom: 16px;
 }
 
-/* --- Activity Card --- */
 .hl-activity-card {
     display: flex;
     align-items: stretch;
-    gap: 14px;
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 10px;
-    transition: box-shadow 0.2s, border-color 0.2s;
+    gap: 16px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 .hl-activity-card:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
 }
 
 .hl-activity-completed {
-    border-left: 4px solid #4caf50;
-    background: #f9fdf6;
+    border-left: 4px solid #2ECC71;
+    background: #F0FDF4;
 }
 
 .hl-activity-locked {
-    opacity: 0.6;
-    background: #fafafa;
+    opacity: 0.55;
+    background: #FAFBFC;
 }
 
 .hl-activity-available {
-    border-left: 4px solid #3f51b5;
+    border-left: 4px solid #2C7BE5;
 }
 
 /* --- Activity Status Icon --- */
@@ -247,14 +742,22 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
-    font-size: 20px;
+    font-size: 18px;
+    border-radius: 50%;
+    background: #F4F5F7;
+    align-self: flex-start;
+    margin-top: 2px;
 }
 
-.hl-icon-check { color: #4caf50; }
-.hl-icon-lock { color: #9e9e9e; font-size: 16px; }
-.hl-icon-progress { color: #3f51b5; }
+.hl-icon-check  { color: #059669; }
+.hl-icon-lock   { color: #9CA3AF; font-size: 15px; }
+.hl-icon-progress { color: #2C7BE5; }
+
+.hl-activity-completed .hl-activity-status-icon { background: #D1FAE5; }
+.hl-activity-available .hl-activity-status-icon { background: #DBEAFE; }
 
 /* --- Activity Content --- */
 .hl-activity-content {
@@ -265,16 +768,17 @@
 .hl-activity-title {
     font-size: 15px;
     font-weight: 600;
-    color: #1e1e1e;
-    margin: 0 0 4px;
+    color: #1A2B47;
+    margin: 0 0 6px;
 }
 
 .hl-activity-title a {
-    color: #1a237e;
+    color: #1A2B47;
     text-decoration: none;
 }
 
 .hl-activity-title a:hover {
+    color: #2C7BE5;
     text-decoration: underline;
 }
 
@@ -283,235 +787,158 @@
     gap: 12px;
     flex-wrap: wrap;
     font-size: 13px;
-    color: #888;
-    margin-bottom: 8px;
+    color: #9CA3AF;
+    margin-bottom: 10px;
+    align-items: center;
 }
 
 .hl-activity-type {
     display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
+    padding: 2px 10px;
+    border-radius: 100px;
     font-size: 11px;
     font-weight: 600;
-    background: #f0f0f0;
-    color: #555;
+    background: #E0E7FF;
+    color: #3730A3;
 }
 
 .hl-activity-date {
-    color: #4caf50;
+    color: #059669;
+    font-weight: 500;
 }
 
 .hl-activity-lock-reason {
-    color: #b71c1c;
+    color: #DC2626;
     font-style: italic;
 }
 
 .hl-activity-progress-text {
-    color: #666;
+    color: #6B7280;
 }
 
-/* --- Progress Bars --- */
-.hl-progress-bar-container {
-    width: 100%;
-    height: 6px;
-    background: #e8eaf6;
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.hl-progress-bar {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.4s ease;
-    background: #ccc;
-}
-
-.hl-progress-bar.hl-progress-active {
-    background: #3f51b5;
-}
-
-.hl-progress-bar.hl-progress-complete {
-    background: #4caf50;
-}
-
-.hl-progress-bar.hl-progress-locked {
-    background: #e0e0e0;
-}
-
-/* --- Activity Action (buttons / notices) --- */
 .hl-activity-action {
-    margin: 6px 0 8px;
+    margin: 8px 0 10px;
 }
 
 .hl-activity-notice {
     display: inline-block;
-    font-size: 12px;
-    color: #888;
+    font-size: 13px;
+    color: #9CA3AF;
     font-style: italic;
 }
 
-/* --- Buttons --- */
-.hl-btn {
-    display: inline-block;
-    padding: 8px 18px;
-    border-radius: 5px;
-    font-size: 14px;
-    font-weight: 600;
-    text-decoration: none;
-    border: none;
-    cursor: pointer;
-    transition: background 0.2s, box-shadow 0.2s;
-    line-height: 1.4;
-}
+/* =====================================================
+   20. INLINE FORM VIEW (JFB)
+   ===================================================== */
 
-.hl-btn-sm {
-    padding: 5px 14px;
-    font-size: 13px;
-}
-
-.hl-btn-primary {
-    background: #3f51b5;
-    color: #fff;
-}
-
-.hl-btn-primary:hover {
-    background: #303f9f;
-    color: #fff;
-    text-decoration: none;
-}
-
-.hl-btn-secondary {
-    background: #e8eaf6;
-    color: #283593;
-}
-
-.hl-btn-secondary:hover {
-    background: #c5cae9;
-    color: #1a237e;
-    text-decoration: none;
-}
-
-/* --- Inline Form View (JFB form embedded in My Progress) --- */
 .hl-inline-form-wrapper {
-    margin-bottom: 24px;
+    margin-bottom: 28px;
 }
 
 .hl-back-link {
-    display: inline-block;
-    margin-bottom: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 20px;
     font-size: 14px;
-    color: #3f51b5;
+    color: #2C7BE5;
     text-decoration: none;
     font-weight: 500;
+    transition: color 0.2s;
 }
 
 .hl-back-link:hover {
-    color: #1a237e;
-    text-decoration: underline;
+    color: #1D4ED8;
+    text-decoration: none;
 }
 
 .hl-inline-form-title {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 700;
-    color: #1a237e;
+    color: #1A2B47;
     margin: 0 0 8px;
 }
 
 .hl-inline-form-description {
     font-size: 15px;
-    color: #555;
-    margin: 0 0 20px;
-    line-height: 1.6;
+    color: #6B7280;
+    margin: 0 0 24px;
+    line-height: 1.7;
 }
 
 .hl-jfb-form-container {
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 24px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 28px;
 }
 
-/* === Empty State === */
+/* =====================================================
+   21. EMPTY STATE
+   ===================================================== */
+
 .hl-empty-state {
     text-align: center;
-    padding: 48px 20px;
-    color: #999;
+    padding: 60px 24px;
+    color: #9CA3AF;
 }
 
 .hl-empty-state h3 {
     font-size: 18px;
-    color: #666;
+    color: #6B7280;
     margin: 0 0 8px;
+    font-weight: 600;
 }
 
 .hl-empty-state p {
     font-size: 15px;
     margin: 0;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
 }
 
 /* =====================================================
-   TEAM PROGRESS SHORTCODE
+   22. MEMBER CARDS (Team Progress)
    ===================================================== */
 
-/* --- Team Header --- */
-.hl-team-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    background: #f5f5ff;
-    border: 1px solid #c5cae9;
-    border-radius: 8px;
-    padding: 20px 24px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-}
-
-.hl-team-header-info {
-    flex: 1;
-    min-width: 200px;
-}
-
-.hl-team-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: #1a237e;
-    margin: 0 0 6px;
-}
-
-/* --- Team Members --- */
 .hl-team-members {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
 }
 
-/* --- Member Card --- */
 .hl-member-card {
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
     overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.hl-member-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .hl-member-header {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 14px 18px;
+    padding: 16px 20px;
 }
 
 .hl-member-avatar {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    background: #c5cae9;
-    color: #283593;
+    background: linear-gradient(135deg, #1A2B47, #2C7BE5);
+    color: #FFFFFF;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 15px;
+    font-size: 16px;
     flex-shrink: 0;
 }
 
@@ -523,19 +950,19 @@
 .hl-member-name {
     font-size: 15px;
     font-weight: 600;
-    color: #1e1e1e;
+    color: #1A2B47;
     margin: 0;
 }
 
 .hl-member-email {
     font-size: 13px;
-    color: #888;
+    color: #9CA3AF;
     display: block;
 }
 
 .hl-member-role {
     font-size: 12px;
-    color: #666;
+    color: #6B7280;
 }
 
 .hl-member-completion {
@@ -544,9 +971,9 @@
 }
 
 .hl-completion-value {
-    font-size: 18px;
-    font-weight: 700;
-    color: #3f51b5;
+    font-size: 20px;
+    font-weight: 800;
+    color: #1A2B47;
 }
 
 .hl-member-card .hl-progress-bar-container {
@@ -556,24 +983,25 @@
 
 /* --- Member Details (native <details>) --- */
 .hl-member-details {
-    border-top: 1px solid #f0f0f0;
+    border-top: 1px solid #F3F4F6;
     font-size: 14px;
 }
 
 .hl-member-details summary {
-    padding: 10px 18px;
+    padding: 12px 20px;
     cursor: pointer;
-    color: #3f51b5;
-    font-weight: 500;
+    color: #2C7BE5;
+    font-weight: 600;
     font-size: 13px;
+    transition: background 0.2s;
 }
 
 .hl-member-details summary:hover {
-    background: #fafafa;
+    background: #F9FAFB;
 }
 
 .hl-member-activities {
-    padding: 0 18px 14px;
+    padding: 0 20px 16px;
 }
 
 /* --- Mini Activity Row --- */
@@ -581,8 +1009,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px 0;
-    border-bottom: 1px solid #f5f5f5;
+    padding: 8px 0;
+    border-bottom: 1px solid #F3F4F6;
     font-size: 13px;
 }
 
@@ -591,7 +1019,7 @@
 }
 
 .hl-mini-status {
-    width: 20px;
+    width: 22px;
     text-align: center;
     flex-shrink: 0;
     font-size: 14px;
@@ -603,190 +1031,350 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: #374151;
 }
 
 .hl-mini-percent {
     flex-shrink: 0;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 12px;
     min-width: 60px;
     text-align: right;
 }
 
-.hl-mini-complete .hl-mini-status { color: #4caf50; }
-.hl-mini-complete .hl-mini-title { color: #2e7d32; }
-.hl-mini-complete .hl-mini-percent { color: #4caf50; }
+.hl-mini-complete .hl-mini-status  { color: #059669; }
+.hl-mini-complete .hl-mini-title   { color: #065F46; }
+.hl-mini-complete .hl-mini-percent { color: #059669; }
 
-.hl-mini-progress .hl-mini-status { color: #3f51b5; }
-.hl-mini-progress .hl-mini-percent { color: #3f51b5; }
+.hl-mini-progress .hl-mini-status  { color: #2C7BE5; }
+.hl-mini-progress .hl-mini-percent { color: #2C7BE5; }
 
-.hl-mini-locked .hl-mini-status { color: #bdbdbd; }
-.hl-mini-locked .hl-mini-title { color: #999; }
-.hl-mini-locked .hl-mini-percent { color: #999; }
+.hl-mini-locked .hl-mini-status  { color: #D1D5DB; }
+.hl-mini-locked .hl-mini-title   { color: #9CA3AF; }
+.hl-mini-locked .hl-mini-percent { color: #9CA3AF; }
 
 /* =====================================================
-   COHORT DASHBOARD SHORTCODE
+   23. MY PROGRAMS
    ===================================================== */
 
-/* --- Dashboard Header --- */
-.hl-dashboard-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
+.hl-programs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
 }
 
-.hl-dashboard-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: #1a237e;
-    margin: 0;
+.hl-program-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
 }
 
-/* --- Cohort Selector --- */
-.hl-cohort-selector {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.hl-program-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    transform: translateY(-3px);
 }
 
-.hl-cohort-selector label {
-    font-size: 14px;
-    font-weight: 600;
-    color: #555;
+.hl-program-card-image {
+    height: 180px;
+    background: linear-gradient(135deg, #1A2B47, #2C7BE5);
+    overflow: hidden;
+    position: relative;
 }
 
-.hl-select {
-    padding: 6px 12px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 13px;
-    background: #fff;
-    min-width: 180px;
-}
-
-/* --- Metrics Row --- */
-.hl-metrics-row {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-}
-
-.hl-metric-card {
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 18px 22px;
-    text-align: center;
-    flex: 1;
-    min-width: 130px;
-}
-
-.hl-metric-value {
-    font-size: 30px;
-    font-weight: 700;
-    color: #1a237e;
-    line-height: 1.2;
-}
-
-.hl-metric-label {
-    font-size: 13px;
-    color: #666;
-    margin-top: 4px;
-}
-
-/* --- Table Container --- */
-.hl-table-container {
-    margin-bottom: 24px;
-}
-
-.hl-table-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
-}
-
-.hl-table-filters {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-}
-
-/* --- Data Table --- */
-.hl-table {
+.hl-program-card-image img {
     width: 100%;
-    border-collapse: collapse;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hl-program-card-body {
+    padding: 20px;
+}
+
+.hl-program-card-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    color: #1A2B47;
+}
+
+.hl-program-card-cohort {
+    font-size: 13px;
+    color: #9CA3AF;
+    margin: 0 0 14px;
+    font-weight: 500;
+}
+
+.hl-program-card-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.hl-program-card-progress span {
     font-size: 14px;
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    font-weight: 700;
+    color: #1A2B47;
+    min-width: 36px;
+}
+
+.hl-program-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 16px;
+    border-top: 1px solid #F3F4F6;
+}
+
+/* =====================================================
+   24. PROGRAM PAGE
+   ===================================================== */
+
+.hl-program-header {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.hl-program-hero-image {
+    width: 100%;
+    max-height: 260px;
+    border-radius: 12px;
     overflow: hidden;
 }
 
-.hl-table thead th {
-    background: #f5f5ff;
-    padding: 10px 14px;
-    text-align: left;
-    font-weight: 600;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #666;
-    border-bottom: 2px solid #c5cae9;
+.hl-program-hero-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-.hl-table tbody td {
-    padding: 10px 14px;
-    border-bottom: 1px solid #f0f0f0;
-    vertical-align: middle;
-}
-
-.hl-table tbody tr:hover {
-    background: #fafafa;
-}
-
-.hl-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-/* --- Inline Progress (table cells) --- */
-.hl-inline-progress {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.hl-progress-inline {
+.hl-program-header-info {
     flex: 1;
-    min-width: 60px;
+    min-width: 200px;
 }
 
-.hl-progress-text {
-    font-size: 13px;
+.hl-program-details {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 18px 24px;
+    margin-bottom: 28px;
+}
+
+.hl-program-detail-item {
+    font-size: 14px;
+    color: #6B7280;
+}
+
+.hl-program-detail-item strong {
+    color: #1A2B47;
     font-weight: 600;
-    color: #3f51b5;
-    white-space: nowrap;
+}
+
+.hl-program-objectives {
+    margin-bottom: 28px;
+}
+
+.hl-program-objectives h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: #1A2B47;
+    margin: 0 0 12px;
 }
 
 /* =====================================================
-   RESPONSIVE
+   25. ACTIVITY PAGE
    ===================================================== */
+
+.hl-activity-page .hl-activity-type-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    background: #E0E7FF;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #3730A3;
+    margin-bottom: 20px;
+}
+
+.hl-activity-locked-view {
+    text-align: center;
+    padding: 56px 24px;
+    background: #F9FAFB;
+    border-radius: 12px;
+    border: 1px solid #E5E7EB;
+}
+
+.hl-activity-locked-view .hl-lock-icon {
+    font-size: 52px;
+    color: #D1D5DB;
+    margin-bottom: 16px;
+}
+
+/* =====================================================
+   26. TEAMS GRID (My Cohort)
+   ===================================================== */
+
+.hl-teams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+.hl-team-card-item {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 22px;
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.hl-team-card-item:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+}
+
+.hl-team-card-name {
+    font-size: 17px;
+    font-weight: 700;
+    color: #1A2B47;
+    margin: 0 0 4px;
+}
+
+.hl-team-card-name a {
+    color: #1A2B47;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.hl-team-card-name a:hover {
+    color: #2C7BE5;
+}
+
+.hl-team-card-center {
+    font-size: 13px;
+    color: #9CA3AF;
+    margin: 0 0 12px;
+    font-weight: 500;
+}
+
+.hl-team-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: #6B7280;
+    margin-bottom: 14px;
+}
+
+.hl-team-card-meta strong {
+    font-weight: 600;
+    color: #374151;
+}
+
+.hl-team-card-progress {
+    margin-bottom: 14px;
+}
+
+.hl-team-card-action {
+    text-align: right;
+    padding-top: 14px;
+    border-top: 1px solid #F3F4F6;
+}
+
+/* =====================================================
+   27. REPORT FILTERS
+   ===================================================== */
+
+.hl-report-filters {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+/* =====================================================
+   28. EXPORT BUTTON
+   ===================================================== */
+
+.hl-export-btn {
+    white-space: nowrap;
+    background: #059669;
+    color: #FFFFFF;
+    border-color: #059669;
+}
+
+.hl-export-btn:hover {
+    background: #047857;
+    border-color: #047857;
+    color: #FFFFFF;
+}
+
+/* =====================================================
+   29. DETAIL ROW (expandable reports)
+   ===================================================== */
+
+.hl-detail-row td {
+    padding: 0 !important;
+    background: #F9FAFB;
+}
+
+.hl-detail-content {
+    padding: 16px 20px;
+}
+
+.hl-detail-table {
+    margin: 0;
+    font-size: 13px;
+    border-radius: 8px;
+}
+
+.hl-detail-table thead th {
+    background: #374151;
+    padding: 10px 14px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.hl-detail-table tbody td {
+    padding: 8px 14px;
+}
+
+.hl-detail-toggle {
+    font-size: 12px !important;
+    padding: 4px 12px !important;
+    border-radius: 6px !important;
+}
+
+/* =====================================================
+   30. RESPONSIVE — GLOBAL
+   ===================================================== */
+
 @media (max-width: 768px) {
     .hl-progress-header,
-    .hl-team-header {
+    .hl-team-header,
+    .hl-my-cohort-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 16px;
+        padding: 20px;
     }
 
     .hl-metrics-row {
-        flex-direction: column;
+        grid-template-columns: 1fr 1fr;
     }
 
     .hl-metric-card {
@@ -794,12 +1382,14 @@
     }
 
     .hl-cohort-tabs {
-        gap: 0;
+        gap: 4px;
     }
 
     .hl-tab {
-        padding: 8px 14px;
+        padding: 8px 16px;
         font-size: 13px;
+        flex: 1;
+        text-align: center;
     }
 
     .hl-member-header {
@@ -817,12 +1407,39 @@
 
     .hl-table thead th,
     .hl-table tbody td {
-        padding: 8px 10px;
+        padding: 10px 12px;
     }
 
     .hl-cohort-meta {
         flex-direction: column;
         gap: 4px;
+    }
+
+    .hl-programs-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hl-teams-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hl-program-header {
+        flex-direction: column;
+    }
+
+    .hl-program-details {
+        flex-direction: column;
+    }
+
+    .hl-report-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hl-report-filters .hl-select,
+    .hl-report-filters .hl-search-input {
+        width: 100%;
+        min-width: 0;
     }
 }
 
@@ -839,381 +1456,22 @@
     .hl-select {
         flex: 1;
     }
-}
 
-/* =====================================================
-   MY PROGRAMS SHORTCODE
-   ===================================================== */
-
-.hl-programs-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
-}
-
-.hl-program-card {
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    overflow: hidden;
-    transition: box-shadow 0.2s;
-}
-
-.hl-program-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
-
-.hl-program-card-image {
-    height: 160px;
-    background: #e8eaf6;
-    overflow: hidden;
-}
-
-.hl-program-card-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.hl-program-card-body {
-    padding: 18px;
-}
-
-.hl-program-card-title {
-    font-size: 17px;
-    font-weight: 700;
-    margin: 0 0 4px;
-    color: #1a237e;
-}
-
-.hl-program-card-cohort {
-    font-size: 13px;
-    color: #888;
-    margin: 0 0 12px;
-}
-
-.hl-program-card-progress {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-
-.hl-program-card-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-/* =====================================================
-   PROGRAM PAGE SHORTCODE
-   ===================================================== */
-
-.hl-program-header {
-    display: flex;
-    gap: 24px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-}
-
-.hl-program-hero-image {
-    width: 100%;
-    max-height: 240px;
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-.hl-program-hero-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.hl-program-header-info {
-    flex: 1;
-    min-width: 200px;
-}
-
-.hl-program-details {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    background: #f5f5ff;
-    border: 1px solid #c5cae9;
-    border-radius: 8px;
-    padding: 16px 20px;
-    margin-bottom: 24px;
-}
-
-.hl-program-detail-item {
-    font-size: 14px;
-    color: #555;
-}
-
-.hl-program-detail-item strong {
-    color: #333;
-}
-
-.hl-program-objectives {
-    margin-bottom: 24px;
-}
-
-.hl-program-objectives h3 {
-    font-size: 16px;
-    font-weight: 600;
-    color: #283593;
-    margin: 0 0 10px;
-}
-
-/* =====================================================
-   ACTIVITY PAGE SHORTCODE
-   ===================================================== */
-
-.hl-activity-page .hl-activity-type-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    background: #f0f0f0;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #555;
-    margin-bottom: 16px;
-}
-
-.hl-activity-locked-view {
-    text-align: center;
-    padding: 48px 20px;
-}
-
-.hl-activity-locked-view .hl-lock-icon {
-    font-size: 48px;
-    color: #9e9e9e;
-    margin-bottom: 16px;
-}
-
-/* Status badges for program cards */
-.hl-badge-not-started {
-    background: #f5f5f5;
-    color: #666;
-}
-
-.hl-badge-in-progress {
-    background: #e3f2fd;
-    color: #1565c0;
-}
-
-.hl-badge-completed {
-    background: #e8f5e9;
-    color: #2e7d32;
-}
-
-/* =====================================================
-   RESPONSIVE — MY PROGRAMS / PROGRAM PAGE / ACTIVITY
-   ===================================================== */
-
-@media (max-width: 768px) {
-    .hl-programs-grid {
+    .hl-metrics-row {
         grid-template-columns: 1fr;
     }
 
-    .hl-program-header {
+    .hl-cohort-tabs {
         flex-direction: column;
     }
 
-    .hl-program-details {
+    .hl-tab {
+        text-align: center;
+    }
+
+    .hl-program-card-footer {
         flex-direction: column;
-    }
-}
-
-/* =====================================================
-   TAB CONTENT SHOW / HIDE
-   ===================================================== */
-
-.hl-frontend-wrap .hl-cohort-content {
-    display: none !important;
-}
-
-.hl-frontend-wrap .hl-cohort-content.active {
-    display: block !important;
-}
-
-/* =====================================================
-   MY COHORT SHORTCODE
-   ===================================================== */
-
-/* --- Header --- */
-.hl-my-cohort-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 20px;
-    background: #f5f5ff;
-    border: 1px solid #c5cae9;
-    border-radius: 8px;
-    padding: 20px 24px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-}
-
-.hl-my-cohort-header-info {
-    flex: 1;
-    min-width: 200px;
-}
-
-.hl-scope-indicator {
-    font-size: 14px;
-    color: #555;
-    margin: 0 0 8px;
-    font-style: italic;
-}
-
-/* --- Teams Grid --- */
-.hl-teams-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 16px;
-}
-
-.hl-team-card-item {
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 18px;
-    transition: box-shadow 0.2s;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
-.hl-team-card-item:hover {
-    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-}
-
-.hl-team-card-name {
-    font-size: 16px;
-    font-weight: 700;
-    color: #1a237e;
-    margin: 0 0 4px;
-}
-
-.hl-team-card-name a {
-    color: #1a237e;
-    text-decoration: none;
-}
-
-.hl-team-card-name a:hover {
-    text-decoration: underline;
-}
-
-.hl-team-card-center {
-    font-size: 13px;
-    color: #888;
-    margin: 0 0 10px;
-}
-
-.hl-team-card-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 13px;
-    color: #555;
-    margin-bottom: 12px;
-}
-
-.hl-team-card-meta strong {
-    font-weight: 600;
-    color: #333;
-}
-
-.hl-team-card-progress {
-    margin-bottom: 12px;
-}
-
-.hl-team-card-action {
-    text-align: right;
-}
-
-/* --- Search Input --- */
-.hl-search-input {
-    padding: 6px 12px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 13px;
-    min-width: 180px;
-    background: #fff;
-}
-
-.hl-search-input:focus {
-    outline: none;
-    border-color: #3f51b5;
-    box-shadow: 0 0 0 2px rgba(63,81,181,0.15);
-}
-
-/* --- Report Filters Row --- */
-.hl-report-filters {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-}
-
-/* --- Export Button --- */
-.hl-export-btn {
-    white-space: nowrap;
-}
-
-/* --- Detail Row (expandable) --- */
-.hl-detail-row td {
-    padding: 0 !important;
-    background: #fafafa;
-}
-
-.hl-detail-content {
-    padding: 14px 18px;
-}
-
-.hl-detail-table {
-    margin: 0;
-    font-size: 13px;
-}
-
-.hl-detail-table thead th {
-    padding: 8px 12px;
-    font-size: 11px;
-}
-
-.hl-detail-table tbody td {
-    padding: 6px 12px;
-}
-
-/* --- Detail Toggle Button --- */
-.hl-detail-toggle {
-    font-size: 12px !important;
-    padding: 3px 10px !important;
-}
-
-/* =====================================================
-   RESPONSIVE — MY COHORT
-   ===================================================== */
-
-@media (max-width: 768px) {
-    .hl-my-cohort-header {
-        flex-direction: column;
-    }
-
-    .hl-teams-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .hl-report-filters {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .hl-report-filters .hl-select,
-    .hl-report-filters .hl-search-input {
-        width: 100%;
-        min-width: 0;
+        gap: 10px;
+        align-items: flex-start;
     }
 }
