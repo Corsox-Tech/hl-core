@@ -370,7 +370,9 @@ class HL_Frontend_My_Cohort {
 
         if ( ! empty( $center_ids ) ) {
             $all_teams = array_filter( $all_teams, function ( $t ) use ( $center_ids ) {
-                return in_array( (int) $t->center_id, $center_ids, true );
+                // Include teams matching a scoped center OR teams with no center assigned.
+                return empty( $t->center_id )
+                    || in_array( (int) $t->center_id, $center_ids, true );
             } );
             $all_teams = array_values( $all_teams );
         }
@@ -729,15 +731,18 @@ class HL_Frontend_My_Cohort {
     private function render_classrooms_tab( $cohort, $scope ) {
         $center_ids = $this->get_scoped_center_ids( $scope );
 
-        // Get classrooms in scope.
-        $classrooms = array();
-        if ( empty( $center_ids ) ) {
-            $classrooms = $this->get_cohort_classrooms( $cohort->cohort_id );
-        } else {
-            foreach ( $center_ids as $cid ) {
-                $center_classrooms = $this->classroom_service->get_classrooms( $cid );
-                $classrooms        = array_merge( $classrooms, $center_classrooms );
-            }
+        // Always get cohort-scoped classrooms (via teaching assignments),
+        // then optionally filter by the leader's center scope.
+        $classrooms = $this->get_cohort_classrooms( $cohort->cohort_id );
+
+        if ( ! empty( $center_ids ) ) {
+            $classrooms = array_filter( $classrooms, function ( $c ) use ( $center_ids ) {
+                $cr = is_object( $c ) ? $c : (object) $c;
+                // Include classrooms matching a scoped center OR with no center assigned.
+                return empty( $cr->center_id )
+                    || in_array( (int) $cr->center_id, $center_ids, true );
+            } );
+            $classrooms = array_values( $classrooms );
         }
 
         if ( empty( $classrooms ) ) {
