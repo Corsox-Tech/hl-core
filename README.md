@@ -57,7 +57,8 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Audit Log** - Searchable audit log viewer with cohort and action type filters, pagination
 
 - **Instruments** - Full CRUD for children assessment instruments: question editor (add/edit/remove with type, prompt, allowed_values, required flag), version management with edit warnings when instances exist. Only children_infant, children_toddler, children_preschool types.
-- **Coaching Sessions** - Full CRUD with cohort filter, mentor/coach selectors, date/time, attendance marking (with activity_state + rollup updates), rich-text notes (wp_editor), observation linking from submitted observations, WP Media attachments
+- **Coaching Sessions** - Full CRUD with cohort filter, mentor/coach selectors, session title, meeting URL, date/time, session status dropdown (scheduled/attended/missed/cancelled with terminal-state lock), rich-text notes (wp_editor), observation linking from submitted observations, WP Media attachments
+- **Coach Assignments** - Full CRUD for coach-to-scope assignments (center/team/enrollment) with cohort filter, scope name resolution, active/ended status badges, effective date management
 
 - **Reports** - Full reporting dashboard: scope-based filtering (cohort/center/district/team/role), summary cards, center/team summary tables, participant completion table with progress bars, enrollment detail drill-down with activity-level status, CSV exports (completion, center summary, team summary, teacher assessments, children assessments), rollup recompute action
 
@@ -200,7 +201,7 @@ _Read docs: 10 (sections 13–15)_
 
 - [x] **10.1 Coach Assignment Table** — Added `hl_coach_assignment` table (coach_user_id, scope_type enum center/team/enrollment, scope_id, cohort_id, effective_from, effective_to) to class-hl-installer.php with indexes (cohort_scope, coach_user_id, cohort_coach). Created `HL_Coach_Assignment_Service` with: `assign_coach()`, `get_coach_for_enrollment()` (most-specific-wins resolution: enrollment → team → center), `reassign_coach()` (closes old + creates new), `delete_assignment()`, `get_assignments_by_cohort()`, `get_all_assignments_by_cohort()`, `get_coach_roster()`, `get_sessions_for_enrollment()`. Audit logging on assign/reassign/delete. Schema revision bumped to 3.
 - [x] **10.2 Coaching Session Schema Expansion** — Added session_title, meeting_url, session_status (enum: scheduled/attended/missed/cancelled/rescheduled), cancelled_at, rescheduled_from_session_id to hl_coaching_session. Migration maps attendance_status → session_status. Updated HL_Coaching_Service: transition_status() with terminal state validation, cancel_session(), reschedule_session() (marks old as rescheduled + creates linked new session), is_cancellation_allowed() (reads cohort.settings JSON), get_upcoming_sessions()/get_past_sessions(), get_sessions_for_participant(). Backward-compat mark_attendance() syncs both fields. Static render_status_badge() helper.
-- [ ] **10.3 Admin UI Updates** — Coach Assignments admin page or inline dropdowns on Center/Team pages. Coaching Session form: replace attendance_status radio with session_status dropdown, add session_title, meeting_url fields, reschedule/cancel action buttons.
+- [x] **10.3 Admin UI Updates** — Created `class-hl-admin-coach-assignments.php`: full CRUD list/create/delete page with cohort filter, scope name resolution (center/team/enrollment), active/ended status badges, nonce-protected actions. Updated `class-hl-admin-coaching.php`: replaced attendance_status radio with session_status dropdown (scheduled/attended/missed/cancelled with terminal-state read-only lock), added session_title input and meeting_url input, updated list view with title column and status badges via `HL_Coaching_Service::render_status_badge()`. Registered Coach Assignments submenu page in admin.
 - [ ] **10.4 My Coaching Page** — `[hl_my_coaching]` shortcode. Participant view: My Coach card (photo, name, email from CoachAssignmentService resolution), Upcoming Sessions (scheduled sessions with date/time, meeting link, reschedule/cancel buttons), Past Sessions (attended/missed/cancelled/rescheduled with frozen coach name), Schedule New Session (date-time picker, auto-populated session name from next coaching activity). All actions functional with date-time pickers (no MS365 yet).
 - [ ] **10.5 My Coach Widget** — Add coach info card to My Programs page: coach photo, name, email, "Schedule a Session" button linking to My Coaching page. Uses CoachAssignmentService resolution.
 - [ ] **10.6 Program Page Coaching Enhancement** — Update coaching_session_attendance activity cards: show session date/time if scheduled, "Schedule Session" button if no session, "Reschedule" link if missed. Link to My Coaching page for actions.
@@ -240,7 +241,7 @@ _Read docs: 10 (section 2.4)_
     /services/                   # Business logic (12+ services)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss integration (3 classes)
-    /admin/                      # WP admin pages (13 controllers)
+    /admin/                      # WP admin pages (14 controllers)
     /frontend/                   # Shortcode renderers (16 pages + instrument renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization helpers

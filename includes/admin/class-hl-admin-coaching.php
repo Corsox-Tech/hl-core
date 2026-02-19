@@ -131,9 +131,11 @@ class HL_Admin_Coaching {
         if ($session_id > 0) {
             // Update existing session
             $data = array(
-                'session_datetime'  => sanitize_text_field($_POST['session_datetime']),
-                'notes_richtext'    => wp_kses_post($_POST['notes_richtext']),
-                'attendance_status' => sanitize_text_field($_POST['attendance_status']),
+                'session_datetime' => sanitize_text_field($_POST['session_datetime']),
+                'session_title'    => sanitize_text_field($_POST['session_title'] ?? ''),
+                'meeting_url'      => esc_url_raw($_POST['meeting_url'] ?? ''),
+                'session_status'   => sanitize_text_field($_POST['session_status'] ?? 'scheduled'),
+                'notes_richtext'   => wp_kses_post($_POST['notes_richtext']),
             );
 
             $result = $service->update_session($session_id, $data);
@@ -150,6 +152,8 @@ class HL_Admin_Coaching {
                 'cohort_id'            => absint($_POST['cohort_id']),
                 'mentor_enrollment_id' => absint($_POST['mentor_enrollment_id']),
                 'coach_user_id'        => absint($_POST['coach_user_id']),
+                'session_title'        => sanitize_text_field($_POST['session_title'] ?? ''),
+                'meeting_url'          => esc_url_raw($_POST['meeting_url'] ?? ''),
                 'session_datetime'     => sanitize_text_field($_POST['session_datetime']),
                 'notes_richtext'       => wp_kses_post($_POST['notes_richtext']),
             );
@@ -358,13 +362,14 @@ class HL_Admin_Coaching {
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Title', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Date/Time', 'hl-core') . '</th>';
         if (!$filter_cohort) {
             echo '<th>' . esc_html__('Cohort', 'hl-core') . '</th>';
         }
-        echo '<th>' . esc_html__('Mentor', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Participant', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Coach', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Attendance', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Observations', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead>';
@@ -379,8 +384,8 @@ class HL_Admin_Coaching {
                 'hl_delete_coaching_session_' . $session['session_id']
             );
 
-            // Attendance badge
-            $attendance_badge = $this->render_attendance_badge($session['attendance_status']);
+            // Status badge
+            $status_badge = HL_Coaching_Service::render_status_badge($session['session_status'] ?? 'scheduled');
 
             // Observation count
             $obs_count = $coaching_service->get_linked_observation_count($session['session_id']);
@@ -392,13 +397,14 @@ class HL_Admin_Coaching {
 
             echo '<tr>';
             echo '<td>' . esc_html($session['session_id']) . '</td>';
+            echo '<td>' . esc_html($session['session_title'] ?? '') . '</td>';
             echo '<td>' . $session_date_display . '</td>';
             if (!$filter_cohort) {
                 echo '<td>' . esc_html(isset($session['cohort_name']) ? $session['cohort_name'] : '-') . '</td>';
             }
             echo '<td>' . esc_html($session['mentor_name'] ?: '-') . '</td>';
             echo '<td>' . esc_html($session['coach_name'] ?: '-') . '</td>';
-            echo '<td>' . $attendance_badge . '</td>';
+            echo '<td>' . $status_badge . '</td>';
             echo '<td>' . esc_html($obs_count) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
@@ -507,6 +513,14 @@ class HL_Admin_Coaching {
         echo '</select></td>';
         echo '</tr>';
 
+        // ---- Session Title ----
+        echo '<tr>';
+        echo '<th scope="row"><label for="session_title">' . esc_html__('Session Title', 'hl-core') . '</label></th>';
+        echo '<td><input type="text" id="session_title" name="session_title" value="' . esc_attr($is_edit ? ($session['session_title'] ?? '') : '') . '" class="regular-text" />';
+        echo '<p class="description">' . esc_html__('Optional title for this session (e.g., "Week 3 Check-in").', 'hl-core') . '</p>';
+        echo '</td>';
+        echo '</tr>';
+
         // ---- Session Date/Time ----
         $session_datetime = '';
         if ($is_edit && !empty($session['session_datetime'])) {
@@ -519,23 +533,42 @@ class HL_Admin_Coaching {
         echo '<td><input type="datetime-local" id="session_datetime" name="session_datetime" value="' . esc_attr($session_datetime) . '" class="regular-text" /></td>';
         echo '</tr>';
 
-        // ---- Attendance Status ----
-        $current_attendance = $is_edit ? $session['attendance_status'] : 'unknown';
-        $attendance_options = array(
-            'unknown'  => __('Unknown', 'hl-core'),
-            'attended' => __('Attended', 'hl-core'),
-            'missed'   => __('Missed', 'hl-core'),
-        );
+        // ---- Meeting URL ----
+        echo '<tr>';
+        echo '<th scope="row"><label for="meeting_url">' . esc_html__('Meeting URL', 'hl-core') . '</label></th>';
+        echo '<td><input type="url" id="meeting_url" name="meeting_url" value="' . esc_attr($is_edit ? ($session['meeting_url'] ?? '') : '') . '" class="regular-text" placeholder="https://" />';
+        echo '<p class="description">' . esc_html__('Optional link to the virtual meeting (Zoom, Teams, etc.).', 'hl-core') . '</p>';
+        echo '</td>';
+        echo '</tr>';
+
+        // ---- Session Status ----
+        $current_status = $is_edit ? ($session['session_status'] ?? 'scheduled') : 'scheduled';
+        $is_terminal = in_array($current_status, HL_Coaching_Service::TERMINAL_STATUSES, true);
 
         echo '<tr>';
-        echo '<th scope="row">' . esc_html__('Attendance Status', 'hl-core') . '</th>';
+        echo '<th scope="row"><label for="session_status">' . esc_html__('Session Status', 'hl-core') . '</label></th>';
         echo '<td>';
-        foreach ($attendance_options as $value => $label) {
-            echo '<label style="margin-right:20px;">';
-            echo '<input type="radio" name="attendance_status" value="' . esc_attr($value) . '"' . checked($current_attendance, $value, false) . ' /> ';
-            echo esc_html($label);
-            echo '</label>';
+
+        if ($is_terminal) {
+            // Terminal status — show read-only badge
+            echo HL_Coaching_Service::render_status_badge($current_status);
+            echo '<input type="hidden" name="session_status" value="' . esc_attr($current_status) . '" />';
+            echo '<p class="description">' . esc_html__('This session has a terminal status and cannot be changed.', 'hl-core') . '</p>';
+        } else {
+            $status_options = array(
+                'scheduled' => __('Scheduled', 'hl-core'),
+                'attended'  => __('Attended', 'hl-core'),
+                'missed'    => __('Missed', 'hl-core'),
+                'cancelled' => __('Cancelled', 'hl-core'),
+            );
+
+            echo '<select id="session_status" name="session_status">';
+            foreach ($status_options as $value => $label) {
+                echo '<option value="' . esc_attr($value) . '"' . selected($current_status, $value, false) . '>' . esc_html($label) . '</option>';
+            }
+            echo '</select>';
         }
+
         echo '</td>';
         echo '</tr>';
 

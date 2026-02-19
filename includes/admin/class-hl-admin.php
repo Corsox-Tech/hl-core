@@ -33,6 +33,7 @@ class HL_Admin {
         add_submenu_page('hl-core', 'Assessments', 'Assessments', 'manage_hl_core', 'hl-assessments', array(HL_Admin_Assessments::instance(), 'render_page'));
         add_submenu_page('hl-core', 'Instruments', 'Instruments', 'manage_hl_core', 'hl-instruments', array(HL_Admin_Instruments::instance(), 'render_page'));
         add_submenu_page('hl-core', 'Coaching', 'Coaching Sessions', 'manage_hl_core', 'hl-coaching', array(HL_Admin_Coaching::instance(), 'render_page'));
+        add_submenu_page('hl-core', 'Coach Assignments', 'Coach Assignments', 'manage_hl_core', 'hl-coach-assignments', array(HL_Admin_Coach_Assignments::instance(), 'render_page'));
         add_submenu_page('hl-core', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
         add_submenu_page('hl-core', 'Audit Log', 'Audit Log', 'manage_hl_core', 'hl-audit', array(HL_Admin_Audit::instance(), 'render_page'));
     }
