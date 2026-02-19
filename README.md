@@ -94,6 +94,8 @@ Placeholder pages (planned):
 ### WP-CLI Commands
 - **`wp hl-core seed-demo`** — Creates a full realistic demo dataset: 1 district, 2 centers, 1 active cohort, 4 classrooms, 3 instruments, 16 users (10 teachers, 2 mentors, 2 center leaders, 1 district leader, 1 coach), 15 enrollments, 2 teams with memberships, 10 teaching assignments, ~26 children, 2 pathways (teacher: 5 activities, mentor: 2 activities), prerequisite and drip rules, partial activity completion states, computed rollups, 3 coach assignments (2 center-level + 1 team-level), and 6 coaching sessions (attended, scheduled, missed, rescheduled, cancelled)
 - **`wp hl-core seed-demo --clean`** — Removes all demo data (users, cohort, org units, instruments, children, coach assignments, coaching sessions, and all dependent records) identified by cohort code `DEMO-2026` and `demo-*@example.com` user emails
+- **`wp hl-core seed-palm-beach`** — Seeds realistic demo data from the ELC Palm Beach County program: 1 district, 12 centers (3 Head Start + 1 learning center + 8 FCCHs), 1 active cohort, 29 classrooms, 3 instruments, 57 users (47 real teachers with actual names/emails, 4 center leaders, 4 mentors, 1 district leader, 1 coach), 56 enrollments (8 FCCH teachers dual-role as center leaders), 4 teams (WPB Alpha/Beta, Jupiter, South Bay), 47 teaching assignments, 286 real children (with DOBs, gender, ethnicity metadata), 2 pathways (teacher: 5 activities, mentor: 2 activities), prerequisite and drip rules, partial activity states, computed rollups, 4 coach assignments (3 center-level + 1 team-level), and 5 coaching sessions
+- **`wp hl-core seed-palm-beach --clean`** — Removes all Palm Beach data (users, cohort, org units, instruments, children, classrooms, coach assignments, coaching sessions, and all dependent records) identified by cohort code `ELC-PB-2026` and `_hl_palm_beach_seed` user meta
 
 ### REST API
 - `GET /wp-json/hl-core/v1/cohorts`
@@ -240,7 +242,7 @@ _Read docs: 10 (section 2.4)_
     class-hl-installer.php       # DB schema + activation
     /domain/                     # Entity models (8 classes)
     /domain/repositories/        # CRUD repositories (8 classes)
-    /cli/                        # WP-CLI commands (seed-demo)
+    /cli/                        # WP-CLI commands (seed-demo, seed-palm-beach)
     /services/                   # Business logic (12+ services)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss integration (3 classes)
