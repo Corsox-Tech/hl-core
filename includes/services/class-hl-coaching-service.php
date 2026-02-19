@@ -1,7 +1,22 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
+/**
+ * Coaching Service
+ *
+ * Manages coaching sessions with the expanded schema: session_title,
+ * meeting_url, session_status (scheduled/attended/missed/cancelled/rescheduled),
+ * reschedule/cancel flows, plus observation links and attachments.
+ *
+ * @package HL_Core
+ */
 class HL_Coaching_Service {
+
+    /** Valid session status values. */
+    const VALID_SESSION_STATUSES = array('scheduled', 'attended', 'missed', 'cancelled', 'rescheduled');
+
+    /** Terminal statuses that cannot be changed. */
+    const TERMINAL_STATUSES = array('attended', 'missed', 'cancelled', 'rescheduled');
 
     /**
      * Get coaching sessions by cohort
@@ -14,28 +29,268 @@ class HL_Coaching_Service {
              LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
              JOIN {$wpdb->prefix}hl_enrollment e ON cs.mentor_enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u_mentor ON e.user_id = u_mentor.ID
-             WHERE cs.cohort_id = %d ORDER BY cs.created_at DESC",
+             WHERE cs.cohort_id = %d ORDER BY cs.session_datetime DESC, cs.created_at DESC",
             $cohort_id
         ), ARRAY_A) ?: array();
     }
 
     /**
-     * Mark coaching attendance and update activity state if applicable
+     * Get sessions for a participant enrollment.
      *
-     * When attendance_status is set to 'attended', finds any
-     * coaching_session_attendance activities for the mentor's enrollment
-     * and marks them complete.
+     * @param int $enrollment_id
+     * @param int $cohort_id
+     * @return array
+     */
+    public function get_sessions_for_participant($enrollment_id, $cohort_id) {
+        global $wpdb;
+
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT cs.*, u_coach.display_name AS coach_name
+             FROM {$wpdb->prefix}hl_coaching_session cs
+             LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
+             WHERE cs.mentor_enrollment_id = %d AND cs.cohort_id = %d
+             ORDER BY cs.session_datetime ASC",
+            $enrollment_id, $cohort_id
+        ), ARRAY_A) ?: array();
+    }
+
+    /**
+     * Get upcoming sessions (scheduled, session_datetime >= now) for a participant.
+     *
+     * @param int $enrollment_id
+     * @param int $cohort_id
+     * @return array
+     */
+    public function get_upcoming_sessions($enrollment_id, $cohort_id) {
+        global $wpdb;
+        $now = current_time('mysql');
+
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT cs.*, u_coach.display_name AS coach_name
+             FROM {$wpdb->prefix}hl_coaching_session cs
+             LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
+             WHERE cs.mentor_enrollment_id = %d
+               AND cs.cohort_id = %d
+               AND cs.session_status = 'scheduled'
+               AND cs.session_datetime >= %s
+             ORDER BY cs.session_datetime ASC",
+            $enrollment_id, $cohort_id, $now
+        ), ARRAY_A) ?: array();
+    }
+
+    /**
+     * Get past sessions (datetime < now OR terminal status) for a participant.
+     *
+     * @param int $enrollment_id
+     * @param int $cohort_id
+     * @return array
+     */
+    public function get_past_sessions($enrollment_id, $cohort_id) {
+        global $wpdb;
+        $now = current_time('mysql');
+
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT cs.*, u_coach.display_name AS coach_name
+             FROM {$wpdb->prefix}hl_coaching_session cs
+             LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
+             WHERE cs.mentor_enrollment_id = %d
+               AND cs.cohort_id = %d
+               AND (cs.session_status IN ('attended','missed','cancelled','rescheduled')
+                    OR (cs.session_datetime < %s AND cs.session_status = 'scheduled'))
+             ORDER BY cs.session_datetime DESC",
+            $enrollment_id, $cohort_id, $now
+        ), ARRAY_A) ?: array();
+    }
+
+    // =========================================================================
+    // Session Status Transitions
+    // =========================================================================
+
+    /**
+     * Transition session status with validation.
+     *
+     * @param int    $session_id
+     * @param string $new_status
+     * @return bool|WP_Error
+     */
+    public function transition_status($session_id, $new_status) {
+        global $wpdb;
+
+        if (!in_array($new_status, self::VALID_SESSION_STATUSES, true)) {
+            return new WP_Error('invalid_status', __('Invalid session status.', 'hl-core'));
+        }
+
+        $session = $this->get_session($session_id);
+        if (!$session) {
+            return new WP_Error('not_found', __('Session not found.', 'hl-core'));
+        }
+
+        $current = $session['session_status'] ?? 'scheduled';
+
+        // Only scheduled sessions can transition.
+        if (in_array($current, self::TERMINAL_STATUSES, true)) {
+            return new WP_Error('terminal_status', sprintf(
+                __('Cannot change status from "%s" — it is a terminal state.', 'hl-core'),
+                $current
+            ));
+        }
+
+        $update = array(
+            'session_status' => $new_status,
+            'updated_at'     => current_time('mysql'),
+        );
+
+        // Sync legacy attendance_status for backward compat.
+        $attendance_map = array(
+            'attended'  => 'attended',
+            'missed'    => 'missed',
+            'scheduled' => 'unknown',
+        );
+        if (isset($attendance_map[$new_status])) {
+            $update['attendance_status'] = $attendance_map[$new_status];
+        }
+
+        if ($new_status === 'cancelled') {
+            $update['cancelled_at'] = current_time('mysql');
+        }
+
+        $result = $wpdb->update(
+            $wpdb->prefix . 'hl_coaching_session',
+            $update,
+            array('session_id' => $session_id)
+        );
+
+        if ($result === false) {
+            return new WP_Error('db_error', __('Failed to update session status.', 'hl-core'));
+        }
+
+        // If attended, trigger activity state updates.
+        if ($new_status === 'attended') {
+            $this->update_coaching_activity_state(
+                $session['mentor_enrollment_id'],
+                $session['cohort_id']
+            );
+        }
+
+        HL_Audit_Service::log('coaching_session.status_changed', array(
+            'entity_type' => 'coaching_session',
+            'entity_id'   => $session_id,
+            'cohort_id'   => $session['cohort_id'],
+            'before_data' => array('session_status' => $current),
+            'after_data'  => array('session_status' => $new_status),
+        ));
+
+        return true;
+    }
+
+    /**
+     * Cancel a session.
+     *
+     * @param int $session_id
+     * @return bool|WP_Error
+     */
+    public function cancel_session($session_id) {
+        return $this->transition_status($session_id, 'cancelled');
+    }
+
+    /**
+     * Reschedule a session: mark old as 'rescheduled', create new session.
+     *
+     * @param int    $session_id       Original session.
+     * @param string $new_datetime     New datetime string.
+     * @param string $new_meeting_url  Optional meeting URL.
+     * @return int|WP_Error New session ID.
+     */
+    public function reschedule_session($session_id, $new_datetime, $new_meeting_url = null) {
+        $session = $this->get_session($session_id);
+        if (!$session) {
+            return new WP_Error('not_found', __('Session not found.', 'hl-core'));
+        }
+
+        $current = $session['session_status'] ?? 'scheduled';
+        if (in_array($current, self::TERMINAL_STATUSES, true)) {
+            return new WP_Error('terminal_status', __('Cannot reschedule a session that is not scheduled.', 'hl-core'));
+        }
+
+        // Mark old session as rescheduled.
+        $transition = $this->transition_status($session_id, 'rescheduled');
+        if (is_wp_error($transition)) {
+            return $transition;
+        }
+
+        // Create new session linked to old one.
+        $new_data = array(
+            'cohort_id'                    => $session['cohort_id'],
+            'coach_user_id'                => $session['coach_user_id'],
+            'mentor_enrollment_id'         => $session['mentor_enrollment_id'],
+            'session_title'                => $session['session_title'],
+            'meeting_url'                  => $new_meeting_url ?: ($session['meeting_url'] ?? null),
+            'session_datetime'             => $new_datetime,
+            'rescheduled_from_session_id'  => $session_id,
+        );
+
+        return $this->create_session($new_data);
+    }
+
+    /**
+     * Check if cancellation is allowed for a cohort.
+     *
+     * @param int $cohort_id
+     * @return bool
+     */
+    public function is_cancellation_allowed($cohort_id) {
+        global $wpdb;
+
+        $settings_json = $wpdb->get_var($wpdb->prepare(
+            "SELECT settings FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d",
+            $cohort_id
+        ));
+
+        if (empty($settings_json)) {
+            return true; // Default: cancellation allowed.
+        }
+
+        $settings = json_decode($settings_json, true);
+        if (!is_array($settings)) {
+            return true;
+        }
+
+        return isset($settings['coaching_allow_cancellation'])
+            ? (bool) $settings['coaching_allow_cancellation']
+            : true;
+    }
+
+    // =========================================================================
+    // Legacy Attendance (backward compat)
+    // =========================================================================
+
+    /**
+     * Mark coaching attendance and update activity state if applicable.
+     *
+     * Kept for backward compatibility. New code should use transition_status().
      *
      * @param int    $session_id
      * @param string $status 'attended', 'missed', or 'unknown'
-     * @return int|false Number of rows updated, or false on error
+     * @return int|false
      */
     public function mark_attendance($session_id, $status) {
         global $wpdb;
 
+        $update = array('attendance_status' => $status);
+
+        // Sync to session_status.
+        $status_map = array(
+            'attended' => 'attended',
+            'missed'   => 'missed',
+            'unknown'  => 'scheduled',
+        );
+        if (isset($status_map[$status])) {
+            $update['session_status'] = $status_map[$status];
+        }
+
         $result = $wpdb->update(
             $wpdb->prefix . 'hl_coaching_session',
-            array('attendance_status' => $status),
+            $update,
             array('session_id' => $session_id)
         );
 
@@ -43,7 +298,6 @@ class HL_Coaching_Service {
             return false;
         }
 
-        // If marked as attended, update activity_state for coaching_session_attendance
         if ($status === 'attended') {
             $session = $wpdb->get_row($wpdb->prepare(
                 "SELECT cohort_id, mentor_enrollment_id FROM {$wpdb->prefix}hl_coaching_session WHERE session_id = %d",
@@ -65,18 +319,14 @@ class HL_Coaching_Service {
     }
 
     /**
-     * Update coaching_session_attendance activity state for a mentor enrollment
+     * Update coaching_session_attendance activity state for a participant enrollment.
      *
-     * Checks all coaching sessions for this enrollment. If any are attended,
-     * marks the coaching_session_attendance activity as complete.
-     *
-     * @param int $enrollment_id Mentor enrollment ID
+     * @param int $enrollment_id
      * @param int $cohort_id
      */
     private function update_coaching_activity_state($enrollment_id, $cohort_id) {
         global $wpdb;
 
-        // Find coaching_session_attendance activities in this cohort
         $activities = $wpdb->get_results($wpdb->prepare(
             "SELECT a.activity_id FROM {$wpdb->prefix}hl_activity a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
@@ -90,10 +340,11 @@ class HL_Coaching_Service {
             return;
         }
 
-        // Count attended sessions
+        // Count attended sessions (using both columns for safety).
         $attended_count = (int) $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}hl_coaching_session
-             WHERE mentor_enrollment_id = %d AND cohort_id = %d AND attendance_status = 'attended'",
+             WHERE mentor_enrollment_id = %d AND cohort_id = %d
+               AND (session_status = 'attended' OR attendance_status = 'attended')",
             $enrollment_id, $cohort_id
         ));
 
@@ -129,7 +380,6 @@ class HL_Coaching_Service {
             }
         }
 
-        // Trigger rollup recomputation
         do_action('hl_core_recompute_rollups', $enrollment_id);
     }
 
@@ -138,10 +388,10 @@ class HL_Coaching_Service {
     // =========================================================================
 
     /**
-     * Get a single coaching session by ID with joined data
+     * Get a single coaching session by ID with joined data.
      *
      * @param int $session_id
-     * @return array|null Session data with coach_name, mentor_name, cohort_name
+     * @return array|null
      */
     public function get_session($session_id) {
         global $wpdb;
@@ -149,6 +399,7 @@ class HL_Coaching_Service {
         $row = $wpdb->get_row($wpdb->prepare(
             "SELECT cs.*,
                     u_coach.display_name AS coach_name,
+                    u_coach.user_email AS coach_email,
                     u_mentor.display_name AS mentor_name,
                     c.cohort_name
              FROM {$wpdb->prefix}hl_coaching_session cs
@@ -164,34 +415,39 @@ class HL_Coaching_Service {
     }
 
     /**
-     * Create a coaching session
+     * Create a coaching session.
      *
-     * @param array $data Keys: cohort_id, coach_user_id, mentor_enrollment_id, session_datetime, notes_richtext
-     * @return int|WP_Error session_id on success, WP_Error on failure
+     * @param array $data Keys: cohort_id, coach_user_id, mentor_enrollment_id,
+     *                     session_datetime, session_title, meeting_url, notes_richtext,
+     *                     rescheduled_from_session_id.
+     * @return int|WP_Error session_id on success.
      */
     public function create_session($data) {
         global $wpdb;
 
-        // Validate required fields
         if (empty($data['cohort_id'])) {
             return new WP_Error('missing_cohort', __('Cohort is required.', 'hl-core'));
         }
         if (empty($data['mentor_enrollment_id'])) {
-            return new WP_Error('missing_mentor', __('Mentor is required.', 'hl-core'));
+            return new WP_Error('missing_mentor', __('Participant is required.', 'hl-core'));
         }
 
         $coach_user_id = !empty($data['coach_user_id']) ? absint($data['coach_user_id']) : get_current_user_id();
 
         $insert_data = array(
-            'session_uuid'          => HL_DB_Utils::generate_uuid(),
-            'cohort_id'             => absint($data['cohort_id']),
-            'coach_user_id'         => $coach_user_id,
-            'mentor_enrollment_id'  => absint($data['mentor_enrollment_id']),
-            'attendance_status'     => 'unknown',
-            'session_datetime'      => !empty($data['session_datetime']) ? sanitize_text_field($data['session_datetime']) : null,
-            'notes_richtext'        => !empty($data['notes_richtext']) ? wp_kses_post($data['notes_richtext']) : null,
-            'created_at'            => current_time('mysql'),
-            'updated_at'            => current_time('mysql'),
+            'session_uuid'                => HL_DB_Utils::generate_uuid(),
+            'cohort_id'                   => absint($data['cohort_id']),
+            'coach_user_id'               => $coach_user_id,
+            'mentor_enrollment_id'        => absint($data['mentor_enrollment_id']),
+            'session_title'               => !empty($data['session_title']) ? sanitize_text_field($data['session_title']) : null,
+            'meeting_url'                 => !empty($data['meeting_url']) ? esc_url_raw($data['meeting_url']) : null,
+            'session_status'              => 'scheduled',
+            'attendance_status'           => 'unknown',
+            'session_datetime'            => !empty($data['session_datetime']) ? sanitize_text_field($data['session_datetime']) : null,
+            'notes_richtext'              => !empty($data['notes_richtext']) ? wp_kses_post($data['notes_richtext']) : null,
+            'rescheduled_from_session_id' => !empty($data['rescheduled_from_session_id']) ? absint($data['rescheduled_from_session_id']) : null,
+            'created_at'                  => current_time('mysql'),
+            'updated_at'                  => current_time('mysql'),
         );
 
         $result = $wpdb->insert($wpdb->prefix . 'hl_coaching_session', $insert_data);
@@ -210,6 +466,7 @@ class HL_Coaching_Service {
                 'cohort_id'            => $insert_data['cohort_id'],
                 'coach_user_id'        => $insert_data['coach_user_id'],
                 'mentor_enrollment_id' => $insert_data['mentor_enrollment_id'],
+                'session_title'        => $insert_data['session_title'],
                 'session_datetime'     => $insert_data['session_datetime'],
             ),
         ));
@@ -218,16 +475,16 @@ class HL_Coaching_Service {
     }
 
     /**
-     * Update a coaching session
+     * Update a coaching session.
      *
      * @param int   $session_id
-     * @param array $data Keys: session_datetime, notes_richtext, attendance_status
-     * @return bool|WP_Error True on success, WP_Error on failure
+     * @param array $data Keys: session_datetime, notes_richtext, session_status,
+     *                     session_title, meeting_url, attendance_status.
+     * @return bool|WP_Error
      */
     public function update_session($session_id, $data) {
         global $wpdb;
 
-        // Get current session for comparison
         $before = $this->get_session($session_id);
         if (!$before) {
             return new WP_Error('not_found', __('Coaching session not found.', 'hl-core'));
@@ -243,21 +500,59 @@ class HL_Coaching_Service {
                 : null;
         }
 
+        if (array_key_exists('session_title', $data)) {
+            $update_data['session_title'] = !empty($data['session_title'])
+                ? sanitize_text_field($data['session_title'])
+                : null;
+        }
+
+        if (array_key_exists('meeting_url', $data)) {
+            $update_data['meeting_url'] = !empty($data['meeting_url'])
+                ? esc_url_raw($data['meeting_url'])
+                : null;
+        }
+
         if (array_key_exists('notes_richtext', $data)) {
             $update_data['notes_richtext'] = !empty($data['notes_richtext'])
                 ? wp_kses_post($data['notes_richtext'])
                 : null;
         }
 
+        // Handle session_status change via transition_status for validation.
+        $status_changed = false;
+        if (array_key_exists('session_status', $data)) {
+            $new_status = sanitize_text_field($data['session_status']);
+            $current    = $before['session_status'] ?? 'scheduled';
+
+            if ($new_status !== $current && in_array($new_status, self::VALID_SESSION_STATUSES, true)) {
+                $update_data['session_status'] = $new_status;
+                $status_changed = true;
+
+                // Sync legacy field.
+                $att_map = array('attended' => 'attended', 'missed' => 'missed', 'scheduled' => 'unknown');
+                if (isset($att_map[$new_status])) {
+                    $update_data['attendance_status'] = $att_map[$new_status];
+                }
+
+                if ($new_status === 'cancelled') {
+                    $update_data['cancelled_at'] = current_time('mysql');
+                }
+            }
+        }
+
+        // Legacy attendance_status handling (backward compat).
         $attendance_changed = false;
-        if (array_key_exists('attendance_status', $data)) {
-            $valid_statuses = array('attended', 'missed', 'unknown');
-            $new_status = sanitize_text_field($data['attendance_status']);
-            if (in_array($new_status, $valid_statuses, true)) {
-                $update_data['attendance_status'] = $new_status;
-                if ($new_status !== $before['attendance_status']) {
+        if (array_key_exists('attendance_status', $data) && !$status_changed) {
+            $valid = array('attended', 'missed', 'unknown');
+            $new_att = sanitize_text_field($data['attendance_status']);
+            if (in_array($new_att, $valid, true)) {
+                $update_data['attendance_status'] = $new_att;
+                if ($new_att !== ($before['attendance_status'] ?? '')) {
                     $attendance_changed = true;
                 }
+                // Sync session_status.
+                $ss_map = array('attended' => 'attended', 'missed' => 'missed', 'unknown' => 'scheduled');
+                $update_data['session_status'] = $ss_map[$new_att];
             }
         }
 
@@ -271,9 +566,12 @@ class HL_Coaching_Service {
             return new WP_Error('db_error', __('Failed to update coaching session.', 'hl-core'));
         }
 
-        // If attendance_status changed, call mark_attendance to trigger activity state and rollup updates
-        if ($attendance_changed) {
-            $this->mark_attendance($session_id, $update_data['attendance_status']);
+        // Trigger activity state updates if session became attended.
+        $became_attended = ($status_changed && ($update_data['session_status'] ?? '') === 'attended')
+                        || ($attendance_changed && ($update_data['attendance_status'] ?? '') === 'attended');
+
+        if ($became_attended) {
+            $this->update_coaching_activity_state($before['mentor_enrollment_id'], $before['cohort_id']);
         }
 
         HL_Audit_Service::log('coaching_session.updated', array(
@@ -281,8 +579,9 @@ class HL_Coaching_Service {
             'entity_id'   => $session_id,
             'cohort_id'   => $before['cohort_id'],
             'before_data' => array(
-                'session_datetime'  => $before['session_datetime'],
-                'attendance_status' => $before['attendance_status'],
+                'session_datetime' => $before['session_datetime'],
+                'session_status'   => $before['session_status'] ?? 'scheduled',
+                'session_title'    => $before['session_title'] ?? null,
             ),
             'after_data'  => $update_data,
         ));
@@ -291,39 +590,23 @@ class HL_Coaching_Service {
     }
 
     /**
-     * Delete a coaching session
-     *
-     * Removes the session and all linked observations and attachments.
+     * Delete a coaching session.
      *
      * @param int $session_id
-     * @return bool|WP_Error True on success, WP_Error on failure
+     * @return bool|WP_Error
      */
     public function delete_session($session_id) {
         global $wpdb;
 
-        // Get before data for audit
         $before = $this->get_session($session_id);
         if (!$before) {
             return new WP_Error('not_found', __('Coaching session not found.', 'hl-core'));
         }
 
-        // Delete linked observations
-        $wpdb->delete(
-            $wpdb->prefix . 'hl_coaching_session_observation',
-            array('session_id' => $session_id)
-        );
+        $wpdb->delete($wpdb->prefix . 'hl_coaching_session_observation', array('session_id' => $session_id));
+        $wpdb->delete($wpdb->prefix . 'hl_coaching_attachment', array('session_id' => $session_id));
 
-        // Delete attachments
-        $wpdb->delete(
-            $wpdb->prefix . 'hl_coaching_attachment',
-            array('session_id' => $session_id)
-        );
-
-        // Delete session
-        $result = $wpdb->delete(
-            $wpdb->prefix . 'hl_coaching_session',
-            array('session_id' => $session_id)
-        );
+        $result = $wpdb->delete($wpdb->prefix . 'hl_coaching_session', array('session_id' => $session_id));
 
         if ($result === false) {
             return new WP_Error('db_error', __('Failed to delete coaching session.', 'hl-core'));
@@ -337,8 +620,8 @@ class HL_Coaching_Service {
                 'cohort_id'            => $before['cohort_id'],
                 'coach_user_id'        => $before['coach_user_id'],
                 'mentor_enrollment_id' => $before['mentor_enrollment_id'],
+                'session_status'       => $before['session_status'] ?? 'scheduled',
                 'session_datetime'     => $before['session_datetime'],
-                'attendance_status'    => $before['attendance_status'],
             ),
         ));
 
@@ -350,11 +633,11 @@ class HL_Coaching_Service {
     // =========================================================================
 
     /**
-     * Link observations to a coaching session
+     * Link observations to a coaching session.
      *
      * @param int   $session_id
-     * @param array $observation_ids Array of observation IDs to link
-     * @return int Number of links created
+     * @param array $observation_ids
+     * @return int Number of links created.
      */
     public function link_observations($session_id, $observation_ids) {
         global $wpdb;
@@ -366,12 +649,10 @@ class HL_Coaching_Service {
                 continue;
             }
 
-            // Check if link already exists
             $exists = $wpdb->get_var($wpdb->prepare(
                 "SELECT link_id FROM {$wpdb->prefix}hl_coaching_session_observation
                  WHERE session_id = %d AND observation_id = %d",
-                $session_id,
-                $observation_id
+                $session_id, $observation_id
             ));
 
             if ($exists) {
@@ -380,10 +661,7 @@ class HL_Coaching_Service {
 
             $result = $wpdb->insert(
                 $wpdb->prefix . 'hl_coaching_session_observation',
-                array(
-                    'session_id'     => $session_id,
-                    'observation_id' => $observation_id,
-                )
+                array('session_id' => $session_id, 'observation_id' => $observation_id)
             );
 
             if ($result !== false) {
@@ -395,10 +673,7 @@ class HL_Coaching_Service {
             HL_Audit_Service::log('coaching_session.observations_linked', array(
                 'entity_type' => 'coaching_session',
                 'entity_id'   => $session_id,
-                'after_data'  => array(
-                    'observation_ids' => $observation_ids,
-                    'linked_count'    => $linked,
-                ),
+                'after_data'  => array('observation_ids' => $observation_ids, 'linked_count' => $linked),
             ));
         }
 
@@ -406,21 +681,18 @@ class HL_Coaching_Service {
     }
 
     /**
-     * Unlink an observation from a coaching session
+     * Unlink an observation from a coaching session.
      *
      * @param int $session_id
      * @param int $observation_id
-     * @return bool True on success
+     * @return bool
      */
     public function unlink_observation($session_id, $observation_id) {
         global $wpdb;
 
         $result = $wpdb->delete(
             $wpdb->prefix . 'hl_coaching_session_observation',
-            array(
-                'session_id'     => $session_id,
-                'observation_id' => $observation_id,
-            )
+            array('session_id' => $session_id, 'observation_id' => $observation_id)
         );
 
         if ($result) {
@@ -435,10 +707,10 @@ class HL_Coaching_Service {
     }
 
     /**
-     * Get linked observations for a session
+     * Get linked observations for a session.
      *
      * @param int $session_id
-     * @return array Array of observation data with mentor_name, teacher_name, status, date
+     * @return array
      */
     public function get_linked_observations($session_id) {
         global $wpdb;
@@ -461,12 +733,9 @@ class HL_Coaching_Service {
     }
 
     /**
-     * Get available observations for linking
+     * Get available observations for linking.
      *
-     * Returns submitted observations in the cohort for this mentor
-     * that are not already linked to the given session.
-     *
-     * @param int $session_id     Current session ID (to exclude already-linked)
+     * @param int $session_id
      * @param int $cohort_id
      * @param int $mentor_enrollment_id
      * @return array
@@ -489,9 +758,7 @@ class HL_Coaching_Service {
                    WHERE cso.session_id = %d
                )
              ORDER BY o.submitted_at DESC",
-            $cohort_id,
-            $mentor_enrollment_id,
-            $session_id
+            $cohort_id, $mentor_enrollment_id, $session_id
         ), ARRAY_A) ?: array();
     }
 
@@ -500,16 +767,15 @@ class HL_Coaching_Service {
     // =========================================================================
 
     /**
-     * Add an attachment to a coaching session
+     * Add an attachment to a coaching session.
      *
      * @param int $session_id
-     * @param int $wp_media_id WordPress media attachment ID
-     * @return int|WP_Error attachment_id on success, WP_Error on failure
+     * @param int $wp_media_id
+     * @return int|WP_Error
      */
     public function add_attachment($session_id, $wp_media_id) {
         global $wpdb;
 
-        // Get attachment info from WordPress
         $attachment_url  = wp_get_attachment_url($wp_media_id);
         $attachment_mime = get_post_mime_type($wp_media_id);
 
@@ -547,15 +813,14 @@ class HL_Coaching_Service {
     }
 
     /**
-     * Remove an attachment from a coaching session
+     * Remove an attachment.
      *
      * @param int $attachment_id
-     * @return bool True on success
+     * @return bool
      */
     public function remove_attachment($attachment_id) {
         global $wpdb;
 
-        // Get attachment info before deleting for audit
         $attachment = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_coaching_attachment WHERE attachment_id = %d",
             $attachment_id
@@ -582,10 +847,10 @@ class HL_Coaching_Service {
     }
 
     /**
-     * Get attachments for a coaching session
+     * Get attachments for a coaching session.
      *
      * @param int $session_id
-     * @return array Array of attachment data with WP attachment URLs
+     * @return array
      */
     public function get_attachments($session_id) {
         global $wpdb;
@@ -595,7 +860,6 @@ class HL_Coaching_Service {
             $session_id
         ), ARRAY_A) ?: array();
 
-        // Enrich with current WP attachment data
         foreach ($attachments as &$att) {
             $att['current_url'] = $att['file_url'];
             if (!empty($att['wp_media_id'])) {
@@ -614,11 +878,11 @@ class HL_Coaching_Service {
     }
 
     // =========================================================================
-    // Observation Count Helper
+    // Helpers
     // =========================================================================
 
     /**
-     * Get the count of linked observations for a session
+     * Get the count of linked observations for a session.
      *
      * @param int $session_id
      * @return int
@@ -630,5 +894,28 @@ class HL_Coaching_Service {
             "SELECT COUNT(*) FROM {$wpdb->prefix}hl_coaching_session_observation WHERE session_id = %d",
             $session_id
         ));
+    }
+
+    /**
+     * Render a session status badge (HTML).
+     *
+     * @param string $status
+     * @return string
+     */
+    public static function render_status_badge($status) {
+        $badges = array(
+            'scheduled'    => array('#cce5ff', '#004085', __('Scheduled', 'hl-core')),
+            'attended'     => array('#d4edda', '#155724', __('Attended', 'hl-core')),
+            'missed'       => array('#f8d7da', '#721c24', __('Missed', 'hl-core')),
+            'cancelled'    => array('#e2e3e5', '#383d41', __('Cancelled', 'hl-core')),
+            'rescheduled'  => array('#fff3cd', '#856404', __('Rescheduled', 'hl-core')),
+        );
+
+        $badge = isset($badges[$status]) ? $badges[$status] : array('#e2e3e5', '#383d41', esc_html($status));
+
+        return sprintf(
+            '<span style="display:inline-block;padding:3px 10px;border-radius:3px;font-size:12px;font-weight:600;background:%s;color:%s;">%s</span>',
+            $badge[0], $badge[1], esc_html($badge[2])
+        );
     }
 }
