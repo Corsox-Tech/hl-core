@@ -111,7 +111,9 @@ Placeholder pages (planned):
 ### BuddyBoss Integration
 - **HL_BuddyBoss_Integration** service (`includes/integrations/class-hl-buddyboss-integration.php`)
 - Role-conditional sidebar navigation menu in BuddyBoss profile dropdown (hooked to `buddyboss_theme_after_bb_groups_menu`)
-- Menu items: My Programs (all enrolled users), My Cohort (center/district leaders), School Districts + Institutions (manage_hl_core capability)
+- Menu items: My Programs + My Coaching (all enrolled), My Cohort (mentors/center leaders/district leaders), School Districts + Institutions (manage_hl_core staff)
+- Staff (manage_hl_core) sees all items regardless of enrollment status
+- Active page highlighting via `current` CSS class
 - Role detection from `hl_enrollment.roles` JSON (not WP roles) with static caching
 - Shortcode-based page URL discovery with static caching
 - Graceful no-op when BuddyBoss is not active
@@ -218,7 +220,7 @@ _Read docs: 10 (section 16 Phase E)_
 ### Phase 12: Front-End — BuddyBoss Integration (Future)
 _Read docs: 10 (section 2.4)_
 
-- [~] **12.1 BB Sidebar Navigation + Profile Tab** — DONE: Sidebar navigation menu (`HL_BuddyBoss_Integration`) with role-conditional items (My Programs, My Cohort, School Districts, Institutions) hooked into BuddyBoss profile dropdown. TODO: Custom profile tab for coaches/admins (enrollment info, pathway progress, team assignment, coaching sessions, action buttons).
+- [~] **12.1 BB Sidebar Navigation + Profile Tab** — DONE: Sidebar navigation menu (`HL_BuddyBoss_Integration`) with role-conditional items (My Programs, My Coaching, My Cohort, School Districts, Institutions), mentor visibility for My Cohort, staff sees all items, active page highlighting. TODO: Custom profile tab for coaches/admins (enrollment info, pathway progress, team assignment, coaching sessions, action buttons).
 
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.

@@ -101,6 +101,9 @@ class HL_BuddyBoss_Integration {
             return;
         }
 
+        // Determine current page URL for active highlighting.
+        $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
+
         ?>
         <li id="wp-admin-bar-my-account-housman-learning" class="menupop">
             <a class="ab-item" aria-haspopup="true" href="#">
@@ -109,8 +112,12 @@ class HL_BuddyBoss_Integration {
             </a>
             <div class="ab-sub-wrapper wrapper">
                 <ul id="wp-admin-bar-my-account-housman-learning-default" class="ab-submenu">
-                    <?php foreach ($items as $item) : ?>
-                        <li id="wp-admin-bar-my-account-hl-<?php echo esc_attr($item['slug']); ?>">
+                    <?php foreach ($items as $item) :
+                        $item_path = trailingslashit(wp_parse_url($item['url'], PHP_URL_PATH) ?: '');
+                        $is_active = ($item_path && $item_path === $current_url);
+                        $active_class = $is_active ? ' current' : '';
+                    ?>
+                        <li id="wp-admin-bar-my-account-hl-<?php echo esc_attr($item['slug']); ?>" class="<?php echo esc_attr(trim($active_class)); ?>">
                             <a class="ab-item" href="<?php echo esc_url($item['url']); ?>"><?php echo esc_html($item['label']); ?></a>
                         </li>
                     <?php endforeach; ?>
@@ -123,15 +130,21 @@ class HL_BuddyBoss_Integration {
     /**
      * Build the list of visible menu items for the current user.
      *
+     * Visibility rules:
+     * - All enrolled users: My Programs, My Coaching
+     * - Mentors, center leaders, district leaders: + My Cohort
+     * - Staff (manage_hl_core): all of the above + School Districts + Institutions
+     *
      * @param string[] $roles Active HL enrollment roles for the user.
      * @return array<int, array{slug: string, label: string, url: string}>
      */
     private function build_menu_items(array $roles) {
-        $items = array();
-        $has_any_enrollment = !empty($roles);
+        $items    = array();
+        $is_staff = current_user_can('manage_hl_core');
+        $has_any  = !empty($roles) || $is_staff;
 
-        // 1. My Programs — all enrolled users
-        if ($has_any_enrollment) {
+        // 1. My Programs — all enrolled users (staff always sees this)
+        if ($has_any) {
             $url = $this->find_shortcode_page_url('hl_my_programs');
             if ($url) {
                 $items[] = array(
@@ -142,9 +155,23 @@ class HL_BuddyBoss_Integration {
             }
         }
 
-        // 2. My Cohort — center leaders and district leaders
+        // 2. My Coaching — all enrolled users (staff always sees this)
+        if ($has_any) {
+            $url = $this->find_shortcode_page_url('hl_my_coaching');
+            if ($url) {
+                $items[] = array(
+                    'slug'  => 'my-coaching',
+                    'label' => __('My Coaching', 'hl-core'),
+                    'url'   => $url,
+                );
+            }
+        }
+
+        // 3. My Cohort — mentors, center leaders, district leaders (staff always)
         if (
-            in_array('center_leader', $roles, true)
+            $is_staff
+            || in_array('mentor', $roles, true)
+            || in_array('center_leader', $roles, true)
             || in_array('district_leader', $roles, true)
         ) {
             $url = $this->find_shortcode_page_url('hl_my_cohort');
@@ -157,8 +184,8 @@ class HL_BuddyBoss_Integration {
             }
         }
 
-        // 3 & 4. School Districts + Institutions — manage_hl_core capability
-        if (current_user_can('manage_hl_core')) {
+        // 4 & 5. School Districts + Institutions — manage_hl_core capability only
+        if ($is_staff) {
             $url = $this->find_shortcode_page_url('hl_districts_listing');
             if ($url) {
                 $items[] = array(
