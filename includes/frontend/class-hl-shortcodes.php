@@ -18,6 +18,7 @@ class HL_Shortcodes {
         add_action('template_redirect', array('HL_Frontend_My_Cohort', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Team_Page', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Cohort_Workspace', 'handle_export'));
+        add_action('template_redirect', array('HL_Frontend_My_Coaching', 'handle_post_actions'));
     }
 
     public function register_shortcodes() {
@@ -37,6 +38,7 @@ class HL_Shortcodes {
         add_shortcode('hl_centers_listing', array($this, 'render_centers_listing'));
         add_shortcode('hl_center_page', array($this, 'render_center_page'));
         add_shortcode('hl_cohort_workspace', array($this, 'render_cohort_workspace'));
+        add_shortcode('hl_my_coaching', array($this, 'render_my_coaching'));
     }
 
     public function enqueue_assets() {
@@ -58,7 +60,8 @@ class HL_Shortcodes {
             || has_shortcode($post->post_content, 'hl_district_page')
             || has_shortcode($post->post_content, 'hl_centers_listing')
             || has_shortcode($post->post_content, 'hl_center_page')
-            || has_shortcode($post->post_content, 'hl_cohort_workspace');
+            || has_shortcode($post->post_content, 'hl_cohort_workspace')
+            || has_shortcode($post->post_content, 'hl_my_coaching');
 
         if ($has_shortcode) {
             wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
@@ -288,6 +291,21 @@ class HL_Shortcodes {
 
         $atts = shortcode_atts(array(), $atts, 'hl_cohort_workspace');
         $renderer = new HL_Frontend_Cohort_Workspace();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_my_coaching] - Participant's coaching sessions page
+     */
+    public function render_my_coaching($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your coaching sessions.', 'hl-core') . '</div>';
+        }
+
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts(array(), $atts, 'hl_my_coaching');
+        $renderer = new HL_Frontend_My_Coaching();
         return $renderer->render($atts);
     }
 
