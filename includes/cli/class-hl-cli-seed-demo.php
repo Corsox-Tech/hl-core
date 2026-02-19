@@ -85,7 +85,7 @@ class HL_CLI_Seed_Demo {
         $enrollments = $this->seed_enrollments( $users, $cohort_id, $center_a_id, $center_b_id, $district_id );
 
         // Step 7: Teams
-        $this->seed_teams( $cohort_id, $center_a_id, $center_b_id, $enrollments );
+        $teams = $this->seed_teams( $cohort_id, $center_a_id, $center_b_id, $enrollments );
 
         // Step 8: Teaching Assignments
         $this->seed_teaching_assignments( $enrollments, $classrooms );
@@ -110,6 +110,12 @@ class HL_CLI_Seed_Demo {
 
         // Step 15: Completion Rollups
         $this->seed_rollups( $enrollments );
+
+        // Step 16: Coach Assignments
+        $this->seed_coach_assignments( $cohort_id, $center_a_id, $center_b_id, $teams, $users );
+
+        // Step 17: Coaching Sessions
+        $this->seed_coaching_sessions( $cohort_id, $enrollments, $users );
 
         WP_CLI::line( '' );
         WP_CLI::success( 'Demo data seeded successfully!' );
@@ -242,6 +248,9 @@ class HL_CLI_Seed_Demo {
             // Cohort-center links.
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort_center WHERE cohort_id = %d", $cohort_id ) );
 
+            // Coach assignments.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE cohort_id = %d", $cohort_id ) );
+
             // Coaching sessions.
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE cohort_id = %d", $cohort_id ) );
 
@@ -330,7 +339,7 @@ class HL_CLI_Seed_Demo {
             'parent_orgunit_id' => $district_id,
         ) );
 
-        WP_CLI::log( "  [1/15] Org units created: district={$district_id}, centers={$center_a_id},{$center_b_id}" );
+        WP_CLI::log( "  [1/17] Org units created: district={$district_id}, centers={$center_a_id},{$center_b_id}" );
 
         return array( $district_id, $center_a_id, $center_b_id );
     }
@@ -371,7 +380,7 @@ class HL_CLI_Seed_Demo {
             'center_id' => $center_b_id,
         ) );
 
-        WP_CLI::log( "  [2/15] Cohort created: id={$cohort_id}, code=" . self::DEMO_COHORT_CODE );
+        WP_CLI::log( "  [2/17] Cohort created: id={$cohort_id}, code=" . self::DEMO_COHORT_CODE );
 
         return $cohort_id;
     }
@@ -408,7 +417,7 @@ class HL_CLI_Seed_Demo {
             $classrooms[] = array_merge( $def, array( 'classroom_id' => $id ) );
         }
 
-        WP_CLI::log( '  [3/15] Classrooms created: ' . count( $classrooms ) );
+        WP_CLI::log( '  [3/17] Classrooms created: ' . count( $classrooms ) );
 
         return $classrooms;
     }
@@ -482,7 +491,7 @@ class HL_CLI_Seed_Demo {
             $instruments[ $band ] = $wpdb->insert_id;
         }
 
-        WP_CLI::log( '  [4/15] Instruments created: ' . count( $instruments ) );
+        WP_CLI::log( '  [4/17] Instruments created: ' . count( $instruments ) );
 
         return $instruments;
     }
@@ -537,7 +546,7 @@ class HL_CLI_Seed_Demo {
 
         $total = count( $users['teachers'] ) + count( $users['mentors'] )
                + count( $users['center_leaders'] ) + 2; // +district_leader +coach
-        WP_CLI::log( "  [5/15] WP users created: {$total}" );
+        WP_CLI::log( "  [5/17] WP users created: {$total}" );
 
         return $users;
     }
@@ -662,7 +671,7 @@ class HL_CLI_Seed_Demo {
         $enrollments['district_leader'] = array( 'enrollment_id' => $eid, 'user_id' => $uid );
         $enrollments['all'][]           = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'role' => 'district_leader' );
 
-        WP_CLI::log( '  [6/15] Enrollments created: ' . count( $enrollments['all'] ) );
+        WP_CLI::log( '  [6/17] Enrollments created: ' . count( $enrollments['all'] ) );
 
         return $enrollments;
     }
@@ -678,9 +687,12 @@ class HL_CLI_Seed_Demo {
      * @param int   $center_a_id  Center A.
      * @param int   $center_b_id  Center B.
      * @param array $enrollments  Enrollment data.
+     * @return array Team IDs: ['team_a' => id, 'team_b' => id].
      */
     private function seed_teams( $cohort_id, $center_a_id, $center_b_id, $enrollments ) {
         $svc = new HL_Team_Service();
+
+        $team_ids = array( 'team_a' => 0, 'team_b' => 0 );
 
         // Team A at Center A.
         $team_a = $svc->create_team( array(
@@ -690,6 +702,7 @@ class HL_CLI_Seed_Demo {
         ) );
 
         if ( ! is_wp_error( $team_a ) ) {
+            $team_ids['team_a'] = $team_a;
             // Mentor 1.
             $svc->add_member( $team_a, $enrollments['mentors'][0]['enrollment_id'], 'mentor' );
             // 5 teachers from Center A.
@@ -706,6 +719,7 @@ class HL_CLI_Seed_Demo {
         ) );
 
         if ( ! is_wp_error( $team_b ) ) {
+            $team_ids['team_b'] = $team_b;
             // Mentor 2.
             $svc->add_member( $team_b, $enrollments['mentors'][1]['enrollment_id'], 'mentor' );
             // 5 teachers from Center B.
@@ -715,7 +729,9 @@ class HL_CLI_Seed_Demo {
         }
 
         $member_count = count( $enrollments['teachers_a'] ) + count( $enrollments['teachers_b'] ) + 2;
-        WP_CLI::log( "  [7/15] Teams created: 2 (with {$member_count} memberships)" );
+        WP_CLI::log( "  [7/17] Teams created: 2 (with {$member_count} memberships)" );
+
+        return $team_ids;
     }
 
     // ------------------------------------------------------------------
@@ -760,7 +776,7 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        WP_CLI::log( "  [8/15] Teaching assignments created: {$count}" );
+        WP_CLI::log( "  [8/17] Teaching assignments created: {$count}" );
     }
 
     // ------------------------------------------------------------------
@@ -805,7 +821,7 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        WP_CLI::log( "  [9/15] Children created and assigned: {$total}" );
+        WP_CLI::log( "  [9/17] Children created and assigned: {$total}" );
     }
 
     /**
@@ -960,7 +976,7 @@ class HL_CLI_Seed_Demo {
 
         $t_act_count = count( $teacher_activities );
         $m_act_count = count( $mentor_activities );
-        WP_CLI::log( "  [10/15] Pathways created: 2 (teacher={$t_act_count} activities, mentor={$m_act_count} activities)" );
+        WP_CLI::log( "  [10/17] Pathways created: 2 (teacher={$t_act_count} activities, mentor={$m_act_count} activities)" );
 
         return array(
             'teacher_pathway_id'  => $tp_id,
@@ -1000,7 +1016,7 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        WP_CLI::log( "  [11/15] Pathway assignments updated: {$count}" );
+        WP_CLI::log( "  [11/17] Pathway assignments updated: {$count}" );
     }
 
     // ------------------------------------------------------------------
@@ -1071,7 +1087,7 @@ class HL_CLI_Seed_Demo {
             'prerequisite_activity_id' => $children,
         ) );
 
-        WP_CLI::log( '  [12/15] Prereq rules created: ALL_OF (Post Self <- Pre Self), ANY_OF (Children <- LD|Pre), N_OF_M (Coaching <- 2 of 3)' );
+        WP_CLI::log( '  [12/17] Prereq rules created: ALL_OF (Post Self <- Pre Self), ANY_OF (Children <- LD|Pre), N_OF_M (Coaching <- 2 of 3)' );
     }
 
     // ------------------------------------------------------------------
@@ -1094,7 +1110,7 @@ class HL_CLI_Seed_Demo {
             'release_at_date' => gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) ),
         ) );
 
-        WP_CLI::log( '  [13/15] Drip rule created: Post Self-Assessment released 30 days ago' );
+        WP_CLI::log( '  [13/17] Drip rule created: Post Self-Assessment released 30 days ago' );
     }
 
     // ------------------------------------------------------------------
@@ -1151,7 +1167,7 @@ class HL_CLI_Seed_Demo {
         $eid = $enrollments['mentors'][0]['enrollment_id'];
         $insert_state( $eid, $ma['ld_course'], 100, 'complete', $now );
 
-        WP_CLI::log( "  [14/15] Activity states created: {$count}" );
+        WP_CLI::log( "  [14/17] Activity states created: {$count}" );
     }
 
     // ------------------------------------------------------------------
@@ -1177,6 +1193,192 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        WP_CLI::log( "  [15/15] Completion rollups computed: {$count}" . ( $errors ? " ({$errors} errors)" : '' ) );
+        WP_CLI::log( "  [15/17] Completion rollups computed: {$count}" . ( $errors ? " ({$errors} errors)" : '' ) );
+    }
+
+    // ------------------------------------------------------------------
+    // Step 16: Coach Assignments
+    // ------------------------------------------------------------------
+
+    /**
+     * Seed coach assignments: center-level for both centers, team-level for Team A.
+     *
+     * @param int   $cohort_id   Cohort.
+     * @param int   $center_a_id Center A.
+     * @param int   $center_b_id Center B.
+     * @param array $teams       Team IDs.
+     * @param array $users       User data.
+     */
+    private function seed_coach_assignments( $cohort_id, $center_a_id, $center_b_id, $teams, $users ) {
+        $service = new HL_Coach_Assignment_Service();
+        $count   = 0;
+
+        $coach_user_id = $users['coach'];
+        if ( ! $coach_user_id ) {
+            WP_CLI::warning( 'No coach user found, skipping coach assignments.' );
+            return;
+        }
+
+        // Center-level assignment for Center A.
+        $result = $service->assign_coach( array(
+            'coach_user_id'  => $coach_user_id,
+            'scope_type'     => 'center',
+            'scope_id'       => $center_a_id,
+            'cohort_id'      => $cohort_id,
+            'effective_from' => '2026-01-01',
+        ) );
+        if ( ! is_wp_error( $result ) ) {
+            $count++;
+        }
+
+        // Center-level assignment for Center B.
+        $result = $service->assign_coach( array(
+            'coach_user_id'  => $coach_user_id,
+            'scope_type'     => 'center',
+            'scope_id'       => $center_b_id,
+            'cohort_id'      => $cohort_id,
+            'effective_from' => '2026-01-01',
+        ) );
+        if ( ! is_wp_error( $result ) ) {
+            $count++;
+        }
+
+        // Team-level assignment for Team A (overrides center default).
+        if ( ! empty( $teams['team_a'] ) ) {
+            $result = $service->assign_coach( array(
+                'coach_user_id'  => $coach_user_id,
+                'scope_type'     => 'team',
+                'scope_id'       => $teams['team_a'],
+                'cohort_id'      => $cohort_id,
+                'effective_from' => '2026-01-15',
+            ) );
+            if ( ! is_wp_error( $result ) ) {
+                $count++;
+            }
+        }
+
+        WP_CLI::log( "  [16/17] Coach assignments created: {$count}" );
+    }
+
+    // ------------------------------------------------------------------
+    // Step 17: Coaching Sessions
+    // ------------------------------------------------------------------
+
+    /**
+     * Seed coaching sessions with the expanded schema.
+     *
+     * Creates sessions for the first 4 teachers:
+     * - Teacher 1: attended session (past)
+     * - Teacher 2: scheduled session (upcoming)
+     * - Teacher 3: missed session (past)
+     * - Teacher 4: cancelled + rescheduled session
+     *
+     * @param int   $cohort_id   Cohort.
+     * @param array $enrollments Enrollment data.
+     * @param array $users       User data.
+     */
+    private function seed_coaching_sessions( $cohort_id, $enrollments, $users ) {
+        $service = new HL_Coaching_Service();
+        $count   = 0;
+
+        $coach_user_id = $users['coach'];
+        if ( ! $coach_user_id ) {
+            WP_CLI::warning( 'No coach user found, skipping coaching sessions.' );
+            return;
+        }
+
+        // Teacher 1: attended session (past).
+        if ( isset( $enrollments['teachers_a'][0] ) ) {
+            $eid    = $enrollments['teachers_a'][0]['enrollment_id'];
+            $result = $service->create_session( array(
+                'cohort_id'            => $cohort_id,
+                'mentor_enrollment_id' => $eid,
+                'coach_user_id'        => $coach_user_id,
+                'session_title'        => 'Coaching Session 1',
+                'meeting_url'          => 'https://zoom.us/j/demo-1',
+                'session_datetime'     => gmdate( 'Y-m-d H:i:s', strtotime( '-7 days 10:00' ) ),
+            ) );
+            if ( ! is_wp_error( $result ) ) {
+                $service->transition_status( $result, 'attended' );
+                $count++;
+            }
+        }
+
+        // Teacher 2: scheduled session (upcoming).
+        if ( isset( $enrollments['teachers_a'][1] ) ) {
+            $eid    = $enrollments['teachers_a'][1]['enrollment_id'];
+            $result = $service->create_session( array(
+                'cohort_id'            => $cohort_id,
+                'mentor_enrollment_id' => $eid,
+                'coach_user_id'        => $coach_user_id,
+                'session_title'        => 'Coaching Session 1',
+                'meeting_url'          => 'https://zoom.us/j/demo-2',
+                'session_datetime'     => gmdate( 'Y-m-d H:i:s', strtotime( '+7 days 14:00' ) ),
+            ) );
+            if ( ! is_wp_error( $result ) ) {
+                $count++;
+            }
+        }
+
+        // Teacher 3: missed session (past).
+        if ( isset( $enrollments['teachers_a'][2] ) ) {
+            $eid    = $enrollments['teachers_a'][2]['enrollment_id'];
+            $result = $service->create_session( array(
+                'cohort_id'            => $cohort_id,
+                'mentor_enrollment_id' => $eid,
+                'coach_user_id'        => $coach_user_id,
+                'session_title'        => 'Coaching Session 1',
+                'session_datetime'     => gmdate( 'Y-m-d H:i:s', strtotime( '-3 days 09:00' ) ),
+            ) );
+            if ( ! is_wp_error( $result ) ) {
+                $service->transition_status( $result, 'missed' );
+                $count++;
+            }
+        }
+
+        // Teacher 4: cancelled session + rescheduled new one.
+        if ( isset( $enrollments['teachers_a'][3] ) ) {
+            $eid = $enrollments['teachers_a'][3]['enrollment_id'];
+
+            // Original session (will be rescheduled).
+            $orig = $service->create_session( array(
+                'cohort_id'            => $cohort_id,
+                'mentor_enrollment_id' => $eid,
+                'coach_user_id'        => $coach_user_id,
+                'session_title'        => 'Coaching Session 1',
+                'session_datetime'     => gmdate( 'Y-m-d H:i:s', strtotime( '-2 days 11:00' ) ),
+            ) );
+
+            if ( ! is_wp_error( $orig ) ) {
+                $count++;
+                // Reschedule to a future date.
+                $new_session = $service->reschedule_session(
+                    $orig,
+                    gmdate( 'Y-m-d H:i:s', strtotime( '+5 days 11:00' ) ),
+                    'https://zoom.us/j/demo-4'
+                );
+                if ( ! is_wp_error( $new_session ) ) {
+                    $count++;
+                }
+            }
+        }
+
+        // Teacher 5 from Center B: upcoming session.
+        if ( isset( $enrollments['teachers_b'][0] ) ) {
+            $eid    = $enrollments['teachers_b'][0]['enrollment_id'];
+            $result = $service->create_session( array(
+                'cohort_id'            => $cohort_id,
+                'mentor_enrollment_id' => $eid,
+                'coach_user_id'        => $coach_user_id,
+                'session_title'        => 'Coaching Session 1',
+                'meeting_url'          => 'https://teams.microsoft.com/demo-5',
+                'session_datetime'     => gmdate( 'Y-m-d H:i:s', strtotime( '+10 days 15:00' ) ),
+            ) );
+            if ( ! is_wp_error( $result ) ) {
+                $count++;
+            }
+        }
+
+        WP_CLI::log( "  [17/17] Coaching sessions created: {$count}" );
     }
 }
