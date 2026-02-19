@@ -129,10 +129,22 @@ class HL_Frontend_My_Programs {
             );
         }
 
+        // Resolve coach for the first enrollment (shows one coach card).
+        $coach = null;
+        if (!empty($enrollments)) {
+            $coach_service = new HL_Coach_Assignment_Service();
+            foreach ($enrollments as $e) {
+                $coach = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->cohort_id);
+                if ($coach) break;
+            }
+        }
+
         // Render.
         ?>
         <div class="hl-dashboard hl-my-programs">
             <h2><?php esc_html_e('My Programs', 'hl-core'); ?></h2>
+
+            <?php $this->render_coach_widget($coach); ?>
 
             <?php if (empty($cards)) : ?>
                 <div class="hl-empty-state">
@@ -222,6 +234,39 @@ class HL_Frontend_My_Programs {
                     </a>
                 </div>
             </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the "My Coach" widget.
+     *
+     * @param array|null $coach Coach data from CoachAssignmentService or null.
+     */
+    private function render_coach_widget($coach) {
+        $coaching_page_url = $this->find_shortcode_page_url('hl_my_coaching');
+
+        ?>
+        <div class="hl-coach-widget" style="display:flex;align-items:center;gap:16px;padding:16px;background:#f8f9fa;border-radius:8px;margin-bottom:24px;">
+            <?php if ($coach) : ?>
+                <div><?php echo get_avatar($coach['coach_user_id'], 56, '', '', array('style' => 'border-radius:50%;')); ?></div>
+                <div style="flex:1;">
+                    <strong><?php esc_html_e('My Coach', 'hl-core'); ?></strong><br>
+                    <?php echo esc_html($coach['coach_name']); ?> &middot;
+                    <a href="mailto:<?php echo esc_attr($coach['coach_email']); ?>"><?php echo esc_html($coach['coach_email']); ?></a>
+                </div>
+                <?php if ($coaching_page_url) : ?>
+                    <a href="<?php echo esc_url($coaching_page_url); ?>" class="hl-btn hl-btn-sm hl-btn-primary">
+                        <?php esc_html_e('Schedule a Session', 'hl-core'); ?>
+                    </a>
+                <?php endif; ?>
+            <?php else : ?>
+                <div style="width:56px;height:56px;border-radius:50%;background:#dee2e6;display:flex;align-items:center;justify-content:center;color:#6c757d;font-size:20px;">?</div>
+                <div>
+                    <strong><?php esc_html_e('My Coach', 'hl-core'); ?></strong><br>
+                    <span style="color:#6c757d;"><?php esc_html_e('No coach assigned yet. Contact your administrator.', 'hl-core'); ?></span>
+                </div>
+            <?php endif; ?>
         </div>
         <?php
     }
