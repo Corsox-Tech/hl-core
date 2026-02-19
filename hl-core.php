@@ -103,11 +103,13 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-import-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-reporting-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-audit-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-assignment-service.php';
         
         // Integrations
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-learndash-integration.php';
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-jfb-integration.php';
-        
+        require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-buddyboss-integration.php';
+
         // Admin
         if (is_admin()) {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin.php';
@@ -186,6 +188,7 @@ class HL_Core {
         // Initialize integrations
         HL_LearnDash_Integration::instance();
         HL_JFB_Integration::instance();
+        HL_BuddyBoss_Integration::instance();
 
         // Initialize reporting service (registers rollup listener)
         HL_Reporting_Service::instance();

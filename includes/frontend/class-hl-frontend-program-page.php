@@ -439,12 +439,33 @@ class HL_Frontend_Program_Page {
     }
 
     /**
-     * Build a human-readable lock reason string.
+     * Build a human-readable lock reason string with type-specific messages.
      */
     private function get_lock_reason_text($availability) {
         $reason = $availability['locked_reason'];
 
         if ($reason === 'prereq') {
+            $blockers    = isset($availability['blockers']) ? $availability['blockers'] : array();
+            $prereq_type = isset($availability['prereq_type']) ? $availability['prereq_type'] : 'all_of';
+            $n_required  = isset($availability['n_required']) ? (int) $availability['n_required'] : 0;
+
+            if (!empty($blockers)) {
+                $names = $this->resolve_blocker_names($blockers);
+                $display = (count($names) > 3)
+                    ? implode(', ', array_slice($names, 0, 3)) . sprintf(' +%d more', count($names) - 3)
+                    : implode(', ', $names);
+
+                switch ($prereq_type) {
+                    case 'any_of':
+                        return sprintf(__('Complete at least one of: %s', 'hl-core'), $display);
+                    case 'n_of_m':
+                        return sprintf(__('Complete %d of: %s', 'hl-core'), $n_required, $display);
+                    case 'all_of':
+                    default:
+                        return sprintf(__('Complete prerequisites: %s', 'hl-core'), $display);
+                }
+            }
+
             return __('Complete prerequisites first', 'hl-core');
         }
 
@@ -460,6 +481,33 @@ class HL_Frontend_Program_Page {
         }
 
         return __('Locked', 'hl-core');
+    }
+
+    /**
+     * Resolve blocker activity IDs to titles (limit to 3 names + "+N more").
+     *
+     * @param int[] $blocker_ids
+     * @return string[]
+     */
+    private function resolve_blocker_names($blocker_ids) {
+        if (empty($blocker_ids)) {
+            return array();
+        }
+        global $wpdb;
+        $ids = implode(',', array_map('intval', $blocker_ids));
+        $rows = $wpdb->get_results(
+            "SELECT activity_id, title FROM {$wpdb->prefix}hl_activity WHERE activity_id IN ({$ids})",
+            ARRAY_A
+        );
+        $map = array();
+        foreach ($rows as $r) {
+            $map[(int) $r['activity_id']] = $r['title'];
+        }
+        $names = array();
+        foreach ($blocker_ids as $aid) {
+            $names[] = isset($map[(int) $aid]) ? $map[(int) $aid] : ('#' . $aid);
+        }
+        return $names;
     }
 
     /**

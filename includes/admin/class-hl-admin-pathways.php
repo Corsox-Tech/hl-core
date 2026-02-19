@@ -251,9 +251,108 @@ class HL_Admin_Pathways {
 
         if ($activity_id > 0) {
             $wpdb->update($wpdb->prefix . 'hl_activity', $data, array('activity_id' => $activity_id));
+            $target_activity_id = $activity_id;
         } else {
             $data['activity_uuid'] = HL_DB_Utils::generate_uuid();
             $wpdb->insert($wpdb->prefix . 'hl_activity', $data);
+            $target_activity_id = $wpdb->insert_id;
+        }
+
+        // Save prerequisite groups (only when editing — new activities redirect first, then edit to add prereqs).
+        if ($activity_id > 0 && isset($_POST['prereq_groups']) && is_array($_POST['prereq_groups'])) {
+            $prereq_groups = $_POST['prereq_groups'];
+
+            // Collect all proposed prereq activity IDs for cycle detection.
+            $all_proposed_ids = array();
+            foreach ($prereq_groups as $grp) {
+                if (!empty($grp['activity_ids']) && is_array($grp['activity_ids'])) {
+                    foreach ($grp['activity_ids'] as $aid) {
+                        $all_proposed_ids[] = absint($aid);
+                    }
+                }
+            }
+
+            // Cycle detection.
+            $rules_engine = new HL_Rules_Engine_Service();
+            $cycle_check  = $rules_engine->validate_no_cycles($pathway_id, $target_activity_id, $all_proposed_ids);
+
+            if (!$cycle_check['valid']) {
+                // Cycle detected — store error and redirect back.
+                $cycle_names = $this->resolve_activity_names($cycle_check['cycle']);
+                $msg = sprintf(
+                    __('Circular dependency detected: %s. Prerequisites were not saved.', 'hl-core'),
+                    implode(' -> ', $cycle_names)
+                );
+                set_transient('hl_prereq_cycle_error_' . $target_activity_id, $msg, 60);
+
+                $redirect = admin_url('admin.php?page=hl-pathways&action=edit_activity&activity_id=' . $target_activity_id . '&prereq_error=cycle');
+                wp_redirect($redirect);
+                exit;
+            }
+
+            // Valid — delete old groups/items and insert new ones.
+            $old_group_ids = $wpdb->get_col($wpdb->prepare(
+                "SELECT group_id FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id = %d",
+                $target_activity_id
+            ));
+            if (!empty($old_group_ids)) {
+                $in_ids = implode(',', array_map('intval', $old_group_ids));
+                $wpdb->query("DELETE FROM {$wpdb->prefix}hl_activity_prereq_item WHERE group_id IN ({$in_ids})");
+                $wpdb->query($wpdb->prepare(
+                    "DELETE FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id = %d",
+                    $target_activity_id
+                ));
+            }
+
+            foreach ($prereq_groups as $grp) {
+                $grp_type    = isset($grp['prereq_type']) ? sanitize_text_field($grp['prereq_type']) : 'all_of';
+                $grp_n       = ($grp_type === 'n_of_m' && isset($grp['n_required'])) ? absint($grp['n_required']) : null;
+                $grp_act_ids = (!empty($grp['activity_ids']) && is_array($grp['activity_ids'])) ? $grp['activity_ids'] : array();
+
+                if (empty($grp_act_ids)) {
+                    continue;
+                }
+
+                $wpdb->insert($wpdb->prefix . 'hl_activity_prereq_group', array(
+                    'activity_id' => $target_activity_id,
+                    'prereq_type' => $grp_type,
+                    'n_required'  => $grp_n,
+                ));
+                $new_group_id = $wpdb->insert_id;
+
+                foreach ($grp_act_ids as $prereq_aid) {
+                    $wpdb->insert($wpdb->prefix . 'hl_activity_prereq_item', array(
+                        'group_id'                 => $new_group_id,
+                        'prerequisite_activity_id' => absint($prereq_aid),
+                    ));
+                }
+            }
+
+            // Audit log.
+            if (class_exists('HL_Audit_Service')) {
+                HL_Audit_Service::log(
+                    'prereq_updated',
+                    get_current_user_id(),
+                    absint($data['cohort_id']),
+                    null,
+                    $target_activity_id,
+                    sprintf('Prerequisites updated for activity %d', $target_activity_id)
+                );
+            }
+        } elseif ($activity_id > 0 && !isset($_POST['prereq_groups'])) {
+            // No prereq_groups key at all means the section was rendered but all groups removed.
+            $old_group_ids = $wpdb->get_col($wpdb->prepare(
+                "SELECT group_id FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id = %d",
+                $target_activity_id
+            ));
+            if (!empty($old_group_ids)) {
+                $in_ids = implode(',', array_map('intval', $old_group_ids));
+                $wpdb->query("DELETE FROM {$wpdb->prefix}hl_activity_prereq_item WHERE group_id IN ({$in_ids})");
+                $wpdb->query($wpdb->prepare(
+                    "DELETE FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id = %d",
+                    $target_activity_id
+                ));
+            }
         }
 
         $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=activity_saved');
@@ -556,6 +655,7 @@ class HL_Admin_Pathways {
         echo '<th>' . esc_html__('Title', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Type', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Linked Resource', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Prerequisites', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Weight', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead>';
@@ -586,6 +686,7 @@ class HL_Admin_Pathways {
             echo '<td><strong>' . esc_html($act->title) . '</strong></td>';
             echo '<td>' . esc_html($type_display) . '</td>';
             echo '<td>' . $linked_display . '</td>';
+            echo '<td>' . $this->format_prereq_summary($act->activity_id) . '</td>';
             echo '<td>' . esc_html($act->weight) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
@@ -1035,11 +1136,98 @@ class HL_Admin_Pathways {
         echo '</tr>';
 
         echo '</table>';
+
+        // =====================================================================
+        // Prerequisites section (only for edit mode — activity must exist first)
+        // =====================================================================
+        if ($is_edit) {
+            // Show cycle error if redirected back with one.
+            if (isset($_GET['prereq_error']) && $_GET['prereq_error'] === 'cycle') {
+                $cycle_msg = get_transient('hl_prereq_cycle_error_' . $activity->activity_id);
+                delete_transient('hl_prereq_cycle_error_' . $activity->activity_id);
+                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Prerequisite Error:', 'hl-core') . '</strong> ';
+                if ($cycle_msg) {
+                    echo esc_html($cycle_msg);
+                } else {
+                    echo esc_html__('A circular dependency was detected. Prerequisites were not saved.', 'hl-core');
+                }
+                echo '</p></div>';
+            }
+
+            echo '<h2>' . esc_html__('Prerequisites', 'hl-core') . '</h2>';
+            echo '<p class="description">' . esc_html__('Define which activities must be completed before this one becomes available. Each group is an independent requirement (AND across groups).', 'hl-core') . '</p>';
+
+            // Load other activities in this pathway (exclude current).
+            $other_activities = $wpdb->get_results($wpdb->prepare(
+                "SELECT activity_id, title, ordering_hint FROM {$wpdb->prefix}hl_activity WHERE pathway_id = %d AND activity_id != %d ORDER BY ordering_hint ASC, activity_id ASC",
+                $pathway->pathway_id,
+                $activity->activity_id
+            ));
+
+            $existing_groups = $this->get_prereq_groups($activity->activity_id);
+
+            echo '<div id="hl-prereq-groups">';
+            if (!empty($existing_groups)) {
+                foreach ($existing_groups as $idx => $grp) {
+                    $this->render_prereq_group_row($idx, $grp, $other_activities);
+                }
+            }
+            echo '</div>';
+
+            echo '<button type="button" id="hl-add-prereq-group" class="button">' . esc_html__('+ Add Prerequisite Group', 'hl-core') . '</button>';
+
+            // Hidden template for JS cloning.
+            echo '<script type="text/template" id="hl-prereq-group-template">';
+            ob_start();
+            $this->render_prereq_group_row('__INDEX__', array(), $other_activities);
+            echo ob_get_clean();
+            echo '</script>';
+        }
+
         submit_button($is_edit ? __('Update Activity', 'hl-core') : __('Create Activity', 'hl-core'));
         echo '</form>';
 
         // JavaScript to toggle conditional fields
         $this->render_activity_form_js($current_type);
+
+        // JavaScript for prereq group management
+        if ($is_edit) {
+            $next_index = !empty($existing_groups) ? count($existing_groups) : 0;
+            ?>
+            <script type="text/javascript">
+            (function($) {
+                var nextIndex = <?php echo (int) $next_index; ?>;
+                var template = document.getElementById('hl-prereq-group-template');
+
+                // Add group
+                $('#hl-add-prereq-group').on('click', function() {
+                    var html = template.innerHTML.replace(/__INDEX__/g, nextIndex);
+                    $('#hl-prereq-groups').append(html);
+                    nextIndex++;
+                    bindGroupEvents();
+                });
+
+                // Remove group
+                function bindGroupEvents() {
+                    $('.hl-remove-prereq-group').off('click').on('click', function() {
+                        $(this).closest('.hl-prereq-group').remove();
+                    });
+                    // Toggle n_required visibility
+                    $('.hl-prereq-type-select').off('change').on('change', function() {
+                        var wrap = $(this).closest('.hl-prereq-group').find('.hl-n-required-wrap');
+                        if ($(this).val() === 'n_of_m') {
+                            wrap.show();
+                        } else {
+                            wrap.hide();
+                        }
+                    });
+                }
+
+                bindGroupEvents();
+            })(jQuery);
+            </script>
+            <?php
+        }
     }
 
     /**
@@ -1088,5 +1276,158 @@ class HL_Admin_Pathways {
         })();
         </script>
         <?php
+    }
+
+    /**
+     * Get prerequisite groups with nested items for a given activity.
+     *
+     * @param int $activity_id
+     * @return array Groups with items.
+     */
+    private function get_prereq_groups($activity_id) {
+        global $wpdb;
+
+        $groups = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id = %d ORDER BY group_id ASC",
+            $activity_id
+        ), ARRAY_A);
+
+        if (empty($groups)) {
+            return array();
+        }
+
+        foreach ($groups as &$group) {
+            $group['items'] = $wpdb->get_col($wpdb->prepare(
+                "SELECT prerequisite_activity_id FROM {$wpdb->prefix}hl_activity_prereq_item WHERE group_id = %d",
+                $group['group_id']
+            ));
+        }
+        unset($group);
+
+        return $groups;
+    }
+
+    /**
+     * Render a single prereq group row for the activity form.
+     *
+     * @param int    $index            Row index.
+     * @param array  $group            Group data (or empty for template).
+     * @param array  $other_activities Activities available as prereqs.
+     */
+    private function render_prereq_group_row($index, $group, $other_activities) {
+        $prereq_type = isset($group['prereq_type']) ? $group['prereq_type'] : 'all_of';
+        $n_required  = isset($group['n_required']) ? (int) $group['n_required'] : 2;
+        $selected_ids = isset($group['items']) ? array_map('intval', $group['items']) : array();
+
+        echo '<div class="hl-prereq-group" data-index="' . esc_attr($index) . '" style="border:1px solid #ccd0d4;padding:10px;margin-bottom:10px;background:#f9f9f9;">';
+
+        // Type selector
+        echo '<label><strong>' . esc_html__('Type:', 'hl-core') . '</strong> ';
+        echo '<select name="prereq_groups[' . esc_attr($index) . '][prereq_type]" class="hl-prereq-type-select">';
+        echo '<option value="all_of"' . selected($prereq_type, 'all_of', false) . '>' . esc_html__('All of', 'hl-core') . '</option>';
+        echo '<option value="any_of"' . selected($prereq_type, 'any_of', false) . '>' . esc_html__('Any of', 'hl-core') . '</option>';
+        echo '<option value="n_of_m"' . selected($prereq_type, 'n_of_m', false) . '>' . esc_html__('N of M', 'hl-core') . '</option>';
+        echo '</select></label> ';
+
+        // N required (visible only for n_of_m)
+        $n_style = ($prereq_type === 'n_of_m') ? '' : 'display:none;';
+        echo '<span class="hl-n-required-wrap" style="' . esc_attr($n_style) . '">';
+        echo '<label>' . esc_html__('N required:', 'hl-core') . ' ';
+        echo '<input type="number" name="prereq_groups[' . esc_attr($index) . '][n_required]" value="' . esc_attr($n_required) . '" min="1" class="small-text" />';
+        echo '</label></span> ';
+
+        // Remove button
+        echo '<button type="button" class="button button-small hl-remove-prereq-group" style="float:right;color:#a00;">' . esc_html__('Remove Group', 'hl-core') . '</button>';
+
+        // Activity multi-select
+        echo '<div style="clear:both;margin-top:8px;">';
+        echo '<label><strong>' . esc_html__('Activities:', 'hl-core') . '</strong></label><br/>';
+        echo '<select name="prereq_groups[' . esc_attr($index) . '][activity_ids][]" multiple="multiple" style="min-width:300px;min-height:80px;">';
+        foreach ($other_activities as $act) {
+            $sel = in_array((int) $act->activity_id, $selected_ids, true) ? ' selected="selected"' : '';
+            echo '<option value="' . esc_attr($act->activity_id) . '"' . $sel . '>'
+                . esc_html($act->title) . ' (#' . esc_html($act->activity_id) . ')'
+                . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . esc_html__('Hold Ctrl/Cmd to select multiple.', 'hl-core') . '</p>';
+        echo '</div>';
+
+        echo '</div>';
+    }
+
+    /**
+     * Format a human-readable prereq summary for the activity list.
+     *
+     * @param int $activity_id
+     * @return string HTML-safe summary.
+     */
+    private function format_prereq_summary($activity_id) {
+        $groups = $this->get_prereq_groups($activity_id);
+        if (empty($groups)) {
+            return '<span style="color:#999;">&mdash;</span>';
+        }
+
+        $parts = array();
+        foreach ($groups as $group) {
+            if (empty($group['items'])) {
+                continue;
+            }
+            $names = $this->resolve_activity_names($group['items']);
+            $type  = $group['prereq_type'];
+
+            switch ($type) {
+                case 'any_of':
+                    $parts[] = sprintf(
+                        __('Any of: %s', 'hl-core'),
+                        esc_html(implode(', ', $names))
+                    );
+                    break;
+                case 'n_of_m':
+                    $n = isset($group['n_required']) ? (int) $group['n_required'] : 0;
+                    $parts[] = sprintf(
+                        __('%d of: %s', 'hl-core'),
+                        $n,
+                        esc_html(implode(', ', $names))
+                    );
+                    break;
+                case 'all_of':
+                default:
+                    $parts[] = sprintf(
+                        __('All of: %s', 'hl-core'),
+                        esc_html(implode(', ', $names))
+                    );
+                    break;
+            }
+        }
+
+        return !empty($parts) ? implode('<br>', $parts) : '<span style="color:#999;">&mdash;</span>';
+    }
+
+    /**
+     * Resolve activity IDs to their titles.
+     *
+     * @param int[] $activity_ids
+     * @return string[]
+     */
+    private function resolve_activity_names($activity_ids) {
+        if (empty($activity_ids)) {
+            return array();
+        }
+        global $wpdb;
+        $ids = implode(',', array_map('intval', $activity_ids));
+        $rows = $wpdb->get_results(
+            "SELECT activity_id, title FROM {$wpdb->prefix}hl_activity WHERE activity_id IN ({$ids})",
+            ARRAY_A
+        );
+        $map = array();
+        foreach ($rows as $r) {
+            $map[(int) $r['activity_id']] = $r['title'];
+        }
+        $names = array();
+        foreach ($activity_ids as $aid) {
+            $names[] = isset($map[(int) $aid]) ? $map[(int) $aid] : ('#' . $aid);
+        }
+        return $names;
     }
 }

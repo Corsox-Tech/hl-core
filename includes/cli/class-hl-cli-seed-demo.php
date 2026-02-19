@@ -1015,9 +1015,14 @@ class HL_CLI_Seed_Demo {
     private function seed_prereq_rules( $pathways ) {
         global $wpdb;
 
-        $post_self = $pathways['teacher_activities']['post_self'];
-        $pre_self  = $pathways['teacher_activities']['pre_self'];
+        $ta        = $pathways['teacher_activities'];
+        $post_self = $ta['post_self'];
+        $pre_self  = $ta['pre_self'];
+        $ld_course = $ta['ld_course'];
+        $children  = $ta['children'];
+        $coaching  = $ta['coaching'];
 
+        // 1. ALL_OF: Post Self-Assessment requires Pre Self-Assessment.
         $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_group', array(
             'activity_id' => $post_self,
             'prereq_type' => 'all_of',
@@ -1029,7 +1034,44 @@ class HL_CLI_Seed_Demo {
             'prerequisite_activity_id' => $pre_self,
         ) );
 
-        WP_CLI::log( '  [12/15] Prereq rule created: Post Self-Assessment requires Pre Self-Assessment' );
+        // 2. ANY_OF: Children Assessment requires either LD course OR Pre Self-Assessment.
+        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_group', array(
+            'activity_id' => $children,
+            'prereq_type' => 'any_of',
+        ) );
+        $group_id = $wpdb->insert_id;
+
+        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array(
+            'group_id'                 => $group_id,
+            'prerequisite_activity_id' => $ld_course,
+        ) );
+        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array(
+            'group_id'                 => $group_id,
+            'prerequisite_activity_id' => $pre_self,
+        ) );
+
+        // 3. N_OF_M: Coaching Attendance requires 2 of 3 (LD course, Pre Self, Children).
+        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_group', array(
+            'activity_id' => $coaching,
+            'prereq_type' => 'n_of_m',
+            'n_required'  => 2,
+        ) );
+        $group_id = $wpdb->insert_id;
+
+        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array(
+            'group_id'                 => $group_id,
+            'prerequisite_activity_id' => $ld_course,
+        ) );
+        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array(
+            'group_id'                 => $group_id,
+            'prerequisite_activity_id' => $pre_self,
+        ) );
+        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array(
+            'group_id'                 => $group_id,
+            'prerequisite_activity_id' => $children,
+        ) );
+
+        WP_CLI::log( '  [12/15] Prereq rules created: ALL_OF (Post Self <- Pre Self), ANY_OF (Children <- LD|Pre), N_OF_M (Coaching <- 2 of 3)' );
     }
 
     // ------------------------------------------------------------------

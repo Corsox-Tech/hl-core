@@ -104,6 +104,7 @@ All front-end pages require the user to be logged in.
 | Cohort Workspace | Housman Admin, Coach, plus leaders scoped to their org unit within that cohort |
 | Classroom Page | Housman Admin, Coach, Center Leader(s), District Leader(s), Teacher(s) assigned to that Classroom |
 | Team Page | Housman Admin, Coach, Center Leader(s), District Leader(s), Mentor(s) of that Team |
+| My Coaching | Any enrolled participant (sees only their own sessions) |
 
 If a user does not have permission, show a "You do not have access to this page" message. Never expose data outside the user's scope.
 
@@ -450,6 +451,7 @@ Use WordPress pages with URL parameters. Recommended slugs:
 | Cohort Workspace | `/cohort/` | `?id=X` and optional `&orgunit=Y` |
 | Team Page | `/team/` | `?id=X` |
 | Classroom Page | `/classroom/` | `?id=X` |
+| My Coaching | `/my-coaching/` | optional `?cohort_id=X` |
 
 For v1, URL parameters are simplest. Pretty permalinks (e.g., `/program/begin-to-ecsel/`) can be added later via rewrite rules.
 
@@ -482,6 +484,8 @@ All data comes from HL Core custom tables and services:
 - Classrooms: `hl_classroom` + `hl_child_classroom_current` via ClassroomService
 - Children: `hl_child` via ClassroomService
 - Unlock logic: RulesEngineService (prereqs, drip, overrides)
+- Coach assignments: `hl_coach_assignment` via CoachAssignmentService (resolution: enrollment → team → center)
+- Coaching sessions: `hl_coaching_session` via CoachingService
 
 Scope filtering must use `HL_Security::assert_can()` and enrollment-based scope resolution.
 
@@ -500,30 +504,180 @@ Scope filtering must use `HL_Security::assert_can()` and enrollment-based scope 
 
 ---
 
-# 13) Build Priority
+# 13) Coach Assignment Model
 
-Recommended build order:
+Coaches are Housman staff assigned to work with participants. Assignment can happen at multiple levels with "most specific wins" resolution.
 
-**Phase A: Participant Experience (highest priority)**
-1. Add new pathway fields (description, objectives, syllabus_url, featured_image_id, avg_completion_time, expiration_date) — DB migration + admin UI
-2. `[hl_my_programs]` — My Programs listing page
-3. `[hl_program_page]` — Program detail page with activity cards
-4. `[hl_activity_page]` — Activity page (JFB embed + children assessment)
+## 13.1 New Table: `hl_coach_assignment`
 
-**Phase B: Leader Experience**
-5. `[hl_my_cohort]` — Auto-scoped cohort view for leaders (tabs: Teams, Staff, Reports, Classrooms)
-6. `[hl_team_page]` — Team detail page
-7. `[hl_classroom_page]` — Classroom detail page
+```
+coach_assignment_id  bigint PK AUTO_INCREMENT
+coach_user_id        bigint NOT NULL (FK → wp_users)
+scope_type           enum('center', 'team', 'enrollment') NOT NULL
+scope_id             bigint NOT NULL — center_id, team_id, or enrollment_id
+cohort_id            bigint NOT NULL (FK → hl_cohort)
+effective_from       date NOT NULL
+effective_to         date NULL — NULL = currently active
+created_at           datetime
+updated_at           datetime
+```
 
-**Phase C: Staff/Admin CRM Directory**
-8. `[hl_districts_listing]` — Districts listing
-9. `[hl_district_page]` — District detail with cohorts and centers
-10. `[hl_centers_listing]` — Centers listing
-11. `[hl_center_page]` — Center detail with cohorts and classrooms
-12. `[hl_cohort_workspace]` — Full cohort command center with Dashboard tab
+Indexes: `(cohort_id, scope_type, scope_id)`, `(coach_user_id)`, `(cohort_id, coach_user_id)`
 
-**Phase D: BuddyBoss Integration (future)**
-13. Custom BuddyBoss profile tab for user management
+## 13.2 Resolution Logic (Most Specific Wins)
+
+To determine "who is User X's coach in Cohort Y":
+1. Check for active `enrollment`-level assignment where `scope_id` = user's enrollment_id → if found, return that coach
+2. Check for active `team`-level assignment where `scope_id` = user's team_id → if found, return that coach
+3. Check for active `center`-level assignment where `scope_id` = user's center_id → if found, return that coach
+4. No coach assigned → return null
+
+"Active" means: `effective_from <= today` AND (`effective_to IS NULL` OR `effective_to >= today`)
+
+## 13.3 Reassignment
+
+When a coach is replaced:
+- Set `effective_to` = today on the old assignment
+- Create new assignment with `effective_from` = today, `effective_to` = NULL
+- Historical assignments remain in the table for audit trail
+- Existing coaching sessions retain their original `coach_user_id` (frozen at time of session)
+
+## 13.4 Admin UI for Coach Assignment
+
+Coach assignment is managed in these existing admin/front-end pages:
+- **Center Page (admin or CRM):** "Default Coach" dropdown — creates/updates center-level assignment
+- **Team Page (admin):** "Coach" dropdown — creates/updates team-level assignment (overrides center default)
+- **Enrollment detail / BuddyBoss profile (future):** "Coach Override" — creates enrollment-level assignment
+
+Alternatively, a dedicated "Coach Assignments" admin page under HL Core menu showing all current assignments with filter by cohort.
+
+---
+
+# 14) Coaching Session Model — Expanded
+
+The existing `hl_coaching_session` table needs additional fields to support the participant-facing experience.
+
+## 14.1 Schema Changes to `hl_coaching_session`
+
+New columns:
+- `session_title` varchar(255) NULL — display name (e.g. "Coaching Session 1"). If NULL, auto-generates from the pathway activity title.
+- `meeting_url` varchar(500) NULL — video call link (Zoom, Teams, etc.)
+- `session_status` enum('scheduled', 'attended', 'missed', 'cancelled', 'rescheduled') NOT NULL DEFAULT 'scheduled'
+- `cancelled_at` datetime NULL
+- `rescheduled_from_session_id` bigint NULL — links to the original session if this is a reschedule
+- `cancellation_allowed` — NOT stored here; controlled at cohort level via `hl_cohort.settings` JSON (key: `coaching_allow_cancellation`, default: true)
+
+Deprecate: `attendance_status` column is replaced by `session_status`. Migration should map: 'attended' → 'attended', 'missed' → 'missed', 'unknown' → 'scheduled'.
+
+## 14.2 Session Status Flow
+
+```
+scheduled → attended      (coach marks attendance after session)
+scheduled → missed        (coach marks no-show after session)
+scheduled → cancelled     (participant or coach cancels)
+scheduled → rescheduled   (creates new session, old one marked rescheduled)
+```
+
+Only `scheduled` sessions can be cancelled or rescheduled. `attended`, `missed`, `cancelled`, `rescheduled` are terminal states.
+
+---
+
+# 15) Coaching — Front-End Pages
+
+## 15.1 My Coach Widget
+
+Displayed on the My Programs page (or as a sidebar component on Program Page).
+
+Content:
+- Coach profile photo (WP avatar)
+- Coach display name
+- Coach email (clickable mailto link)
+- "Schedule a Session" button (links to coaching page)
+
+If no coach assigned: show "No coach assigned yet. Contact your administrator."
+
+## 15.2 My Coaching Page
+**Shortcode:** `[hl_my_coaching]`
+**Purpose:** Participant view of all their coaching sessions and scheduling.
+
+### Header
+- Page title: "My Coaching"
+- Coach info card: photo, name, email
+
+### Section: Upcoming Sessions
+- List of sessions with `session_status = 'scheduled'` and `session_datetime >= now`
+- Each row shows:
+  - Session title (e.g. "Coaching Session 1")
+  - Date and time (formatted for user's timezone)
+  - Coach name
+  - Status badge: "Scheduled" (blue)
+  - Meeting link button (if `meeting_url` is set): "Join Meeting"
+  - Action buttons:
+    - "Reschedule" → opens reschedule flow (Phase A: date-time picker; Phase B: MS365 availability)
+    - "Cancel" → confirmation dialog → sets status to cancelled (ONLY shown if `coaching_allow_cancellation` is true for the cohort)
+
+### Section: Past Sessions
+- List of sessions with `session_datetime < now` OR terminal status
+- Each row shows:
+  - Session title
+  - Date and time
+  - Coach name (frozen — shows the coach who was assigned at the time, not current coach)
+  - Status badge: Attended (green), Missed (red), Cancelled (gray), Rescheduled (amber)
+  - No action buttons on past sessions
+
+### Section: Schedule New Session (Phase A)
+- Button: "Schedule New Session"
+- Opens inline form:
+  - Session name (auto-populated from next available pathway coaching activity, editable)
+  - Date picker + time picker (simple HTML datetime-local input for Phase A)
+  - Meeting link (optional, text input — coach can add later)
+  - "Confirm" button → creates session with status 'scheduled'
+- Phase B enhancement: replace date/time picker with MS365 availability calendar
+
+### Visibility
+- Any enrolled participant can see their own sessions
+- Coaches see this page scoped to the participant they're viewing (future: via BuddyBoss profile tab)
+
+## 15.3 Coach/Admin Coaching Management
+
+The existing admin Coaching Sessions page already handles most management. Enhancements needed:
+- Add `session_status` dropdown (replacing attendance_status radio)
+- Add `meeting_url` field
+- Add `session_title` field
+- "Schedule on behalf" flow: coach selects participant, picks date/time, creates session
+- Reschedule action: creates new session linked to old one, marks old as 'rescheduled'
+- Cancel action: sets status to 'cancelled', records `cancelled_at`
+
+## 15.4 Coaching in Program Page
+
+On the Program Page, coaching_session_attendance activities should show enhanced info:
+- If session is scheduled: show date/time and "Upcoming on [date]" badge
+- If session is attended: show "Completed on [date]" badge with checkmark
+- If no session scheduled yet: show "Schedule Session" button → links to My Coaching page
+- If session is missed: show "Missed" badge with "Reschedule" link
+
+---
+
+# 16) Build Priority (Updated)
+
+Original Phases A-C are complete (Phases 7-9 in README build queue).
+
+**Phase D: Coach Assignment + Coaching Enhancement**
+1. `hl_coach_assignment` table — DB migration + CoachAssignmentService (CRUD, resolution logic, reassignment with history)
+2. Schema changes to `hl_coaching_session` — add session_title, meeting_url, session_status, cancelled_at, rescheduled_from_session_id. Migrate attendance_status → session_status.
+3. Admin UI updates — Coach assignment management (center/team/enrollment level). Coaching session form updates (status, meeting_url, title, reschedule/cancel actions).
+4. `[hl_my_coaching]` — Participant coaching page with session history, upcoming sessions, schedule/reschedule/cancel buttons (functional with date-time pickers)
+5. My Coach widget — on My Programs page
+6. Program Page coaching activity enhancement — show session status and scheduling link
+
+**Phase E: MS365 Calendar Integration (future)**
+7. Azure AD app registration + OAuth flow for coach calendar consent
+8. Coach availability endpoint — reads coach's MS365 calendar via Graph API `/me/calendarView`
+9. Booking flow — participant selects available slot → creates session in HL Core + MS365 calendar event for both parties
+10. Sync — reschedule/cancel updates propagate to MS365 calendar
+
+**Phase F: BuddyBoss Integration (future)**
+11. Custom BuddyBoss profile tab for user management (unchanged from original plan)
 
 ---
 

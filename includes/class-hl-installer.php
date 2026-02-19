@@ -51,6 +51,9 @@ class HL_Installer {
         // Add new pathway fields (description, objectives, etc.).
         self::migrate_pathway_add_fields();
 
+        // Expand coaching session schema (session_title, meeting_url, session_status, etc.).
+        self::migrate_coaching_session_expansion();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -73,7 +76,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 2;
+        $current_revision = 3;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -260,6 +263,66 @@ class HL_Installer {
         }
         if ( ! $column_exists( 'expiration_date' ) ) {
             $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN expiration_date date NULL AFTER avg_completion_time" );
+        }
+    }
+
+    /**
+     * Add new columns to hl_coaching_session for the expanded coaching model.
+     *
+     * New columns: session_title, meeting_url, session_status, cancelled_at,
+     * rescheduled_from_session_id.
+     *
+     * Migrates existing attendance_status values to session_status:
+     *   'attended' → 'attended', 'missed' → 'missed', 'unknown' → 'scheduled'.
+     *
+     * Each column is added only if it does not already exist (idempotent).
+     */
+    private static function migrate_coaching_session_expansion() {
+        global $wpdb;
+
+        $table = "{$wpdb->prefix}hl_coaching_session";
+
+        // Check table exists.
+        $table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table;
+        if ( ! $table_exists ) {
+            return; // Will be created by dbDelta with new columns.
+        }
+
+        // Helper: check if a column exists.
+        $column_exists = function ( $column ) use ( $wpdb, $table ) {
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                    $table,
+                    $column
+                )
+            );
+            return ! empty( $row );
+        };
+
+        if ( ! $column_exists( 'session_title' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN session_title varchar(255) NULL AFTER mentor_enrollment_id" );
+        }
+
+        if ( ! $column_exists( 'meeting_url' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN meeting_url varchar(500) NULL AFTER session_title" );
+        }
+
+        if ( ! $column_exists( 'session_status' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN session_status enum('scheduled','attended','missed','cancelled','rescheduled') NOT NULL DEFAULT 'scheduled' AFTER meeting_url" );
+
+            // Migrate existing attendance_status values.
+            $wpdb->query( "UPDATE `{$table}` SET session_status = 'attended' WHERE attendance_status = 'attended'" );
+            $wpdb->query( "UPDATE `{$table}` SET session_status = 'missed' WHERE attendance_status = 'missed'" );
+            $wpdb->query( "UPDATE `{$table}` SET session_status = 'scheduled' WHERE attendance_status = 'unknown'" );
+        }
+
+        if ( ! $column_exists( 'cancelled_at' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN cancelled_at datetime NULL AFTER notes_richtext" );
+        }
+
+        if ( ! $column_exists( 'rescheduled_from_session_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN rescheduled_from_session_id bigint(20) unsigned NULL AFTER cancelled_at" );
         }
     }
 
@@ -770,9 +833,14 @@ class HL_Installer {
             cohort_id bigint(20) unsigned NOT NULL,
             coach_user_id bigint(20) unsigned NOT NULL,
             mentor_enrollment_id bigint(20) unsigned NOT NULL,
+            session_title varchar(255) NULL,
+            meeting_url varchar(500) NULL,
+            session_status enum('scheduled','attended','missed','cancelled','rescheduled') NOT NULL DEFAULT 'scheduled',
             attendance_status enum('attended','missed','unknown') NOT NULL DEFAULT 'unknown',
             session_datetime datetime NULL,
             notes_richtext longtext NULL,
+            cancelled_at datetime NULL,
+            rescheduled_from_session_id bigint(20) unsigned NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (session_id),
@@ -828,9 +896,26 @@ class HL_Installer {
             KEY status (status)
         ) $charset_collate;";
 
+        // Coach Assignment table
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_coach_assignment (
+            coach_assignment_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            coach_user_id bigint(20) unsigned NOT NULL,
+            scope_type enum('center','team','enrollment') NOT NULL,
+            scope_id bigint(20) unsigned NOT NULL,
+            cohort_id bigint(20) unsigned NOT NULL,
+            effective_from date NOT NULL,
+            effective_to date NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (coach_assignment_id),
+            KEY cohort_scope (cohort_id, scope_type, scope_id),
+            KEY coach_user_id (coach_user_id),
+            KEY cohort_coach (cohort_id, coach_user_id)
+        ) $charset_collate;";
+
         return $tables;
     }
-    
+
     /**
      * Create custom capabilities
      */

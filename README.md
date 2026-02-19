@@ -33,10 +33,11 @@ All 8 core entities have domain model classes with proper properties and reposit
 - **ClassroomService** - Full classroom CRUD, teaching assignment CRUD (create/update/delete with audit logging + auto-trigger children assessment instance generation), child classroom assignment/reassignment with history tracking
 - **PathwayService** - Pathway + Activity CRUD
 - **RulesEngineService** - Full prerequisite + drip rule evaluation engine
-  - ALL_OF prerequisite groups
+  - ALL_OF, ANY_OF, and N_OF_M prerequisite group types
   - Fixed date and completion-delay drip rules
   - "Most restrictive wins" logic
-  - Override handling (exempt, manual unlock)
+  - Override handling (exempt, manual_unlock, grace_unlock)
+  - Prerequisite cycle detection (DFS-based) with admin validation on save
 - **AssessmentService** - Teacher/Children assessment queries + completion checks + children assessment activity_state updates + rollup triggering on submission + instance auto-generation for cohort teaching assignments
 - **ObservationService** - Full observation CRUD: create draft observations, query by cohort/mentor/user with joined data, get observable teachers from team membership, teacher classroom lookup, observation activity/form lookup for JFB integration
 - **CoachingService** - Full coaching session CRUD (create/update/delete) + attendance marking with activity_state updates + rollup triggering + observation linking/unlinking + attachment management (WP Media)
@@ -49,7 +50,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Cohorts** - List, create, edit, delete cohorts with metric cards (enrollments, pathways, activities)
 - **Org Units** - Manage districts and centers hierarchy
 - **Enrollments** - Enroll users in cohorts with role assignment, cohort filter
-- **Pathways & Activities** - Configure pathways per cohort, add activities with type-specific dropdowns (JFB form selector, HL instrument selector, LearnDash course selector), auto-built external_ref JSON
+- **Pathways & Activities** - Configure pathways per cohort, add activities with type-specific dropdowns (JFB form selector, HL instrument selector, LearnDash course selector), auto-built external_ref JSON, prerequisite group editor (all_of/any_of/n_of_m with cycle detection), prereq summary column in activity list
 - **Teams** - Create teams within cohorts/centers, view team members
 - **Classrooms** - Full CRUD with detail view: teaching assignments (cohort-scoped add/remove) + children roster (assign/reassign/remove with history)
 - **Imports** - AJAX-based 3-step wizard (Upload > Preview & Select > Results) for CSV import with import type selector (participants, children, classrooms, teaching assignments), dynamic column rendering per type, row-level status badges, bulk actions, commit, error report download, column hints per type, and import history table
@@ -104,6 +105,14 @@ Placeholder pages (planned):
 - Course progress reading via `learndash_course_progress()`
 - Course completion event hook (`learndash_course_completed`) — fully wired: finds enrollments, matches activities by course_id, marks complete, triggers rollups, audit logs
 - Batch progress reading for reporting
+
+### BuddyBoss Integration
+- **HL_BuddyBoss_Integration** service (`includes/integrations/class-hl-buddyboss-integration.php`)
+- Role-conditional sidebar navigation menu in BuddyBoss profile dropdown (hooked to `buddyboss_theme_after_bb_groups_menu`)
+- Menu items: My Programs (all enrolled users), My Cohort (center/district leaders), School Districts + Institutions (manage_hl_core capability)
+- Role detection from `hl_enrollment.roles` JSON (not WP roles) with static caching
+- Shortcode-based page URL discovery with static caching
+- Graceful no-op when BuddyBoss is not active
 
 ### JetFormBuilder Integration
 - **HL_JFB_Integration** service (`includes/integrations/class-hl-jfb-integration.php`)
@@ -186,15 +195,33 @@ _Read docs: 10 (sections 6.1–6.5, 13 Phase C)_
 - [x] **9.4 Center Page** — `[hl_center_page]` shortcode with `?id=X`. Dark gradient header with center name, parent district link. Sections: Active Cohorts (with per-center participant count), Classrooms table (age band, children, teachers), Staff table (name, email, role, cohort). Access: staff + center leaders + district leaders of parent.
 - [x] **9.5 Cohort Workspace** — `[hl_cohort_workspace]` shortcode with `?id=X&orgunit=Y`. Full command center. Tabs: Dashboard (avg completion %, participant counts by status, staff/center counts), Teams (card grid), Staff (searchable table), Reports (filterable table with per-activity detail expand + CSV export), Classrooms (table). Org unit filter dropdown for staff. Scope from URL or enrollment. CSV export handler.
 
-### Phase 10: Front-End — BuddyBoss Integration (Future)
+### Phase 10: Coach Assignment + Coaching Enhancement
+_Read docs: 10 (sections 13–15)_
+
+- [x] **10.1 Coach Assignment Table** — Added `hl_coach_assignment` table (coach_user_id, scope_type enum center/team/enrollment, scope_id, cohort_id, effective_from, effective_to) to class-hl-installer.php with indexes (cohort_scope, coach_user_id, cohort_coach). Created `HL_Coach_Assignment_Service` with: `assign_coach()`, `get_coach_for_enrollment()` (most-specific-wins resolution: enrollment → team → center), `reassign_coach()` (closes old + creates new), `delete_assignment()`, `get_assignments_by_cohort()`, `get_all_assignments_by_cohort()`, `get_coach_roster()`, `get_sessions_for_enrollment()`. Audit logging on assign/reassign/delete. Schema revision bumped to 3.
+- [ ] **10.2 Coaching Session Schema Expansion** — Add columns to `hl_coaching_session`: session_title (varchar 255), meeting_url (varchar 500), session_status (enum: scheduled/attended/missed/cancelled/rescheduled), cancelled_at (datetime), rescheduled_from_session_id (bigint). Migration: map existing attendance_status → session_status ('attended'→'attended', 'missed'→'missed', 'unknown'→'scheduled'). Add `coaching_allow_cancellation` key to `hl_cohort.settings` JSON (default: true). Update CoachingService with new status transitions, reschedule flow (create new + mark old), cancel flow.
+- [ ] **10.3 Admin UI Updates** — Coach Assignments admin page or inline dropdowns on Center/Team pages. Coaching Session form: replace attendance_status radio with session_status dropdown, add session_title, meeting_url fields, reschedule/cancel action buttons.
+- [ ] **10.4 My Coaching Page** — `[hl_my_coaching]` shortcode. Participant view: My Coach card (photo, name, email from CoachAssignmentService resolution), Upcoming Sessions (scheduled sessions with date/time, meeting link, reschedule/cancel buttons), Past Sessions (attended/missed/cancelled/rescheduled with frozen coach name), Schedule New Session (date-time picker, auto-populated session name from next coaching activity). All actions functional with date-time pickers (no MS365 yet).
+- [ ] **10.5 My Coach Widget** — Add coach info card to My Programs page: coach photo, name, email, "Schedule a Session" button linking to My Coaching page. Uses CoachAssignmentService resolution.
+- [ ] **10.6 Program Page Coaching Enhancement** — Update coaching_session_attendance activity cards: show session date/time if scheduled, "Schedule Session" button if no session, "Reschedule" link if missed. Link to My Coaching page for actions.
+
+### Phase 11: MS365 Calendar Integration (Future)
+_Read docs: 10 (section 16 Phase E)_
+
+- [ ] **11.1 Azure AD App + OAuth** — Register Azure AD app, implement OAuth consent flow for coach accounts, store refresh tokens securely.
+- [ ] **11.2 Availability Endpoint** — Read coach MS365 calendar via Graph API `/me/calendarView`, expose available slots to booking UI.
+- [ ] **11.3 Booking Flow** — Replace date-time picker with MS365 availability calendar. Create session in HL Core + MS365 calendar event for both parties.
+- [ ] **11.4 Sync** — Reschedule/cancel propagate to MS365 calendar events.
+
+### Phase 12: Front-End — BuddyBoss Integration (Future)
 _Read docs: 10 (section 2.4)_
 
-- [ ] **10.1 BB Profile Tab** — Custom BuddyBoss profile tab for coaches/admins: enrollment info, pathway progress, team assignment (changeable), coaching sessions, action buttons (re-send invite, override activity, change role).
+- [~] **12.1 BB Sidebar Navigation + Profile Tab** — DONE: Sidebar navigation menu (`HL_BuddyBoss_Integration`) with role-conditional items (My Programs, My Cohort, School Districts, Institutions) hooked into BuddyBoss profile dropdown. TODO: Custom profile tab for coaches/admins (enrollment info, pathway progress, team assignment, coaching sessions, action buttons).
 
 ### Lower Priority (Future)
-- [ ] ANY_OF and N_OF_M prerequisite types
-- [ ] Grace unlock override type
-- [ ] Prerequisite cycle detection on save
+- [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
+- [x] **Grace unlock override type** — `compute_availability()` now recognizes `grace_unlock` override type: bypasses prerequisite gate but NOT drip rules (mirrors `manual_unlock` which bypasses drip but NOT prereqs).
+- [x] **Prerequisite cycle detection on save** — `validate_no_cycles()` builds dependency adjacency list scoped to pathway, runs iterative DFS with 3-color marking. Admin `save_activity()` validates before persisting prereqs; cycle detected → transient error message → redirect back with descriptive cycle path.
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
 
@@ -212,7 +239,7 @@ _Read docs: 10 (section 2.4)_
     /cli/                        # WP-CLI commands (seed-demo)
     /services/                   # Business logic (12+ services)
     /security/                   # Capabilities + authorization
-    /integrations/               # LearnDash + JetFormBuilder integration (2 classes)
+    /integrations/               # LearnDash + JetFormBuilder + BuddyBoss integration (3 classes)
     /admin/                      # WP admin pages (13 controllers)
     /frontend/                   # Shortcode renderers (16 pages + instrument renderer)
     /api/                        # REST API routes
