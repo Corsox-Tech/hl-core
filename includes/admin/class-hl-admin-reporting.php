@@ -37,20 +37,16 @@ class HL_Admin_Reporting {
     }
 
     /**
-     * Main render entry point
-     *
-     * Handles CSV exports (must happen before any output), recompute actions,
-     * then renders the dashboard HTML.
+     * Handle CSV exports and recompute actions before any HTML output.
      */
-    public function render_page() {
+    public function handle_early_actions() {
         if (!current_user_can('manage_hl_core')) {
-            wp_die(esc_html__('You do not have permission to access this page.', 'hl-core'));
+            return;
         }
 
-        // Gather filters from GET parameters
         $filters = $this->get_filters();
 
-        // Handle CSV exports BEFORE any HTML output
+        // Handle CSV exports before any HTML output
         if (!empty($_GET['export'])) {
             $this->handle_csv_export(sanitize_text_field($_GET['export']), $filters);
             // handle_csv_export calls exit on success; if we reach here, it failed
@@ -59,8 +55,20 @@ class HL_Admin_Reporting {
         // Handle recompute rollups action
         if (isset($_GET['action']) && $_GET['action'] === 'recompute') {
             $this->handle_recompute($filters);
-            return; // redirect happens inside handle_recompute
+            // handle_recompute calls wp_redirect + exit
         }
+    }
+
+    /**
+     * Main render entry point
+     */
+    public function render_page() {
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(esc_html__('You do not have permission to access this page.', 'hl-core'));
+        }
+
+        // Gather filters from GET parameters
+        $filters = $this->get_filters();
 
         // Check if this is an activity detail drill-down
         $enrollment_id = isset($_GET['enrollment_id']) ? absint($_GET['enrollment_id']) : 0;

@@ -36,11 +36,26 @@ class HL_Admin_Pathways {
     }
 
     /**
+     * Handle POST saves and GET deletes before any HTML output.
+     */
+    public function handle_early_actions() {
+        $this->handle_actions();
+
+        $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : '';
+
+        if ($action === 'delete') {
+            $this->handle_delete_pathway();
+        }
+
+        if ($action === 'delete_activity') {
+            $this->handle_delete_activity();
+        }
+    }
+
+    /**
      * Main render entry point
      */
     public function render_page() {
-        $this->handle_actions();
-
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
 
         echo '<div class="wrap">';
@@ -59,11 +74,6 @@ class HL_Admin_Pathways {
                     echo '<div class="notice notice-error"><p>' . esc_html__('Pathway not found.', 'hl-core') . '</p></div>';
                     $this->render_list();
                 }
-                break;
-
-            case 'delete':
-                $this->handle_delete_pathway();
-                $this->render_list();
                 break;
 
             case 'view':
@@ -98,10 +108,6 @@ class HL_Admin_Pathways {
                     echo '<div class="notice notice-error"><p>' . esc_html__('Activity not found.', 'hl-core') . '</p></div>';
                     $this->render_list();
                 }
-                break;
-
-            case 'delete_activity':
-                $this->handle_delete_activity();
                 break;
 
             default:
@@ -355,6 +361,34 @@ class HL_Admin_Pathways {
             }
         }
 
+        // Save drip rules (only on edit — activity must exist)
+        if ($activity_id > 0) {
+            // Delete existing drip rules
+            $wpdb->delete($wpdb->prefix . 'hl_activity_drip_rule', array('activity_id' => $target_activity_id));
+
+            // Fixed date drip rule
+            $drip_fixed_date = !empty($_POST['drip_fixed_date']) ? sanitize_text_field($_POST['drip_fixed_date']) : '';
+            if ($drip_fixed_date) {
+                $wpdb->insert($wpdb->prefix . 'hl_activity_drip_rule', array(
+                    'activity_id'     => $target_activity_id,
+                    'drip_type'       => 'fixed_date',
+                    'release_at_date' => $drip_fixed_date . ' 00:00:00',
+                ));
+            }
+
+            // After-completion delay drip rule
+            $drip_base_activity_id = isset($_POST['drip_base_activity_id']) ? absint($_POST['drip_base_activity_id']) : 0;
+            $drip_delay_days       = isset($_POST['drip_delay_days']) ? absint($_POST['drip_delay_days']) : 0;
+            if ($drip_base_activity_id && $drip_delay_days) {
+                $wpdb->insert($wpdb->prefix . 'hl_activity_drip_rule', array(
+                    'activity_id'      => $target_activity_id,
+                    'drip_type'        => 'after_completion_delay',
+                    'base_activity_id' => $drip_base_activity_id,
+                    'delay_days'       => $drip_delay_days,
+                ));
+            }
+        }
+
         $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=activity_saved');
         wp_redirect($redirect);
         exit;
@@ -439,7 +473,8 @@ class HL_Admin_Pathways {
         $wpdb->delete($wpdb->prefix . 'hl_activity', array('pathway_id' => $pathway_id));
         $wpdb->delete($wpdb->prefix . 'hl_pathway', array('pathway_id' => $pathway_id));
 
-        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Pathway and its activities deleted successfully.', 'hl-core') . '</p></div>';
+        wp_redirect(admin_url('admin.php?page=hl-pathways&message=deleted'));
+        exit;
     }
 
     /**
@@ -504,6 +539,7 @@ class HL_Admin_Pathways {
                 'updated'          => __('Pathway updated successfully.', 'hl-core'),
                 'activity_saved'   => __('Activity saved successfully.', 'hl-core'),
                 'activity_deleted' => __('Activity deleted successfully.', 'hl-core'),
+                'deleted'          => __('Pathway and its activities deleted successfully.', 'hl-core'),
             );
             if (isset($messages[$msg])) {
                 echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($messages[$msg]) . '</p></div>';
@@ -1182,6 +1218,71 @@ class HL_Admin_Pathways {
             $this->render_prereq_group_row('__INDEX__', array(), $other_activities);
             echo ob_get_clean();
             echo '</script>';
+        }
+
+        // =====================================================================
+        // Release Schedule (Drip Rules) — edit mode only
+        // =====================================================================
+        if ($is_edit) {
+            // Load existing drip rules
+            $drip_rules = $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_activity_drip_rule WHERE activity_id = %d",
+                $activity->activity_id
+            ), ARRAY_A);
+
+            $drip_fixed_date    = '';
+            $drip_base_activity = 0;
+            $drip_delay_days    = '';
+
+            if ($drip_rules) {
+                foreach ($drip_rules as $rule) {
+                    if ($rule['drip_type'] === 'fixed_date' && !empty($rule['release_at_date'])) {
+                        $drip_fixed_date = date('Y-m-d', strtotime($rule['release_at_date']));
+                    } elseif ($rule['drip_type'] === 'after_completion_delay') {
+                        $drip_base_activity = absint($rule['base_activity_id']);
+                        $drip_delay_days    = absint($rule['delay_days']);
+                    }
+                }
+            }
+
+            // Load activities for the delay dropdown
+            $drip_activities = $wpdb->get_results($wpdb->prepare(
+                "SELECT activity_id, title, ordering_hint FROM {$wpdb->prefix}hl_activity WHERE pathway_id = %d AND activity_id != %d ORDER BY ordering_hint ASC, activity_id ASC",
+                $pathway->pathway_id,
+                $activity->activity_id
+            ));
+
+            echo '<h2>' . esc_html__('Release Schedule', 'hl-core') . '</h2>';
+            echo '<p class="description">' . esc_html__('Optional. Define when this activity becomes available. If both rules are set, all must be satisfied (most restrictive wins).', 'hl-core') . '</p>';
+
+            echo '<table class="form-table">';
+
+            // Fixed Date
+            echo '<tr>';
+            echo '<th scope="row"><label for="drip_fixed_date">' . esc_html__('Fixed Release Date', 'hl-core') . '</label></th>';
+            echo '<td><input type="date" id="drip_fixed_date" name="drip_fixed_date" value="' . esc_attr($drip_fixed_date) . '" />';
+            echo '<p class="description">' . esc_html__('Activity will not be available until this date. Leave blank for no date restriction.', 'hl-core') . '</p></td>';
+            echo '</tr>';
+
+            // After-completion delay
+            echo '<tr>';
+            echo '<th scope="row"><label for="drip_base_activity_id">' . esc_html__('Delay After Activity', 'hl-core') . '</label></th>';
+            echo '<td>';
+            echo '<select id="drip_base_activity_id" name="drip_base_activity_id">';
+            echo '<option value="0">' . esc_html__('-- None --', 'hl-core') . '</option>';
+            foreach ($drip_activities as $dact) {
+                echo '<option value="' . esc_attr($dact->activity_id) . '"' . selected($drip_base_activity, $dact->activity_id, false) . '>'
+                    . esc_html($dact->title) . ' (#' . esc_html($dact->activity_id) . ')'
+                    . '</option>';
+            }
+            echo '</select>';
+            echo ' + <input type="number" id="drip_delay_days" name="drip_delay_days" value="' . esc_attr($drip_delay_days) . '" min="0" class="small-text" /> ';
+            echo esc_html__('days', 'hl-core');
+            echo '<p class="description">' . esc_html__('Activity becomes available N days after the selected activity is completed.', 'hl-core') . '</p>';
+            echo '</td>';
+            echo '</tr>';
+
+            echo '</table>';
         }
 
         submit_button($is_edit ? __('Update Activity', 'hl-core') : __('Create Activity', 'hl-core'));

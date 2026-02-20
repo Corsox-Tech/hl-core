@@ -19,6 +19,54 @@ class HL_Admin {
     private function __construct() {
         add_action('admin_menu', array($this, 'create_menu'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
+        add_action('admin_init', array($this, 'handle_early_actions'));
+    }
+
+    /**
+     * Dispatch POST/redirect actions before any HTML output.
+     *
+     * WordPress has already sent admin page headers by the time render_page()
+     * runs, so wp_redirect() would fail silently there. This handler runs on
+     * admin_init (before output) and delegates to each admin class.
+     */
+    public function handle_early_actions() {
+        $page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
+
+        switch ($page) {
+            case 'hl-core':
+                HL_Admin_Cohorts::instance()->handle_early_actions();
+                break;
+            case 'hl-orgunits':
+                HL_Admin_OrgUnits::instance()->handle_early_actions();
+                break;
+            case 'hl-enrollments':
+                HL_Admin_Enrollments::instance()->handle_early_actions();
+                break;
+            case 'hl-pathways':
+                HL_Admin_Pathways::instance()->handle_early_actions();
+                break;
+            case 'hl-teams':
+                HL_Admin_Teams::instance()->handle_early_actions();
+                break;
+            case 'hl-classrooms':
+                HL_Admin_Classrooms::instance()->handle_early_actions();
+                break;
+            case 'hl-instruments':
+                HL_Admin_Instruments::instance()->handle_early_actions();
+                break;
+            case 'hl-coaching':
+                HL_Admin_Coaching::instance()->handle_early_actions();
+                break;
+            case 'hl-coach-assignments':
+                HL_Admin_Coach_Assignments::instance()->handle_early_actions();
+                break;
+            case 'hl-assessments':
+                HL_Admin_Assessments::instance()->handle_early_actions();
+                break;
+            case 'hl-reporting':
+                HL_Admin_Reporting::instance()->handle_early_actions();
+                break;
+        }
     }
 
     public function create_menu() {

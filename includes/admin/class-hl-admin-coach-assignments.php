@@ -23,11 +23,20 @@ class HL_Admin_Coach_Assignments {
     private function __construct() {}
 
     /**
+     * Handle POST saves and GET deletes before any HTML output.
+     */
+    public function handle_early_actions() {
+        $this->handle_post_actions();
+
+        if (isset($_GET['action']) && $_GET['action'] === 'delete') {
+            $this->handle_delete();
+        }
+    }
+
+    /**
      * Main render entry point.
      */
     public function render_page() {
-        $this->handle_post_actions();
-
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
 
         echo '<div class="wrap">';
@@ -35,11 +44,6 @@ class HL_Admin_Coach_Assignments {
         switch ($action) {
             case 'new':
                 $this->render_form();
-                break;
-
-            case 'delete':
-                $this->handle_delete();
-                $this->render_list();
                 break;
 
             default:
@@ -101,10 +105,11 @@ class HL_Admin_Coach_Assignments {
         $result  = $service->delete_assignment($id);
 
         if (is_wp_error($result)) {
-            echo '<div class="notice notice-error"><p>' . esc_html($result->get_error_message()) . '</p></div>';
+            wp_redirect(admin_url('admin.php?page=hl-coach-assignments&message=error'));
         } else {
-            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Assignment deleted.', 'hl-core') . '</p></div>';
+            wp_redirect(admin_url('admin.php?page=hl-coach-assignments&message=deleted'));
         }
+        exit;
     }
 
     // =========================================================================
@@ -121,6 +126,7 @@ class HL_Admin_Coach_Assignments {
         if (isset($_GET['message'])) {
             $msgs = array(
                 'created' => array('success', __('Coach assignment created.', 'hl-core')),
+                'deleted' => array('success', __('Assignment deleted.', 'hl-core')),
                 'error'   => array('error', __('An error occurred.', 'hl-core')),
             );
             $m = sanitize_text_field($_GET['message']);

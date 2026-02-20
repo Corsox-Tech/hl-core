@@ -25,11 +25,16 @@ class HL_Admin_Assessments {
     }
 
     /**
+     * Handle POST actions before any HTML output.
+     */
+    public function handle_early_actions() {
+        $this->handle_actions();
+    }
+
+    /**
      * Main render entry point
      */
     public function render_page() {
-        $this->handle_actions();
-
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
 
         echo '<div class="wrap">';

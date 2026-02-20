@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for assessment/observation forms)
-**Status:** Demo-ready foundation (v1 initial build)
+**Status:** v1 complete — Phases 1-11 done (25 shortcode pages, 14 admin pages, 32 DB tables)
 
 ## Overview
 
@@ -50,7 +50,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Cohorts** - List, create, edit, delete cohorts with metric cards (enrollments, pathways, activities)
 - **Org Units** - Manage districts and centers hierarchy
 - **Enrollments** - Enroll users in cohorts with role assignment, cohort filter
-- **Pathways & Activities** - Configure pathways per cohort, add activities with type-specific dropdowns (JFB form selector, HL instrument selector, LearnDash course selector), auto-built external_ref JSON, prerequisite group editor (all_of/any_of/n_of_m with cycle detection), prereq summary column in activity list
+- **Pathways & Activities** - Configure pathways per cohort, add activities with type-specific dropdowns (JFB form selector, HL instrument selector, LearnDash course selector), auto-built external_ref JSON, prerequisite group editor (all_of/any_of/n_of_m with cycle detection), prereq summary column in activity list, drip rule UI (fixed release date + delay-after-activity with base_activity selector and delay_days)
 - **Teams** - Create teams within cohorts/centers, view team members
 - **Classrooms** - Full CRUD with detail view: teaching assignments (cohort-scoped add/remove) + children roster (assign/reassign/remove with history)
 - **Imports** - AJAX-based 3-step wizard (Upload > Preview & Select > Results) for CSV import with import type selector (participants, children, classrooms, teaching assignments), dynamic column rendering per type, row-level status badges, bulk actions, commit, error report download, column hints per type, and import history table
@@ -60,10 +60,10 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Coaching Sessions** - Full CRUD with cohort filter, mentor/coach selectors, session title, meeting URL, date/time, session status dropdown (scheduled/attended/missed/cancelled with terminal-state lock), rich-text notes (wp_editor), observation linking from submitted observations, WP Media attachments
 - **Coach Assignments** - Full CRUD for coach-to-scope assignments (center/team/enrollment) with cohort filter, scope name resolution, active/ended status badges, effective date management
 
+- **Assessments** - Tabbed staff assessment viewer/exporter: teacher self-assessments (list/detail/CSV), children assessments (list/detail/instance generation from teaching assignments/CSV), summary metric cards
 - **Reports** - Full reporting dashboard: scope-based filtering (cohort/center/district/team/role), summary cards, center/team summary tables, participant completion table with progress bars, enrollment detail drill-down with activity-level status, CSV exports (completion, center summary, team summary, teacher assessments, children assessments), rollup recompute action
 
-Placeholder pages (planned):
-- **Assessments** - Staff assessment viewer/exporter
+**Admin fix:** All admin pages use `admin_init` dispatcher for POST saves and GET deletes (redirect-before-output pattern), preventing blank pages after form submissions.
 
 ### Front-End Pages (Shortcodes)
 - **My Progress** `[hl_my_progress]` - Participant's own cohort progress with pathway/activity completion, progress rings, inline JFB form embedding for teacher self-assessments (via `?hl_open_activity=ID`), contextual action links for observations/children assessment/coaching activities
@@ -246,17 +246,17 @@ _Read docs: 10 (sections 16-17)_
 - [x] **11.10 Create WordPress Pages** — `wp hl-core create-pages` CLI command creates all 24 shortcode pages. Skips existing. `--force` to recreate. `--status=draft` for staging.
 
 ### Phase 12: MS365 Calendar Integration (Future)
-_Read docs: 10 (section 16 Phase E)_
+_Read docs: 10 (section 18 Phase E)_
 
-- [ ] **11.1 Azure AD App + OAuth** — Register Azure AD app, implement OAuth consent flow for coach accounts, store refresh tokens securely.
-- [ ] **11.2 Availability Endpoint** — Read coach MS365 calendar via Graph API `/me/calendarView`, expose available slots to booking UI.
-- [ ] **11.3 Booking Flow** — Replace date-time picker with MS365 availability calendar. Create session in HL Core + MS365 calendar event for both parties.
-- [ ] **11.4 Sync** — Reschedule/cancel propagate to MS365 calendar events.
+- [ ] **12.1 Azure AD App + OAuth** — Register Azure AD app, implement OAuth consent flow for coach accounts, store refresh tokens securely.
+- [ ] **12.2 Availability Endpoint** — Read coach MS365 calendar via Graph API `/me/calendarView`, expose available slots to booking UI.
+- [ ] **12.3 Booking Flow** — Replace date-time picker with MS365 availability calendar. Create session in HL Core + MS365 calendar event for both parties.
+- [ ] **12.4 Sync** — Reschedule/cancel propagate to MS365 calendar events.
 
-### Phase 12: Front-End — BuddyBoss Integration (Future)
+### Phase 13: Front-End — BuddyBoss Profile Tab (Future)
 _Read docs: 10 (section 2.4)_
 
-- [~] **12.1 BB Sidebar Navigation + Profile Tab** — DONE: Sidebar navigation menu (`HL_BuddyBoss_Integration`) rebuilt in 11.9 with 11 role-based menu items covering all listing pages (Cohorts, Institutions, Classrooms, Learners, Pathways, Coaching Hub, Reports, My Team, My Programs, My Coaching, My Cohort). Multi-role union, active page highlighting. TODO: Custom profile tab for coaches/admins (enrollment info, pathway progress, team assignment, coaching sessions, action buttons).
+- [~] **13.1 BB Profile Tab** — DONE: Sidebar navigation menu (`HL_BuddyBoss_Integration`) rebuilt in 11.9 with 11 role-based menu items covering all listing pages (Cohorts, Institutions, Classrooms, Learners, Pathways, Coaching Hub, Reports, My Team, My Programs, My Coaching, My Cohort). Multi-role union, active page highlighting. TODO: Custom profile tab for coaches/admins (enrollment info, pathway progress, team assignment, coaching sessions, action buttons).
 
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
@@ -277,17 +277,18 @@ _Read docs: 10 (section 2.4)_
     /domain/                     # Entity models (8 classes)
     /domain/repositories/        # CRUD repositories (8 classes)
     /cli/                        # WP-CLI commands (seed-demo, seed-palm-beach, create-pages)
-    /services/                   # Business logic (13 services incl. HL_Scope_Service)
+    /services/                   # Business logic (13+ services incl. HL_Scope_Service)
     /security/                   # Capabilities + authorization
-    /integrations/               # LearnDash + JetFormBuilder + BuddyBoss integration (3 classes)
-    /admin/                      # WP admin pages (14 controllers)
+    /integrations/               # LearnDash + JetFormBuilder + BuddyBoss (3 classes)
+    /admin/                      # WP admin pages (14+ controllers)
     /frontend/                   # Shortcode renderers (25 pages + instrument renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization helpers
+  /data/                         # Private data files (gitignored)
   /assets/
     /css/                        # admin.css, admin-import-wizard.css, frontend.css
     /js/                         # admin-import-wizard.js, frontend.js
-  /docs/                         # AI library (10 spec documents)
+  /docs/                         # AI library (11 spec documents)
 ```
 
 ## Key Design Decisions

@@ -658,7 +658,202 @@ On the Program Page, coaching_session_attendance activities should show enhanced
 
 ---
 
-# 16) Build Priority (Updated)
+# 16) Sidebar Navigation & Role-Based Menu
+
+The BuddyBoss sidebar menu must be fully role-aware. Menu items shown depend on the user's WP capabilities AND their cohort enrollment roles. Each menu item links to an existing shortcode page.
+
+## 16.1 Menu Structure by Role
+
+### Admin (manage_hl_core + administrator)
+| Menu Item | Target Shortcode | Notes |
+|---|---|---|
+| Cohorts | `[hl_cohorts_listing]` | All cohorts, searchable. Default: active + future |
+| Institutions | `[hl_institutions_listing]` | Combined districts + centers, searchable |
+| Coaching | `[hl_coaching_hub]` | All coaching sessions, searchable/filterable |
+| Classrooms | `[hl_classrooms_listing]` | All classrooms in active/future cohorts |
+| Learners | `[hl_learners]` | All participants, searchable, name links to profile |
+| Programs | `[hl_pathways_listing]` | All pathways across platform, searchable |
+| Reports | `[hl_reports_hub]` | Hub of front-end reports (placeholder for now) |
+
+### Coach (manage_hl_core, coach WP role)
+Same as Admin but scoped to cohorts where they are assigned as coach:
+| Menu Item | Target Shortcode | Scope |
+|---|---|---|
+| Cohorts | `[hl_cohorts_listing]` | Cohorts where user is assigned coach |
+| Institutions | `[hl_institutions_listing]` | Districts/centers where user is assigned coach |
+| Coaching | `[hl_coaching_hub]` | Own coaching sessions across all cohorts |
+| Classrooms | `[hl_classrooms_listing]` | Classrooms in cohorts where coach |
+| Learners | `[hl_learners]` | Participants in cohorts where coach |
+| Programs | `[hl_pathways_listing]` | All pathways (same as admin) |
+| Reports | `[hl_reports_hub]` | Scoped to coach's cohorts |
+
+### District Leader (enrollment role 'district_leader')
+| Menu Item | Target Shortcode | Scope |
+|---|---|---|
+| My Cohort | `[hl_my_cohort]` | Auto-navigates to active cohort |
+| My Institutions | `[hl_institutions_listing]` | Districts/centers in their scope |
+| Coaching | `[hl_coaching_hub]` | Sessions in cohorts where district leader |
+| Classrooms | `[hl_classrooms_listing]` | Classrooms in their scope |
+| Learners | `[hl_learners]` | Participants in their scope |
+| My Programs | `[hl_my_programs]` | Own pathways. Future pathways shown as inactive with countdown |
+| Reports | `[hl_reports_hub]` | Scoped to district |
+
+### Center Leader (enrollment role 'center_leader')
+| Menu Item | Target Shortcode | Scope |
+|---|---|---|
+| My Institution | `[hl_institutions_listing]` | Own center(s) |
+| Coaching | `[hl_coaching_hub]` | Sessions in cohorts where center leader |
+| Classrooms | `[hl_classrooms_listing]` | Classrooms in their center(s) |
+| Learners | `[hl_learners]` | Participants in their center(s) |
+| My Programs | `[hl_my_programs]` | Own pathways. Future pathways inactive with countdown |
+| Reports | `[hl_reports_hub]` | Scoped to center |
+
+### Mentor (enrollment role 'mentor')
+| Menu Item | Target Shortcode | Scope |
+|---|---|---|
+| My Team | `[hl_my_team]` | Auto-detect team from hl_team_membership → team page |
+| Coaching | `[hl_coaching_hub]` | Own coaching sessions |
+| My Programs | `[hl_my_programs]` | Own pathways. Future pathways inactive with countdown |
+| Reports | `[hl_reports_hub]` | Scoped to team |
+
+### Teacher (enrollment role 'teacher')
+| Menu Item | Target Shortcode | Scope |
+|---|---|---|
+| My Programs | `[hl_my_programs]` | Own pathways. Future pathways inactive with countdown |
+| Classrooms | `[hl_classrooms_listing]` | Classrooms where assigned as teacher |
+
+## 16.2 Menu Visibility Rules
+- Only show a menu item if the target page exists (shortcode page found via `find_shortcode_page_url()`)
+- Staff (`manage_hl_core`) sees ALL items regardless of enrollment
+- Admins vs Coaches: both have `manage_hl_core`, differentiate by `current_user_can('manage_options')` for admin vs coach-only scope
+- Non-staff users: query `hl_enrollment.roles` JSON for the current user
+- A user with multiple roles sees the union of all their role menus (no duplicates)
+- Highlight the current/active page in the sidebar
+- Detail pages (Program, Activity, Team, Classroom detail) are NOT in the menu — they are navigated to from listing pages
+
+---
+
+# 17) New Shortcode Pages — Listing & Hub Pages
+
+These pages serve both the sidebar navigation and provide comprehensive browseable views.
+
+## 17.1 Cohorts Listing — `[hl_cohorts_listing]`
+**Purpose:** Browse all cohorts the user has access to.
+
+**Layout:**
+- Search bar (filters by cohort name or code)
+- Status filter: Active (default checked), Future (default checked), Paused, Archived
+- Card grid or table: cohort name, code, status badge, start/end dates, participant count, center count
+- Click → Cohort Workspace (`[hl_cohort_workspace]?id=X`)
+
+**Scope:**
+- Admin: all cohorts
+- Coach: cohorts where assigned as coach (via `hl_coach_assignment`)
+- District Leader: cohorts where enrolled as district_leader
+- Center Leader: cohorts where enrolled as center_leader
+
+## 17.2 Institutions Listing — `[hl_institutions_listing]`
+**Purpose:** Combined view of districts and centers. Replaces the separate `[hl_districts_listing]` and `[hl_centers_listing]` for the sidebar.
+
+**Layout:**
+- Search bar
+- Toggle: "Districts" / "Centers" / "All" (default: All)
+- **Districts section:** Card grid — district name, # centers, # active cohorts → click to District Page
+- **Centers section:** Card grid — center name, parent district, center leader names → click to Center Page
+
+**Scope:**
+- Admin: all districts and centers
+- Coach: districts/centers where assigned as coach
+- District Leader: own district + its centers
+- Center Leader: own center(s) + parent district
+
+## 17.3 Coaching Hub — `[hl_coaching_hub]`
+**Purpose:** Front-end coaching session management and visibility.
+
+**Layout:**
+- Search bar (by participant name, coach name, session title)
+- Filters: Status (Scheduled/Attended/Missed/Cancelled/Rescheduled), Cohort, Date range
+- Table: Session title, Participant name (link to profile), Coach name, Date/time, Status badge, Meeting link, Actions (reschedule/cancel for scheduled sessions)
+- "Schedule New Session" button for staff/coaches
+
+**Scope:**
+- Admin: all sessions across all cohorts
+- Coach: own sessions (where coach_user_id = current user)
+- District Leader: sessions in cohorts where enrolled, scoped to district
+- Center Leader: sessions in cohorts where enrolled, scoped to center
+- Mentor: own sessions only (where mentor_enrollment_id matches)
+
+## 17.4 Classrooms Listing — `[hl_classrooms_listing]`
+**Purpose:** Browse classrooms across active/future cohorts.
+
+**Layout:**
+- Search bar (by classroom name, center name, teacher name)
+- Filter: Center, Age Band, Cohort
+- Table: Classroom name, Center, Age band, # children, Teacher names, Cohort(s)
+- Click → Classroom Page (`[hl_classroom_page]?id=X`)
+
+**Scope:**
+- Admin: all classrooms
+- Coach: classrooms in cohorts where assigned as coach
+- District Leader: classrooms in centers under their district
+- Center Leader: classrooms in their center(s)
+- Teacher: classrooms where they have teaching assignments
+
+## 17.5 Learners — `[hl_learners]`
+**Purpose:** Searchable participant directory with links to profiles.
+
+**Layout:**
+- Search bar (by name, email)
+- Filters: Cohort, Center, Team, Role (teacher/mentor/center_leader/district_leader), Status
+- Table: Name (link to BuddyBoss profile or user page), Email, Role(s), Center, Team, Cohort, Completion %
+- Pagination (25 per page)
+
+**Scope:**
+- Admin: all participants
+- Coach: participants in cohorts where assigned as coach
+- District Leader: participants in their district scope
+- Center Leader: participants in their center scope
+- Mentor: team members only
+
+## 17.6 Pathways Listing — `[hl_pathways_listing]`
+**Purpose:** Browse all pathways/programs across the platform (staff view).
+
+**Layout:**
+- Search bar (by pathway name)
+- Filters: Cohort, Target Role, Status (active/inactive)
+- Card grid: Pathway name, cohort name, target roles, # activities, featured image, avg completion time
+- Click → Program Page (`[hl_program_page]?id=X`) or admin edit page
+
+**Scope:**
+- Admin/Coach: all pathways
+- Not shown to non-staff (they use My Programs instead)
+
+## 17.7 Reports Hub — `[hl_reports_hub]`
+**Purpose:** Central hub for front-end reports. Placeholder for v1.
+
+**Layout:**
+- Card grid of available report types:
+  - Completion Report (link to cohort workspace reports tab or standalone)
+  - Coaching Report (link to coaching hub filtered)
+  - Assessment Report (future)
+- Each card: title, description, icon, link
+
+**Scope:**
+- Different report cards shown based on role
+- V1: simple card layout linking to existing pages with report tabs
+
+## 17.8 My Team — `[hl_my_team]`
+**Purpose:** Auto-detect shortcut for mentors to reach their team page.
+
+**Logic:**
+1. Query `hl_team_membership` joined with `hl_enrollment` for current user where `membership_type = 'mentor'`
+2. If exactly one team → redirect or render `[hl_team_page]` with that team_id
+3. If multiple teams → show team selector cards
+4. If no team → show "You are not assigned as mentor to any team."
+
+---
+
+# 18) Build Priority (Updated)
 
 Original Phases A-C are complete (Phases 7-9 in README build queue).
 

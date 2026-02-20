@@ -36,11 +36,20 @@ class HL_Admin_Enrollments {
     }
 
     /**
+     * Handle POST saves and GET deletes before any HTML output.
+     */
+    public function handle_early_actions() {
+        $this->handle_actions();
+
+        if (isset($_GET['action']) && $_GET['action'] === 'delete') {
+            $this->handle_delete();
+        }
+    }
+
+    /**
      * Main render entry point
      */
     public function render_page() {
-        $this->handle_actions();
-
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
 
         echo '<div class="wrap">';
@@ -59,11 +68,6 @@ class HL_Admin_Enrollments {
                     echo '<div class="notice notice-error"><p>' . esc_html__('Enrollment not found.', 'hl-core') . '</p></div>';
                     $this->render_list();
                 }
-                break;
-
-            case 'delete':
-                $this->handle_delete();
-                $this->render_list();
                 break;
 
             default:
@@ -164,7 +168,8 @@ class HL_Admin_Enrollments {
         global $wpdb;
         $wpdb->delete($wpdb->prefix . 'hl_enrollment', array('enrollment_id' => $enrollment_id));
 
-        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Enrollment deleted successfully.', 'hl-core') . '</p></div>';
+        wp_redirect(admin_url('admin.php?page=hl-enrollments&message=deleted'));
+        exit;
     }
 
     /**
@@ -213,6 +218,8 @@ class HL_Admin_Enrollments {
                 echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Enrollment created successfully.', 'hl-core') . '</p></div>';
             } elseif ($msg === 'updated') {
                 echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Enrollment updated successfully.', 'hl-core') . '</p></div>';
+            } elseif ($msg === 'deleted') {
+                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Enrollment deleted successfully.', 'hl-core') . '</p></div>';
             }
         }
 
