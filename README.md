@@ -83,6 +83,17 @@ Placeholder pages (planned):
 - **Center Page** `[hl_center_page]` - Center detail page (via `?id=X`): dark gradient header with center name, parent district link. Sections: Active Cohorts (rows with participant count at this center, "Open Cohort" link to Cohort Workspace filtered by center), Classrooms table (age band, children, teachers), Staff table (name, email, role, cohort). Access: staff + center leaders + district leaders of parent. Breadcrumb to parent district or Centers Listing.
 - **Cohort Workspace** `[hl_cohort_workspace]` - Full cohort command center (via `?id=X&orgunit=Y`). My Cohort header with scope indicator and org unit filter dropdown for staff. Five tabs: Dashboard (avg completion %, total participants, completed/in-progress/not-started counts, teacher/mentor/center counts), Teams (card grid reusing team card pattern), Staff (searchable table), Reports (filterable completion table with per-activity detail expansion and CSV export), Classrooms (table). Scope from URL orgunit parameter or enrollment roles. Access: staff + enrolled leaders. Breadcrumb to source district/center page.
 - **My Coaching** `[hl_my_coaching]` - Participant coaching page: coach info card (avatar, name, email) via CoachAssignmentService resolution, enrollment switcher, upcoming sessions with meeting link/reschedule/cancel, past sessions with status badges, schedule new session form with auto-suggested title from next coaching activity
+- **Cohorts Listing** `[hl_cohorts_listing]` - Scope-filtered cohort card grid with search bar and status filter checkboxes (Active/Future default, Paused, Archived). Shows cohort name, code, status badge, start/end dates, participant count, center count. Links to Cohort Workspace. Scope: admin all, coach assigned cohorts, leaders enrolled cohorts.
+- **Institutions Listing** `[hl_institutions_listing]` - Combined districts + centers view with All/Districts/Centers toggle, search bar. Districts show center count and active cohort count. Centers show parent district and leader names. Scope: admin all, leaders see own district/center scope.
+- **Coaching Hub** `[hl_coaching_hub]` - Front-end coaching session table with search (participant/coach/title), status filter, cohort filter. Shows title, participant, coach, date/time, status badge, meeting link. Scope: admin all, coach assigned cohorts, enrolled users own sessions.
+- **Classrooms Listing** `[hl_classrooms_listing]` - Searchable classroom table with center and age band filters. Shows classroom name, center, age band badge, child count, teacher names. Links to Classroom Page. Scope: admin all, leaders by center, teachers own assignments.
+- **Learners** `[hl_learners]` - Participant directory with pagination (25/page), search by name/email, cohort/center/role filters. Shows name (BuddyBoss profile link), email, roles, center, cohort, completion progress bar. Scope: admin all, coach assigned, leaders by scope, mentors team only.
+- **Pathways Listing** `[hl_pathways_listing]` - Staff-only pathway browser with search and cohort filter. Card grid: pathway name, cohort, activity count, target roles, featured image, avg completion time. Scope: admin/coach only.
+- **Reports Hub** `[hl_reports_hub]` - Card grid of available report types: Completion Report (links to workspace/my-cohort reports tab), Coaching Report (links to coaching hub), Team Summary (links to workspace/my-cohort teams tab), Assessment Report (coming soon). Role-based card visibility.
+- **My Team** `[hl_my_team]` - Auto-detects mentor's team via team_membership. Single team: renders Team Page inline. Multiple teams: team selector card grid with name, center, member count, cohort. No teams: friendly message.
+
+### Scope Service
+- **HL_Scope_Service** — Shared static helper for role-based scope filtering across all listing pages. Detects user role (admin/coach/leader/mentor/teacher), computes visible cohort_ids, center_ids, district_ids, team_ids, enrollment_ids. Admin sees all (empty arrays = no restriction). Coach filtered by hl_coach_assignment + own enrollments. District leader expands to all centers in district. Static cache per user_id per request. Convenience helpers: can_view_cohort(), can_view_center(), has_role(), filter_by_ids().
 
 ### Security
 - Custom `manage_hl_core` capability
@@ -96,6 +107,7 @@ Placeholder pages (planned):
 - **`wp hl-core seed-demo --clean`** — Removes all demo data (users, cohort, org units, instruments, children, coach assignments, coaching sessions, and all dependent records) identified by cohort code `DEMO-2026` and `demo-*@example.com` user emails
 - **`wp hl-core seed-palm-beach`** — Seeds realistic demo data from the ELC Palm Beach County program: 1 district, 12 centers (3 Head Start + 1 learning center + 8 FCCHs), 1 active cohort, 29 classrooms, 3 instruments, 57 users (47 real teachers with actual names/emails, 4 center leaders, 4 mentors, 1 district leader, 1 coach), 56 enrollments (8 FCCH teachers dual-role as center leaders), 4 teams (WPB Alpha/Beta, Jupiter, South Bay), 47 teaching assignments, 286 real children (with DOBs, gender, ethnicity metadata), 2 pathways (teacher: 5 activities, mentor: 2 activities), prerequisite and drip rules, partial activity states, computed rollups, 4 coach assignments (3 center-level + 1 team-level), and 5 coaching sessions
 - **`wp hl-core seed-palm-beach --clean`** — Removes all Palm Beach data (users, cohort, org units, instruments, children, classrooms, coach assignments, coaching sessions, and all dependent records) identified by cohort code `ELC-PB-2026` and `_hl_palm_beach_seed` user meta
+- **`wp hl-core create-pages`** — Creates all 24 WordPress pages for HL Core shortcodes (personal, directory, hub, detail, and assessment pages). Skips pages that already exist. `--force` to recreate. `--status=draft` for staging.
 
 ### REST API
 - `GET /wp-json/hl-core/v1/cohorts`
@@ -113,7 +125,8 @@ Placeholder pages (planned):
 ### BuddyBoss Integration
 - **HL_BuddyBoss_Integration** service (`includes/integrations/class-hl-buddyboss-integration.php`)
 - Role-conditional sidebar navigation menu in BuddyBoss profile dropdown (hooked to `buddyboss_theme_after_bb_groups_menu`)
-- Menu items: My Programs + My Coaching (all enrolled), My Cohort (mentors/center leaders/district leaders), School Districts + Institutions (manage_hl_core staff)
+- 11 menu items with role-based visibility: My Programs, My Coaching (all enrolled), My Team, My Cohort (mentors/leaders/staff), Cohorts, Institutions, Classrooms (leaders/staff), Learners (mentors/leaders/staff), Pathways (staff only), Coaching Hub (mentors/staff), Reports (leaders/staff)
+- Multi-role users see union of all role menus
 - Staff (manage_hl_core) sees all items regardless of enrollment status
 - Active page highlighting via `current` CSS class
 - Role detection from `hl_enrollment.roles` JSON (not WP roles) with static caching
@@ -211,7 +224,21 @@ _Read docs: 10 (sections 13–15)_
 - [x] **10.5 My Coach Widget** — Added coach info card to My Programs page (`class-hl-frontend-my-programs.php`): coach avatar, name, email (mailto link), "Schedule a Session" button linking to `[hl_my_coaching]` page. Falls back to "No coach assigned" message when no assignment found. Uses CoachAssignmentService resolution across all user enrollments.
 - [x] **10.6 Program Page Coaching Enhancement** — Updated coaching_session_attendance activity cards in `class-hl-frontend-program-page.php`: shows "Upcoming on [date]" badge with meeting link if session is scheduled, "Schedule Session" button linking to My Coaching page if no session, "Missed" badge with "Reschedule" link if session was missed. Falls back to "Managed by your coach" when no coaching page exists.
 
-### Phase 11: MS365 Calendar Integration (Future)
+### Phase 11: Sidebar Navigation & Listing Pages
+_Read docs: 10 (sections 16-17)_
+
+- [x] **11.1 Cohorts Listing** — `[hl_cohorts_listing]` shortcode. Card grid with search bar and status filter checkboxes. Shows cohort name, code, status badge, start/end dates, participant count, center count. Links to Cohort Workspace. Scope via HL_Scope_Service.
+- [x] **11.2 Institutions Listing** — `[hl_institutions_listing]` shortcode. Combined districts + centers view with All/Districts/Centers toggle, search. Districts show center/cohort counts. Centers show parent district, leader names. Scope via HL_Scope_Service.
+- [x] **11.3 Coaching Hub** — `[hl_coaching_hub]` shortcode. Session table with search, status filter, cohort filter. Shows title, participant, coach, date/time, status badge, meeting link. Scope via HL_Scope_Service.
+- [x] **11.4 Classrooms Listing** — `[hl_classrooms_listing]` shortcode. Table with center and age band filters, teacher names, child counts. Links to Classroom Page. Scope via HL_Scope_Service.
+- [x] **11.5 Learners** — `[hl_learners]` shortcode. Participant directory with pagination (25/page), search, cohort/center/role filters, completion progress bars, BB profile links. Scope via HL_Scope_Service.
+- [x] **11.6 Pathways Listing** — `[hl_pathways_listing]` shortcode. Staff-only card grid with search and cohort filter. Shows pathway name, cohort, activity count, target roles, featured image, avg time.
+- [x] **11.7 Reports Hub** — `[hl_reports_hub]` shortcode. Card grid: Completion Report, Coaching Report, Team Summary, Assessment Report (coming soon). Role-based card visibility.
+- [x] **11.8 My Team** — `[hl_my_team]` shortcode. Auto-detects mentor's team. Single team → inline Team Page render. Multiple → selector cards. None → friendly message.
+- [x] **11.9 Sidebar Menu Rebuild** — Rewrote BuddyBoss sidebar with 11 role-based menu items covering all new listing pages. Union of roles for multi-role users. Active page highlighting.
+- [x] **11.10 Create WordPress Pages** — `wp hl-core create-pages` CLI command creates all 24 shortcode pages. Skips existing. `--force` to recreate. `--status=draft` for staging.
+
+### Phase 12: MS365 Calendar Integration (Future)
 _Read docs: 10 (section 16 Phase E)_
 
 - [ ] **11.1 Azure AD App + OAuth** — Register Azure AD app, implement OAuth consent flow for coach accounts, store refresh tokens securely.
@@ -222,7 +249,7 @@ _Read docs: 10 (section 16 Phase E)_
 ### Phase 12: Front-End — BuddyBoss Integration (Future)
 _Read docs: 10 (section 2.4)_
 
-- [~] **12.1 BB Sidebar Navigation + Profile Tab** — DONE: Sidebar navigation menu (`HL_BuddyBoss_Integration`) with role-conditional items (My Programs, My Coaching, My Cohort, School Districts, Institutions), mentor visibility for My Cohort, staff sees all items, active page highlighting. TODO: Custom profile tab for coaches/admins (enrollment info, pathway progress, team assignment, coaching sessions, action buttons).
+- [~] **12.1 BB Sidebar Navigation + Profile Tab** — DONE: Sidebar navigation menu (`HL_BuddyBoss_Integration`) rebuilt in 11.9 with 11 role-based menu items covering all listing pages (Cohorts, Institutions, Classrooms, Learners, Pathways, Coaching Hub, Reports, My Team, My Programs, My Coaching, My Cohort). Multi-role union, active page highlighting. TODO: Custom profile tab for coaches/admins (enrollment info, pathway progress, team assignment, coaching sessions, action buttons).
 
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
@@ -242,12 +269,12 @@ _Read docs: 10 (section 2.4)_
     class-hl-installer.php       # DB schema + activation
     /domain/                     # Entity models (8 classes)
     /domain/repositories/        # CRUD repositories (8 classes)
-    /cli/                        # WP-CLI commands (seed-demo, seed-palm-beach)
-    /services/                   # Business logic (12+ services)
+    /cli/                        # WP-CLI commands (seed-demo, seed-palm-beach, create-pages)
+    /services/                   # Business logic (13 services incl. HL_Scope_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss integration (3 classes)
     /admin/                      # WP admin pages (14 controllers)
-    /frontend/                   # Shortcode renderers (17 pages + instrument renderer)
+    /frontend/                   # Shortcode renderers (25 pages + instrument renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization helpers
   /assets/
