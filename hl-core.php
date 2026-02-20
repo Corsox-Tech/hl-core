@@ -165,6 +165,7 @@ class HL_Core {
         if ( defined( 'WP_CLI' ) && WP_CLI ) {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-demo.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-palm-beach.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-create-pages.php';
         }
     }
     
@@ -215,6 +216,7 @@ class HL_Core {
         if ( defined( 'WP_CLI' ) && WP_CLI ) {
             HL_CLI_Seed_Demo::register();
             HL_CLI_Seed_Palm_Beach::register();
+            HL_CLI_Create_Pages::register();
         }
 
         do_action('hl_core_init');
