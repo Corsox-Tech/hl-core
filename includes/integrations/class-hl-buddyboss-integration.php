@@ -381,16 +381,17 @@ class HL_BuddyBoss_Integration {
             return $cached;
         }
 
-        $is_staff = current_user_can('manage_hl_core');
-        $roles    = $this->get_user_hl_roles($user_id);
+        $is_staff    = current_user_can('manage_hl_core');
+        $roles       = $this->get_user_hl_roles($user_id);
+        $has_enrollment = !empty($roles);
 
-        // Non-staff users without active HL enrollments see nothing.
-        if (!$is_staff && empty($roles)) {
+        // Users without staff cap AND without active HL enrollments see nothing.
+        if (!$is_staff && !$has_enrollment) {
             $cached = array();
             return $cached;
         }
 
-        $cached = $this->build_menu_items($roles, $is_staff);
+        $cached = $this->build_menu_items($roles, $is_staff, $has_enrollment);
         return $cached;
     }
 
@@ -398,39 +399,47 @@ class HL_BuddyBoss_Integration {
      * Build the list of visible menu items for the current user.
      *
      * Role-based visibility (section 16 spec):
-     *   Admin/Coach (manage_hl_core): all items
-     *   District Leader: My Programs, My Coaching, My Cohort, My Team,
-     *                    Cohorts, Institutions, Classrooms, Learners, Reports
-     *   Center Leader:   My Programs, My Coaching, My Cohort, My Team,
-     *                    Cohorts, Institutions, Classrooms, Learners, Reports
-     *   Mentor:          My Programs, My Coaching, My Cohort, My Team,
-     *                    Learners, Coaching Hub
-     *   Teacher:         My Programs, My Coaching
+     *
+     * "My" pages require an active enrollment — staff without enrollment
+     * see only management/directory pages:
+     *   My Programs, My Coaching: any active enrollment
+     *   My Team: mentor role in enrollment
+     *   My Cohort: district_leader, center_leader, or mentor role
+     *
+     * Directory/management pages:
+     *   Cohorts, Institutions: staff OR district_leader OR center_leader
+     *   Classrooms: staff OR district_leader OR center_leader OR teacher
+     *   Learners: staff OR district_leader OR center_leader OR mentor
+     *   Pathways: staff only
+     *   Coaching Hub: staff OR mentor
+     *   Reports: staff OR district_leader OR center_leader
      *
      * Multi-role users see the union of all their role menus.
      *
-     * @param string[] $roles    Active HL enrollment roles for the user.
-     * @param bool     $is_staff Whether user has manage_hl_core capability.
+     * @param string[] $roles          Active HL enrollment roles for the user.
+     * @param bool     $is_staff       Whether user has manage_hl_core capability.
+     * @param bool     $has_enrollment Whether user has any active HL enrollment.
      * @return array<int, array{slug: string, label: string, url: string}>
      */
-    private function build_menu_items(array $roles, bool $is_staff) {
-        $is_leader = in_array('center_leader', $roles, true)
-                  || in_array('district_leader', $roles, true);
-        $is_mentor = in_array('mentor', $roles, true);
+    private function build_menu_items(array $roles, bool $is_staff, bool $has_enrollment) {
+        $is_leader  = in_array('center_leader', $roles, true)
+                   || in_array('district_leader', $roles, true);
+        $is_mentor  = in_array('mentor', $roles, true);
+        $is_teacher = in_array('teacher', $roles, true);
 
         // Define all possible menu items with their visibility rules.
         // Each entry: [ slug, shortcode, label, show_condition ]
         $menu_def = array(
-            // --- Personal ---
-            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    true),
-            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    true),
-            array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        $is_staff || $is_mentor || $is_leader),
-            array('my-cohort',      'hl_my_cohort',            __('My Cohort', 'hl-core'),      $is_staff || $is_mentor || $is_leader),
-            // --- Directories ---
+            // --- Personal (require active enrollment) ---
+            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    $has_enrollment),
+            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    $has_enrollment),
+            array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        $is_mentor),
+            array('my-cohort',      'hl_my_cohort',            __('My Cohort', 'hl-core'),      $is_leader || $is_mentor),
+            // --- Directories / Management ---
             array('cohorts',        'hl_cohorts_listing',      __('Cohorts', 'hl-core'),        $is_staff || $is_leader),
             array('institutions',   'hl_institutions_listing', __('Institutions', 'hl-core'),   $is_staff || $is_leader),
-            array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     $is_staff || $is_leader),
-            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       $is_staff || $is_mentor || $is_leader),
+            array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     $is_staff || $is_leader || $is_teacher),
+            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       $is_staff || $is_leader || $is_mentor),
             // --- Staff tools ---
             array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       $is_staff),
             array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   $is_staff || $is_mentor),
