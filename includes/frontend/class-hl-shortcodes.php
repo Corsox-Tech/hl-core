@@ -40,6 +40,13 @@ class HL_Shortcodes {
         add_shortcode('hl_cohort_workspace', array($this, 'render_cohort_workspace'));
         add_shortcode('hl_my_coaching', array($this, 'render_my_coaching'));
         add_shortcode('hl_cohorts_listing', array($this, 'render_cohorts_listing'));
+        add_shortcode('hl_institutions_listing', array($this, 'render_institutions_listing'));
+        add_shortcode('hl_coaching_hub', array($this, 'render_coaching_hub'));
+        add_shortcode('hl_classrooms_listing', array($this, 'render_classrooms_listing'));
+        add_shortcode('hl_learners', array($this, 'render_learners'));
+        add_shortcode('hl_pathways_listing', array($this, 'render_pathways_listing'));
+        add_shortcode('hl_reports_hub', array($this, 'render_reports_hub'));
+        add_shortcode('hl_my_team', array($this, 'render_my_team'));
     }
 
     public function enqueue_assets() {
@@ -63,7 +70,14 @@ class HL_Shortcodes {
             || has_shortcode($post->post_content, 'hl_center_page')
             || has_shortcode($post->post_content, 'hl_cohort_workspace')
             || has_shortcode($post->post_content, 'hl_my_coaching')
-            || has_shortcode($post->post_content, 'hl_cohorts_listing');
+            || has_shortcode($post->post_content, 'hl_cohorts_listing')
+            || has_shortcode($post->post_content, 'hl_institutions_listing')
+            || has_shortcode($post->post_content, 'hl_coaching_hub')
+            || has_shortcode($post->post_content, 'hl_classrooms_listing')
+            || has_shortcode($post->post_content, 'hl_learners')
+            || has_shortcode($post->post_content, 'hl_pathways_listing')
+            || has_shortcode($post->post_content, 'hl_reports_hub')
+            || has_shortcode($post->post_content, 'hl_my_team');
 
         if ($has_shortcode) {
             wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
@@ -323,6 +337,97 @@ class HL_Shortcodes {
 
         $atts = shortcode_atts(array(), $atts, 'hl_cohorts_listing');
         $renderer = new HL_Frontend_Cohorts_Listing();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_institutions_listing] - Combined districts + centers view
+     */
+    public function render_institutions_listing($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_institutions_listing');
+        $renderer = new HL_Frontend_Institutions_Listing();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_coaching_hub] - Front-end coaching session management
+     */
+    public function render_coaching_hub($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_coaching_hub');
+        $renderer = new HL_Frontend_Coaching_Hub();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_classrooms_listing] - Classroom directory with scope filtering
+     */
+    public function render_classrooms_listing($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_classrooms_listing');
+        $renderer = new HL_Frontend_Classrooms_Listing();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_learners] - Participant directory with scope filtering
+     */
+    public function render_learners($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_learners');
+        $renderer = new HL_Frontend_Learners();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_pathways_listing] - Staff-only pathway browser
+     */
+    public function render_pathways_listing($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_pathways_listing');
+        $renderer = new HL_Frontend_Pathways_Listing();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_reports_hub] - Card grid of available report types
+     */
+    public function render_reports_hub($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_reports_hub');
+        $renderer = new HL_Frontend_Reports_Hub();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_my_team] - Auto-detect mentor's team
+     */
+    public function render_my_team($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your team.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_my_team');
+        $renderer = new HL_Frontend_My_Team();
         return $renderer->render($atts);
     }
 

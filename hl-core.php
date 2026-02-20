@@ -150,6 +150,13 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-cohort-workspace.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-coaching.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-cohorts-listing.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-institutions-listing.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-coaching-hub.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-classrooms-listing.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-learners.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-pathways-listing.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-reports-hub.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-team.php';
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';
