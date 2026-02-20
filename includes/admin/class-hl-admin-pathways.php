@@ -643,6 +643,16 @@ class HL_Admin_Pathways {
             }
         }
 
+        // Cohort breadcrumb.
+        if ($filter_cohort) {
+            $cohort_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT cohort_name FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d", $filter_cohort
+            ));
+            if ($cohort_name) {
+                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-core&action=edit&id=' . $filter_cohort . '&tab=pathways')) . '">&larr; ' . sprintf(esc_html__('Cohort: %s', 'hl-core'), esc_html($cohort_name)) . '</a></p>';
+            }
+        }
+
         echo '<h1 class="wp-heading-inline">' . esc_html__('Pathways & Activities', 'hl-core') . '</h1>';
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-pathways&action=new')) . '" class="page-title-action">' . esc_html__('Add Pathway', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
