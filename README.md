@@ -124,12 +124,16 @@ Placeholder pages (planned):
 
 ### BuddyBoss Integration
 - **HL_BuddyBoss_Integration** service (`includes/integrations/class-hl-buddyboss-integration.php`)
-- Role-conditional sidebar navigation menu in BuddyBoss profile dropdown (hooked to `buddyboss_theme_after_bb_groups_menu`)
+- Multi-hook injection strategy for reliable menu rendering:
+  1. **Profile Dropdown** — `buddyboss_theme_after_bb_profile_menu` (last hook in header-profile-menu.php)
+  2. **BuddyPanel Left Sidebar** — `wp_nav_menu_items` filter on `buddypanel-loggedin` location, appends section divider + items using native BB CSS classes
+  3. **JS Fallback** — `wp_footer` injects into BuddyPanel DOM and/or profile dropdown if PHP hooks did not fire (covers empty BuddyPanel menu or custom profile dropdown override)
 - 11 menu items with role-based visibility: My Programs, My Coaching (all enrolled), My Team, My Cohort (mentors/leaders/staff), Cohorts, Institutions, Classrooms (leaders/staff), Learners (mentors/leaders/staff), Pathways (staff only), Coaching Hub (mentors/staff), Reports (leaders/staff)
 - Multi-role users see union of all role menus
 - Staff (manage_hl_core) sees all items regardless of enrollment status
-- Active page highlighting via `current` CSS class
+- Active page highlighting via `current` / `current-menu-item` CSS class
 - Role detection from `hl_enrollment.roles` JSON (not WP roles) with static caching
+- Menu items built once per request via `get_menu_items_for_current_user()` (static cache shared across all three hooks)
 - Shortcode-based page URL discovery with static caching
 - Graceful no-op when BuddyBoss is not active
 
@@ -235,7 +239,7 @@ _Read docs: 10 (sections 16-17)_
 - [x] **11.6 Pathways Listing** — `[hl_pathways_listing]` shortcode. Staff-only card grid with search and cohort filter. Shows pathway name, cohort, activity count, target roles, featured image, avg time.
 - [x] **11.7 Reports Hub** — `[hl_reports_hub]` shortcode. Card grid: Completion Report, Coaching Report, Team Summary, Assessment Report (coming soon). Role-based card visibility.
 - [x] **11.8 My Team** — `[hl_my_team]` shortcode. Auto-detects mentor's team. Single team → inline Team Page render. Multiple → selector cards. None → friendly message.
-- [x] **11.9 Sidebar Menu Rebuild** — Rewrote BuddyBoss sidebar with 11 role-based menu items covering all new listing pages. Union of roles for multi-role users. Active page highlighting.
+- [x] **11.9 Sidebar Menu Rebuild** — Rewrote BuddyBoss sidebar with 11 role-based menu items covering all new listing pages. Union of roles for multi-role users. Active page highlighting. Multi-hook strategy: profile dropdown (`buddyboss_theme_after_bb_profile_menu`), BuddyPanel left sidebar (`wp_nav_menu_items` filter), and JS fallback (`wp_footer`) for reliable rendering regardless of BuddyPanel menu state.
 - [x] **11.10 Create WordPress Pages** — `wp hl-core create-pages` CLI command creates all 24 shortcode pages. Skips existing. `--force` to recreate. `--status=draft` for staging.
 
 ### Phase 12: MS365 Calendar Integration (Future)
