@@ -610,6 +610,106 @@ class HL_Reporting_Service {
     }
 
     // =========================================================================
+    // Cohort Group (Cross-Cohort) Queries
+    // =========================================================================
+
+    /**
+     * Get group-level summary: one row per cohort in the group.
+     *
+     * @param int $group_id Cohort group ID.
+     * @return array Array of: cohort_id, cohort_name, cohort_code, status, participant_count, avg_completion_percent
+     */
+    public function get_group_summary( $group_id ) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        $group_id = absint( $group_id );
+        if ( ! $group_id ) {
+            return array();
+        }
+
+        return $wpdb->get_results( $wpdb->prepare(
+            "SELECT
+                c.cohort_id,
+                c.cohort_name,
+                c.cohort_code,
+                c.status,
+                COUNT( DISTINCT e.enrollment_id ) AS participant_count,
+                ROUND( AVG( COALESCE( cr.cohort_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
+             FROM {$prefix}hl_cohort c
+             LEFT JOIN {$prefix}hl_enrollment e ON c.cohort_id = e.cohort_id AND e.status = 'active'
+             LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
+             WHERE c.cohort_group_id = %d
+             GROUP BY c.cohort_id, c.cohort_name, c.cohort_code, c.status
+             ORDER BY c.cohort_name ASC",
+            $group_id
+        ), ARRAY_A ) ?: array();
+    }
+
+    /**
+     * Get aggregate metrics across all cohorts in a group.
+     *
+     * @param int $group_id
+     * @return array Keys: total_cohorts, total_participants, avg_completion_percent
+     */
+    public function get_group_aggregate( $group_id ) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        $group_id = absint( $group_id );
+        if ( ! $group_id ) {
+            return array( 'total_cohorts' => 0, 'total_participants' => 0, 'avg_completion_percent' => 0 );
+        }
+
+        $row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT
+                COUNT( DISTINCT c.cohort_id ) AS total_cohorts,
+                COUNT( DISTINCT e.enrollment_id ) AS total_participants,
+                ROUND( AVG( COALESCE( cr.cohort_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
+             FROM {$prefix}hl_cohort c
+             LEFT JOIN {$prefix}hl_enrollment e ON c.cohort_id = e.cohort_id AND e.status = 'active'
+             LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
+             WHERE c.cohort_group_id = %d",
+            $group_id
+        ), ARRAY_A );
+
+        return $row ?: array( 'total_cohorts' => 0, 'total_participants' => 0, 'avg_completion_percent' => 0 );
+    }
+
+    /**
+     * Export group summary as CSV.
+     *
+     * @param int $group_id
+     * @return string CSV content
+     */
+    public function export_group_summary_csv( $group_id ) {
+        $rows = $this->get_group_summary( $group_id );
+
+        $handle = fopen( 'php://temp', 'r+' );
+        if ( $handle === false ) {
+            return '';
+        }
+
+        fputcsv( $handle, array( 'Cohort Name', 'Code', 'Status', 'Participants', 'Avg Completion %' ) );
+
+        foreach ( $rows as $row ) {
+            fputcsv( $handle, array(
+                $row['cohort_name'],
+                $row['cohort_code'],
+                $row['status'],
+                $row['participant_count'],
+                $row['avg_completion_percent'],
+            ) );
+        }
+
+        rewind( $handle );
+        $csv = stream_get_contents( $handle );
+        fclose( $handle );
+
+        return $csv;
+    }
+
+    // =========================================================================
     // CSV Export Methods (5.2)
     // =========================================================================
 

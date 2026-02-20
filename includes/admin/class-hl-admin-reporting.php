@@ -133,6 +133,26 @@ class HL_Admin_Reporting {
 
         $cohort_id = $filters['cohort_id'];
 
+        // Group summary export uses group_id, not cohort_id.
+        if ($export_type === 'group_summary_csv') {
+            $group_id = isset($_GET['group_id']) ? absint($_GET['group_id']) : 0;
+            if ($group_id) {
+                $reporting = HL_Reporting_Service::instance();
+                $csv      = $reporting->export_group_summary_csv($group_id);
+                $filename = 'group-summary-' . $group_id . '-' . gmdate('Y-m-d') . '.csv';
+                if (!empty($csv)) {
+                    header('Content-Type: text/csv; charset=utf-8');
+                    header('Content-Disposition: attachment; filename="' . $filename . '"');
+                    header('Cache-Control: no-cache, no-store, must-revalidate');
+                    header('Pragma: no-cache');
+                    header('Expires: 0');
+                    echo $csv;
+                    exit;
+                }
+            }
+            return;
+        }
+
         if (!$cohort_id && in_array($export_type, array('completion_csv', 'center_summary_csv', 'team_summary_csv', 'teacher_assessment_csv', 'children_assessment_csv'), true)) {
             // Cohort is required for all exports; fall through to render page with error
             return;

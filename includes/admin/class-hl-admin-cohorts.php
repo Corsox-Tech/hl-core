@@ -99,13 +99,14 @@ class HL_Admin_Cohorts {
         $cohort_id = isset($_POST['cohort_id']) ? absint($_POST['cohort_id']) : 0;
 
         $data = array(
-            'cohort_name' => sanitize_text_field($_POST['cohort_name']),
-            'cohort_code' => sanitize_text_field($_POST['cohort_code']),
-            'status'       => sanitize_text_field($_POST['status']),
-            'start_date'   => sanitize_text_field($_POST['start_date']),
-            'end_date'     => sanitize_text_field($_POST['end_date']),
-            'timezone'     => sanitize_text_field($_POST['timezone']),
-            'district_id'  => !empty($_POST['district_id']) ? absint($_POST['district_id']) : null,
+            'cohort_name'     => sanitize_text_field($_POST['cohort_name']),
+            'cohort_code'     => sanitize_text_field($_POST['cohort_code']),
+            'status'          => sanitize_text_field($_POST['status']),
+            'start_date'      => sanitize_text_field($_POST['start_date']),
+            'end_date'        => sanitize_text_field($_POST['end_date']),
+            'timezone'        => sanitize_text_field($_POST['timezone']),
+            'district_id'     => !empty($_POST['district_id']) ? absint($_POST['district_id']) : null,
+            'cohort_group_id' => !empty($_POST['cohort_group_id']) ? absint($_POST['cohort_group_id']) : null,
         );
 
         if (empty($data['end_date'])) {
@@ -242,6 +243,17 @@ class HL_Admin_Cohorts {
             }
         }
 
+        $group_names = array();
+        $group_rows = $wpdb->get_results(
+            "SELECT group_id, group_name FROM {$wpdb->prefix}hl_cohort_group",
+            ARRAY_A
+        );
+        if ($group_rows) {
+            foreach ($group_rows as $row) {
+                $group_names[$row['group_id']] = $row['group_name'];
+            }
+        }
+
         if (empty($cohorts)) {
             echo '<p>' . esc_html__('No cohorts found. Create your first cohort to get started.', 'hl-core') . '</p>';
             return;
@@ -255,6 +267,7 @@ class HL_Admin_Cohorts {
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Start Date', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('District', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Group', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Centers', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead>';
@@ -276,6 +289,7 @@ class HL_Admin_Cohorts {
             $sc = isset($status_colors[$cohort->status]) ? $status_colors[$cohort->status] : '#666';
 
             $district_name = ($cohort->district_id && isset($districts[$cohort->district_id])) ? $districts[$cohort->district_id] : '';
+            $group_name    = (!empty($cohort->cohort_group_id) && isset($group_names[$cohort->cohort_group_id])) ? $group_names[$cohort->cohort_group_id] : '';
             $center_count  = isset($center_counts[$cohort->cohort_id]) ? $center_counts[$cohort->cohort_id] : 0;
 
             echo '<tr>';
@@ -285,6 +299,7 @@ class HL_Admin_Cohorts {
             echo '<td><span style="color:' . esc_attr($sc) . '; font-weight:600;">' . esc_html(ucfirst($cohort->status)) . '</span></td>';
             echo '<td>' . esc_html($cohort->start_date) . '</td>';
             echo '<td>' . esc_html($district_name) . '</td>';
+            echo '<td>' . esc_html($group_name) . '</td>';
             echo '<td>' . esc_html($center_count) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
@@ -407,7 +422,7 @@ class HL_Admin_Cohorts {
     // Tab: Details (shared form for new and edit)
     // =========================================================================
 
-    private function render_details_form($cohort, $districts) {
+    private function render_details_form($cohort, $districts, $cohort_groups = null) {
         $is_edit = ($cohort !== null);
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-core')) . '">';
@@ -476,6 +491,25 @@ class HL_Admin_Cohorts {
             }
         }
         echo '</select></td></tr>';
+
+        // Cohort Group
+        if ($cohort_groups === null) {
+            global $wpdb;
+            $cohort_groups = $wpdb->get_results(
+                "SELECT group_id, group_name FROM {$wpdb->prefix}hl_cohort_group WHERE status = 'active' ORDER BY group_name ASC",
+                ARRAY_A
+            ) ?: array();
+        }
+        $current_group = $is_edit && isset($cohort->cohort_group_id) ? $cohort->cohort_group_id : '';
+        echo '<tr><th scope="row"><label for="cohort_group_id">' . esc_html__('Cohort Group', 'hl-core') . '</label></th>';
+        echo '<td><select id="cohort_group_id" name="cohort_group_id">';
+        echo '<option value="">' . esc_html__('-- None --', 'hl-core') . '</option>';
+        foreach ($cohort_groups as $cg) {
+            echo '<option value="' . esc_attr($cg['group_id']) . '"' . selected($current_group, $cg['group_id'], false) . '>' . esc_html($cg['group_name']) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . esc_html__('Optional. Group this cohort with others for cross-cohort reporting.', 'hl-core') . '</p>';
+        echo '</td></tr>';
 
         echo '</table>';
         submit_button($is_edit ? __('Update Cohort', 'hl-core') : __('Create Cohort', 'hl-core'));

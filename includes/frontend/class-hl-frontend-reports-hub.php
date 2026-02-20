@@ -113,6 +113,15 @@ class HL_Frontend_Reports_Hub {
             );
         }
 
+        // Program Group Report — staff and district leaders.
+        if ( $scope['is_staff'] || in_array( 'district_leader', $scope['hl_roles'], true ) ) {
+            $reports[] = array(
+                'title'       => __( 'Program Group Report', 'hl-core' ),
+                'description' => __( 'View cross-cohort aggregate metrics for cohort groups. Compare cohorts within a program.', 'hl-core' ),
+                'url'         => '', // TODO: link to dedicated group report page when built
+            );
+        }
+
         // Assessment Report — staff only, future.
         if ( $scope['is_staff'] ) {
             $reports[] = array(

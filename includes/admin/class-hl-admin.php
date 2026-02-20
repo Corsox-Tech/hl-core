@@ -66,6 +66,9 @@ class HL_Admin {
             case 'hl-reporting':
                 HL_Admin_Reporting::instance()->handle_early_actions();
                 break;
+            case 'hl-cohort-groups':
+                HL_Admin_Cohort_Groups::instance()->handle_early_actions();
+                break;
         }
     }
 
@@ -83,6 +86,7 @@ class HL_Admin {
         add_submenu_page('hl-core', 'Coaching', 'Coaching Sessions', 'manage_hl_core', 'hl-coaching', array(HL_Admin_Coaching::instance(), 'render_page'));
         add_submenu_page('hl-core', 'Coach Assignments', 'Coach Assignments', 'manage_hl_core', 'hl-coach-assignments', array(HL_Admin_Coach_Assignments::instance(), 'render_page'));
         add_submenu_page('hl-core', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
+        add_submenu_page('hl-core', 'Cohort Groups', 'Cohort Groups', 'manage_hl_core', 'hl-cohort-groups', array(HL_Admin_Cohort_Groups::instance(), 'render_page'));
         add_submenu_page('hl-core', 'Audit Log', 'Audit Log', 'manage_hl_core', 'hl-audit', array(HL_Admin_Audit::instance(), 'render_page'));
     }
 

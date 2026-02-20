@@ -46,6 +46,9 @@ class HL_Frontend_Cohorts_Listing {
         $participant_counts = $this->get_participant_counts();
         $center_counts      = $this->get_center_counts();
 
+        // Cohort groups for filter.
+        $cohort_groups = $this->get_cohort_groups();
+
         $workspace_url = $this->find_shortcode_page_url( 'hl_cohort_workspace' );
 
         ?>
@@ -55,11 +58,19 @@ class HL_Frontend_Cohorts_Listing {
                 <h2 class="hl-crm-page-title"><?php esc_html_e( 'Cohorts', 'hl-core' ); ?></h2>
             </div>
 
-            <!-- Search + Status Filters -->
+            <!-- Search + Status + Group Filters -->
             <div class="hl-filters-bar" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:20px;">
                 <input type="text" class="hl-search-input" id="hl-cohort-search"
                        placeholder="<?php esc_attr_e( 'Search cohorts...', 'hl-core' ); ?>"
                        style="flex:1; min-width:200px;">
+                <?php if ( ! empty( $cohort_groups ) ) : ?>
+                    <select id="hl-cohort-group-filter" style="min-width:160px;">
+                        <option value=""><?php esc_html_e( 'All Groups', 'hl-core' ); ?></option>
+                        <?php foreach ( $cohort_groups as $gid => $gname ) : ?>
+                            <option value="<?php echo esc_attr( $gid ); ?>"><?php echo esc_html( $gname ); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php endif; ?>
                 <label class="hl-filter-checkbox">
                     <input type="checkbox" class="hl-status-filter" value="active" checked> <?php esc_html_e( 'Active', 'hl-core' ); ?>
                 </label>
@@ -92,7 +103,8 @@ class HL_Frontend_Cohorts_Listing {
                     ?>
                         <div class="hl-crm-card hl-cohort-card"
                              data-status="<?php echo esc_attr( $status ); ?>"
-                             data-name="<?php echo esc_attr( strtolower( $cohort->cohort_name . ' ' . $cohort->cohort_code ) ); ?>">
+                             data-name="<?php echo esc_attr( strtolower( $cohort->cohort_name . ' ' . $cohort->cohort_code ) ); ?>"
+                             data-group="<?php echo esc_attr( $cohort->cohort_group_id ?: '' ); ?>">
                             <div class="hl-crm-card-body">
                                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
                                     <h3 class="hl-crm-card-title" style="margin:0;">
@@ -150,6 +162,7 @@ class HL_Frontend_Cohorts_Listing {
 
             function filterCards() {
                 var query = $('#hl-cohort-search').val().toLowerCase();
+                var groupFilter = $('#hl-cohort-group-filter').val() || '';
                 var statuses = [];
                 $('.hl-status-filter:checked').each(function(){ statuses.push($(this).val()); });
 
@@ -158,7 +171,8 @@ class HL_Frontend_Cohorts_Listing {
                     var $c = $(this);
                     var matchSearch = !query || $c.data('name').indexOf(query) !== -1;
                     var matchStatus = statuses.length === 0 || statuses.indexOf($c.data('status')) !== -1;
-                    var show = matchSearch && matchStatus;
+                    var matchGroup  = !groupFilter || String($c.data('group')) === groupFilter;
+                    var show = matchSearch && matchStatus && matchGroup;
                     $c.toggle(show);
                     if (show) visible++;
                 });
@@ -167,6 +181,7 @@ class HL_Frontend_Cohorts_Listing {
 
             $('#hl-cohort-search').on('input', filterCards);
             $('.hl-status-filter').on('change', filterCards);
+            $('#hl-cohort-group-filter').on('change', filterCards);
             filterCards();
         })(jQuery);
         </script>
@@ -206,6 +221,19 @@ class HL_Frontend_Cohorts_Listing {
         $map = array();
         foreach ( $results ?: array() as $row ) {
             $map[ (int) $row['cohort_id'] ] = (int) $row['cnt'];
+        }
+        return $map;
+    }
+
+    private function get_cohort_groups() {
+        global $wpdb;
+        $results = $wpdb->get_results(
+            "SELECT group_id, group_name FROM {$wpdb->prefix}hl_cohort_group WHERE status = 'active' ORDER BY group_name ASC",
+            ARRAY_A
+        );
+        $map = array();
+        foreach ( $results ?: array() as $row ) {
+            $map[ (int) $row['group_id'] ] = $row['group_name'];
         }
         return $map;
     }

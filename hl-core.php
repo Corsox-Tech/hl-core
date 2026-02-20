@@ -127,6 +127,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-coaching.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-coach-assignments.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-reporting.php';
+            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-cohort-groups.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-audit.php';
         }
         
