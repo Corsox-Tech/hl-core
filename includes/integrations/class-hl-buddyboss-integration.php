@@ -4,8 +4,15 @@ if (!defined('ABSPATH')) exit;
 /**
  * BuddyBoss Integration
  *
- * Adds a role-conditional sidebar navigation menu to the BuddyBoss
- * theme profile dropdown so enrolled users can reach HL Core pages.
+ * Injects role-conditional "Housman Learning" navigation items into the
+ * BuddyBoss theme using multiple hooks for maximum reliability:
+ *
+ *  1. Profile Dropdown — via buddyboss_theme_after_bb_profile_menu (last
+ *     hook in header-profile-menu.php, fires for all logged-in users).
+ *  2. BuddyPanel left sidebar — via wp_nav_menu_items filter on the
+ *     buddypanel-loggedin nav menu location.
+ *  3. JS fallback — via wp_footer, injects items into the BuddyPanel
+ *     DOM if neither PHP hook rendered them.
  *
  * @package HL_Core
  */
@@ -27,6 +34,21 @@ class HL_BuddyBoss_Integration {
      */
     private static $page_url_cache = array();
 
+    /**
+     * Track whether the BuddyPanel items were injected via PHP filter
+     * so the JS fallback can be skipped.
+     *
+     * @var bool
+     */
+    private $buddypanel_injected = false;
+
+    /**
+     * Track whether the profile dropdown items were rendered.
+     *
+     * @var bool
+     */
+    private $profile_dropdown_rendered = false;
+
     public static function instance() {
         if (self::$instance === null) {
             self::$instance = new self();
@@ -39,9 +61,18 @@ class HL_BuddyBoss_Integration {
             return;
         }
 
-        // Render sidebar menu items after the Groups section in the
-        // BuddyBoss profile dropdown.
-        add_action('buddyboss_theme_after_bb_groups_menu', array($this, 'render_sidebar_menu'));
+        // 1. Profile Dropdown — last hook in header-profile-menu.php.
+        //    Fires unconditionally for logged-in users UNLESS a custom
+        //    nav menu is assigned to the "header-my-account" location.
+        add_action('buddyboss_theme_after_bb_profile_menu', array($this, 'render_profile_dropdown_menu'));
+
+        // 2. BuddyPanel left sidebar — filter nav menu items for the
+        //    buddypanel-loggedin location.
+        add_filter('wp_nav_menu_items', array($this, 'filter_buddypanel_menu_items'), 20, 2);
+
+        // 3. JS fallback — inject into BuddyPanel via JavaScript if
+        //    the PHP hooks didn't fire.
+        add_action('wp_footer', array($this, 'render_js_fallback'), 99);
     }
 
     // =========================================================================
@@ -72,36 +103,22 @@ class HL_BuddyBoss_Integration {
     }
 
     // =========================================================================
-    // Sidebar Menu Rendering
+    // 1. Profile Dropdown Menu (header-profile-menu.php)
     // =========================================================================
 
     /**
-     * Render the "Housman Learning" collapsible menu section in the
-     * BuddyBoss profile sidebar.
+     * Render the "Housman Learning" collapsible section in the BuddyBoss
+     * profile dropdown (header user menu).
      *
-     * Hooked to: buddyboss_theme_after_bb_groups_menu
+     * Hooked to: buddyboss_theme_after_bb_profile_menu (last hook in template)
      */
-    public function render_sidebar_menu() {
-        $user_id = get_current_user_id();
-        if (!$user_id) {
-            return;
-        }
-
-        $is_staff = current_user_can('manage_hl_core');
-        $roles    = $this->get_user_hl_roles($user_id);
-
-        // Non-staff users without active HL enrollments see nothing.
-        if (!$is_staff && empty($roles)) {
-            return;
-        }
-
-        $items = $this->build_menu_items($roles, $is_staff);
-
+    public function render_profile_dropdown_menu() {
+        $items = $this->get_menu_items_for_current_user();
         if (empty($items)) {
             return;
         }
 
-        // Determine current page URL for active highlighting.
+        $this->profile_dropdown_rendered = true;
         $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
 
         ?>
@@ -125,6 +142,256 @@ class HL_BuddyBoss_Integration {
             </div>
         </li>
         <?php
+    }
+
+    // =========================================================================
+    // 2. BuddyPanel Left Sidebar (wp_nav_menu filter)
+    // =========================================================================
+
+    /**
+     * Inject HL menu items into the BuddyPanel left sidebar nav menu.
+     *
+     * The BuddyPanel template (buddypanel.php) uses wp_nav_menu() for the
+     * buddypanel-loggedin location. Since it has no action hooks, we filter
+     * the rendered HTML to append our items.
+     *
+     * @param string   $items HTML of menu items.
+     * @param stdClass $args  wp_nav_menu arguments.
+     * @return string
+     */
+    public function filter_buddypanel_menu_items($items, $args) {
+        // Only target the BuddyPanel logged-in menu.
+        if (!isset($args->theme_location) || $args->theme_location !== 'buddypanel-loggedin') {
+            return $items;
+        }
+
+        if (!is_user_logged_in()) {
+            return $items;
+        }
+
+        $menu_items = $this->get_menu_items_for_current_user();
+        if (empty($menu_items)) {
+            return $items;
+        }
+
+        $this->buddypanel_injected = true;
+        $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
+
+        // Section divider.
+        $html = '<li class="menu-item bb-menu-section hl-buddypanel-section">';
+        $html .= '<span class="bb-menu-section-title">' . esc_html__('Housman Learning', 'hl-core') . '</span>';
+        $html .= '</li>';
+
+        foreach ($menu_items as $item) {
+            $item_path = trailingslashit(wp_parse_url($item['url'], PHP_URL_PATH) ?: '');
+            $is_active = ($item_path && $item_path === $current_url);
+            $classes   = 'menu-item menu-item-type-custom menu-item-object-custom hl-buddypanel-item';
+            if ($is_active) {
+                $classes .= ' current-menu-item';
+            }
+
+            $html .= '<li class="' . esc_attr($classes) . '">';
+            $html .= '<a href="' . esc_url($item['url']) . '">';
+            $html .= '<i class="bb-icon-l bb-icon-clipboard"></i>';
+            $html .= '<span class="menu-title">' . esc_html($item['label']) . '</span>';
+            $html .= '</a>';
+            $html .= '</li>';
+        }
+
+        return $items . $html;
+    }
+
+    // =========================================================================
+    // 3. JavaScript Fallback (wp_footer)
+    // =========================================================================
+
+    /**
+     * Render a JS fallback that injects menu items into the BuddyPanel
+     * sidebar DOM if the PHP hooks did not fire.
+     *
+     * This covers edge cases where:
+     * - No BuddyPanel nav menu is assigned (buddypanel-loggedin empty)
+     * - A custom profile dropdown menu overrides the BB profile hooks
+     */
+    public function render_js_fallback() {
+        // If BuddyPanel was already injected via PHP, skip the fallback.
+        if ($this->buddypanel_injected) {
+            return;
+        }
+
+        if (!is_user_logged_in()) {
+            return;
+        }
+
+        $menu_items = $this->get_menu_items_for_current_user();
+        if (empty($menu_items)) {
+            return;
+        }
+
+        $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
+
+        // Build the items as a JS-safe data structure.
+        $js_items = array();
+        foreach ($menu_items as $item) {
+            $item_path = trailingslashit(wp_parse_url($item['url'], PHP_URL_PATH) ?: '');
+            $js_items[] = array(
+                'slug'   => $item['slug'],
+                'label'  => $item['label'],
+                'url'    => $item['url'],
+                'active' => ($item_path && $item_path === $current_url),
+            );
+        }
+
+        ?>
+        <script>
+        (function(){
+            var items = <?php echo wp_json_encode($js_items); ?>;
+            if (!items || !items.length) return;
+
+            function injectIntoBuddyPanel() {
+                // Find the BuddyPanel sidebar.
+                var panel = document.querySelector('.buddypanel .side-panel-menu-container');
+                if (!panel) return false;
+
+                // Check if already injected.
+                if (panel.querySelector('.hl-buddypanel-section')) return true;
+
+                // Find the existing <ul> or create one.
+                var ul = panel.querySelector('ul.buddypanel-menu, ul.side-panel-menu');
+                if (!ul) {
+                    ul = document.createElement('ul');
+                    ul.className = 'buddypanel-menu side-panel-menu';
+                    ul.id = 'buddypanel-menu';
+                    panel.appendChild(ul);
+                }
+
+                // Add section divider.
+                var section = document.createElement('li');
+                section.className = 'menu-item bb-menu-section hl-buddypanel-section';
+                section.innerHTML = '<span class="bb-menu-section-title">' + <?php echo wp_json_encode(esc_html__('Housman Learning', 'hl-core')); ?> + '</span>';
+                ul.appendChild(section);
+
+                // Add menu items.
+                for (var i = 0; i < items.length; i++) {
+                    var li = document.createElement('li');
+                    li.className = 'menu-item menu-item-type-custom menu-item-object-custom hl-buddypanel-item';
+                    if (items[i].active) li.className += ' current-menu-item';
+
+                    var a = document.createElement('a');
+                    a.href = items[i].url;
+                    a.innerHTML = '<i class="bb-icon-l bb-icon-clipboard"></i><span class="menu-title">' + items[i].label + '</span>';
+                    li.appendChild(a);
+                    ul.appendChild(li);
+                }
+                return true;
+            }
+
+            function injectIntoProfileDropdown() {
+                // Find the profile dropdown sub-menu.
+                var subMenu = document.querySelector('.header-aside .user-wrap .sub-menu .sub-menu-inner');
+                if (!subMenu) return false;
+
+                // Check if already injected.
+                if (subMenu.querySelector('#wp-admin-bar-my-account-housman-learning')) return true;
+
+                // Build collapsible menu section.
+                var li = document.createElement('li');
+                li.id = 'wp-admin-bar-my-account-housman-learning';
+                li.className = 'menupop';
+
+                var a = document.createElement('a');
+                a.className = 'ab-item';
+                a.setAttribute('aria-haspopup', 'true');
+                a.href = '#';
+                a.innerHTML = '<i class="bb-icon-l bb-icon-clipboard"></i>'
+                    + '<span class="wp-admin-bar-arrow" aria-hidden="true"></span>'
+                    + <?php echo wp_json_encode(esc_html__('Housman Learning', 'hl-core')); ?>;
+                li.appendChild(a);
+
+                var wrapper = document.createElement('div');
+                wrapper.className = 'ab-sub-wrapper wrapper';
+                var subUl = document.createElement('ul');
+                subUl.id = 'wp-admin-bar-my-account-housman-learning-default';
+                subUl.className = 'ab-submenu';
+
+                for (var i = 0; i < items.length; i++) {
+                    var subLi = document.createElement('li');
+                    subLi.id = 'wp-admin-bar-my-account-hl-' + items[i].slug;
+                    if (items[i].active) subLi.className = 'current';
+                    var subA = document.createElement('a');
+                    subA.className = 'ab-item';
+                    subA.href = items[i].url;
+                    subA.textContent = items[i].label;
+                    subLi.appendChild(subA);
+                    subUl.appendChild(subLi);
+                }
+
+                wrapper.appendChild(subUl);
+                li.appendChild(wrapper);
+
+                // Insert before the last item (logout).
+                var logoutItem = subMenu.querySelector('#wp-admin-bar-logout');
+                if (logoutItem) {
+                    subMenu.insertBefore(li, logoutItem);
+                } else {
+                    subMenu.appendChild(li);
+                }
+                return true;
+            }
+
+            // Run after DOM is ready.
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    injectIntoBuddyPanel();
+                    <?php if (!$this->profile_dropdown_rendered) : ?>
+                    injectIntoProfileDropdown();
+                    <?php endif; ?>
+                });
+            } else {
+                injectIntoBuddyPanel();
+                <?php if (!$this->profile_dropdown_rendered) : ?>
+                injectIntoProfileDropdown();
+                <?php endif; ?>
+            }
+        })();
+        </script>
+        <?php
+    }
+
+    // =========================================================================
+    // Shared Menu Builder
+    // =========================================================================
+
+    /**
+     * Get the menu items for the current logged-in user.
+     *
+     * Cached per request to avoid rebuilding for multiple hooks.
+     *
+     * @return array<int, array{slug: string, label: string, url: string}>
+     */
+    private function get_menu_items_for_current_user() {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            $cached = array();
+            return $cached;
+        }
+
+        $is_staff = current_user_can('manage_hl_core');
+        $roles    = $this->get_user_hl_roles($user_id);
+
+        // Non-staff users without active HL enrollments see nothing.
+        if (!$is_staff && empty($roles)) {
+            $cached = array();
+            return $cached;
+        }
+
+        $cached = $this->build_menu_items($roles, $is_staff);
+        return $cached;
     }
 
     /**
@@ -152,7 +419,7 @@ class HL_BuddyBoss_Integration {
         $is_mentor = in_array('mentor', $roles, true);
 
         // Define all possible menu items with their visibility rules.
-        // Each entry: [ shortcode, label, show_condition ]
+        // Each entry: [ slug, shortcode, label, show_condition ]
         $menu_def = array(
             // --- Personal ---
             array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    true),
