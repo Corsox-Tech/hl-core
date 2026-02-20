@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for assessment/observation forms)
-**Status:** v1 complete — Phases 1-11 done (25 shortcode pages, 14 admin pages, 32 DB tables)
+**Status:** v1 complete — Phases 1-11 done, Phase 14 (Admin UX) done (25 shortcode pages, 14 admin pages, 33 DB columns, tabbed cohort editor)
 
 ## Overview
 
@@ -47,10 +47,10 @@ All 8 core entities have domain model classes with proper properties and reposit
 
 ### Admin Pages (WP Admin UI)
 Full CRUD admin pages with WordPress-styled tables and forms:
-- **Cohorts** - List, create, edit, delete cohorts with metric cards (enrollments, pathways, activities)
+- **Cohorts** - List, create, edit/delete cohorts. **Tabbed Editor:** 7-tab interface for existing cohorts (Details, Centers, Pathways, Teams, Enrollments, Coaching, Classrooms). Centers tab with link/unlink. Enrollments tab with completion bars + pagination. Coaching tab with assignments + recent sessions. Classrooms tab scoped to linked centers.
 - **Org Units** - Manage districts and centers hierarchy
 - **Enrollments** - Enroll users in cohorts with role assignment, cohort filter
-- **Pathways & Activities** - Configure pathways per cohort, add activities with type-specific dropdowns (JFB form selector, HL instrument selector, LearnDash course selector), auto-built external_ref JSON, prerequisite group editor (all_of/any_of/n_of_m with cycle detection), prereq summary column in activity list, drip rule UI (fixed release date + delay-after-activity with base_activity selector and delay_days)
+- **Pathways & Activities** - Configure pathways per cohort, add activities with type-specific dropdowns (JFB form selector, HL instrument selector, LearnDash course selector), auto-built external_ref JSON, prerequisite group editor (all_of/any_of/n_of_m with cycle detection), prereq summary column in activity list, drip rule UI (fixed release date + delay-after-activity with base_activity selector and delay_days). **Clone/Template:** Clone pathway to any cohort (copies activities, prereqs, drip rules with ID remapping). Save as Template / Templates tab. Start from Template on new pathway form.
 - **Teams** - Create teams within cohorts/centers, view team members
 - **Classrooms** - Full CRUD with detail view: teaching assignments (cohort-scoped add/remove) + children roster (assign/reassign/remove with history)
 - **Imports** - AJAX-based 3-step wizard (Upload > Preview & Select > Results) for CSV import with import type selector (participants, children, classrooms, teaching assignments), dynamic column rendering per type, row-level status badges, bulk actions, commit, error report download, column hints per type, and import history table
@@ -257,6 +257,11 @@ _Read docs: 10 (section 18 Phase E)_
 _Read docs: 10 (section 2.4)_
 
 - [~] **13.1 BB Profile Tab** — DONE: Sidebar navigation menu (`HL_BuddyBoss_Integration`) rebuilt in 11.9 with 11 role-based menu items covering all listing pages (Cohorts, Institutions, Classrooms, Learners, Pathways, Coaching Hub, Reports, My Team, My Programs, My Coaching, My Cohort). Multi-role union, active page highlighting. TODO: Custom profile tab for coaches/admins (enrollment info, pathway progress, team assignment, coaching sessions, action buttons).
+
+### Phase 14: Admin UX Improvements
+
+- [x] **14.1 Pathway Clone/Template Feature** — Added `is_template` column to `hl_pathway` (schema revision 4). `HL_Pathway_Service::clone_pathway()` deep-clones pathway + activities + prereq groups/items + drip rules with activity ID remapping (fixed_date drip rules nulled for admin to set new dates). Admin Pathways page: "Clone to Cohort" form on detail view, "Save as Template" / "Remove from Templates" toggle, "Templates" tab on list view with count badge, "Start from Template" dropdown on new pathway form.
+- [x] **14.2 Tabbed Cohort Editor** — Redesigned cohort edit page into 7-tab interface: Details (existing form), Centers (link/unlink with district + leader names), Pathways (list + clone from template shortcut), Teams (mentor names + member counts), Enrollments (paginated with roles/team/center/completion bars), Coaching (coach assignments + recent sessions with status badges), Classrooms (scoped to linked centers with child/teacher counts). New cohorts redirect to edit page after first save. Cohort breadcrumbs on Teams, Enrollments, Pathways, Coaching Sessions, and Coach Assignments admin pages when cohort filter is active.
 
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
