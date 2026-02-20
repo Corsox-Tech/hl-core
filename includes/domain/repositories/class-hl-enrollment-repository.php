@@ -105,6 +105,19 @@ class HL_Enrollment_Repository {
         return $wpdb->delete($this->table(), array('enrollment_id' => $enrollment_id));
     }
 
+    public function get_by_user_id($user_id, $status = 'active') {
+        global $wpdb;
+        $sql = $wpdb->prepare(
+            "SELECT e.*, u.user_email, u.display_name FROM {$this->table()} e
+             LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+             WHERE e.user_id = %d AND e.status = %s
+             ORDER BY e.enrolled_at DESC",
+            $user_id, $status
+        );
+        $rows = $wpdb->get_results($sql, ARRAY_A);
+        return array_map(function($row) { return new HL_Enrollment($row); }, $rows ?: array());
+    }
+
     public function count_by_cohort($cohort_id) {
         global $wpdb;
         return (int) $wpdb->get_var($wpdb->prepare(

@@ -39,6 +39,7 @@ class HL_Shortcodes {
         add_shortcode('hl_center_page', array($this, 'render_center_page'));
         add_shortcode('hl_cohort_workspace', array($this, 'render_cohort_workspace'));
         add_shortcode('hl_my_coaching', array($this, 'render_my_coaching'));
+        add_shortcode('hl_cohorts_listing', array($this, 'render_cohorts_listing'));
     }
 
     public function enqueue_assets() {
@@ -61,7 +62,8 @@ class HL_Shortcodes {
             || has_shortcode($post->post_content, 'hl_centers_listing')
             || has_shortcode($post->post_content, 'hl_center_page')
             || has_shortcode($post->post_content, 'hl_cohort_workspace')
-            || has_shortcode($post->post_content, 'hl_my_coaching');
+            || has_shortcode($post->post_content, 'hl_my_coaching')
+            || has_shortcode($post->post_content, 'hl_cohorts_listing');
 
         if ($has_shortcode) {
             wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
@@ -306,6 +308,21 @@ class HL_Shortcodes {
 
         $atts = shortcode_atts(array(), $atts, 'hl_my_coaching');
         $renderer = new HL_Frontend_My_Coaching();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_cohorts_listing] - Cohort listing with scope filtering
+     */
+    public function render_cohorts_listing($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts(array(), $atts, 'hl_cohorts_listing');
+        $renderer = new HL_Frontend_Cohorts_Listing();
         return $renderer->render($atts);
     }
 

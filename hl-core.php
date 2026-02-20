@@ -104,6 +104,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-reporting-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-audit-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-assignment-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scope-service.php';
         
         // Integrations
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-learndash-integration.php';
@@ -148,6 +149,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-center-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-cohort-workspace.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-coaching.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-cohorts-listing.php';
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';
