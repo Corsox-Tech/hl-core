@@ -58,6 +58,22 @@ class HL_Admin_Pathways {
         if ($action === 'toggle_template') {
             $this->handle_toggle_template();
         }
+
+        if ($action === 'assign_pathway') {
+            $this->handle_assign_pathway();
+        }
+
+        if ($action === 'unassign_pathway') {
+            $this->handle_unassign_pathway();
+        }
+
+        if ($action === 'bulk_assign_pathway') {
+            $this->handle_bulk_assign_pathway();
+        }
+
+        if ($action === 'sync_role_defaults') {
+            $this->handle_sync_role_defaults();
+        }
     }
 
     /**
@@ -578,6 +594,102 @@ class HL_Admin_Pathways {
     }
 
     /**
+     * Handle single pathway assignment (POST).
+     */
+    private function handle_assign_pathway() {
+        if (!isset($_POST['hl_assign_nonce']) || !wp_verify_nonce($_POST['hl_assign_nonce'], 'hl_assign_pathway')) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(__('You do not have permission.', 'hl-core'));
+        }
+
+        $pathway_id    = absint($_POST['pathway_id']);
+        $enrollment_id = absint($_POST['enrollment_id']);
+
+        $service = new HL_Pathway_Assignment_Service();
+        $service->assign_pathway($enrollment_id, $pathway_id, 'explicit');
+
+        wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=assigned'));
+        exit;
+    }
+
+    /**
+     * Handle pathway unassignment (GET).
+     */
+    private function handle_unassign_pathway() {
+        $pathway_id    = isset($_GET['pathway_id']) ? absint($_GET['pathway_id']) : 0;
+        $enrollment_id = isset($_GET['enrollment_id']) ? absint($_GET['enrollment_id']) : 0;
+
+        if (!$pathway_id || !$enrollment_id) return;
+
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_unassign_pathway_' . $enrollment_id)) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(__('You do not have permission.', 'hl-core'));
+        }
+
+        $service = new HL_Pathway_Assignment_Service();
+        $service->unassign_pathway($enrollment_id, $pathway_id);
+
+        wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=unassigned'));
+        exit;
+    }
+
+    /**
+     * Handle bulk pathway assignment (POST).
+     */
+    private function handle_bulk_assign_pathway() {
+        if (!isset($_POST['hl_bulk_assign_nonce']) || !wp_verify_nonce($_POST['hl_bulk_assign_nonce'], 'hl_bulk_assign_pathway')) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(__('You do not have permission.', 'hl-core'));
+        }
+
+        $pathway_id     = absint($_POST['pathway_id']);
+        $enrollment_ids = isset($_POST['enrollment_ids']) && is_array($_POST['enrollment_ids'])
+            ? array_map('absint', $_POST['enrollment_ids'])
+            : array();
+
+        if (!empty($enrollment_ids)) {
+            $service = new HL_Pathway_Assignment_Service();
+            $service->bulk_assign($pathway_id, $enrollment_ids, 'explicit');
+        }
+
+        wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=bulk_assigned'));
+        exit;
+    }
+
+    /**
+     * Handle sync role defaults for a cohort (GET).
+     */
+    private function handle_sync_role_defaults() {
+        $pathway_id = isset($_GET['pathway_id']) ? absint($_GET['pathway_id']) : 0;
+        if (!$pathway_id) return;
+
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_sync_defaults_' . $pathway_id)) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(__('You do not have permission.', 'hl-core'));
+        }
+
+        $pathway = $this->get_pathway($pathway_id);
+        if (!$pathway) {
+            wp_redirect(admin_url('admin.php?page=hl-pathways'));
+            exit;
+        }
+
+        $service = new HL_Pathway_Assignment_Service();
+        $service->sync_role_defaults($pathway->cohort_id);
+
+        wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=synced'));
+        exit;
+    }
+
+    /**
      * Render the pathways list
      */
     private function render_list() {
@@ -770,6 +882,10 @@ class HL_Admin_Pathways {
                 'template_removed' => __('Pathway removed from templates.', 'hl-core'),
                 'activity_saved'   => __('Activity saved successfully.', 'hl-core'),
                 'activity_deleted' => __('Activity deleted successfully.', 'hl-core'),
+                'assigned'         => __('Pathway assigned to enrollment.', 'hl-core'),
+                'unassigned'       => __('Pathway unassigned from enrollment.', 'hl-core'),
+                'bulk_assigned'    => __('Pathway assigned to selected enrollments.', 'hl-core'),
+                'synced'           => __('Role-based default assignments synced.', 'hl-core'),
             );
             if (isset($messages[$msg])) {
                 echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($messages[$msg]) . '</p></div>';
@@ -901,6 +1017,101 @@ class HL_Admin_Pathways {
         }
 
         echo '</tbody></table>';
+
+        // =====================================================================
+        // Assigned Enrollments section
+        // =====================================================================
+        $pa_service  = new HL_Pathway_Assignment_Service();
+        $assigned    = $pa_service->get_enrollments_for_pathway($pathway->pathway_id);
+        $unassigned  = $pa_service->get_unassigned_enrollments($pathway->pathway_id, $pathway->cohort_id);
+
+        echo '<h2 class="wp-heading-inline" style="margin-top:30px;">' . esc_html__('Assigned Enrollments', 'hl-core') . '</h2>';
+        echo ' <span style="color:#666;">(' . count($assigned) . ')</span>';
+
+        // Sync role defaults button.
+        $sync_url = wp_nonce_url(
+            admin_url('admin.php?page=hl-pathways&action=sync_role_defaults&pathway_id=' . $pathway->pathway_id),
+            'hl_sync_defaults_' . $pathway->pathway_id
+        );
+        echo ' <a href="' . esc_url($sync_url) . '" class="button button-small" style="margin-left:10px;" title="' . esc_attr__('Auto-assign this pathway to enrollments whose roles match the target roles', 'hl-core') . '">' . esc_html__('Sync Role Defaults', 'hl-core') . '</a>';
+        echo '<hr class="wp-header-end">';
+
+        // Bulk assign form.
+        if (!empty($unassigned)) {
+            echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=bulk_assign_pathway')) . '" style="margin-bottom:15px;">';
+            wp_nonce_field('hl_bulk_assign_pathway', 'hl_bulk_assign_nonce');
+            echo '<input type="hidden" name="pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
+            echo '<div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;">';
+            echo '<select name="enrollment_ids[]" multiple="multiple" style="min-width:300px; min-height:80px;">';
+            foreach ($unassigned as $ue) {
+                $roles = json_decode($ue['roles'], true);
+                $roles_str = is_array($roles) ? implode(', ', $roles) : '';
+                $label = $ue['display_name'] . ' (' . $ue['user_email'] . ')';
+                if ($roles_str) {
+                    $label .= ' — ' . $roles_str;
+                }
+                echo '<option value="' . esc_attr($ue['enrollment_id']) . '">' . esc_html($label) . '</option>';
+            }
+            echo '</select>';
+            echo '<button type="submit" class="button button-primary">' . esc_html__('Assign Selected', 'hl-core') . '</button>';
+            echo '</div>';
+            echo '<p class="description">' . esc_html__('Hold Ctrl/Cmd to select multiple enrollments. These are active enrollments in this cohort not yet assigned to this pathway.', 'hl-core') . '</p>';
+            echo '</form>';
+        }
+
+        // Single assign (quick-add one enrollment).
+        if (!empty($unassigned)) {
+            echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=assign_pathway')) . '" style="display:flex; gap:8px; align-items:center; margin-bottom:15px;">';
+            wp_nonce_field('hl_assign_pathway', 'hl_assign_nonce');
+            echo '<input type="hidden" name="pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
+            echo '<select name="enrollment_id" required>';
+            echo '<option value="">' . esc_html__('-- Quick Assign --', 'hl-core') . '</option>';
+            foreach ($unassigned as $ue) {
+                echo '<option value="' . esc_attr($ue['enrollment_id']) . '">' . esc_html($ue['display_name'] . ' (' . $ue['user_email'] . ')') . '</option>';
+            }
+            echo '</select>';
+            echo '<button type="submit" class="button">' . esc_html__('Assign', 'hl-core') . '</button>';
+            echo '</form>';
+        }
+
+        if (empty($assigned)) {
+            echo '<p>' . esc_html__('No enrollments explicitly assigned to this pathway yet. Use "Sync Role Defaults" to auto-assign based on target roles, or assign manually above.', 'hl-core') . '</p>';
+        } else {
+            echo '<table class="widefat striped">';
+            echo '<thead><tr>';
+            echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Email', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Roles', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Type', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
+            echo '</tr></thead><tbody>';
+
+            foreach ($assigned as $a) {
+                $roles = json_decode($a['roles'], true);
+                $roles_str = is_array($roles) ? implode(', ', $roles) : '';
+
+                $unassign_url = wp_nonce_url(
+                    admin_url('admin.php?page=hl-pathways&action=unassign_pathway&pathway_id=' . $pathway->pathway_id . '&enrollment_id=' . $a['enrollment_id']),
+                    'hl_unassign_pathway_' . $a['enrollment_id']
+                );
+
+                $type_badge = ($a['assignment_type'] === 'explicit')
+                    ? '<span style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600;background:#d4edda;color:#155724;">Explicit</span>'
+                    : '<span style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600;background:#e2e3e5;color:#383d41;">Role Default</span>';
+
+                echo '<tr>';
+                echo '<td><strong>' . esc_html($a['display_name']) . '</strong></td>';
+                echo '<td>' . esc_html($a['user_email']) . '</td>';
+                echo '<td>' . esc_html($roles_str) . '</td>';
+                echo '<td>' . $type_badge . '</td>';
+                echo '<td>';
+                echo '<a href="' . esc_url($unassign_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Remove this assignment?', 'hl-core')) . '\');">' . esc_html__('Remove', 'hl-core') . '</a>';
+                echo '</td>';
+                echo '</tr>';
+            }
+
+            echo '</tbody></table>';
+        }
     }
 
     /**

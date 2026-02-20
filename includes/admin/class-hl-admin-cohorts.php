@@ -805,11 +805,31 @@ class HL_Admin_Cohorts {
         echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Email', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Roles', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Pathway', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Team', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Center', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Completion', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead><tbody>';
+
+        // Collect pathway names per enrollment.
+        $pa_service = new HL_Pathway_Assignment_Service();
+        $pathway_names_map = array();
+        $enrollment_ids_list = wp_list_pluck($enrollments, 'enrollment_id');
+        if (!empty($enrollment_ids_list)) {
+            $pa_in = implode(',', array_map('intval', $enrollment_ids_list));
+            $pa_rows = $wpdb->get_results(
+                "SELECT pa.enrollment_id, p.pathway_name, pa.assignment_type
+                 FROM {$wpdb->prefix}hl_pathway_assignment pa
+                 JOIN {$wpdb->prefix}hl_pathway p ON pa.pathway_id = p.pathway_id
+                 WHERE pa.enrollment_id IN ({$pa_in})
+                 ORDER BY pa.assignment_type ASC",
+                ARRAY_A
+            );
+            foreach ($pa_rows as $par) {
+                $pathway_names_map[$par['enrollment_id']][] = $par['pathway_name'];
+            }
+        }
 
         foreach ($enrollments as $e) {
             $roles = json_decode($e->roles, true);
@@ -817,11 +837,13 @@ class HL_Admin_Cohorts {
             $center_name = ($e->center_id && isset($centers[$e->center_id])) ? $centers[$e->center_id] : '-';
             $completion  = isset($rollups[$e->enrollment_id]) ? $rollups[$e->enrollment_id] : 0;
             $team_name   = isset($team_map[$e->enrollment_id]) ? $team_map[$e->enrollment_id] : '-';
+            $pw_names    = isset($pathway_names_map[$e->enrollment_id]) ? implode(', ', $pathway_names_map[$e->enrollment_id]) : '-';
 
             echo '<tr>';
             echo '<td><strong>' . esc_html($e->display_name) . '</strong></td>';
             echo '<td>' . esc_html($e->user_email) . '</td>';
             echo '<td>' . esc_html($roles_str) . '</td>';
+            echo '<td>' . esc_html($pw_names) . '</td>';
             echo '<td>' . esc_html($team_name) . '</td>';
             echo '<td>' . esc_html($center_name) . '</td>';
             echo '<td>';

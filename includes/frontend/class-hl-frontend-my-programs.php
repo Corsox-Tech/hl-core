@@ -30,6 +30,9 @@ class HL_Frontend_My_Programs {
     /** @var HL_LearnDash_Integration */
     private $learndash;
 
+    /** @var HL_Pathway_Assignment_Service */
+    private $pa_service;
+
     public function __construct() {
         $this->enrollment_repo = new HL_Enrollment_Repository();
         $this->cohort_repo     = new HL_Cohort_Repository();
@@ -37,6 +40,7 @@ class HL_Frontend_My_Programs {
         $this->activity_repo   = new HL_Activity_Repository();
         $this->rules_engine    = new HL_Rules_Engine_Service();
         $this->learndash       = HL_LearnDash_Integration::instance();
+        $this->pa_service      = new HL_Pathway_Assignment_Service();
     }
 
     /**
@@ -60,17 +64,33 @@ class HL_Frontend_My_Programs {
         // Build program cards data.
         $cards = array();
         foreach ($enrollments as $enrollment) {
-            if (empty($enrollment->assigned_pathway_id)) {
-                continue;
+            // Get pathways via assignment service (explicit first, then role-based fallback).
+            $assigned_pathways = $this->pa_service->get_pathways_for_enrollment($enrollment->enrollment_id);
+
+            // If no assignments from service, fall back to legacy assigned_pathway_id.
+            if (empty($assigned_pathways) && !empty($enrollment->assigned_pathway_id)) {
+                $legacy_pw = $this->pathway_repo->get_by_id($enrollment->assigned_pathway_id);
+                if ($legacy_pw) {
+                    $assigned_pathways = array(array(
+                        'pathway_id'   => $legacy_pw->pathway_id,
+                        'pathway_name' => $legacy_pw->pathway_name,
+                        'assignment_type' => 'role_default',
+                    ));
+                }
             }
 
-            $pathway = $this->pathway_repo->get_by_id($enrollment->assigned_pathway_id);
-            if (!$pathway) {
+            if (empty($assigned_pathways)) {
                 continue;
             }
 
             $cohort = $this->cohort_repo->get_by_id($enrollment->cohort_id);
             if (!$cohort) {
+                continue;
+            }
+
+            foreach ($assigned_pathways as $pw_data) {
+            $pathway = $this->pathway_repo->get_by_id($pw_data['pathway_id']);
+            if (!$pathway) {
                 continue;
             }
 
@@ -127,6 +147,7 @@ class HL_Frontend_My_Programs {
                 'cohort'     => $cohort,
                 'percent'    => $overall_percent,
             );
+            } // end foreach assigned_pathways
         }
 
         // Resolve coach for the first enrollment (shows one coach card).

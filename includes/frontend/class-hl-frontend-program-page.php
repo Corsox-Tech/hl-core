@@ -93,8 +93,14 @@ class HL_Frontend_Program_Page {
             return ob_get_clean();
         }
 
-        // Verify enrollment pathway matches.
-        if ((int) $enrollment->assigned_pathway_id !== (int) $pathway->pathway_id) {
+        // Verify enrollment has access to this pathway (via assignment service or legacy column).
+        $pa_service = new HL_Pathway_Assignment_Service();
+        $has_access = $pa_service->enrollment_has_pathway($enrollment_id, $pathway_id);
+        if (!$has_access) {
+            // Legacy fallback: check assigned_pathway_id.
+            $has_access = ((int) $enrollment->assigned_pathway_id === (int) $pathway->pathway_id);
+        }
+        if (!$has_access) {
             echo '<div class="hl-dashboard hl-program-page">';
             echo '<div class="hl-notice hl-notice-error">' . esc_html__('This program is not assigned to your enrollment.', 'hl-core') . '</div>';
             echo '</div>';

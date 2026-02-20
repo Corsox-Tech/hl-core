@@ -57,6 +57,9 @@ class HL_Installer {
         // Add is_template column to hl_pathway.
         self::migrate_pathway_add_template();
 
+        // Add cohort_group_id column to hl_cohort.
+        self::migrate_cohort_add_group_id();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -79,7 +82,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 4;
+        $current_revision = 5;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -355,6 +358,32 @@ class HL_Installer {
     }
 
     /**
+     * Add cohort_group_id column to hl_cohort for program-level grouping.
+     */
+    private static function migrate_cohort_add_group_id() {
+        global $wpdb;
+
+        $table = "{$wpdb->prefix}hl_cohort";
+
+        $table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table;
+        if ( ! $table_exists ) {
+            return;
+        }
+
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                $table,
+                'cohort_group_id'
+            )
+        );
+        if ( empty( $row ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN cohort_group_id bigint(20) unsigned NULL AFTER district_id" );
+            $wpdb->query( "ALTER TABLE `{$table}` ADD INDEX cohort_group_id (cohort_group_id)" );
+        }
+    }
+
+    /**
      * Get database schema
      */
     private static function get_schema() {
@@ -390,6 +419,7 @@ class HL_Installer {
             cohort_code varchar(100) NOT NULL,
             cohort_name varchar(255) NOT NULL,
             district_id bigint(20) unsigned NULL,
+            cohort_group_id bigint(20) unsigned NULL,
             status enum('draft','active','paused','archived') DEFAULT 'draft',
             start_date date NOT NULL,
             end_date date NULL,
@@ -401,6 +431,7 @@ class HL_Installer {
             UNIQUE KEY cohort_uuid (cohort_uuid),
             UNIQUE KEY cohort_code (cohort_code),
             KEY district_id (district_id),
+            KEY cohort_group_id (cohort_group_id),
             KEY status (status),
             KEY start_date (start_date)
         ) $charset_collate;";
@@ -940,6 +971,37 @@ class HL_Installer {
             KEY cohort_scope (cohort_id, scope_type, scope_id),
             KEY coach_user_id (coach_user_id),
             KEY cohort_coach (cohort_id, coach_user_id)
+        ) $charset_collate;";
+
+        // Pathway Assignment table (explicit pathway-to-enrollment assignments)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_pathway_assignment (
+            assignment_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            enrollment_id bigint(20) unsigned NOT NULL,
+            pathway_id bigint(20) unsigned NOT NULL,
+            assigned_by_user_id bigint(20) unsigned NOT NULL,
+            assignment_type enum('role_default','explicit') NOT NULL DEFAULT 'explicit',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (assignment_id),
+            UNIQUE KEY enrollment_pathway (enrollment_id, pathway_id),
+            KEY enrollment_id (enrollment_id),
+            KEY pathway_id (pathway_id),
+            KEY assignment_type (assignment_type)
+        ) $charset_collate;";
+
+        // Cohort Group table (program-level grouping for cross-cohort reporting)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_cohort_group (
+            group_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            group_uuid char(36) NOT NULL,
+            group_name varchar(255) NOT NULL,
+            group_code varchar(100) NOT NULL,
+            description text NULL,
+            status enum('active','archived') NOT NULL DEFAULT 'active',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (group_id),
+            UNIQUE KEY group_uuid (group_uuid),
+            UNIQUE KEY group_code (group_code),
+            KEY status (status)
         ) $charset_collate;";
 
         return $tables;
