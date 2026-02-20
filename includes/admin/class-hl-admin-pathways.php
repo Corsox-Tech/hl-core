@@ -50,6 +50,14 @@ class HL_Admin_Pathways {
         if ($action === 'delete_activity') {
             $this->handle_delete_activity();
         }
+
+        if ($action === 'clone') {
+            $this->handle_clone_pathway();
+        }
+
+        if ($action === 'toggle_template') {
+            $this->handle_toggle_template();
+        }
     }
 
     /**
@@ -505,17 +513,88 @@ class HL_Admin_Pathways {
     }
 
     /**
+     * Handle clone pathway action (POST from clone form).
+     */
+    private function handle_clone_pathway() {
+        if (!isset($_POST['hl_clone_nonce']) || !wp_verify_nonce($_POST['hl_clone_nonce'], 'hl_clone_pathway')) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(__('You do not have permission to perform this action.', 'hl-core'));
+        }
+
+        $source_id  = isset($_POST['source_pathway_id']) ? absint($_POST['source_pathway_id']) : 0;
+        $target_cohort = isset($_POST['target_cohort_id']) ? absint($_POST['target_cohort_id']) : 0;
+
+        if (!$source_id || !$target_cohort) {
+            wp_redirect(admin_url('admin.php?page=hl-pathways&message=clone_error'));
+            exit;
+        }
+
+        $service = new HL_Pathway_Service();
+        $result  = $service->clone_pathway($source_id, $target_cohort);
+
+        if (is_wp_error($result)) {
+            set_transient('hl_clone_error', $result->get_error_message(), 60);
+            wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $source_id . '&message=clone_error'));
+            exit;
+        }
+
+        wp_redirect(admin_url('admin.php?page=hl-pathways&action=edit&id=' . $result . '&message=cloned'));
+        exit;
+    }
+
+    /**
+     * Handle toggle template status (GET action).
+     */
+    private function handle_toggle_template() {
+        $pathway_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+        if (!$pathway_id) {
+            return;
+        }
+
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_toggle_template_' . $pathway_id)) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(__('You do not have permission to perform this action.', 'hl-core'));
+        }
+
+        $pathway = $this->get_pathway($pathway_id);
+        if (!$pathway) {
+            wp_redirect(admin_url('admin.php?page=hl-pathways'));
+            exit;
+        }
+
+        $service = new HL_Pathway_Service();
+        $new_val = empty($pathway->is_template) ? true : false;
+        $service->set_template($pathway_id, $new_val);
+
+        $msg = $new_val ? 'template_saved' : 'template_removed';
+        wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=' . $msg));
+        exit;
+    }
+
+    /**
      * Render the pathways list
      */
     private function render_list() {
         global $wpdb;
 
         $filter_cohort = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
+        $view_tab      = isset($_GET['view']) ? sanitize_text_field($_GET['view']) : 'all';
 
-        $where = '';
-        if ($filter_cohort) {
-            $where = $wpdb->prepare(' WHERE pw.cohort_id = %d', $filter_cohort);
+        // Build WHERE clause.
+        $conditions = array();
+        if ($view_tab === 'templates') {
+            $conditions[] = 'pw.is_template = 1';
         }
+        if ($filter_cohort) {
+            $conditions[] = $wpdb->prepare('pw.cohort_id = %d', $filter_cohort);
+        }
+        $where = !empty($conditions) ? ' WHERE ' . implode(' AND ', $conditions) : '';
 
         $pathways = $wpdb->get_results(
             "SELECT pw.*, p.cohort_name,
@@ -526,23 +605,41 @@ class HL_Admin_Pathways {
              ORDER BY pw.pathway_name ASC"
         );
 
-        // Cohorts for filter
+        // Cohorts for filter.
         $cohorts = $wpdb->get_results(
             "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
         );
 
-        // Messages
+        // Template count for tab badge.
+        $template_count = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_pathway WHERE is_template = 1"
+        );
+
+        // Messages.
         if (isset($_GET['message'])) {
             $msg = sanitize_text_field($_GET['message']);
             $messages = array(
                 'created'          => __('Pathway created successfully.', 'hl-core'),
                 'updated'          => __('Pathway updated successfully.', 'hl-core'),
+                'cloned'           => __('Pathway cloned successfully. You are now editing the copy.', 'hl-core'),
+                'clone_error'      => __('Clone failed. Please try again.', 'hl-core'),
+                'template_saved'   => __('Pathway saved as template.', 'hl-core'),
+                'template_removed' => __('Pathway removed from templates.', 'hl-core'),
                 'activity_saved'   => __('Activity saved successfully.', 'hl-core'),
                 'activity_deleted' => __('Activity deleted successfully.', 'hl-core'),
                 'deleted'          => __('Pathway and its activities deleted successfully.', 'hl-core'),
             );
             if (isset($messages[$msg])) {
-                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($messages[$msg]) . '</p></div>';
+                $notice_type = ($msg === 'clone_error') ? 'notice-error' : 'notice-success';
+                echo '<div class="notice ' . $notice_type . ' is-dismissible"><p>' . esc_html($messages[$msg]) . '</p></div>';
+            }
+            // Show transient error detail for clone.
+            if ($msg === 'clone_error') {
+                $err = get_transient('hl_clone_error');
+                delete_transient('hl_clone_error');
+                if ($err) {
+                    echo '<div class="notice notice-error"><p>' . esc_html($err) . '</p></div>';
+                }
             }
         }
 
@@ -550,9 +647,21 @@ class HL_Admin_Pathways {
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-pathways&action=new')) . '" class="page-title-action">' . esc_html__('Add Pathway', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
-        // Filter
+        // Tabs: All | Templates.
+        $all_url  = admin_url('admin.php?page=hl-pathways');
+        $tmpl_url = admin_url('admin.php?page=hl-pathways&view=templates');
+        echo '<ul class="subsubsub">';
+        echo '<li><a href="' . esc_url($all_url) . '"' . ($view_tab !== 'templates' ? ' class="current"' : '') . '>' . esc_html__('All', 'hl-core') . '</a> | </li>';
+        echo '<li><a href="' . esc_url($tmpl_url) . '"' . ($view_tab === 'templates' ? ' class="current"' : '') . '>' . esc_html__('Templates', 'hl-core') . ' <span class="count">(' . esc_html($template_count) . ')</span></a></li>';
+        echo '</ul>';
+        echo '<div class="clear"></div>';
+
+        // Filter.
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-pathways" />';
+        if ($view_tab === 'templates') {
+            echo '<input type="hidden" name="view" value="templates" />';
+        }
         echo '<label for="cohort_id_filter"><strong>' . esc_html__('Filter by Cohort:', 'hl-core') . '</strong> </label>';
         echo '<select name="cohort_id" id="cohort_id_filter">';
         echo '<option value="">' . esc_html__('All Cohorts', 'hl-core') . '</option>';
@@ -566,7 +675,10 @@ class HL_Admin_Pathways {
         echo '</form>';
 
         if (empty($pathways)) {
-            echo '<p>' . esc_html__('No pathways found.', 'hl-core') . '</p>';
+            $empty_msg = ($view_tab === 'templates')
+                ? __('No template pathways found. Save a pathway as a template to use it here.', 'hl-core')
+                : __('No pathways found.', 'hl-core');
+            echo '<p>' . esc_html($empty_msg) . '</p>';
             return;
         }
 
@@ -593,9 +705,14 @@ class HL_Admin_Pathways {
             $roles_arr = json_decode($pw->target_roles, true);
             $roles_display = is_array($roles_arr) ? implode(', ', $roles_arr) : '';
 
+            $name_display = esc_html($pw->pathway_name);
+            if (!empty($pw->is_template)) {
+                $name_display .= ' <span class="hl-status-badge active" style="font-size:10px;">' . esc_html__('Template', 'hl-core') . '</span>';
+            }
+
             echo '<tr>';
             echo '<td>' . esc_html($pw->pathway_id) . '</td>';
-            echo '<td><strong><a href="' . esc_url($view_url) . '">' . esc_html($pw->pathway_name) . '</a></strong></td>';
+            echo '<td><strong><a href="' . esc_url($view_url) . '">' . $name_display . '</a></strong></td>';
             echo '<td><code>' . esc_html($pw->pathway_code) . '</code></td>';
             echo '<td>' . esc_html($pw->cohort_name) . '</td>';
             echo '<td>' . esc_html($roles_display) . '</td>';
@@ -638,6 +755,9 @@ class HL_Admin_Pathways {
             $messages = array(
                 'created'          => __('Pathway created successfully.', 'hl-core'),
                 'updated'          => __('Pathway updated successfully.', 'hl-core'),
+                'cloned'           => __('Pathway cloned successfully.', 'hl-core'),
+                'template_saved'   => __('Pathway saved as template.', 'hl-core'),
+                'template_removed' => __('Pathway removed from templates.', 'hl-core'),
                 'activity_saved'   => __('Activity saved successfully.', 'hl-core'),
                 'activity_deleted' => __('Activity deleted successfully.', 'hl-core'),
             );
@@ -646,8 +766,47 @@ class HL_Admin_Pathways {
             }
         }
 
-        echo '<h1>' . esc_html($pathway->pathway_name) . '</h1>';
+        echo '<h1>' . esc_html($pathway->pathway_name);
+        if (!empty($pathway->is_template)) {
+            echo ' <span class="hl-status-badge active" style="font-size:12px; vertical-align:middle;">' . esc_html__('Template', 'hl-core') . '</span>';
+        }
+        echo '</h1>';
         echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">&larr; ' . esc_html__('Back to Pathways', 'hl-core') . '</a>';
+
+        // Action buttons: Clone to Cohort + Save as Template.
+        $all_cohorts = $wpdb->get_results(
+            "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
+        );
+
+        echo '<div style="margin:15px 0; display:flex; gap:15px; align-items:flex-start; flex-wrap:wrap;">';
+
+        // Clone to Cohort form.
+        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=clone')) . '" style="display:flex; gap:8px; align-items:center; background:#f9f9f9; border:1px solid #ccd0d4; padding:8px 12px; border-radius:4px;">';
+        wp_nonce_field('hl_clone_pathway', 'hl_clone_nonce');
+        echo '<input type="hidden" name="source_pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
+        echo '<label for="clone_target_cohort"><strong>' . esc_html__('Clone to Cohort:', 'hl-core') . '</strong></label> ';
+        echo '<select name="target_cohort_id" id="clone_target_cohort" required>';
+        echo '<option value="">' . esc_html__('-- Select --', 'hl-core') . '</option>';
+        foreach ($all_cohorts as $c) {
+            echo '<option value="' . esc_attr($c->cohort_id) . '">' . esc_html($c->cohort_name) . '</option>';
+        }
+        echo '</select> ';
+        echo '<button type="submit" class="button button-primary" onclick="return confirm(\'' . esc_js(__('Clone this pathway and all its activities to the selected cohort?', 'hl-core')) . '\');">' . esc_html__('Clone', 'hl-core') . '</button>';
+        echo '</form>';
+
+        // Save as Template / Remove Template toggle.
+        $is_tmpl = !empty($pathway->is_template);
+        $tmpl_url = wp_nonce_url(
+            admin_url('admin.php?page=hl-pathways&action=toggle_template&id=' . $pathway->pathway_id),
+            'hl_toggle_template_' . $pathway->pathway_id
+        );
+        if ($is_tmpl) {
+            echo '<a href="' . esc_url($tmpl_url) . '" class="button">' . esc_html__('Remove from Templates', 'hl-core') . '</a>';
+        } else {
+            echo '<a href="' . esc_url($tmpl_url) . '" class="button">' . esc_html__('Save as Template', 'hl-core') . '</a>';
+        }
+
+        echo '</div>';
 
         echo '<table class="form-table">';
         echo '<tr><th>' . esc_html__('Code', 'hl-core') . '</th><td><code>' . esc_html($pathway->pathway_code) . '</code></td></tr>';
@@ -758,6 +917,41 @@ class HL_Admin_Pathways {
 
         echo '<h1>' . esc_html($title) . '</h1>';
         echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">&larr; ' . esc_html__('Back to Pathways', 'hl-core') . '</a>';
+
+        // "Start from Template" section for new pathways.
+        if (!$is_edit) {
+            $service   = new HL_Pathway_Service();
+            $templates = $service->get_templates();
+            if (!empty($templates)) {
+                echo '<div style="margin:15px 0; padding:12px 16px; background:#f0f6fc; border:1px solid #c3d9ed; border-radius:4px;">';
+                echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=clone')) . '" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">';
+                wp_nonce_field('hl_clone_pathway', 'hl_clone_nonce');
+                echo '<strong>' . esc_html__('Start from Template:', 'hl-core') . '</strong> ';
+                echo '<select name="source_pathway_id" required>';
+                echo '<option value="">' . esc_html__('-- Select Template --', 'hl-core') . '</option>';
+                foreach ($templates as $tmpl) {
+                    $roles_arr = $tmpl->get_target_roles_array();
+                    $roles_str = is_array($roles_arr) ? implode(', ', $roles_arr) : '';
+                    $label     = $tmpl->pathway_name;
+                    if ($roles_str) {
+                        $label .= ' (' . $roles_str . ')';
+                    }
+                    echo '<option value="' . esc_attr($tmpl->pathway_id) . '">' . esc_html($label) . '</option>';
+                }
+                echo '</select> ';
+                echo '<select name="target_cohort_id" required>';
+                echo '<option value="">' . esc_html__('-- Into Cohort --', 'hl-core') . '</option>';
+                foreach ($cohorts as $c) {
+                    echo '<option value="' . esc_attr($c->cohort_id) . '">' . esc_html($c->cohort_name) . '</option>';
+                }
+                echo '</select> ';
+                echo '<button type="submit" class="button button-primary">' . esc_html__('Clone Template', 'hl-core') . '</button>';
+                echo '</form>';
+                echo '</div>';
+
+                echo '<p style="color:#666; margin-bottom:15px;">' . esc_html__('Or create a blank pathway below:', 'hl-core') . '</p>';
+            }
+        }
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">';
         wp_nonce_field('hl_save_pathway', 'hl_pathway_nonce');

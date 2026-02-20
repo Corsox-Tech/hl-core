@@ -14,6 +14,7 @@ class HL_Pathway {
     public $featured_image_id;
     public $avg_completion_time;
     public $expiration_date;
+    public $is_template;
     public $active_status;
     public $created_at;
     public $updated_at;
