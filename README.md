@@ -128,9 +128,12 @@ Placeholder pages (planned):
   1. **Profile Dropdown** — `buddyboss_theme_after_bb_profile_menu` (last hook in header-profile-menu.php)
   2. **BuddyPanel Left Sidebar** — `wp_nav_menu_items` filter on `buddypanel-loggedin` location, appends section divider + items using native BB CSS classes
   3. **JS Fallback** — `wp_footer` injects into BuddyPanel DOM and/or profile dropdown if PHP hooks did not fire (covers empty BuddyPanel menu or custom profile dropdown override)
-- 11 menu items with role-based visibility: My Programs, My Coaching (all enrolled), My Team, My Cohort (mentors/leaders/staff), Cohorts, Institutions, Classrooms (leaders/staff), Learners (mentors/leaders/staff), Pathways (staff only), Coaching Hub (mentors/staff), Reports (leaders/staff)
+- 11 menu items with role-based visibility (matches doc 10 section 16):
+  - **Personal (require active enrollment):** My Programs, My Coaching (any enrollment), My Team (mentor only), My Cohort (leader or mentor)
+  - **Directories:** Cohorts, Institutions (staff or leader), Classrooms (staff, leader, or teacher), Learners (staff, leader, or mentor)
+  - **Staff tools:** Pathways (staff only), Coaching Hub (staff or mentor), Reports (staff or leader)
+- Staff WITHOUT enrollment see only directory/management pages; staff WITH enrollment see both personal and management pages
 - Multi-role users see union of all role menus
-- Staff (manage_hl_core) sees all items regardless of enrollment status
 - Active page highlighting via `current` / `current-menu-item` CSS class
 - Role detection from `hl_enrollment.roles` JSON (not WP roles) with static caching
 - Menu items built once per request via `get_menu_items_for_current_user()` (static cache shared across all three hooks)
