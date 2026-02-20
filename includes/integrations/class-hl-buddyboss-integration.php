@@ -130,81 +130,52 @@ class HL_BuddyBoss_Integration {
     /**
      * Build the list of visible menu items for the current user.
      *
-     * Staff (manage_hl_core) sees ALL items unconditionally.
-     * Non-staff users see items based on their enrollment roles:
-     * - All enrolled: My Programs, My Coaching
-     * - Mentors, center leaders, district leaders: + My Cohort
+     * Role-based visibility (section 16 spec):
+     *   Admin/Coach (manage_hl_core): all items
+     *   District Leader: My Programs, My Coaching, My Cohort, My Team,
+     *                    Cohorts, Institutions, Classrooms, Learners, Reports
+     *   Center Leader:   My Programs, My Coaching, My Cohort, My Team,
+     *                    Cohorts, Institutions, Classrooms, Learners, Reports
+     *   Mentor:          My Programs, My Coaching, My Cohort, My Team,
+     *                    Learners, Coaching Hub
+     *   Teacher:         My Programs, My Coaching
+     *
+     * Multi-role users see the union of all their role menus.
      *
      * @param string[] $roles    Active HL enrollment roles for the user.
      * @param bool     $is_staff Whether user has manage_hl_core capability.
      * @return array<int, array{slug: string, label: string, url: string}>
      */
     private function build_menu_items(array $roles, bool $is_staff) {
-        // Staff sees every item; non-staff need at least one enrollment role.
-        if ($is_staff) {
-            return $this->build_all_menu_items();
-        }
+        $is_leader = in_array('center_leader', $roles, true)
+                  || in_array('district_leader', $roles, true);
+        $is_mentor = in_array('mentor', $roles, true);
 
-        // --- Role-based filtering for non-staff users ---
-        $items = array();
-
-        // 1. My Programs — all enrolled users
-        $url = $this->find_shortcode_page_url('hl_my_programs');
-        if ($url) {
-            $items[] = array(
-                'slug'  => 'my-programs',
-                'label' => __('My Programs', 'hl-core'),
-                'url'   => $url,
-            );
-        }
-
-        // 2. My Coaching — all enrolled users
-        $url = $this->find_shortcode_page_url('hl_my_coaching');
-        if ($url) {
-            $items[] = array(
-                'slug'  => 'my-coaching',
-                'label' => __('My Coaching', 'hl-core'),
-                'url'   => $url,
-            );
-        }
-
-        // 3. My Cohort — mentors, center leaders, district leaders
-        if (
-            in_array('mentor', $roles, true)
-            || in_array('center_leader', $roles, true)
-            || in_array('district_leader', $roles, true)
-        ) {
-            $url = $this->find_shortcode_page_url('hl_my_cohort');
-            if ($url) {
-                $items[] = array(
-                    'slug'  => 'my-cohort',
-                    'label' => __('My Cohort', 'hl-core'),
-                    'url'   => $url,
-                );
-            }
-        }
-
-        // Non-staff never see School Districts or Institutions.
-
-        return $items;
-    }
-
-    /**
-     * Build the full set of menu items (used for staff who see everything).
-     *
-     * @return array<int, array{slug: string, label: string, url: string}>
-     */
-    private function build_all_menu_items() {
-        $items = array();
-        $menu  = array(
-            'my-programs'  => array('hl_my_programs',      __('My Programs', 'hl-core')),
-            'my-coaching'  => array('hl_my_coaching',       __('My Coaching', 'hl-core')),
-            'my-cohort'    => array('hl_my_cohort',         __('My Cohort', 'hl-core')),
-            'districts'    => array('hl_districts_listing', __('School Districts', 'hl-core')),
-            'institutions' => array('hl_centers_listing',   __('Institutions', 'hl-core')),
+        // Define all possible menu items with their visibility rules.
+        // Each entry: [ shortcode, label, show_condition ]
+        $menu_def = array(
+            // --- Personal ---
+            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    true),
+            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    true),
+            array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        $is_staff || $is_mentor || $is_leader),
+            array('my-cohort',      'hl_my_cohort',            __('My Cohort', 'hl-core'),      $is_staff || $is_mentor || $is_leader),
+            // --- Directories ---
+            array('cohorts',        'hl_cohorts_listing',      __('Cohorts', 'hl-core'),        $is_staff || $is_leader),
+            array('institutions',   'hl_institutions_listing', __('Institutions', 'hl-core'),   $is_staff || $is_leader),
+            array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     $is_staff || $is_leader),
+            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       $is_staff || $is_mentor || $is_leader),
+            // --- Staff tools ---
+            array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       $is_staff),
+            array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   $is_staff || $is_mentor),
+            array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        $is_staff || $is_leader),
         );
 
-        foreach ($menu as $slug => list($shortcode, $label)) {
+        $items = array();
+        foreach ($menu_def as $def) {
+            list($slug, $shortcode, $label, $visible) = $def;
+            if (!$visible) {
+                continue;
+            }
             $url = $this->find_shortcode_page_url($shortcode);
             if ($url) {
                 $items[] = array(
