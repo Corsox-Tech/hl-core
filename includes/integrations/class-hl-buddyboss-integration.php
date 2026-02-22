@@ -14,8 +14,9 @@ if (!defined('ABSPATH')) exit;
  *  3. JS fallback — via wp_footer, injects items into the BuddyPanel
  *     DOM if neither PHP hook rendered them.
  *
- * Icons use the BuddyBoss bb-icons font (bb-icon-l weight) with the
- * native walker markup pattern for consistent styling.
+ * Icons use WordPress dashicons (<span class="dashicons dashicons-xxx">)
+ * for reliable rendering across all themes. Custom CSS is injected via
+ * wp_head for sizing, spacing, and vertical alignment.
  *
  * @package HL_Core
  */
@@ -64,6 +65,9 @@ class HL_BuddyBoss_Integration {
             return;
         }
 
+        // 0. Custom CSS for dashicons sizing, spacing, and vertical padding.
+        add_action('wp_head', array($this, 'render_custom_css'));
+
         // 1. Profile Dropdown — last hook in header-profile-menu.php.
         //    Fires unconditionally for logged-in users UNLESS a custom
         //    nav menu is assigned to the "header-my-account" location.
@@ -106,6 +110,52 @@ class HL_BuddyBoss_Integration {
     }
 
     // =========================================================================
+    // 0. Custom CSS
+    // =========================================================================
+
+    /**
+     * Inject custom CSS for HL menu items in the BuddyBoss sidebar.
+     *
+     * Handles dashicon sizing, icon-text spacing, and reduced vertical padding
+     * to match native BuddyBoss menu item density.
+     */
+    public function render_custom_css() {
+        if (!is_user_logged_in()) {
+            return;
+        }
+        ?>
+        <style>
+            /* HL Core BuddyPanel menu — dashicon sizing & spacing */
+            .buddypanel-menu .hl-core-menu-item .dashicons,
+            .buddypanel-menu .hl-buddypanel-section .dashicons {
+                font-size: 20px !important;
+                width: 20px !important;
+                height: 20px !important;
+                margin-right: 8px !important;
+                vertical-align: middle !important;
+            }
+
+            /* Reduced vertical padding to match native BB items */
+            .buddypanel-menu .hl-core-menu-item > a {
+                padding-top: 4px !important;
+                padding-bottom: 4px !important;
+                line-height: 1.4 !important;
+            }
+
+            /* Profile dropdown dashicon spacing */
+            #wp-admin-bar-my-account-housman-learning .dashicons,
+            #wp-admin-bar-my-account-housman-learning-default .dashicons {
+                font-size: 20px !important;
+                width: 20px !important;
+                height: 20px !important;
+                margin-right: 8px !important;
+                vertical-align: middle !important;
+            }
+        </style>
+        <?php
+    }
+
+    // =========================================================================
     // 1. Profile Dropdown Menu (header-profile-menu.php)
     // =========================================================================
 
@@ -127,7 +177,7 @@ class HL_BuddyBoss_Integration {
         ?>
         <li id="wp-admin-bar-my-account-housman-learning" class="menupop">
             <a class="ab-item" aria-haspopup="true" href="#">
-                <i class="bb-icon-l bb-icon-graduation-cap"></i>
+                <span class="dashicons dashicons-welcome-learn-more"></span>
                 <span class="wp-admin-bar-arrow" aria-hidden="true"></span><?php esc_html_e('Learning Hub', 'hl-core'); ?>
             </a>
             <div class="ab-sub-wrapper wrapper">
@@ -139,7 +189,7 @@ class HL_BuddyBoss_Integration {
                     ?>
                         <li id="wp-admin-bar-my-account-hl-<?php echo esc_attr($item['slug']); ?>" class="<?php echo esc_attr(trim($active_class)); ?>">
                             <a class="ab-item" href="<?php echo esc_url($item['url']); ?>">
-                                <i class="bb-icon-l <?php echo esc_attr($item['icon']); ?>" style="margin-right:8px;"></i><?php echo esc_html($item['label']); ?>
+                                <span class="dashicons <?php echo esc_attr($item['icon']); ?>"></span><?php echo esc_html($item['label']); ?>
                             </a>
                         </li>
                     <?php endforeach; ?>
@@ -187,7 +237,7 @@ class HL_BuddyBoss_Integration {
         // BuddyBoss CSS handles uppercase, font-weight:600, opacity:0.5, hidden icon.
         $html = '<li class="menu-item bb-menu-section hl-buddypanel-section">';
         $html .= '<a href="#">';
-        $html .= '<i class="_mi _before buddyboss bb-icon-l bb-icon-graduation-cap"></i>';
+        $html .= '<span class="dashicons dashicons-welcome-learn-more"></span>';
         $html .= '<span class="link-text">' . esc_html__('Learning Hub', 'hl-core') . '</span>';
         $html .= '</a>';
         $html .= '</li>';
@@ -202,7 +252,7 @@ class HL_BuddyBoss_Integration {
 
             $html .= '<li class="' . esc_attr($classes) . '">';
             $html .= '<a href="' . esc_url($item['url']) . '">';
-            $html .= '<i class="_mi _before buddyboss bb-icon-l ' . esc_attr($item['icon']) . '"></i>';
+            $html .= '<span class="dashicons ' . esc_attr($item['icon']) . '"></span>';
             $html .= '<span class="link-text">' . esc_html($item['label']) . '</span>';
             $html .= '</a>';
             $html .= '</li>';
@@ -289,7 +339,7 @@ class HL_BuddyBoss_Integration {
                 section.className = 'menu-item bb-menu-section hl-buddypanel-section';
                 var sectionLink = document.createElement('a');
                 sectionLink.href = '#';
-                sectionLink.innerHTML = '<i class="_mi _before buddyboss bb-icon-l bb-icon-graduation-cap"></i>'
+                sectionLink.innerHTML = '<span class="dashicons dashicons-welcome-learn-more"></span>'
                     + '<span class="link-text">' + sectionTitle + '</span>';
                 section.appendChild(sectionLink);
 
@@ -304,7 +354,7 @@ class HL_BuddyBoss_Integration {
 
                     var a = document.createElement('a');
                     a.href = items[i].url;
-                    a.innerHTML = '<i class="_mi _before buddyboss bb-icon-l ' + items[i].icon + '"></i>'
+                    a.innerHTML = '<span class="dashicons ' + items[i].icon + '"></span>'
                         + '<span class="link-text">' + items[i].label + '</span>';
                     li.appendChild(a);
                     fragment.appendChild(li);
@@ -344,7 +394,7 @@ class HL_BuddyBoss_Integration {
                 a.className = 'ab-item';
                 a.setAttribute('aria-haspopup', 'true');
                 a.href = '#';
-                a.innerHTML = '<i class="bb-icon-l bb-icon-graduation-cap" style="margin-right:8px;"></i>'
+                a.innerHTML = '<span class="dashicons dashicons-welcome-learn-more"></span>'
                     + '<span class="wp-admin-bar-arrow" aria-hidden="true"></span>'
                     + sectionTitle;
                 li.appendChild(a);
@@ -362,7 +412,7 @@ class HL_BuddyBoss_Integration {
                     var subA = document.createElement('a');
                     subA.className = 'ab-item';
                     subA.href = items[i].url;
-                    subA.innerHTML = '<i class="bb-icon-l ' + items[i].icon + '" style="margin-right:8px;"></i>' + items[i].label;
+                    subA.innerHTML = '<span class="dashicons ' + items[i].icon + '"></span>' + items[i].label;
                     subLi.appendChild(subA);
                     subUl.appendChild(subLi);
                 }
@@ -472,19 +522,19 @@ class HL_BuddyBoss_Integration {
         // Each entry: [ slug, shortcode, label, icon, show_condition ]
         $menu_def = array(
             // --- Personal (require active enrollment) ---
-            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'bb-icon-graduation-cap',    $has_enrollment),
-            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'bb-icon-video',             $has_enrollment),
-            array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'bb-icon-user-friends',      $is_mentor),
-            array('my-cohort',      'hl_my_cohort',            __('My Cohort', 'hl-core'),      'bb-icon-globe-layers',      $is_leader || $is_mentor),
+            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment),
+            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $has_enrollment),
+            array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor),
+            array('my-cohort',      'hl_my_cohort',            __('My Cohort', 'hl-core'),      'dashicons-networking',           $is_leader || $is_mentor),
             // --- Directories / Management ---
-            array('cohorts',        'hl_cohorts_listing',      __('Cohorts', 'hl-core'),        'bb-icon-layers',            $is_staff || $is_leader),
-            array('institutions',   'hl_institutions_listing', __('Institutions', 'hl-core'),   'bb-icon-briefcase',         $is_staff || $is_leader),
-            array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'bb-icon-book-open',         $is_staff || $is_leader || $is_teacher),
-            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'bb-icon-users',             $is_staff || $is_leader || $is_mentor),
+            array('cohorts',        'hl_cohorts_listing',      __('Cohorts', 'hl-core'),        'dashicons-groups',               $is_staff || $is_leader),
+            array('institutions',   'hl_institutions_listing', __('Institutions', 'hl-core'),   'dashicons-building',             $is_staff || $is_leader),
+            array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'dashicons-welcome-learn-more',   $is_staff || $is_leader || $is_teacher),
+            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'dashicons-id-alt',               $is_staff || $is_leader || $is_mentor),
             // --- Staff tools ---
-            array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       'bb-icon-map',               $is_staff),
-            array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   'bb-icon-comments',          $is_staff || $is_mentor),
-            array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'bb-icon-chart-bar-v',       $is_staff || $is_leader),
+            array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       'dashicons-randomize',            $is_staff),
+            array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   'dashicons-format-chat',          $is_staff || $is_mentor),
+            array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'dashicons-chart-bar',            $is_staff || $is_leader),
         );
 
         $items = array();
