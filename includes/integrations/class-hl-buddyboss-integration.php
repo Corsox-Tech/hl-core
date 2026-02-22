@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * BuddyBoss Integration
  *
- * Injects role-conditional "Housman Learning" navigation items into the
+ * Injects role-conditional "Learning Hub" navigation items into the
  * BuddyBoss theme using multiple hooks for maximum reliability:
  *
  *  1. Profile Dropdown — via buddyboss_theme_after_bb_profile_menu (last
@@ -13,6 +13,9 @@ if (!defined('ABSPATH')) exit;
  *     buddypanel-loggedin nav menu location.
  *  3. JS fallback — via wp_footer, injects items into the BuddyPanel
  *     DOM if neither PHP hook rendered them.
+ *
+ * Icons use the BuddyBoss bb-icons font (bb-icon-l weight) with the
+ * native walker markup pattern for consistent styling.
  *
  * @package HL_Core
  */
@@ -107,7 +110,7 @@ class HL_BuddyBoss_Integration {
     // =========================================================================
 
     /**
-     * Render the "Housman Learning" collapsible section in the BuddyBoss
+     * Render the "Learning Hub" collapsible section in the BuddyBoss
      * profile dropdown (header user menu).
      *
      * Hooked to: buddyboss_theme_after_bb_profile_menu (last hook in template)
@@ -124,8 +127,8 @@ class HL_BuddyBoss_Integration {
         ?>
         <li id="wp-admin-bar-my-account-housman-learning" class="menupop">
             <a class="ab-item" aria-haspopup="true" href="#">
-                <i class="bb-icon-l bb-icon-clipboard"></i>
-                <span class="wp-admin-bar-arrow" aria-hidden="true"></span><?php esc_html_e('Housman Learning', 'hl-core'); ?>
+                <i class="bb-icon-l bb-icon-graduation-cap"></i>
+                <span class="wp-admin-bar-arrow" aria-hidden="true"></span><?php esc_html_e('Learning Hub', 'hl-core'); ?>
             </a>
             <div class="ab-sub-wrapper wrapper">
                 <ul id="wp-admin-bar-my-account-housman-learning-default" class="ab-submenu">
@@ -135,7 +138,9 @@ class HL_BuddyBoss_Integration {
                         $active_class = $is_active ? ' current' : '';
                     ?>
                         <li id="wp-admin-bar-my-account-hl-<?php echo esc_attr($item['slug']); ?>" class="<?php echo esc_attr(trim($active_class)); ?>">
-                            <a class="ab-item" href="<?php echo esc_url($item['url']); ?>"><?php echo esc_html($item['label']); ?></a>
+                            <a class="ab-item" href="<?php echo esc_url($item['url']); ?>">
+                                <i class="bb-icon-l <?php echo esc_attr($item['icon']); ?>" style="margin-right:8px;"></i><?php echo esc_html($item['label']); ?>
+                            </a>
                         </li>
                     <?php endforeach; ?>
                 </ul>
@@ -153,7 +158,8 @@ class HL_BuddyBoss_Integration {
      *
      * The BuddyPanel template (buddypanel.php) uses wp_nav_menu() for the
      * buddypanel-loggedin location. Since it has no action hooks, we filter
-     * the rendered HTML to append our items.
+     * the rendered HTML to PREPEND our items so they appear ABOVE any
+     * existing ACCOUNT section.
      *
      * @param string   $items HTML of menu items.
      * @param stdClass $args  wp_nav_menu arguments.
@@ -177,28 +183,33 @@ class HL_BuddyBoss_Integration {
         $this->buddypanel_injected = true;
         $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
 
-        // Section divider.
+        // Section header — uses native bb-menu-section class.
+        // BuddyBoss CSS handles uppercase, font-weight:600, opacity:0.5, hidden icon.
         $html = '<li class="menu-item bb-menu-section hl-buddypanel-section">';
-        $html .= '<span class="bb-menu-section-title">' . esc_html__('Housman Learning', 'hl-core') . '</span>';
+        $html .= '<a href="#">';
+        $html .= '<i class="_mi _before buddyboss bb-icon-l bb-icon-graduation-cap"></i>';
+        $html .= '<span class="link-text">' . esc_html__('Learning Hub', 'hl-core') . '</span>';
+        $html .= '</a>';
         $html .= '</li>';
 
         foreach ($menu_items as $item) {
             $item_path = trailingslashit(wp_parse_url($item['url'], PHP_URL_PATH) ?: '');
             $is_active = ($item_path && $item_path === $current_url);
-            $classes   = 'menu-item menu-item-type-custom menu-item-object-custom hl-buddypanel-item';
+            $classes   = 'menu-item menu-item-type-custom menu-item-object-custom hl-core-menu-item';
             if ($is_active) {
                 $classes .= ' current-menu-item';
             }
 
             $html .= '<li class="' . esc_attr($classes) . '">';
             $html .= '<a href="' . esc_url($item['url']) . '">';
-            $html .= '<i class="bb-icon-l bb-icon-clipboard"></i>';
-            $html .= '<span class="menu-title">' . esc_html($item['label']) . '</span>';
+            $html .= '<i class="_mi _before buddyboss bb-icon-l ' . esc_attr($item['icon']) . '"></i>';
+            $html .= '<span class="link-text">' . esc_html($item['label']) . '</span>';
             $html .= '</a>';
             $html .= '</li>';
         }
 
-        return $items . $html;
+        // Prepend HL items BEFORE existing items so they appear above ACCOUNT.
+        return $html . $items;
     }
 
     // =========================================================================
@@ -238,6 +249,7 @@ class HL_BuddyBoss_Integration {
                 'slug'   => $item['slug'],
                 'label'  => $item['label'],
                 'url'    => $item['url'],
+                'icon'   => $item['icon'],
                 'active' => ($item_path && $item_path === $current_url),
             );
         }
@@ -247,6 +259,8 @@ class HL_BuddyBoss_Integration {
         (function(){
             var items = <?php echo wp_json_encode($js_items); ?>;
             if (!items || !items.length) return;
+
+            var sectionTitle = <?php echo wp_json_encode(esc_html__('Learning Hub', 'hl-core')); ?>;
 
             function injectIntoBuddyPanel() {
                 // Find the BuddyPanel sidebar.
@@ -260,29 +274,56 @@ class HL_BuddyBoss_Integration {
                 var ul = panel.querySelector('ul.buddypanel-menu, ul.side-panel-menu');
                 if (!ul) {
                     ul = document.createElement('ul');
-                    ul.className = 'buddypanel-menu side-panel-menu';
+                    ul.className = 'buddypanel-menu side-panel-menu has-section-menu';
                     ul.id = 'buddypanel-menu';
                     panel.appendChild(ul);
                 }
 
-                // Add section divider.
+                // Ensure has-section-menu class is present.
+                if (!ul.classList.contains('has-section-menu')) {
+                    ul.classList.add('has-section-menu');
+                }
+
+                // Build section header.
                 var section = document.createElement('li');
                 section.className = 'menu-item bb-menu-section hl-buddypanel-section';
-                section.innerHTML = '<span class="bb-menu-section-title">' + <?php echo wp_json_encode(esc_html__('Housman Learning', 'hl-core')); ?> + '</span>';
-                ul.appendChild(section);
+                var sectionLink = document.createElement('a');
+                sectionLink.href = '#';
+                sectionLink.innerHTML = '<i class="_mi _before buddyboss bb-icon-l bb-icon-graduation-cap"></i>'
+                    + '<span class="link-text">' + sectionTitle + '</span>';
+                section.appendChild(sectionLink);
 
-                // Add menu items.
+                // Build item elements.
+                var fragment = document.createDocumentFragment();
+                fragment.appendChild(section);
+
                 for (var i = 0; i < items.length; i++) {
                     var li = document.createElement('li');
-                    li.className = 'menu-item menu-item-type-custom menu-item-object-custom hl-buddypanel-item';
+                    li.className = 'menu-item menu-item-type-custom menu-item-object-custom hl-core-menu-item';
                     if (items[i].active) li.className += ' current-menu-item';
 
                     var a = document.createElement('a');
                     a.href = items[i].url;
-                    a.innerHTML = '<i class="bb-icon-l bb-icon-clipboard"></i><span class="menu-title">' + items[i].label + '</span>';
+                    a.innerHTML = '<i class="_mi _before buddyboss bb-icon-l ' + items[i].icon + '"></i>'
+                        + '<span class="link-text">' + items[i].label + '</span>';
                     li.appendChild(a);
-                    ul.appendChild(li);
+                    fragment.appendChild(li);
                 }
+
+                // Insert BEFORE the first existing bb-menu-section (ACCOUNT)
+                // so the Learning Hub section appears above it.
+                var firstSection = ul.querySelector('.bb-menu-section:not(.hl-buddypanel-section)');
+                if (firstSection) {
+                    ul.insertBefore(fragment, firstSection);
+                } else {
+                    // No existing sections — prepend before all children.
+                    if (ul.firstChild) {
+                        ul.insertBefore(fragment, ul.firstChild);
+                    } else {
+                        ul.appendChild(fragment);
+                    }
+                }
+
                 return true;
             }
 
@@ -303,9 +344,9 @@ class HL_BuddyBoss_Integration {
                 a.className = 'ab-item';
                 a.setAttribute('aria-haspopup', 'true');
                 a.href = '#';
-                a.innerHTML = '<i class="bb-icon-l bb-icon-clipboard"></i>'
+                a.innerHTML = '<i class="bb-icon-l bb-icon-graduation-cap" style="margin-right:8px;"></i>'
                     + '<span class="wp-admin-bar-arrow" aria-hidden="true"></span>'
-                    + <?php echo wp_json_encode(esc_html__('Housman Learning', 'hl-core')); ?>;
+                    + sectionTitle;
                 li.appendChild(a);
 
                 var wrapper = document.createElement('div');
@@ -321,7 +362,7 @@ class HL_BuddyBoss_Integration {
                     var subA = document.createElement('a');
                     subA.className = 'ab-item';
                     subA.href = items[i].url;
-                    subA.textContent = items[i].label;
+                    subA.innerHTML = '<i class="bb-icon-l ' + items[i].icon + '" style="margin-right:8px;"></i>' + items[i].label;
                     subLi.appendChild(subA);
                     subUl.appendChild(subLi);
                 }
@@ -367,7 +408,7 @@ class HL_BuddyBoss_Integration {
      *
      * Cached per request to avoid rebuilding for multiple hooks.
      *
-     * @return array<int, array{slug: string, label: string, url: string}>
+     * @return array<int, array{slug: string, label: string, url: string, icon: string}>
      */
     private function get_menu_items_for_current_user() {
         static $cached = null;
@@ -419,7 +460,7 @@ class HL_BuddyBoss_Integration {
      * @param string[] $roles          Active HL enrollment roles for the user.
      * @param bool     $is_staff       Whether user has manage_hl_core capability.
      * @param bool     $has_enrollment Whether user has any active HL enrollment.
-     * @return array<int, array{slug: string, label: string, url: string}>
+     * @return array<int, array{slug: string, label: string, url: string, icon: string}>
      */
     private function build_menu_items(array $roles, bool $is_staff, bool $has_enrollment) {
         $is_leader  = in_array('center_leader', $roles, true)
@@ -428,27 +469,27 @@ class HL_BuddyBoss_Integration {
         $is_teacher = in_array('teacher', $roles, true);
 
         // Define all possible menu items with their visibility rules.
-        // Each entry: [ slug, shortcode, label, show_condition ]
+        // Each entry: [ slug, shortcode, label, icon, show_condition ]
         $menu_def = array(
             // --- Personal (require active enrollment) ---
-            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    $has_enrollment),
-            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    $has_enrollment),
-            array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        $is_mentor),
-            array('my-cohort',      'hl_my_cohort',            __('My Cohort', 'hl-core'),      $is_leader || $is_mentor),
+            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'bb-icon-graduation-cap',    $has_enrollment),
+            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'bb-icon-video',             $has_enrollment),
+            array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'bb-icon-user-friends',      $is_mentor),
+            array('my-cohort',      'hl_my_cohort',            __('My Cohort', 'hl-core'),      'bb-icon-globe-layers',      $is_leader || $is_mentor),
             // --- Directories / Management ---
-            array('cohorts',        'hl_cohorts_listing',      __('Cohorts', 'hl-core'),        $is_staff || $is_leader),
-            array('institutions',   'hl_institutions_listing', __('Institutions', 'hl-core'),   $is_staff || $is_leader),
-            array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     $is_staff || $is_leader || $is_teacher),
-            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       $is_staff || $is_leader || $is_mentor),
+            array('cohorts',        'hl_cohorts_listing',      __('Cohorts', 'hl-core'),        'bb-icon-layers',            $is_staff || $is_leader),
+            array('institutions',   'hl_institutions_listing', __('Institutions', 'hl-core'),   'bb-icon-briefcase',         $is_staff || $is_leader),
+            array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'bb-icon-book-open',         $is_staff || $is_leader || $is_teacher),
+            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'bb-icon-users',             $is_staff || $is_leader || $is_mentor),
             // --- Staff tools ---
-            array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       $is_staff),
-            array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   $is_staff || $is_mentor),
-            array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        $is_staff || $is_leader),
+            array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       'bb-icon-map',               $is_staff),
+            array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   'bb-icon-comments',          $is_staff || $is_mentor),
+            array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'bb-icon-chart-bar-v',       $is_staff || $is_leader),
         );
 
         $items = array();
         foreach ($menu_def as $def) {
-            list($slug, $shortcode, $label, $visible) = $def;
+            list($slug, $shortcode, $label, $icon, $visible) = $def;
             if (!$visible) {
                 continue;
             }
@@ -458,6 +499,7 @@ class HL_BuddyBoss_Integration {
                     'slug'  => $slug,
                     'label' => $label,
                     'url'   => $url,
+                    'icon'  => $icon,
                 );
             }
         }
