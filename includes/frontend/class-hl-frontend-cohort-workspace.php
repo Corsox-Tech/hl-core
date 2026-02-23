@@ -171,6 +171,11 @@ class HL_Frontend_Cohort_Workspace {
             'classrooms' => __( 'Classrooms', 'hl-core' ),
         );
 
+        // Control group cohorts don't have teams.
+        if ( $cohort->is_control_group ) {
+            unset( $tabs['teams'] );
+        }
+
         // Build back URL.
         $back_url = $this->build_back_url( $scope_orgunit );
 

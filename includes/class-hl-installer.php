@@ -63,6 +63,9 @@ class HL_Installer {
         // Add responses_json column to hl_teacher_assessment_instance.
         self::migrate_teacher_assessment_add_responses_json();
 
+        // Add is_control_group column to hl_cohort.
+        self::migrate_cohort_add_control_group();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -85,7 +88,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 6;
+        $current_revision = 7;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -415,6 +418,31 @@ class HL_Installer {
     }
 
     /**
+     * Add is_control_group column to hl_cohort.
+     */
+    private static function migrate_cohort_add_control_group() {
+        global $wpdb;
+
+        $table = "{$wpdb->prefix}hl_cohort";
+
+        $table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table;
+        if ( ! $table_exists ) {
+            return;
+        }
+
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                $table,
+                'is_control_group'
+            )
+        );
+        if ( empty( $row ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN is_control_group tinyint(1) NOT NULL DEFAULT 0 AFTER cohort_group_id" );
+        }
+    }
+
+    /**
      * Get database schema
      */
     private static function get_schema() {
@@ -451,6 +479,7 @@ class HL_Installer {
             cohort_name varchar(255) NOT NULL,
             district_id bigint(20) unsigned NULL,
             cohort_group_id bigint(20) unsigned NULL,
+            is_control_group tinyint(1) NOT NULL DEFAULT 0,
             status enum('draft','active','paused','archived') DEFAULT 'draft',
             start_date date NOT NULL,
             end_date date NULL,

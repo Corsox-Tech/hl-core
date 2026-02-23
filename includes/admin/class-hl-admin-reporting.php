@@ -100,6 +100,7 @@ class HL_Admin_Reporting {
             'district_id' => isset($_GET['district_id']) ? absint($_GET['district_id']) : 0,
             'team_id'     => isset($_GET['team_id'])     ? absint($_GET['team_id'])     : 0,
             'role'        => isset($_GET['role'])         ? sanitize_text_field($_GET['role']) : '',
+            'group_id'    => isset($_GET['group_id'])    ? absint($_GET['group_id'])    : 0,
         );
     }
 
@@ -140,6 +141,26 @@ class HL_Admin_Reporting {
                 $reporting = HL_Reporting_Service::instance();
                 $csv      = $reporting->export_group_summary_csv($group_id);
                 $filename = 'group-summary-' . $group_id . '-' . gmdate('Y-m-d') . '.csv';
+                if (!empty($csv)) {
+                    header('Content-Type: text/csv; charset=utf-8');
+                    header('Content-Disposition: attachment; filename="' . $filename . '"');
+                    header('Cache-Control: no-cache, no-store, must-revalidate');
+                    header('Pragma: no-cache');
+                    header('Expires: 0');
+                    echo $csv;
+                    exit;
+                }
+            }
+            return;
+        }
+
+        // Comparison CSV export uses group_id, not cohort_id.
+        if ($export_type === 'comparison_csv') {
+            $group_id = isset($_GET['group_id']) ? absint($_GET['group_id']) : 0;
+            if ($group_id) {
+                $reporting = HL_Reporting_Service::instance();
+                $csv      = $reporting->export_group_comparison_csv($group_id);
+                $filename = 'program-vs-control-comparison-' . $group_id . '-' . gmdate('Y-m-d') . '.csv';
                 if (!empty($csv)) {
                     header('Content-Type: text/csv; charset=utf-8');
                     header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -282,6 +303,9 @@ class HL_Admin_Reporting {
 
         // Assessment exports (staff only)
         $this->render_assessment_exports($filters);
+
+        // Group comparison (when group_id filter is active)
+        $this->render_group_comparison($reporting, $filters);
     }
 
     /**
@@ -337,9 +361,27 @@ class HL_Admin_Reporting {
 
         $roles = array('Teacher', 'Mentor', 'Center Leader', 'District Leader');
 
+        // Fetch cohort groups for the group filter.
+        global $wpdb;
+        $cohort_groups = $wpdb->get_results(
+            "SELECT group_id, group_name FROM {$wpdb->prefix}hl_cohort_group WHERE status = 'active' ORDER BY group_name ASC",
+            ARRAY_A
+        ) ?: array();
+
         echo '<div class="hl-filters-bar" style="background: #fff; border: 1px solid #ccd0d4; border-radius: 4px; padding: 15px 20px; margin-bottom: 20px;">';
         echo '<form method="get" action="' . esc_url(admin_url('admin.php')) . '" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">';
         echo '<input type="hidden" name="page" value="hl-reporting" />';
+
+        // Cohort Group dropdown (for comparison reporting)
+        echo '<div style="flex: 1; min-width: 160px;">';
+        echo '<label for="group_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Cohort Group', 'hl-core') . '</label>';
+        echo '<select name="group_id" id="group_id" style="width: 100%;">';
+        echo '<option value="">' . esc_html__('-- No Group --', 'hl-core') . '</option>';
+        foreach ($cohort_groups as $cg) {
+            echo '<option value="' . esc_attr($cg['group_id']) . '"' . selected($filters['group_id'], $cg['group_id'], false) . '>' . esc_html($cg['group_name']) . '</option>';
+        }
+        echo '</select>';
+        echo '</div>';
 
         // Cohort dropdown (required)
         echo '<div style="flex: 1; min-width: 160px;">';
@@ -897,6 +939,166 @@ class HL_Admin_Reporting {
 
         echo '</div>';
         echo '</div>';
+    }
+
+    // =========================================================================
+    // Group Comparison (Program vs Control)
+    // =========================================================================
+
+    /**
+     * Render the program vs control group comparison section.
+     *
+     * Only appears when a cohort group is selected that contains both
+     * program (is_control_group=0) and control (is_control_group=1) cohorts.
+     *
+     * @param HL_Reporting_Service $reporting
+     * @param array                $filters
+     */
+    private function render_group_comparison($reporting, $filters) {
+        $group_id = isset($filters['group_id']) ? absint($filters['group_id']) : 0;
+        if (!$group_id) {
+            return;
+        }
+
+        $comparison = $reporting->get_group_assessment_comparison($group_id);
+        if (!$comparison) {
+            return;
+        }
+
+        // Get group name.
+        global $wpdb;
+        $group_name = $wpdb->get_var($wpdb->prepare(
+            "SELECT group_name FROM {$wpdb->prefix}hl_cohort_group WHERE group_id = %d",
+            $group_id
+        ));
+
+        echo '<div style="margin-top: 30px; border-top: 2px solid #9b59b6; padding-top: 20px;">';
+        echo '<h2 style="color: #9b59b6;">' . esc_html(sprintf(
+            __('Program vs Control Comparison — %s', 'hl-core'),
+            $group_name ?: __('Group', 'hl-core')
+        )) . '</h2>';
+
+        // Info cards.
+        echo '<div class="hl-metrics-row" style="margin-bottom: 20px;">';
+
+        // Program cohorts.
+        echo '<div class="hl-metric-card">';
+        echo '<div class="metric-value">' . esc_html(count($comparison['program']['cohort_names'])) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Program Cohorts', 'hl-core') . '</div>';
+        echo '<div style="font-size:11px;color:#666;margin-top:4px;">' . esc_html(implode(', ', $comparison['program']['cohort_names'])) . '</div>';
+        echo '</div>';
+
+        echo '<div class="hl-metric-card">';
+        echo '<div class="metric-value">' . esc_html($comparison['program']['participant_count']) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Program Participants', 'hl-core') . '</div>';
+        echo '</div>';
+
+        // Control cohorts.
+        echo '<div class="hl-metric-card" style="border-left: 3px solid #9b59b6;">';
+        echo '<div class="metric-value">' . esc_html(count($comparison['control']['cohort_names'])) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Control Cohorts', 'hl-core') . '</div>';
+        echo '<div style="font-size:11px;color:#666;margin-top:4px;">' . esc_html(implode(', ', $comparison['control']['cohort_names'])) . '</div>';
+        echo '</div>';
+
+        echo '<div class="hl-metric-card" style="border-left: 3px solid #9b59b6;">';
+        echo '<div class="metric-value">' . esc_html($comparison['control']['participant_count']) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Control Participants', 'hl-core') . '</div>';
+        echo '</div>';
+
+        echo '</div>';
+
+        // Per-section comparison tables.
+        $program_sections = $comparison['program']['sections'];
+        $control_sections = $comparison['control']['sections'];
+
+        foreach ($program_sections as $section_key => $section) {
+            $title = $section['title'];
+            $items = isset($section['items']) ? $section['items'] : array();
+
+            echo '<h3>' . esc_html($title) . '</h3>';
+            echo '<table class="widefat striped" style="margin-bottom: 20px;">';
+            echo '<thead><tr>';
+            echo '<th>' . esc_html__('Item', 'hl-core') . '</th>';
+            echo '<th style="text-align:center;">' . esc_html__('Program Pre', 'hl-core') . '</th>';
+            echo '<th style="text-align:center;">' . esc_html__('Program Post', 'hl-core') . '</th>';
+            echo '<th style="text-align:center;">' . esc_html__('Program Change', 'hl-core') . '</th>';
+            echo '<th style="text-align:center;">' . esc_html__('Control Pre', 'hl-core') . '</th>';
+            echo '<th style="text-align:center;">' . esc_html__('Control Post', 'hl-core') . '</th>';
+            echo '<th style="text-align:center;">' . esc_html__('Control Change', 'hl-core') . '</th>';
+            echo '</tr></thead>';
+            echo '<tbody>';
+
+            $c_sec = isset($control_sections[$section_key]) ? $control_sections[$section_key] : null;
+
+            foreach ($items as $item) {
+                $item_key  = isset($item['key']) ? $item['key'] : '';
+                $item_text = isset($item['text']) ? $item['text'] : $item_key;
+
+                $p_pre  = isset($section['pre'][$item_key])  ? $section['pre'][$item_key]  : array('mean' => null, 'n' => 0);
+                $p_post = isset($section['post'][$item_key]) ? $section['post'][$item_key] : array('mean' => null, 'n' => 0);
+
+                $c_pre  = ($c_sec && isset($c_sec['pre'][$item_key]))  ? $c_sec['pre'][$item_key]  : array('mean' => null, 'n' => 0);
+                $c_post = ($c_sec && isset($c_sec['post'][$item_key])) ? $c_sec['post'][$item_key] : array('mean' => null, 'n' => 0);
+
+                $p_change = ($p_pre['mean'] !== null && $p_post['mean'] !== null) ? round($p_post['mean'] - $p_pre['mean'], 2) : null;
+                $c_change = ($c_pre['mean'] !== null && $c_post['mean'] !== null) ? round($c_post['mean'] - $c_pre['mean'], 2) : null;
+
+                echo '<tr>';
+                echo '<td>' . esc_html($item_text) . '</td>';
+                echo '<td style="text-align:center;">' . $this->format_mean($p_pre) . '</td>';
+                echo '<td style="text-align:center;">' . $this->format_mean($p_post) . '</td>';
+                echo '<td style="text-align:center;">' . $this->format_change($p_change) . '</td>';
+                echo '<td style="text-align:center;">' . $this->format_mean($c_pre) . '</td>';
+                echo '<td style="text-align:center;">' . $this->format_mean($c_post) . '</td>';
+                echo '<td style="text-align:center;">' . $this->format_change($c_change) . '</td>';
+                echo '</tr>';
+            }
+
+            echo '</tbody></table>';
+        }
+
+        // Export button.
+        $export_url = $this->page_url(array('export' => 'comparison_csv', 'group_id' => $group_id));
+        echo '<a href="' . esc_url($export_url) . '" class="button">';
+        echo esc_html__('Export Comparison CSV', 'hl-core');
+        echo '</a>';
+
+        echo '</div>';
+    }
+
+    /**
+     * Format a mean value with sample size for display.
+     *
+     * @param array $data Array with 'mean' and 'n' keys.
+     * @return string HTML.
+     */
+    private function format_mean($data) {
+        if (!isset($data['mean']) || $data['mean'] === null) {
+            return '<span style="color:#999;">---</span>';
+        }
+        $n = isset($data['n']) ? (int) $data['n'] : 0;
+        return esc_html(number_format($data['mean'], 2)) . ' <span style="font-size:11px;color:#888;">(n=' . esc_html($n) . ')</span>';
+    }
+
+    /**
+     * Format a change value with color coding.
+     *
+     * @param float|null $change Change value.
+     * @return string HTML.
+     */
+    private function format_change($change) {
+        if ($change === null) {
+            return '<span style="color:#999;">---</span>';
+        }
+        $color = '#666';
+        $prefix = '';
+        if ($change > 0) {
+            $color = '#00a32a';
+            $prefix = '+';
+        } elseif ($change < 0) {
+            $color = '#d63638';
+        }
+        return '<strong style="color:' . esc_attr($color) . ';">' . esc_html($prefix . number_format($change, 2)) . '</strong>';
     }
 
     // =========================================================================

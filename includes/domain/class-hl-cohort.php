@@ -16,6 +16,7 @@ class HL_Cohort {
     public $cohort_name;
     public $district_id;
     public $cohort_group_id;
+    public $is_control_group;
     public $status;
     public $start_date;
     public $end_date;
@@ -40,6 +41,7 @@ class HL_Cohort {
             'cohort_name' => $this->cohort_name,
             'district_id' => $this->district_id,
             'cohort_group_id' => $this->cohort_group_id,
+            'is_control_group' => $this->is_control_group,
             'status' => $this->status,
             'start_date' => $this->start_date,
             'end_date' => $this->end_date,

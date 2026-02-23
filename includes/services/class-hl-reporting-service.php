@@ -853,4 +853,364 @@ class HL_Reporting_Service {
 
         return $csv;
     }
+
+    // =========================================================================
+    // Program vs Control Group Comparison (Phase 20)
+    // =========================================================================
+
+    /**
+     * Get assessment comparison data for program vs control cohorts in a group.
+     *
+     * Returns per-section, per-item average scores for program cohorts (is_control_group=0)
+     * vs control cohorts (is_control_group=1) within the same cohort group.
+     *
+     * @param int $group_id Cohort group ID.
+     * @return array|null Comparison data or null if group has no control cohorts.
+     */
+    public function get_group_assessment_comparison( $group_id ) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        $group_id = absint( $group_id );
+        if ( ! $group_id ) {
+            return null;
+        }
+
+        // Get all cohorts in the group.
+        $cohorts = $wpdb->get_results( $wpdb->prepare(
+            "SELECT cohort_id, cohort_name, is_control_group
+             FROM {$prefix}hl_cohort
+             WHERE cohort_group_id = %d",
+            $group_id
+        ), ARRAY_A );
+
+        if ( empty( $cohorts ) ) {
+            return null;
+        }
+
+        $program_cohort_ids = array();
+        $control_cohort_ids = array();
+        $program_names      = array();
+        $control_names      = array();
+
+        foreach ( $cohorts as $c ) {
+            if ( (int) $c['is_control_group'] === 1 ) {
+                $control_cohort_ids[] = (int) $c['cohort_id'];
+                $control_names[]      = $c['cohort_name'];
+            } else {
+                $program_cohort_ids[] = (int) $c['cohort_id'];
+                $program_names[]      = $c['cohort_name'];
+            }
+        }
+
+        // Need both program and control cohorts for comparison.
+        if ( empty( $program_cohort_ids ) || empty( $control_cohort_ids ) ) {
+            return null;
+        }
+
+        // Get the instrument used (first active instrument found).
+        $instrument = $wpdb->get_row(
+            "SELECT * FROM {$prefix}hl_teacher_assessment_instrument WHERE status = 'active' ORDER BY instrument_id ASC LIMIT 1",
+            ARRAY_A
+        );
+
+        $sections_def = array();
+        if ( $instrument && ! empty( $instrument['sections'] ) ) {
+            $sections_def = json_decode( $instrument['sections'], true );
+            if ( ! is_array( $sections_def ) ) {
+                $sections_def = array();
+            }
+        }
+
+        // Aggregate data for each group of cohorts.
+        $program_data = $this->aggregate_assessment_responses( $program_cohort_ids, $sections_def );
+        $control_data = $this->aggregate_assessment_responses( $control_cohort_ids, $sections_def );
+
+        return array(
+            'program' => array(
+                'cohort_names'      => $program_names,
+                'participant_count' => $program_data['participant_count'],
+                'sections'          => $program_data['sections'],
+            ),
+            'control' => array(
+                'cohort_names'      => $control_names,
+                'participant_count' => $control_data['participant_count'],
+                'sections'          => $control_data['sections'],
+            ),
+            'instrument' => $instrument,
+        );
+    }
+
+    /**
+     * Aggregate teacher assessment responses across multiple cohorts.
+     *
+     * @param array $cohort_ids   Array of cohort IDs to aggregate.
+     * @param array $sections_def Instrument section definitions.
+     * @return array Keys: participant_count, sections.
+     */
+    private function aggregate_assessment_responses( $cohort_ids, $sections_def ) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        if ( empty( $cohort_ids ) ) {
+            return array( 'participant_count' => 0, 'sections' => array() );
+        }
+
+        $placeholders = implode( ',', array_fill( 0, count( $cohort_ids ), '%d' ) );
+
+        // Get all submitted teacher assessment instances with responses_json.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $instances = $wpdb->get_results( $wpdb->prepare(
+            "SELECT tai.instance_id, tai.phase, tai.responses_json, tai.instrument_id, tai.enrollment_id
+             FROM {$prefix}hl_teacher_assessment_instance tai
+             WHERE tai.cohort_id IN ({$placeholders})
+             AND tai.status = 'submitted'
+             AND tai.responses_json IS NOT NULL",
+            $cohort_ids
+        ), ARRAY_A );
+
+        // Count unique enrollments (participants).
+        $unique_enrollments = array();
+        foreach ( $instances as $inst ) {
+            $unique_enrollments[ $inst['enrollment_id'] ] = true;
+        }
+        $participant_count = count( $unique_enrollments );
+
+        // Collect values: phase => section_key => item_key => [values].
+        $collected = array( 'pre' => array(), 'post' => array() );
+
+        foreach ( $instances as $inst ) {
+            $phase = $inst['phase'];
+            if ( ! in_array( $phase, array( 'pre', 'post' ), true ) ) {
+                continue;
+            }
+
+            $responses = json_decode( $inst['responses_json'], true );
+            if ( ! is_array( $responses ) ) {
+                continue;
+            }
+
+            foreach ( $responses as $section_key => $items ) {
+                if ( ! is_array( $items ) ) {
+                    continue;
+                }
+                foreach ( $items as $item_key => $value ) {
+                    if ( is_numeric( $value ) ) {
+                        $collected[ $phase ][ $section_key ][ $item_key ][] = floatval( $value );
+                    }
+                }
+            }
+        }
+
+        // Build section results keyed by section_key.
+        $sections = array();
+
+        foreach ( $sections_def as $sec ) {
+            $section_key = isset( $sec['section_key'] ) ? $sec['section_key'] : '';
+            if ( $section_key === '' ) {
+                continue;
+            }
+
+            $title = isset( $sec['title'] ) ? $sec['title'] : $section_key;
+            $items = isset( $sec['items'] ) ? $sec['items'] : array();
+
+            $pre_items  = array();
+            $post_items = array();
+
+            foreach ( $items as $item ) {
+                $item_key = isset( $item['key'] ) ? $item['key'] : '';
+                if ( $item_key === '' ) {
+                    continue;
+                }
+
+                // Pre phase.
+                if ( isset( $collected['pre'][ $section_key ][ $item_key ] ) ) {
+                    $vals = $collected['pre'][ $section_key ][ $item_key ];
+                    $pre_items[ $item_key ] = array(
+                        'mean' => round( array_sum( $vals ) / count( $vals ), 2 ),
+                        'n'    => count( $vals ),
+                        'sd'   => $this->compute_sd( $vals ),
+                    );
+                } else {
+                    $pre_items[ $item_key ] = array( 'mean' => null, 'n' => 0, 'sd' => 0 );
+                }
+
+                // Post phase.
+                if ( isset( $collected['post'][ $section_key ][ $item_key ] ) ) {
+                    $vals = $collected['post'][ $section_key ][ $item_key ];
+                    $post_items[ $item_key ] = array(
+                        'mean' => round( array_sum( $vals ) / count( $vals ), 2 ),
+                        'n'    => count( $vals ),
+                        'sd'   => $this->compute_sd( $vals ),
+                    );
+                } else {
+                    $post_items[ $item_key ] = array( 'mean' => null, 'n' => 0, 'sd' => 0 );
+                }
+            }
+
+            $sections[ $section_key ] = array(
+                'title' => $title,
+                'items' => $items,
+                'pre'   => $pre_items,
+                'post'  => $post_items,
+            );
+        }
+
+        return array(
+            'participant_count' => $participant_count,
+            'sections'          => $sections,
+        );
+    }
+
+    /**
+     * Compute sample standard deviation.
+     *
+     * @param array $values Numeric values.
+     * @return float
+     */
+    private function compute_sd( $values ) {
+        $n = count( $values );
+        if ( $n < 2 ) {
+            return 0.0;
+        }
+        $mean     = array_sum( $values ) / $n;
+        $sum_sq   = 0.0;
+        foreach ( $values as $v ) {
+            $sum_sq += ( $v - $mean ) * ( $v - $mean );
+        }
+        return round( sqrt( $sum_sq / ( $n - 1 ) ), 4 );
+    }
+
+    /**
+     * Export group comparison data as CSV.
+     *
+     * Flattens comparison data into one row per item per section with
+     * program and control pre/post means, change values, and Cohen's d effect size.
+     *
+     * @param int $group_id Cohort group ID.
+     * @return string CSV content or empty string.
+     */
+    public function export_group_comparison_csv( $group_id ) {
+        $comparison = $this->get_group_assessment_comparison( $group_id );
+        if ( ! $comparison ) {
+            return '';
+        }
+
+        $handle = fopen( 'php://temp', 'r+' );
+        if ( $handle === false ) {
+            return '';
+        }
+
+        fputcsv( $handle, array(
+            'Section',
+            'Item',
+            'Program Pre Mean',
+            'Program Pre N',
+            'Program Post Mean',
+            'Program Post N',
+            'Program Change',
+            'Control Pre Mean',
+            'Control Pre N',
+            'Control Post Mean',
+            'Control Post N',
+            'Control Change',
+            'Effect Size (Cohen\'s d)',
+        ) );
+
+        $program_sections = $comparison['program']['sections'];
+        $control_sections = $comparison['control']['sections'];
+
+        foreach ( $program_sections as $section_key => $section ) {
+            $title = $section['title'];
+            $items = isset( $section['items'] ) ? $section['items'] : array();
+
+            foreach ( $items as $item ) {
+                $item_key  = isset( $item['key'] ) ? $item['key'] : '';
+                $item_text = isset( $item['text'] ) ? $item['text'] : $item_key;
+
+                $p_pre  = isset( $section['pre'][ $item_key ] )  ? $section['pre'][ $item_key ]  : array( 'mean' => null, 'n' => 0, 'sd' => 0 );
+                $p_post = isset( $section['post'][ $item_key ] ) ? $section['post'][ $item_key ] : array( 'mean' => null, 'n' => 0, 'sd' => 0 );
+
+                $c_pre  = array( 'mean' => null, 'n' => 0, 'sd' => 0 );
+                $c_post = array( 'mean' => null, 'n' => 0, 'sd' => 0 );
+                if ( isset( $control_sections[ $section_key ] ) ) {
+                    $c_sec  = $control_sections[ $section_key ];
+                    $c_pre  = isset( $c_sec['pre'][ $item_key ] )  ? $c_sec['pre'][ $item_key ]  : $c_pre;
+                    $c_post = isset( $c_sec['post'][ $item_key ] ) ? $c_sec['post'][ $item_key ] : $c_post;
+                }
+
+                // Compute change values.
+                $p_change = ( $p_pre['mean'] !== null && $p_post['mean'] !== null )
+                    ? round( $p_post['mean'] - $p_pre['mean'], 2 ) : '';
+                $c_change = ( $c_pre['mean'] !== null && $c_post['mean'] !== null )
+                    ? round( $c_post['mean'] - $c_pre['mean'], 2 ) : '';
+
+                // Cohen's d = (program_change - control_change) / pooled_sd.
+                $cohens_d = '';
+                if ( $p_change !== '' && $c_change !== '' ) {
+                    $pooled_sd = $this->compute_pooled_sd(
+                        $p_pre['sd'], $p_pre['n'], $p_post['sd'], $p_post['n'],
+                        $c_pre['sd'], $c_pre['n'], $c_post['sd'], $c_post['n']
+                    );
+                    if ( $pooled_sd > 0 ) {
+                        $cohens_d = round( ( $p_change - $c_change ) / $pooled_sd, 3 );
+                    }
+                }
+
+                fputcsv( $handle, array(
+                    $title,
+                    $item_text,
+                    $p_pre['mean'] !== null ? $p_pre['mean'] : '',
+                    $p_pre['n'],
+                    $p_post['mean'] !== null ? $p_post['mean'] : '',
+                    $p_post['n'],
+                    $p_change,
+                    $c_pre['mean'] !== null ? $c_pre['mean'] : '',
+                    $c_pre['n'],
+                    $c_post['mean'] !== null ? $c_post['mean'] : '',
+                    $c_post['n'],
+                    $c_change,
+                    $cohens_d,
+                ) );
+            }
+        }
+
+        rewind( $handle );
+        $csv = stream_get_contents( $handle );
+        fclose( $handle );
+
+        return $csv;
+    }
+
+    /**
+     * Compute pooled standard deviation for Cohen's d across pre/post program/control.
+     *
+     * Uses the average of all four group SDs weighted by their sample sizes.
+     *
+     * @return float Pooled SD.
+     */
+    private function compute_pooled_sd( $sd1, $n1, $sd2, $n2, $sd3, $n3, $sd4, $n4 ) {
+        $total_n = $n1 + $n2 + $n3 + $n4;
+        if ( $total_n < 2 ) {
+            return 0.0;
+        }
+
+        // Pooled variance: weighted sum of variances.
+        $sum_sq = 0.0;
+        $sum_df = 0;
+        foreach ( array( array( $sd1, $n1 ), array( $sd2, $n2 ), array( $sd3, $n3 ), array( $sd4, $n4 ) ) as $pair ) {
+            $sd = $pair[0];
+            $n  = $pair[1];
+            if ( $n > 1 ) {
+                $sum_sq += ( $n - 1 ) * $sd * $sd;
+                $sum_df += ( $n - 1 );
+            }
+        }
+
+        if ( $sum_df < 1 ) {
+            return 0.0;
+        }
+
+        return sqrt( $sum_sq / $sum_df );
+    }
 }

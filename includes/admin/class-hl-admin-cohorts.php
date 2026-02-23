@@ -107,6 +107,7 @@ class HL_Admin_Cohorts {
             'timezone'        => sanitize_text_field($_POST['timezone']),
             'district_id'     => !empty($_POST['district_id']) ? absint($_POST['district_id']) : null,
             'cohort_group_id' => !empty($_POST['cohort_group_id']) ? absint($_POST['cohort_group_id']) : null,
+            'is_control_group' => !empty($_POST['is_control_group']) ? 1 : 0,
         );
 
         if (empty($data['end_date'])) {
@@ -294,7 +295,11 @@ class HL_Admin_Cohorts {
 
             echo '<tr>';
             echo '<td>' . esc_html($cohort->cohort_id) . '</td>';
-            echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($cohort->cohort_name) . '</a></strong></td>';
+            echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($cohort->cohort_name) . '</a></strong>';
+            if ($cohort->is_control_group) {
+                echo ' <span class="hl-status-badge" style="background:#9b59b6;color:#fff;font-size:11px;">Control</span>';
+            }
+            echo '</td>';
             echo '<td><code>' . esc_html($cohort->cohort_code) . '</code></td>';
             echo '<td><span style="color:' . esc_attr($sc) . '; font-weight:600;">' . esc_html(ucfirst($cohort->status)) . '</span></td>';
             echo '<td>' . esc_html($cohort->start_date) . '</td>';
@@ -382,6 +387,9 @@ class HL_Admin_Cohorts {
 
         echo '<h1>' . esc_html($cohort->cohort_name) . ' ';
         echo '<span style="color:' . esc_attr($sc) . '; font-size:14px; font-weight:600; vertical-align:middle;">' . esc_html(ucfirst($cohort->status)) . '</span>';
+        if ($cohort->is_control_group) {
+            echo ' <span class="hl-status-badge" style="background:#9b59b6;color:#fff;font-size:12px;">Control Group</span>';
+        }
         echo '</h1>';
         echo '<a href="' . esc_url(admin_url('admin.php?page=hl-core')) . '">&larr; ' . esc_html__('Back to Cohorts', 'hl-core') . '</a>';
 
@@ -395,6 +403,11 @@ class HL_Admin_Cohorts {
             'coaching'    => __('Coaching', 'hl-core'),
             'classrooms'  => __('Classrooms', 'hl-core'),
         );
+
+        // Control group cohorts don't use coaching or teams.
+        if ($cohort->is_control_group) {
+            unset($tabs['coaching'], $tabs['teams']);
+        }
 
         echo '<nav class="nav-tab-wrapper" style="margin-top:15px;">';
         foreach ($tabs as $slug => $label) {
@@ -570,6 +583,14 @@ class HL_Admin_Cohorts {
         }
         echo '</select>';
         echo '<p class="description">' . esc_html__('Optional. Group this cohort with others for cross-cohort reporting.', 'hl-core') . '</p>';
+        echo '</td></tr>';
+
+        // Control Group
+        $is_control = $is_edit ? (int) $cohort->is_control_group : 0;
+        echo '<tr><th scope="row">' . esc_html__('Control Group', 'hl-core') . '</th>';
+        echo '<td><label><input type="checkbox" name="is_control_group" value="1" ' . checked($is_control, 1, false) . '> ';
+        echo esc_html__('This cohort is a control/comparison group', 'hl-core') . '</label>';
+        echo '<p class="description">' . esc_html__('Control group cohorts only require assessments (no coaching, teams, or full program pathway).', 'hl-core') . '</p>';
         echo '</td></tr>';
 
         echo '</table>';

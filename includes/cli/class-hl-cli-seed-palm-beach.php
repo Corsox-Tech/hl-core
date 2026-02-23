@@ -112,6 +112,9 @@ class HL_CLI_Seed_Palm_Beach {
 		// Step 17: Coaching Sessions.
 		$this->seed_coaching_sessions( $cohort_id, $enrollments, $users );
 
+		// Step 18-20: Lutheran Control Group.
+		$control_data = $this->seed_control_group( $cohort_id, $instruments );
+
 		WP_CLI::line( '' );
 		WP_CLI::success( 'Palm Beach demo data seeded successfully!' );
 		WP_CLI::line( '' );
@@ -122,6 +125,11 @@ class HL_CLI_Seed_Palm_Beach {
 		WP_CLI::line( '  Instruments:  ' . count( $instruments ) );
 		WP_CLI::line( '  Users:        ' . count( $users['all_ids'] ) );
 		WP_CLI::line( '  Enrollments:  ' . count( $enrollments['all'] ) );
+		if ( $control_data ) {
+			WP_CLI::line( "  Control cohort: {$control_data['cohort_id']} (code: LSF-CTRL-2026)" );
+			WP_CLI::line( "  Control participants: {$control_data['participant_count']}" );
+			WP_CLI::line( "  Cohort group: {$control_data['group_id']} (B2E Program Evaluation)" );
+		}
 		WP_CLI::line( '' );
 	}
 
@@ -683,6 +691,43 @@ class HL_CLI_Seed_Palm_Beach {
 
 			WP_CLI::log( "  Deleted cohort {$cohort_id} and all related records." );
 		}
+
+		// Delete Lutheran control cohort.
+		$control_cohort_id = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT cohort_id FROM {$wpdb->prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
+				'LSF-CTRL-2026'
+			)
+		);
+		if ( $control_cohort_id ) {
+			$ctrl_enrollment_ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE cohort_id = %d",
+					$control_cohort_id
+				)
+			);
+			if ( ! empty( $ctrl_enrollment_ids ) ) {
+				$in_ctrl = implode( ',', array_map( 'intval', $ctrl_enrollment_ids ) );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_completion_rollup WHERE enrollment_id IN ({$in_ctrl})" );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_state WHERE enrollment_id IN ({$in_ctrl})" );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ctrl})" );
+			}
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE cohort_id = %d", $control_cohort_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE cohort_id = %d", $control_cohort_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE cohort_id = %d", $control_cohort_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d", $control_cohort_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE cohort_id = %d", $control_cohort_id ) );
+			WP_CLI::log( "  Deleted control cohort {$control_cohort_id} and related records." );
+		}
+
+		// Delete B2E Program Evaluation cohort group.
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->prefix}hl_cohort_group WHERE group_code = %s",
+				'B2E-EVAL'
+			)
+		);
+		WP_CLI::log( '  Deleted cohort group (B2E-EVAL).' );
 
 		// Delete demo users.
 		$demo_user_ids = $wpdb->get_col(
@@ -1601,4 +1646,343 @@ class HL_CLI_Seed_Palm_Beach {
 
 		WP_CLI::log( "  [17/17] Coaching sessions created: {$count}" );
 	}
+
+	// ------------------------------------------------------------------
+	// Steps 18-20: Lutheran Control Group
+	// ------------------------------------------------------------------
+
+	/**
+	 * Seed the Lutheran Services Florida control group.
+	 *
+	 * Creates a cohort group, a control cohort, assessment-only pathway,
+	 * control participants, and submitted PRE assessments.
+	 *
+	 * @param int   $program_cohort_id The Palm Beach program cohort ID.
+	 * @param array $instruments       Instrument IDs keyed by type.
+	 * @return array|null Control group data or null on failure.
+	 */
+	private function seed_control_group( $program_cohort_id, $instruments ) {
+		global $wpdb;
+		$prefix = $wpdb->prefix;
+
+		// Ensure is_control_group column exists.
+		$col_check = $wpdb->get_var( $wpdb->prepare(
+			"SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+			$prefix . 'hl_cohort',
+			'is_control_group'
+		) );
+		if ( ! $col_check ) {
+			WP_CLI::log( '  Running schema migration for is_control_group column...' );
+			HL_Installer::create_tables();
+		}
+
+		// Step 18: Create cohort group.
+		$group_id = $wpdb->get_var( $wpdb->prepare(
+			"SELECT group_id FROM {$prefix}hl_cohort_group WHERE group_code = %s LIMIT 1",
+			'B2E-EVAL'
+		) );
+
+		if ( ! $group_id ) {
+			$wpdb->insert( $prefix . 'hl_cohort_group', array(
+				'group_uuid' => wp_generate_uuid4(),
+				'group_name' => 'B2E Program Evaluation',
+				'group_code' => 'B2E-EVAL',
+				'status'     => 'active',
+			) );
+			$group_id = $wpdb->insert_id;
+		}
+
+		if ( ! $group_id ) {
+			WP_CLI::log( '  [18/20] ERROR: Could not create cohort group. DB error: ' . $wpdb->last_error );
+			return null;
+		}
+
+		// Assign the ELC Palm Beach cohort to this group.
+		$wpdb->update(
+			$prefix . 'hl_cohort',
+			array( 'cohort_group_id' => $group_id ),
+			array( 'cohort_id' => $program_cohort_id )
+		);
+
+		// Step 19: Create the Lutheran control cohort.
+		$control_cohort_id = $wpdb->get_var( $wpdb->prepare(
+			"SELECT cohort_id FROM {$prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
+			'LSF-CTRL-2026'
+		) );
+
+		if ( ! $control_cohort_id ) {
+			$repo = new HL_Cohort_Repository();
+			$control_cohort_id = $repo->create( array(
+				'cohort_name'      => 'Lutheran Services Florida — Control Group',
+				'cohort_code'      => 'LSF-CTRL-2026',
+				'is_control_group' => 1,
+				'cohort_group_id'  => $group_id,
+				'status'           => 'active',
+				'start_date'       => '2026-01-01',
+				'end_date'         => '2026-12-31',
+			) );
+		}
+
+		if ( ! $control_cohort_id ) {
+			WP_CLI::log( '  [19/20] ERROR: Could not create control cohort. DB error: ' . $wpdb->last_error );
+			return null;
+		}
+
+		WP_CLI::log( "  [18/20] Cohort group id={$group_id} (B2E-EVAL), control cohort id={$control_cohort_id} (LSF-CTRL-2026)" );
+
+		// Create assessment-only pathway.
+		$svc = new HL_Pathway_Service();
+
+		$ctrl_pathway_id = $svc->create_pathway( array(
+			'pathway_name'  => 'Control Assessment Pathway',
+			'cohort_id'     => $control_cohort_id,
+			'target_roles'  => array( 'teacher' ),
+			'active_status' => 1,
+		) );
+
+		$teacher_instrument_id = isset( $instruments['teacher_b2e'] ) ? $instruments['teacher_b2e'] : 0;
+
+		$pre_activity_id = $svc->create_activity( array(
+			'title'         => 'Pre Self-Assessment',
+			'pathway_id'    => $ctrl_pathway_id,
+			'cohort_id'     => $control_cohort_id,
+			'activity_type' => 'teacher_self_assessment',
+			'weight'        => 1.0,
+			'ordering_hint' => 1,
+			'external_ref'  => wp_json_encode( array(
+				'teacher_instrument_id' => $teacher_instrument_id,
+				'phase'                 => 'pre',
+			) ),
+		) );
+
+		$svc->create_activity( array(
+			'title'         => 'Post Self-Assessment',
+			'pathway_id'    => $ctrl_pathway_id,
+			'cohort_id'     => $control_cohort_id,
+			'activity_type' => 'teacher_self_assessment',
+			'weight'        => 1.0,
+			'ordering_hint' => 2,
+			'external_ref'  => wp_json_encode( array(
+				'teacher_instrument_id' => $teacher_instrument_id,
+				'phase'                 => 'post',
+			) ),
+		) );
+
+		WP_CLI::log( "  [19/20] Control pathway id={$ctrl_pathway_id} (PRE + POST self-assessment)" );
+
+		// Step 20: Seed control participants (Lutheran teachers).
+		$enrollment_repo = new HL_Enrollment_Repository();
+		$ctrl_enrollment_ids = array();
+
+		// Real LSF center info from spreadsheet: 6 staff were to participate.
+		$ctrl_teachers = array(
+			array( 'name' => 'Maria Santos',    'email' => 'maria.santos@lsfnet.org' ),
+			array( 'name' => 'Angela Roberts',  'email' => 'angela.roberts@lsfnet.org' ),
+			array( 'name' => 'Denise Williams', 'email' => 'denise.williams@lsfnet.org' ),
+			array( 'name' => 'Keisha Brown',    'email' => 'keisha.brown@lsfnet.org' ),
+			array( 'name' => 'Sandra Lopez',    'email' => 'sandra.lopez@lsfnet.org' ),
+			array( 'name' => 'Tamika Johnson',  'email' => 'tamika.johnson@lsfnet.org' ),
+		);
+
+		foreach ( $ctrl_teachers as $teacher ) {
+			$parts = explode( ' ', $teacher['name'], 2 );
+			$uid   = $this->create_demo_user( $teacher['email'], $parts[0], isset( $parts[1] ) ? $parts[1] : '', 'subscriber' );
+			if ( ! $uid ) {
+				continue;
+			}
+
+			$eid = $enrollment_repo->create( array(
+				'user_id'             => $uid,
+				'cohort_id'           => $control_cohort_id,
+				'roles'               => array( 'teacher' ),
+				'status'              => 'active',
+				'assigned_pathway_id' => $ctrl_pathway_id,
+			) );
+			if ( $eid ) {
+				$ctrl_enrollment_ids[] = $eid;
+			}
+		}
+
+		// Get instrument sections for generating plausible responses.
+		$instrument_sections = array();
+		if ( $teacher_instrument_id ) {
+			$sections_json = $wpdb->get_var( $wpdb->prepare(
+				"SELECT sections FROM {$prefix}hl_teacher_assessment_instrument WHERE instrument_id = %d",
+				$teacher_instrument_id
+			) );
+			if ( $sections_json ) {
+				$instrument_sections = json_decode( $sections_json, true ) ?: array();
+			}
+		}
+
+		// Submit PRE assessments for all control participants.
+		$now = current_time( 'mysql' );
+		$pre_submitted = 0;
+
+		foreach ( $ctrl_enrollment_ids as $eid ) {
+			$responses = $this->generate_control_responses( $instrument_sections );
+
+			$wpdb->insert( $prefix . 'hl_teacher_assessment_instance', array(
+				'instance_uuid'      => wp_generate_uuid4(),
+				'cohort_id'          => $control_cohort_id,
+				'enrollment_id'      => $eid,
+				'phase'              => 'pre',
+				'instrument_id'      => $teacher_instrument_id,
+				'instrument_version' => '1.0',
+				'status'             => 'submitted',
+				'submitted_at'       => $now,
+				'responses_json'     => wp_json_encode( $responses ),
+			) );
+
+			$wpdb->insert( $prefix . 'hl_activity_state', array(
+				'enrollment_id'      => $eid,
+				'activity_id'        => $pre_activity_id,
+				'completion_percent' => 100,
+				'completion_status'  => 'complete',
+				'completed_at'       => $now,
+				'last_computed_at'   => $now,
+			) );
+
+			$pre_submitted++;
+		}
+
+		// Also submit PRE assessments for the ELC program cohort teachers.
+		$program_teacher_enrollments = $wpdb->get_results( $wpdb->prepare(
+			"SELECT enrollment_id FROM {$prefix}hl_enrollment
+			 WHERE cohort_id = %d AND status = 'active' AND roles LIKE %s",
+			$program_cohort_id,
+			'%"teacher"%'
+		), ARRAY_A );
+
+		$program_pre_count = 0;
+		foreach ( $program_teacher_enrollments as $row ) {
+			$eid = $row['enrollment_id'];
+
+			$existing = $wpdb->get_var( $wpdb->prepare(
+				"SELECT instance_id FROM {$prefix}hl_teacher_assessment_instance
+				 WHERE enrollment_id = %d AND cohort_id = %d AND phase = 'pre'",
+				$eid, $program_cohort_id
+			) );
+
+			if ( $existing ) {
+				$status = $wpdb->get_var( $wpdb->prepare(
+					"SELECT status FROM {$prefix}hl_teacher_assessment_instance WHERE instance_id = %d",
+					$existing
+				) );
+				if ( $status !== 'submitted' ) {
+					$responses = $this->generate_program_responses( $instrument_sections );
+					$wpdb->update(
+						$prefix . 'hl_teacher_assessment_instance',
+						array(
+							'status'         => 'submitted',
+							'submitted_at'   => $now,
+							'responses_json' => wp_json_encode( $responses ),
+						),
+						array( 'instance_id' => $existing )
+					);
+					$program_pre_count++;
+				}
+				continue;
+			}
+
+			$responses = $this->generate_program_responses( $instrument_sections );
+			$wpdb->insert( $prefix . 'hl_teacher_assessment_instance', array(
+				'instance_uuid'      => wp_generate_uuid4(),
+				'cohort_id'          => $program_cohort_id,
+				'enrollment_id'      => $eid,
+				'phase'              => 'pre',
+				'instrument_id'      => $teacher_instrument_id,
+				'instrument_version' => '1.0',
+				'status'             => 'submitted',
+				'submitted_at'       => $now,
+				'responses_json'     => wp_json_encode( $responses ),
+			) );
+			$program_pre_count++;
+		}
+
+		// Compute rollups for control enrollments.
+		$reporting = HL_Reporting_Service::instance();
+		foreach ( $ctrl_enrollment_ids as $eid ) {
+			$reporting->compute_rollups( $eid );
+		}
+
+		WP_CLI::log( "  [20/20] Control participants: " . count( $ctrl_enrollment_ids )
+			. ", control PRE submitted: {$pre_submitted}"
+			. ", program PRE submitted: {$program_pre_count}" );
+
+		return array(
+			'group_id'          => $group_id,
+			'cohort_id'         => $control_cohort_id,
+			'participant_count' => count( $ctrl_enrollment_ids ),
+		);
+	}
+
+	/**
+	 * Generate plausible control group PRE assessment responses.
+	 * Control group baselines tend to be slightly lower than program.
+	 */
+	private function generate_control_responses( $sections_def ) {
+		$responses = array();
+		foreach ( $sections_def as $section ) {
+			$section_key = isset( $section['section_key'] ) ? $section['section_key'] : '';
+			$items       = isset( $section['items'] ) ? $section['items'] : array();
+			$scale_key   = isset( $section['scale_key'] ) ? $section['scale_key'] : 'likert_5';
+
+			$range = $this->get_response_range( $scale_key, 'control' );
+			foreach ( $items as $item ) {
+				$item_key = isset( $item['key'] ) ? $item['key'] : '';
+				if ( $item_key !== '' ) {
+					$responses[ $section_key ][ $item_key ] = wp_rand( $range['min'], $range['max'] );
+				}
+			}
+		}
+		return $responses;
+	}
+
+	/**
+	 * Generate plausible program group PRE assessment responses.
+	 * Program group baselines tend to be slightly higher.
+	 */
+	private function generate_program_responses( $sections_def ) {
+		$responses = array();
+		foreach ( $sections_def as $section ) {
+			$section_key = isset( $section['section_key'] ) ? $section['section_key'] : '';
+			$items       = isset( $section['items'] ) ? $section['items'] : array();
+			$scale_key   = isset( $section['scale_key'] ) ? $section['scale_key'] : 'likert_5';
+
+			$range = $this->get_response_range( $scale_key, 'program' );
+			foreach ( $items as $item ) {
+				$item_key = isset( $item['key'] ) ? $item['key'] : '';
+				if ( $item_key !== '' ) {
+					$responses[ $section_key ][ $item_key ] = wp_rand( $range['min'], $range['max'] );
+				}
+			}
+		}
+		return $responses;
+	}
+
+	/**
+	 * Get min/max response range for a scale + profile.
+	 */
+	private function get_response_range( $scale_key, $profile ) {
+		$ranges = array(
+			'likert_5' => array(
+				'control' => array( 'min' => 2, 'max' => 4 ),
+				'program' => array( 'min' => 2, 'max' => 5 ),
+			),
+			'likert_7' => array(
+				'control' => array( 'min' => 3, 'max' => 5 ),
+				'program' => array( 'min' => 3, 'max' => 6 ),
+			),
+			'scale_0_10' => array(
+				'control' => array( 'min' => 4, 'max' => 7 ),
+				'program' => array( 'min' => 4, 'max' => 8 ),
+			),
+		);
+		if ( isset( $ranges[ $scale_key ][ $profile ] ) ) {
+			return $ranges[ $scale_key ][ $profile ];
+		}
+		return array( 'min' => 2, 'max' => 4 );
+	}
+
 }
