@@ -981,6 +981,10 @@ body:has(.hl-dashboard) h1.entry-title {
 
 .hl-activity-action {
     margin: 8px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .hl-activity-notice {

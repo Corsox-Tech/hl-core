@@ -448,12 +448,12 @@ class HL_Frontend_Program_Page {
                 : __('TBD', 'hl-core');
 
             $html = HL_Coaching_Service::render_status_badge('scheduled')
-                  . ' <span style="margin-left:6px;">'
+                  . ' <span>'
                   . sprintf(esc_html__('Upcoming on %s', 'hl-core'), esc_html($date_display))
                   . '</span>';
 
             if (!empty($session['meeting_url'])) {
-                $html .= ' <a href="' . esc_url($session['meeting_url']) . '" target="_blank" class="hl-btn hl-btn-sm hl-btn-primary" style="margin-left:8px;">'
+                $html .= ' <a href="' . esc_url($session['meeting_url']) . '" target="_blank" class="hl-btn hl-btn-sm hl-btn-primary">'
                        . esc_html__('Join Meeting', 'hl-core')
                        . '</a>';
             }
@@ -475,7 +475,7 @@ class HL_Frontend_Program_Page {
                 $coaching_page_url = $this->find_shortcode_page_url('hl_my_coaching');
                 $html = HL_Coaching_Service::render_status_badge('missed');
                 if ($coaching_page_url) {
-                    $html .= ' <a href="' . esc_url(add_query_arg('enrollment', $enrollment->enrollment_id, $coaching_page_url)) . '" class="hl-btn hl-btn-sm hl-btn-secondary" style="margin-left:8px;">'
+                    $html .= ' <a href="' . esc_url(add_query_arg('enrollment', $enrollment->enrollment_id, $coaching_page_url)) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
                            . esc_html__('Reschedule', 'hl-core')
                            . '</a>';
                 }
