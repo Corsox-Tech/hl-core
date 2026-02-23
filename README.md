@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for assessment/observation forms)
-**Status:** v1 complete — Phases 1-11 done, Phase 14 (Admin UX) done, Phase 15 (Architecture: Pathway Assignments + Cohort Groups) done, Phase 17 (Org Units hierarchy) done, Phase 18 (Frontend CSS Design System) done (25 shortcode pages, 15 admin pages, 34 DB tables, tabbed cohort editor)
+**Status:** v1 complete — Phases 1-11 done, Phase 14 (Admin UX) done, Phase 15 (Architecture: Pathway Assignments + Cohort Groups) done, Phase 17 (Org Units hierarchy) done, Phase 18 (Frontend CSS Design System) done, Phase 19 (Custom Teacher Self-Assessment) done (26 shortcode pages, 15 admin pages, 35 DB tables, tabbed cohort editor)
 
 ## Overview
 
@@ -10,21 +10,21 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cohort manag
 
 ## What's Implemented
 
-### Database Schema (34 custom tables)
+### Database Schema (35 custom tables)
 - **Org & Cohort:** `hl_orgunit`, `hl_cohort`, `hl_cohort_center`, `hl_cohort_group`
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
 - **Classrooms:** `hl_classroom`, `hl_teaching_assignment`, `hl_child`, `hl_child_classroom_current`, `hl_child_classroom_history`
 - **Learning Config:** `hl_pathway`, `hl_pathway_assignment`, `hl_activity`, `hl_activity_prereq_group`, `hl_activity_prereq_item`, `hl_activity_drip_rule`, `hl_activity_override`
 - **State/Rollups:** `hl_activity_state`, `hl_completion_rollup`
-- **Instruments:** `hl_instrument` (children assessment instruments only; teacher self-assessment and observation forms are in JetFormBuilder)
-- **Assessments:** `hl_teacher_assessment_instance` (completion tracking + jfb_form_id/jfb_record_id), `hl_teacher_assessment_response` (DEPRECATED — retained for dbDelta safety; JFB Form Records handles response storage), `hl_children_assessment_instance`, `hl_children_assessment_childrow`
+- **Instruments:** `hl_instrument` (children assessment instruments), `hl_teacher_assessment_instrument` (custom teacher self-assessment instruments with structured sections JSON)
+- **Assessments:** `hl_teacher_assessment_instance` (completion tracking + responses_json for custom instruments, jfb_form_id/jfb_record_id for JFB fallback), `hl_teacher_assessment_response` (DEPRECATED), `hl_children_assessment_instance`, `hl_children_assessment_childrow`
 - **Observations:** `hl_observation` (+ jfb_form_id/jfb_record_id), `hl_observation_response` (DEPRECATED — retained for dbDelta safety; JFB Form Records handles response storage), `hl_observation_attachment`
 - **Coaching:** `hl_coaching_session`, `hl_coaching_session_observation`, `hl_coaching_attachment`
 - **System:** `hl_import_run`, `hl_audit_log`
 
 ### Domain Models & Repositories
-All 8 core entities have domain model classes with proper properties and repository classes with full CRUD:
-- OrgUnit, Cohort, Enrollment, Team, Classroom, Child, Pathway, Activity
+All 9 core entities have domain model classes with proper properties and repository classes with full CRUD:
+- OrgUnit, Cohort, Enrollment, Team, Classroom, Child, Pathway, Activity, Teacher_Assessment_Instrument
 
 ### Services (Business Logic)
 - **CohortService** - Cohort CRUD with validation
@@ -289,6 +289,16 @@ _Read docs: 04 (section 2.2), 08_
 - [x] **18.1 CSS Custom Properties & Design System** — Rewrote `assets/css/frontend.css` with `:root` block containing 50+ CSS custom properties (colors, spacing, shadows, radii, transitions, status colors, CRM palette). All existing classes refactored to use `var()` references instead of hardcoded hex values. Added new component classes: `.hl-filters-bar`, `.hl-coach-info-card`, `.hl-coach-widget`, `.hl-session-card`, `.hl-enrollment-switcher`, `.hl-schedule-form`, `.hl-pagination`, `.hl-no-results`, `.hl-btn-danger`, `.hl-input`, `.hl-label`, `.hl-form-group`, `.hl-crm-card-image`, `.hl-crm-card-description`, `.hl-program-card-placeholder`, `.hl-crm-page-header` flex layout.
 - [x] **18.2 PHP Inline Style Migration** — Removed all inline styles from 25 frontend shortcode PHP files across 5 batches, replacing with CSS design system classes. Batch 1: my-coaching (coach card, sessions, schedule form), learners (progress bars, filters), cohorts-listing (cards, filters), institutions-listing (sections, counts), pathways-listing (cards, filters). Batch 2: coaching-hub (header, filters), classrooms-listing (filters), reports-hub (descriptions), my-team (subtitles, stats), my-programs (coach widget, image placeholders). Batch 3: program-page (activity action spacing). Batch 4: team-page (metric cards, detail rows), center-page (district link). Batch 5: cohort-workspace (metrics rows, detail rows), my-cohort (detail rows), children-assessment (matrix overflow, form actions), observations (form actions).
 
+### Phase 19: Custom Teacher Self-Assessment System
+- [x] **19.1 DB Schema + Domain Model** — New `hl_teacher_assessment_instrument` table (instrument_name, instrument_key, instrument_version, sections JSON, scale_labels JSON, status). Added `responses_json` column to `hl_teacher_assessment_instance` via migration. Schema revision bumped to 6. New `HL_Teacher_Assessment_Instrument` domain model class with `get_sections()` and `get_scale_labels()` JSON decoders.
+- [x] **19.2 Teacher Assessment Renderer** — `HL_Teacher_Assessment_Renderer` class supporting PRE mode (single-column likert/scale radios) and POST mode (dual-column retrospective: "Before Program" pre-filled from PRE responses as disabled radios + "Now" column for current ratings). Handles likert sections (5-point and 7-point) and 0-10 numeric scales. Inline CSS for `.hl-tsa-*` classes and JS for draft/submit validation toggle.
+- [x] **19.3 Assessment Service Expansion** — Added `get_teacher_instrument()`, `get_teacher_instrument_by_key()`, `get_all_teacher_instruments()`, `save_teacher_assessment_responses()` (draft + submit with responses_json storage), `get_pre_responses_for_post()`, and `update_teacher_assessment_activity_state()` (activity completion + rollup recomputation).
+- [x] **19.4 Frontend Shortcode Page** — `HL_Frontend_Teacher_Assessment` handles `[hl_teacher_assessment]` shortcode with instance list view (instrument-based instances per enrollment), single instance form view (delegates to renderer), POST handling for draft/submit, read-only submitted summary, and PRE response pre-fill for POST dual-column mode.
+- [x] **19.5 Activity Routing Integration** — Activity page, my-progress, and program page now check `external_ref` for `teacher_instrument_id` before falling through to JFB form rendering. Custom instrument activities create/find instances and redirect to the Teacher Self-Assessment page. Legacy JFB-powered assessments continue to work unchanged.
+- [x] **19.6 Admin Instruments Page** — Added "Teacher Assessment Instruments" tab to admin instruments page with full CRUD (list, add, edit, delete). Form has JSON textareas for sections and scale labels definitions.
+- [x] **19.7 Bootstrap + Registration** — Registered `[hl_teacher_assessment]` shortcode, added require_once for domain model, renderer, and frontend page. Added "Teacher Self-Assessment" page to create-pages CLI.
+- [x] **19.8 Seed Data + B2E Instrument** — Both seed-demo and seed-palm-beach insert the B2E Teacher Self-Assessment instrument (3 sections: Teaching Practices — 12 likert-5 items, Well-being — 6 likert-7 items, Self-Regulation — 10 scale-0-10 items). Activity external_ref updated from JFB form_id to teacher_instrument_id.
+
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
 - [x] **Grace unlock override type** — `compute_availability()` now recognizes `grace_unlock` override type: bypasses prerequisite gate but NOT drip rules (mirrors `manual_unlock` which bypasses drip but NOT prereqs).
@@ -305,14 +315,14 @@ _Read docs: 04 (section 2.2), 08_
   hl-core.php                    # Plugin bootstrap (singleton)
   /includes/
     class-hl-installer.php       # DB schema + activation
-    /domain/                     # Entity models (8 classes)
+    /domain/                     # Entity models (9 classes)
     /domain/repositories/        # CRUD repositories (8 classes)
     /cli/                        # WP-CLI commands (seed-demo, seed-palm-beach, create-pages)
     /services/                   # Business logic (14+ services incl. HL_Scope_Service, HL_Pathway_Assignment_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss (3 classes)
     /admin/                      # WP admin pages (15+ controllers incl. Cohort Groups)
-    /frontend/                   # Shortcode renderers (25 pages + instrument renderer)
+    /frontend/                   # Shortcode renderers (26 pages + instrument renderer + teacher assessment renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization helpers
   /data/                         # Private data files (gitignored)
