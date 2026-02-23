@@ -43,10 +43,18 @@ class HL_Admin_Instruments {
      * Handle POST saves and GET deletes before any HTML output.
      */
     public function handle_early_actions() {
-        $this->handle_actions();
+        $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'children';
 
-        if (isset($_GET['action']) && $_GET['action'] === 'delete') {
-            $this->handle_delete();
+        if ($tab === 'teacher') {
+            $this->handle_teacher_actions();
+            if (isset($_GET['action']) && $_GET['action'] === 'delete') {
+                $this->handle_teacher_delete();
+            }
+        } else {
+            $this->handle_actions();
+            if (isset($_GET['action']) && $_GET['action'] === 'delete') {
+                $this->handle_delete();
+            }
         }
     }
 
@@ -54,15 +62,49 @@ class HL_Admin_Instruments {
      * Main render entry point
      */
     public function render_page() {
+        $tab    = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'children';
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
 
         echo '<div class="wrap">';
 
+        // Tab navigation
+        $this->render_tabs($tab);
+
+        if ($tab === 'teacher') {
+            $this->render_teacher_tab($action);
+        } else {
+            $this->render_children_tab($action);
+        }
+
+        echo '</div>';
+    }
+
+    /**
+     * Render the tab navigation.
+     */
+    private function render_tabs($active_tab) {
+        $tabs = array(
+            'children' => __('Children Assessment Instruments', 'hl-core'),
+            'teacher'  => __('Teacher Assessment Instruments', 'hl-core'),
+        );
+
+        echo '<nav class="nav-tab-wrapper" style="margin-bottom: 15px;">';
+        foreach ($tabs as $tab_key => $tab_label) {
+            $url   = admin_url('admin.php?page=hl-instruments&tab=' . $tab_key);
+            $class = ($active_tab === $tab_key) ? 'nav-tab nav-tab-active' : 'nav-tab';
+            echo '<a href="' . esc_url($url) . '" class="' . esc_attr($class) . '">' . esc_html($tab_label) . '</a>';
+        }
+        echo '</nav>';
+    }
+
+    /**
+     * Render the children instruments tab.
+     */
+    private function render_children_tab($action) {
         switch ($action) {
             case 'new':
                 $this->render_form();
                 break;
-
             case 'edit':
                 $instrument_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
                 $instrument    = $this->get_instrument($instrument_id);
@@ -73,13 +115,34 @@ class HL_Admin_Instruments {
                     $this->render_list();
                 }
                 break;
-
             default:
                 $this->render_list();
                 break;
         }
+    }
 
-        echo '</div>';
+    /**
+     * Render the teacher instruments tab.
+     */
+    private function render_teacher_tab($action) {
+        switch ($action) {
+            case 'new':
+                $this->render_teacher_form();
+                break;
+            case 'edit':
+                $instrument_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+                $instrument    = $this->get_teacher_instrument($instrument_id);
+                if ($instrument) {
+                    $this->render_teacher_form($instrument);
+                } else {
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Instrument not found.', 'hl-core') . '</p></div>';
+                    $this->render_teacher_list();
+                }
+                break;
+            default:
+                $this->render_teacher_list();
+                break;
+        }
     }
 
     /**
@@ -609,5 +672,296 @@ class HL_Admin_Instruments {
         })();
         </script>
         <?php
+    }
+
+    // =====================================================================
+    // Teacher Assessment Instruments (Tab 2)
+    // =====================================================================
+
+    /**
+     * Get a teacher assessment instrument by ID.
+     */
+    private function get_teacher_instrument($instrument_id) {
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_id = %d",
+            $instrument_id
+        ));
+    }
+
+    /**
+     * Handle teacher instrument form submissions.
+     */
+    private function handle_teacher_actions() {
+        if (!isset($_POST['hl_teacher_instrument_nonce'])) {
+            return;
+        }
+
+        if (!wp_verify_nonce($_POST['hl_teacher_instrument_nonce'], 'hl_save_teacher_instrument')) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(__('You do not have permission to perform this action.', 'hl-core'));
+        }
+
+        $instrument_id = isset($_POST['instrument_id']) ? absint($_POST['instrument_id']) : 0;
+
+        $data = array(
+            'instrument_name'    => sanitize_text_field($_POST['instrument_name']),
+            'instrument_key'     => sanitize_text_field($_POST['instrument_key']),
+            'instrument_version' => sanitize_text_field($_POST['instrument_version'] ?: '1.0'),
+            'status'             => sanitize_text_field($_POST['status']),
+        );
+
+        // Sections and scale_labels are stored as JSON
+        $sections_raw = isset($_POST['sections_json']) ? wp_unslash($_POST['sections_json']) : '[]';
+        $scale_labels_raw = isset($_POST['scale_labels_json']) ? wp_unslash($_POST['scale_labels_json']) : '{}';
+
+        // Validate JSON
+        $sections_decoded = json_decode($sections_raw, true);
+        if ($sections_decoded === null && json_last_error() !== JSON_ERROR_NONE) {
+            wp_die(__('Invalid JSON in sections field.', 'hl-core'));
+        }
+        $scale_decoded = json_decode($scale_labels_raw, true);
+        if ($scale_decoded === null && json_last_error() !== JSON_ERROR_NONE) {
+            wp_die(__('Invalid JSON in scale labels field.', 'hl-core'));
+        }
+
+        $data['sections']     = wp_json_encode($sections_decoded);
+        $data['scale_labels'] = wp_json_encode($scale_decoded);
+
+        global $wpdb;
+
+        if ($instrument_id > 0) {
+            $data['updated_at'] = current_time('mysql');
+            $wpdb->update($wpdb->prefix . 'hl_teacher_assessment_instrument', $data, array('instrument_id' => $instrument_id));
+
+            HL_Audit_Service::log('teacher_instrument.updated', array(
+                'entity_type' => 'teacher_assessment_instrument',
+                'entity_id'   => $instrument_id,
+                'after_data'  => array(
+                    'instrument_name' => $data['instrument_name'],
+                    'instrument_key'  => $data['instrument_key'],
+                    'version'         => $data['instrument_version'],
+                ),
+            ));
+
+            $redirect = admin_url('admin.php?page=hl-instruments&tab=teacher&message=updated');
+        } else {
+            $data['created_at'] = current_time('mysql');
+            $wpdb->insert($wpdb->prefix . 'hl_teacher_assessment_instrument', $data);
+            $new_id = $wpdb->insert_id;
+
+            HL_Audit_Service::log('teacher_instrument.created', array(
+                'entity_type' => 'teacher_assessment_instrument',
+                'entity_id'   => $new_id,
+                'after_data'  => array(
+                    'instrument_name' => $data['instrument_name'],
+                    'instrument_key'  => $data['instrument_key'],
+                    'version'         => $data['instrument_version'],
+                ),
+            ));
+
+            $redirect = admin_url('admin.php?page=hl-instruments&tab=teacher&message=created');
+        }
+
+        wp_redirect($redirect);
+        exit;
+    }
+
+    /**
+     * Handle teacher instrument delete action.
+     */
+    private function handle_teacher_delete() {
+        $instrument_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+        if (!$instrument_id) {
+            return;
+        }
+
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_delete_teacher_instrument_' . $instrument_id)) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(__('You do not have permission to perform this action.', 'hl-core'));
+        }
+
+        global $wpdb;
+        $instrument = $this->get_teacher_instrument($instrument_id);
+        $wpdb->delete($wpdb->prefix . 'hl_teacher_assessment_instrument', array('instrument_id' => $instrument_id));
+
+        if ($instrument) {
+            HL_Audit_Service::log('teacher_instrument.deleted', array(
+                'entity_type' => 'teacher_assessment_instrument',
+                'entity_id'   => $instrument_id,
+                'before_data' => array(
+                    'instrument_name' => $instrument->instrument_name,
+                    'instrument_key'  => $instrument->instrument_key,
+                ),
+            ));
+        }
+
+        wp_redirect(admin_url('admin.php?page=hl-instruments&tab=teacher&message=deleted'));
+        exit;
+    }
+
+    /**
+     * Render the teacher instruments list table.
+     */
+    private function render_teacher_list() {
+        global $wpdb;
+
+        $instruments = $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument ORDER BY instrument_name ASC"
+        );
+
+        if (isset($_GET['message'])) {
+            $msg = sanitize_text_field($_GET['message']);
+            if ($msg === 'created') {
+                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Teacher assessment instrument created.', 'hl-core') . '</p></div>';
+            } elseif ($msg === 'updated') {
+                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Teacher assessment instrument updated.', 'hl-core') . '</p></div>';
+            } elseif ($msg === 'deleted') {
+                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Teacher assessment instrument deleted.', 'hl-core') . '</p></div>';
+            }
+        }
+
+        echo '<h1 class="wp-heading-inline">' . esc_html__('Teacher Assessment Instruments', 'hl-core') . '</h1>';
+        echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-instruments&tab=teacher&action=new')) . '" class="page-title-action">' . esc_html__('Add New', 'hl-core') . '</a>';
+        echo '<hr class="wp-header-end">';
+
+        if (empty($instruments)) {
+            echo '<p>' . esc_html__('No teacher assessment instruments found.', 'hl-core') . '</p>';
+            return;
+        }
+
+        echo '<table class="widefat striped">';
+        echo '<thead><tr>';
+        echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Key', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Version', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Sections', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
+        echo '</tr></thead>';
+        echo '<tbody>';
+
+        foreach ($instruments as $inst) {
+            $edit_url   = admin_url('admin.php?page=hl-instruments&tab=teacher&action=edit&id=' . $inst->instrument_id);
+            $delete_url = wp_nonce_url(
+                admin_url('admin.php?page=hl-instruments&tab=teacher&action=delete&id=' . $inst->instrument_id),
+                'hl_delete_teacher_instrument_' . $inst->instrument_id
+            );
+
+            $sections = json_decode($inst->sections, true);
+            $section_count = is_array($sections) ? count($sections) : 0;
+            $item_count = 0;
+            if (is_array($sections)) {
+                foreach ($sections as $s) {
+                    $item_count += isset($s['items']) && is_array($s['items']) ? count($s['items']) : 0;
+                }
+            }
+
+            echo '<tr>';
+            echo '<td>' . esc_html($inst->instrument_id) . '</td>';
+            echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($inst->instrument_name) . '</a></strong></td>';
+            echo '<td><code>' . esc_html($inst->instrument_key) . '</code></td>';
+            echo '<td><code>' . esc_html($inst->instrument_version) . '</code></td>';
+            echo '<td>' . esc_html(sprintf('%d sections, %d items', $section_count, $item_count)) . '</td>';
+            echo '<td>' . esc_html(ucfirst($inst->status)) . '</td>';
+            echo '<td>';
+            echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
+            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this instrument?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
+            echo '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table>';
+    }
+
+    /**
+     * Render the teacher instrument add/edit form.
+     *
+     * @param object|null $instrument Existing instrument for edit, null for create.
+     */
+    private function render_teacher_form($instrument = null) {
+        $is_edit = ($instrument !== null);
+        $title   = $is_edit ? __('Edit Teacher Assessment Instrument', 'hl-core') : __('Add New Teacher Assessment Instrument', 'hl-core');
+
+        echo '<h1>' . esc_html($title) . '</h1>';
+        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-instruments&tab=teacher')) . '">&larr; ' . esc_html__('Back to Teacher Instruments', 'hl-core') . '</a>';
+
+        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-instruments&tab=teacher')) . '">';
+        wp_nonce_field('hl_save_teacher_instrument', 'hl_teacher_instrument_nonce');
+
+        if ($is_edit) {
+            echo '<input type="hidden" name="instrument_id" value="' . esc_attr($instrument->instrument_id) . '" />';
+        }
+
+        echo '<table class="form-table">';
+
+        // Name
+        echo '<tr>';
+        echo '<th scope="row"><label for="instrument_name">' . esc_html__('Instrument Name', 'hl-core') . '</label></th>';
+        echo '<td><input type="text" id="instrument_name" name="instrument_name" value="' . esc_attr($is_edit ? $instrument->instrument_name : '') . '" class="regular-text" required /></td>';
+        echo '</tr>';
+
+        // Key
+        echo '<tr>';
+        echo '<th scope="row"><label for="instrument_key">' . esc_html__('Instrument Key', 'hl-core') . '</label></th>';
+        echo '<td><input type="text" id="instrument_key" name="instrument_key" value="' . esc_attr($is_edit ? $instrument->instrument_key : '') . '" class="regular-text" required />';
+        echo '<p class="description">' . esc_html__('Unique identifier (e.g., b2e_self_assessment). Used in code and seed data.', 'hl-core') . '</p></td>';
+        echo '</tr>';
+
+        // Version
+        echo '<tr>';
+        echo '<th scope="row"><label for="instrument_version">' . esc_html__('Version', 'hl-core') . '</label></th>';
+        echo '<td><input type="text" id="instrument_version" name="instrument_version" value="' . esc_attr($is_edit ? $instrument->instrument_version : '1.0') . '" class="small-text" /></td>';
+        echo '</tr>';
+
+        // Status
+        $current_status = $is_edit ? $instrument->status : 'active';
+        echo '<tr>';
+        echo '<th scope="row"><label for="status">' . esc_html__('Status', 'hl-core') . '</label></th>';
+        echo '<td><select id="status" name="status">';
+        echo '<option value="active"' . selected($current_status, 'active', false) . '>' . esc_html__('Active', 'hl-core') . '</option>';
+        echo '<option value="inactive"' . selected($current_status, 'inactive', false) . '>' . esc_html__('Inactive', 'hl-core') . '</option>';
+        echo '</select></td>';
+        echo '</tr>';
+
+        // Sections JSON
+        $sections_json = $is_edit ? $instrument->sections : '[]';
+        // Pretty-print for editing
+        $sections_decoded = json_decode($sections_json, true);
+        $sections_pretty  = wp_json_encode($sections_decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+        echo '<tr>';
+        echo '<th scope="row"><label for="sections_json">' . esc_html__('Sections (JSON)', 'hl-core') . '</label></th>';
+        echo '<td>';
+        echo '<textarea id="sections_json" name="sections_json" rows="20" class="large-text code" style="font-family: monospace;">' . esc_textarea($sections_pretty) . '</textarea>';
+        echo '<p class="description">' . esc_html__('JSON array of section objects. Each section: {section_key, title, description, type (likert|scale), scale_key, items: [{key, text}]}', 'hl-core') . '</p>';
+        echo '</td>';
+        echo '</tr>';
+
+        // Scale Labels JSON
+        $scale_labels_json = $is_edit ? $instrument->scale_labels : '{}';
+        $scale_decoded     = json_decode($scale_labels_json, true);
+        $scale_pretty      = wp_json_encode($scale_decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+        echo '<tr>';
+        echo '<th scope="row"><label for="scale_labels_json">' . esc_html__('Scale Labels (JSON)', 'hl-core') . '</label></th>';
+        echo '<td>';
+        echo '<textarea id="scale_labels_json" name="scale_labels_json" rows="8" class="large-text code" style="font-family: monospace;">' . esc_textarea($scale_pretty) . '</textarea>';
+        echo '<p class="description">' . esc_html__('JSON map: {scale_key: [labels]} for likert scales, {scale_key: {low, high}} for numeric scales.', 'hl-core') . '</p>';
+        echo '</td>';
+        echo '</tr>';
+
+        echo '</table>';
+
+        submit_button($is_edit ? __('Update Instrument', 'hl-core') : __('Create Instrument', 'hl-core'));
+
+        echo '</form>';
     }
 }
