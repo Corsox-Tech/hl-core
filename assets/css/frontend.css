@@ -1674,6 +1674,10 @@ body:has(.hl-dashboard) h1.entry-title {
    34. DETAIL ROW (expandable reports)
    ===================================================== */
 
+.hl-detail-row {
+    display: none;
+}
+
 .hl-detail-row td {
     padding: 0 !important;
     background: var(--hl-bg-subtle);
@@ -2046,6 +2050,11 @@ body:has(.hl-dashboard) h1.entry-title {
     font-size: 14px;
     color: rgba(255, 255, 255, 0.7);
     margin: 0;
+}
+
+.hl-crm-detail-header .hl-scope-indicator a {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: underline;
     font-style: italic;
 }
 

@@ -284,9 +284,9 @@ class HL_Frontend_Team_Page {
                 </div>
             </div>
             <div class="hl-team-page-header-stats">
-                <div class="hl-metric-card" style="background:transparent;border:1px solid rgba(255,255,255,0.2);">
-                    <div class="hl-metric-value" style="color:#FFFFFF;"><?php echo esc_html( $avg . '%' ); ?></div>
-                    <div class="hl-metric-label" style="color:rgba(255,255,255,0.7);"><?php esc_html_e( 'Avg Completion', 'hl-core' ); ?></div>
+                <div class="hl-metric-card">
+                    <div class="hl-metric-value"><?php echo esc_html( $avg . '%' ); ?></div>
+                    <div class="hl-metric-label"><?php esc_html_e( 'Avg Completion', 'hl-core' ); ?></div>
                 </div>
             </div>
         </div>
@@ -409,11 +409,11 @@ class HL_Frontend_Team_Page {
                 <table class="hl-table hl-reports-table" id="hl-team-report-table">
                     <thead>
                         <tr>
-                            <th style="width:30px">#</th>
+                            <th>#</th>
                             <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Role', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Completed', 'hl-core' ); ?></th>
-                            <th style="width:80px"><?php esc_html_e( 'Details', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Details', 'hl-core' ); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -454,7 +454,7 @@ class HL_Frontend_Team_Page {
                                     </button>
                                 </td>
                             </tr>
-                            <tr class="hl-detail-row" id="hl-team-detail-<?php echo esc_attr( $eid ); ?>" style="display:none">
+                            <tr class="hl-detail-row" id="hl-team-detail-<?php echo esc_attr( $eid ); ?>">
                                 <td colspan="5">
                                     <div class="hl-detail-content">
                                         <?php if ( isset( $activity_detail[ $eid ] ) && ! empty( $activities ) ) : ?>

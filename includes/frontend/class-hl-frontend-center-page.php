@@ -168,7 +168,7 @@ class HL_Frontend_Center_Page {
                 ?>
                     <p class="hl-scope-indicator">
                         <?php if ( $d_url ) : ?>
-                            <a href="<?php echo esc_url( $d_url ); ?>" style="color:rgba(255,255,255,0.8);text-decoration:underline;">
+                            <a href="<?php echo esc_url( $d_url ); ?>">
                                 <?php echo esc_html( $parent_district->name ); ?>
                             </a>
                         <?php else : ?>
