@@ -60,6 +60,9 @@ class HL_Installer {
         // Add cohort_group_id column to hl_cohort.
         self::migrate_cohort_add_group_id();
 
+        // Add responses_json column to hl_teacher_assessment_instance.
+        self::migrate_teacher_assessment_add_responses_json();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -82,7 +85,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 5;
+        $current_revision = 6;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -380,6 +383,34 @@ class HL_Installer {
         if ( empty( $row ) ) {
             $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN cohort_group_id bigint(20) unsigned NULL AFTER district_id" );
             $wpdb->query( "ALTER TABLE `{$table}` ADD INDEX cohort_group_id (cohort_group_id)" );
+        }
+    }
+
+    /**
+     * Migration: Add responses_json column to hl_teacher_assessment_instance.
+     *
+     * Stores structured JSON responses for custom instrument-based assessments
+     * (as opposed to JFB-powered assessments which store responses in JFB Form Records).
+     */
+    private static function migrate_teacher_assessment_add_responses_json() {
+        global $wpdb;
+
+        $table = "{$wpdb->prefix}hl_teacher_assessment_instance";
+
+        $table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table;
+        if ( ! $table_exists ) {
+            return;
+        }
+
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                $table,
+                'responses_json'
+            )
+        );
+        if ( empty( $row ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN responses_json longtext DEFAULT NULL AFTER jfb_record_id" );
         }
     }
 
@@ -986,6 +1017,21 @@ class HL_Installer {
             KEY enrollment_id (enrollment_id),
             KEY pathway_id (pathway_id),
             KEY assignment_type (assignment_type)
+        ) $charset_collate;";
+
+        // Teacher Assessment Instrument table (custom self-assessment instruments)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_teacher_assessment_instrument (
+            instrument_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            instrument_name varchar(200) NOT NULL,
+            instrument_version varchar(20) NOT NULL DEFAULT '1.0',
+            instrument_key varchar(50) NOT NULL,
+            sections longtext NOT NULL,
+            scale_labels longtext DEFAULT NULL,
+            status varchar(20) NOT NULL DEFAULT 'active',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (instrument_id),
+            KEY idx_key_version (instrument_key, instrument_version)
         ) $charset_collate;";
 
         // Cohort Group table (program-level grouping for cross-cohort reporting)
