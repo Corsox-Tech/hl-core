@@ -1,19 +1,81 @@
 /* =====================================================
-   HL Core Frontend Styles — Modernized for BuddyBoss
+   HL Core Frontend Design System
    =====================================================
-   Color palette aligned with BuddyBoss theme:
-   - Primary (dark navy):  #1A2B47
-   - Accent (green):       #2ECC71
-   - Secondary (blue):     #2C7BE5
-   - Warning (amber):      #F59E0B
-   - Error (red):          #EF4444
-   - Surface:              #FFFFFF
-   - Background:           #F4F5F7
-   - Text primary:         #1A2B47
-   - Text secondary:       #6B7280
-   - Text muted:           #9CA3AF
-   - Border:               #E5E7EB
+   CSS custom properties aligned with BuddyBoss theme.
+   All components use these tokens for consistent theming.
    ===================================================== */
+
+:root {
+    /* ---- Core Palette ---- */
+    --hl-primary:          #1A2B47;
+    --hl-primary-light:    #243B5C;
+    --hl-primary-rgb:      26, 43, 71;
+    --hl-accent:           #2ECC71;
+    --hl-accent-dark:      #059669;
+    --hl-accent-darker:    #047857;
+    --hl-secondary:        #2C7BE5;
+    --hl-secondary-dark:   #1D4ED8;
+    --hl-warning:          #F59E0B;
+    --hl-error:            #EF4444;
+    --hl-error-dark:       #DC2626;
+
+    /* ---- Text ---- */
+    --hl-text:             #374151;
+    --hl-text-heading:     #1A2B47;
+    --hl-text-secondary:   #6B7280;
+    --hl-text-muted:       #9CA3AF;
+
+    /* ---- Surfaces ---- */
+    --hl-surface:          #FFFFFF;
+    --hl-bg:               #F4F5F7;
+    --hl-bg-subtle:        #F9FAFB;
+    --hl-bg-alt:           #FAFBFC;
+    --hl-bg-hover:         #EFF6FF;
+
+    /* ---- Borders ---- */
+    --hl-border:           #E5E7EB;
+    --hl-border-light:     #F3F4F6;
+    --hl-border-medium:    #D1D5DB;
+
+    /* ---- Radius ---- */
+    --hl-radius:           12px;
+    --hl-radius-sm:        8px;
+    --hl-radius-xs:        6px;
+    --hl-radius-pill:      100px;
+
+    /* ---- Shadows ---- */
+    --hl-shadow:           0 2px 8px rgba(0, 0, 0, 0.06);
+    --hl-shadow-md:        0 4px 12px rgba(0, 0, 0, 0.08);
+    --hl-shadow-lg:        0 8px 24px rgba(0, 0, 0, 0.1);
+    --hl-shadow-hover:     0 6px 20px rgba(0, 0, 0, 0.1);
+
+    /* ---- Transitions ---- */
+    --hl-transition:       all 0.2s ease;
+    --hl-transition-slow:  all 0.3s ease;
+
+    /* ---- Status Colors ---- */
+    --hl-status-active-bg:      #D1FAE5;
+    --hl-status-active-text:    #065F46;
+    --hl-status-complete-bg:    #D1FAE5;
+    --hl-status-complete-text:  #065F46;
+    --hl-status-progress-bg:    #DBEAFE;
+    --hl-status-progress-text:  #1D4ED8;
+    --hl-status-paused-bg:      #FEF3C7;
+    --hl-status-paused-text:    #92400E;
+    --hl-status-draft-bg:       #F3F4F6;
+    --hl-status-draft-text:     #6B7280;
+    --hl-status-archived-bg:    #FEE2E2;
+    --hl-status-archived-text:  #991B1B;
+    --hl-status-role-bg:        #E0E7FF;
+    --hl-status-role-text:      #3730A3;
+
+    /* ---- CRM Palette (Slate/Blue) ---- */
+    --hl-crm-border:       #E2E8F0;
+    --hl-crm-text:         #64748B;
+    --hl-crm-text-dark:    #475569;
+    --hl-crm-accent:       #3B82F6;
+    --hl-crm-border-light: #F1F5F9;
+}
 
 /* =====================================================
    1. HIDE BUDDYBOSS THEME PAGE TITLE ON HL PAGES
@@ -26,7 +88,6 @@
     display: none !important;
 }
 
-/* Target common BuddyBoss / theme title patterns */
 body:has(.hl-dashboard) .entry-header .entry-title,
 body:has(.hl-dashboard) article > .entry-title,
 body:has(.hl-dashboard) .bb-grid > .entry-title,
@@ -35,7 +96,7 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 /* =====================================================
-   2. BASE / DASHBOARD WRAPPER (padding fix)
+   2. BASE / PAGE WRAPPER
    ===================================================== */
 
 .hl-dashboard {
@@ -43,7 +104,7 @@ body:has(.hl-dashboard) h1.entry-title {
     margin: 0 auto;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     line-height: 1.5;
 }
 
@@ -53,7 +114,6 @@ body:has(.hl-dashboard) h1.entry-title {
     box-sizing: border-box;
 }
 
-/* Remove extra padding from theme content wrappers */
 .entry-content .hl-dashboard,
 .bb-grid .hl-dashboard,
 .site-content .hl-dashboard {
@@ -70,7 +130,7 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-dashboard h2,
 .hl-dashboard h3,
 .hl-dashboard h4 {
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     font-weight: 700;
     line-height: 1.3;
 }
@@ -86,7 +146,7 @@ body:has(.hl-dashboard) h1.entry-title {
 
 .hl-notice {
     padding: 14px 20px;
-    border-radius: 8px;
+    border-radius: var(--hl-radius-sm);
     font-size: 14px;
     line-height: 1.6;
     margin-bottom: 24px;
@@ -95,20 +155,26 @@ body:has(.hl-dashboard) h1.entry-title {
 
 .hl-notice-warning {
     background: #FFFBEB;
-    border-left-color: #F59E0B;
-    color: #92400E;
+    border-left-color: var(--hl-warning);
+    color: var(--hl-status-paused-text);
 }
 
 .hl-notice-info {
     background: #EFF6FF;
-    border-left-color: #2C7BE5;
+    border-left-color: var(--hl-secondary);
     color: #1E40AF;
 }
 
 .hl-notice-error {
     background: #FEF2F2;
-    border-left-color: #EF4444;
-    color: #991B1B;
+    border-left-color: var(--hl-error);
+    color: var(--hl-status-archived-text);
+}
+
+.hl-notice-success {
+    background: #ECFDF5;
+    border-left-color: var(--hl-accent-dark);
+    color: var(--hl-status-active-text);
 }
 
 /* =====================================================
@@ -120,7 +186,7 @@ body:has(.hl-dashboard) h1.entry-title {
     gap: 6px;
     margin-bottom: 28px;
     flex-wrap: wrap;
-    background: #F4F5F7;
+    background: var(--hl-bg);
     padding: 4px;
     border-radius: 10px;
     border: none;
@@ -130,30 +196,27 @@ body:has(.hl-dashboard) h1.entry-title {
     padding: 10px 22px;
     font-size: 14px;
     font-weight: 600;
-    color: #6B7280;
+    color: var(--hl-text-secondary);
     background: transparent;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--hl-radius-sm);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: var(--hl-transition);
     margin-bottom: 0;
 }
 
 .hl-tab:hover {
-    color: #1A2B47;
-    background: rgba(26, 43, 71, 0.06);
+    color: var(--hl-text-heading);
+    background: rgba(var(--hl-primary-rgb), 0.06);
 }
 
 .hl-tab.active {
-    color: #FFFFFF;
-    background: #1A2B47;
-    box-shadow: 0 1px 3px rgba(26, 43, 71, 0.2);
+    color: var(--hl-surface);
+    background: var(--hl-primary);
+    box-shadow: 0 1px 3px rgba(var(--hl-primary-rgb), 0.2);
 }
 
-/* =====================================================
-   TAB CONTENT SHOW / HIDE
-   ===================================================== */
-
+/* Tab content show/hide */
 .hl-frontend-wrap .hl-cohort-content {
     display: none !important;
 }
@@ -177,7 +240,7 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-section-title {
     font-size: 17px;
     font-weight: 700;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     margin: 0 0 16px;
     letter-spacing: -0.01em;
 }
@@ -190,7 +253,7 @@ body:has(.hl-dashboard) h1.entry-title {
     display: inline-flex;
     align-items: center;
     padding: 3px 12px;
-    border-radius: 100px;
+    border-radius: var(--hl-radius-pill);
     font-size: 12px;
     font-weight: 600;
     text-transform: capitalize;
@@ -198,16 +261,21 @@ body:has(.hl-dashboard) h1.entry-title {
     line-height: 1.5;
 }
 
-.hl-badge-active       { background: #D1FAE5; color: #065F46; }
-.hl-badge-paused       { background: #FEF3C7; color: #92400E; }
-.hl-badge-draft        { background: #F3F4F6; color: #6B7280; }
-.hl-badge-archived     { background: #FEE2E2; color: #991B1B; }
-.hl-badge-role         { background: #E0E7FF; color: #3730A3; margin: 1px 3px; }
-.hl-badge-not-started  { background: #F3F4F6; color: #6B7280; }
-.hl-badge-in-progress  { background: #DBEAFE; color: #1D4ED8; }
-.hl-badge-completed    { background: #D1FAE5; color: #065F46; }
-.hl-badge-not-started  { background: #F3F4F6; color: #6B7280; }
-.hl-badge-complete     { background: #D1FAE5; color: #065F46; }
+.hl-badge-active       { background: var(--hl-status-active-bg); color: var(--hl-status-active-text); }
+.hl-badge-paused       { background: var(--hl-status-paused-bg); color: var(--hl-status-paused-text); }
+.hl-badge-draft        { background: var(--hl-status-draft-bg); color: var(--hl-status-draft-text); }
+.hl-badge-archived     { background: var(--hl-status-archived-bg); color: var(--hl-status-archived-text); }
+.hl-badge-role         { background: var(--hl-status-role-bg); color: var(--hl-status-role-text); margin: 1px 3px; }
+.hl-badge-not-started  { background: var(--hl-status-draft-bg); color: var(--hl-status-draft-text); }
+.hl-badge-in-progress  { background: var(--hl-status-progress-bg); color: var(--hl-status-progress-text); }
+.hl-badge-completed,
+.hl-badge-complete     { background: var(--hl-status-complete-bg); color: var(--hl-status-complete-text); }
+.hl-badge-future       { background: #EDE9FE; color: #5B21B6; }
+.hl-badge-scheduled    { background: var(--hl-status-progress-bg); color: var(--hl-status-progress-text); }
+.hl-badge-attended     { background: var(--hl-status-complete-bg); color: var(--hl-status-complete-text); }
+.hl-badge-missed       { background: var(--hl-status-archived-bg); color: var(--hl-status-archived-text); }
+.hl-badge-cancelled    { background: var(--hl-status-draft-bg); color: var(--hl-status-draft-text); }
+.hl-badge-rescheduled  { background: var(--hl-status-paused-bg); color: var(--hl-status-paused-text); }
 
 /* =====================================================
    9. META ITEMS
@@ -218,44 +286,44 @@ body:has(.hl-dashboard) h1.entry-title {
     gap: 18px;
     flex-wrap: wrap;
     font-size: 14px;
-    color: #6B7280;
+    color: var(--hl-text-secondary);
     margin-top: 6px;
 }
 
 .hl-meta-item strong {
     font-weight: 600;
-    color: #374151;
+    color: var(--hl-text);
 }
 
 /* =====================================================
-   10. PROGRESS BARS — GRADIENT, TALLER, ROUNDED
+   10. PROGRESS BARS
    ===================================================== */
 
 .hl-progress-bar-container {
     width: 100%;
     height: 8px;
-    background: #E5E7EB;
-    border-radius: 100px;
+    background: var(--hl-border);
+    border-radius: var(--hl-radius-pill);
     overflow: hidden;
 }
 
 .hl-progress-bar {
     height: 100%;
-    border-radius: 100px;
+    border-radius: var(--hl-radius-pill);
     transition: width 0.5s ease;
-    background: #D1D5DB;
+    background: var(--hl-border-medium);
 }
 
 .hl-progress-bar.hl-progress-active {
-    background: linear-gradient(90deg, #1A2B47 0%, #2C7BE5 100%);
+    background: linear-gradient(90deg, var(--hl-primary) 0%, var(--hl-secondary) 100%);
 }
 
 .hl-progress-bar.hl-progress-complete {
-    background: linear-gradient(90deg, #059669 0%, #2ECC71 100%);
+    background: linear-gradient(90deg, var(--hl-accent-dark) 0%, var(--hl-accent) 100%);
 }
 
 .hl-progress-bar.hl-progress-locked {
-    background: #E5E7EB;
+    background: var(--hl-border);
 }
 
 /* =====================================================
@@ -281,13 +349,13 @@ body:has(.hl-dashboard) h1.entry-title {
 
 .hl-ring-bg {
     fill: none;
-    stroke: #E5E7EB;
+    stroke: var(--hl-border);
     stroke-width: 8;
 }
 
 .hl-ring-fill {
     fill: none;
-    stroke: #2ECC71;
+    stroke: var(--hl-accent);
     stroke-width: 8;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.6s ease;
@@ -306,13 +374,13 @@ body:has(.hl-dashboard) h1.entry-title {
     display: block;
     font-size: 24px;
     font-weight: 800;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
 }
 
 .hl-ring-label {
     display: block;
     font-size: 11px;
-    color: #9CA3AF;
+    color: var(--hl-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     font-weight: 600;
@@ -327,13 +395,13 @@ body:has(.hl-dashboard) h1.entry-title {
     align-items: center;
     justify-content: center;
     padding: 10px 20px;
-    border-radius: 8px;
+    border-radius: var(--hl-radius-sm);
     font-size: 14px;
     font-weight: 600;
     text-decoration: none;
     border: 2px solid transparent;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: var(--hl-transition);
     line-height: 1.4;
     gap: 6px;
 }
@@ -341,52 +409,65 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-btn-sm {
     padding: 6px 16px;
     font-size: 13px;
-    border-radius: 6px;
+    border-radius: var(--hl-radius-xs);
 }
 
 .hl-btn-primary {
-    background: #1A2B47;
-    color: #FFFFFF;
-    border-color: #1A2B47;
+    background: var(--hl-primary);
+    color: var(--hl-surface);
+    border-color: var(--hl-primary);
 }
 
 .hl-btn-primary:hover {
-    background: #243B5C;
-    border-color: #243B5C;
-    color: #FFFFFF;
+    background: var(--hl-primary-light);
+    border-color: var(--hl-primary-light);
+    color: var(--hl-surface);
     text-decoration: none;
-    box-shadow: 0 2px 8px rgba(26, 43, 71, 0.25);
+    box-shadow: 0 2px 8px rgba(var(--hl-primary-rgb), 0.25);
     transform: translateY(-1px);
 }
 
 .hl-btn-secondary {
     background: transparent;
-    color: #1A2B47;
-    border-color: #D1D5DB;
+    color: var(--hl-primary);
+    border-color: var(--hl-border-medium);
 }
 
 .hl-btn-secondary:hover {
-    background: #F4F5F7;
-    border-color: #1A2B47;
-    color: #1A2B47;
+    background: var(--hl-bg);
+    border-color: var(--hl-primary);
+    color: var(--hl-primary);
     text-decoration: none;
 }
 
 .hl-btn-success {
-    background: #059669;
-    color: #FFFFFF;
-    border-color: #059669;
+    background: var(--hl-accent-dark);
+    color: var(--hl-surface);
+    border-color: var(--hl-accent-dark);
 }
 
 .hl-btn-success:hover {
-    background: #047857;
-    border-color: #047857;
-    color: #FFFFFF;
+    background: var(--hl-accent-darker);
+    border-color: var(--hl-accent-darker);
+    color: var(--hl-surface);
+    text-decoration: none;
+}
+
+.hl-btn-danger {
+    background: var(--hl-error);
+    color: var(--hl-surface);
+    border-color: var(--hl-error);
+}
+
+.hl-btn-danger:hover {
+    background: var(--hl-error-dark);
+    border-color: var(--hl-error-dark);
+    color: var(--hl-surface);
     text-decoration: none;
 }
 
 /* =====================================================
-   13. HEADER PANELS
+   13. HERO / HEADER PANELS
    ===================================================== */
 
 .hl-progress-header,
@@ -396,13 +477,13 @@ body:has(.hl-dashboard) h1.entry-title {
     align-items: center;
     justify-content: space-between;
     gap: 24px;
-    background: linear-gradient(135deg, #1A2B47 0%, #243B5C 100%);
+    background: linear-gradient(135deg, var(--hl-primary) 0%, var(--hl-primary-light) 100%);
     border: none;
-    border-radius: 12px;
+    border-radius: var(--hl-radius);
     padding: 24px 28px;
     margin-bottom: 28px;
     flex-wrap: wrap;
-    color: #FFFFFF;
+    color: var(--hl-surface);
 }
 
 .hl-progress-header-info,
@@ -417,7 +498,7 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-my-cohort-header .hl-cohort-title {
     font-size: 22px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--hl-surface);
     margin: 0 0 6px;
 }
 
@@ -434,12 +515,12 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-progress-header .hl-badge,
 .hl-my-cohort-header .hl-badge {
     background: rgba(255, 255, 255, 0.15);
-    color: #FFFFFF;
+    color: var(--hl-surface);
 }
 
 .hl-progress-header .hl-ring-percent,
 .hl-my-cohort-header .hl-ring-percent {
-    color: #FFFFFF;
+    color: var(--hl-surface);
 }
 
 .hl-progress-header .hl-ring-label,
@@ -454,7 +535,7 @@ body:has(.hl-dashboard) h1.entry-title {
 
 .hl-progress-header .hl-ring-fill,
 .hl-my-cohort-header .hl-ring-fill {
-    stroke: #2ECC71;
+    stroke: var(--hl-accent);
 }
 
 .hl-my-cohort-header .hl-scope-indicator {
@@ -471,7 +552,7 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-my-cohort-header .hl-cohort-selector .hl-select {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.25);
-    color: #FFFFFF;
+    color: var(--hl-surface);
 }
 
 /* =====================================================
@@ -490,7 +571,7 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-dashboard-title {
     font-size: 24px;
     font-weight: 700;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     margin: 0;
 }
 
@@ -507,53 +588,122 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-cohort-selector label {
     font-size: 14px;
     font-weight: 600;
-    color: #6B7280;
+    color: var(--hl-text-secondary);
 }
 
 /* =====================================================
-   16. SELECT & SEARCH INPUTS
+   16. FORMS — SELECT, SEARCH, TEXT INPUTS
    ===================================================== */
 
 .hl-select {
     padding: 8px 14px;
-    border: 1px solid #D1D5DB;
-    border-radius: 8px;
+    border: 1px solid var(--hl-border-medium);
+    border-radius: var(--hl-radius-sm);
     font-size: 14px;
-    background: #FFFFFF;
+    background: var(--hl-surface);
     min-width: 180px;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .hl-select:focus {
     outline: none;
-    border-color: #2C7BE5;
+    border-color: var(--hl-secondary);
     box-shadow: 0 0 0 3px rgba(44, 123, 229, 0.1);
 }
 
 .hl-search-input {
     padding: 8px 14px;
-    border: 1px solid #D1D5DB;
-    border-radius: 8px;
+    border: 1px solid var(--hl-border-medium);
+    border-radius: var(--hl-radius-sm);
     font-size: 14px;
     min-width: 200px;
-    background: #FFFFFF;
-    color: #1A2B47;
+    background: var(--hl-surface);
+    color: var(--hl-text-heading);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .hl-search-input:focus {
     outline: none;
-    border-color: #2C7BE5;
+    border-color: var(--hl-secondary);
     box-shadow: 0 0 0 3px rgba(44, 123, 229, 0.1);
 }
 
 .hl-search-input::placeholder {
-    color: #9CA3AF;
+    color: var(--hl-text-muted);
+}
+
+.hl-input {
+    padding: 8px 14px;
+    border: 1px solid var(--hl-border-medium);
+    border-radius: var(--hl-radius-sm);
+    font-size: 14px;
+    background: var(--hl-surface);
+    color: var(--hl-text-heading);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    max-width: 400px;
+}
+
+.hl-input:focus {
+    outline: none;
+    border-color: var(--hl-secondary);
+    box-shadow: 0 0 0 3px rgba(44, 123, 229, 0.1);
+}
+
+.hl-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--hl-text-heading);
+    margin-bottom: 6px;
+}
+
+.hl-form-group {
+    margin-bottom: 16px;
 }
 
 /* =====================================================
-   17. METRICS ROW
+   17. FILTERS BAR
+   ===================================================== */
+
+.hl-filters-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.hl-filters-bar .hl-search-input {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-filters-bar .hl-select {
+    min-width: 160px;
+}
+
+/* Checkbox filter group (inline) */
+.hl-filter-checkboxes {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.hl-filter-checkboxes label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--hl-text-secondary);
+    cursor: pointer;
+}
+
+/* =====================================================
+   18. METRICS ROW
    ===================================================== */
 
 .hl-metrics-row {
@@ -564,29 +714,29 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 .hl-metric-card {
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
     padding: 20px 24px;
     text-align: center;
     transition: box-shadow 0.2s, transform 0.2s;
 }
 
 .hl-metric-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    box-shadow: var(--hl-shadow-md);
     transform: translateY(-2px);
 }
 
 .hl-metric-value {
     font-size: 32px;
     font-weight: 800;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     line-height: 1.2;
 }
 
 .hl-metric-label {
     font-size: 13px;
-    color: #9CA3AF;
+    color: var(--hl-text-muted);
     margin-top: 4px;
     font-weight: 500;
     text-transform: uppercase;
@@ -594,7 +744,7 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 /* =====================================================
-   18. DATA TABLES
+   19. DATA TABLES
    ===================================================== */
 
 .hl-table-container {
@@ -621,14 +771,14 @@ body:has(.hl-dashboard) h1.entry-title {
     border-collapse: separate;
     border-spacing: 0;
     font-size: 14px;
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
     overflow: hidden;
 }
 
 .hl-table thead th {
-    background: #1A2B47;
+    background: var(--hl-primary);
     padding: 12px 16px;
     text-align: left;
     font-weight: 600;
@@ -641,17 +791,17 @@ body:has(.hl-dashboard) h1.entry-title {
 
 .hl-table tbody td {
     padding: 12px 16px;
-    border-bottom: 1px solid #F3F4F6;
+    border-bottom: 1px solid var(--hl-border-light);
     vertical-align: middle;
-    color: #374151;
+    color: var(--hl-text);
 }
 
 .hl-table tbody tr:nth-child(even) {
-    background: #FAFBFC;
+    background: var(--hl-bg-alt);
 }
 
 .hl-table tbody tr:hover {
-    background: #EFF6FF;
+    background: var(--hl-bg-hover);
 }
 
 .hl-table tbody tr:last-child td {
@@ -659,18 +809,18 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 .hl-table tbody td strong {
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     font-weight: 600;
 }
 
 .hl-table tbody td a {
-    color: #2C7BE5;
+    color: var(--hl-secondary);
     text-decoration: none;
     font-weight: 500;
 }
 
 .hl-table tbody td a:hover {
-    color: #1D4ED8;
+    color: var(--hl-secondary-dark);
     text-decoration: underline;
 }
 
@@ -689,13 +839,13 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-progress-text {
     font-size: 13px;
     font-weight: 700;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     white-space: nowrap;
     min-width: 36px;
 }
 
 /* =====================================================
-   19. ACTIVITY CARDS
+   20. ACTIVITY CARDS
    ===================================================== */
 
 .hl-activity-list {
@@ -710,8 +860,8 @@ body:has(.hl-dashboard) h1.entry-title {
     display: flex;
     align-items: stretch;
     gap: 16px;
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
     border-radius: 10px;
     padding: 18px 20px;
     margin-bottom: 12px;
@@ -724,17 +874,17 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 .hl-activity-completed {
-    border-left: 4px solid #2ECC71;
+    border-left: 4px solid var(--hl-accent);
     background: #F0FDF4;
 }
 
 .hl-activity-locked {
     opacity: 0.55;
-    background: #FAFBFC;
+    background: var(--hl-bg-alt);
 }
 
 .hl-activity-available {
-    border-left: 4px solid #2C7BE5;
+    border-left: 4px solid var(--hl-secondary);
 }
 
 /* --- Activity Status Icon --- */
@@ -747,17 +897,17 @@ body:has(.hl-dashboard) h1.entry-title {
     flex-shrink: 0;
     font-size: 18px;
     border-radius: 50%;
-    background: #F4F5F7;
+    background: var(--hl-bg);
     align-self: flex-start;
     margin-top: 2px;
 }
 
-.hl-icon-check  { color: #059669; }
-.hl-icon-lock   { color: #9CA3AF; font-size: 15px; }
-.hl-icon-progress { color: #2C7BE5; }
+.hl-icon-check    { color: var(--hl-accent-dark); }
+.hl-icon-lock     { color: var(--hl-text-muted); font-size: 15px; }
+.hl-icon-progress { color: var(--hl-secondary); }
 
-.hl-activity-completed .hl-activity-status-icon { background: #D1FAE5; }
-.hl-activity-available .hl-activity-status-icon { background: #DBEAFE; }
+.hl-activity-completed .hl-activity-status-icon { background: var(--hl-status-complete-bg); }
+.hl-activity-available .hl-activity-status-icon { background: var(--hl-status-progress-bg); }
 
 /* --- Activity Content --- */
 .hl-activity-content {
@@ -768,17 +918,17 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-activity-title {
     font-size: 15px;
     font-weight: 600;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     margin: 0 0 6px;
 }
 
 .hl-activity-title a {
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     text-decoration: none;
 }
 
 .hl-activity-title a:hover {
-    color: #2C7BE5;
+    color: var(--hl-secondary);
     text-decoration: underline;
 }
 
@@ -787,7 +937,7 @@ body:has(.hl-dashboard) h1.entry-title {
     gap: 12px;
     flex-wrap: wrap;
     font-size: 13px;
-    color: #9CA3AF;
+    color: var(--hl-text-muted);
     margin-bottom: 10px;
     align-items: center;
 }
@@ -795,25 +945,25 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-activity-type {
     display: inline-block;
     padding: 2px 10px;
-    border-radius: 100px;
+    border-radius: var(--hl-radius-pill);
     font-size: 11px;
     font-weight: 600;
-    background: #E0E7FF;
-    color: #3730A3;
+    background: var(--hl-status-role-bg);
+    color: var(--hl-status-role-text);
 }
 
 .hl-activity-date {
-    color: #059669;
+    color: var(--hl-accent-dark);
     font-weight: 500;
 }
 
 .hl-activity-lock-reason {
-    color: #DC2626;
+    color: var(--hl-error-dark);
     font-style: italic;
 }
 
 .hl-activity-progress-text {
-    color: #6B7280;
+    color: var(--hl-text-secondary);
 }
 
 .hl-activity-action {
@@ -823,12 +973,12 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-activity-notice {
     display: inline-block;
     font-size: 13px;
-    color: #9CA3AF;
+    color: var(--hl-text-muted);
     font-style: italic;
 }
 
 /* =====================================================
-   20. INLINE FORM VIEW (JFB)
+   21. INLINE FORM VIEW (JFB)
    ===================================================== */
 
 .hl-inline-form-wrapper {
@@ -841,51 +991,51 @@ body:has(.hl-dashboard) h1.entry-title {
     gap: 4px;
     margin-bottom: 20px;
     font-size: 14px;
-    color: #2C7BE5;
+    color: var(--hl-secondary);
     text-decoration: none;
     font-weight: 500;
     transition: color 0.2s;
 }
 
 .hl-back-link:hover {
-    color: #1D4ED8;
+    color: var(--hl-secondary-dark);
     text-decoration: none;
 }
 
 .hl-inline-form-title {
     font-size: 24px;
     font-weight: 700;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     margin: 0 0 8px;
 }
 
 .hl-inline-form-description {
     font-size: 15px;
-    color: #6B7280;
+    color: var(--hl-text-secondary);
     margin: 0 0 24px;
     line-height: 1.7;
 }
 
 .hl-jfb-form-container {
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
     padding: 28px;
 }
 
 /* =====================================================
-   21. EMPTY STATE
+   22. EMPTY STATE
    ===================================================== */
 
 .hl-empty-state {
     text-align: center;
     padding: 60px 24px;
-    color: #9CA3AF;
+    color: var(--hl-text-muted);
 }
 
 .hl-empty-state h3 {
     font-size: 18px;
-    color: #6B7280;
+    color: var(--hl-text-secondary);
     margin: 0 0 8px;
     font-weight: 600;
 }
@@ -900,7 +1050,7 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 /* =====================================================
-   22. MEMBER CARDS (Team Progress)
+   23. MEMBER CARDS (Team Progress)
    ===================================================== */
 
 .hl-team-members {
@@ -910,15 +1060,15 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 .hl-member-card {
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
     overflow: hidden;
     transition: box-shadow 0.2s, transform 0.15s;
 }
 
 .hl-member-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--hl-shadow-md);
 }
 
 .hl-member-header {
@@ -932,8 +1082,8 @@ body:has(.hl-dashboard) h1.entry-title {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #1A2B47, #2C7BE5);
-    color: #FFFFFF;
+    background: linear-gradient(135deg, var(--hl-primary), var(--hl-secondary));
+    color: var(--hl-surface);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -950,19 +1100,19 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-member-name {
     font-size: 15px;
     font-weight: 600;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     margin: 0;
 }
 
 .hl-member-email {
     font-size: 13px;
-    color: #9CA3AF;
+    color: var(--hl-text-muted);
     display: block;
 }
 
 .hl-member-role {
     font-size: 12px;
-    color: #6B7280;
+    color: var(--hl-text-secondary);
 }
 
 .hl-member-completion {
@@ -973,7 +1123,7 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-completion-value {
     font-size: 20px;
     font-weight: 800;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
 }
 
 .hl-member-card .hl-progress-bar-container {
@@ -983,21 +1133,21 @@ body:has(.hl-dashboard) h1.entry-title {
 
 /* --- Member Details (native <details>) --- */
 .hl-member-details {
-    border-top: 1px solid #F3F4F6;
+    border-top: 1px solid var(--hl-border-light);
     font-size: 14px;
 }
 
 .hl-member-details summary {
     padding: 12px 20px;
     cursor: pointer;
-    color: #2C7BE5;
+    color: var(--hl-secondary);
     font-weight: 600;
     font-size: 13px;
     transition: background 0.2s;
 }
 
 .hl-member-details summary:hover {
-    background: #F9FAFB;
+    background: var(--hl-bg-subtle);
 }
 
 .hl-member-activities {
@@ -1010,7 +1160,7 @@ body:has(.hl-dashboard) h1.entry-title {
     align-items: center;
     gap: 10px;
     padding: 8px 0;
-    border-bottom: 1px solid #F3F4F6;
+    border-bottom: 1px solid var(--hl-border-light);
     font-size: 13px;
 }
 
@@ -1031,7 +1181,7 @@ body:has(.hl-dashboard) h1.entry-title {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #374151;
+    color: var(--hl-text);
 }
 
 .hl-mini-percent {
@@ -1042,19 +1192,19 @@ body:has(.hl-dashboard) h1.entry-title {
     text-align: right;
 }
 
-.hl-mini-complete .hl-mini-status  { color: #059669; }
-.hl-mini-complete .hl-mini-title   { color: #065F46; }
-.hl-mini-complete .hl-mini-percent { color: #059669; }
+.hl-mini-complete .hl-mini-status  { color: var(--hl-accent-dark); }
+.hl-mini-complete .hl-mini-title   { color: var(--hl-status-active-text); }
+.hl-mini-complete .hl-mini-percent { color: var(--hl-accent-dark); }
 
-.hl-mini-progress .hl-mini-status  { color: #2C7BE5; }
-.hl-mini-progress .hl-mini-percent { color: #2C7BE5; }
+.hl-mini-progress .hl-mini-status  { color: var(--hl-secondary); }
+.hl-mini-progress .hl-mini-percent { color: var(--hl-secondary); }
 
-.hl-mini-locked .hl-mini-status  { color: #D1D5DB; }
-.hl-mini-locked .hl-mini-title   { color: #9CA3AF; }
-.hl-mini-locked .hl-mini-percent { color: #9CA3AF; }
+.hl-mini-locked .hl-mini-status  { color: var(--hl-border-medium); }
+.hl-mini-locked .hl-mini-title   { color: var(--hl-text-muted); }
+.hl-mini-locked .hl-mini-percent { color: var(--hl-text-muted); }
 
 /* =====================================================
-   23. MY PROGRAMS
+   24. MY PROGRAMS
    ===================================================== */
 
 .hl-programs-grid {
@@ -1064,21 +1214,21 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 .hl-program-card {
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
     overflow: hidden;
-    transition: box-shadow 0.3s ease, transform 0.2s ease;
+    transition: var(--hl-transition-slow);
 }
 
 .hl-program-card:hover {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--hl-shadow-lg);
     transform: translateY(-3px);
 }
 
 .hl-program-card-image {
     height: 180px;
-    background: linear-gradient(135deg, #1A2B47, #2C7BE5);
+    background: linear-gradient(135deg, var(--hl-primary), var(--hl-secondary));
     overflow: hidden;
     position: relative;
 }
@@ -1097,12 +1247,12 @@ body:has(.hl-dashboard) h1.entry-title {
     font-size: 18px;
     font-weight: 700;
     margin: 0 0 4px;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
 }
 
 .hl-program-card-cohort {
     font-size: 13px;
-    color: #9CA3AF;
+    color: var(--hl-text-muted);
     margin: 0 0 14px;
     font-weight: 500;
 }
@@ -1117,7 +1267,7 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-program-card-progress span {
     font-size: 14px;
     font-weight: 700;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     min-width: 36px;
 }
 
@@ -1126,11 +1276,191 @@ body:has(.hl-dashboard) h1.entry-title {
     align-items: center;
     justify-content: space-between;
     padding-top: 16px;
-    border-top: 1px solid #F3F4F6;
+    border-top: 1px solid var(--hl-border-light);
 }
 
 /* =====================================================
-   24. PROGRAM PAGE
+   25. COACH INFO CARD
+   ===================================================== */
+
+.hl-coach-info-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: var(--hl-bg-subtle);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
+    margin-bottom: 24px;
+}
+
+.hl-coach-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid var(--hl-border);
+}
+
+.hl-coach-avatar-placeholder {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--hl-primary), var(--hl-secondary));
+    color: var(--hl-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.hl-coach-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.hl-coach-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+    margin: 0 0 2px;
+}
+
+.hl-coach-email {
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+    margin: 0 0 8px;
+}
+
+.hl-coach-email a {
+    color: var(--hl-secondary);
+    text-decoration: none;
+}
+
+.hl-coach-email a:hover {
+    text-decoration: underline;
+}
+
+.hl-coach-no-assignment {
+    font-size: 14px;
+    color: var(--hl-text-muted);
+    font-style: italic;
+}
+
+/* =====================================================
+   26. COACHING SESSION CARDS
+   ===================================================== */
+
+.hl-sessions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 28px;
+}
+
+.hl-session-card {
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
+    padding: 18px 20px;
+    transition: var(--hl-transition);
+}
+
+.hl-session-card:hover {
+    box-shadow: var(--hl-shadow);
+}
+
+.hl-session-card--past {
+    opacity: 0.8;
+}
+
+.hl-session-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.hl-session-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--hl-text-heading);
+    margin: 0;
+}
+
+.hl-session-date {
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+    margin-bottom: 10px;
+}
+
+.hl-session-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.hl-session-no-items {
+    color: var(--hl-text-muted);
+    font-size: 14px;
+    padding: 8px 0;
+}
+
+/* =====================================================
+   27. ENROLLMENT SWITCHER
+   ===================================================== */
+
+.hl-enrollment-switcher {
+    margin-bottom: 20px;
+}
+
+.hl-enrollment-switcher label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--hl-text-secondary);
+    margin-right: 8px;
+}
+
+/* =====================================================
+   28. SCHEDULE FORM
+   ===================================================== */
+
+.hl-schedule-form {
+    background: var(--hl-bg-subtle);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
+    padding: 24px;
+    margin-top: 28px;
+}
+
+.hl-schedule-form h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+    margin: 0 0 16px;
+}
+
+.hl-reschedule-form {
+    margin-top: 8px;
+    display: none;
+    padding: 12px;
+    background: var(--hl-bg-subtle);
+    border-radius: var(--hl-radius-sm);
+    border: 1px solid var(--hl-border);
+}
+
+.hl-reschedule-form .hl-input {
+    margin-bottom: 8px;
+}
+
+/* =====================================================
+   29. PROGRAM PAGE
    ===================================================== */
 
 .hl-program-header {
@@ -1144,7 +1474,7 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-program-hero-image {
     width: 100%;
     max-height: 260px;
-    border-radius: 12px;
+    border-radius: var(--hl-radius);
     overflow: hidden;
 }
 
@@ -1163,20 +1493,20 @@ body:has(.hl-dashboard) h1.entry-title {
     display: flex;
     gap: 20px;
     flex-wrap: wrap;
-    background: #F9FAFB;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
+    background: var(--hl-bg-subtle);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
     padding: 18px 24px;
     margin-bottom: 28px;
 }
 
 .hl-program-detail-item {
     font-size: 14px;
-    color: #6B7280;
+    color: var(--hl-text-secondary);
 }
 
 .hl-program-detail-item strong {
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     font-weight: 600;
 }
 
@@ -1187,41 +1517,41 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-program-objectives h3 {
     font-size: 17px;
     font-weight: 700;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     margin: 0 0 12px;
 }
 
 /* =====================================================
-   25. ACTIVITY PAGE
+   30. ACTIVITY PAGE
    ===================================================== */
 
 .hl-activity-page .hl-activity-type-badge {
     display: inline-block;
     padding: 4px 14px;
-    background: #E0E7FF;
-    border-radius: 100px;
+    background: var(--hl-status-role-bg);
+    border-radius: var(--hl-radius-pill);
     font-size: 12px;
     font-weight: 600;
-    color: #3730A3;
+    color: var(--hl-status-role-text);
     margin-bottom: 20px;
 }
 
 .hl-activity-locked-view {
     text-align: center;
     padding: 56px 24px;
-    background: #F9FAFB;
-    border-radius: 12px;
-    border: 1px solid #E5E7EB;
+    background: var(--hl-bg-subtle);
+    border-radius: var(--hl-radius);
+    border: 1px solid var(--hl-border);
 }
 
 .hl-activity-locked-view .hl-lock-icon {
     font-size: 52px;
-    color: #D1D5DB;
+    color: var(--hl-border-medium);
     margin-bottom: 16px;
 }
 
 /* =====================================================
-   26. TEAMS GRID (My Cohort)
+   31. TEAMS GRID (My Cohort / Workspace)
    ===================================================== */
 
 .hl-teams-grid {
@@ -1231,41 +1561,41 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 .hl-team-card-item {
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
     padding: 22px;
-    transition: box-shadow 0.3s ease, transform 0.2s ease;
+    transition: var(--hl-transition-slow);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
 
 .hl-team-card-item:hover {
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+    box-shadow: var(--hl-shadow-hover);
     transform: translateY(-2px);
 }
 
 .hl-team-card-name {
     font-size: 17px;
     font-weight: 700;
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     margin: 0 0 4px;
 }
 
 .hl-team-card-name a {
-    color: #1A2B47;
+    color: var(--hl-text-heading);
     text-decoration: none;
     transition: color 0.2s;
 }
 
 .hl-team-card-name a:hover {
-    color: #2C7BE5;
+    color: var(--hl-secondary);
 }
 
 .hl-team-card-center {
     font-size: 13px;
-    color: #9CA3AF;
+    color: var(--hl-text-muted);
     margin: 0 0 12px;
     font-weight: 500;
 }
@@ -1275,13 +1605,13 @@ body:has(.hl-dashboard) h1.entry-title {
     flex-direction: column;
     gap: 4px;
     font-size: 13px;
-    color: #6B7280;
+    color: var(--hl-text-secondary);
     margin-bottom: 14px;
 }
 
 .hl-team-card-meta strong {
     font-weight: 600;
-    color: #374151;
+    color: var(--hl-text);
 }
 
 .hl-team-card-progress {
@@ -1291,11 +1621,11 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-team-card-action {
     text-align: right;
     padding-top: 14px;
-    border-top: 1px solid #F3F4F6;
+    border-top: 1px solid var(--hl-border-light);
 }
 
 /* =====================================================
-   27. REPORT FILTERS
+   32. REPORT FILTERS
    ===================================================== */
 
 .hl-report-filters {
@@ -1307,29 +1637,29 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 /* =====================================================
-   28. EXPORT BUTTON
+   33. EXPORT BUTTON
    ===================================================== */
 
 .hl-export-btn {
     white-space: nowrap;
-    background: #059669;
-    color: #FFFFFF;
-    border-color: #059669;
+    background: var(--hl-accent-dark);
+    color: var(--hl-surface);
+    border-color: var(--hl-accent-dark);
 }
 
 .hl-export-btn:hover {
-    background: #047857;
-    border-color: #047857;
-    color: #FFFFFF;
+    background: var(--hl-accent-darker);
+    border-color: var(--hl-accent-darker);
+    color: var(--hl-surface);
 }
 
 /* =====================================================
-   29. DETAIL ROW (expandable reports)
+   34. DETAIL ROW (expandable reports)
    ===================================================== */
 
 .hl-detail-row td {
     padding: 0 !important;
-    background: #F9FAFB;
+    background: var(--hl-bg-subtle);
 }
 
 .hl-detail-content {
@@ -1339,11 +1669,11 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-detail-table {
     margin: 0;
     font-size: 13px;
-    border-radius: 8px;
+    border-radius: var(--hl-radius-sm);
 }
 
 .hl-detail-table thead th {
-    background: #374151;
+    background: var(--hl-text);
     padding: 10px 14px;
     font-size: 11px;
     color: rgba(255, 255, 255, 0.9);
@@ -1356,11 +1686,524 @@ body:has(.hl-dashboard) h1.entry-title {
 .hl-detail-toggle {
     font-size: 12px !important;
     padding: 4px 12px !important;
-    border-radius: 6px !important;
+    border-radius: var(--hl-radius-xs) !important;
 }
 
 /* =====================================================
-   30. RESPONSIVE — GLOBAL
+   35. TEAM PAGE HEADER
+   ===================================================== */
+
+.hl-team-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: linear-gradient(135deg, var(--hl-primary) 0%, var(--hl-primary-light) 100%);
+    border: none;
+    border-radius: var(--hl-radius);
+    padding: 24px 28px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    color: var(--hl-surface);
+}
+
+.hl-team-page-header-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-team-page-header .hl-cohort-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--hl-surface);
+    margin: 0 0 6px;
+}
+
+.hl-team-page-header .hl-scope-indicator {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 8px;
+    font-style: italic;
+}
+
+.hl-team-page-header .hl-cohort-meta {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.hl-team-page-header .hl-meta-item strong {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.hl-team-page-header-stats {
+    display: flex;
+    gap: 12px;
+}
+
+.hl-team-page-header-stats .hl-metric-card {
+    min-width: 120px;
+    text-align: center;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.hl-team-page-header-stats .hl-metric-value {
+    color: var(--hl-surface);
+}
+
+.hl-team-page-header-stats .hl-metric-label {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* =====================================================
+   36. CLASSROOM PAGE HEADER
+   ===================================================== */
+
+.hl-classroom-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: linear-gradient(135deg, var(--hl-primary) 0%, var(--hl-primary-light) 100%);
+    border: none;
+    border-radius: var(--hl-radius);
+    padding: 24px 28px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    color: var(--hl-surface);
+}
+
+.hl-classroom-page-header-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-classroom-page-header .hl-cohort-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--hl-surface);
+    margin: 0 0 6px;
+}
+
+.hl-classroom-page-header .hl-scope-indicator {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 8px;
+    font-style: italic;
+}
+
+.hl-classroom-page-header .hl-cohort-meta {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.hl-classroom-page-header .hl-meta-item strong {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* =====================================================
+   37. CRM DIRECTORY — SHARED STYLES
+   ===================================================== */
+
+.hl-crm-page-header {
+    margin-bottom: 24px;
+}
+
+.hl-crm-page-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+    margin: 0;
+}
+
+/* Card grid for districts, centers, cohorts */
+.hl-crm-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.hl-crm-card {
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-crm-border);
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.hl-crm-card:hover {
+    border-color: var(--hl-crm-accent);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.hl-crm-card-body {
+    flex: 1;
+}
+
+.hl-crm-card-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--hl-text-heading);
+    margin: 0 0 8px;
+}
+
+.hl-crm-card-title a {
+    color: var(--hl-text-heading);
+    text-decoration: none;
+}
+
+.hl-crm-card-title a:hover {
+    color: var(--hl-crm-accent);
+}
+
+.hl-crm-card-subtitle {
+    font-size: 13px;
+    color: var(--hl-crm-text);
+    margin: 0 0 8px;
+}
+
+.hl-crm-card-code {
+    font-size: 12px;
+    color: var(--hl-text-muted);
+    margin-bottom: 8px;
+    font-family: monospace;
+}
+
+.hl-crm-card-dates {
+    font-size: 13px;
+    color: var(--hl-text-muted);
+    margin-bottom: 10px;
+}
+
+.hl-crm-card-image {
+    height: 140px;
+    overflow: hidden;
+    border-radius: var(--hl-radius-sm) var(--hl-radius-sm) 0 0;
+    margin: -20px -20px 16px -20px;
+    background: linear-gradient(135deg, var(--hl-primary), var(--hl-secondary));
+}
+
+.hl-crm-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hl-crm-card-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.hl-crm-card-stat {
+    font-size: 13px;
+    color: var(--hl-crm-text);
+}
+
+.hl-crm-card-stat strong {
+    color: var(--hl-text-heading);
+    font-weight: 600;
+    margin-right: 3px;
+}
+
+.hl-crm-card-detail {
+    font-size: 13px;
+    color: var(--hl-crm-text);
+    margin: 4px 0 0;
+}
+
+.hl-crm-card-detail strong {
+    color: var(--hl-crm-text-dark);
+}
+
+.hl-crm-card-action {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--hl-crm-border-light);
+}
+
+/* =====================================================
+   38. CRM DETAIL PAGE HEADER (District/Center)
+   ===================================================== */
+
+.hl-crm-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: linear-gradient(135deg, var(--hl-primary) 0%, var(--hl-primary-light) 100%);
+    border: none;
+    border-radius: var(--hl-radius);
+    padding: 24px 28px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    color: var(--hl-surface);
+}
+
+.hl-crm-detail-header-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.hl-crm-detail-header .hl-cohort-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--hl-surface);
+    margin: 0 0 6px;
+}
+
+.hl-crm-detail-header .hl-scope-indicator {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+    font-style: italic;
+}
+
+.hl-crm-detail-header-stats {
+    display: flex;
+    gap: 16px;
+}
+
+.hl-crm-stat-box {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--hl-radius-sm);
+    padding: 12px 20px;
+    text-align: center;
+    min-width: 90px;
+}
+
+.hl-crm-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--hl-surface);
+}
+
+.hl-crm-stat-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 2px;
+}
+
+/* =====================================================
+   39. CRM SECTIONS
+   ===================================================== */
+
+.hl-crm-section {
+    margin-bottom: 32px;
+}
+
+.hl-crm-section .hl-section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--hl-text-heading);
+    margin: 0 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--hl-crm-border);
+}
+
+/* Cohort list rows */
+.hl-crm-cohort-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.hl-crm-cohort-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-crm-border);
+    border-radius: var(--hl-radius-sm);
+    padding: 16px 20px;
+    flex-wrap: wrap;
+}
+
+.hl-crm-cohort-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.hl-crm-cohort-info strong {
+    font-size: 15px;
+    color: var(--hl-text-heading);
+}
+
+.hl-crm-cohort-dates {
+    font-size: 13px;
+    color: var(--hl-crm-text);
+}
+
+.hl-crm-cohort-count {
+    font-size: 13px;
+    color: var(--hl-crm-text);
+}
+
+/* Stats row for overview */
+.hl-crm-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+}
+
+/* =====================================================
+   40. COHORT WORKSPACE — DASHBOARD TAB
+   ===================================================== */
+
+.hl-workspace-dashboard .hl-metrics-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+}
+
+/* =====================================================
+   41. PAGINATION
+   ===================================================== */
+
+.hl-pagination {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+
+.hl-pagination a,
+.hl-pagination span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: var(--hl-radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: var(--hl-transition);
+}
+
+.hl-pagination a {
+    color: var(--hl-text-secondary);
+    border: 1px solid var(--hl-border);
+    background: var(--hl-surface);
+}
+
+.hl-pagination a:hover {
+    background: var(--hl-bg);
+    border-color: var(--hl-primary);
+    color: var(--hl-primary);
+    text-decoration: none;
+}
+
+.hl-pagination .hl-pagination-current {
+    background: var(--hl-primary);
+    color: var(--hl-surface);
+    border: 1px solid var(--hl-primary);
+    font-weight: 700;
+}
+
+.hl-pagination .hl-pagination-dots {
+    color: var(--hl-text-muted);
+    border: none;
+}
+
+/* =====================================================
+   42. NO-RESULTS (hidden by default, shown by JS)
+   ===================================================== */
+
+.hl-no-results {
+    display: none;
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--hl-text-muted);
+    font-size: 14px;
+}
+
+/* =====================================================
+   43. INSTRUMENT MATRIX (Children Assessment)
+   ===================================================== */
+
+.hl-instrument-matrix {
+    overflow-x: auto;
+    margin-bottom: 24px;
+}
+
+.hl-instrument-matrix .hl-table {
+    min-width: 600px;
+}
+
+.hl-instrument-matrix .hl-child-column {
+    position: sticky;
+    left: 0;
+    background: var(--hl-surface);
+    z-index: 1;
+    font-weight: 600;
+    min-width: 150px;
+}
+
+.hl-instrument-matrix .hl-child-code {
+    font-size: 11px;
+    color: var(--hl-text-muted);
+    display: block;
+}
+
+.hl-likert-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.hl-likert-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.hl-form-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+/* =====================================================
+   44. OBSERVATION PAGES
+   ===================================================== */
+
+.hl-observation-create-form {
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
+    padding: 24px;
+    margin-bottom: 28px;
+}
+
+.hl-observation-create-form .hl-form-group {
+    margin-bottom: 16px;
+}
+
+.hl-observation-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    color: var(--hl-text-secondary);
+    margin-bottom: 16px;
+}
+
+/* =====================================================
+   45. RESPONSIVE
    ===================================================== */
 
 @media (max-width: 768px) {
@@ -1441,6 +2284,78 @@ body:has(.hl-dashboard) h1.entry-title {
         width: 100%;
         min-width: 0;
     }
+
+    .hl-filters-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hl-filters-bar .hl-search-input,
+    .hl-filters-bar .hl-select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .hl-filter-checkboxes {
+        width: 100%;
+    }
+
+    .hl-coach-info-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .hl-session-header {
+        flex-direction: column;
+    }
+
+    .hl-crm-card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hl-crm-detail-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 20px;
+    }
+
+    .hl-crm-detail-header-stats {
+        flex-wrap: wrap;
+    }
+
+    .hl-crm-cohort-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hl-crm-cohort-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .hl-team-page-header,
+    .hl-classroom-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 20px;
+    }
+
+    .hl-team-page-header-stats {
+        flex-wrap: wrap;
+    }
+
+    .hl-form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hl-observation-meta {
+        flex-direction: column;
+        gap: 8px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1475,373 +2390,19 @@ body:has(.hl-dashboard) h1.entry-title {
         align-items: flex-start;
     }
 
-    .hl-team-page-header,
-    .hl-classroom-page-header {
+    .hl-session-actions {
         flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
-        padding: 20px;
-    }
-}
-
-/* =====================================================
-   31. TEAM PAGE HEADER
-   ===================================================== */
-
-.hl-team-page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    background: linear-gradient(135deg, #1A2B47 0%, #243B5C 100%);
-    border: none;
-    border-radius: 12px;
-    padding: 24px 28px;
-    margin-bottom: 28px;
-    flex-wrap: wrap;
-    color: #FFFFFF;
-}
-
-.hl-team-page-header-info {
-    flex: 1;
-    min-width: 200px;
-}
-
-.hl-team-page-header .hl-cohort-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: #FFFFFF;
-    margin: 0 0 6px;
-}
-
-.hl-team-page-header .hl-scope-indicator {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.7);
-    margin: 0 0 8px;
-    font-style: italic;
-}
-
-.hl-team-page-header .hl-cohort-meta {
-    color: rgba(255, 255, 255, 0.75);
-}
-
-.hl-team-page-header .hl-meta-item strong {
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.hl-team-page-header-stats .hl-metric-card {
-    min-width: 120px;
-    text-align: center;
-}
-
-/* =====================================================
-   32. CLASSROOM PAGE HEADER
-   ===================================================== */
-
-.hl-classroom-page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    background: linear-gradient(135deg, #1A2B47 0%, #243B5C 100%);
-    border: none;
-    border-radius: 12px;
-    padding: 24px 28px;
-    margin-bottom: 28px;
-    flex-wrap: wrap;
-    color: #FFFFFF;
-}
-
-.hl-classroom-page-header-info {
-    flex: 1;
-    min-width: 200px;
-}
-
-.hl-classroom-page-header .hl-cohort-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: #FFFFFF;
-    margin: 0 0 6px;
-}
-
-.hl-classroom-page-header .hl-scope-indicator {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.7);
-    margin: 0 0 8px;
-    font-style: italic;
-}
-
-.hl-classroom-page-header .hl-cohort-meta {
-    color: rgba(255, 255, 255, 0.75);
-}
-
-.hl-classroom-page-header .hl-meta-item strong {
-    color: rgba(255, 255, 255, 0.9);
-}
-
-/* =====================================================
-   33. CRM DIRECTORY — SHARED STYLES
-   ===================================================== */
-
-.hl-crm-page-header {
-    margin-bottom: 24px;
-}
-
-.hl-crm-page-title {
-    font-size: 24px;
-    font-weight: 700;
-    color: #1A2B47;
-    margin: 0;
-}
-
-/* Card grid for districts, centers */
-.hl-crm-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
-    margin-bottom: 28px;
-}
-
-.hl-crm-card {
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 10px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.hl-crm-card:hover {
-    border-color: #3B82F6;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
-}
-
-.hl-crm-card-body {
-    flex: 1;
-}
-
-.hl-crm-card-title {
-    font-size: 17px;
-    font-weight: 600;
-    color: #1A2B47;
-    margin: 0 0 8px;
-}
-
-.hl-crm-card-title a {
-    color: #1A2B47;
-    text-decoration: none;
-}
-
-.hl-crm-card-title a:hover {
-    color: #3B82F6;
-}
-
-.hl-crm-card-subtitle {
-    font-size: 13px;
-    color: #64748B;
-    margin: 0 0 8px;
-}
-
-.hl-crm-card-meta {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-top: 8px;
-}
-
-.hl-crm-card-stat {
-    font-size: 13px;
-    color: #64748B;
-}
-
-.hl-crm-card-stat strong {
-    color: #1A2B47;
-    font-weight: 600;
-    margin-right: 3px;
-}
-
-.hl-crm-card-detail {
-    font-size: 13px;
-    color: #64748B;
-    margin: 4px 0 0;
-}
-
-.hl-crm-card-detail strong {
-    color: #475569;
-}
-
-.hl-crm-card-action {
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px solid #F1F5F9;
-}
-
-/* =====================================================
-   34. CRM DETAIL PAGE HEADER (District/Center)
-   ===================================================== */
-
-.hl-crm-detail-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    background: linear-gradient(135deg, #1A2B47 0%, #243B5C 100%);
-    border: none;
-    border-radius: 12px;
-    padding: 24px 28px;
-    margin-bottom: 28px;
-    flex-wrap: wrap;
-    color: #FFFFFF;
-}
-
-.hl-crm-detail-header-info {
-    flex: 1;
-    min-width: 200px;
-}
-
-.hl-crm-detail-header .hl-cohort-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: #FFFFFF;
-    margin: 0 0 6px;
-}
-
-.hl-crm-detail-header .hl-scope-indicator {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.7);
-    margin: 0;
-    font-style: italic;
-}
-
-.hl-crm-detail-header-stats {
-    display: flex;
-    gap: 16px;
-}
-
-.hl-crm-stat-box {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    padding: 12px 20px;
-    text-align: center;
-    min-width: 90px;
-}
-
-.hl-crm-stat-value {
-    font-size: 22px;
-    font-weight: 700;
-    color: #FFFFFF;
-}
-
-.hl-crm-stat-label {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.7);
-    margin-top: 2px;
-}
-
-/* =====================================================
-   35. CRM SECTIONS
-   ===================================================== */
-
-.hl-crm-section {
-    margin-bottom: 32px;
-}
-
-.hl-crm-section .hl-section-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1A2B47;
-    margin: 0 0 16px;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #E2E8F0;
-}
-
-/* Cohort list rows */
-.hl-crm-cohort-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.hl-crm-cohort-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 8px;
-    padding: 16px 20px;
-    flex-wrap: wrap;
-}
-
-.hl-crm-cohort-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    flex: 1;
-}
-
-.hl-crm-cohort-info strong {
-    font-size: 15px;
-    color: #1A2B47;
-}
-
-.hl-crm-cohort-dates {
-    font-size: 13px;
-    color: #64748B;
-}
-
-.hl-crm-cohort-count {
-    font-size: 13px;
-    color: #64748B;
-}
-
-/* Stats row for overview */
-.hl-crm-stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 16px;
-}
-
-/* =====================================================
-   36. COHORT WORKSPACE — DASHBOARD TAB
-   ===================================================== */
-
-.hl-workspace-dashboard .hl-metrics-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 16px;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .hl-crm-card-grid {
-        grid-template-columns: 1fr;
+        align-items: stretch;
     }
 
-    .hl-crm-detail-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
-        padding: 20px;
+    .hl-pagination {
+        gap: 2px;
     }
 
-    .hl-crm-detail-header-stats {
-        flex-wrap: wrap;
-    }
-
-    .hl-crm-cohort-row {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .hl-crm-cohort-info {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
+    .hl-pagination a,
+    .hl-pagination span {
+        min-width: 32px;
+        height: 32px;
+        font-size: 13px;
     }
 }
