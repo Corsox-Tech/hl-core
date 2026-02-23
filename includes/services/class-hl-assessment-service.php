@@ -182,6 +182,216 @@ class HL_Assessment_Service {
     }
 
     // =========================================================================
+    // Teacher Assessment Instrument Queries
+    // =========================================================================
+
+    /**
+     * Get a teacher assessment instrument by ID.
+     *
+     * @param int $instrument_id
+     * @return HL_Teacher_Assessment_Instrument|null
+     */
+    public function get_teacher_instrument( $instrument_id ) {
+        global $wpdb;
+        $row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_id = %d",
+            $instrument_id
+        ), ARRAY_A );
+        return $row ? new HL_Teacher_Assessment_Instrument( $row ) : null;
+    }
+
+    /**
+     * Get a teacher assessment instrument by key (latest version).
+     *
+     * @param string      $key
+     * @param string|null $version Specific version, or null for latest.
+     * @return HL_Teacher_Assessment_Instrument|null
+     */
+    public function get_teacher_instrument_by_key( $key, $version = null ) {
+        global $wpdb;
+        if ( $version ) {
+            $row = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s AND instrument_version = %s LIMIT 1",
+                $key, $version
+            ), ARRAY_A );
+        } else {
+            $row = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s ORDER BY instrument_id DESC LIMIT 1",
+                $key
+            ), ARRAY_A );
+        }
+        return $row ? new HL_Teacher_Assessment_Instrument( $row ) : null;
+    }
+
+    /**
+     * Get all teacher assessment instruments.
+     *
+     * @return array
+     */
+    public function get_all_teacher_instruments() {
+        global $wpdb;
+        return $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument ORDER BY instrument_name ASC",
+            ARRAY_A
+        ) ?: array();
+    }
+
+    /**
+     * Save teacher assessment responses (draft or submit).
+     *
+     * Stores structured JSON in the responses_json column on the instance row.
+     *
+     * @param int   $instance_id
+     * @param array $responses    Structured responses array (section_key => item_key => value).
+     * @param bool  $is_draft     True for draft save, false for final submit.
+     * @return true|WP_Error
+     */
+    public function save_teacher_assessment_responses( $instance_id, $responses, $is_draft = true ) {
+        global $wpdb;
+
+        $instance = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE instance_id = %d",
+            $instance_id
+        ), ARRAY_A );
+
+        if ( ! $instance ) {
+            return new WP_Error( 'not_found', __( 'Assessment instance not found.', 'hl-core' ) );
+        }
+
+        if ( $instance['status'] === 'submitted' ) {
+            return new WP_Error( 'already_submitted', __( 'This assessment has already been submitted.', 'hl-core' ) );
+        }
+
+        $update_data = array(
+            'responses_json' => wp_json_encode( $responses ),
+            'status'         => $is_draft ? 'in_progress' : 'submitted',
+        );
+
+        if ( ! $is_draft ) {
+            $update_data['submitted_at'] = current_time( 'mysql' );
+        }
+
+        $wpdb->update(
+            $wpdb->prefix . 'hl_teacher_assessment_instance',
+            $update_data,
+            array( 'instance_id' => $instance_id )
+        );
+
+        $action_label = $is_draft ? 'teacher_assessment.draft_saved' : 'teacher_assessment.submitted';
+        HL_Audit_Service::log( $action_label, array(
+            'entity_type' => 'teacher_assessment_instance',
+            'entity_id'   => $instance_id,
+            'cohort_id'   => $instance['cohort_id'],
+        ) );
+
+        if ( ! $is_draft ) {
+            $this->update_teacher_assessment_activity_state( $instance );
+        }
+
+        return true;
+    }
+
+    /**
+     * Get PRE responses for pre-filling POST "Before" column.
+     *
+     * @param int    $enrollment_id
+     * @param int    $cohort_id
+     * @return array Decoded responses array, or empty array.
+     */
+    public function get_pre_responses_for_post( $enrollment_id, $cohort_id ) {
+        global $wpdb;
+
+        $json = $wpdb->get_var( $wpdb->prepare(
+            "SELECT responses_json FROM {$wpdb->prefix}hl_teacher_assessment_instance
+             WHERE enrollment_id = %d AND cohort_id = %d AND phase = 'pre' AND status = 'submitted'
+             LIMIT 1",
+            $enrollment_id, $cohort_id
+        ) );
+
+        if ( $json ) {
+            $decoded = json_decode( $json, true );
+            return is_array( $decoded ) ? $decoded : array();
+        }
+
+        return array();
+    }
+
+    /**
+     * Update the teacher_self_assessment activity state for an enrollment.
+     *
+     * Finds matching activities by teacher_instrument_id + phase in external_ref,
+     * and marks the activity state as complete.
+     *
+     * @param array $instance Instance row as associative array.
+     */
+    private function update_teacher_assessment_activity_state( $instance ) {
+        global $wpdb;
+
+        $enrollment_id = absint( $instance['enrollment_id'] );
+        $cohort_id     = absint( $instance['cohort_id'] );
+        $phase         = $instance['phase'];
+
+        // Find teacher_self_assessment activities in this cohort
+        $activities = $wpdb->get_results( $wpdb->prepare(
+            "SELECT a.activity_id, a.external_ref FROM {$wpdb->prefix}hl_activity a
+             JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
+             WHERE p.cohort_id = %d
+               AND a.activity_type = 'teacher_self_assessment'
+               AND a.status = 'active'",
+            $cohort_id
+        ) );
+
+        if ( empty( $activities ) ) {
+            return;
+        }
+
+        $now = current_time( 'mysql' );
+
+        foreach ( $activities as $activity ) {
+            $ref = json_decode( $activity->external_ref, true );
+            if ( ! is_array( $ref ) ) {
+                continue;
+            }
+
+            // Match by teacher_instrument_id and phase
+            if ( empty( $ref['teacher_instrument_id'] ) ) {
+                continue;
+            }
+            if ( isset( $ref['phase'] ) && $ref['phase'] !== $phase ) {
+                continue;
+            }
+
+            $existing = $wpdb->get_var( $wpdb->prepare(
+                "SELECT state_id FROM {$wpdb->prefix}hl_activity_state
+                 WHERE enrollment_id = %d AND activity_id = %d",
+                $enrollment_id, $activity->activity_id
+            ) );
+
+            $state_data = array(
+                'completion_percent' => 100,
+                'completion_status'  => 'complete',
+                'completed_at'       => $now,
+                'last_computed_at'   => $now,
+            );
+
+            if ( $existing ) {
+                $wpdb->update(
+                    $wpdb->prefix . 'hl_activity_state',
+                    $state_data,
+                    array( 'state_id' => $existing )
+                );
+            } else {
+                $state_data['enrollment_id'] = $enrollment_id;
+                $state_data['activity_id']   = $activity->activity_id;
+                $wpdb->insert( $wpdb->prefix . 'hl_activity_state', $state_data );
+            }
+        }
+
+        // Trigger rollup recomputation
+        do_action( 'hl_core_recompute_rollups', $enrollment_id );
+    }
+
+    // =========================================================================
     // Children Assessment Queries
     // =========================================================================
 
