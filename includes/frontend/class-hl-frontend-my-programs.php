@@ -236,7 +236,7 @@ class HL_Frontend_My_Programs {
                 <?php if ($image_id) : ?>
                     <?php echo wp_get_attachment_image($image_id, 'medium_large', false, array('loading' => 'lazy')); ?>
                 <?php else : ?>
-                    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#9e9e9e;font-size:48px;">&#128218;</div>
+                    <div class="hl-program-card-placeholder">&#128218;</div>
                 <?php endif; ?>
             </div>
             <div class="hl-program-card-body">
@@ -268,11 +268,11 @@ class HL_Frontend_My_Programs {
         $coaching_page_url = $this->find_shortcode_page_url('hl_my_coaching');
 
         ?>
-        <div class="hl-coach-widget" style="display:flex;align-items:center;gap:16px;padding:16px;background:#f8f9fa;border-radius:8px;margin-bottom:24px;">
+        <div class="hl-coach-widget">
             <?php if ($coach) : ?>
-                <div><?php echo get_avatar($coach['coach_user_id'], 56, '', '', array('style' => 'border-radius:50%;')); ?></div>
-                <div style="flex:1;">
-                    <strong><?php esc_html_e('My Coach', 'hl-core'); ?></strong><br>
+                <div class="hl-coach-avatar"><?php echo get_avatar($coach['coach_user_id'], 56); ?></div>
+                <div class="hl-coach-widget-info">
+                    <strong><?php esc_html_e('My Coach', 'hl-core'); ?></strong>
                     <?php echo esc_html($coach['coach_name']); ?> &middot;
                     <a href="mailto:<?php echo esc_attr($coach['coach_email']); ?>"><?php echo esc_html($coach['coach_email']); ?></a>
                 </div>
@@ -282,10 +282,10 @@ class HL_Frontend_My_Programs {
                     </a>
                 <?php endif; ?>
             <?php else : ?>
-                <div style="width:56px;height:56px;border-radius:50%;background:#dee2e6;display:flex;align-items:center;justify-content:center;color:#6c757d;font-size:20px;">?</div>
-                <div>
-                    <strong><?php esc_html_e('My Coach', 'hl-core'); ?></strong><br>
-                    <span style="color:#6c757d;"><?php esc_html_e('No coach assigned yet. Contact your administrator.', 'hl-core'); ?></span>
+                <div class="hl-coach-avatar-placeholder">?</div>
+                <div class="hl-coach-widget-info">
+                    <strong><?php esc_html_e('My Coach', 'hl-core'); ?></strong>
+                    <span class="hl-text-muted"><?php esc_html_e('No coach assigned yet. Contact your administrator.', 'hl-core'); ?></span>
                 </div>
             <?php endif; ?>
         </div>

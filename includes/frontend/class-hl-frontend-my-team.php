@@ -69,7 +69,7 @@ class HL_Frontend_My_Team {
                                 <?php endif; ?>
                             </h3>
                             <?php if ( $team['center_name'] ) : ?>
-                                <div style="font-size:13px; color:#6c757d; margin-bottom:6px;">
+                                <div class="hl-crm-card-subtitle">
                                     <?php echo esc_html( $team['center_name'] ); ?>
                                 </div>
                             <?php endif; ?>
@@ -79,7 +79,7 @@ class HL_Frontend_My_Team {
                                     <?php echo esc_html( _n( 'Member', 'Members', (int) $team['member_count'], 'hl-core' ) ); ?>
                                 </span>
                                 <?php if ( $team['cohort_name'] ) : ?>
-                                    <span class="hl-crm-card-stat" style="font-size:12px;">
+                                    <span class="hl-crm-card-stat">
                                         <?php echo esc_html( $team['cohort_name'] ); ?>
                                     </span>
                                 <?php endif; ?>

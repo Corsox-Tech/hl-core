@@ -40,7 +40,7 @@ class HL_Frontend_Reports_Hub {
                         <div class="hl-crm-card">
                             <div class="hl-crm-card-body">
                                 <h3 class="hl-crm-card-title"><?php echo esc_html( $report['title'] ); ?></h3>
-                                <p style="font-size:13px; color:#6c757d; margin:8px 0 0;">
+                                <p class="hl-crm-card-description">
                                     <?php echo esc_html( $report['description'] ); ?>
                                 </p>
                             </div>

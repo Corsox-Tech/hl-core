@@ -1817,6 +1817,11 @@ body:has(.hl-dashboard) h1.entry-title {
    ===================================================== */
 
 .hl-crm-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--hl-spacing-sm);
     margin-bottom: 24px;
 }
 
@@ -1953,6 +1958,54 @@ body:has(.hl-dashboard) h1.entry-title {
     margin-top: 16px;
     padding-top: 12px;
     border-top: 1px solid var(--hl-crm-border-light);
+}
+
+.hl-crm-card-description {
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+    margin: 8px 0 0;
+}
+
+/* =====================================================
+   37b. COACH WIDGET (compact inline coach display)
+   ===================================================== */
+
+.hl-coach-widget {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--hl-bg-subtle);
+    border-radius: var(--hl-radius-sm);
+    margin-bottom: 24px;
+}
+
+.hl-coach-widget .hl-coach-avatar img {
+    border-radius: 50%;
+}
+
+.hl-coach-widget-info {
+    flex: 1;
+}
+
+.hl-coach-widget-info strong {
+    display: block;
+    color: var(--hl-text-heading);
+    margin-bottom: 2px;
+}
+
+/* =====================================================
+   37c. PROGRAM CARD IMAGE PLACEHOLDER
+   ===================================================== */
+
+.hl-program-card-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--hl-text-muted);
+    font-size: 48px;
 }
 
 /* =====================================================

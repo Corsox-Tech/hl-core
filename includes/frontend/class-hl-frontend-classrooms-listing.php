@@ -36,10 +36,9 @@ class HL_Frontend_Classrooms_Listing {
                 <h2 class="hl-crm-page-title"><?php esc_html_e( 'Classrooms', 'hl-core' ); ?></h2>
             </div>
 
-            <div class="hl-filters-bar" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:20px;">
+            <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-classroom-search"
-                       placeholder="<?php esc_attr_e( 'Search classrooms...', 'hl-core' ); ?>"
-                       style="flex:1; min-width:200px;">
+                       placeholder="<?php esc_attr_e( 'Search classrooms...', 'hl-core' ); ?>">
                 <?php if ( count( $centers ) > 1 ) : ?>
                     <select class="hl-select" id="hl-classroom-center-filter">
                         <option value=""><?php esc_html_e( 'All Centers', 'hl-core' ); ?></option>
@@ -119,7 +118,7 @@ class HL_Frontend_Classrooms_Listing {
                     </table>
                 </div>
 
-                <div class="hl-empty-state hl-no-results" style="display:none;">
+                <div class="hl-empty-state hl-no-results">
                     <p><?php esc_html_e( 'No classrooms match your filters.', 'hl-core' ); ?></p>
                 </div>
             <?php endif; ?>

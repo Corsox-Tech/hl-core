@@ -30,7 +30,7 @@ class HL_Frontend_Coaching_Hub {
         ?>
         <div class="hl-dashboard hl-coaching-hub hl-frontend-wrap">
 
-            <div class="hl-crm-page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div class="hl-crm-page-header">
                 <h2 class="hl-crm-page-title"><?php esc_html_e( 'Coaching Hub', 'hl-core' ); ?></h2>
                 <?php if ( $my_coaching_url && ! $scope['is_staff'] ) : ?>
                     <a href="<?php echo esc_url( $my_coaching_url ); ?>" class="hl-btn hl-btn-primary hl-btn-sm">
@@ -40,10 +40,9 @@ class HL_Frontend_Coaching_Hub {
             </div>
 
             <!-- Filters -->
-            <div class="hl-filters-bar" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:20px;">
+            <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-coaching-search"
-                       placeholder="<?php esc_attr_e( 'Search by participant, coach, or title...', 'hl-core' ); ?>"
-                       style="flex:1; min-width:200px;">
+                       placeholder="<?php esc_attr_e( 'Search by participant, coach, or title...', 'hl-core' ); ?>">
                 <select class="hl-select" id="hl-coaching-status-filter">
                     <option value=""><?php esc_html_e( 'All Statuses', 'hl-core' ); ?></option>
                     <option value="scheduled"><?php esc_html_e( 'Scheduled', 'hl-core' ); ?></option>
@@ -114,7 +113,7 @@ class HL_Frontend_Coaching_Hub {
                     </table>
                 </div>
 
-                <div class="hl-empty-state hl-no-results" style="display:none;">
+                <div class="hl-empty-state hl-no-results">
                     <p><?php esc_html_e( 'No sessions match your filters.', 'hl-core' ); ?></p>
                 </div>
             <?php endif; ?>
