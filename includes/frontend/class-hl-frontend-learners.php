@@ -43,10 +43,9 @@ class HL_Frontend_Learners {
                 <h2 class="hl-crm-page-title"><?php esc_html_e( 'Learners', 'hl-core' ); ?></h2>
             </div>
 
-            <div class="hl-filters-bar" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:20px;">
+            <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-learner-search"
-                       placeholder="<?php esc_attr_e( 'Search by name or email...', 'hl-core' ); ?>"
-                       style="flex:1; min-width:200px;">
+                       placeholder="<?php esc_attr_e( 'Search by name or email...', 'hl-core' ); ?>">
                 <?php if ( count( $cohorts ) > 1 ) : ?>
                     <select class="hl-select" id="hl-learner-cohort-filter">
                         <option value=""><?php esc_html_e( 'All Cohorts', 'hl-core' ); ?></option>
@@ -121,11 +120,13 @@ class HL_Frontend_Learners {
                                     <td><?php echo esc_html( $r['center_name'] ?: '—' ); ?></td>
                                     <td><?php echo esc_html( $r['cohort_name'] ?: '—' ); ?></td>
                                     <td>
-                                        <div style="display:inline-flex; align-items:center; gap:6px; width:110px;">
-                                            <div style="flex:1; height:8px; background:#e9ecef; border-radius:4px; overflow:hidden;">
-                                                <div style="width:<?php echo esc_attr( $pct ); ?>%; height:100%; background:<?php echo $pct >= 100 ? '#2ECC71' : '#2C7BE5'; ?>; border-radius:4px;"></div>
+                                        <div class="hl-inline-progress" style="width:110px;">
+                                            <div class="hl-progress-inline">
+                                                <div class="hl-progress-bar-container">
+                                                    <div class="hl-progress-bar <?php echo $pct >= 100 ? 'hl-progress-complete' : 'hl-progress-active'; ?>" style="width:<?php echo esc_attr( $pct ); ?>%"></div>
+                                                </div>
                                             </div>
-                                            <span style="font-size:12px; min-width:35px;"><?php echo esc_html( $pct ); ?>%</span>
+                                            <span class="hl-progress-text"><?php echo esc_html( $pct ); ?>%</span>
                                         </div>
                                     </td>
                                 </tr>
@@ -136,7 +137,7 @@ class HL_Frontend_Learners {
 
                 <?php $this->render_pagination( $page, $data['total'], self::PER_PAGE ); ?>
 
-                <div class="hl-empty-state hl-no-results" style="display:none;">
+                <div class="hl-empty-state hl-no-results">
                     <p><?php esc_html_e( 'No learners match your filters.', 'hl-core' ); ?></p>
                 </div>
             <?php endif; ?>
@@ -185,7 +186,7 @@ class HL_Frontend_Learners {
         $total_pages = max( 1, (int) ceil( $total / $per_page ) );
         if ( $total_pages <= 1 ) return;
 
-        echo '<div class="hl-pagination" style="display:flex; justify-content:center; gap:8px; margin-top:20px;">';
+        echo '<div class="hl-pagination">';
         for ( $p = 1; $p <= $total_pages; $p++ ) {
             $url   = add_query_arg( 'paged', $p );
             $class = $p === $current_page ? 'hl-btn hl-btn-sm hl-btn-primary' : 'hl-btn hl-btn-sm hl-btn-secondary';

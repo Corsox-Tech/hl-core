@@ -35,10 +35,9 @@ class HL_Frontend_Pathways_Listing {
                 <h2 class="hl-crm-page-title"><?php esc_html_e( 'Pathways', 'hl-core' ); ?></h2>
             </div>
 
-            <div class="hl-filters-bar" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:20px;">
+            <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-pathway-search"
-                       placeholder="<?php esc_attr_e( 'Search pathways...', 'hl-core' ); ?>"
-                       style="flex:1; min-width:200px;">
+                       placeholder="<?php esc_attr_e( 'Search pathways...', 'hl-core' ); ?>">
                 <?php if ( count( $cohorts ) > 1 ) : ?>
                     <select class="hl-select" id="hl-pathway-cohort-filter">
                         <option value=""><?php esc_html_e( 'All Cohorts', 'hl-core' ); ?></option>
@@ -70,14 +69,13 @@ class HL_Frontend_Pathways_Listing {
                              data-name="<?php echo esc_attr( strtolower( $pw['pathway_name'] . ' ' . $pw['cohort_name'] ) ); ?>"
                              data-cohort="<?php echo esc_attr( $pw['cohort_id'] ); ?>">
                             <?php if ( $image_url ) : ?>
-                                <div class="hl-crm-card-image" style="height:140px; overflow:hidden; border-radius:8px 8px 0 0;">
-                                    <img src="<?php echo esc_url( $image_url ); ?>" alt=""
-                                         style="width:100%; height:100%; object-fit:cover;">
+                                <div class="hl-crm-card-image">
+                                    <img src="<?php echo esc_url( $image_url ); ?>" alt="">
                                 </div>
                             <?php endif; ?>
                             <div class="hl-crm-card-body">
                                 <h3 class="hl-crm-card-title"><?php echo esc_html( $pw['pathway_name'] ); ?></h3>
-                                <div style="font-size:13px; color:#6c757d; margin-bottom:6px;">
+                                <div class="hl-crm-card-subtitle">
                                     <?php echo esc_html( $pw['cohort_name'] ); ?>
                                 </div>
                                 <div class="hl-crm-card-meta">
@@ -85,12 +83,12 @@ class HL_Frontend_Pathways_Listing {
                                         <strong><?php echo esc_html( $pw['activity_count'] ); ?></strong>
                                         <?php echo esc_html( _n( 'Activity', 'Activities', (int) $pw['activity_count'], 'hl-core' ) ); ?>
                                     </span>
-                                    <span class="hl-crm-card-stat" style="font-size:12px;">
+                                    <span class="hl-crm-card-stat">
                                         <?php echo esc_html( $roles_label ); ?>
                                     </span>
                                 </div>
                                 <?php if ( ! empty( $pw['avg_completion_time'] ) ) : ?>
-                                    <div style="font-size:12px; color:#6c757d; margin-top:6px;">
+                                    <div class="hl-crm-card-hint">
                                         <?php
                                         printf(
                                             esc_html__( 'Avg time: %s', 'hl-core' ),
@@ -104,7 +102,7 @@ class HL_Frontend_Pathways_Listing {
                     <?php endforeach; ?>
                 </div>
 
-                <div class="hl-empty-state hl-no-results" style="display:none;">
+                <div class="hl-empty-state hl-no-results">
                     <p><?php esc_html_e( 'No pathways match your filters.', 'hl-core' ); ?></p>
                 </div>
             <?php endif; ?>

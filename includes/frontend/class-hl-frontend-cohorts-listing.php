@@ -59,12 +59,11 @@ class HL_Frontend_Cohorts_Listing {
             </div>
 
             <!-- Search + Status + Group Filters -->
-            <div class="hl-filters-bar" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:20px;">
+            <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-cohort-search"
-                       placeholder="<?php esc_attr_e( 'Search cohorts...', 'hl-core' ); ?>"
-                       style="flex:1; min-width:200px;">
+                       placeholder="<?php esc_attr_e( 'Search cohorts...', 'hl-core' ); ?>">
                 <?php if ( ! empty( $cohort_groups ) ) : ?>
-                    <select id="hl-cohort-group-filter" style="min-width:160px;">
+                    <select id="hl-cohort-group-filter" class="hl-select">
                         <option value=""><?php esc_html_e( 'All Groups', 'hl-core' ); ?></option>
                         <?php foreach ( $cohort_groups as $gid => $gname ) : ?>
                             <option value="<?php echo esc_attr( $gid ); ?>"><?php echo esc_html( $gname ); ?></option>
@@ -106,8 +105,8 @@ class HL_Frontend_Cohorts_Listing {
                              data-name="<?php echo esc_attr( strtolower( $cohort->cohort_name . ' ' . $cohort->cohort_code ) ); ?>"
                              data-group="<?php echo esc_attr( $cohort->cohort_group_id ?: '' ); ?>">
                             <div class="hl-crm-card-body">
-                                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-                                    <h3 class="hl-crm-card-title" style="margin:0;">
+                                <div class="hl-crm-card-header">
+                                    <h3 class="hl-crm-card-title">
                                         <?php if ( $detail_url ) : ?>
                                             <a href="<?php echo esc_url( $detail_url ); ?>"><?php echo esc_html( $cohort->cohort_name ); ?></a>
                                         <?php else : ?>
@@ -119,11 +118,11 @@ class HL_Frontend_Cohorts_Listing {
                                     </span>
                                 </div>
                                 <?php if ( $cohort->cohort_code ) : ?>
-                                    <div class="hl-crm-card-code" style="color:#6c757d; font-size:13px; margin-bottom:8px;">
+                                    <div class="hl-crm-card-code">
                                         <?php echo esc_html( $cohort->cohort_code ); ?>
                                     </div>
                                 <?php endif; ?>
-                                <div class="hl-crm-card-dates" style="font-size:13px; color:#6c757d; margin-bottom:10px;">
+                                <div class="hl-crm-card-dates">
                                     <?php echo esc_html( $start ); ?> &mdash; <?php echo esc_html( $end ); ?>
                                 </div>
                                 <div class="hl-crm-card-meta">
@@ -148,7 +147,7 @@ class HL_Frontend_Cohorts_Listing {
                     <?php endforeach; ?>
                 </div>
 
-                <div class="hl-empty-state hl-no-results" style="display:none;">
+                <div class="hl-empty-state hl-no-results">
                     <p><?php esc_html_e( 'No cohorts match your search or filters.', 'hl-core' ); ?></p>
                 </div>
             <?php endif; ?>

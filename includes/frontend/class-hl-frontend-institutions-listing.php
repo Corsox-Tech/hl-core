@@ -60,10 +60,9 @@ class HL_Frontend_Institutions_Listing {
                 <h2 class="hl-crm-page-title"><?php esc_html_e( 'Institutions', 'hl-core' ); ?></h2>
             </div>
 
-            <div class="hl-filters-bar" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:20px;">
+            <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-inst-search"
-                       placeholder="<?php esc_attr_e( 'Search institutions...', 'hl-core' ); ?>"
-                       style="flex:1; min-width:200px;">
+                       placeholder="<?php esc_attr_e( 'Search institutions...', 'hl-core' ); ?>">
                 <div class="hl-toggle-group">
                     <button class="hl-tab hl-inst-toggle active" data-view="all"><?php esc_html_e( 'All', 'hl-core' ); ?></button>
                     <button class="hl-tab hl-inst-toggle" data-view="districts"><?php esc_html_e( 'Districts', 'hl-core' ); ?></button>
@@ -78,9 +77,9 @@ class HL_Frontend_Institutions_Listing {
                 <!-- Districts Section -->
                 <?php if ( ! empty( $districts ) ) : ?>
                     <div class="hl-inst-section hl-inst-districts" data-type="districts">
-                        <h3 class="hl-section-title" style="margin:0 0 16px; font-size:16px; color:#1A2B47;">
+                        <h3 class="hl-section-title">
                             <?php esc_html_e( 'School Districts', 'hl-core' ); ?>
-                            <span style="color:#6c757d; font-weight:normal;">(<?php echo count( $districts ); ?>)</span>
+                            <span class="hl-section-count">(<?php echo count( $districts ); ?>)</span>
                         </h3>
                         <div class="hl-crm-card-grid">
                             <?php foreach ( $districts as $district ) :
@@ -126,10 +125,10 @@ class HL_Frontend_Institutions_Listing {
 
                 <!-- Centers Section -->
                 <?php if ( ! empty( $centers ) ) : ?>
-                    <div class="hl-inst-section hl-inst-centers" data-type="centers" style="margin-top:32px;">
-                        <h3 class="hl-section-title" style="margin:0 0 16px; font-size:16px; color:#1A2B47;">
+                    <div class="hl-inst-section hl-inst-centers" data-type="centers">
+                        <h3 class="hl-section-title">
                             <?php esc_html_e( 'Centers', 'hl-core' ); ?>
-                            <span style="color:#6c757d; font-weight:normal;">(<?php echo count( $centers ); ?>)</span>
+                            <span class="hl-section-count">(<?php echo count( $centers ); ?>)</span>
                         </h3>
                         <div class="hl-crm-card-grid">
                             <?php foreach ( $centers as $center ) :
@@ -152,13 +151,13 @@ class HL_Frontend_Institutions_Listing {
                                             <?php endif; ?>
                                         </h3>
                                         <?php if ( $parent_name ) : ?>
-                                            <div style="font-size:13px; color:#6c757d; margin-bottom:6px;">
+                                            <div class="hl-crm-card-subtitle">
                                                 <?php echo esc_html( $parent_name ); ?>
                                             </div>
                                         <?php endif; ?>
                                         <?php if ( ! empty( $leader_list ) ) : ?>
                                             <div class="hl-crm-card-meta">
-                                                <span class="hl-crm-card-stat" style="font-size:13px;">
+                                                <span class="hl-crm-card-stat">
                                                     <?php echo esc_html( implode( ', ', $leader_list ) ); ?>
                                                 </span>
                                             </div>
@@ -177,7 +176,7 @@ class HL_Frontend_Institutions_Listing {
                     </div>
                 <?php endif; ?>
 
-                <div class="hl-empty-state hl-no-results" style="display:none;">
+                <div class="hl-empty-state hl-no-results">
                     <p><?php esc_html_e( 'No institutions match your search.', 'hl-core' ); ?></p>
                 </div>
 

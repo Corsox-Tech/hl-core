@@ -263,9 +263,9 @@ class HL_Frontend_My_Coaching {
         $cohort_repo = new HL_Cohort_Repository();
         $pathway_repo = new HL_Pathway_Repository();
 
-        echo '<div class="hl-enrollment-switcher" style="margin-bottom:20px;">';
-        echo '<label><strong>' . esc_html__('Program:', 'hl-core') . '</strong> </label>';
-        echo '<select onchange="if(this.value){window.location.search=\'enrollment=\'+this.value;}">';
+        echo '<div class="hl-enrollment-switcher">';
+        echo '<label>' . esc_html__('Program:', 'hl-core') . ' </label>';
+        echo '<select class="hl-select" onchange="if(this.value){window.location.search=\'enrollment=\'+this.value;}">';
         foreach ($enrollments as $e) {
             $cohort = $cohort_repo->get_by_id($e->cohort_id);
             $pathway = !empty($e->assigned_pathway_id) ? $pathway_repo->get_by_id($e->assigned_pathway_id) : null;
@@ -281,21 +281,21 @@ class HL_Frontend_My_Coaching {
     }
 
     private function render_coach_card($coach) {
-        echo '<div class="hl-coach-card" style="display:flex;align-items:center;gap:16px;padding:16px;background:#f8f9fa;border-radius:8px;margin-bottom:24px;">';
+        echo '<div class="hl-coach-info-card">';
 
         if ($coach) {
-            $avatar = get_avatar($coach['coach_user_id'], 64, '', '', array('class' => 'hl-coach-avatar'));
-            echo '<div>' . $avatar . '</div>';
-            echo '<div>';
-            echo '<strong>' . esc_html($coach['coach_name']) . '</strong><br>';
-            echo '<a href="mailto:' . esc_attr($coach['coach_email']) . '">'
-                . esc_html($coach['coach_email']) . '</a>';
+            $avatar = get_avatar($coach['coach_user_id'], 56, '', '', array('class' => 'hl-coach-avatar'));
+            echo $avatar;
+            echo '<div class="hl-coach-details">';
+            echo '<p class="hl-coach-name">' . esc_html($coach['coach_name']) . '</p>';
+            echo '<p class="hl-coach-email"><a href="mailto:' . esc_attr($coach['coach_email']) . '">'
+                . esc_html($coach['coach_email']) . '</a></p>';
             echo '</div>';
         } else {
-            echo '<div style="width:64px;height:64px;border-radius:50%;background:#dee2e6;display:flex;align-items:center;justify-content:center;color:#6c757d;font-size:24px;">?</div>';
-            echo '<div>';
-            echo '<strong>' . esc_html__('No coach assigned', 'hl-core') . '</strong><br>';
-            echo '<span style="color:#6c757d;">' . esc_html__('Contact your administrator for coach assignment.', 'hl-core') . '</span>';
+            echo '<div class="hl-coach-avatar-placeholder">?</div>';
+            echo '<div class="hl-coach-details">';
+            echo '<p class="hl-coach-name">' . esc_html__('No coach assigned', 'hl-core') . '</p>';
+            echo '<p class="hl-coach-no-assignment">' . esc_html__('Contact your administrator for coach assignment.', 'hl-core') . '</p>';
             echo '</div>';
         }
 
@@ -304,27 +304,27 @@ class HL_Frontend_My_Coaching {
 
     private function render_upcoming_sessions($sessions, $can_cancel, $enrollment_id, $cohort_id) {
         if (empty($sessions)) {
-            echo '<p style="color:#6c757d;">' . esc_html__('No upcoming sessions.', 'hl-core') . '</p>';
+            echo '<p class="hl-session-no-items">' . esc_html__('No upcoming sessions.', 'hl-core') . '</p>';
             return;
         }
 
-        echo '<div class="hl-coaching-sessions">';
+        echo '<div class="hl-sessions-list">';
 
         foreach ($sessions as $session) {
             $datetime_display = !empty($session['session_datetime'])
                 ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($session['session_datetime']))
                 : __('Date not set', 'hl-core');
 
-            echo '<div class="hl-coaching-session-card" style="border:1px solid #dee2e6;border-radius:8px;padding:16px;margin-bottom:12px;">';
+            echo '<div class="hl-session-card">';
 
             // Title + badge row.
-            echo '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-            echo '<strong>' . esc_html($session['session_title'] ?: __('Coaching Session', 'hl-core')) . '</strong>';
+            echo '<div class="hl-session-header">';
+            echo '<p class="hl-session-title">' . esc_html($session['session_title'] ?: __('Coaching Session', 'hl-core')) . '</p>';
             echo HL_Coaching_Service::render_status_badge($session['session_status'] ?? 'scheduled');
             echo '</div>';
 
             // Details.
-            echo '<div style="color:#495057;margin-bottom:12px;">';
+            echo '<div class="hl-session-date">';
             echo '<span>' . esc_html($datetime_display) . '</span>';
             if (!empty($session['coach_name'])) {
                 echo ' &middot; <span>' . esc_html($session['coach_name']) . '</span>';
@@ -332,7 +332,7 @@ class HL_Frontend_My_Coaching {
             echo '</div>';
 
             // Actions row.
-            echo '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+            echo '<div class="hl-session-actions">';
 
             // Meeting link.
             if (!empty($session['meeting_url'])) {
@@ -346,12 +346,12 @@ class HL_Frontend_My_Coaching {
                 . esc_html__('Reschedule', 'hl-core')
                 . '</button>';
 
-            echo '<div style="display:none;margin-top:8px;padding:12px;background:#f8f9fa;border-radius:6px;">';
+            echo '<div class="hl-reschedule-form">';
             echo '<form method="post">';
             wp_nonce_field('hl_reschedule_session', 'hl_reschedule_session_nonce');
             echo '<input type="hidden" name="session_id" value="' . esc_attr($session['session_id']) . '" />';
-            echo '<label>' . esc_html__('New date and time:', 'hl-core') . '</label><br>';
-            echo '<input type="datetime-local" name="new_datetime" required style="margin:4px 0 8px;" /><br>';
+            echo '<label class="hl-label">' . esc_html__('New date and time:', 'hl-core') . '</label>';
+            echo '<input type="datetime-local" name="new_datetime" required class="hl-input" />';
             echo '<button type="submit" class="hl-btn hl-btn-sm hl-btn-primary">'
                 . esc_html__('Confirm Reschedule', 'hl-core')
                 . '</button>';
@@ -360,10 +360,10 @@ class HL_Frontend_My_Coaching {
 
             // Cancel button.
             if ($can_cancel) {
-                echo '<form method="post" style="display:inline;" onsubmit="return confirm(\'' . esc_js(__('Are you sure you want to cancel this session?', 'hl-core')) . '\')">';
+                echo '<form method="post" onsubmit="return confirm(\'' . esc_js(__('Are you sure you want to cancel this session?', 'hl-core')) . '\')">';
                 wp_nonce_field('hl_cancel_session', 'hl_cancel_session_nonce');
                 echo '<input type="hidden" name="session_id" value="' . esc_attr($session['session_id']) . '" />';
-                echo '<button type="submit" class="hl-btn hl-btn-sm" style="background:#dc3545;color:#fff;border:none;">'
+                echo '<button type="submit" class="hl-btn hl-btn-sm hl-btn-danger">'
                     . esc_html__('Cancel', 'hl-core')
                     . '</button>';
                 echo '</form>';
@@ -378,27 +378,27 @@ class HL_Frontend_My_Coaching {
 
     private function render_past_sessions($sessions) {
         if (empty($sessions)) {
-            echo '<p style="color:#6c757d;">' . esc_html__('No past sessions.', 'hl-core') . '</p>';
+            echo '<p class="hl-session-no-items">' . esc_html__('No past sessions.', 'hl-core') . '</p>';
             return;
         }
 
-        echo '<div class="hl-coaching-sessions">';
+        echo '<div class="hl-sessions-list">';
 
         foreach ($sessions as $session) {
             $datetime_display = !empty($session['session_datetime'])
                 ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($session['session_datetime']))
                 : __('Date not set', 'hl-core');
 
-            echo '<div class="hl-coaching-session-card" style="border:1px solid #dee2e6;border-radius:8px;padding:16px;margin-bottom:12px;opacity:0.85;">';
+            echo '<div class="hl-session-card hl-session-card--past">';
 
             // Title + badge row.
-            echo '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-            echo '<strong>' . esc_html($session['session_title'] ?: __('Coaching Session', 'hl-core')) . '</strong>';
+            echo '<div class="hl-session-header">';
+            echo '<p class="hl-session-title">' . esc_html($session['session_title'] ?: __('Coaching Session', 'hl-core')) . '</p>';
             echo HL_Coaching_Service::render_status_badge($session['session_status'] ?? 'scheduled');
             echo '</div>';
 
             // Details.
-            echo '<div style="color:#6c757d;">';
+            echo '<div class="hl-session-date">';
             echo '<span>' . esc_html($datetime_display) . '</span>';
             if (!empty($session['coach_name'])) {
                 echo ' &middot; <span>' . esc_html($session['coach_name']) . '</span>';
@@ -415,28 +415,28 @@ class HL_Frontend_My_Coaching {
         // Auto-suggest session title from next coaching activity.
         $suggested_title = $this->get_suggested_session_title($enrollment_id, $cohort_id);
 
-        echo '<div class="hl-schedule-form" style="border:1px solid #dee2e6;border-radius:8px;padding:20px;background:#f8f9fa;">';
+        echo '<div class="hl-schedule-form">';
         echo '<form method="post">';
         wp_nonce_field('hl_schedule_session', 'hl_schedule_session_nonce');
         echo '<input type="hidden" name="enrollment_id" value="' . esc_attr($enrollment_id) . '" />';
         echo '<input type="hidden" name="cohort_id" value="' . esc_attr($cohort_id) . '" />';
 
         // Session title.
-        echo '<div style="margin-bottom:12px;">';
-        echo '<label for="hl-session-title"><strong>' . esc_html__('Session Title', 'hl-core') . '</strong></label><br>';
-        echo '<input type="text" id="hl-session-title" name="session_title" value="' . esc_attr($suggested_title) . '" style="width:100%;max-width:400px;padding:6px 10px;" />';
+        echo '<div class="hl-form-group">';
+        echo '<label for="hl-session-title" class="hl-label">' . esc_html__('Session Title', 'hl-core') . '</label>';
+        echo '<input type="text" id="hl-session-title" name="session_title" value="' . esc_attr($suggested_title) . '" class="hl-input" />';
         echo '</div>';
 
         // Date/Time.
-        echo '<div style="margin-bottom:12px;">';
-        echo '<label for="hl-session-datetime"><strong>' . esc_html__('Date and Time', 'hl-core') . '</strong></label><br>';
-        echo '<input type="datetime-local" id="hl-session-datetime" name="session_datetime" required style="padding:6px 10px;" />';
+        echo '<div class="hl-form-group">';
+        echo '<label for="hl-session-datetime" class="hl-label">' . esc_html__('Date and Time', 'hl-core') . '</label>';
+        echo '<input type="datetime-local" id="hl-session-datetime" name="session_datetime" required class="hl-input" />';
         echo '</div>';
 
         // Meeting URL.
-        echo '<div style="margin-bottom:16px;">';
-        echo '<label for="hl-meeting-url"><strong>' . esc_html__('Meeting Link', 'hl-core') . '</strong> <span style="color:#6c757d;">(' . esc_html__('optional', 'hl-core') . ')</span></label><br>';
-        echo '<input type="url" id="hl-meeting-url" name="meeting_url" placeholder="https://" style="width:100%;max-width:400px;padding:6px 10px;" />';
+        echo '<div class="hl-form-group">';
+        echo '<label for="hl-meeting-url" class="hl-label">' . esc_html__('Meeting Link', 'hl-core') . ' <span class="hl-text-muted">(' . esc_html__('optional', 'hl-core') . ')</span></label>';
+        echo '<input type="url" id="hl-meeting-url" name="meeting_url" placeholder="https://" class="hl-input" />';
         echo '</div>';
 
         echo '<button type="submit" class="hl-btn hl-btn-primary">'
