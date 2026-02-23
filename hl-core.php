@@ -75,6 +75,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-child.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-pathway.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-activity.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-teacher-assessment-instrument.php';
         
         // Repositories
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-orgunit-repository.php';
@@ -137,7 +138,9 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-team-progress.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-cohort-dashboard.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-instrument-renderer.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-teacher-assessment-renderer.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-children-assessment.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-teacher-assessment.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-observations.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-programs.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-program-page.php';
