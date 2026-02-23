@@ -698,6 +698,11 @@ class HL_CLI_Seed_Palm_Beach {
 
 		// Delete Palm Beach instruments.
 		$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_instrument WHERE name LIKE 'Palm Beach %'" );
+		// Only delete B2E instrument if demo seed isn't active (shared instrument).
+		$demo_cohort = $wpdb->get_var( "SELECT cohort_id FROM {$wpdb->prefix}hl_cohort WHERE cohort_code = 'DEMO-2026' LIMIT 1" );
+		if ( ! $demo_cohort ) {
+			$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = 'b2e_self_assessment'" );
+		}
 		WP_CLI::log( '  Deleted Palm Beach instruments.' );
 
 		// Delete children for Palm Beach centers.
@@ -861,6 +866,93 @@ class HL_CLI_Seed_Palm_Beach {
 				'effective_from'  => '2026-01-01',
 			) );
 			$instruments[ $band ] = $wpdb->insert_id;
+		}
+
+		// B2E Teacher Self-Assessment instrument (shared with demo seed)
+		$existing_b2e = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT instrument_id FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s LIMIT 1",
+				'b2e_self_assessment'
+			)
+		);
+
+		if ( $existing_b2e ) {
+			$instruments['teacher_b2e'] = (int) $existing_b2e;
+		} else {
+			$b2e_sections = wp_json_encode( array(
+				array(
+					'section_key' => 'teaching_practices',
+					'title'       => 'Section 1: Teaching Practices',
+					'description' => 'Please rate your agreement with the following statements about your teaching practices.',
+					'type'        => 'likert',
+					'scale_key'   => 'likert_5',
+					'items'       => array(
+						array( 'key' => 'tp1',  'text' => 'I use specific strategies to help children learn to identify and manage their feelings.' ),
+						array( 'key' => 'tp2',  'text' => 'I effectively use strategies to help children resolve conflicts with peers.' ),
+						array( 'key' => 'tp3',  'text' => 'I use effective strategies to calm children who are angry, upset, or out of control.' ),
+						array( 'key' => 'tp4',  'text' => 'I provide activities where children practice identifying feelings in themselves and others (e.g., matching games with faces, songs, stories).' ),
+						array( 'key' => 'tp5',  'text' => 'I model and encourage empathy by showing care when children are hurt or upset.' ),
+						array( 'key' => 'tp6',  'text' => 'I use specific activities to teach children friendship skills.' ),
+						array( 'key' => 'tp7',  'text' => 'I have effective strategies for preventing challenging behaviors.' ),
+						array( 'key' => 'tp8',  'text' => 'I feel confident in my ability to handle challenging behaviors in my class.' ),
+						array( 'key' => 'tp9',  'text' => 'I am able to effectively use intentional teaching strategies to promote children\'s social and emotional development.' ),
+						array( 'key' => 'tp10', 'text' => 'I have confidence in my ability to match my approach to meeting the social and emotional needs of each individual child.' ),
+						array( 'key' => 'tp11', 'text' => 'I use specific strategies such as visuals, scripts, and cues to help children understand expectations and behaviors.' ),
+						array( 'key' => 'tp12', 'text' => 'I use specific strategies to help children develop a positive self-identity (e.g., displaying family photos, incorporating home languages and cultures in the classroom).' ),
+					),
+				),
+				array(
+					'section_key' => 'wellbeing',
+					'title'       => 'Section 2: Well-being',
+					'description' => 'Please rate your agreement with the following statements about your well-being.',
+					'type'        => 'likert',
+					'scale_key'   => 'likert_7',
+					'items'       => array(
+						array( 'key' => 'wb1', 'text' => 'In most ways, my life is close to my ideal.' ),
+						array( 'key' => 'wb2', 'text' => 'The conditions of my life are excellent.' ),
+						array( 'key' => 'wb3', 'text' => 'I am satisfied with my life.' ),
+						array( 'key' => 'wb4', 'text' => 'So far, I have gotten the important things I want in life.' ),
+						array( 'key' => 'wb5', 'text' => 'If I could live my life over, I would change almost nothing.' ),
+						array( 'key' => 'wb6', 'text' => 'Overall, I am satisfied with my job as a child care provider.' ),
+					),
+				),
+				array(
+					'section_key' => 'self_regulation',
+					'title'       => 'Section 3: Self-Regulation',
+					'description' => 'Please rate how true each statement is for you.',
+					'type'        => 'scale',
+					'scale_key'   => 'scale_0_10',
+					'items'       => array(
+						array( 'key' => 'sr1',  'text' => 'I can always manage to solve difficult problems if I try hard enough.' ),
+						array( 'key' => 'sr2',  'text' => 'If someone opposes me, I can find the means and ways to get what I want.' ),
+						array( 'key' => 'sr3',  'text' => 'It is easy for me to stick to my aims and accomplish my goals.' ),
+						array( 'key' => 'sr4',  'text' => 'I am confident that I could deal efficiently with unexpected events.' ),
+						array( 'key' => 'sr5',  'text' => 'Thanks to my resourcefulness, I know how to handle unforeseen situations.' ),
+						array( 'key' => 'sr6',  'text' => 'I can solve most problems if I invest the necessary effort.' ),
+						array( 'key' => 'sr7',  'text' => 'I can remain calm when facing difficulties because I can rely on my coping abilities.' ),
+						array( 'key' => 'sr8',  'text' => 'When I am confronted with a problem, I can usually find several solutions.' ),
+						array( 'key' => 'sr9',  'text' => 'If I am in trouble, I can usually think of a solution.' ),
+						array( 'key' => 'sr10', 'text' => 'I can usually handle whatever comes my way.' ),
+					),
+				),
+			) );
+
+			$b2e_scale_labels = wp_json_encode( array(
+				'likert_5'   => array( 'Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree' ),
+				'likert_7'   => array( 'Strongly Disagree', 'Disagree', 'Slightly Disagree', 'Neither Agree nor Disagree', 'Slightly Agree', 'Agree', 'Strongly Agree' ),
+				'scale_0_10' => array( 'low' => 'Not at all true', 'high' => 'Completely true' ),
+			) );
+
+			$wpdb->insert( $wpdb->prefix . 'hl_teacher_assessment_instrument', array(
+				'instrument_name'    => 'B2E Teacher Self-Assessment',
+				'instrument_key'     => 'b2e_self_assessment',
+				'instrument_version' => '1.0',
+				'sections'           => $b2e_sections,
+				'scale_labels'       => $b2e_scale_labels,
+				'status'             => 'active',
+				'created_at'         => current_time( 'mysql' ),
+			) );
+			$instruments['teacher_b2e'] = $wpdb->insert_id;
 		}
 
 		WP_CLI::log( '  [4/17] Instruments created: ' . count( $instruments ) );
@@ -1210,8 +1302,8 @@ class HL_CLI_Seed_Palm_Beach {
 
 		$ta = array();
 		$ta['ld_course'] = $svc->create_activity( array( 'title' => 'Foundations of Early Learning', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99901 ) ) ) );
-		$ta['pre_self']  = $svc->create_activity( array( 'title' => 'Pre Self-Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'form_plugin' => 'jetformbuilder', 'form_id' => 99901, 'phase' => 'pre' ) ) ) );
-		$ta['post_self'] = $svc->create_activity( array( 'title' => 'Post Self-Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 3, 'external_ref' => wp_json_encode( array( 'form_plugin' => 'jetformbuilder', 'form_id' => 99902, 'phase' => 'post' ) ) ) );
+		$ta['pre_self']  = $svc->create_activity( array( 'title' => 'Pre Self-Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e'], 'phase' => 'pre' ) ) ) );
+		$ta['post_self'] = $svc->create_activity( array( 'title' => 'Post Self-Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 3, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e'], 'phase' => 'post' ) ) ) );
 		$ta['children']  = $svc->create_activity( array( 'title' => 'Children Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'children_assessment', 'weight' => 2.0, 'ordering_hint' => 4, 'external_ref' => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ) ) );
 		$ta['coaching']  = $svc->create_activity( array( 'title' => 'Coaching Attendance', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'coaching_session_attendance', 'weight' => 1.0, 'ordering_hint' => 5, 'external_ref' => wp_json_encode( (object) array() ) ) );
 
