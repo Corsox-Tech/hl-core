@@ -417,10 +417,43 @@ class HL_Frontend_My_Progress {
             return '';
         }
 
-        // ── teacher_self_assessment: link to open form inline ────────────
+        // ── teacher_self_assessment: custom instrument or JFB form ──────
         if ($type === 'teacher_self_assessment') {
             $external_ref = $activity->get_external_ref_array();
-            $form_id      = isset($external_ref['form_id']) ? absint($external_ref['form_id']) : 0;
+
+            // Custom instrument-based assessment
+            if (!empty($external_ref['teacher_instrument_id'])) {
+                $tsa_page_url = apply_filters('hl_core_teacher_assessment_page_url', '');
+                if (empty($tsa_page_url)) {
+                    $tsa_page_url = $this->find_page_url_by_shortcode('hl_teacher_assessment');
+                }
+                if (!empty($tsa_page_url)) {
+                    // Find instance for this enrollment + phase
+                    global $wpdb;
+                    $phase = isset($external_ref['phase']) ? $external_ref['phase'] : 'pre';
+                    $instance_id = $wpdb->get_var($wpdb->prepare(
+                        "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
+                         WHERE enrollment_id = %d AND cohort_id = %d AND phase = %s",
+                        $ad['enrollment_id'],
+                        $activity->cohort_id ?? 0,
+                        $phase
+                    ));
+
+                    if ($instance_id) {
+                        $tsa_page_url = add_query_arg('instance_id', $instance_id, $tsa_page_url);
+                    }
+
+                    return '<a href="' . esc_url($tsa_page_url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
+                        . esc_html__('Open Assessment', 'hl-core')
+                        . '</a>';
+                }
+                return '<span class="hl-activity-notice">'
+                    . esc_html__('Visit the Self-Assessment page to complete this activity.', 'hl-core')
+                    . '</span>';
+            }
+
+            // Legacy JFB-powered fallback
+            $form_id = isset($external_ref['form_id']) ? absint($external_ref['form_id']) : 0;
 
             if (!$form_id) {
                 return '<span class="hl-activity-notice">'
@@ -702,5 +735,23 @@ class HL_Frontend_My_Progress {
             return date_i18n('Y');
         }
         return date_i18n('Y', $timestamp);
+    }
+
+    /**
+     * Find a page URL by its shortcode content.
+     *
+     * @param string $shortcode Shortcode tag (without brackets).
+     * @return string Page permalink or empty string.
+     */
+    private function find_page_url_by_shortcode($shortcode) {
+        global $wpdb;
+        $page_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT ID FROM {$wpdb->posts}
+             WHERE post_type = 'page' AND post_status = 'publish'
+               AND post_content LIKE %s
+             LIMIT 1",
+            '%[' . $wpdb->esc_like($shortcode) . ']%'
+        ));
+        return $page_id ? get_permalink($page_id) : '';
     }
 }

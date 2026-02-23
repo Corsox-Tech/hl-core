@@ -370,8 +370,29 @@ class HL_Frontend_Program_Page {
             return '';
         }
 
-        // JFB-powered activities (self-assessment, observation): link to Activity Page.
-        if (in_array($type, array('teacher_self_assessment', 'observation'), true)) {
+        // Teacher self-assessment: custom instrument or JFB.
+        if ($type === 'teacher_self_assessment') {
+            $external_ref = $activity->get_external_ref_array();
+            if (!empty($external_ref['teacher_instrument_id'])) {
+                // Route to Activity Page which handles instance creation + redirect
+                $activity_page_url = $this->get_activity_page_url($activity->activity_id, $enrollment->enrollment_id);
+                if (!empty($activity_page_url)) {
+                    return '<a href="' . esc_url($activity_page_url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
+                        . esc_html__('Start', 'hl-core') . '</a>';
+                }
+                return '';
+            }
+            // Legacy JFB fallback
+            $activity_page_url = $this->get_activity_page_url($activity->activity_id, $enrollment->enrollment_id);
+            if (!empty($activity_page_url)) {
+                return '<a href="' . esc_url($activity_page_url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
+                    . esc_html__('Start', 'hl-core') . '</a>';
+            }
+            return '';
+        }
+
+        // JFB-powered activities (observation): link to Activity Page.
+        if ($type === 'observation') {
             $activity_page_url = $this->get_activity_page_url($activity->activity_id, $enrollment->enrollment_id);
             if (!empty($activity_page_url)) {
                 return '<a href="' . esc_url($activity_page_url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'

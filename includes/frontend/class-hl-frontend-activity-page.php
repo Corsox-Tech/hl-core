@@ -202,8 +202,20 @@ class HL_Frontend_Activity_Page {
     private function render_available_view($activity, $enrollment) {
         $type = $activity->activity_type;
 
-        // JFB-powered: teacher_self_assessment, observation.
-        if (in_array($type, array('teacher_self_assessment', 'observation'), true)) {
+        // Teacher self-assessment: custom instrument takes priority over JFB.
+        if ($type === 'teacher_self_assessment') {
+            $external_ref = $activity->get_external_ref_array();
+            if (!empty($external_ref['teacher_instrument_id'])) {
+                $this->render_teacher_instrument_redirect($activity, $enrollment, $external_ref);
+                return;
+            }
+            // Legacy JFB-powered fallback
+            $this->render_jfb_form($activity, $enrollment);
+            return;
+        }
+
+        // JFB-powered: observation.
+        if ($type === 'observation') {
             $this->render_jfb_form($activity, $enrollment);
             return;
         }
@@ -262,6 +274,58 @@ class HL_Frontend_Activity_Page {
             ?>
         </div>
         <?php
+    }
+
+    /**
+     * Render redirect to the Teacher Self-Assessment page for custom instrument activities.
+     *
+     * Ensures an instance exists for this enrollment + instrument + phase, then
+     * links the teacher to the [hl_teacher_assessment] page with instance_id.
+     */
+    private function render_teacher_instrument_redirect($activity, $enrollment, $external_ref) {
+        $instrument_id = absint($external_ref['teacher_instrument_id']);
+        $phase         = isset($external_ref['phase']) ? sanitize_text_field($external_ref['phase']) : 'pre';
+
+        $assessment_service = new HL_Assessment_Service();
+
+        // Find or create the instance
+        global $wpdb;
+        $instance_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
+             WHERE enrollment_id = %d AND cohort_id = %d AND phase = %s",
+            $enrollment->enrollment_id,
+            $enrollment->cohort_id,
+            $phase
+        ));
+
+        if (!$instance_id) {
+            $instrument = $assessment_service->get_teacher_instrument($instrument_id);
+            $result = $assessment_service->create_teacher_assessment_instance(array(
+                'cohort_id'          => $enrollment->cohort_id,
+                'enrollment_id'      => $enrollment->enrollment_id,
+                'phase'              => $phase,
+                'instrument_id'      => $instrument_id,
+                'instrument_version' => $instrument ? $instrument->instrument_version : null,
+            ));
+
+            if (is_wp_error($result)) {
+                echo '<div class="hl-notice hl-notice-error">' . esc_html($result->get_error_message()) . '</div>';
+                return;
+            }
+            $instance_id = $result;
+        }
+
+        // Find the Teacher Assessment page URL
+        $tsa_url = $this->find_shortcode_page_url('hl_teacher_assessment');
+        if (!empty($tsa_url)) {
+            $tsa_url = add_query_arg('instance_id', $instance_id, $tsa_url);
+            echo '<div class="hl-empty-state">';
+            echo '<p>' . esc_html__('This activity uses the Teacher Self-Assessment form.', 'hl-core') . '</p>';
+            echo '<a href="' . esc_url($tsa_url) . '" class="hl-btn hl-btn-primary">' . esc_html__('Go to Self-Assessment', 'hl-core') . '</a>';
+            echo '</div>';
+        } else {
+            echo '<div class="hl-notice hl-notice-info">' . esc_html__('Please visit the Teacher Self-Assessment page to complete this activity.', 'hl-core') . '</div>';
+        }
     }
 
     /**
