@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for assessment/observation forms)
-**Status:** v1 complete — Phases 1-11 done, Phase 14 (Admin UX) done, Phase 15 (Architecture: Pathway Assignments + Cohort Groups) done, Phase 17 (Org Units hierarchy) done (25 shortcode pages, 15 admin pages, 34 DB tables, tabbed cohort editor)
+**Status:** v1 complete — Phases 1-11 done, Phase 14 (Admin UX) done, Phase 15 (Architecture: Pathway Assignments + Cohort Groups) done, Phase 17 (Org Units hierarchy) done, Phase 18 (Frontend CSS Design System) done (25 shortcode pages, 15 admin pages, 34 DB tables, tabbed cohort editor)
 
 ## Overview
 
@@ -284,6 +284,10 @@ _Read docs: 04 (section 2.2), 08_
 
 ### Phase 17: Admin UX — Hierarchy & Navigation
 - [x] **17.1 Org Units Hierarchical View** — Rewrote `class-hl-admin-orgunits.php`: flat list replaced with district-centric collapsible sections. 5 batch query methods (districts, centers grouped, classroom counts, active cohort counts per center, center leader names). District sections show collapse arrow, name/code, center + cohort counts, Edit/Add Center/Delete actions. Nested center tables with leader names, classroom counts, cohort counts, status badges. Unassigned centers section. Edit form enhancements: pre-fill type/parent from GET params, dynamic titles ("Add New District"/"Edit Center: X"), contextual breadcrumbs (center → parent district), district edit extras (child centers table + "Add Center" button), center edit extras (linked cohorts, classrooms with child counts, staff/leaders with roles and cohort). Inline CSS + vanilla JS for collapsible toggle with link/button click guard.
+
+### Phase 18: Frontend CSS Design System
+- [x] **18.1 CSS Custom Properties & Design System** — Rewrote `assets/css/frontend.css` with `:root` block containing 50+ CSS custom properties (colors, spacing, shadows, radii, transitions, status colors, CRM palette). All existing classes refactored to use `var()` references instead of hardcoded hex values. Added new component classes: `.hl-filters-bar`, `.hl-coach-info-card`, `.hl-coach-widget`, `.hl-session-card`, `.hl-enrollment-switcher`, `.hl-schedule-form`, `.hl-pagination`, `.hl-no-results`, `.hl-btn-danger`, `.hl-input`, `.hl-label`, `.hl-form-group`, `.hl-crm-card-image`, `.hl-crm-card-description`, `.hl-program-card-placeholder`, `.hl-crm-page-header` flex layout.
+- [x] **18.2 PHP Inline Style Migration** — Removed all inline styles from 25 frontend shortcode PHP files across 5 batches, replacing with CSS design system classes. Batch 1: my-coaching (coach card, sessions, schedule form), learners (progress bars, filters), cohorts-listing (cards, filters), institutions-listing (sections, counts), pathways-listing (cards, filters). Batch 2: coaching-hub (header, filters), classrooms-listing (filters), reports-hub (descriptions), my-team (subtitles, stats), my-programs (coach widget, image placeholders). Batch 3: program-page (activity action spacing). Batch 4: team-page (metric cards, detail rows), center-page (district link). Batch 5: cohort-workspace (metrics rows, detail rows), my-cohort (detail rows), children-assessment (matrix overflow, form actions), observations (form actions).
 
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
