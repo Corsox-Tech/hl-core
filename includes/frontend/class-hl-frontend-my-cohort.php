@@ -624,14 +624,14 @@ class HL_Frontend_My_Cohort {
                 <table class="hl-table hl-reports-table" id="hl-reports-table">
                     <thead>
                         <tr>
-                            <th style="width:30px">#</th>
+                            <th>#</th>
                             <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Team', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Role', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Institution', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Age Groups', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Completed', 'hl-core' ); ?></th>
-                            <th style="width:80px"><?php esc_html_e( 'Details', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Details', 'hl-core' ); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -678,7 +678,7 @@ class HL_Frontend_My_Cohort {
                                     </button>
                                 </td>
                             </tr>
-                            <tr class="hl-detail-row" id="hl-detail-<?php echo esc_attr( $eid ); ?>" style="display:none">
+                            <tr class="hl-detail-row" id="hl-detail-<?php echo esc_attr( $eid ); ?>">
                                 <td colspan="8">
                                     <div class="hl-detail-content">
                                         <?php if ( isset( $activity_detail[ $eid ] ) && ! empty( $activities ) ) : ?>

@@ -393,7 +393,7 @@ class HL_Frontend_Observations {
                     </tr>
                 </table>
 
-                <div class="hl-form-actions" style="margin-top: 1em;">
+                <div class="hl-form-actions">
                     <button type="submit" class="hl-btn hl-btn-primary">
                         <?php esc_html_e( 'Create Observation', 'hl-core' ); ?>
                     </button>
@@ -693,7 +693,7 @@ class HL_Frontend_Observations {
             </table>
 
             <?php if ( current_user_can( 'manage_hl_core' ) ) : ?>
-                <p class="description" style="margin-top: 1em;">
+                <p class="description">
                     <?php esc_html_e( 'Form responses are stored in JetFormBuilder Form Records. Use the JFB admin interface to view full response details.', 'hl-core' ); ?>
                 </p>
             <?php endif; ?>

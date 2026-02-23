@@ -2160,6 +2160,10 @@ body:has(.hl-dashboard) h1.entry-title {
     gap: 16px;
 }
 
+.hl-metrics-row + .hl-metrics-row {
+    margin-top: 16px;
+}
+
 /* =====================================================
    41. PAGINATION
    ===================================================== */

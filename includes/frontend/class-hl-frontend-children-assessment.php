@@ -558,7 +558,7 @@ class HL_Frontend_Children_Assessment {
             <?php wp_nonce_field( 'hl_children_assessment_' . $instance_id, '_hl_assessment_nonce' ); ?>
             <input type="hidden" name="hl_instrument_instance_id" value="<?php echo esc_attr( $instance_id ); ?>" />
 
-            <div class="hl-instrument-matrix" style="overflow-x: auto;">
+            <div class="hl-instrument-matrix">
                 <table class="hl-table widefat">
                     <thead>
                         <tr>
@@ -603,7 +603,7 @@ class HL_Frontend_Children_Assessment {
                 </table>
             </div>
 
-            <div class="hl-form-actions" style="margin-top: 1em;">
+            <div class="hl-form-actions">
                 <button type="submit" name="hl_assessment_action" value="draft" class="hl-btn hl-btn-secondary">
                     <?php esc_html_e( 'Save Draft', 'hl-core' ); ?>
                 </button>

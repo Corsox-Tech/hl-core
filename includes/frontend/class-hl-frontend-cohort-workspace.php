@@ -431,7 +431,7 @@ class HL_Frontend_Cohort_Workspace {
                 </div>
             </div>
 
-            <div class="hl-metrics-row" style="margin-top:16px;">
+            <div class="hl-metrics-row">
                 <div class="hl-metric-card">
                     <div class="hl-metric-value"><?php echo esc_html( $teacher_count ); ?></div>
                     <div class="hl-metric-label"><?php esc_html_e( 'Teachers', 'hl-core' ); ?></div>
@@ -710,13 +710,13 @@ class HL_Frontend_Cohort_Workspace {
                 <table class="hl-table hl-reports-table" id="hl-workspace-reports-table">
                     <thead>
                         <tr>
-                            <th style="width:30px">#</th>
+                            <th>#</th>
                             <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Team', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Role', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Institution', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Completed', 'hl-core' ); ?></th>
-                            <th style="width:80px"><?php esc_html_e( 'Details', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Details', 'hl-core' ); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -761,7 +761,7 @@ class HL_Frontend_Cohort_Workspace {
                                     </button>
                                 </td>
                             </tr>
-                            <tr class="hl-detail-row" id="hl-ws-detail-<?php echo esc_attr( $eid ); ?>" style="display:none">
+                            <tr class="hl-detail-row" id="hl-ws-detail-<?php echo esc_attr( $eid ); ?>">
                                 <td colspan="7">
                                     <div class="hl-detail-content">
                                         <?php if ( isset( $activity_detail[ $eid ] ) && ! empty( $activities ) ) : ?>
