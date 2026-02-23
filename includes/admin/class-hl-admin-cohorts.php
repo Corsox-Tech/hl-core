@@ -336,6 +336,7 @@ class HL_Admin_Cohorts {
         global $wpdb;
 
         $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'details';
+        $sub         = isset($_GET['sub']) ? sanitize_text_field($_GET['sub']) : '';
         $cohort_id   = $cohort->cohort_id;
         $base_url    = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id);
 
@@ -343,13 +344,32 @@ class HL_Admin_Cohorts {
         if (isset($_GET['message'])) {
             $msg = sanitize_text_field($_GET['message']);
             $messages = array(
-                'created'         => __('Cohort created successfully.', 'hl-core'),
-                'updated'         => __('Cohort updated successfully.', 'hl-core'),
-                'center_linked'   => __('Center linked to cohort.', 'hl-core'),
-                'center_unlinked' => __('Center unlinked from cohort.', 'hl-core'),
+                'created'            => __('Cohort created successfully.', 'hl-core'),
+                'updated'            => __('Cohort updated successfully.', 'hl-core'),
+                'center_linked'      => __('Center linked to cohort.', 'hl-core'),
+                'center_unlinked'    => __('Center unlinked from cohort.', 'hl-core'),
+                'pathway_saved'      => __('Pathway saved successfully.', 'hl-core'),
+                'pathway_deleted'    => __('Pathway deleted successfully.', 'hl-core'),
+                'pathway_cloned'     => __('Pathway cloned successfully.', 'hl-core'),
+                'activity_saved'     => __('Activity saved successfully.', 'hl-core'),
+                'activity_deleted'   => __('Activity deleted successfully.', 'hl-core'),
+                'team_created'       => __('Team created successfully.', 'hl-core'),
+                'team_updated'       => __('Team updated successfully.', 'hl-core'),
+                'team_deleted'       => __('Team deleted successfully.', 'hl-core'),
+                'enrollment_created' => __('Enrollment created successfully.', 'hl-core'),
+                'enrollment_updated' => __('Enrollment updated successfully.', 'hl-core'),
+                'enrollment_deleted' => __('Enrollment deleted successfully.', 'hl-core'),
+                'assigned'           => __('Pathway assigned to enrollment.', 'hl-core'),
+                'unassigned'         => __('Pathway unassigned from enrollment.', 'hl-core'),
+                'bulk_assigned'      => __('Pathway assigned to selected enrollments.', 'hl-core'),
+                'synced'             => __('Role-based default assignments synced.', 'hl-core'),
+                'template_saved'     => __('Pathway saved as template.', 'hl-core'),
+                'template_removed'   => __('Pathway removed from templates.', 'hl-core'),
+                'clone_error'        => __('Clone failed. Please try again.', 'hl-core'),
             );
             if (isset($messages[$msg])) {
-                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($messages[$msg]) . '</p></div>';
+                $notice_type = ($msg === 'clone_error') ? 'notice-error' : 'notice-success';
+                echo '<div class="notice ' . $notice_type . ' is-dismissible"><p>' . esc_html($messages[$msg]) . '</p></div>';
             }
         }
 
@@ -391,13 +411,13 @@ class HL_Admin_Cohorts {
                 $this->render_tab_centers($cohort);
                 break;
             case 'pathways':
-                $this->render_tab_pathways($cohort);
+                $this->render_tab_pathways($cohort, $sub);
                 break;
             case 'teams':
-                $this->render_tab_teams($cohort);
+                $this->render_tab_teams($cohort, $sub);
                 break;
             case 'enrollments':
-                $this->render_tab_enrollments($cohort);
+                $this->render_tab_enrollments($cohort, $sub);
                 break;
             case 'coaching':
                 $this->render_tab_coaching($cohort);
@@ -416,6 +436,47 @@ class HL_Admin_Cohorts {
         }
 
         echo '</div>';
+    }
+
+    /**
+     * Build the cohort context array passed to standalone class render methods.
+     *
+     * @param object $cohort
+     * @return array
+     */
+    private function get_cohort_context($cohort) {
+        return array(
+            'cohort_id'   => $cohort->cohort_id,
+            'cohort_name' => $cohort->cohort_name,
+        );
+    }
+
+    /**
+     * Render a breadcrumb trail within a tab sub-view.
+     *
+     * @param object $cohort     Cohort object.
+     * @param string $tab        Current tab slug (e.g. 'pathways').
+     * @param string $tab_label  Tab display label (e.g. 'Pathways').
+     * @param array  $crumbs     Additional crumb items as [ ['label' => ..., 'url' => ...], ... ].
+     *                           The last item is rendered as plain text (current page).
+     */
+    private function render_breadcrumb($cohort, $tab, $tab_label, $crumbs = array()) {
+        $base_url = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort->cohort_id . '&tab=' . $tab);
+
+        echo '<nav class="hl-breadcrumb" style="margin-bottom:12px; font-size:13px;">';
+        echo '<a href="' . esc_url($base_url) . '">' . esc_html($tab_label) . '</a>';
+
+        foreach ($crumbs as $i => $crumb) {
+            echo ' &rsaquo; ';
+            $is_last = ($i === count($crumbs) - 1);
+            if ($is_last || empty($crumb['url'])) {
+                echo '<strong>' . esc_html($crumb['label']) . '</strong>';
+            } else {
+                echo '<a href="' . esc_url($crumb['url']) . '">' . esc_html($crumb['label']) . '</a>';
+            }
+        }
+
+        echo '</nav>';
     }
 
     // =========================================================================
@@ -618,9 +679,91 @@ class HL_Admin_Cohorts {
     // Tab: Pathways
     // =========================================================================
 
-    private function render_tab_pathways($cohort) {
+    private function render_tab_pathways($cohort, $sub = '') {
+        $pathways_admin = HL_Admin_Pathways::instance();
+        $context        = $this->get_cohort_context($cohort);
+        $cohort_id      = $cohort->cohort_id;
+        $base_url       = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=pathways');
+
+        switch ($sub) {
+            case 'new':
+                $this->render_breadcrumb($cohort, 'pathways', __('Pathways', 'hl-core'), array(
+                    array('label' => __('New Pathway', 'hl-core')),
+                ));
+                $pathways_admin->render_pathway_form(null, $context);
+                return;
+
+            case 'edit':
+                $pathway_id = isset($_GET['pathway_id']) ? absint($_GET['pathway_id']) : 0;
+                $pathway    = $pathways_admin->get_pathway($pathway_id);
+                if (!$pathway || absint($pathway->cohort_id) !== $cohort_id) {
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Pathway not found in this cohort.', 'hl-core') . '</p></div>';
+                    break; // fall through to list
+                }
+                $this->render_breadcrumb($cohort, 'pathways', __('Pathways', 'hl-core'), array(
+                    array('label' => $pathway->pathway_name, 'url' => $base_url . '&sub=view&pathway_id=' . $pathway_id),
+                    array('label' => __('Edit', 'hl-core')),
+                ));
+                $pathways_admin->render_pathway_form($pathway, $context);
+                return;
+
+            case 'view':
+                $pathway_id = isset($_GET['pathway_id']) ? absint($_GET['pathway_id']) : 0;
+                $pathway    = $pathways_admin->get_pathway($pathway_id);
+                if (!$pathway || absint($pathway->cohort_id) !== $cohort_id) {
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Pathway not found in this cohort.', 'hl-core') . '</p></div>';
+                    break;
+                }
+                $this->render_breadcrumb($cohort, 'pathways', __('Pathways', 'hl-core'), array(
+                    array('label' => $pathway->pathway_name),
+                ));
+                $pathways_admin->render_pathway_detail($pathway, $context);
+                return;
+
+            case 'activity':
+                $pathway_id = isset($_GET['pathway_id']) ? absint($_GET['pathway_id']) : 0;
+                $pathway    = $pathways_admin->get_pathway($pathway_id);
+                if (!$pathway || absint($pathway->cohort_id) !== $cohort_id) {
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Pathway not found in this cohort.', 'hl-core') . '</p></div>';
+                    break;
+                }
+
+                $activity_id     = isset($_GET['activity_id']) ? absint($_GET['activity_id']) : 0;
+                $activity_action = isset($_GET['activity_action']) ? sanitize_text_field($_GET['activity_action']) : '';
+
+                if ($activity_id) {
+                    $activity = $pathways_admin->get_activity($activity_id);
+                    if (!$activity || absint($activity->pathway_id) !== $pathway_id) {
+                        echo '<div class="notice notice-error"><p>' . esc_html__('Activity not found.', 'hl-core') . '</p></div>';
+                        break;
+                    }
+                    $this->render_breadcrumb($cohort, 'pathways', __('Pathways', 'hl-core'), array(
+                        array('label' => $pathway->pathway_name, 'url' => $base_url . '&sub=view&pathway_id=' . $pathway_id),
+                        array('label' => $activity->title . ' — ' . __('Edit', 'hl-core')),
+                    ));
+                    $pathways_admin->render_activity_form($pathway, $activity, $context);
+                } else {
+                    // New activity
+                    $this->render_breadcrumb($cohort, 'pathways', __('Pathways', 'hl-core'), array(
+                        array('label' => $pathway->pathway_name, 'url' => $base_url . '&sub=view&pathway_id=' . $pathway_id),
+                        array('label' => __('New Activity', 'hl-core')),
+                    ));
+                    $pathways_admin->render_activity_form($pathway, null, $context);
+                }
+                return;
+        }
+
+        // Default: show pathways list
+        $this->render_tab_pathways_list($cohort);
+    }
+
+    /**
+     * Pathways list table (default sub-view within Pathways tab).
+     */
+    private function render_tab_pathways_list($cohort) {
         global $wpdb;
         $cohort_id = $cohort->cohort_id;
+        $base_url  = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=pathways');
 
         $pathways = $wpdb->get_results($wpdb->prepare(
             "SELECT pw.*,
@@ -633,7 +776,7 @@ class HL_Admin_Cohorts {
 
         // Action buttons.
         echo '<div style="margin-bottom:15px; display:flex; gap:8px; flex-wrap:wrap;">';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways&action=new')) . '" class="button button-primary">' . esc_html__('New Pathway', 'hl-core') . '</a>';
+        echo '<a href="' . esc_url($base_url . '&sub=new') . '" class="button button-primary">' . esc_html__('New Pathway', 'hl-core') . '</a>';
 
         // Clone from Template.
         $service   = new HL_Pathway_Service();
@@ -642,6 +785,7 @@ class HL_Admin_Cohorts {
             echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=clone')) . '" style="display:flex; gap:6px; align-items:center;">';
             wp_nonce_field('hl_clone_pathway', 'hl_clone_nonce');
             echo '<input type="hidden" name="target_cohort_id" value="' . esc_attr($cohort_id) . '" />';
+            echo '<input type="hidden" name="_hl_cohort_context" value="' . esc_attr($cohort_id) . '" />';
             echo '<select name="source_pathway_id" required>';
             echo '<option value="">' . esc_html__('-- Clone from Template --', 'hl-core') . '</option>';
             foreach ($templates as $t) {
@@ -651,6 +795,8 @@ class HL_Admin_Cohorts {
             echo '<button type="submit" class="button">' . esc_html__('Clone', 'hl-core') . '</button>';
             echo '</form>';
         }
+
+        echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-pathways&cohort_id=' . $cohort_id)) . '" class="button" title="' . esc_attr__('View all pathways for this cohort on the standalone page', 'hl-core') . '">' . esc_html__('Full Page View', 'hl-core') . '</a>';
 
         echo '</div>';
 
@@ -672,8 +818,15 @@ class HL_Admin_Cohorts {
             $roles = json_decode($pw->target_roles, true);
             $roles_str = is_array($roles) ? implode(', ', $roles) : '';
 
+            $view_url   = $base_url . '&sub=view&pathway_id=' . $pw->pathway_id;
+            $edit_url   = $base_url . '&sub=edit&pathway_id=' . $pw->pathway_id;
+            $delete_url = wp_nonce_url(
+                admin_url('admin.php?page=hl-pathways&action=delete&id=' . $pw->pathway_id . '&cohort_context=' . $cohort_id),
+                'hl_delete_pathway_' . $pw->pathway_id
+            );
+
             echo '<tr>';
-            echo '<td><strong><a href="' . esc_url(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pw->pathway_id)) . '">' . esc_html($pw->pathway_name) . '</a></strong>';
+            echo '<td><strong><a href="' . esc_url($view_url) . '">' . esc_html($pw->pathway_name) . '</a></strong>';
             if (!empty($pw->is_template)) {
                 echo ' <span class="hl-status-badge active" style="font-size:10px;">' . esc_html__('Template', 'hl-core') . '</span>';
             }
@@ -682,7 +835,9 @@ class HL_Admin_Cohorts {
             echo '<td>' . esc_html($pw->activity_count) . '</td>';
             echo '<td>' . esc_html($pw->avg_completion_time ?: '-') . '</td>';
             echo '<td>';
-            echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways&action=edit&id=' . $pw->pathway_id)) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a>';
+            echo '<a href="' . esc_url($view_url) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a> ';
+            echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
+            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Delete this pathway and all its activities?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
             echo '</td>';
             echo '</tr>';
         }
@@ -694,9 +849,58 @@ class HL_Admin_Cohorts {
     // Tab: Teams
     // =========================================================================
 
-    private function render_tab_teams($cohort) {
+    private function render_tab_teams($cohort, $sub = '') {
+        $teams_admin = HL_Admin_Teams::instance();
+        $context     = $this->get_cohort_context($cohort);
+        $cohort_id   = $cohort->cohort_id;
+        $base_url    = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=teams');
+
+        switch ($sub) {
+            case 'new':
+                $this->render_breadcrumb($cohort, 'teams', __('Teams', 'hl-core'), array(
+                    array('label' => __('New Team', 'hl-core')),
+                ));
+                $teams_admin->render_form(null, $context);
+                return;
+
+            case 'edit':
+                $team_id = isset($_GET['team_id']) ? absint($_GET['team_id']) : 0;
+                $team    = $teams_admin->get_team($team_id);
+                if (!$team || absint($team->cohort_id) !== $cohort_id) {
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Team not found in this cohort.', 'hl-core') . '</p></div>';
+                    break;
+                }
+                $this->render_breadcrumb($cohort, 'teams', __('Teams', 'hl-core'), array(
+                    array('label' => $team->team_name . ' — ' . __('Edit', 'hl-core')),
+                ));
+                $teams_admin->render_form($team, $context);
+                return;
+
+            case 'view':
+                $team_id = isset($_GET['team_id']) ? absint($_GET['team_id']) : 0;
+                $team    = $teams_admin->get_team($team_id);
+                if (!$team || absint($team->cohort_id) !== $cohort_id) {
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Team not found in this cohort.', 'hl-core') . '</p></div>';
+                    break;
+                }
+                $this->render_breadcrumb($cohort, 'teams', __('Teams', 'hl-core'), array(
+                    array('label' => $team->team_name),
+                ));
+                $teams_admin->render_team_detail($team, $context);
+                return;
+        }
+
+        // Default: show teams list
+        $this->render_tab_teams_list($cohort);
+    }
+
+    /**
+     * Teams list table (default sub-view within Teams tab).
+     */
+    private function render_tab_teams_list($cohort) {
         global $wpdb;
         $cohort_id = $cohort->cohort_id;
+        $base_url  = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=teams');
 
         $teams = $wpdb->get_results($wpdb->prepare(
             "SELECT t.*, o.name AS center_name,
@@ -728,9 +932,9 @@ class HL_Admin_Cohorts {
             }
         }
 
-        // Manage Teams link.
-        echo '<div style="margin-bottom:15px;">';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-teams&cohort_id=' . $cohort_id)) . '" class="button button-primary">' . esc_html__('Manage Teams', 'hl-core') . '</a>';
+        echo '<div style="margin-bottom:15px; display:flex; gap:8px;">';
+        echo '<a href="' . esc_url($base_url . '&sub=new') . '" class="button button-primary">' . esc_html__('Create Team', 'hl-core') . '</a>';
+        echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-teams&cohort_id=' . $cohort_id)) . '" class="button" title="' . esc_attr__('View all teams for this cohort on the standalone page', 'hl-core') . '">' . esc_html__('Full Page View', 'hl-core') . '</a>';
         echo '</div>';
 
         if (empty($teams)) {
@@ -744,18 +948,34 @@ class HL_Admin_Cohorts {
         echo '<th>' . esc_html__('Center', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Mentors', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Members', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead><tbody>';
 
         foreach ($teams as $t) {
-            $mentors = isset($mentor_names[$t->team_id]) ? implode(', ', $mentor_names[$t->team_id]) : '-';
+            $mentors_str = isset($mentor_names[$t->team_id]) ? implode(', ', $mentor_names[$t->team_id]) : '-';
+            $view_url    = $base_url . '&sub=view&team_id=' . $t->team_id;
+            $edit_url    = $base_url . '&sub=edit&team_id=' . $t->team_id;
+            $delete_url  = wp_nonce_url(
+                admin_url('admin.php?page=hl-teams&action=delete&id=' . $t->team_id . '&cohort_context=' . $cohort_id),
+                'hl_delete_team_' . $t->team_id
+            );
+
+            $status_style = ($t->status === 'active')
+                ? 'color:#00a32a;font-weight:600;'
+                : 'color:#b32d2e;font-weight:600;';
 
             echo '<tr>';
-            echo '<td><strong>' . esc_html($t->team_name) . '</strong></td>';
+            echo '<td><strong><a href="' . esc_url($view_url) . '">' . esc_html($t->team_name) . '</a></strong></td>';
             echo '<td>' . esc_html($t->center_name ?: '-') . '</td>';
-            echo '<td>' . esc_html($mentors) . '</td>';
+            echo '<td>' . esc_html($mentors_str) . '</td>';
             echo '<td>' . esc_html($t->member_count) . '</td>';
-            echo '<td><a href="' . esc_url(admin_url('admin.php?page=hl-teams&action=view&id=' . $t->team_id)) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a></td>';
+            echo '<td><span style="' . esc_attr($status_style) . '">' . esc_html(ucfirst($t->status)) . '</span></td>';
+            echo '<td>';
+            echo '<a href="' . esc_url($view_url) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a> ';
+            echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
+            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
+            echo '</td>';
             echo '</tr>';
         }
 
@@ -766,9 +986,45 @@ class HL_Admin_Cohorts {
     // Tab: Enrollments
     // =========================================================================
 
-    private function render_tab_enrollments($cohort) {
+    private function render_tab_enrollments($cohort, $sub = '') {
+        $enrollments_admin = HL_Admin_Enrollments::instance();
+        $context           = $this->get_cohort_context($cohort);
+        $cohort_id         = $cohort->cohort_id;
+        $base_url          = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=enrollments');
+
+        switch ($sub) {
+            case 'new':
+                $this->render_breadcrumb($cohort, 'enrollments', __('Enrollments', 'hl-core'), array(
+                    array('label' => __('Enroll User', 'hl-core')),
+                ));
+                $enrollments_admin->render_form(null, $context);
+                return;
+
+            case 'edit':
+                $enrollment_id = isset($_GET['enrollment_id']) ? absint($_GET['enrollment_id']) : 0;
+                $enrollment    = $enrollments_admin->get_enrollment($enrollment_id);
+                if (!$enrollment || absint($enrollment->cohort_id) !== $cohort_id) {
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Enrollment not found in this cohort.', 'hl-core') . '</p></div>';
+                    break;
+                }
+                $this->render_breadcrumb($cohort, 'enrollments', __('Enrollments', 'hl-core'), array(
+                    array('label' => __('Edit Enrollment', 'hl-core')),
+                ));
+                $enrollments_admin->render_form($enrollment, $context);
+                return;
+        }
+
+        // Default: show enrollments list
+        $this->render_tab_enrollments_list($cohort);
+    }
+
+    /**
+     * Enrollments list table (default sub-view within Enrollments tab).
+     */
+    private function render_tab_enrollments_list($cohort) {
         global $wpdb;
         $cohort_id = $cohort->cohort_id;
+        $base_url  = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=enrollments');
 
         $page_num = isset($_GET['paged']) ? max(1, absint($_GET['paged'])) : 1;
         $per_page = 25;
@@ -824,8 +1080,9 @@ class HL_Admin_Cohorts {
             $team_map[$r['enrollment_id']] = $r['team_name'];
         }
 
-        echo '<div style="margin-bottom:15px;">';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-enrollments&cohort_id=' . $cohort_id)) . '" class="button button-primary">' . esc_html__('Manage Enrollments', 'hl-core') . '</a>';
+        echo '<div style="margin-bottom:15px; display:flex; gap:8px; align-items:center;">';
+        echo '<a href="' . esc_url($base_url . '&sub=new') . '" class="button button-primary">' . esc_html__('Enroll User', 'hl-core') . '</a>';
+        echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-enrollments&cohort_id=' . $cohort_id)) . '" class="button" title="' . esc_attr__('View all enrollments for this cohort on the standalone page', 'hl-core') . '">' . esc_html__('Full Page View', 'hl-core') . '</a>';
         echo ' <span style="color:#666;">' . sprintf(esc_html__('%d enrollments total', 'hl-core'), $total) . '</span>';
         echo '</div>';
 
@@ -847,7 +1104,6 @@ class HL_Admin_Cohorts {
         echo '</tr></thead><tbody>';
 
         // Collect pathway names per enrollment.
-        $pa_service = new HL_Pathway_Assignment_Service();
         $pathway_names_map = array();
         $enrollment_ids_list = wp_list_pluck($enrollments, 'enrollment_id');
         if (!empty($enrollment_ids_list)) {
@@ -873,8 +1129,14 @@ class HL_Admin_Cohorts {
             $team_name   = isset($team_map[$e->enrollment_id]) ? $team_map[$e->enrollment_id] : '-';
             $pw_names    = isset($pathway_names_map[$e->enrollment_id]) ? implode(', ', $pathway_names_map[$e->enrollment_id]) : '-';
 
+            $edit_url   = $base_url . '&sub=edit&enrollment_id=' . $e->enrollment_id;
+            $delete_url = wp_nonce_url(
+                admin_url('admin.php?page=hl-enrollments&action=delete&id=' . $e->enrollment_id . '&cohort_context=' . $cohort_id),
+                'hl_delete_enrollment_' . $e->enrollment_id
+            );
+
             echo '<tr>';
-            echo '<td><strong>' . esc_html($e->display_name) . '</strong></td>';
+            echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($e->display_name) . '</a></strong></td>';
             echo '<td>' . esc_html($e->user_email) . '</td>';
             echo '<td>' . esc_html($roles_str) . '</td>';
             echo '<td>' . esc_html($pw_names) . '</td>';
@@ -886,7 +1148,10 @@ class HL_Admin_Cohorts {
             echo '</div> ';
             echo '<span style="font-size:12px;">' . esc_html(number_format($completion, 0)) . '%</span>';
             echo '</td>';
-            echo '<td><a href="' . esc_url(admin_url('admin.php?page=hl-enrollments&action=edit&id=' . $e->enrollment_id)) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a></td>';
+            echo '<td>';
+            echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
+            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this enrollment?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
+            echo '</td>';
             echo '</tr>';
         }
 
@@ -895,7 +1160,6 @@ class HL_Admin_Cohorts {
         // Pagination.
         $total_pages = ceil($total / $per_page);
         if ($total_pages > 1) {
-            $base_url = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort->cohort_id . '&tab=enrollments');
             echo '<div class="tablenav bottom"><div class="tablenav-pages">';
             for ($p = 1; $p <= $total_pages; $p++) {
                 if ($p === $page_num) {

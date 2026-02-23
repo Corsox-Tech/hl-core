@@ -148,7 +148,7 @@ class HL_Admin_Pathways {
      * @param int $pathway_id
      * @return object|null
      */
-    private function get_pathway($pathway_id) {
+    public function get_pathway($pathway_id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_pathway WHERE pathway_id = %d",
@@ -162,12 +162,30 @@ class HL_Admin_Pathways {
      * @param int $activity_id
      * @return object|null
      */
-    private function get_activity($activity_id) {
+    public function get_activity($activity_id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_activity WHERE activity_id = %d",
             $activity_id
         ));
+    }
+
+    /**
+     * Build a redirect URL back to the cohort editor when in cohort context.
+     *
+     * @param int    $cohort_id Cohort ID.
+     * @param string $tab       Tab slug (e.g. 'pathways').
+     * @param array  $extra     Additional query args.
+     * @return string Admin URL.
+     */
+    private function get_cohort_redirect($cohort_id, $tab = 'pathways', $extra = array()) {
+        $args = array_merge(array(
+            'page'   => 'hl-core',
+            'action' => 'edit',
+            'id'     => $cohort_id,
+            'tab'    => $tab,
+        ), $extra);
+        return admin_url('admin.php?' . http_build_query($args));
     }
 
     /**
@@ -235,14 +253,24 @@ class HL_Admin_Pathways {
             $data['pathway_code'] = HL_Normalization::generate_code($data['pathway_name']);
         }
 
+        $cohort_context = isset($_POST['_hl_cohort_context']) ? absint($_POST['_hl_cohort_context']) : 0;
+
         if ($pathway_id > 0) {
             $wpdb->update($wpdb->prefix . 'hl_pathway', $data, array('pathway_id' => $pathway_id));
-            $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=updated');
+            if ($cohort_context) {
+                $redirect = $this->get_cohort_redirect($cohort_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'pathway_saved'));
+            } else {
+                $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=updated');
+            }
         } else {
             $data['pathway_uuid'] = HL_DB_Utils::generate_uuid();
             $wpdb->insert($wpdb->prefix . 'hl_pathway', $data);
-            $new_id   = $wpdb->insert_id;
-            $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $new_id . '&message=created');
+            $new_id = $wpdb->insert_id;
+            if ($cohort_context) {
+                $redirect = $this->get_cohort_redirect($cohort_context, 'pathways', array('message' => 'pathway_saved'));
+            } else {
+                $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $new_id . '&message=created');
+            }
         }
 
         wp_redirect($redirect);
@@ -315,7 +343,12 @@ class HL_Admin_Pathways {
                 );
                 set_transient('hl_prereq_cycle_error_' . $target_activity_id, $msg, 60);
 
-                $redirect = admin_url('admin.php?page=hl-pathways&action=edit_activity&activity_id=' . $target_activity_id . '&prereq_error=cycle');
+                $cycle_cohort_ctx = isset($_POST['_hl_cohort_context']) ? absint($_POST['_hl_cohort_context']) : 0;
+                if ($cycle_cohort_ctx) {
+                    $redirect = $this->get_cohort_redirect($cycle_cohort_ctx, 'pathways', array('sub' => 'activity', 'pathway_id' => $pathway_id, 'activity_id' => $target_activity_id, 'prereq_error' => 'cycle'));
+                } else {
+                    $redirect = admin_url('admin.php?page=hl-pathways&action=edit_activity&activity_id=' . $target_activity_id . '&prereq_error=cycle');
+                }
                 wp_redirect($redirect);
                 exit;
             }
@@ -413,7 +446,12 @@ class HL_Admin_Pathways {
             }
         }
 
-        $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=activity_saved');
+        $cohort_context = isset($_POST['_hl_cohort_context']) ? absint($_POST['_hl_cohort_context']) : 0;
+        if ($cohort_context) {
+            $redirect = $this->get_cohort_redirect($cohort_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'activity_saved'));
+        } else {
+            $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=activity_saved');
+        }
         wp_redirect($redirect);
         exit;
     }
@@ -497,7 +535,12 @@ class HL_Admin_Pathways {
         $wpdb->delete($wpdb->prefix . 'hl_activity', array('pathway_id' => $pathway_id));
         $wpdb->delete($wpdb->prefix . 'hl_pathway', array('pathway_id' => $pathway_id));
 
-        wp_redirect(admin_url('admin.php?page=hl-pathways&message=deleted'));
+        $cohort_context = isset($_GET['cohort_context']) ? absint($_GET['cohort_context']) : 0;
+        if ($cohort_context) {
+            wp_redirect($this->get_cohort_redirect($cohort_context, 'pathways', array('message' => 'pathway_deleted')));
+        } else {
+            wp_redirect(admin_url('admin.php?page=hl-pathways&message=deleted'));
+        }
         exit;
     }
 
@@ -524,7 +567,12 @@ class HL_Admin_Pathways {
         global $wpdb;
         $wpdb->delete($wpdb->prefix . 'hl_activity', array('activity_id' => $activity_id));
 
-        wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=activity_deleted'));
+        $cohort_context = isset($_GET['cohort_context']) ? absint($_GET['cohort_context']) : 0;
+        if ($cohort_context) {
+            wp_redirect($this->get_cohort_redirect($cohort_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'activity_deleted')));
+        } else {
+            wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=activity_deleted'));
+        }
         exit;
     }
 
@@ -540,8 +588,9 @@ class HL_Admin_Pathways {
             wp_die(__('You do not have permission to perform this action.', 'hl-core'));
         }
 
-        $source_id  = isset($_POST['source_pathway_id']) ? absint($_POST['source_pathway_id']) : 0;
+        $source_id     = isset($_POST['source_pathway_id']) ? absint($_POST['source_pathway_id']) : 0;
         $target_cohort = isset($_POST['target_cohort_id']) ? absint($_POST['target_cohort_id']) : 0;
+        $cohort_context = isset($_POST['_hl_cohort_context']) ? absint($_POST['_hl_cohort_context']) : 0;
 
         if (!$source_id || !$target_cohort) {
             wp_redirect(admin_url('admin.php?page=hl-pathways&message=clone_error'));
@@ -553,11 +602,19 @@ class HL_Admin_Pathways {
 
         if (is_wp_error($result)) {
             set_transient('hl_clone_error', $result->get_error_message(), 60);
-            wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $source_id . '&message=clone_error'));
+            if ($cohort_context) {
+                wp_redirect($this->get_cohort_redirect($cohort_context, 'pathways', array('message' => 'clone_error')));
+            } else {
+                wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $source_id . '&message=clone_error'));
+            }
             exit;
         }
 
-        wp_redirect(admin_url('admin.php?page=hl-pathways&action=edit&id=' . $result . '&message=cloned'));
+        if ($cohort_context) {
+            wp_redirect($this->get_cohort_redirect($cohort_context, 'pathways', array('message' => 'pathway_cloned')));
+        } else {
+            wp_redirect(admin_url('admin.php?page=hl-pathways&action=edit&id=' . $result . '&message=cloned'));
+        }
         exit;
     }
 
@@ -589,7 +646,12 @@ class HL_Admin_Pathways {
         $service->set_template($pathway_id, $new_val);
 
         $msg = $new_val ? 'template_saved' : 'template_removed';
-        wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=' . $msg));
+        $cohort_context = isset($_GET['cohort_context']) ? absint($_GET['cohort_context']) : 0;
+        if ($cohort_context) {
+            wp_redirect($this->get_cohort_redirect($cohort_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => $msg)));
+        } else {
+            wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=' . $msg));
+        }
         exit;
     }
 
@@ -604,13 +666,18 @@ class HL_Admin_Pathways {
             wp_die(__('You do not have permission.', 'hl-core'));
         }
 
-        $pathway_id    = absint($_POST['pathway_id']);
-        $enrollment_id = absint($_POST['enrollment_id']);
+        $pathway_id     = absint($_POST['pathway_id']);
+        $enrollment_id  = absint($_POST['enrollment_id']);
+        $cohort_context = isset($_POST['_hl_cohort_context']) ? absint($_POST['_hl_cohort_context']) : 0;
 
         $service = new HL_Pathway_Assignment_Service();
         $service->assign_pathway($enrollment_id, $pathway_id, 'explicit');
 
-        wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=assigned'));
+        if ($cohort_context) {
+            wp_redirect($this->get_cohort_redirect($cohort_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'assigned')));
+        } else {
+            wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=assigned'));
+        }
         exit;
     }
 
@@ -633,7 +700,12 @@ class HL_Admin_Pathways {
         $service = new HL_Pathway_Assignment_Service();
         $service->unassign_pathway($enrollment_id, $pathway_id);
 
-        wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=unassigned'));
+        $cohort_context = isset($_GET['cohort_context']) ? absint($_GET['cohort_context']) : 0;
+        if ($cohort_context) {
+            wp_redirect($this->get_cohort_redirect($cohort_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'unassigned')));
+        } else {
+            wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=unassigned'));
+        }
         exit;
     }
 
@@ -658,7 +730,12 @@ class HL_Admin_Pathways {
             $service->bulk_assign($pathway_id, $enrollment_ids, 'explicit');
         }
 
-        wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=bulk_assigned'));
+        $cohort_context = isset($_POST['_hl_cohort_context']) ? absint($_POST['_hl_cohort_context']) : 0;
+        if ($cohort_context) {
+            wp_redirect($this->get_cohort_redirect($cohort_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'bulk_assigned')));
+        } else {
+            wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=bulk_assigned'));
+        }
         exit;
     }
 
@@ -685,7 +762,12 @@ class HL_Admin_Pathways {
         $service = new HL_Pathway_Assignment_Service();
         $service->sync_role_defaults($pathway->cohort_id);
 
-        wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=synced'));
+        $cohort_context = isset($_GET['cohort_context']) ? absint($_GET['cohort_context']) : 0;
+        if ($cohort_context) {
+            wp_redirect($this->get_cohort_redirect($cohort_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'synced')));
+        } else {
+            wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=synced'));
+        }
         exit;
     }
 
@@ -854,9 +936,11 @@ class HL_Admin_Pathways {
      * Render pathway detail with activities list
      *
      * @param object $pathway
+     * @param array  $context Optional cohort context. Keys: 'cohort_id', 'cohort_name'.
      */
-    private function render_pathway_detail($pathway) {
+    public function render_pathway_detail($pathway, $context = array()) {
         global $wpdb;
+        $in_cohort = !empty($context['cohort_id']);
 
         $activities = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_activity WHERE pathway_id = %d ORDER BY ordering_hint ASC, activity_id ASC",
@@ -892,24 +976,43 @@ class HL_Admin_Pathways {
             }
         }
 
-        echo '<h1>' . esc_html($pathway->pathway_name);
-        if (!empty($pathway->is_template)) {
-            echo ' <span class="hl-status-badge active" style="font-size:12px; vertical-align:middle;">' . esc_html__('Template', 'hl-core') . '</span>';
+        if (!$in_cohort) {
+            echo '<h1>' . esc_html($pathway->pathway_name);
+            if (!empty($pathway->is_template)) {
+                echo ' <span class="hl-status-badge active" style="font-size:12px; vertical-align:middle;">' . esc_html__('Template', 'hl-core') . '</span>';
+            }
+            echo '</h1>';
+            echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">&larr; ' . esc_html__('Back to Pathways', 'hl-core') . '</a>';
+        } else {
+            echo '<h2>' . esc_html($pathway->pathway_name);
+            if (!empty($pathway->is_template)) {
+                echo ' <span class="hl-status-badge active" style="font-size:12px; vertical-align:middle;">' . esc_html__('Template', 'hl-core') . '</span>';
+            }
+            echo '</h2>';
         }
-        echo '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">&larr; ' . esc_html__('Back to Pathways', 'hl-core') . '</a>';
 
-        // Action buttons: Clone to Cohort + Save as Template.
+        // Action buttons: Edit + Clone to Cohort + Save as Template.
         $all_cohorts = $wpdb->get_results(
             "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
         );
 
         echo '<div style="margin:15px 0; display:flex; gap:15px; align-items:flex-start; flex-wrap:wrap;">';
 
+        // Edit button.
+        if ($in_cohort) {
+            $edit_url = admin_url('admin.php?page=hl-core&action=edit&id=' . $context['cohort_id'] . '&tab=pathways&sub=edit&pathway_id=' . $pathway->pathway_id);
+        } else {
+            $edit_url = admin_url('admin.php?page=hl-pathways&action=edit&id=' . $pathway->pathway_id);
+        }
+        echo '<a href="' . esc_url($edit_url) . '" class="button button-primary">' . esc_html__('Edit Pathway', 'hl-core') . '</a>';
+
         // Clone to Cohort form.
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=clone')) . '" style="display:flex; gap:8px; align-items:center; background:#f9f9f9; border:1px solid #ccd0d4; padding:8px 12px; border-radius:4px;">';
         wp_nonce_field('hl_clone_pathway', 'hl_clone_nonce');
         echo '<input type="hidden" name="source_pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
+        if ($in_cohort) {
+            echo '<input type="hidden" name="_hl_cohort_context" value="' . esc_attr($context['cohort_id']) . '" />';
+        }
         echo '<label for="clone_target_cohort"><strong>' . esc_html__('Clone to Cohort:', 'hl-core') . '</strong></label> ';
         echo '<select name="target_cohort_id" id="clone_target_cohort" required>';
         echo '<option value="">' . esc_html__('-- Select --', 'hl-core') . '</option>';
@@ -922,10 +1025,11 @@ class HL_Admin_Pathways {
 
         // Save as Template / Remove Template toggle.
         $is_tmpl = !empty($pathway->is_template);
-        $tmpl_url = wp_nonce_url(
-            admin_url('admin.php?page=hl-pathways&action=toggle_template&id=' . $pathway->pathway_id),
-            'hl_toggle_template_' . $pathway->pathway_id
-        );
+        $tmpl_base_url = admin_url('admin.php?page=hl-pathways&action=toggle_template&id=' . $pathway->pathway_id);
+        if ($in_cohort) {
+            $tmpl_base_url .= '&cohort_context=' . $context['cohort_id'];
+        }
+        $tmpl_url = wp_nonce_url($tmpl_base_url, 'hl_toggle_template_' . $pathway->pathway_id);
         if ($is_tmpl) {
             echo '<a href="' . esc_url($tmpl_url) . '" class="button">' . esc_html__('Remove from Templates', 'hl-core') . '</a>';
         } else {
@@ -961,8 +1065,13 @@ class HL_Admin_Pathways {
         echo '</table>';
 
         // Activities section
+        if ($in_cohort) {
+            $add_activity_url = admin_url('admin.php?page=hl-core&action=edit&id=' . $context['cohort_id'] . '&tab=pathways&sub=activity&pathway_id=' . $pathway->pathway_id . '&activity_action=new');
+        } else {
+            $add_activity_url = admin_url('admin.php?page=hl-pathways&action=new_activity&pathway_id=' . $pathway->pathway_id);
+        }
         echo '<h2 class="wp-heading-inline">' . esc_html__('Activities', 'hl-core') . '</h2>';
-        echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-pathways&action=new_activity&pathway_id=' . $pathway->pathway_id)) . '" class="page-title-action">' . esc_html__('Add Activity', 'hl-core') . '</a>';
+        echo ' <a href="' . esc_url($add_activity_url) . '" class="page-title-action">' . esc_html__('Add Activity', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
         if (empty($activities)) {
@@ -983,11 +1092,19 @@ class HL_Admin_Pathways {
         echo '<tbody>';
 
         foreach ($activities as $act) {
-            $edit_url   = admin_url('admin.php?page=hl-pathways&action=edit_activity&activity_id=' . $act->activity_id);
-            $delete_url = wp_nonce_url(
-                admin_url('admin.php?page=hl-pathways&action=delete_activity&activity_id=' . $act->activity_id . '&pathway_id=' . $pathway->pathway_id),
-                'hl_delete_activity_' . $act->activity_id
-            );
+            if ($in_cohort) {
+                $edit_url = admin_url('admin.php?page=hl-core&action=edit&id=' . $context['cohort_id'] . '&tab=pathways&sub=activity&pathway_id=' . $pathway->pathway_id . '&activity_id=' . $act->activity_id);
+                $delete_url = wp_nonce_url(
+                    admin_url('admin.php?page=hl-pathways&action=delete_activity&activity_id=' . $act->activity_id . '&pathway_id=' . $pathway->pathway_id . '&cohort_context=' . $context['cohort_id']),
+                    'hl_delete_activity_' . $act->activity_id
+                );
+            } else {
+                $edit_url = admin_url('admin.php?page=hl-pathways&action=edit_activity&activity_id=' . $act->activity_id);
+                $delete_url = wp_nonce_url(
+                    admin_url('admin.php?page=hl-pathways&action=delete_activity&activity_id=' . $act->activity_id . '&pathway_id=' . $pathway->pathway_id),
+                    'hl_delete_activity_' . $act->activity_id
+                );
+            }
 
             // Format type label
             $type_labels = array(
@@ -1029,10 +1146,11 @@ class HL_Admin_Pathways {
         echo ' <span style="color:#666;">(' . count($assigned) . ')</span>';
 
         // Sync role defaults button.
-        $sync_url = wp_nonce_url(
-            admin_url('admin.php?page=hl-pathways&action=sync_role_defaults&pathway_id=' . $pathway->pathway_id),
-            'hl_sync_defaults_' . $pathway->pathway_id
-        );
+        $sync_base = admin_url('admin.php?page=hl-pathways&action=sync_role_defaults&pathway_id=' . $pathway->pathway_id);
+        if ($in_cohort) {
+            $sync_base .= '&cohort_context=' . $context['cohort_id'];
+        }
+        $sync_url = wp_nonce_url($sync_base, 'hl_sync_defaults_' . $pathway->pathway_id);
         echo ' <a href="' . esc_url($sync_url) . '" class="button button-small" style="margin-left:10px;" title="' . esc_attr__('Auto-assign this pathway to enrollments whose roles match the target roles', 'hl-core') . '">' . esc_html__('Sync Role Defaults', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
@@ -1041,6 +1159,9 @@ class HL_Admin_Pathways {
             echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=bulk_assign_pathway')) . '" style="margin-bottom:15px;">';
             wp_nonce_field('hl_bulk_assign_pathway', 'hl_bulk_assign_nonce');
             echo '<input type="hidden" name="pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
+            if ($in_cohort) {
+                echo '<input type="hidden" name="_hl_cohort_context" value="' . esc_attr($context['cohort_id']) . '" />';
+            }
             echo '<div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;">';
             echo '<select name="enrollment_ids[]" multiple="multiple" style="min-width:300px; min-height:80px;">';
             foreach ($unassigned as $ue) {
@@ -1064,6 +1185,9 @@ class HL_Admin_Pathways {
             echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=assign_pathway')) . '" style="display:flex; gap:8px; align-items:center; margin-bottom:15px;">';
             wp_nonce_field('hl_assign_pathway', 'hl_assign_nonce');
             echo '<input type="hidden" name="pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
+            if ($in_cohort) {
+                echo '<input type="hidden" name="_hl_cohort_context" value="' . esc_attr($context['cohort_id']) . '" />';
+            }
             echo '<select name="enrollment_id" required>';
             echo '<option value="">' . esc_html__('-- Quick Assign --', 'hl-core') . '</option>';
             foreach ($unassigned as $ue) {
@@ -1090,10 +1214,11 @@ class HL_Admin_Pathways {
                 $roles = json_decode($a['roles'], true);
                 $roles_str = is_array($roles) ? implode(', ', $roles) : '';
 
-                $unassign_url = wp_nonce_url(
-                    admin_url('admin.php?page=hl-pathways&action=unassign_pathway&pathway_id=' . $pathway->pathway_id . '&enrollment_id=' . $a['enrollment_id']),
-                    'hl_unassign_pathway_' . $a['enrollment_id']
-                );
+                $unassign_base = admin_url('admin.php?page=hl-pathways&action=unassign_pathway&pathway_id=' . $pathway->pathway_id . '&enrollment_id=' . $a['enrollment_id']);
+                if ($in_cohort) {
+                    $unassign_base .= '&cohort_context=' . $context['cohort_id'];
+                }
+                $unassign_url = wp_nonce_url($unassign_base, 'hl_unassign_pathway_' . $a['enrollment_id']);
 
                 $type_badge = ($a['assignment_type'] === 'explicit')
                     ? '<span style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600;background:#d4edda;color:#155724;">Explicit</span>'
@@ -1118,10 +1243,12 @@ class HL_Admin_Pathways {
      * Render the pathway create/edit form
      *
      * @param object|null $pathway
+     * @param array       $context Optional cohort context. Keys: 'cohort_id', 'cohort_name'.
      */
-    private function render_pathway_form($pathway = null) {
-        $is_edit = ($pathway !== null);
-        $title   = $is_edit ? __('Edit Pathway', 'hl-core') : __('Add New Pathway', 'hl-core');
+    public function render_pathway_form($pathway = null, $context = array()) {
+        $is_edit      = ($pathway !== null);
+        $title        = $is_edit ? __('Edit Pathway', 'hl-core') : __('Add New Pathway', 'hl-core');
+        $in_cohort    = !empty($context['cohort_id']);
 
         global $wpdb;
         $cohorts = $wpdb->get_results(
@@ -1136,8 +1263,11 @@ class HL_Admin_Pathways {
             }
         }
 
-        echo '<h1>' . esc_html($title) . '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">&larr; ' . esc_html__('Back to Pathways', 'hl-core') . '</a>';
+        // Suppress header/back-link when rendering inside cohort editor.
+        if (!$in_cohort) {
+            echo '<h1>' . esc_html($title) . '</h1>';
+            echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">&larr; ' . esc_html__('Back to Pathways', 'hl-core') . '</a>';
+        }
 
         // "Start from Template" section for new pathways.
         if (!$is_edit) {
@@ -1147,6 +1277,9 @@ class HL_Admin_Pathways {
                 echo '<div style="margin:15px 0; padding:12px 16px; background:#f0f6fc; border:1px solid #c3d9ed; border-radius:4px;">';
                 echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=clone')) . '" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">';
                 wp_nonce_field('hl_clone_pathway', 'hl_clone_nonce');
+                if ($in_cohort) {
+                    echo '<input type="hidden" name="_hl_cohort_context" value="' . esc_attr($context['cohort_id']) . '" />';
+                }
                 echo '<strong>' . esc_html__('Start from Template:', 'hl-core') . '</strong> ';
                 echo '<select name="source_pathway_id" required>';
                 echo '<option value="">' . esc_html__('-- Select Template --', 'hl-core') . '</option>';
@@ -1160,12 +1293,16 @@ class HL_Admin_Pathways {
                     echo '<option value="' . esc_attr($tmpl->pathway_id) . '">' . esc_html($label) . '</option>';
                 }
                 echo '</select> ';
-                echo '<select name="target_cohort_id" required>';
-                echo '<option value="">' . esc_html__('-- Into Cohort --', 'hl-core') . '</option>';
-                foreach ($cohorts as $c) {
-                    echo '<option value="' . esc_attr($c->cohort_id) . '">' . esc_html($c->cohort_name) . '</option>';
+                if ($in_cohort) {
+                    echo '<input type="hidden" name="target_cohort_id" value="' . esc_attr($context['cohort_id']) . '" />';
+                } else {
+                    echo '<select name="target_cohort_id" required>';
+                    echo '<option value="">' . esc_html__('-- Into Cohort --', 'hl-core') . '</option>';
+                    foreach ($cohorts as $c) {
+                        echo '<option value="' . esc_attr($c->cohort_id) . '">' . esc_html($c->cohort_name) . '</option>';
+                    }
+                    echo '</select> ';
                 }
-                echo '</select> ';
                 echo '<button type="submit" class="button button-primary">' . esc_html__('Clone Template', 'hl-core') . '</button>';
                 echo '</form>';
                 echo '</div>';
@@ -1176,6 +1313,9 @@ class HL_Admin_Pathways {
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">';
         wp_nonce_field('hl_save_pathway', 'hl_pathway_nonce');
+        if ($in_cohort) {
+            echo '<input type="hidden" name="_hl_cohort_context" value="' . esc_attr($context['cohort_id']) . '" />';
+        }
 
         if ($is_edit) {
             echo '<input type="hidden" name="pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
@@ -1197,17 +1337,23 @@ class HL_Admin_Pathways {
         echo '</tr>';
 
         // Cohort
-        $current_cohort = $is_edit ? $pathway->cohort_id : '';
+        $current_cohort = $in_cohort ? absint($context['cohort_id']) : ($is_edit ? $pathway->cohort_id : '');
         echo '<tr>';
         echo '<th scope="row"><label for="cohort_id">' . esc_html__('Cohort', 'hl-core') . '</label></th>';
-        echo '<td><select id="cohort_id" name="cohort_id" required>';
-        echo '<option value="">' . esc_html__('-- Select Cohort --', 'hl-core') . '</option>';
-        if ($cohorts) {
-            foreach ($cohorts as $cohort) {
-                echo '<option value="' . esc_attr($cohort->cohort_id) . '"' . selected($current_cohort, $cohort->cohort_id, false) . '>' . esc_html($cohort->cohort_name) . '</option>';
+        if ($in_cohort) {
+            // Locked to cohort context — show read-only name + hidden input.
+            echo '<td><strong>' . esc_html($context['cohort_name']) . '</strong>';
+            echo '<input type="hidden" id="cohort_id" name="cohort_id" value="' . esc_attr($context['cohort_id']) . '" /></td>';
+        } else {
+            echo '<td><select id="cohort_id" name="cohort_id" required>';
+            echo '<option value="">' . esc_html__('-- Select Cohort --', 'hl-core') . '</option>';
+            if ($cohorts) {
+                foreach ($cohorts as $cohort) {
+                    echo '<option value="' . esc_attr($cohort->cohort_id) . '"' . selected($current_cohort, $cohort->cohort_id, false) . '>' . esc_html($cohort->cohort_name) . '</option>';
+                }
             }
+            echo '</select></td>';
         }
-        echo '</select></td>';
         echo '</tr>';
 
         // Target Roles
@@ -1337,7 +1483,7 @@ class HL_Admin_Pathways {
      * @param string|null $external_ref JSON string
      * @return string HTML
      */
-    private function format_external_ref($activity_type, $external_ref) {
+    public function format_external_ref($activity_type, $external_ref) {
         if (empty($external_ref)) {
             return '<span style="color:#999;">' . esc_html__('Not configured', 'hl-core') . '</span>';
         }
@@ -1397,10 +1543,12 @@ class HL_Admin_Pathways {
      *
      * @param object      $pathway
      * @param object|null $activity
+     * @param array       $context Optional cohort context. Keys: 'cohort_id', 'cohort_name'.
      */
-    private function render_activity_form($pathway, $activity = null) {
-        $is_edit = ($activity !== null);
-        $title   = $is_edit ? __('Edit Activity', 'hl-core') : __('Add New Activity', 'hl-core');
+    public function render_activity_form($pathway, $activity = null, $context = array()) {
+        $is_edit   = ($activity !== null);
+        $title     = $is_edit ? __('Edit Activity', 'hl-core') : __('Add New Activity', 'hl-core');
+        $in_cohort = !empty($context['cohort_id']);
 
         // Parse existing external_ref for pre-populating dropdowns
         $ext_ref = array();
@@ -1411,12 +1559,17 @@ class HL_Admin_Pathways {
             }
         }
 
-        echo '<h1>' . esc_html($title) . '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway->pathway_id)) . '">&larr; ' . esc_html__('Back to Pathway: ', 'hl-core') . esc_html($pathway->pathway_name) . '</a>';
+        if (!$in_cohort) {
+            echo '<h1>' . esc_html($title) . '</h1>';
+            echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway->pathway_id)) . '">&larr; ' . esc_html__('Back to Pathway: ', 'hl-core') . esc_html($pathway->pathway_name) . '</a>';
+        }
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">';
         wp_nonce_field('hl_save_activity', 'hl_activity_nonce');
         echo '<input type="hidden" name="pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
+        if ($in_cohort) {
+            echo '<input type="hidden" name="_hl_cohort_context" value="' . esc_attr($context['cohort_id']) . '" />';
+        }
 
         if ($is_edit) {
             echo '<input type="hidden" name="activity_id" value="' . esc_attr($activity->activity_id) . '" />';
@@ -1751,7 +1904,7 @@ class HL_Admin_Pathways {
      *
      * @param string $initial_type The current activity type (for initial state)
      */
-    private function render_activity_form_js($initial_type = '') {
+    public function render_activity_form_js($initial_type = '') {
         ?>
         <script type="text/javascript">
         (function() {
@@ -1878,7 +2031,7 @@ class HL_Admin_Pathways {
      * @param int $activity_id
      * @return string HTML-safe summary.
      */
-    private function format_prereq_summary($activity_id) {
+    public function format_prereq_summary($activity_id) {
         $groups = $this->get_prereq_groups($activity_id);
         if (empty($groups)) {
             return '<span style="color:#999;">&mdash;</span>';

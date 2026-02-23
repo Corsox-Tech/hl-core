@@ -84,7 +84,7 @@ class HL_Admin_Enrollments {
      * @param int $enrollment_id
      * @return object|null
      */
-    private function get_enrollment($enrollment_id) {
+    public function get_enrollment($enrollment_id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
@@ -129,18 +129,28 @@ class HL_Admin_Enrollments {
             'status'      => sanitize_text_field($_POST['status']),
         );
 
+        $cohort_context = isset($_POST['_hl_cohort_context']) ? absint($_POST['_hl_cohort_context']) : 0;
+
         if ($enrollment_id > 0) {
             $wpdb->update(
                 $wpdb->prefix . 'hl_enrollment',
                 $data,
                 array('enrollment_id' => $enrollment_id)
             );
-            $redirect = admin_url('admin.php?page=hl-enrollments&message=updated');
+            if ($cohort_context) {
+                $redirect = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_context . '&tab=enrollments&message=enrollment_updated');
+            } else {
+                $redirect = admin_url('admin.php?page=hl-enrollments&message=updated');
+            }
         } else {
             $data['enrollment_uuid'] = HL_DB_Utils::generate_uuid();
             $data['enrolled_at']     = current_time('mysql');
             $wpdb->insert($wpdb->prefix . 'hl_enrollment', $data);
-            $redirect = admin_url('admin.php?page=hl-enrollments&message=created');
+            if ($cohort_context) {
+                $redirect = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_context . '&tab=enrollments&message=enrollment_created');
+            } else {
+                $redirect = admin_url('admin.php?page=hl-enrollments&message=created');
+            }
         }
 
         wp_redirect($redirect);
@@ -168,7 +178,12 @@ class HL_Admin_Enrollments {
         global $wpdb;
         $wpdb->delete($wpdb->prefix . 'hl_enrollment', array('enrollment_id' => $enrollment_id));
 
-        wp_redirect(admin_url('admin.php?page=hl-enrollments&message=deleted'));
+        $cohort_context = isset($_GET['cohort_context']) ? absint($_GET['cohort_context']) : 0;
+        if ($cohort_context) {
+            wp_redirect(admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_context . '&tab=enrollments&message=enrollment_deleted'));
+        } else {
+            wp_redirect(admin_url('admin.php?page=hl-enrollments&message=deleted'));
+        }
         exit;
     }
 
@@ -318,10 +333,12 @@ class HL_Admin_Enrollments {
      * Render the create/edit form
      *
      * @param object|null $enrollment Enrollment row for edit, null for create.
+     * @param array       $context    Optional cohort context. Keys: 'cohort_id', 'cohort_name'.
      */
-    private function render_form($enrollment = null) {
-        $is_edit = ($enrollment !== null);
-        $title   = $is_edit ? __('Edit Enrollment', 'hl-core') : __('Add New Enrollment', 'hl-core');
+    public function render_form($enrollment = null, $context = array()) {
+        $is_edit   = ($enrollment !== null);
+        $title     = $is_edit ? __('Edit Enrollment', 'hl-core') : __('Add New Enrollment', 'hl-core');
+        $in_cohort = !empty($context['cohort_id']);
 
         global $wpdb;
 
@@ -352,11 +369,16 @@ class HL_Admin_Enrollments {
             }
         }
 
-        echo '<h1>' . esc_html($title) . '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-enrollments')) . '">&larr; ' . esc_html__('Back to Enrollments', 'hl-core') . '</a>';
+        if (!$in_cohort) {
+            echo '<h1>' . esc_html($title) . '</h1>';
+            echo '<a href="' . esc_url(admin_url('admin.php?page=hl-enrollments')) . '">&larr; ' . esc_html__('Back to Enrollments', 'hl-core') . '</a>';
+        }
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-enrollments')) . '">';
         wp_nonce_field('hl_save_enrollment', 'hl_enrollment_nonce');
+        if ($in_cohort) {
+            echo '<input type="hidden" name="_hl_cohort_context" value="' . esc_attr($context['cohort_id']) . '" />';
+        }
 
         if ($is_edit) {
             echo '<input type="hidden" name="enrollment_id" value="' . esc_attr($enrollment->enrollment_id) . '" />';
@@ -377,17 +399,22 @@ class HL_Admin_Enrollments {
         echo '</tr>';
 
         // Cohort
-        $current_cohort = $is_edit ? $enrollment->cohort_id : '';
+        $current_cohort = $in_cohort ? absint($context['cohort_id']) : ($is_edit ? $enrollment->cohort_id : '');
         echo '<tr>';
         echo '<th scope="row"><label for="cohort_id">' . esc_html__('Cohort', 'hl-core') . '</label></th>';
-        echo '<td><select id="cohort_id" name="cohort_id" required>';
-        echo '<option value="">' . esc_html__('-- Select Cohort --', 'hl-core') . '</option>';
-        if ($cohorts) {
-            foreach ($cohorts as $cohort) {
-                echo '<option value="' . esc_attr($cohort->cohort_id) . '"' . selected($current_cohort, $cohort->cohort_id, false) . '>' . esc_html($cohort->cohort_name) . '</option>';
+        if ($in_cohort) {
+            echo '<td><strong>' . esc_html($context['cohort_name']) . '</strong>';
+            echo '<input type="hidden" id="cohort_id" name="cohort_id" value="' . esc_attr($context['cohort_id']) . '" /></td>';
+        } else {
+            echo '<td><select id="cohort_id" name="cohort_id" required>';
+            echo '<option value="">' . esc_html__('-- Select Cohort --', 'hl-core') . '</option>';
+            if ($cohorts) {
+                foreach ($cohorts as $cohort) {
+                    echo '<option value="' . esc_attr($cohort->cohort_id) . '"' . selected($current_cohort, $cohort->cohort_id, false) . '>' . esc_html($cohort->cohort_name) . '</option>';
+                }
             }
+            echo '</select></td>';
         }
-        echo '</select></td>';
         echo '</tr>';
 
         // Roles (checkboxes)

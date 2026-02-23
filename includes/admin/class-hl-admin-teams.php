@@ -95,7 +95,7 @@ class HL_Admin_Teams {
      * @param int $team_id
      * @return object|null
      */
-    private function get_team($team_id) {
+    public function get_team($team_id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_team WHERE team_id = %d",
@@ -130,13 +130,23 @@ class HL_Admin_Teams {
             'status'     => sanitize_text_field($_POST['status']),
         );
 
+        $cohort_context = isset($_POST['_hl_cohort_context']) ? absint($_POST['_hl_cohort_context']) : 0;
+
         if ($team_id > 0) {
             $wpdb->update($wpdb->prefix . 'hl_team', $data, array('team_id' => $team_id));
-            $redirect = admin_url('admin.php?page=hl-teams&message=updated');
+            if ($cohort_context) {
+                $redirect = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_context . '&tab=teams&message=team_updated');
+            } else {
+                $redirect = admin_url('admin.php?page=hl-teams&message=updated');
+            }
         } else {
             $data['team_uuid'] = HL_DB_Utils::generate_uuid();
             $wpdb->insert($wpdb->prefix . 'hl_team', $data);
-            $redirect = admin_url('admin.php?page=hl-teams&message=created');
+            if ($cohort_context) {
+                $redirect = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_context . '&tab=teams&message=team_created');
+            } else {
+                $redirect = admin_url('admin.php?page=hl-teams&message=created');
+            }
         }
 
         wp_redirect($redirect);
@@ -164,7 +174,12 @@ class HL_Admin_Teams {
         global $wpdb;
         $wpdb->delete($wpdb->prefix . 'hl_team', array('team_id' => $team_id));
 
-        wp_redirect(admin_url('admin.php?page=hl-teams&message=deleted'));
+        $cohort_context = isset($_GET['cohort_context']) ? absint($_GET['cohort_context']) : 0;
+        if ($cohort_context) {
+            wp_redirect(admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_context . '&tab=teams&message=team_deleted'));
+        } else {
+            wp_redirect(admin_url('admin.php?page=hl-teams&message=deleted'));
+        }
         exit;
     }
 
@@ -307,9 +322,11 @@ class HL_Admin_Teams {
      * Render team detail with members
      *
      * @param object $team
+     * @param array  $context Optional cohort context. Keys: 'cohort_id', 'cohort_name'.
      */
-    private function render_team_detail($team) {
+    public function render_team_detail($team, $context = array()) {
         global $wpdb;
+        $in_cohort = !empty($context['cohort_id']);
 
         // Get team members via team_member table or enrollment table
         // Attempt team_member table first; fall back to showing enrollments at this center
@@ -333,8 +350,12 @@ class HL_Admin_Teams {
             $team->center_id
         ));
 
-        echo '<h1>' . esc_html($team->team_name) . '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-teams')) . '">&larr; ' . esc_html__('Back to Teams', 'hl-core') . '</a>';
+        if (!$in_cohort) {
+            echo '<h1>' . esc_html($team->team_name) . '</h1>';
+            echo '<a href="' . esc_url(admin_url('admin.php?page=hl-teams')) . '">&larr; ' . esc_html__('Back to Teams', 'hl-core') . '</a>';
+        } else {
+            echo '<h2>' . esc_html($team->team_name) . '</h2>';
+        }
 
         echo '<table class="form-table">';
         echo '<tr><th>' . esc_html__('Cohort', 'hl-core') . '</th><td>' . esc_html($cohort ? $cohort->cohort_name : 'N/A') . '</td></tr>';
@@ -375,10 +396,12 @@ class HL_Admin_Teams {
      * Render the create/edit form
      *
      * @param object|null $team
+     * @param array       $context Optional cohort context. Keys: 'cohort_id', 'cohort_name'.
      */
-    private function render_form($team = null) {
-        $is_edit = ($team !== null);
-        $title   = $is_edit ? __('Edit Team', 'hl-core') : __('Add New Team', 'hl-core');
+    public function render_form($team = null, $context = array()) {
+        $is_edit   = ($team !== null);
+        $title     = $is_edit ? __('Edit Team', 'hl-core') : __('Add New Team', 'hl-core');
+        $in_cohort = !empty($context['cohort_id']);
 
         global $wpdb;
 
@@ -390,11 +413,16 @@ class HL_Admin_Teams {
             "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'center' AND status = 'active' ORDER BY name ASC"
         );
 
-        echo '<h1>' . esc_html($title) . '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-teams')) . '">&larr; ' . esc_html__('Back to Teams', 'hl-core') . '</a>';
+        if (!$in_cohort) {
+            echo '<h1>' . esc_html($title) . '</h1>';
+            echo '<a href="' . esc_url(admin_url('admin.php?page=hl-teams')) . '">&larr; ' . esc_html__('Back to Teams', 'hl-core') . '</a>';
+        }
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-teams')) . '">';
         wp_nonce_field('hl_save_team', 'hl_team_nonce');
+        if ($in_cohort) {
+            echo '<input type="hidden" name="_hl_cohort_context" value="' . esc_attr($context['cohort_id']) . '" />';
+        }
 
         if ($is_edit) {
             echo '<input type="hidden" name="team_id" value="' . esc_attr($team->team_id) . '" />';
@@ -409,17 +437,22 @@ class HL_Admin_Teams {
         echo '</tr>';
 
         // Cohort
-        $current_cohort = $is_edit ? $team->cohort_id : '';
+        $current_cohort = $in_cohort ? absint($context['cohort_id']) : ($is_edit ? $team->cohort_id : '');
         echo '<tr>';
         echo '<th scope="row"><label for="cohort_id">' . esc_html__('Cohort', 'hl-core') . '</label></th>';
-        echo '<td><select id="cohort_id" name="cohort_id" required>';
-        echo '<option value="">' . esc_html__('-- Select Cohort --', 'hl-core') . '</option>';
-        if ($cohorts) {
-            foreach ($cohorts as $cohort) {
-                echo '<option value="' . esc_attr($cohort->cohort_id) . '"' . selected($current_cohort, $cohort->cohort_id, false) . '>' . esc_html($cohort->cohort_name) . '</option>';
+        if ($in_cohort) {
+            echo '<td><strong>' . esc_html($context['cohort_name']) . '</strong>';
+            echo '<input type="hidden" id="cohort_id" name="cohort_id" value="' . esc_attr($context['cohort_id']) . '" /></td>';
+        } else {
+            echo '<td><select id="cohort_id" name="cohort_id" required>';
+            echo '<option value="">' . esc_html__('-- Select Cohort --', 'hl-core') . '</option>';
+            if ($cohorts) {
+                foreach ($cohorts as $cohort) {
+                    echo '<option value="' . esc_attr($cohort->cohort_id) . '"' . selected($current_cohort, $cohort->cohort_id, false) . '>' . esc_html($cohort->cohort_name) . '</option>';
+                }
             }
+            echo '</select></td>';
         }
-        echo '</select></td>';
         echo '</tr>';
 
         // Center
