@@ -116,10 +116,22 @@ class HL_Admin_Cohorts {
 
         if ($cohort_id > 0) {
             $updated = $this->repo->update($cohort_id, $data);
-            if ($updated && !empty($updated->cohort_group_id) !== !empty($data['cohort_group_id'])) {
-                // Verify the save persisted — log if mismatch detected.
-                error_log('[HL Core] Cohort group mismatch after save for ID ' . $cohort_id . ': expected=' . ($data['cohort_group_id'] ?? 'NULL') . ' got=' . ($updated->cohort_group_id ?? 'NULL'));
+
+            // Verify cohort_group_id actually persisted. If the column is missing
+            // from the DB table, the entire UPDATE silently fails.
+            $expected_group = $data['cohort_group_id'];
+            $actual_group   = $updated ? $updated->cohort_group_id : null;
+            if ($expected_group !== null && ($actual_group === null || (int) $actual_group !== (int) $expected_group)) {
+                // Column may be missing — attempt self-healing migration then retry.
+                $this->ensure_cohort_group_column();
+                $updated = $this->repo->update($cohort_id, $data);
+                $actual_group = $updated ? $updated->cohort_group_id : null;
+                if ($expected_group !== null && ($actual_group === null || (int) $actual_group !== (int) $expected_group)) {
+                    error_log('[HL Core] Cohort group save failed for ID ' . $cohort_id
+                        . ': expected=' . $expected_group . ' got=' . ($actual_group ?? 'NULL'));
+                }
             }
+
             $redirect = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=details&message=updated');
         } else {
             $data['cohort_uuid'] = HL_DB_Utils::generate_uuid();
@@ -132,6 +144,30 @@ class HL_Admin_Cohorts {
 
         wp_redirect($redirect);
         exit;
+    }
+
+    /**
+     * Ensure the cohort_group_id column exists in the hl_cohort table.
+     *
+     * Self-healing: if the migration failed or dbDelta didn't add the column,
+     * this creates it on the fly so the save can succeed.
+     */
+    private function ensure_cohort_group_column() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_cohort';
+
+        $col = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+            $table,
+            'cohort_group_id'
+        ) );
+
+        if ( empty( $col ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `cohort_group_id` bigint(20) unsigned DEFAULT NULL" );
+            $wpdb->query( "ALTER TABLE `{$table}` ADD INDEX `cohort_group_id` (`cohort_group_id`)" );
+            error_log( '[HL Core] Self-healed: added missing cohort_group_id column to ' . $table );
+        }
     }
 
     private function handle_delete() {

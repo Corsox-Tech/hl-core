@@ -382,16 +382,30 @@ class HL_Installer {
             return;
         }
 
-        $row = $wpdb->get_row(
-            $wpdb->prepare(
+        $col_check = function () use ( $wpdb, $table ) {
+            return $wpdb->get_var( $wpdb->prepare(
                 "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
                 $table,
                 'cohort_group_id'
-            )
-        );
-        if ( empty( $row ) ) {
-            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN cohort_group_id bigint(20) unsigned NULL AFTER district_id" );
-            $wpdb->query( "ALTER TABLE `{$table}` ADD INDEX cohort_group_id (cohort_group_id)" );
+            ) );
+        };
+
+        if ( empty( $col_check() ) ) {
+            // Try with AFTER clause first, then without if it fails.
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `cohort_group_id` bigint(20) unsigned DEFAULT NULL AFTER `district_id`" );
+
+            if ( ! empty( $wpdb->last_error ) ) {
+                // Retry without AFTER clause — some MySQL versions on shared hosting reject it.
+                $wpdb->last_error = '';
+                $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `cohort_group_id` bigint(20) unsigned DEFAULT NULL" );
+            }
+
+            // Verify the column was actually added.
+            if ( ! empty( $col_check() ) ) {
+                $wpdb->query( "ALTER TABLE `{$table}` ADD INDEX `cohort_group_id` (`cohort_group_id`)" );
+            } else {
+                error_log( '[HL Core] CRITICAL: Failed to add cohort_group_id column to ' . $table . '. Last error: ' . $wpdb->last_error );
+            }
         }
     }
 

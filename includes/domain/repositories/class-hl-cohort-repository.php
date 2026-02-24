@@ -96,8 +96,9 @@ class HL_Cohort_Repository {
             array('%d')
         );
 
-        if ($result === false && !empty($wpdb->last_error)) {
-            error_log('[HL Core] Cohort update failed for ID ' . $cohort_id . ': ' . $wpdb->last_error);
+        if ($result === false) {
+            error_log('[HL Core] Cohort update FAILED for ID ' . $cohort_id . ': ' . $wpdb->last_error);
+            error_log('[HL Core] Failed query: ' . $wpdb->last_query);
         }
 
         return $this->get_by_id($cohort_id);
