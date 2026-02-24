@@ -8,20 +8,22 @@ This is the Housman Learning Academy (HLA) WordPress site. The primary developme
 - **Documentation (11 spec files):** `wp-content/plugins/hl-core/docs/` — These are the canonical specifications for all features, domain models, business rules, and architecture decisions. Read the relevant doc file(s) before building any feature.
 - **README.md:** `wp-content/plugins/hl-core/README.md` — This is the living status tracker for the entire plugin. It documents what's built, what's pending, architecture, and design decisions.
 - **LearnDash plugin:** `wp-content/plugins/sfwd-lms/` — Reference for hooks, functions, and integration points.
-- **Private data files:** `wp-content/plugins/hl-core/data/` — Contains real program Excel files (Center_Info.xlsx, Teacher_Roster.xlsx, Child_Roster.xlsx). Gitignored — never commit to repo.
+- **Private data files:** `wp-content/plugins/hl-core/data/` — Contains real program Excel files and assessment documents. Gitignored — never commit to repo.
+  - `data/Assessments/` — B2E Teacher Self-Assessment (Pre/Post) and Children Assessment source documents
+  - `data/Lutheran - Control Group/` — Center info, teacher roster, child roster spreadsheets for Lutheran seeder
 
 ## Documentation Files (in docs/)
 | File | Covers |
 |------|--------|
 | 00_README_SCOPE.md | Project scope and high-level requirements |
-| 01_GLOSSARY_CANONICAL_TERMS.md.md | Terminology definitions (use these exact terms) |
+| 01_GLOSSARY_CANONICAL_TERMS.md.md | Terminology definitions including Control Group and Cohort Group |
 | 02_DOMAIN_MODEL_ORG_STRUCTURE.md.md | Org units, cohorts, enrollments, teams |
 | 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md.md | Roles, capabilities, access control |
 | 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md.md | Pathways, activities, prerequisite rules |
 | 05_UNLOCKING_LOGIC_PREREQS_DRIP_OVERRIDES.md.md | Unlock logic, drip rules, overrides |
-| 06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md.md | Assessment instruments, observations, coaching |
+| 06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md.md | Assessment instruments (custom PHP for teacher + children, JFB for observations only), coaching |
 | 07_IMPORTS_ROSTERS_IDENTITIES_MATCHING.md.md | CSV import pipeline, identity matching |
-| 08_REPORTING_METRICS_VIEWS_EXPORTS.md.md | Reporting, metrics, export formats |
+| 08_REPORTING_METRICS_VIEWS_EXPORTS.md.md | Reporting, metrics, export formats, program vs control comparison |
 | 09_PLUGIN_ARCHITECTURE_CONSTRAINTS_ACCEPTANCE_TESTS.md.md | Architecture, constraints, acceptance criteria |
 | 10_FRONTEND_PAGES_NAVIGATION_UX.md | Front-end pages, sidebar navigation (§16), listing page specs (§17), coach assignment model (§13-15) |
 
@@ -46,11 +48,11 @@ When the user says "continue", "pick up where we left off", "keep going", or sta
 Example response format:
 > "I've read the current status. Here's where we are:
 >
-> **Last completed:** 11.9 (Sidebar Menu Rebuild) and 11.10 (Create WordPress Pages) ✅
+> **Last completed:** Phase 20 (Control Group Support) ✅
 >
-> **All 11 phases are complete.** Remaining items are marked Future/Lower Priority.
+> **Next up:** Phase 21 items (Lutheran seeder, nuke command, assessment fixes)
 >
-> Should I work on one of the lower-priority items, or do you have something else in mind?"
+> Should I continue with [specific task], or do you have something else in mind?"
 
 ### 3. Always update README.md after making changes
 After completing any feature, fix, or refactoring:
@@ -140,36 +142,52 @@ Staff WITHOUT enrollment see only directory/management pages. Staff WITH enrollm
 - **Audit logging** via `HL_Audit_Service` for significant state changes
 - Leave `// TODO:` comments for incomplete features with a brief description
 
-## Forms Architecture: Hybrid Model (Critical Design Decision)
+## Forms Architecture: Custom PHP + JFB for Observations Only
 
-HL Core uses a **hybrid approach** for forms and data collection:
+HL Core uses a **primarily custom PHP approach** for forms and data collection:
 
-### JetFormBuilder handles: form design, rendering, field types, validation, and response storage
-- **Teacher Self-Assessment** (pre and post) — static questionnaire, same for every teacher
-- **Observations** — static questionnaire filled by a mentor about a teacher
-- **Any future static questionnaire forms** that admins need to create/edit without a developer
+### Custom PHP handles:
+- **Teacher Self-Assessment** (pre and post) — Custom instrument system with structured JSON definitions in `hl_teacher_assessment_instrument`, response storage in `hl_teacher_assessment_instance.responses_json`. Custom renderer supports PRE (single-column) and POST (dual-column retrospective with PRE responses shown alongside new ratings).
+- **Children Assessment** — Dynamic per-child matrix generated from classroom roster + instrument definition. Rendered from `hl_instrument.questions` JSON.
+- **Coaching Sessions** — Admin CRUD workflow (attendance, notes, observation links, attachments).
 
-### HL Core handles: custom dynamic forms built in PHP
-- **Children Assessment** — dynamic per-child matrix generated from classroom roster + instrument definition. Rendered from `hl_instrument.questions` JSON. This CANNOT use a form builder.
-- **Coaching Sessions** — admin CRUD workflow (attendance, notes, observation links, attachments). Not a questionnaire.
+### JetFormBuilder handles:
+- **Observations ONLY** — Mentor-submitted observation forms. JFB provides the visual form editor so Housman admins can customize observation questions without a developer.
 
-### Why this split
-- Housman LMS Admins must be able to create, edit, and redesign questionnaire forms themselves (add/remove/change questions, field types, layout) without needing a developer
-- JetFormBuilder provides a full visual form editor, 24+ field types, conditional logic, Elementor integration, and post-submit actions — rebuilding this in custom PHP would be enormous wasted effort
-- Children Assessments are inherently dynamic (one row per child in the classroom roster, determined at runtime) so no form builder can handle them
-- Coaching Sessions are admin-side CRUD, not user-facing questionnaires
+### Why teacher assessments moved from JFB to custom PHP:
+- POST version requires unique dual-column retrospective format that JFB cannot support
+- Structured `responses_json` needed for research export and control group comparison (Cohen's d)
+- Pre/post logic must integrate tightly with the activity system and drip rules
+- The B2E instrument is standardized (no admin customization needed)
 
-### How JetFormBuilder forms connect to HL Core activities
-1. **Admin creates a form in JetFormBuilder** — designs the questionnaire with any field types, layout, conditional logic they want
-2. **Admin configures a post-submit action** on the form: "Call Hook" with hook name `hl_core_form_submitted`
-3. **Admin adds hidden fields** to the form: `hl_enrollment_id`, `hl_activity_id`, `hl_cohort_id` (these get pre-populated by HL Core when rendering)
-4. **Admin creates an Activity** in a Pathway — selects activity_type and picks the JFB form from a dropdown → stored in `hl_activity.external_ref` JSON
-5. **Participant views their pathway** — clicks the activity to open it
-6. **HL Core renders the JFB form** on the page with hidden fields pre-populated from enrollment context
-7. **Participant submits** → JFB handles validation and stores responses → fires hook → HL Core updates activity_state to complete and triggers rollup
+### Legacy JFB support:
+Teacher self-assessment activities can still reference JFB forms via `external_ref.form_id` for backward compatibility. The system checks for `teacher_instrument_id` first (custom) and falls back to `jfb_form_id` (legacy).
 
-### Key principle: HL Core is the orchestration layer
-HL Core does NOT need to know what's inside a JFB form. It only tracks: which form is linked to which activity, whether the activity is complete, and contextual metadata for observations/assessment instances.
+### How JFB observations connect to HL Core:
+1. **Admin creates a form in JetFormBuilder** with hidden fields: `hl_enrollment_id`, `hl_activity_id`, `hl_cohort_id`, `hl_observation_id`
+2. **Admin adds "Call Hook" post-submit action** with hook name `hl_core_form_submitted`
+3. **HL Core renders the JFB form** on the observations page with hidden fields pre-populated
+4. **On submit:** JFB fires hook → HL Core updates observation status → updates activity_state → triggers rollup
+
+## Control Group Research Design
+
+### Purpose
+Housman measures program impact by comparing:
+- **Program cohorts**: full B2E Mastery curriculum (courses, coaching, observations + assessments)
+- **Control cohorts**: assessment-only (Teacher Self-Assessment Pre/Post + Children Assessment Pre/Post)
+
+### How it works
+1. Create a **Cohort Group** (e.g., "B2E Mastery - Lutheran Services Florida")
+2. Add the **program cohort** to the group
+3. Create a **control cohort** (`is_control_group = true`) in the same group
+4. Control cohort gets an assessment-only pathway (4 activities: TSA Pre, CA Pre, TSA Post, CA Post)
+5. POST activities are time-gated via drip rules
+6. **Comparison reports** appear in Admin Reports when selecting the Group filter
+
+### UI/UX adaptations for control cohorts:
+- Purple "Control" badge in admin cohort list and editor
+- Coaching and Teams tabs auto-hidden in admin and frontend
+- Assessment-only pathway (no course or coaching activities)
 
 ## Git & Deployment
 
@@ -179,26 +197,40 @@ HL Core does NOT need to know what's inside a JFB form. It only tracks: which fo
 - Private repo — never commit data files or credentials
 
 ### Local Development
-- **Environment:** Local by Flywheel
 - **WordPress root:** `C:\Users\MateoGonzalez\Local Sites\housman-learning-academy\app\public\`
 - **Plugin path:** `wp-content/plugins/hl-core/`
-- **WP-CLI available** via Local's shell
+- Local files are the source of truth for editing. Claude Code edits files here.
+- **Note:** Local by Flywheel is NO LONGER used for running the site locally. The local WordPress installation exists only as a file editing workspace.
 
-### Deployment to Staging
-- **Staging URL:** `https://staging.academy.housmanlearning.com`
+### Deployment Workflow
+1. Claude Code edits files locally (in the Local Sites folder)
+2. Claude Code commits and pushes to GitHub (`main` branch)
+3. Hostinger's Git integration auto-pulls changes to the staging server
+4. Testing happens on the staging site (not locally)
+
+### Staging Server
+- **URL:** `https://staging.academy.housmanlearning.com`
 - **Hostinger hosting** with SSH access
-- **Auto-deployment:** GitHub webhook triggers pull on push to main
-- **Staging plugin path:** `~/domains/staging.academy.housmanlearning.com/public_html/wp-content/plugins/hl-core`
-- **After deploying new schema changes:** Re-seed demo data on staging:
-  ```bash
-  cd ~/domains/staging.academy.housmanlearning.com/public_html
-  wp hl-core seed-demo --clean
-  wp hl-core seed-demo
-  ```
-- **After adding new shortcode pages:** Create them on staging:
-  ```bash
-  wp hl-core create-pages
-  ```
+- **Staging WordPress root:** `/home/u665917738/domains/academy.housmanlearning.com/public_html/staging/`
+- **Staging plugin path:** `/home/u665917738/domains/academy.housmanlearning.com/public_html/staging/wp-content/plugins/hl-core/`
+- **IMPORTANT:** Staging is a subdirectory install within the main domain, NOT a separate domain folder.
+
+### Production Server
+- **URL:** `https://academy.housmanlearning.com`
+- **WordPress root:** `/home/u665917738/domains/academy.housmanlearning.com/public_html/`
+- **Do NOT deploy to production without explicit approval from the user.**
+
+### After deploying new schema changes (run on staging via SSH):
+```bash
+cd /home/u665917738/domains/academy.housmanlearning.com/public_html/staging
+wp hl-core nuke --confirm="DELETE ALL DATA"
+wp hl-core seed-lutheran
+```
+
+### After adding new shortcode pages:
+```bash
+wp hl-core create-pages
+```
 
 ### .gitignore
 ```
@@ -211,8 +243,10 @@ node_modules/
 
 ## WP-CLI Commands
 - `wp hl-core seed-demo [--clean]` — Generic demo data (2 centers, 15 enrollments, code: DEMO-2026)
-- `wp hl-core seed-palm-beach [--clean]` — Real ELC Palm Beach data (12 centers, 47 teachers, 286 children, code: ELC-PB-2026)
-- `wp hl-core create-pages [--force] [--status=draft]` — Creates all 24 shortcode WordPress pages
+- `wp hl-core seed-lutheran [--clean]` — Lutheran Services Florida control group data (12 centers, 47 teachers, 286 children, assessment-only pathway, code: LUTHERAN_CONTROL_2026)
+- `wp hl-core seed-palm-beach [--clean]` — ELC Palm Beach program data (12 centers, 47 teachers, 286 children, code: ELC-PB-2026)
+- `wp hl-core nuke --confirm="DELETE ALL DATA"` — **DESTRUCTIVE: Deletes ALL HL Core data** (all hl_* tables truncated, seeded users removed, auto-increment reset). Safety gate: only runs if site URL contains `staging.academy.housmanlearning.com` or `.local`.
+- `wp hl-core create-pages [--force] [--status=draft]` — Creates all shortcode WordPress pages
 
 ## Architecture Summary
 ```
@@ -221,45 +255,53 @@ node_modules/
   README.md                      # Living status doc (ALWAYS UPDATE)
   CLAUDE.md                      # This file — dev guide for AI assistants
   /data/                         # Private data files (gitignored)
-  /docs/                         # Spec documents (10 files, read-only reference)
+    /Assessments/                # B2E assessment source documents (.docx)
+    /Lutheran - Control Group/   # Lutheran spreadsheets (.xlsx)
+  /docs/                         # Spec documents (11 files, read-only reference)
   /includes/
-    class-hl-installer.php       # DB schema (32 tables) + activation
-    /domain/                     # Entity models (8 classes)
+    class-hl-installer.php       # DB schema (35+ tables) + activation + migrations
+    /domain/                     # Entity models (9+ classes incl. Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (8 classes)
-    /cli/                        # WP-CLI commands (seed-demo, seed-palm-beach, create-pages)
-    /services/                   # Business logic (13+ services incl. HL_Scope_Service)
+    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages)
+    /services/                   # Business logic (14+ services incl. HL_Scope_Service, HL_Pathway_Assignment_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss (3 classes)
-    /admin/                      # WP admin pages (14+ controllers)
-    /frontend/                   # Shortcode renderers (25 pages + instrument renderer)
+    /admin/                      # WP admin pages (15+ controllers incl. Cohort Groups, Instruments)
+    /frontend/                   # Shortcode renderers (26+ pages + instrument renderer + teacher assessment renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization helpers
   /assets/
-    /css/                        # admin.css, admin-import-wizard.css, frontend.css
+    /css/                        # admin.css, admin-import-wizard.css, frontend.css (with CSS custom properties design system)
     /js/                         # admin-import-wizard.js, frontend.js
 ```
 
 ## Environment
-- WordPress running locally via Local by Flywheel
-- JetFormBuilder plugin must be installed and active
-- LearnDash plugin must be installed and active
-- BuddyBoss theme + platform (optional, for sidebar navigation)
-- Database: MySQL (managed by Local)
+- WordPress files stored locally (Local Sites folder) — used as editing workspace only
+- Deployment: push to GitHub → auto-pull to Hostinger staging
+- Testing: on staging site (https://staging.academy.housmanlearning.com)
+- Database: MySQL on Hostinger (staging)
 - PHP 7.4+
 - Run Claude Code from the plugin directory: `wp-content/plugins/hl-core/`
 
 ## Plugin Dependencies
 - **WordPress 6.0+** (required)
 - **PHP 7.4+** (required)
-- **JetFormBuilder** (required — teacher self-assessment and observation forms)
+- **JetFormBuilder** (required for observation forms only; teacher assessments use custom PHP system)
 - **LearnDash** (required — course progress tracking)
 - **BuddyBoss Theme + Platform** (optional — sidebar navigation, profile links; gracefully degrades if not installed)
 
 ## Current Status (as of Feb 2026)
-**Phases 1-11 complete.** 25 shortcode pages, 14 admin pages, 32 DB tables, 13+ services. All core functionality operational.
+**Phases 1-20 complete.** 26+ shortcode pages, 15+ admin pages, 35+ DB tables, 14+ services. All core functionality operational including custom teacher self-assessment system and control group support.
 
-**Remaining (all Future/Lower Priority):**
+**Active development:**
+- Lutheran control group seeder (seed-lutheran command)
+- Nuclear clean command (nuke)
+- Children assessment system enhancements
+- Frontend assessment routing for teacher pathway view
+
+**Remaining (Future/Lower Priority):**
 - MS365 Calendar Integration (requires Azure AD infrastructure)
 - BuddyBoss Profile Tab (out of scope for v1)
 - Scope-based user creation for client leaders
 - Import templates (downloadable CSV)
+- Frontend CSS redesign (modernize all 25+ shortcode pages)

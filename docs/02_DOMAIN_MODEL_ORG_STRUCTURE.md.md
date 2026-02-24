@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 02_DOMAIN_MODEL_ORG_STRUCTURE.md
-Version: 1.0
-Last Updated: 2026-02-13
+Version: 1.1
+Last Updated: 2026-02-24
 Timezone: America/Bogota
 
 ---
@@ -43,6 +43,10 @@ Cohort relationships:
 - Cohort may be associated to:
   - one District OrgUnit (optional)
   - one or more Center OrgUnits (required at least 1)
+  - one Cohort Group (optional; see §1.13)
+
+Cohort flags:
+- is_control_group (boolean, default false) — When true, indicates this cohort is a research control group. Control cohorts receive assessment-only pathways (no courses, coaching, observations). Admin UI hides Coaching and Teams tabs for control cohorts. See doc 06 §6 for control group assessment workflow.
 
 Important:
 - District is optional. A single-center Cohort has no District association.
@@ -200,7 +204,37 @@ Fields:
 
 ---
 
+## 1.13 CohortGroup
+A container that groups related Cohorts together for program-level reporting and research comparison.
+
+CohortGroup fields:
+- group_id (PK)
+- group_uuid
+- group_name
+- group_code (unique)
+- description (text)
+- status ∈ { "active", "archived" }
+
+CohortGroup relationships:
+- CohortGroup has many Cohorts (via Cohort.cohort_group_id FK)
+- A Cohort may belong to at most one CohortGroup
+
+Purpose:
+- Groups related cohorts for cross-cohort reporting (e.g., multiple phases of the same program)
+- Enables program-vs-control comparison reporting when the group contains both program cohorts (is_control_group=false) and control cohorts (is_control_group=true)
+- Comparison metrics include per-section/per-item assessment means, pre-to-post change, and Cohen's d effect size
+
+Example:
+- "B2E Mastery - Lutheran Services Florida" group containing:
+  - "Lutheran B2E Phase 1 2026" (program cohort, is_control_group=false)
+  - "Lutheran Control Group 2026" (control cohort, is_control_group=true)
+
+---
+
 # 2) Relationship Diagram (Text)
+
+CohortGroup (optional)
+  └── Cohort [1..n]
 
 OrgUnit(district)
   └── OrgUnit(center) [0..n]
@@ -211,7 +245,7 @@ OrgUnit(center)
   │           └── Child [0..n]
   └── Team [0..n] (per Cohort)
 
-Cohort
+Cohort (optionally in a CohortGroup; optionally is_control_group=true)
   ├── Enrollment [0..n] (User ↔ Cohort)
   │     ├── TeamMembership [0..1 per Cohort] → Team
   │     └── TeachingAssignment [0..n] → Classroom
@@ -269,6 +303,13 @@ Role-driven filtering requirements:
 - cohort_uuid (primary internal)
 - cohort_code (globally unique; human-readable)
 - status, start_date, end_date
+- is_control_group (boolean)
+- cohort_group_id (FK, nullable)
+
+## 5.2b CohortGroup
+- group_uuid (primary internal)
+- group_code (globally unique; human-readable)
+- status
 
 ## 5.3 Enrollment
 - enrollment_uuid (primary internal)

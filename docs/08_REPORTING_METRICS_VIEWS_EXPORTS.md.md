@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 08_REPORTING_METRICS_VIEWS_EXPORTS.md
-Version: 1.0
-Last Updated: 2026-02-13
+Version: 1.1
+Last Updated: 2026-02-24
 Timezone: America/Bogota
 
 ---
@@ -32,6 +32,8 @@ HL Core must provide at minimum:
 3) **Center Report (Center Leader + Staff)**
 4) **Team Report (Mentor + Staff)**
 5) **Participant Report (Teacher/Mentor self + Staff)**
+6) **Cohort Group Summary (Staff + District Leader)** — Cross-cohort aggregation within a Cohort Group
+7) **Program vs Control Comparison (Staff)** — Side-by-side assessment outcome comparison when a Cohort Group contains both program and control cohorts
 
 Each report must support:
 - On-screen table view
@@ -295,6 +297,62 @@ Must include:
 
 ---
 
+## 5.6 Cohort Group Summary (Staff + District Leader)
+Audience:
+- Housman Admin, Coach, District Leader (for groups in their scope)
+
+Scope:
+- All cohorts within the selected Cohort Group
+
+Must include:
+- Group filter dropdown in reporting UI
+- Summary metrics: total participants across cohorts, average completion per cohort
+- Per-cohort row: name, code, status, participant count, avg completion %
+- Aggregate metrics: overall participant count, weighted avg completion
+
+Exports:
+- CSV with per-cohort summary rows
+
+---
+
+## 5.7 Program vs Control Comparison (Staff)
+Audience:
+- Housman Admin, Coach only
+
+Availability:
+- Only appears when a selected Cohort Group contains BOTH program cohorts (is_control_group=false) AND control cohorts (is_control_group=true)
+
+Purpose:
+- Measures program effectiveness by comparing pre-to-post assessment change between program and control groups
+
+Must include:
+- Info cards: program cohort name + participant count, control cohort name + participant count
+- Per-section comparison table (for teacher self-assessment):
+  - Section name
+  - Program: PRE mean, POST mean, change
+  - Control: PRE mean, POST mean, change
+  - Cohen's d effect size
+- Per-item comparison table (expandable per section):
+  - Item text
+  - Program: PRE mean, POST mean, change
+  - Control: PRE mean, POST mean, change
+  - Cohen's d
+- Color coding: positive change in green, negative in red, neutral in gray
+
+Data source:
+- Aggregates `responses_json` from `hl_teacher_assessment_instance` for all submitted instances
+- Groups by cohort.is_control_group and phase (pre/post)
+- Computes mean, standard deviation, and pooled SD per section and per item
+
+Cohen's d calculation:
+- d = (program_change - control_change) / pooled_sd
+- pooled_sd = sqrt(((n_program - 1) * sd_program^2 + (n_control - 1) * sd_control^2) / (n_program + n_control - 2))
+
+Exports:
+- CSV with per-item rows: section, item_id, item_text, program_pre_mean, program_post_mean, program_change, control_pre_mean, control_post_mean, control_change, cohens_d
+
+---
+
 # 6) Locked/Blocked Indicators (UX Requirements)
 
 Reports should optionally show:
@@ -325,6 +383,7 @@ Exports must include:
 Separate export endpoints for:
 - Teacher Self-Assessments (pre/post)
 - Children Assessments (infant/toddler/preschool)
+- Program vs Control Comparison (when Cohort Group filter active; includes Cohen's d)
 
 These exports may include:
 - question-level responses

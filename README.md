@@ -1,8 +1,8 @@
 # Housman Learning Core (HL Core) Plugin
 
 **Version:** 1.0.0
-**Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for assessment/observation forms)
-**Status:** v1 complete — Phases 1-11 done, Phase 14 (Admin UX) done, Phase 15 (Architecture: Pathway Assignments + Cohort Groups) done, Phase 17 (Org Units hierarchy) done, Phase 18 (Frontend CSS Design System) done, Phase 19 (Custom Teacher Self-Assessment) done, Phase 20 (Control Group Support) done (26 shortcode pages, 15 admin pages, 35 DB tables, tabbed cohort editor)
+**Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for observation forms only)
+**Status:** v1 complete — Phases 1-20 done, Phase 21 (Assessment System Overhaul + Lutheran Seeder + Nuke Command) in progress (26 shortcode pages, 15 admin pages, 35 DB tables, tabbed cohort editor)
 
 ## Overview
 
@@ -109,6 +109,9 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **`wp hl-core seed-demo --clean`** — Removes all demo data (users, cohort, org units, instruments, children, coach assignments, coaching sessions, and all dependent records) identified by cohort code `DEMO-2026` and `demo-*@example.com` user emails
 - **`wp hl-core seed-palm-beach`** — Seeds realistic demo data from the ELC Palm Beach County program: 1 district, 12 centers (3 Head Start + 1 learning center + 8 FCCHs), 1 active cohort, 29 classrooms, 3 instruments, 57 users (47 real teachers with actual names/emails, 4 center leaders, 4 mentors, 1 district leader, 1 coach), 56 enrollments (8 FCCH teachers dual-role as center leaders), 4 teams (WPB Alpha/Beta, Jupiter, South Bay), 47 teaching assignments, 286 real children (with DOBs, gender, ethnicity metadata), 2 pathways (teacher: 5 activities, mentor: 2 activities), prerequisite and drip rules, partial activity states, computed rollups, 4 coach assignments (3 center-level + 1 team-level), 5 coaching sessions, **1 cohort group (B2E Program Evaluation)**, **1 Lutheran Services Florida control cohort (LSF-CTRL-2026)** with 6 control participants and submitted PRE assessments for comparison reporting
 - **`wp hl-core seed-palm-beach --clean`** — Removes all Palm Beach data (users, cohort, org units, instruments, children, classrooms, coach assignments, coaching sessions, control cohort, cohort group, and all dependent records) identified by cohort code `ELC-PB-2026`/`LSF-CTRL-2026` and `_hl_palm_beach_seed` user meta
+- **`wp hl-core seed-lutheran`** — Seeds Lutheran Services Florida control group data: 1 district, 11 centers, 1 control cohort (LUTHERAN_CONTROL_2026) in B2E Evaluation cohort group, 47 classrooms with age band normalization, 47 WP users (teachers), 47 enrollments, 47 teaching assignments, 286 children with DOBs/gender/ethnicity metadata, assessment-only pathway (4 activities: TSA Pre, CA Pre, TSA Post, CA Post), B2E teacher instrument, children assessment instruments per age band, assessment instances for all teachers, activity states, POST activities time-gated via drip rules (fixed_date 2026-05-05)
+- **`wp hl-core seed-lutheran --clean`** — Removes all Lutheran data in reverse dependency order (activity states, assessment instances, children, teaching assignments, classrooms, enrollments, users, pathways, instruments, cohort, org units) identified by cohort code `LUTHERAN_CONTROL_2026` and `_hl_lutheran_seed` user meta
+- **`wp hl-core nuke --confirm="DELETE ALL DATA"`** — **DESTRUCTIVE: Deletes ALL HL Core data.** Dynamically discovers all `hl_*` tables via `SHOW TABLES LIKE`, shows per-table row counts before truncating, removes seeded WP users (but protects user ID 1 and the current CLI user), resets auto-increment, clears HL Core transients (`_transient_hl_%`). Safety gate: only runs on sites with URL containing `staging.academy.housmanlearning.com` or `.local`.
 - **`wp hl-core create-pages`** — Creates all 24 WordPress pages for HL Core shortcodes (personal, directory, hub, detail, and assessment pages). Skips pages that already exist. `--force` to recreate. `--status=draft` for staging.
 
 ### REST API
@@ -317,6 +320,15 @@ _For program evaluation research design — comparing program vs control cohort 
 5. **Import or enroll participants** in the control cohort, assign the pathway
 6. **Participants fill out assessments** — comparison reports appear in Admin → Reports when selecting the Group filter
 
+### Phase 21: Assessment System Overhaul + Lutheran Seeder + Nuke Command
+
+- [x] **21.1 Nuclear Clean Command** — Created `wp hl-core nuke --confirm="DELETE ALL DATA"`. Dynamically discovers all `hl_*` tables via `SHOW TABLES LIKE`, shows per-table row counts before truncating, removes seeded WP users (protects user ID 1 + current CLI user), resets auto-increment, clears HL Core transients. Safety gate: only runs on staging/local sites.
+- [x] **21.2 Teacher Self-Assessment Enhancements** — Fixed renderer Likert values from 1-based to 0-based (0-4 for 5-point, 0-6 for 7-point, 0-10 for numeric). Added per-item left/right anchor support for scale sections. Added `activity_id` URL param support to frontend shortcode (resolves instance from activity context). Added `activity_id` and `started_at` columns to `hl_teacher_assessment_instance`. Updated B2E instrument JSON to match actual assessment documents: 20 Teaching Practices items (5-point Likert), 4 Well-being items with per-item anchors (0-10 scale), 4 Emotion Regulation items (7-point Likert). Shared instrument definitions via static methods on `HL_CLI_Seed_Demo`.
+- [x] **21.3 Children Assessment Enhancements** — Added `activity_id`, `phase`, `responses_json`, `started_at` columns to `hl_children_assessment_instance`. Changed `instrument_age_band` from enum to varchar(20) to support 'k2'. Made `classroom_id` nullable. Added `activity_id` URL param support to frontend shortcode. Added `save_children_assessment_responses()` and `get_children_assessment_by_activity()` service methods. Added children assessment question definitions for 4 age bands (infant, toddler, preschool, k2) from assessment documents. Schema revision bumped to 8.
+- [x] **21.4 Lutheran Control Group Seeder** — Created `wp hl-core seed-lutheran` (1258-line class): 14-step seeder loading data from `data/extracted_data.php` (extracted from Lutheran Excel files). Creates 1 district, 11 centers, control cohort (LUTHERAN_CONTROL_2026) in B2E Evaluation cohort group, 47 classrooms with age band normalization, 47 WP users, enrollments, teaching assignments, 286 children, assessment-only pathway (4 activities: TSA Pre, CA Pre, TSA Post, CA Post), B2E instrument, children assessment instruments per age band, assessment instances, activity states. POST activities time-gated (fixed_date 2026-05-05). `--clean` flag removes all data in reverse dependency order.
+- [~] **21.5 Fix Cohort Group Save Bug** — Investigation complete: admin controller, installer schema, and repository all properly handle `cohort_group_id`. TODO: Check HL_Cohort domain model for missing property, verify migration ran on staging.
+- [ ] **21.6 Frontend — Wire Assessment Activities in Program Page** — Update program page and activity page to route assessment activity cards with status-aware actions, drip date badges, and navigation to assessment frontend pages.
+
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
 - [x] **Grace unlock override type** — `compute_availability()` now recognizes `grace_unlock` override type: bypasses prerequisite gate but NOT drip rules (mirrors `manual_unlock` which bypasses drip but NOT prereqs).
@@ -335,7 +347,7 @@ _For program evaluation research design — comparing program vs control cohort 
     class-hl-installer.php       # DB schema + activation
     /domain/                     # Entity models (9 classes)
     /domain/repositories/        # CRUD repositories (8 classes)
-    /cli/                        # WP-CLI commands (seed-demo, seed-palm-beach, create-pages)
+    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages) — 5 commands
     /services/                   # Business logic (14+ services incl. HL_Scope_Service, HL_Pathway_Assignment_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss (3 classes)
@@ -351,10 +363,10 @@ _For program evaluation research design — comparing program vs control cohort 
 ```
 
 ## Key Design Decisions
-- **Hybrid forms architecture:** JetFormBuilder handles static questionnaire forms (teacher self-assessments, observations) that admins need to edit without a developer. Custom PHP handles dynamic forms (children assessments with per-child matrix) and admin CRUD (coaching sessions). See CLAUDE.md and doc 06 for details.
+- **Custom-first assessment architecture:** Teacher Self-Assessments use a custom PHP instrument system (structured JSON definitions in `hl_teacher_assessment_instrument`, responses in `hl_teacher_assessment_instance.responses_json`) because the POST version requires a dual-column retrospective format and structured data is needed for research comparison. Children Assessments use custom PHP (dynamic per-child matrix from classroom roster). Observations are the only remaining JFB-powered form type (admins need to customize observation questions without a developer). Coaching Sessions are custom PHP admin CRUD. Legacy JFB teacher assessment support retained for backward compatibility. See CLAUDE.md and doc 06 for details.
 - Cohort roles stored on Enrollment, NOT WP user roles
 - Custom database tables for all core domain data (no post_meta abuse)
-- Teacher self-assessment and observation form responses stored in JFB Form Records; HL Core tracks only completion status and instance metadata
+- Teacher self-assessment responses stored in `hl_teacher_assessment_instance.responses_json` (custom system); observation form responses stored in JFB Form Records; HL Core tracks completion status, instance metadata, and structured response data for research comparison
 - Children assessment responses stored in `hl_children_assessment_childrow` (custom table) because the form is dynamically generated from classroom roster
 - Enrollments are unique per (cohort_id, user_id)
 - Children identity uses fingerprint hashing for import matching
@@ -366,7 +378,7 @@ _For program evaluation research design — comparing program vs control cohort 
 ## Plugin Dependencies
 - **WordPress 6.0+**
 - **PHP 7.4+**
-- **JetFormBuilder** (required for teacher self-assessment and observation forms)
+- **JetFormBuilder** (required for observation forms only; teacher assessments use custom PHP instrument system)
 - **LearnDash** (required for course progress tracking)
 - **BuddyBoss** (optional, for profile navigation integration)
 
