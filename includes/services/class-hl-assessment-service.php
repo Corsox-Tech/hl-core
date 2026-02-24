@@ -75,6 +75,7 @@ class HL_Assessment_Service {
             'instance_uuid'      => HL_DB_Utils::generate_uuid(),
             'cohort_id'          => absint($data['cohort_id']),
             'enrollment_id'      => absint($data['enrollment_id']),
+            'activity_id'        => !empty($data['activity_id']) ? absint($data['activity_id']) : null,
             'phase'              => sanitize_text_field($data['phase']),
             'instrument_id'      => !empty($data['instrument_id']) ? absint($data['instrument_id']) : null,
             'instrument_version' => !empty($data['instrument_version']) ? sanitize_text_field($data['instrument_version']) : null,

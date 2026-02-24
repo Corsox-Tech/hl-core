@@ -54,12 +54,15 @@ class HL_Frontend_Teacher_Assessment {
             return ob_get_clean();
         }
 
-        // Determine instance_id from atts or query string
+        // Determine instance_id from atts, query string, or activity_id
         $instance_id = 0;
         if ( ! empty( $atts['instance_id'] ) ) {
             $instance_id = absint( $atts['instance_id'] );
         } elseif ( ! empty( $_GET['instance_id'] ) ) {
             $instance_id = absint( $_GET['instance_id'] );
+        } elseif ( ! empty( $_GET['activity_id'] ) ) {
+            // Resolve activity_id to an instance
+            $instance_id = $this->resolve_instance_from_activity( absint( $_GET['activity_id'] ) );
         }
 
         // Flash messages from redirect
@@ -79,6 +82,93 @@ class HL_Frontend_Teacher_Assessment {
         }
 
         return ob_get_clean();
+    }
+
+    /**
+     * Resolve an activity_id to an existing (or newly created) instance_id.
+     *
+     * Finds the current user's enrollment for the activity's cohort, determines
+     * phase and instrument from the activity's external_ref, and gets or creates
+     * the teacher_assessment_instance.
+     *
+     * @param int $activity_id
+     * @return int Instance ID, or 0 on failure.
+     */
+    private function resolve_instance_from_activity( $activity_id ) {
+        global $wpdb;
+
+        $user_id = get_current_user_id();
+
+        // Get the activity with pathway/cohort context
+        $activity = $wpdb->get_row( $wpdb->prepare(
+            "SELECT a.*, p.cohort_id
+             FROM {$wpdb->prefix}hl_activity a
+             JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
+             WHERE a.activity_id = %d",
+            $activity_id
+        ) );
+
+        if ( ! $activity || $activity->activity_type !== 'teacher_self_assessment' ) {
+            return 0;
+        }
+
+        // Get user's enrollment in this cohort
+        $enrollment = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_enrollment
+             WHERE cohort_id = %d AND user_id = %d AND status = 'active'
+             LIMIT 1",
+            $activity->cohort_id, $user_id
+        ) );
+
+        if ( ! $enrollment ) {
+            return 0;
+        }
+
+        // Parse external_ref for phase and instrument
+        $ref = json_decode( $activity->external_ref, true );
+        $phase = isset( $ref['phase'] ) ? $ref['phase'] : 'pre';
+        $instrument_id = isset( $ref['teacher_instrument_id'] ) ? absint( $ref['teacher_instrument_id'] ) : null;
+
+        // Look for existing instance
+        $instance_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
+             WHERE enrollment_id = %d AND activity_id = %d
+             LIMIT 1",
+            $enrollment->enrollment_id, $activity_id
+        ) );
+
+        if ( $instance_id ) {
+            return absint( $instance_id );
+        }
+
+        // Also check by enrollment + cohort + phase (legacy instances without activity_id)
+        $instance_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
+             WHERE enrollment_id = %d AND cohort_id = %d AND phase = %s
+             LIMIT 1",
+            $enrollment->enrollment_id, $activity->cohort_id, $phase
+        ) );
+
+        if ( $instance_id ) {
+            // Link existing instance to this activity
+            $wpdb->update(
+                $wpdb->prefix . 'hl_teacher_assessment_instance',
+                array( 'activity_id' => $activity_id ),
+                array( 'instance_id' => $instance_id )
+            );
+            return absint( $instance_id );
+        }
+
+        // Create new instance
+        $result = $this->assessment_service->create_teacher_assessment_instance( array(
+            'cohort_id'     => $activity->cohort_id,
+            'enrollment_id' => $enrollment->enrollment_id,
+            'phase'         => $phase,
+            'instrument_id' => $instrument_id,
+            'activity_id'   => $activity_id,
+        ) );
+
+        return is_wp_error( $result ) ? 0 : absint( $result );
     }
 
     // =====================================================================

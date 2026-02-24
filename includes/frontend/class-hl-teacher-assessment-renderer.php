@@ -245,7 +245,7 @@ class HL_Teacher_Assessment_Renderer {
                         <?php if ( $is_post ) : ?>
                             <?php // Before column (pre-filled, disabled) ?>
                             <?php for ( $i = 0; $i < $num_options; $i++ ) :
-                                $val = (string) ( $i + 1 );
+                                $val = (string) $i;
                                 $checked = ( (string) $pre_val === $val ) ? ' checked' : '';
                             ?>
                                 <td class="hl-tsa-radio-cell hl-tsa-before-col">
@@ -267,7 +267,7 @@ class HL_Teacher_Assessment_Renderer {
                             }
                             ?>
                             <?php for ( $i = 0; $i < $num_options; $i++ ) :
-                                $val = (string) ( $i + 1 );
+                                $val = (string) $i;
                                 $checked = ( (string) $now_val === $val ) ? ' checked' : '';
                                 $name = 'resp[' . esc_attr( $section_key ) . '][' . esc_attr( $item_key ) . '][now]';
                                 $input_id = 'hl_tsa_' . $section_key . '_' . $item_key . '_now_' . $val;
@@ -289,7 +289,7 @@ class HL_Teacher_Assessment_Renderer {
                         <?php else : ?>
                             <?php // PRE mode: single column ?>
                             <?php for ( $i = 0; $i < $num_options; $i++ ) :
-                                $val = (string) ( $i + 1 );
+                                $val = (string) $i;
                                 $checked = ( (string) $current_val === $val ) ? ' checked' : '';
                                 $name = 'resp[' . esc_attr( $section_key ) . '][' . esc_attr( $item_key ) . ']';
                                 $input_id = 'hl_tsa_' . $section_key . '_' . $item_key . '_' . $val;
@@ -324,16 +324,12 @@ class HL_Teacher_Assessment_Renderer {
      * POST: dual-column (Before disabled + Now active).
      */
     private function render_scale_section( $section_key, $items, $labels ) {
-        $low_label  = isset( $labels['low'] ) ? $labels['low'] : '0';
-        $high_label = isset( $labels['high'] ) ? $labels['high'] : '10';
-        $is_post    = ( $this->phase === 'post' );
+        $global_low  = isset( $labels['low'] ) ? $labels['low'] : '0';
+        $global_high = isset( $labels['high'] ) ? $labels['high'] : '10';
+        $is_post     = ( $this->phase === 'post' );
 
         ?>
         <div class="hl-tsa-scale-section">
-            <div class="hl-tsa-scale-anchors">
-                <span class="hl-tsa-anchor-low">0 = <?php echo esc_html( $low_label ); ?></span>
-                <span class="hl-tsa-anchor-high">10 = <?php echo esc_html( $high_label ); ?></span>
-            </div>
 
             <?php
             $row_idx = 0;
@@ -343,11 +339,19 @@ class HL_Teacher_Assessment_Renderer {
                 $row_class = ( $row_idx % 2 === 0 ) ? 'hl-tsa-row-even' : 'hl-tsa-row-odd';
                 $row_idx++;
 
+                // Per-item anchors (fallback to global section anchors)
+                $low_label  = isset( $item['left_anchor'] ) ? $item['left_anchor'] : $global_low;
+                $high_label = isset( $item['right_anchor'] ) ? $item['right_anchor'] : $global_high;
+
                 $current_val = isset( $this->existing_responses[ $section_key ][ $item_key ] ) ? $this->existing_responses[ $section_key ][ $item_key ] : null;
                 $pre_val     = isset( $this->pre_responses[ $section_key ][ $item_key ] ) ? $this->pre_responses[ $section_key ][ $item_key ] : null;
             ?>
             <div class="hl-tsa-scale-row <?php echo esc_attr( $row_class ); ?>">
                 <div class="hl-tsa-scale-text"><?php echo esc_html( $item_text ); ?></div>
+                <div class="hl-tsa-scale-anchors">
+                    <span class="hl-tsa-anchor-low">0 = <?php echo esc_html( $low_label ); ?></span>
+                    <span class="hl-tsa-anchor-high">10 = <?php echo esc_html( $high_label ); ?></span>
+                </div>
 
                 <?php if ( $is_post ) : ?>
                     <div class="hl-tsa-scale-dual">

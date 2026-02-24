@@ -66,6 +66,9 @@ class HL_Installer {
         // Add is_control_group column to hl_cohort.
         self::migrate_cohort_add_control_group();
 
+        // Add activity_id and started_at columns to hl_teacher_assessment_instance.
+        self::migrate_teacher_assessment_add_activity_id();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -88,7 +91,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 7;
+        $current_revision = 8;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -439,6 +442,35 @@ class HL_Installer {
         );
         if ( empty( $row ) ) {
             $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN is_control_group tinyint(1) NOT NULL DEFAULT 0 AFTER cohort_group_id" );
+        }
+    }
+
+    /**
+     * Add activity_id and started_at columns to hl_teacher_assessment_instance.
+     */
+    private static function migrate_teacher_assessment_add_activity_id() {
+        global $wpdb;
+
+        $table = "{$wpdb->prefix}hl_teacher_assessment_instance";
+
+        $table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table;
+        if ( ! $table_exists ) {
+            return;
+        }
+
+        $column_exists = function ( $col ) use ( $wpdb, $table ) {
+            return ! empty( $wpdb->get_row( $wpdb->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                $table, $col
+            ) ) );
+        };
+
+        if ( ! $column_exists( 'activity_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN activity_id bigint(20) unsigned NULL AFTER enrollment_id" );
+        }
+
+        if ( ! $column_exists( 'started_at' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN started_at datetime NULL AFTER status" );
         }
     }
 
@@ -821,12 +853,15 @@ class HL_Installer {
             instance_uuid char(36) NOT NULL,
             cohort_id bigint(20) unsigned NOT NULL,
             enrollment_id bigint(20) unsigned NOT NULL,
+            activity_id bigint(20) unsigned NULL,
             phase enum('pre','post') NOT NULL,
             instrument_id bigint(20) unsigned NULL,
             instrument_version varchar(20) NULL,
             jfb_form_id bigint(20) unsigned NULL,
             jfb_record_id bigint(20) unsigned NULL,
+            responses_json longtext DEFAULT NULL,
             status enum('not_started','in_progress','submitted') NOT NULL DEFAULT 'not_started',
+            started_at datetime NULL,
             submitted_at datetime NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -835,6 +870,7 @@ class HL_Installer {
             UNIQUE KEY cohort_enrollment_phase (cohort_id, enrollment_id, phase),
             KEY cohort_id (cohort_id),
             KEY enrollment_id (enrollment_id),
+            KEY activity_id (activity_id),
             KEY instrument_id (instrument_id)
         ) $charset_collate;";
 
