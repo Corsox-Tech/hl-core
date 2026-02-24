@@ -994,6 +994,18 @@ body:has(.hl-dashboard) h1.entry-title {
     font-style: italic;
 }
 
+.hl-drip-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: var(--hl-radius-pill);
+    font-size: 11px;
+    font-weight: 600;
+    background: #FEF3C7;
+    color: #92400E;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
 /* =====================================================
    21. INLINE FORM VIEW (JFB)
    ===================================================== */

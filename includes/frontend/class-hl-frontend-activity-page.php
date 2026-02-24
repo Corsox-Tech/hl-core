@@ -230,7 +230,7 @@ class HL_Frontend_Activity_Page {
             return;
         }
 
-        // Children Assessment: link to dedicated page.
+        // Children Assessment: link to dedicated page with activity_id for instance resolution.
         if ($type === 'children_assessment') {
             $assessment_url = apply_filters('hl_core_children_assessment_page_url', '');
             if (empty($assessment_url)) {
@@ -238,6 +238,7 @@ class HL_Frontend_Activity_Page {
             }
 
             if (!empty($assessment_url)) {
+                $assessment_url = add_query_arg('activity_id', $activity->activity_id, $assessment_url);
                 echo '<div class="hl-empty-state">';
                 echo '<p>' . esc_html__('This activity uses the Children Assessment form.', 'hl-core') . '</p>';
                 echo '<a href="' . esc_url($assessment_url) . '" class="hl-btn hl-btn-primary">' . esc_html__('Go to Children Assessment', 'hl-core') . '</a>';
