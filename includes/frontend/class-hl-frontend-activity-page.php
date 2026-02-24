@@ -155,6 +155,16 @@ class HL_Frontend_Activity_Page {
             <?php endif; ?>
 
             <?php
+            // Flash messages (e.g. after assessment submission redirect).
+            if (!empty($_GET['message'])) {
+                $msg_key = sanitize_text_field($_GET['message']);
+                if ($msg_key === 'submitted') {
+                    echo '<div class="hl-notice hl-notice-success"><p>' . esc_html__('Assessment submitted successfully.', 'hl-core') . '</p></div>';
+                } elseif ($msg_key === 'saved') {
+                    echo '<div class="hl-notice hl-notice-success"><p>' . esc_html__('Draft saved successfully.', 'hl-core') . '</p></div>';
+                }
+            }
+
             // Route to per-type rendering.
             if ($avail_status === 'locked') {
                 $this->render_locked_view($availability);
@@ -277,10 +287,10 @@ class HL_Frontend_Activity_Page {
     }
 
     /**
-     * Render redirect to the Teacher Self-Assessment page for custom instrument activities.
+     * Render the Teacher Self-Assessment form inline on the activity page.
      *
      * Ensures an instance exists for this enrollment + instrument + phase, then
-     * links the teacher to the [hl_teacher_assessment] page with instance_id.
+     * renders the assessment form directly (no redirect to a separate page).
      */
     private function render_teacher_instrument_redirect($activity, $enrollment, $external_ref) {
         $instrument_id = absint($external_ref['teacher_instrument_id']);
@@ -288,7 +298,7 @@ class HL_Frontend_Activity_Page {
 
         $assessment_service = new HL_Assessment_Service();
 
-        // Find or create the instance
+        // Find or create the instance.
         global $wpdb;
         $instance_id = $wpdb->get_var($wpdb->prepare(
             "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
@@ -315,17 +325,113 @@ class HL_Frontend_Activity_Page {
             $instance_id = $result;
         }
 
-        // Find the Teacher Assessment page URL
-        $tsa_url = $this->find_shortcode_page_url('hl_teacher_assessment');
-        if (!empty($tsa_url)) {
-            $tsa_url = add_query_arg('instance_id', $instance_id, $tsa_url);
-            echo '<div class="hl-empty-state">';
-            echo '<p>' . esc_html__('This activity uses the Teacher Self-Assessment form.', 'hl-core') . '</p>';
-            echo '<a href="' . esc_url($tsa_url) . '" class="hl-btn hl-btn-primary">' . esc_html__('Go to Self-Assessment', 'hl-core') . '</a>';
-            echo '</div>';
-        } else {
-            echo '<div class="hl-notice hl-notice-info">' . esc_html__('Please visit the Teacher Self-Assessment page to complete this activity.', 'hl-core') . '</div>';
+        // Load instance with joined data.
+        $instance = $assessment_service->get_teacher_assessment($instance_id);
+        if (!$instance || empty($instance['instrument_id'])) {
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__('Could not load assessment instance.', 'hl-core') . '</div>';
+            return;
         }
+
+        // Load the instrument.
+        $instrument = $assessment_service->get_teacher_instrument(absint($instance['instrument_id']));
+        if (!$instrument) {
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__('Assessment instrument could not be loaded.', 'hl-core') . '</div>';
+            return;
+        }
+
+        // Decode existing responses.
+        $existing_responses = array();
+        if (!empty($instance['responses_json'])) {
+            $decoded = json_decode($instance['responses_json'], true);
+            $existing_responses = is_array($decoded) ? $decoded : array();
+        }
+
+        // For POST phase, get PRE responses for "Before" column.
+        $pre_responses = array();
+        if ($phase === 'post') {
+            $pre_responses = $assessment_service->get_pre_responses_for_post(
+                absint($instance['enrollment_id']),
+                absint($instance['cohort_id'])
+            );
+        }
+
+        // Handle form submission.
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['hl_tsa_instance_id'])) {
+            $posted_instance_id = absint($_POST['hl_tsa_instance_id']);
+            if ($posted_instance_id === (int) $instance_id) {
+                if (!isset($_POST['hl_teacher_assessment_nonce'])
+                    || !wp_verify_nonce($_POST['hl_teacher_assessment_nonce'], 'hl_save_teacher_assessment')) {
+                    echo '<div class="hl-notice hl-notice-error"><p>' . esc_html__('Security check failed. Please try again.', 'hl-core') . '</p></div>';
+                } else {
+                    $action_type = !empty($_POST['hl_tsa_action']) ? sanitize_text_field($_POST['hl_tsa_action']) : 'draft';
+                    $is_draft    = ($action_type !== 'submit');
+
+                    $raw_resp  = isset($_POST['resp']) && is_array($_POST['resp']) ? $_POST['resp'] : array();
+                    $sanitized = $this->sanitize_responses($raw_resp);
+
+                    $save_result = $assessment_service->save_teacher_assessment_responses(
+                        $instance_id,
+                        $sanitized,
+                        $is_draft
+                    );
+
+                    if (is_wp_error($save_result)) {
+                        echo '<div class="hl-notice hl-notice-error"><p>' . esc_html($save_result->get_error_message()) . '</p></div>';
+                    } else {
+                        // Redirect to avoid double-submit.
+                        $redirect_url = add_query_arg(array(
+                            'id'         => $activity->activity_id,
+                            'enrollment' => $enrollment->enrollment_id,
+                            'message'    => $is_draft ? 'saved' : 'submitted',
+                        ));
+                        echo '<script>window.location.href = ' . wp_json_encode($redirect_url) . ';</script>';
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Render form or read-only view.
+        $is_submitted = ($instance['status'] === 'submitted');
+
+        $renderer = new HL_Teacher_Assessment_Renderer(
+            $instrument,
+            (object) $instance,
+            $phase,
+            $existing_responses,
+            $pre_responses,
+            $is_submitted
+        );
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- renderer returns safe HTML
+        echo $renderer->render();
+    }
+
+    /**
+     * Recursively sanitize the responses array.
+     *
+     * Expected structure: [ section_key => [ item_key => value_or_array ] ]
+     *
+     * @param array $raw Raw POST data.
+     * @return array Sanitized responses.
+     */
+    private function sanitize_responses($raw) {
+        $clean = array();
+        foreach ($raw as $section_key => $items) {
+            $section_key = sanitize_text_field($section_key);
+            if (!is_array($items)) {
+                continue;
+            }
+            $clean[$section_key] = array();
+            foreach ($items as $item_key => $value) {
+                $item_key = sanitize_text_field($item_key);
+                if (is_array($value)) {
+                    $clean[$section_key][$item_key] = array_map('sanitize_text_field', $value);
+                } else {
+                    $clean[$section_key][$item_key] = sanitize_text_field($value);
+                }
+            }
+        }
+        return $clean;
     }
 
     /**
