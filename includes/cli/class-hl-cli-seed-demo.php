@@ -1492,4 +1492,76 @@ class HL_CLI_Seed_Demo {
             'scale_0_10'  => array( 'low' => '0', 'high' => '10' ),
         );
     }
+
+    // ==========================================================================
+    // Children Assessment Question Definitions (from 2026 B2E Child Assessment.docx)
+    // ==========================================================================
+
+    /**
+     * Get the children assessment scale labels (shared across all age bands).
+     * Values: Never(0), Rarely(1), Sometimes(2), Usually(3), Almost Always(4)
+     *
+     * @return array
+     */
+    public static function get_children_assessment_scale() {
+        return array(
+            0 => 'Never',
+            1 => 'Rarely',
+            2 => 'Sometimes',
+            3 => 'Usually',
+            4 => 'Almost Always',
+        );
+    }
+
+    /**
+     * Get the children assessment question and example behaviors per age band.
+     *
+     * Each age band has ONE question and example behaviors per scale point.
+     *
+     * @return array Keyed by age band.
+     */
+    public static function get_children_assessment_questions() {
+        return array(
+            'infant' => array(
+                'question' => 'In the last month, how often did the infant notice and respond to their own feelings and those of others through things like facial expressions, body language, and social interactions?',
+                'examples' => array(
+                    0 => 'Never notices or responds when other children or caregivers are upset',
+                    1 => 'Stops to look at another crying infant but rarely responds with concern before going back to what they were doing',
+                    2 => 'Sometimes mirrors the emotions of others by smiling back at caregivers or looking concerned in response to other infants who are crying',
+                    3 => 'Usually mirrors the emotions of caregivers and responds when other infants are upset by reaching arms in their direction',
+                    4 => 'Almost always mirrors the emotions of other children and caregivers and attempts to comfort them by reaching out their arms or babbling/cooing',
+                ),
+            ),
+            'toddler' => array(
+                'question' => 'In the last month, how often did the toddler express their own feelings using body language or words, respond to other people\'s feelings, and interact with others socially?',
+                'examples' => array(
+                    0 => 'Never expresses their feelings with body language or words or responds to the feelings of others and stays quiet or expressionless instead',
+                    1 => 'Rarely expresses their feelings with body language or words and hits or throws prolonged temper tantrums instead. Rarely responds to other children who are upset',
+                    2 => 'Sometimes expresses their feelings with body language or words but throws temper tantrums and needs help from caregivers to calm down. Sometimes show concern if another child cries',
+                    3 => 'Usually expresses their feelings with body language or words and recovers from temper tantrums with caregiver support. Notices when others are upset and tries to comfort them',
+                    4 => 'Almost always expresses their feelings with body language or words, recovers quickly from temper tantrums with caregiver support, tries to comfort others, and actively joins in play',
+                ),
+            ),
+            'preschool' => array(
+                'question' => 'In the last month, how often did the child show that they understood, expressed, and managed their own emotions successfully, cares about other people\'s feelings, and tried to solve problems?',
+                'examples' => array(
+                    0 => 'Never uses words instead of actions (hitting) to express their feelings or calms down even with caregiver support. Never seems to pick up on or show concern for other people\'s feelings',
+                    1 => 'Rarely uses words instead of actions to express their feelings or calms down without a lot of caregiver support. Rarely shows concern when friends are upset without guidance',
+                    2 => 'Uses words to express their feelings and sometimes shares what caused them. Sometimes needs a lot of caregiver support to calm down, help others feel better, and solve social problems',
+                    3 => 'Usually shares what caused their feelings, manages heightened emotions, notices what others are feeling, and tries to help them feel better or solve the problem with caregiver support',
+                    4 => 'Almost always shares what caused their feelings, calms down with caregiver guidance, notices what others are feeling and tries to help them feel better or solve the problem with support',
+                ),
+            ),
+            'k2' => array(
+                'question' => 'In the last month, how often did the child show that they could manage their emotions, show empathy for others\' feelings, and solve social problems?',
+                'examples' => array(
+                    0 => 'Never talks about what they are feeling or finds strategies (deep breaths, physical tools) to calm down independently. Never considers other children\'s feelings and needs help with solving social problems',
+                    1 => 'Rarely finds strategies to calm down independently and needs a caregiver to offer them choices. Rarely considers other children\'s feelings and needs help with solving social problems',
+                    2 => 'Tries to calm down independently but sometimes needs help with finding strategies. Sometimes considers other children\'s feelings and compromises to solving social problems with guidance',
+                    3 => 'Usually manages heightened emotions successfully using a variety of strategies. Considers other children\'s feelings and usually compromises to solve social problems',
+                    4 => 'Almost always manages heightened emotions successfully using a variety of strategies, considers other children\'s feelings, and works with others to compromise and solve social problems',
+                ),
+            ),
+        );
+    }
 }

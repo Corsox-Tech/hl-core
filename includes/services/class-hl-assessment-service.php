@@ -625,6 +625,87 @@ class HL_Assessment_Service {
         do_action('hl_core_recompute_rollups', $enrollment_id);
     }
 
+    /**
+     * Save children assessment responses using the responses_json approach.
+     *
+     * Used for control group assessments where one instance covers all
+     * children across the teacher's classrooms. Stores per-child responses
+     * as JSON on the instance rather than in hl_children_assessment_childrow.
+     *
+     * @param int   $instance_id
+     * @param array $responses   Array: { "children": { child_id: { value, age_band, ... }, ... } }
+     * @param bool  $is_draft    True = draft save, false = final submit.
+     * @return true|WP_Error
+     */
+    public function save_children_assessment_responses( $instance_id, $responses, $is_draft = true ) {
+        global $wpdb;
+
+        $instance = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_children_assessment_instance WHERE instance_id = %d",
+            $instance_id
+        ), ARRAY_A );
+
+        if ( ! $instance ) {
+            return new WP_Error( 'not_found', __( 'Children assessment instance not found.', 'hl-core' ) );
+        }
+
+        if ( $instance['status'] === 'submitted' ) {
+            return new WP_Error( 'already_submitted', __( 'This assessment has already been submitted.', 'hl-core' ) );
+        }
+
+        $update_data = array(
+            'responses_json' => wp_json_encode( $responses ),
+            'status'         => $is_draft ? 'in_progress' : 'submitted',
+        );
+
+        if ( ! $is_draft ) {
+            $update_data['submitted_at'] = current_time( 'mysql' );
+        }
+
+        $wpdb->update(
+            $wpdb->prefix . 'hl_children_assessment_instance',
+            $update_data,
+            array( 'instance_id' => $instance_id )
+        );
+
+        $action_label = $is_draft ? 'children_assessment.draft_saved' : 'children_assessment.submitted';
+        HL_Audit_Service::log( $action_label, array(
+            'entity_type' => 'children_assessment_instance',
+            'entity_id'   => $instance_id,
+            'cohort_id'   => $instance['cohort_id'],
+        ) );
+
+        if ( ! $is_draft ) {
+            $this->update_children_assessment_activity_state(
+                $instance['enrollment_id'],
+                $instance['cohort_id']
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Get a children assessment instance by activity_id and enrollment.
+     *
+     * @param int $activity_id
+     * @param int $enrollment_id
+     * @return array|null
+     */
+    public function get_children_assessment_by_activity( $activity_id, $enrollment_id ) {
+        global $wpdb;
+        return $wpdb->get_row( $wpdb->prepare(
+            "SELECT cai.*, u.display_name, u.user_email, e.user_id, c.cohort_name
+             FROM {$wpdb->prefix}hl_children_assessment_instance cai
+             JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
+             LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+             LEFT JOIN {$wpdb->prefix}hl_cohort c ON cai.cohort_id = c.cohort_id
+             WHERE cai.activity_id = %d AND cai.enrollment_id = %d
+             LIMIT 1",
+            $activity_id, $enrollment_id
+        ), ARRAY_A );
+    }
+
     // =========================================================================
     // Children Assessment Instance Generation
     // =========================================================================

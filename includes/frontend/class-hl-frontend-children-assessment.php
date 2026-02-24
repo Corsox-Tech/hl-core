@@ -65,12 +65,24 @@ class HL_Frontend_Children_Assessment {
             return ob_get_clean();
         }
 
-        // ── Determine instance_id from atts or query string ──────────
+        // ── Determine instance_id from atts, query string, or activity_id ──
         $instance_id = 0;
         if ( ! empty( $atts['instance_id'] ) ) {
             $instance_id = absint( $atts['instance_id'] );
         } elseif ( ! empty( $_GET['instance_id'] ) ) {
             $instance_id = absint( $_GET['instance_id'] );
+        } elseif ( ! empty( $_GET['activity_id'] ) ) {
+            $instance_id = $this->resolve_instance_from_activity( absint( $_GET['activity_id'] ) );
+        }
+
+        // Flash messages from redirect
+        if ( ! empty( $_GET['message'] ) ) {
+            $msg_key = sanitize_text_field( $_GET['message'] );
+            if ( $msg_key === 'submitted' ) {
+                echo '<div class="hl-notice hl-notice-success"><p>' . esc_html__( 'Assessment submitted successfully.', 'hl-core' ) . '</p></div>';
+            } elseif ( $msg_key === 'saved' ) {
+                echo '<div class="hl-notice hl-notice-success"><p>' . esc_html__( 'Draft saved successfully.', 'hl-core' ) . '</p></div>';
+            }
         }
 
         // ── Route: list view vs. single instance view ────────────────
@@ -81,6 +93,85 @@ class HL_Frontend_Children_Assessment {
         }
 
         return ob_get_clean();
+    }
+
+    /**
+     * Resolve an activity_id to an existing (or newly created) instance_id.
+     *
+     * @param int $activity_id
+     * @return int Instance ID, or 0 on failure.
+     */
+    private function resolve_instance_from_activity( $activity_id ) {
+        global $wpdb;
+
+        $user_id = get_current_user_id();
+
+        $activity = $wpdb->get_row( $wpdb->prepare(
+            "SELECT a.*, p.cohort_id
+             FROM {$wpdb->prefix}hl_activity a
+             JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
+             WHERE a.activity_id = %d",
+            $activity_id
+        ) );
+
+        if ( ! $activity || $activity->activity_type !== 'children_assessment' ) {
+            return 0;
+        }
+
+        $enrollment = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_enrollment
+             WHERE cohort_id = %d AND user_id = %d AND status = 'active'
+             LIMIT 1",
+            $activity->cohort_id, $user_id
+        ) );
+
+        if ( ! $enrollment ) {
+            return 0;
+        }
+
+        $ref   = json_decode( $activity->external_ref, true );
+        $phase = isset( $ref['phase'] ) ? $ref['phase'] : 'pre';
+
+        // Look for existing instance by activity_id
+        $instance_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT instance_id FROM {$wpdb->prefix}hl_children_assessment_instance
+             WHERE enrollment_id = %d AND activity_id = %d
+             LIMIT 1",
+            $enrollment->enrollment_id, $activity_id
+        ) );
+
+        if ( $instance_id ) {
+            return absint( $instance_id );
+        }
+
+        // Look for existing instance by enrollment + cohort + phase
+        $instance_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT instance_id FROM {$wpdb->prefix}hl_children_assessment_instance
+             WHERE enrollment_id = %d AND cohort_id = %d AND phase = %s
+             LIMIT 1",
+            $enrollment->enrollment_id, $activity->cohort_id, $phase
+        ) );
+
+        if ( $instance_id ) {
+            $wpdb->update(
+                $wpdb->prefix . 'hl_children_assessment_instance',
+                array( 'activity_id' => $activity_id ),
+                array( 'instance_id' => $instance_id )
+            );
+            return absint( $instance_id );
+        }
+
+        // Create new instance for this activity
+        $wpdb->insert( $wpdb->prefix . 'hl_children_assessment_instance', array(
+            'instance_uuid' => HL_DB_Utils::generate_uuid(),
+            'cohort_id'     => absint( $activity->cohort_id ),
+            'enrollment_id' => absint( $enrollment->enrollment_id ),
+            'activity_id'   => absint( $activity_id ),
+            'phase'         => $phase,
+            'status'        => 'not_started',
+        ) );
+
+        return $wpdb->insert_id ? absint( $wpdb->insert_id ) : 0;
     }
 
     // =====================================================================

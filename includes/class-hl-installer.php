@@ -69,6 +69,9 @@ class HL_Installer {
         // Add activity_id and started_at columns to hl_teacher_assessment_instance.
         self::migrate_teacher_assessment_add_activity_id();
 
+        // Add activity_id, phase, responses_json columns to hl_children_assessment_instance.
+        self::migrate_children_assessment_add_fields();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -443,6 +446,49 @@ class HL_Installer {
         if ( empty( $row ) ) {
             $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN is_control_group tinyint(1) NOT NULL DEFAULT 0 AFTER cohort_group_id" );
         }
+    }
+
+    /**
+     * Add activity_id, phase, responses_json to hl_children_assessment_instance.
+     */
+    private static function migrate_children_assessment_add_fields() {
+        global $wpdb;
+
+        $table = "{$wpdb->prefix}hl_children_assessment_instance";
+
+        $table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table;
+        if ( ! $table_exists ) {
+            return;
+        }
+
+        $column_exists = function ( $col ) use ( $wpdb, $table ) {
+            return ! empty( $wpdb->get_row( $wpdb->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                $table, $col
+            ) ) );
+        };
+
+        if ( ! $column_exists( 'activity_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN activity_id bigint(20) unsigned NULL AFTER enrollment_id" );
+        }
+
+        if ( ! $column_exists( 'phase' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN phase enum('pre','post') NULL AFTER center_id" );
+        }
+
+        if ( ! $column_exists( 'responses_json' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN responses_json longtext DEFAULT NULL AFTER instrument_version" );
+        }
+
+        if ( ! $column_exists( 'started_at' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN started_at datetime NULL AFTER status" );
+        }
+
+        // Make classroom_id nullable (new approach: one instance per teacher per phase)
+        $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN classroom_id bigint(20) unsigned NULL" );
+
+        // Change instrument_age_band from enum to varchar to support 'k2' etc.
+        $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN instrument_age_band varchar(20) NULL" );
     }
 
     /**
@@ -896,20 +942,24 @@ class HL_Installer {
             instance_uuid char(36) NOT NULL,
             cohort_id bigint(20) unsigned NOT NULL,
             enrollment_id bigint(20) unsigned NOT NULL,
-            classroom_id bigint(20) unsigned NOT NULL,
+            activity_id bigint(20) unsigned NULL,
+            classroom_id bigint(20) unsigned NULL,
             center_id bigint(20) unsigned NULL,
-            instrument_age_band enum('infant','toddler','preschool') NULL,
+            phase enum('pre','post') NULL,
+            instrument_age_band varchar(20) NULL,
             instrument_id bigint(20) unsigned NULL,
             instrument_version varchar(20) NULL,
+            responses_json longtext DEFAULT NULL,
             status enum('not_started','in_progress','submitted') NOT NULL DEFAULT 'not_started',
+            started_at datetime NULL,
             submitted_at datetime NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (instance_id),
             UNIQUE KEY instance_uuid (instance_uuid),
-            UNIQUE KEY cohort_enrollment_classroom (cohort_id, enrollment_id, classroom_id),
             KEY cohort_id (cohort_id),
             KEY enrollment_id (enrollment_id),
+            KEY activity_id (activity_id),
             KEY classroom_id (classroom_id),
             KEY center_id (center_id)
         ) $charset_collate;";
