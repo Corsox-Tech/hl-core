@@ -71,11 +71,34 @@ class HL_Cohort_Repository {
     public function update($cohort_id, $data) {
         global $wpdb;
 
-        $wpdb->update(
+        // Build explicit format array so $wpdb doesn't rely on auto-detection.
+        $formats = array();
+        foreach ($data as $key => $value) {
+            if (is_null($value)) {
+                // wpdb handles NULL values specially (SET col = NULL) —
+                // the format entry is ignored for NULLs but we still need
+                // a placeholder to keep the arrays aligned.
+                $formats[] = '%s';
+            } elseif (is_int($value) || is_bool($value)) {
+                $formats[] = '%d';
+            } elseif (is_float($value)) {
+                $formats[] = '%f';
+            } else {
+                $formats[] = '%s';
+            }
+        }
+
+        $result = $wpdb->update(
             $wpdb->prefix . 'hl_cohort',
             $data,
-            array('cohort_id' => $cohort_id)
+            array('cohort_id' => $cohort_id),
+            $formats,
+            array('%d')
         );
+
+        if ($result === false && !empty($wpdb->last_error)) {
+            error_log('[HL Core] Cohort update failed for ID ' . $cohort_id . ': ' . $wpdb->last_error);
+        }
 
         return $this->get_by_id($cohort_id);
     }

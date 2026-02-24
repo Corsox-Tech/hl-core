@@ -115,7 +115,11 @@ class HL_Admin_Cohorts {
         }
 
         if ($cohort_id > 0) {
-            $this->repo->update($cohort_id, $data);
+            $updated = $this->repo->update($cohort_id, $data);
+            if ($updated && !empty($updated->cohort_group_id) !== !empty($data['cohort_group_id'])) {
+                // Verify the save persisted — log if mismatch detected.
+                error_log('[HL Core] Cohort group mismatch after save for ID ' . $cohort_id . ': expected=' . ($data['cohort_group_id'] ?? 'NULL') . ' got=' . ($updated->cohort_group_id ?? 'NULL'));
+            }
             $redirect = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=details&message=updated');
         } else {
             $data['cohort_uuid'] = HL_DB_Utils::generate_uuid();
