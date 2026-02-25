@@ -1,5 +1,17 @@
 # CLAUDE.md — HL Core Plugin Development Guide
 
+> **COMMIT CHECKLIST (every commit that changes functionality):**
+> 1. Update README.md (build queue checkboxes + "What's Implemented" if needed)
+> 2. Commit README.md alongside the code changes
+> 3. A task is NOT done until README.md is updated
+>
+> **BEFORE ANY CONTEXT COMPACTION (non-negotiable):**
+> 1. Commit all pending code changes
+> 2. Update README.md with current status — check off completed items `[x]`, mark in-progress items `[~]` with a detailed note of what's done and what remains
+> 3. Commit and push the README.md update
+> 4. THEN compact/clear context
+> This applies to: forced compaction (context limit), user-requested compaction, self-suggested compaction, and session end. README.md is the only artifact that survives compaction — it must be the source of truth.
+
 ## Project Overview
 This is the Housman Learning Academy (HLA) WordPress site. The primary development target is the **hl-core** custom plugin located at `wp-content/plugins/hl-core/`.
 
@@ -54,25 +66,16 @@ Example response format:
 >
 > Should I continue with [specific task], or do you have something else in mind?"
 
-### 3. ALWAYS update README.md after making changes (NON-NEGOTIABLE)
-**A task is NOT done until README.md is updated.** This is not optional. Every commit that changes functionality MUST include a README.md update in the same commit or immediately after.
-
+### 3. ALWAYS update README.md (see top-of-file checklist)
 After completing any feature, fix, or refactoring:
 - Update the "What's Implemented" section if you built something new
 - Check off completed items in the Build Queue with `[x]`
 - Mark partially completed items with `[~]` and add a note explaining what's done and what remains
 - Update the "Architecture" file tree if you added new files/directories
-- Keep the format consistent with what's already there
+- Self-check before saying "done": "Did I update README.md?" If no, do it NOW.
 
-**Self-check before saying "done" or "committed":** Ask yourself: "Did I update README.md?" If no, do it NOW before reporting completion to the user.
-
-### 4. Before suggesting "Clear Context", ending a session, or reporting "all done"
-If you're about to suggest clearing context, the session has been going a while, OR you're about to tell the user everything is complete:
-- **STOP and update README.md FIRST** — this is the LAST thing you do before reporting completion
-- Check off all completed Build Queue items with `[x]`
-- Mark any in-progress items with `[~]` and write a clear note about exactly what's done and what's left
-- Update "What's Implemented" with anything new
-- **Do NOT tell the user "all done" or "committed and pushed" until README.md is updated and committed**
+### 4. Before context compaction (see top-of-file checklist)
+Commit all code + update README.md + push BEFORE compacting. This is the survival mechanism for cross-session continuity.
 
 ### 5. Read relevant docs before building features
 Don't build from memory or assumptions. Before implementing any feature, read the specific doc file(s) listed next to each build queue item.
@@ -208,10 +211,11 @@ Housman measures program impact by comparing:
 - **Note:** The local WordPress installation exists only as a file editing workspace. Testing happens on staging.
 
 ### Deployment Workflow
-1. Claude Code edits files locally (in the Local Sites folder)
+1. Claude Code edits files locally (in the Dev Projects folder)
 2. Claude Code commits and pushes to GitHub (`main` branch)
 3. Hostinger's Git integration auto-pulls changes to the staging server
-4. Testing happens on the staging site (not locally)
+4. Claude Code runs WP-CLI commands on staging via SSH to test (seeders, migrations, etc.)
+5. Manual verification on the staging site by the user
 
 ### Staging Server
 - **URL:** `https://staging.academy.housmanlearning.com`
@@ -220,10 +224,49 @@ Housman measures program impact by comparing:
 - **Staging plugin path:** `/home/u665917738/domains/academy.housmanlearning.com/public_html/staging/wp-content/plugins/hl-core/`
 - **IMPORTANT:** Staging is a subdirectory install within the main domain, NOT a separate domain folder.
 
-### Production Server
+### Staging SSH Access (NON-NEGOTIABLE RULES)
+Claude Code has SSH access to the staging server for running WP-CLI commands, checking logs, debugging, and testing.
+
+**Connection:**
+```bash
+ssh -p 65002 u665917738@145.223.76.150
+```
+
+**Running WP-CLI commands on staging:**
+```bash
+ssh -p 65002 u665917738@145.223.76.150 "cd /home/u665917738/domains/academy.housmanlearning.com/public_html/staging && wp <command>"
+```
+
+**Examples:**
+```bash
+# Seed data
+ssh -p 65002 u665917738@145.223.76.150 "cd /home/u665917738/domains/academy.housmanlearning.com/public_html/staging && wp hl-core seed-lutheran"
+
+# Nuke and re-seed
+ssh -p 65002 u665917738@145.223.76.150 "cd /home/u665917738/domains/academy.housmanlearning.com/public_html/staging && wp hl-core nuke --confirm='DELETE ALL DATA' && wp hl-core seed-lutheran"
+
+# Check DB tables
+ssh -p 65002 u665917738@145.223.76.150 "cd /home/u665917738/domains/academy.housmanlearning.com/public_html/staging && wp db query 'SELECT COUNT(*) FROM wp_hl_cohort'"
+
+# Check plugin status
+ssh -p 65002 u665917738@145.223.76.150 "cd /home/u665917738/domains/academy.housmanlearning.com/public_html/staging && wp plugin list --status=active"
+
+# Flush caches
+ssh -p 65002 u665917738@145.223.76.150 "cd /home/u665917738/domains/academy.housmanlearning.com/public_html/staging && wp cache flush"
+```
+
+**ABSOLUTE RULES — NEVER VIOLATE THESE:**
+1. **ALWAYS `cd` into the staging directory first.** Every SSH command MUST start with `cd /home/u665917738/domains/academy.housmanlearning.com/public_html/staging &&` before running any `wp` command. Running `wp` from any other directory could hit production.
+2. **NEVER run commands against production.** The production root is `/home/u665917738/domains/academy.housmanlearning.com/public_html/` (WITHOUT `/staging/`). If you see a path without `/staging/` in it, STOP — you are targeting production.
+3. **NEVER `cd` to the production root** (`/home/u665917738/domains/academy.housmanlearning.com/public_html/`) — this is the live site.
+4. **NEVER modify files directly on the server** via SSH. All code changes go through Git (edit locally → commit → push → Hostinger auto-pulls). SSH is for running commands and debugging only.
+5. **If in doubt, don't run the command.** Ask the user first.
+
+### Production Server (DO NOT TOUCH)
 - **URL:** `https://academy.housmanlearning.com`
 - **WordPress root:** `/home/u665917738/domains/academy.housmanlearning.com/public_html/`
 - **Do NOT deploy to production without explicit approval from the user.**
+- **Do NOT SSH into the production directory. EVER.**
 
 ### After deploying new schema changes (run on staging via SSH):
 ```bash
@@ -281,9 +324,9 @@ node_modules/
 ```
 
 ## Environment
-- WordPress files stored locally (Local Sites folder) — used as editing workspace only
+- WordPress files stored locally (Dev Projects folder) — used as editing workspace only
 - Deployment: push to GitHub → auto-pull to Hostinger staging
-- Testing: on staging site (https://staging.academy.housmanlearning.com)
+- Testing: on staging site via SSH (WP-CLI) and browser (https://staging.academy.housmanlearning.com)
 - Database: MySQL on Hostinger (staging)
 - PHP 7.4+
 - Run Claude Code from the plugin directory: `wp-content/plugins/hl-core/`
