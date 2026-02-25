@@ -317,6 +317,9 @@ class HL_Frontend_Program_Page {
         $action_html = '';
         if ($avail_status === 'available') {
             $action_html = $this->get_action_html($activity, $enrollment, $pathway, $assess_status);
+        } elseif ($avail_status === 'completed') {
+            // Completed assessment activities: show "View Responses" link.
+            $action_html = $this->get_completed_action_html($activity, $enrollment);
         }
 
         // Drip date badge for locked activities.
@@ -327,7 +330,7 @@ class HL_Frontend_Program_Page {
             && !empty($availability['next_available_at'])
         ) {
             $drip_badge = '<span class="hl-drip-badge">'
-                . sprintf(esc_html__('Opens %s', 'hl-core'), esc_html($this->format_date($availability['next_available_at'])))
+                . sprintf(esc_html__('Available %s', 'hl-core'), esc_html($this->format_date($availability['next_available_at'])))
                 . '</span>';
         }
         ?>
@@ -348,10 +351,11 @@ class HL_Frontend_Program_Page {
                 </h4>
                 <div class="hl-activity-meta">
                     <span class="hl-activity-type"><?php echo esc_html($type_label); ?></span>
-                    <?php if ($avail_status === 'completed' && $completed_at) : ?>
-                        <span class="hl-activity-date"><?php
-                            printf(esc_html__('Completed %s', 'hl-core'), esc_html($this->format_date($completed_at)));
-                        ?></span>
+                    <?php if ($avail_status === 'completed') : ?>
+                        <span class="hl-badge hl-badge-completed"><?php esc_html_e('Completed', 'hl-core'); ?></span>
+                        <?php if ($completed_at) : ?>
+                            <span class="hl-activity-date"><?php echo esc_html($this->format_date($completed_at)); ?></span>
+                        <?php endif; ?>
                     <?php elseif ($avail_status === 'locked') : ?>
                         <span class="hl-activity-lock-reason"><?php echo esc_html($this->get_lock_reason_text($availability)); ?></span>
                     <?php else : ?>
@@ -407,8 +411,17 @@ class HL_Frontend_Program_Page {
             return '';
         }
 
-        // Teacher self-assessment: status-aware buttons.
+        // Teacher self-assessment: route directly to [hl_teacher_assessment] page.
         if ($type === 'teacher_self_assessment') {
+            $tsa_url = $this->find_shortcode_page_url('hl_teacher_assessment');
+            if (!empty($tsa_url)) {
+                $tsa_url = add_query_arg('activity_id', $activity->activity_id, $tsa_url);
+                $label = $this->get_assessment_button_label($assess_status);
+                $btn_class = ($assess_status === 'submitted') ? 'hl-btn-secondary' : 'hl-btn-primary';
+                return '<a href="' . esc_url($tsa_url) . '" class="hl-btn hl-btn-sm ' . esc_attr($btn_class) . '">'
+                    . esc_html($label) . '</a>';
+            }
+            // Fallback to Activity Page.
             $activity_page_url = $this->get_activity_page_url($activity->activity_id, $enrollment->enrollment_id);
             if (!empty($activity_page_url)) {
                 $label = $this->get_assessment_button_label($assess_status);
@@ -470,11 +483,11 @@ class HL_Frontend_Program_Page {
     private function get_assessment_button_label($assess_status) {
         switch ($assess_status) {
             case 'submitted':
-                return __('View Submitted', 'hl-core');
+                return __('View Responses', 'hl-core');
             case 'draft':
-                return __('Continue', 'hl-core');
+                return __('Continue Assessment', 'hl-core');
             default:
-                return __('Start', 'hl-core');
+                return __('Start Assessment', 'hl-core');
         }
     }
 
@@ -572,6 +585,40 @@ class HL_Frontend_Program_Page {
         }
 
         return '<span class="hl-activity-notice">' . esc_html__('Managed by your coach.', 'hl-core') . '</span>';
+    }
+
+    /**
+     * Build the "View Responses" link for completed assessment activities.
+     *
+     * @param object $activity
+     * @param object $enrollment
+     * @return string
+     */
+    private function get_completed_action_html($activity, $enrollment) {
+        $type = $activity->activity_type;
+
+        if ($type === 'teacher_self_assessment') {
+            $tsa_url = $this->find_shortcode_page_url('hl_teacher_assessment');
+            if (!empty($tsa_url)) {
+                $tsa_url = add_query_arg('activity_id', $activity->activity_id, $tsa_url);
+                return '<a href="' . esc_url($tsa_url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
+                    . esc_html__('View Responses', 'hl-core') . '</a>';
+            }
+        }
+
+        if ($type === 'children_assessment') {
+            $ca_url = apply_filters('hl_core_children_assessment_page_url', '');
+            if (empty($ca_url)) {
+                $ca_url = $this->find_shortcode_page_url('hl_children_assessment');
+            }
+            if (!empty($ca_url)) {
+                $ca_url = add_query_arg('activity_id', $activity->activity_id, $ca_url);
+                return '<a href="' . esc_url($ca_url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
+                    . esc_html__('View Responses', 'hl-core') . '</a>';
+            }
+        }
+
+        return '';
     }
 
     /**

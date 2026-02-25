@@ -197,10 +197,10 @@ Housman measures program impact by comparing:
 - Private repo — never commit data files or credentials
 
 ### Local Development
-- **WordPress root:** `C:\Users\MateoGonzalez\Local Sites\housman-learning-academy\app\public\`
+- **WordPress root:** `C:\Users\MateoGonzalez\Dev Projects Mateo\housman-learning-academy\`
 - **Plugin path:** `wp-content/plugins/hl-core/`
 - Local files are the source of truth for editing. Claude Code edits files here.
-- **Note:** Local by Flywheel is NO LONGER used for running the site locally. The local WordPress installation exists only as a file editing workspace.
+- **Note:** The local WordPress installation exists only as a file editing workspace. Testing happens on staging.
 
 ### Deployment Workflow
 1. Claude Code edits files locally (in the Local Sites folder)

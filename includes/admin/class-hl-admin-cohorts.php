@@ -96,17 +96,22 @@ class HL_Admin_Cohorts {
             wp_die(__('You do not have permission to perform this action.', 'hl-core'));
         }
 
+        // Proactively ensure cohort_group_id column exists BEFORE any save attempt.
+        // If the column was missed by dbDelta or a migration, this adds it now so
+        // the INSERT/UPDATE below won't fail silently.
+        $this->ensure_cohort_group_column();
+
         $cohort_id = isset($_POST['cohort_id']) ? absint($_POST['cohort_id']) : 0;
 
         $data = array(
-            'cohort_name'     => sanitize_text_field($_POST['cohort_name']),
-            'cohort_code'     => sanitize_text_field($_POST['cohort_code']),
-            'status'          => sanitize_text_field($_POST['status']),
-            'start_date'      => sanitize_text_field($_POST['start_date']),
-            'end_date'        => sanitize_text_field($_POST['end_date']),
-            'timezone'        => sanitize_text_field($_POST['timezone']),
-            'district_id'     => !empty($_POST['district_id']) ? absint($_POST['district_id']) : null,
-            'cohort_group_id' => !empty($_POST['cohort_group_id']) ? absint($_POST['cohort_group_id']) : null,
+            'cohort_name'      => sanitize_text_field($_POST['cohort_name']),
+            'cohort_code'      => sanitize_text_field($_POST['cohort_code']),
+            'status'           => sanitize_text_field($_POST['status']),
+            'start_date'       => sanitize_text_field($_POST['start_date']),
+            'end_date'         => sanitize_text_field($_POST['end_date']),
+            'timezone'         => sanitize_text_field($_POST['timezone']),
+            'district_id'      => !empty($_POST['district_id']) ? absint($_POST['district_id']) : null,
+            'cohort_group_id'  => !empty($_POST['cohort_group_id']) ? absint($_POST['cohort_group_id']) : null,
             'is_control_group' => !empty($_POST['is_control_group']) ? 1 : 0,
         );
 
@@ -117,19 +122,10 @@ class HL_Admin_Cohorts {
         if ($cohort_id > 0) {
             $updated = $this->repo->update($cohort_id, $data);
 
-            // Verify cohort_group_id actually persisted. If the column is missing
-            // from the DB table, the entire UPDATE silently fails.
-            $expected_group = $data['cohort_group_id'];
-            $actual_group   = $updated ? $updated->cohort_group_id : null;
-            if ($expected_group !== null && ($actual_group === null || (int) $actual_group !== (int) $expected_group)) {
-                // Column may be missing — attempt self-healing migration then retry.
-                $this->ensure_cohort_group_column();
-                $updated = $this->repo->update($cohort_id, $data);
-                $actual_group = $updated ? $updated->cohort_group_id : null;
-                if ($expected_group !== null && ($actual_group === null || (int) $actual_group !== (int) $expected_group)) {
-                    error_log('[HL Core] Cohort group save failed for ID ' . $cohort_id
-                        . ': expected=' . $expected_group . ' got=' . ($actual_group ?? 'NULL'));
-                }
+            if (!$updated || $updated->cohort_group_id === null && $data['cohort_group_id'] !== null) {
+                error_log('[HL Core] Cohort group save may have failed for ID ' . $cohort_id
+                    . ': expected=' . ($data['cohort_group_id'] ?? 'NULL')
+                    . ' got=' . ($updated ? ($updated->cohort_group_id ?? 'NULL') : 'NO_RESULT'));
             }
 
             $redirect = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=details&message=updated');
@@ -156,17 +152,30 @@ class HL_Admin_Cohorts {
         global $wpdb;
         $table = $wpdb->prefix . 'hl_cohort';
 
-        $col = $wpdb->get_var( $wpdb->prepare(
+        $has_col = $wpdb->get_var( $wpdb->prepare(
             "SELECT COLUMN_NAME FROM information_schema.COLUMNS
              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
             $table,
             'cohort_group_id'
         ) );
 
-        if ( empty( $col ) ) {
+        if ( empty( $has_col ) ) {
             $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `cohort_group_id` bigint(20) unsigned DEFAULT NULL" );
-            $wpdb->query( "ALTER TABLE `{$table}` ADD INDEX `cohort_group_id` (`cohort_group_id`)" );
-            error_log( '[HL Core] Self-healed: added missing cohort_group_id column to ' . $table );
+
+            // Verify it was actually added.
+            $verify = $wpdb->get_var( $wpdb->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                $table,
+                'cohort_group_id'
+            ) );
+
+            if ( ! empty( $verify ) ) {
+                $wpdb->query( "ALTER TABLE `{$table}` ADD INDEX `cohort_group_id` (`cohort_group_id`)" );
+                error_log( '[HL Core] Self-healed: added missing cohort_group_id column to ' . $table );
+            } else {
+                error_log( '[HL Core] CRITICAL: Failed to add cohort_group_id column. Last error: ' . $wpdb->last_error );
+            }
         }
     }
 
