@@ -754,21 +754,36 @@ class HL_Assessment_Service {
 
             // Determine age band from classroom
             $age_band = $ta->age_band;
-            if (empty($age_band) || $age_band === 'mixed') {
-                $age_band = null; // Will need staff review
+            if (empty($age_band)) {
+                $age_band = null;
             }
 
-            // Find matching instrument (if age band known)
+            // Find matching instrument: try exact type, then mixed, then any children_* instrument.
             $instrument = null;
             if ($age_band) {
-                $instrument_type = 'children_' . $age_band;
-                $instrument = $wpdb->get_row($wpdb->prepare(
-                    "SELECT instrument_id, version FROM {$wpdb->prefix}hl_instrument
-                     WHERE instrument_type = %s
-                     AND (effective_to IS NULL OR effective_to >= CURDATE())
-                     ORDER BY effective_from DESC LIMIT 1",
-                    $instrument_type
-                ));
+                $try_types = array('children_' . $age_band);
+                if ($age_band === 'mixed') {
+                    $try_types[] = 'children_preschool';
+                }
+                foreach ($try_types as $instrument_type) {
+                    $instrument = $wpdb->get_row($wpdb->prepare(
+                        "SELECT instrument_id, version FROM {$wpdb->prefix}hl_instrument
+                         WHERE instrument_type = %s
+                         AND (effective_to IS NULL OR effective_to >= CURDATE())
+                         ORDER BY effective_from DESC LIMIT 1",
+                        $instrument_type
+                    ));
+                    if ($instrument) break;
+                }
+                // Final fallback: any active children instrument.
+                if (!$instrument) {
+                    $instrument = $wpdb->get_row(
+                        "SELECT instrument_id, version FROM {$wpdb->prefix}hl_instrument
+                         WHERE instrument_type LIKE 'children_%'
+                         AND (effective_to IS NULL OR effective_to >= CURDATE())
+                         ORDER BY effective_from DESC LIMIT 1"
+                    );
+                }
             }
 
             $insert_data = array(

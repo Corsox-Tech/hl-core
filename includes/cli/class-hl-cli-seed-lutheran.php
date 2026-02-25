@@ -146,8 +146,11 @@ class HL_CLI_Seed_Lutheran {
 		// Update activity external_ref with instrument_id.
 		$this->update_activity_instrument_refs( $pathway_data, $instrument_id );
 
+		// Step 12b: Children Assessment Instruments.
+		$children_instruments = $this->seed_children_instruments();
+
 		// Step 13: Assessment Instances.
-		$this->seed_assessment_instances( $enrollments, $cohort_id, $pathway_data, $instrument_id, $classrooms, $center_map, $teacher_roster_data );
+		$this->seed_assessment_instances( $enrollments, $cohort_id, $pathway_data, $instrument_id, $classrooms, $center_map, $teacher_roster_data, $children_instruments );
 
 		// Step 14: Pathway Assignments.
 		$this->seed_pathway_assignments( $enrollments, $pathway_data['pathway_id'] );
@@ -338,6 +341,10 @@ class HL_CLI_Seed_Lutheran {
 				)
 			);
 			WP_CLI::log( '  Deleted B2E teacher assessment instrument.' );
+
+			// Also delete children instruments seeded by this command.
+			$wpdb->query( "DELETE FROM {$prefix}hl_instrument WHERE name LIKE 'Lutheran %'" );
+			WP_CLI::log( '  Deleted Lutheran children assessment instruments.' );
 		}
 
 		// Delete WP users tagged with the Lutheran seed meta key.
@@ -1144,6 +1151,70 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	/**
+	 * Seed children assessment instruments (infant, toddler, preschool, mixed).
+	 *
+	 * @return array Keyed by age band: 'infant' => instrument_id, etc.
+	 */
+	private function seed_children_instruments() {
+		global $wpdb;
+		$prefix = $wpdb->prefix;
+
+		$types = array(
+			'infant'    => array( 'name' => 'Lutheran Infant Assessment',    'type' => 'children_infant' ),
+			'toddler'   => array( 'name' => 'Lutheran Toddler Assessment',   'type' => 'children_toddler' ),
+			'preschool' => array( 'name' => 'Lutheran Preschool Assessment', 'type' => 'children_preschool' ),
+			'mixed'     => array( 'name' => 'Lutheran Mixed-Age Assessment', 'type' => 'children_mixed' ),
+		);
+
+		// Build per-age-band questions from the B2E assessment data.
+		$b2e_data = HL_CLI_Seed_Demo::get_children_assessment_questions();
+		$scale    = HL_CLI_Seed_Demo::get_children_assessment_scale();
+		$allowed  = array_map( 'strval', array_keys( $scale ) );
+
+		$instruments = array();
+		foreach ( $types as $band => $info ) {
+			// Use the age-band-specific B2E question if available, otherwise use preschool as fallback.
+			$source_band = isset( $b2e_data[ $band ] ) ? $band : 'preschool';
+			$q_data      = $b2e_data[ $source_band ];
+
+			$questions = wp_json_encode( array(
+				array(
+					'question_id'    => 'q1',
+					'type'           => 'likert',
+					'prompt_text'    => $q_data['question'],
+					'required'       => true,
+					'allowed_values' => $allowed,
+				),
+			) );
+			// Skip if already exists.
+			$existing = $wpdb->get_var( $wpdb->prepare(
+				"SELECT instrument_id FROM {$prefix}hl_instrument WHERE instrument_type = %s LIMIT 1",
+				$info['type']
+			) );
+			if ( $existing ) {
+				$instruments[ $band ] = (int) $existing;
+				continue;
+			}
+
+			$wpdb->insert( $prefix . 'hl_instrument', array(
+				'instrument_uuid' => wp_generate_uuid4(),
+				'name'            => $info['name'],
+				'instrument_type' => $info['type'],
+				'version'         => '1.0',
+				'questions'       => $questions,
+				'effective_from'  => '2026-01-01',
+			) );
+			$instruments[ $band ] = $wpdb->insert_id;
+		}
+
+		WP_CLI::log( '  [12b/14] Children Assessment Instruments created: ' . implode( ', ', array_map( function( $b, $id ) {
+			return "{$b}={$id}";
+		}, array_keys( $instruments ), $instruments ) ) );
+
+		return $instruments;
+	}
+
+	/**
 	 * Update the TSA activity external_ref to include the instrument_id.
 	 *
 	 * @param array $pathway_data  Pathway and activity IDs.
@@ -1174,15 +1245,16 @@ class HL_CLI_Seed_Lutheran {
 	/**
 	 * Create teacher and children assessment instances plus activity states.
 	 *
-	 * @param array $enrollments         Keyed by row index.
-	 * @param int   $cohort_id           Cohort ID.
-	 * @param array $pathway_data        Pathway and activity IDs.
-	 * @param int   $instrument_id       Teacher assessment instrument ID.
-	 * @param array $classrooms          Keyed by "center_name::classroom_name".
-	 * @param array $center_map          Keyed by center name => orgunit_id.
-	 * @param array $teacher_roster_data Teacher roster rows.
+	 * @param array $enrollments           Keyed by row index.
+	 * @param int   $cohort_id             Cohort ID.
+	 * @param array $pathway_data          Pathway and activity IDs.
+	 * @param int   $instrument_id         Teacher assessment instrument ID.
+	 * @param array $classrooms            Keyed by "center_name::classroom_name".
+	 * @param array $center_map            Keyed by center name => orgunit_id.
+	 * @param array $teacher_roster_data   Teacher roster rows.
+	 * @param array $children_instruments  Keyed by age band: 'infant' => id, etc.
 	 */
-	private function seed_assessment_instances( $enrollments, $cohort_id, $pathway_data, $instrument_id, $classrooms, $center_map, $teacher_roster_data ) {
+	private function seed_assessment_instances( $enrollments, $cohort_id, $pathway_data, $instrument_id, $classrooms, $center_map, $teacher_roster_data, $children_instruments = array() ) {
 		global $wpdb;
 		$prefix       = $wpdb->prefix;
 		$now          = current_time( 'mysql' );
@@ -1231,33 +1303,43 @@ class HL_CLI_Seed_Lutheran {
 				$classroom_id = $classrooms[ $cr_key ]['classroom_id'];
 				$age_band     = $classrooms[ $cr_key ]['age_band'];
 
+				// Resolve children instrument for this age band (fallback to mixed).
+				$ci_id = isset( $children_instruments[ $age_band ] ) ? $children_instruments[ $age_band ] : null;
+				if ( ! $ci_id && isset( $children_instruments['mixed'] ) ) {
+					$ci_id = $children_instruments['mixed'];
+				}
+
 				// Children Assessment Instance: PRE.
 				$wpdb->insert( $prefix . 'hl_children_assessment_instance', array(
-					'instance_uuid'      => HL_DB_Utils::generate_uuid(),
-					'cohort_id'          => $cohort_id,
-					'enrollment_id'      => $eid,
-					'activity_id'        => $pathway_data['ca_pre_id'],
-					'classroom_id'       => $classroom_id,
-					'center_id'          => $center_id,
-					'phase'              => 'pre',
+					'instance_uuid'       => HL_DB_Utils::generate_uuid(),
+					'cohort_id'           => $cohort_id,
+					'enrollment_id'       => $eid,
+					'activity_id'         => $pathway_data['ca_pre_id'],
+					'classroom_id'        => $classroom_id,
+					'center_id'           => $center_id,
+					'phase'               => 'pre',
 					'instrument_age_band' => $age_band,
-					'status'             => 'not_started',
-					'created_at'         => $now,
+					'instrument_id'       => $ci_id,
+					'instrument_version'  => $ci_id ? '1.0' : null,
+					'status'              => 'not_started',
+					'created_at'          => $now,
 				) );
 				$ca_count++;
 
 				// Children Assessment Instance: POST.
 				$wpdb->insert( $prefix . 'hl_children_assessment_instance', array(
-					'instance_uuid'      => HL_DB_Utils::generate_uuid(),
-					'cohort_id'          => $cohort_id,
-					'enrollment_id'      => $eid,
-					'activity_id'        => $pathway_data['ca_post_id'],
-					'classroom_id'       => $classroom_id,
-					'center_id'          => $center_id,
-					'phase'              => 'post',
+					'instance_uuid'       => HL_DB_Utils::generate_uuid(),
+					'cohort_id'           => $cohort_id,
+					'enrollment_id'       => $eid,
+					'activity_id'         => $pathway_data['ca_post_id'],
+					'classroom_id'        => $classroom_id,
+					'center_id'           => $center_id,
+					'phase'               => 'post',
 					'instrument_age_band' => $age_band,
-					'status'             => 'not_started',
-					'created_at'         => $now,
+					'instrument_id'       => $ci_id,
+					'instrument_version'  => $ci_id ? '1.0' : null,
+					'status'              => 'not_started',
+					'created_at'          => $now,
 				) );
 				$ca_count++;
 			}

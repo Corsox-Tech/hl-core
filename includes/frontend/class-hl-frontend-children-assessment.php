@@ -175,9 +175,7 @@ class HL_Frontend_Children_Assessment {
 
         $classroom_id = $teaching ? absint( $teaching->classroom_id ) : null;
         $center_id    = $teaching ? absint( $teaching->center_id ) : null;
-        $age_band     = ( $teaching && ! empty( $teaching->age_band ) && $teaching->age_band !== 'mixed' )
-            ? $teaching->age_band
-            : null;
+        $age_band     = ( $teaching && ! empty( $teaching->age_band ) ) ? $teaching->age_band : null;
 
         // Resolve instrument: try activity external_ref first, then age_band lookup
         $instrument_id      = null;
@@ -191,17 +189,10 @@ class HL_Frontend_Children_Assessment {
             ) );
             $instrument_version = $inst_row ? $inst_row->version : null;
         } elseif ( $age_band ) {
-            $instrument_type = 'children_' . $age_band;
-            $inst_row = $wpdb->get_row( $wpdb->prepare(
-                "SELECT instrument_id, version FROM {$wpdb->prefix}hl_instrument
-                 WHERE instrument_type = %s
-                 AND (effective_to IS NULL OR effective_to >= CURDATE())
-                 ORDER BY effective_from DESC LIMIT 1",
-                $instrument_type
-            ) );
-            if ( $inst_row ) {
-                $instrument_id      = absint( $inst_row->instrument_id );
-                $instrument_version = $inst_row->version;
+            $resolved = $this->resolve_children_instrument( $age_band );
+            if ( $resolved ) {
+                $instrument_id      = $resolved['instrument_id'];
+                $instrument_version = $resolved['version'];
             }
         }
 
@@ -889,7 +880,7 @@ class HL_Frontend_Children_Assessment {
                 if ( empty( $instance['center_id'] ) ) {
                     $updates['center_id'] = absint( $teaching->center_id );
                 }
-                $age_band = ( ! empty( $teaching->age_band ) && $teaching->age_band !== 'mixed' ) ? $teaching->age_band : null;
+                $age_band = ! empty( $teaching->age_band ) ? $teaching->age_band : null;
                 if ( $age_band ) {
                     $updates['instrument_age_band'] = $age_band;
                 }
@@ -900,9 +891,7 @@ class HL_Frontend_Children_Assessment {
                 "SELECT age_band FROM {$wpdb->prefix}hl_classroom WHERE classroom_id = %d",
                 $instance['classroom_id']
             ) );
-            if ( ! empty( $age_band ) && $age_band !== 'mixed' ) {
-                // age_band available
-            } else {
+            if ( empty( $age_band ) ) {
                 $age_band = null;
             }
         }
@@ -919,17 +908,10 @@ class HL_Frontend_Children_Assessment {
                     $updates['instrument_version'] = $version;
                 }
             } elseif ( ! empty( $age_band ) ) {
-                $instrument_type = 'children_' . $age_band;
-                $inst_row = $wpdb->get_row( $wpdb->prepare(
-                    "SELECT instrument_id, version FROM {$wpdb->prefix}hl_instrument
-                     WHERE instrument_type = %s
-                     AND (effective_to IS NULL OR effective_to >= CURDATE())
-                     ORDER BY effective_from DESC LIMIT 1",
-                    $instrument_type
-                ) );
-                if ( $inst_row ) {
-                    $updates['instrument_id']      = absint( $inst_row->instrument_id );
-                    $updates['instrument_version'] = $inst_row->version;
+                $resolved = $this->resolve_children_instrument( $age_band );
+                if ( $resolved ) {
+                    $updates['instrument_id']      = $resolved['instrument_id'];
+                    $updates['instrument_version'] = $resolved['version'];
                 }
             }
         }
@@ -941,6 +923,53 @@ class HL_Frontend_Children_Assessment {
                 array( 'instance_id' => $instance_id )
             );
         }
+    }
+
+    /**
+     * Resolve a children instrument by age band.
+     *
+     * Tries the exact type (e.g. children_mixed), then falls back to
+     * children_preschool, then any available children_* instrument.
+     *
+     * @param string $age_band e.g. 'infant', 'toddler', 'preschool', 'mixed'.
+     * @return array|null Array with 'instrument_id' and 'version', or null.
+     */
+    private function resolve_children_instrument( $age_band ) {
+        global $wpdb;
+
+        $candidates = array( 'children_' . $age_band );
+        if ( $age_band === 'mixed' ) {
+            $candidates[] = 'children_preschool';
+        }
+        // Final fallback: any active children instrument.
+        $candidates[] = '__any__';
+
+        foreach ( $candidates as $type ) {
+            if ( $type === '__any__' ) {
+                $row = $wpdb->get_row(
+                    "SELECT instrument_id, version FROM {$wpdb->prefix}hl_instrument
+                     WHERE instrument_type LIKE 'children_%'
+                     AND (effective_to IS NULL OR effective_to >= CURDATE())
+                     ORDER BY effective_from DESC LIMIT 1"
+                );
+            } else {
+                $row = $wpdb->get_row( $wpdb->prepare(
+                    "SELECT instrument_id, version FROM {$wpdb->prefix}hl_instrument
+                     WHERE instrument_type = %s
+                     AND (effective_to IS NULL OR effective_to >= CURDATE())
+                     ORDER BY effective_from DESC LIMIT 1",
+                    $type
+                ) );
+            }
+            if ( $row ) {
+                return array(
+                    'instrument_id' => absint( $row->instrument_id ),
+                    'version'       => $row->version,
+                );
+            }
+        }
+
+        return null;
     }
 
     /**
