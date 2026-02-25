@@ -482,11 +482,19 @@ class HL_Frontend_Children_Assessment {
         $childrows = $this->assessment_service->get_children_assessment_childrows( $instance_id );
 
         // Detect single-question Likert for transposed display
-        $is_single_likert = ( count( $questions ) === 1
-            && isset( $questions[0]['question_type'] )
-            && $questions[0]['question_type'] === 'likert' );
+        $q_type = '';
+        if ( count( $questions ) === 1 ) {
+            $q_type = isset( $questions[0]['question_type'] ) ? $questions[0]['question_type'] : ( isset( $questions[0]['type'] ) ? $questions[0]['type'] : '' );
+        }
+        $is_single_likert = ( $q_type === 'likert' );
+
+        // Likert value-to-label mapping (0-4 → Never...Almost Always)
+        $likert_labels = array(
+            '0' => 'Never', '1' => 'Rarely', '2' => 'Sometimes', '3' => 'Usually', '4' => 'Almost Always',
+        );
 
         $allowed_values = array();
+        $use_likert_labels = false;
         if ( $is_single_likert ) {
             $q = $questions[0];
             if ( isset( $q['allowed_values'] ) ) {
@@ -497,7 +505,15 @@ class HL_Frontend_Children_Assessment {
                 }
             }
             if ( empty( $allowed_values ) ) {
-                $allowed_values = array( 'Never', 'Rarely', 'Sometimes', 'Usually', 'Almost Always' );
+                $allowed_values = array( '0', '1', '2', '3', '4' );
+            }
+            // Check if values are numeric (0-4) and need label mapping
+            $use_likert_labels = true;
+            foreach ( $allowed_values as $v ) {
+                if ( ! isset( $likert_labels[ (string) $v ] ) ) {
+                    $use_likert_labels = false;
+                    break;
+                }
             }
         }
 
@@ -523,14 +539,11 @@ class HL_Frontend_Children_Assessment {
                 border-bottom: 2px solid var(--hl-border-light, #F3F4F6);
             }
             .hl-ca-summary-wrap .hl-ca-brand-logo {
-                display: inline-flex;
-                align-items: center;
-                gap: 10px;
+                display: block;
+                text-align: center;
                 margin-bottom: 16px;
             }
-            .hl-ca-summary-wrap .hl-ca-brand-icon { font-size: 36px; color: var(--hl-secondary, #2C7BE5); line-height: 1; }
-            .hl-ca-summary-wrap .hl-ca-brand-name { font-size: 20px; font-weight: 700; color: var(--hl-secondary, #2C7BE5); line-height: 1.15; text-align: left; }
-            .hl-ca-summary-wrap .hl-ca-brand-sub { font-size: 16px; font-weight: 600; letter-spacing: 0.15em; color: var(--hl-accent-dark, #059669); }
+            .hl-ca-summary-wrap .hl-ca-brand-img { max-width: 220px; height: auto; }
             .hl-ca-summary-wrap .hl-ca-title { font-size: 22px; font-weight: 700; color: var(--hl-text-heading, #1A2B47); margin: 0; }
             .hl-ca-summary-wrap .hl-ca-phase-label { color: var(--hl-text-secondary, #6B7280); font-weight: 400; }
             .hl-ca-summary-teacher-info { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--hl-border-light, #F3F4F6); }
@@ -563,8 +576,9 @@ class HL_Frontend_Children_Assessment {
                 <?php // ── Branded Header ──────────────────────────────── ?>
                 <div class="hl-ca-branded-header">
                     <div class="hl-ca-brand-logo">
-                        <span class="hl-ca-brand-icon">&#9672;</span>
-                        <span class="hl-ca-brand-name">Housman<br><span class="hl-ca-brand-sub">LEARNING</span></span>
+                        <img src="<?php echo esc_url( content_url( '/uploads/2024/09/Housman-Learning-Logo-Horizontal-Color.svg' ) ); ?>"
+                             alt="<?php esc_attr_e( 'Housman Learning', 'hl-core' ); ?>"
+                             class="hl-ca-brand-img" />
                     </div>
                     <h2 class="hl-ca-title">
                         <?php echo esc_html( $instrument ? $instrument['name'] : __( 'Children Assessment', 'hl-core' ) ); ?>
@@ -626,7 +640,7 @@ class HL_Frontend_Children_Assessment {
                                 <tr>
                                     <th>&nbsp;</th>
                                     <?php foreach ( $allowed_values as $val ) : ?>
-                                        <th><?php echo esc_html( $val ); ?></th>
+                                        <th><?php echo esc_html( $use_likert_labels && isset( $likert_labels[ (string) $val ] ) ? $likert_labels[ (string) $val ] : $val ); ?></th>
                                     <?php endforeach; ?>
                                 </tr>
                             </thead>

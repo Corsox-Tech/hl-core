@@ -164,8 +164,9 @@ class HL_Instrument_Renderer {
         ?>
         <div class="hl-ca-branded-header">
             <div class="hl-ca-brand-logo">
-                <span class="hl-ca-brand-icon">&#9672;</span>
-                <span class="hl-ca-brand-name">Housman<br><span class="hl-ca-brand-sub">LEARNING</span></span>
+                <img src="<?php echo esc_url( content_url( '/uploads/2024/09/Housman-Learning-Logo-Horizontal-Color.svg' ) ); ?>"
+                     alt="<?php esc_attr_e( 'Housman Learning', 'hl-core' ); ?>"
+                     class="hl-ca-brand-img" />
             </div>
             <h2 class="hl-ca-title">
                 <?php echo esc_html( $instrument_name ); ?>
@@ -231,35 +232,12 @@ class HL_Instrument_Renderer {
 
     /**
      * Render the Key & Example Behavior table for Likert scales.
+     *
+     * Content is age-band-specific per the B2E Child Assessment instrument.
      */
     private function render_behavior_key() {
-        $scale_descriptions = array(
-            array(
-                'label'       => __( 'Never', 'hl-core' ),
-                'frequency'   => __( '0% of the time', 'hl-core' ),
-                'description' => __( 'Never expresses their feelings with body language or words or responds to the feelings of others and stays quiet or expressionless instead.', 'hl-core' ),
-            ),
-            array(
-                'label'       => __( 'Rarely', 'hl-core' ),
-                'frequency'   => __( '~ 20% of the time', 'hl-core' ),
-                'description' => __( 'Rarely expresses their feelings with body language or words and hits or throws prolonged temper tantrums instead. Rarely responds to other children who are upset.', 'hl-core' ),
-            ),
-            array(
-                'label'       => __( 'Sometimes', 'hl-core' ),
-                'frequency'   => __( '~ 50% of the time', 'hl-core' ),
-                'description' => __( 'Sometimes expresses their feelings with body language or words but throws temper tantrums and needs help from caregivers to calm down. Sometimes shows concern if another child cries.', 'hl-core' ),
-            ),
-            array(
-                'label'       => __( 'Usually', 'hl-core' ),
-                'frequency'   => __( '~ 70% of the time', 'hl-core' ),
-                'description' => __( 'Usually expresses their feelings with body language or words and recovers from temper tantrums with caregiver support. Usually responds to other children who are upset.', 'hl-core' ),
-            ),
-            array(
-                'label'       => __( 'Almost Always', 'hl-core' ),
-                'frequency'   => __( '~ 90% of the time', 'hl-core' ),
-                'description' => __( 'Almost always expresses their feelings with body language or words, recovers quickly from temper tantrums with caregiver support, tries to comfort others, and actively joins in play.', 'hl-core' ),
-            ),
-        );
+        $age_band = isset( $this->instance['instrument_age_band'] ) ? $this->instance['instrument_age_band'] : '';
+        $scale_descriptions = $this->get_behavior_key_for_age_band( $age_band );
         ?>
         <div class="hl-ca-behavior-key">
             <table class="hl-ca-key-table">
@@ -314,22 +292,26 @@ class HL_Instrument_Renderer {
      * Used when the instrument has a single Likert question.
      */
     private function render_transposed_likert_matrix() {
-        $question  = $this->questions[0];
-        $qid       = $question['question_id'];
+        $question    = $this->questions[0];
+        $qid         = $question['question_id'];
         $is_required = ! empty( $question['required'] );
 
-        // Parse allowed values (scale labels).
+        // Parse allowed values (the actual stored values, e.g. 0,1,2,3,4).
         $allowed_values = $this->parse_allowed_values( $question );
         if ( empty( $allowed_values ) ) {
-            $allowed_values = array( 'Never', 'Rarely', 'Sometimes', 'Usually', 'Almost Always' );
+            $allowed_values = array( '0', '1', '2', '3', '4' );
         }
+
+        $use_labels = $this->is_numeric_likert( $allowed_values );
         ?>
         <table class="hl-ca-matrix">
             <thead>
                 <tr>
                     <th class="hl-ca-child-header">&nbsp;</th>
                     <?php foreach ( $allowed_values as $val ) : ?>
-                        <th class="hl-ca-scale-header"><?php echo esc_html( $val ); ?></th>
+                        <th class="hl-ca-scale-header">
+                            <?php echo esc_html( $use_labels ? $this->get_likert_label( $val ) : $val ); ?>
+                        </th>
                     <?php endforeach; ?>
                 </tr>
             </thead>
@@ -352,7 +334,7 @@ class HL_Instrument_Renderer {
                         <?php echo esc_html( $this->format_child_label( $child ) ); ?>
                         <?php $dob = $this->format_child_dob( $child ); ?>
                         <?php if ( $dob ) : ?>
-                            <span class="hl-ca-child-dob">DOB: <?php echo esc_html( $dob ); ?></span>
+                            <span class="hl-ca-child-dob">DOB:<?php echo esc_html( $dob ); ?></span>
                         <?php endif; ?>
                     </td>
                     <?php foreach ( $allowed_values as $val ) :
@@ -441,7 +423,7 @@ class HL_Instrument_Renderer {
      */
     private function render_input( $child_id, $question, $existing_val ) {
         $question_id   = $question['question_id'];
-        $question_type = $question['question_type'];
+        $question_type = isset( $question['question_type'] ) ? $question['question_type'] : ( isset( $question['type'] ) ? $question['type'] : 'text' );
         $is_required   = ! empty( $question['required'] );
         $field_name    = 'answers[' . $child_id . '][' . esc_attr( $question_id ) . ']';
         $allowed_values = $this->parse_allowed_values( $question );
@@ -553,14 +535,107 @@ class HL_Instrument_Renderer {
         if ( count( $this->questions ) !== 1 ) {
             return false;
         }
-        return isset( $this->questions[0]['question_type'] ) && $this->questions[0]['question_type'] === 'likert';
+        $q = $this->questions[0];
+        $type = isset( $q['question_type'] ) ? $q['question_type'] : ( isset( $q['type'] ) ? $q['type'] : '' );
+        return $type === 'likert';
     }
+
+    /**
+     * Get age-band-specific behavior key descriptions from the B2E Child Assessment.
+     *
+     * @param string $age_band One of: infant, toddler, preschool, mixed, k2.
+     * @return array Array of scale description arrays.
+     */
+    private function get_behavior_key_for_age_band( $age_band ) {
+        $freq = array(
+            'never'         => __( '0% of the time', 'hl-core' ),
+            'rarely'        => __( '~ 20% of the time', 'hl-core' ),
+            'sometimes'     => __( '~ 50% of the time', 'hl-core' ),
+            'usually'       => __( '~ 70% of the time', 'hl-core' ),
+            'almost_always' => __( '~ 90% of the time', 'hl-core' ),
+        );
+
+        switch ( $age_band ) {
+            case 'infant':
+                return array(
+                    array( 'label' => __( 'Never', 'hl-core' ), 'frequency' => $freq['never'],
+                        'description' => __( 'Never notices or responds when other children or caregivers are upset.', 'hl-core' ) ),
+                    array( 'label' => __( 'Rarely', 'hl-core' ), 'frequency' => $freq['rarely'],
+                        'description' => __( 'Stops to look at another crying infant but rarely responds with concern before going back to what they were doing.', 'hl-core' ) ),
+                    array( 'label' => __( 'Sometimes', 'hl-core' ), 'frequency' => $freq['sometimes'],
+                        'description' => __( 'Sometimes mirrors the emotions of others by smiling back at caregivers or looking concerned in response to other infants who are crying.', 'hl-core' ) ),
+                    array( 'label' => __( 'Usually', 'hl-core' ), 'frequency' => $freq['usually'],
+                        'description' => __( 'Usually mirrors the emotions of caregivers and responds when other infants are upset by reaching arms in their direction.', 'hl-core' ) ),
+                    array( 'label' => __( 'Almost Always', 'hl-core' ), 'frequency' => $freq['almost_always'],
+                        'description' => __( 'Almost always mirrors the emotions of other children and caregivers and attempts to comfort them by reaching out their arms or babbling/cooing.', 'hl-core' ) ),
+                );
+
+            case 'preschool':
+            case 'mixed':
+                return array(
+                    array( 'label' => __( 'Never', 'hl-core' ), 'frequency' => $freq['never'],
+                        'description' => __( 'Never uses words instead of actions (hitting) to express their feelings or calms down even with caregiver support. Never seems to pick up on or show concern for other people\'s feelings.', 'hl-core' ) ),
+                    array( 'label' => __( 'Rarely', 'hl-core' ), 'frequency' => $freq['rarely'],
+                        'description' => __( 'Rarely uses words instead of actions to express their feelings or calms down without a lot of caregiver support. Rarely shows concern when friends are upset without guidance.', 'hl-core' ) ),
+                    array( 'label' => __( 'Sometimes', 'hl-core' ), 'frequency' => $freq['sometimes'],
+                        'description' => __( 'Uses words to express their feelings and sometimes shares what caused them. Sometimes needs a lot of caregiver support to calm down, help others feel better, and solve social problems.', 'hl-core' ) ),
+                    array( 'label' => __( 'Usually', 'hl-core' ), 'frequency' => $freq['usually'],
+                        'description' => __( 'Usually shares what caused their feelings, manages heightened emotions, notices what others are feeling, and tries to help them feel better or solve the problem with caregiver support.', 'hl-core' ) ),
+                    array( 'label' => __( 'Almost Always', 'hl-core' ), 'frequency' => $freq['almost_always'],
+                        'description' => __( 'Almost always shares what caused their feelings, calms down with caregiver guidance, notices what others are feeling and tries to help them feel better or solve the problem with support.', 'hl-core' ) ),
+                );
+
+            case 'k2':
+                return array(
+                    array( 'label' => __( 'Never', 'hl-core' ), 'frequency' => $freq['never'],
+                        'description' => __( 'Never talks about what they are feeling or finds strategies (deep breaths, physical tools) to calm down independently. Never considers other children\'s feelings and needs help with solving social problems.', 'hl-core' ) ),
+                    array( 'label' => __( 'Rarely', 'hl-core' ), 'frequency' => $freq['rarely'],
+                        'description' => __( 'Rarely finds strategies to calm down independently and needs a caregiver to offer them choices. Rarely considers other children\'s feelings and needs help with solving social problems.', 'hl-core' ) ),
+                    array( 'label' => __( 'Sometimes', 'hl-core' ), 'frequency' => $freq['sometimes'],
+                        'description' => __( 'Tries to calm down independently but sometimes needs help with finding strategies. Sometimes considers other children\'s feelings and compromises to solve social problems with guidance.', 'hl-core' ) ),
+                    array( 'label' => __( 'Usually', 'hl-core' ), 'frequency' => $freq['usually'],
+                        'description' => __( 'Usually manages heightened emotions successfully using a variety of strategies. Considers other children\'s feelings and usually compromises to solve social problems.', 'hl-core' ) ),
+                    array( 'label' => __( 'Almost Always', 'hl-core' ), 'frequency' => $freq['almost_always'],
+                        'description' => __( 'Almost always manages heightened emotions successfully using a variety of strategies, considers other children\'s feelings, and works with others to compromise and solve social problems.', 'hl-core' ) ),
+                );
+
+            case 'toddler':
+            default:
+                // Toddler is the default since it's the most common age band
+                return array(
+                    array( 'label' => __( 'Never', 'hl-core' ), 'frequency' => $freq['never'],
+                        'description' => __( 'Never expresses their feelings with body language or words or responds to the feelings of others and stays quiet or expressionless instead.', 'hl-core' ) ),
+                    array( 'label' => __( 'Rarely', 'hl-core' ), 'frequency' => $freq['rarely'],
+                        'description' => __( 'Rarely expresses their feelings with body language or words and hits or throws prolonged temper tantrums instead. Rarely responds to other children who are upset.', 'hl-core' ) ),
+                    array( 'label' => __( 'Sometimes', 'hl-core' ), 'frequency' => $freq['sometimes'],
+                        'description' => __( 'Sometimes expresses their feelings with body language or words but throws temper tantrums and needs help from caregivers to calm down. Sometimes shows concern if another child cries.', 'hl-core' ) ),
+                    array( 'label' => __( 'Usually', 'hl-core' ), 'frequency' => $freq['usually'],
+                        'description' => __( 'Usually expresses their feelings with body language or words and recovers from temper tantrums with caregiver support. Notices when others are upset and tries to comfort them.', 'hl-core' ) ),
+                    array( 'label' => __( 'Almost Always', 'hl-core' ), 'frequency' => $freq['almost_always'],
+                        'description' => __( 'Almost always expresses their feelings with body language or words, recovers quickly from temper tantrums with caregiver support, tries to comfort others, and actively joins in play.', 'hl-core' ) ),
+                );
+        }
+    }
+
+    /**
+     * Likert scale label mapping for B2E instruments.
+     *
+     * The DB stores numeric values (0-4). These map to descriptive labels
+     * for display in the matrix column headers and behavior key.
+     */
+    private static $likert_labels = array(
+        '0' => 'Never',
+        '1' => 'Rarely',
+        '2' => 'Sometimes',
+        '3' => 'Usually',
+        '4' => 'Almost Always',
+    );
 
     /**
      * Parse allowed_values from a question definition.
      *
      * @param array $question
-     * @return array
+     * @return array Raw allowed values as stored in DB.
      */
     private function parse_allowed_values( $question ) {
         if ( ! isset( $question['allowed_values'] ) ) {
@@ -573,6 +648,34 @@ class HL_Instrument_Renderer {
             return array_map( 'trim', explode( ',', $question['allowed_values'] ) );
         }
         return array();
+    }
+
+    /**
+     * Check if the allowed_values are numeric B2E Likert values (0-4).
+     *
+     * @param array $allowed_values
+     * @return bool
+     */
+    private function is_numeric_likert( $allowed_values ) {
+        if ( empty( $allowed_values ) ) {
+            return false;
+        }
+        foreach ( $allowed_values as $val ) {
+            if ( ! isset( self::$likert_labels[ (string) $val ] ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Get the display label for a Likert value.
+     *
+     * @param string $value Numeric value (0-4).
+     * @return string Display label (Never...Almost Always) or the value itself.
+     */
+    private function get_likert_label( $value ) {
+        return isset( self::$likert_labels[ (string) $value ] ) ? self::$likert_labels[ (string) $value ] : $value;
     }
 
     /**
@@ -659,29 +762,13 @@ class HL_Instrument_Renderer {
                 border-bottom: 2px solid var(--hl-border-light, #F3F4F6);
             }
             .hl-ca-brand-logo {
-                display: inline-flex;
-                align-items: center;
-                gap: 10px;
+                display: block;
+                text-align: center;
                 margin-bottom: 16px;
             }
-            .hl-ca-brand-icon {
-                font-size: 36px;
-                color: var(--hl-secondary, #2C7BE5);
-                line-height: 1;
-            }
-            .hl-ca-brand-name {
-                font-size: 20px;
-                font-weight: 700;
-                color: var(--hl-secondary, #2C7BE5);
-                line-height: 1.15;
-                text-align: left;
-                letter-spacing: 0.01em;
-            }
-            .hl-ca-brand-sub {
-                font-size: 16px;
-                font-weight: 600;
-                letter-spacing: 0.15em;
-                color: var(--hl-accent-dark, #059669);
+            .hl-ca-brand-img {
+                max-width: 220px;
+                height: auto;
             }
             .hl-ca-title {
                 font-size: 22px;
@@ -1008,17 +1095,8 @@ class HL_Instrument_Renderer {
                 .hl-ca-title {
                     font-size: 18px;
                 }
-                .hl-ca-brand-logo {
-                    gap: 8px;
-                }
-                .hl-ca-brand-icon {
-                    font-size: 28px;
-                }
-                .hl-ca-brand-name {
-                    font-size: 16px;
-                }
-                .hl-ca-brand-sub {
-                    font-size: 13px;
+                .hl-ca-brand-img {
+                    max-width: 180px;
                 }
                 table.hl-ca-key-table {
                     font-size: 13px;
