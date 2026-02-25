@@ -1336,7 +1336,7 @@ class HL_CLI_Seed_Lutheran {
 					'instrument_version'  => $ci_id ? '1.0' : null,
 					'status'              => 'not_started',
 					'created_at'          => $now,
-				);
+				) );
 				if ( $ca_count === 0 ) {
 					WP_CLI::log( 'DEBUG CA PRE result: ' . var_export( $result_pre, true ) );
 					WP_CLI::log( 'DEBUG CA PRE error: ' . $wpdb->last_error );
