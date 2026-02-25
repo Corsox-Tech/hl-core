@@ -2241,52 +2241,26 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 /* =====================================================
-   43. INSTRUMENT MATRIX (Children Assessment)
+   43. CHILDREN ASSESSMENT (Branded Form)
    ===================================================== */
 
-.hl-instrument-matrix {
-    overflow-x: auto;
-    margin-bottom: 24px;
+/* Base layout for the children assessment pages */
+.hl-children-assessment.hl-assessment-form,
+.hl-children-assessment.hl-assessment-summary {
+    padding: 0;
 }
 
-.hl-instrument-matrix .hl-table {
-    min-width: 600px;
+/* Override any theme max-width constraints on the form wrapper */
+.hl-ca-form-wrap,
+.hl-ca-summary-wrap {
+    box-sizing: border-box;
 }
 
-.hl-instrument-matrix .hl-child-column {
-    position: sticky;
-    left: 0;
-    background: var(--hl-surface);
-    z-index: 1;
-    font-weight: 600;
-    min-width: 150px;
-}
-
-.hl-instrument-matrix .hl-child-code {
-    font-size: 11px;
-    color: var(--hl-text-muted);
-    display: block;
-}
-
-.hl-likert-group {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.hl-likert-option {
+/* Ensure the back-to-assessments link sits outside the card */
+.hl-children-assessment > p > .hl-btn {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.hl-form-actions {
-    margin-top: 20px;
-    display: flex;
-    gap: 12px;
-    align-items: center;
 }
 
 /* =====================================================

@@ -2,19 +2,24 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Renders a children assessment instrument as an HTML matrix/table form.
+ * Renders a children assessment instrument as a polished, branded HTML form.
  *
- * One row per child in the classroom roster, one column per question
- * from the instrument definition. Supports save-as-draft and final submit.
+ * For B2E single-question Likert instruments, produces a transposed matrix
+ * with one column per scale value (Never … Almost Always) and one row per
+ * child. Includes branded header, teacher info, instructions, behavior key,
+ * and question context — matching the Housman Learning Academy design.
  *
- * This is NOT a singleton -- instantiated with data each time.
+ * For multi-question or non-Likert instruments, falls back to a generic
+ * column-per-question layout.
+ *
+ * This is NOT a singleton — instantiated with data each time.
  *
  * @package HL_Core
  * @since   1.0.0
  */
 class HL_Instrument_Renderer {
 
-    /** @var object|array Instrument data with instrument_id, name, questions. */
+    /** @var object Instrument data with instrument_id, name, questions. */
     private $instrument;
 
     /** @var array Parsed questions array from instrument JSON. */
@@ -29,19 +34,24 @@ class HL_Instrument_Renderer {
     /** @var array Existing answers keyed by child_id, each containing decoded answers_json. */
     private $existing_answers;
 
+    /** @var array Full instance data (display_name, center_name, classroom_name, phase, cohort_name, etc.). */
+    private $instance;
+
     /**
      * Constructor.
      *
-     * @param object|array $instrument      Instrument with instrument_id, name, questions (JSON string or array).
-     * @param array        $children        Array of child objects.
-     * @param int          $instance_id     The children_assessment_instance ID.
+     * @param object|array $instrument       Instrument with instrument_id, name, questions (JSON string or array).
+     * @param array        $children         Array of child objects.
+     * @param int          $instance_id      The children_assessment_instance ID.
      * @param array        $existing_answers Optional. Existing answer rows keyed by child_id.
+     * @param array        $instance         Optional. Full instance data from get_children_assessment().
      */
-    public function __construct( $instrument, $children, $instance_id, $existing_answers = array() ) {
+    public function __construct( $instrument, $children, $instance_id, $existing_answers = array(), $instance = array() ) {
         $this->instrument       = (object) $instrument;
         $this->children         = is_array( $children ) ? $children : array();
         $this->instance_id      = absint( $instance_id );
         $this->existing_answers = is_array( $existing_answers ) ? $existing_answers : array();
+        $this->instance         = is_array( $instance ) ? $instance : array();
 
         // Parse questions from JSON string if needed.
         $raw_questions = isset( $this->instrument->questions ) ? $this->instrument->questions : '[]';
@@ -56,16 +66,15 @@ class HL_Instrument_Renderer {
     }
 
     /**
-     * Render the full children assessment form.
+     * Render the full branded children assessment form.
      *
      * @return string HTML output (does not echo).
      */
     public function render() {
-        // ── Edge cases ──────────────────────────────────────────────────
         if ( empty( $this->children ) ) {
             ob_start();
             ?>
-            <div class="hl-instrument-notice">
+            <div class="hl-ca-notice hl-ca-notice-warning">
                 <p><?php esc_html_e( 'No children in this classroom.', 'hl-core' ); ?></p>
             </div>
             <?php
@@ -75,169 +84,383 @@ class HL_Instrument_Renderer {
         if ( empty( $this->questions ) ) {
             ob_start();
             ?>
-            <div class="hl-instrument-notice">
+            <div class="hl-ca-notice hl-ca-notice-warning">
                 <p><?php esc_html_e( 'No questions configured for this instrument.', 'hl-core' ); ?></p>
             </div>
             <?php
             return ob_get_clean();
         }
 
+        $is_single_likert = $this->is_single_question_likert();
+
         ob_start();
 
-        // ── Inline styles ───────────────────────────────────────────────
         $this->render_inline_styles();
 
-        // ── Form open ───────────────────────────────────────────────────
         ?>
-        <form method="post" action="" class="hl-instrument-form" id="hl-instrument-form-<?php echo esc_attr( $this->instance_id ); ?>">
-            <?php wp_nonce_field( 'hl_save_children_assessment', 'hl_children_assessment_nonce' ); ?>
-            <input type="hidden" name="hl_instrument_instance_id" value="<?php echo esc_attr( $this->instance_id ); ?>" />
-            <input type="hidden" name="hl_requires_validation" id="hl_requires_validation_<?php echo esc_attr( $this->instance_id ); ?>" value="0" />
+        <div class="hl-ca-form-wrap">
 
-            <?php // ── Instrument header ───────────────────────────────── ?>
-            <div class="hl-instrument-header">
-                <h2><?php echo esc_html( $this->instrument->name ); ?></h2>
-                <?php if ( ! empty( $this->instrument->version ) ) : ?>
-                    <span class="hl-instrument-version">
-                        <?php
-                        /* translators: %s: instrument version */
-                        printf( esc_html__( 'Version %s', 'hl-core' ), esc_html( $this->instrument->version ) );
-                        ?>
-                    </span>
-                <?php endif; ?>
-            </div>
+            <?php $this->render_branded_header(); ?>
 
-            <?php // ── Matrix table ────────────────────────────────────── ?>
-            <div class="hl-instrument-table-wrap" style="overflow-x:auto;">
-                <table class="hl-instrument-matrix">
-                    <thead>
-                        <tr>
-                            <th class="hl-matrix-child-col"><?php esc_html_e( 'Child', 'hl-core' ); ?></th>
-                            <?php foreach ( $this->questions as $question ) : ?>
-                                <th class="hl-matrix-question-col">
-                                    <?php echo esc_html( $question['prompt_text'] ); ?>
-                                    <?php if ( ! empty( $question['required'] ) ) : ?>
-                                        <span class="hl-required-marker" title="<?php esc_attr_e( 'Required', 'hl-core' ); ?>">*</span>
-                                    <?php endif; ?>
-                                </th>
-                            <?php endforeach; ?>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        $row_index = 0;
-                        foreach ( $this->children as $child ) :
-                            $child       = (object) $child;
-                            $child_id    = absint( $child->child_id );
-                            $child_answers = isset( $this->existing_answers[ $child_id ] )
-                                ? $this->existing_answers[ $child_id ]
-                                : array();
+            <?php $this->render_teacher_info(); ?>
 
-                            // If answers_json is a nested key, extract it.
-                            if ( isset( $child_answers['answers_json'] ) ) {
-                                $decoded = $child_answers['answers_json'];
-                                if ( is_string( $decoded ) ) {
-                                    $decoded = json_decode( $decoded, true );
-                                }
-                                $child_answers = is_array( $decoded ) ? $decoded : array();
-                            }
+            <?php if ( $is_single_likert ) : ?>
+                <?php $this->render_instructions(); ?>
+                <?php $this->render_behavior_key(); ?>
+                <?php $this->render_question_section(); ?>
+            <?php endif; ?>
 
-                            $row_class = ( $row_index % 2 === 0 ) ? 'hl-matrix-row-even' : 'hl-matrix-row-odd';
-                            $row_index++;
-                        ?>
-                        <tr class="<?php echo esc_attr( $row_class ); ?>">
-                            <td class="hl-matrix-child-cell">
-                                <span class="hl-child-name">
-                                    <?php echo esc_html( $child->first_name . ' ' . $child->last_name ); ?>
-                                </span>
-                                <?php if ( ! empty( $child->child_display_code ) ) : ?>
-                                    <br /><small class="hl-child-code"><?php echo esc_html( $child->child_display_code ); ?></small>
-                                <?php endif; ?>
-                            </td>
-                            <?php foreach ( $this->questions as $question ) :
-                                $question_id   = $question['question_id'];
-                                $question_type = $question['question_type'];
-                                $is_required   = ! empty( $question['required'] );
-                                $existing_val  = isset( $child_answers[ $question_id ] ) ? $child_answers[ $question_id ] : null;
-                            ?>
-                                <td class="hl-matrix-input-cell">
-                                    <?php $this->render_input( $child_id, $question, $existing_val ); ?>
-                                </td>
-                            <?php endforeach; ?>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+            <?php // ── Matrix form ──────────────────────────────────────── ?>
+            <form method="post" action="" class="hl-ca-matrix-form" id="hl-ca-form-<?php echo esc_attr( $this->instance_id ); ?>">
+                <?php wp_nonce_field( 'hl_children_assessment_' . $this->instance_id, '_hl_assessment_nonce' ); ?>
+                <input type="hidden" name="hl_instrument_instance_id" value="<?php echo esc_attr( $this->instance_id ); ?>" />
+                <input type="hidden" name="hl_requires_validation" id="hl-ca-requires-validation-<?php echo esc_attr( $this->instance_id ); ?>" value="0" />
 
-            <?php // ── Submit buttons ──────────────────────────────────── ?>
-            <div class="hl-instrument-actions">
-                <button type="submit"
-                        name="hl_assessment_action"
-                        value="draft"
-                        class="button button-secondary hl-btn-save-draft"
-                        id="hl-btn-draft-<?php echo esc_attr( $this->instance_id ); ?>">
-                    <?php esc_html_e( 'Save Draft', 'hl-core' ); ?>
-                </button>
-                <button type="submit"
-                        name="hl_assessment_action"
-                        value="submit"
-                        class="button button-primary hl-btn-submit-assessment"
-                        id="hl-btn-submit-<?php echo esc_attr( $this->instance_id ); ?>">
-                    <?php esc_html_e( 'Submit Assessment', 'hl-core' ); ?>
-                </button>
-            </div>
-        </form>
+                <div class="hl-ca-matrix-wrap">
+                    <?php
+                    if ( $is_single_likert ) {
+                        $this->render_transposed_likert_matrix();
+                    } else {
+                        $this->render_multi_question_matrix();
+                    }
+                    ?>
+                </div>
 
-        <?php // ── Inline JS for validation toggle ─────────────────────── ?>
-        <?php $this->render_inline_script(); ?>
+                <div class="hl-ca-actions">
+                    <button type="submit"
+                            name="hl_assessment_action"
+                            value="draft"
+                            class="hl-btn hl-btn-secondary hl-ca-btn-draft"
+                            id="hl-ca-btn-draft-<?php echo esc_attr( $this->instance_id ); ?>">
+                        <?php esc_html_e( 'Save Draft', 'hl-core' ); ?>
+                    </button>
+                    <button type="submit"
+                            name="hl_assessment_action"
+                            value="submit"
+                            class="hl-btn hl-btn-primary hl-ca-btn-submit"
+                            id="hl-ca-btn-submit-<?php echo esc_attr( $this->instance_id ); ?>">
+                        <?php esc_html_e( 'Submit Assessment', 'hl-core' ); ?>
+                    </button>
+                </div>
+            </form>
 
+        </div>
         <?php
+
+        $this->render_inline_script();
+
         return ob_get_clean();
     }
 
-    // ─── Private helpers ────────────────────────────────────────────────
+    // ─── Branded Header & Context Sections ───────────────────────────────
+
+    /**
+     * Render the branded header with Housman Learning text logo and assessment title.
+     */
+    private function render_branded_header() {
+        $phase = isset( $this->instance['phase'] ) ? $this->instance['phase'] : 'pre';
+        $phase_label = ( $phase === 'post' ) ? __( 'Post', 'hl-core' ) : __( 'Pre', 'hl-core' );
+        $instrument_name = isset( $this->instrument->name ) ? $this->instrument->name : __( 'Children Assessment', 'hl-core' );
+        ?>
+        <div class="hl-ca-branded-header">
+            <div class="hl-ca-brand-logo">
+                <span class="hl-ca-brand-icon">&#9672;</span>
+                <span class="hl-ca-brand-name">Housman<br><span class="hl-ca-brand-sub">LEARNING</span></span>
+            </div>
+            <h2 class="hl-ca-title">
+                <?php echo esc_html( $instrument_name ); ?>
+                <span class="hl-ca-phase-label">(<?php echo esc_html( $phase_label ); ?>)</span>
+            </h2>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render teacher, school, and classroom info section.
+     */
+    private function render_teacher_info() {
+        $teacher   = isset( $this->instance['display_name'] ) ? $this->instance['display_name'] : '';
+        $school    = isset( $this->instance['center_name'] ) ? $this->instance['center_name'] : '';
+        $classroom = isset( $this->instance['classroom_name'] ) ? $this->instance['classroom_name'] : '';
+
+        if ( empty( $teacher ) && empty( $school ) && empty( $classroom ) ) {
+            return;
+        }
+        ?>
+        <div class="hl-ca-teacher-info">
+            <?php if ( $teacher ) : ?>
+                <div class="hl-ca-info-row">
+                    <span class="hl-ca-info-label"><?php esc_html_e( 'Teacher:', 'hl-core' ); ?></span>
+                    <span class="hl-ca-info-value"><?php echo esc_html( $teacher ); ?></span>
+                </div>
+            <?php endif; ?>
+            <?php if ( $school ) : ?>
+                <div class="hl-ca-info-row">
+                    <span class="hl-ca-info-label"><?php esc_html_e( 'School:', 'hl-core' ); ?></span>
+                    <span class="hl-ca-info-value"><?php echo esc_html( $school ); ?></span>
+                </div>
+            <?php endif; ?>
+            <?php if ( $classroom ) : ?>
+                <div class="hl-ca-info-row">
+                    <span class="hl-ca-info-label"><?php esc_html_e( 'Classroom:', 'hl-core' ); ?></span>
+                    <span class="hl-ca-info-value"><?php echo esc_html( $classroom ); ?></span>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the instructions section for B2E Likert instruments.
+     */
+    private function render_instructions() {
+        ?>
+        <div class="hl-ca-instructions">
+            <h3><?php esc_html_e( 'Instructions:', 'hl-core' ); ?></h3>
+            <p>
+                <?php
+                echo wp_kses(
+                    __( 'This questionnaire will ask you about your students. For the question stated below, choose from the Likert Scale from &ldquo;Never&rdquo; to &ldquo;Almost Always&rdquo; that best describes each student in your classroom. An Example Behavior chart is provided to explain the scale you will use to assess your students. As you ask yourself the following question, you should <strong>collaborate with your co-teachers</strong> to choose the answer that best characterizes each of your students.', 'hl-core' ),
+                    array( 'strong' => array() )
+                );
+                ?>
+            </p>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the Key & Example Behavior table for Likert scales.
+     */
+    private function render_behavior_key() {
+        $scale_descriptions = array(
+            array(
+                'label'       => __( 'Never', 'hl-core' ),
+                'frequency'   => __( '0% of the time', 'hl-core' ),
+                'description' => __( 'Never expresses their feelings with body language or words or responds to the feelings of others and stays quiet or expressionless instead.', 'hl-core' ),
+            ),
+            array(
+                'label'       => __( 'Rarely', 'hl-core' ),
+                'frequency'   => __( '~ 20% of the time', 'hl-core' ),
+                'description' => __( 'Rarely expresses their feelings with body language or words and hits or throws prolonged temper tantrums instead. Rarely responds to other children who are upset.', 'hl-core' ),
+            ),
+            array(
+                'label'       => __( 'Sometimes', 'hl-core' ),
+                'frequency'   => __( '~ 50% of the time', 'hl-core' ),
+                'description' => __( 'Sometimes expresses their feelings with body language or words but throws temper tantrums and needs help from caregivers to calm down. Sometimes shows concern if another child cries.', 'hl-core' ),
+            ),
+            array(
+                'label'       => __( 'Usually', 'hl-core' ),
+                'frequency'   => __( '~ 70% of the time', 'hl-core' ),
+                'description' => __( 'Usually expresses their feelings with body language or words and recovers from temper tantrums with caregiver support. Usually responds to other children who are upset.', 'hl-core' ),
+            ),
+            array(
+                'label'       => __( 'Almost Always', 'hl-core' ),
+                'frequency'   => __( '~ 90% of the time', 'hl-core' ),
+                'description' => __( 'Almost always expresses their feelings with body language or words, recovers quickly from temper tantrums with caregiver support, tries to comfort others, and actively joins in play.', 'hl-core' ),
+            ),
+        );
+        ?>
+        <div class="hl-ca-behavior-key">
+            <table class="hl-ca-key-table">
+                <thead>
+                    <tr>
+                        <th colspan="2"><?php esc_html_e( 'Key & Example Behavior', 'hl-core' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ( $scale_descriptions as $item ) : ?>
+                        <tr>
+                            <td class="hl-ca-key-label-cell">
+                                <strong><?php echo esc_html( $item['label'] ); ?></strong>
+                                <span class="hl-ca-key-freq"><?php echo esc_html( $item['frequency'] ); ?></span>
+                            </td>
+                            <td class="hl-ca-key-desc-cell">
+                                <?php echo esc_html( $item['description'] ); ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the question prompt section above the matrix.
+     */
+    private function render_question_section() {
+        if ( empty( $this->questions ) ) {
+            return;
+        }
+
+        // For single-question mode, show the question prominently.
+        $question = $this->questions[0];
+        ?>
+        <div class="hl-ca-question-section">
+            <h3><?php esc_html_e( 'Question', 'hl-core' ); ?></h3>
+            <p class="hl-ca-question-text">
+                <?php echo esc_html( $question['prompt_text'] ); ?>
+            </p>
+        </div>
+        <?php
+    }
+
+    // ─── Matrix Rendering ────────────────────────────────────────────────
+
+    /**
+     * Render a transposed Likert matrix: one column per scale value.
+     *
+     * Used when the instrument has a single Likert question.
+     */
+    private function render_transposed_likert_matrix() {
+        $question  = $this->questions[0];
+        $qid       = $question['question_id'];
+        $is_required = ! empty( $question['required'] );
+
+        // Parse allowed values (scale labels).
+        $allowed_values = $this->parse_allowed_values( $question );
+        if ( empty( $allowed_values ) ) {
+            $allowed_values = array( 'Never', 'Rarely', 'Sometimes', 'Usually', 'Almost Always' );
+        }
+        ?>
+        <table class="hl-ca-matrix">
+            <thead>
+                <tr>
+                    <th class="hl-ca-child-header">&nbsp;</th>
+                    <?php foreach ( $allowed_values as $val ) : ?>
+                        <th class="hl-ca-scale-header"><?php echo esc_html( $val ); ?></th>
+                    <?php endforeach; ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $row_index = 0;
+                foreach ( $this->children as $child ) :
+                    $child    = (object) $child;
+                    $child_id = absint( $child->child_id );
+
+                    $child_answers = $this->get_child_answers( $child_id );
+                    $existing_val  = isset( $child_answers[ $qid ] ) ? $child_answers[ $qid ] : null;
+                    $field_name    = 'answers[' . $child_id . '][' . esc_attr( $qid ) . ']';
+
+                    $row_class = ( $row_index % 2 === 0 ) ? 'hl-ca-row-even' : 'hl-ca-row-odd';
+                    $row_index++;
+                ?>
+                <tr class="<?php echo esc_attr( $row_class ); ?>">
+                    <td class="hl-ca-child-cell">
+                        <?php echo esc_html( $this->format_child_label( $child ) ); ?>
+                        <?php $dob = $this->format_child_dob( $child ); ?>
+                        <?php if ( $dob ) : ?>
+                            <span class="hl-ca-child-dob">DOB: <?php echo esc_html( $dob ); ?></span>
+                        <?php endif; ?>
+                    </td>
+                    <?php foreach ( $allowed_values as $val ) :
+                        $checked  = ( (string) $existing_val === (string) $val ) ? ' checked' : '';
+                        $input_id = 'hl_' . $child_id . '_' . esc_attr( $qid ) . '_' . sanitize_key( $val );
+                    ?>
+                        <td class="hl-ca-radio-cell">
+                            <input type="radio"
+                                   id="<?php echo esc_attr( $input_id ); ?>"
+                                   name="<?php echo esc_attr( $field_name ); ?>"
+                                   value="<?php echo esc_attr( $val ); ?>"
+                                   class="hl-ca-radio"
+                                   <?php if ( $is_required ) : ?>data-hl-required="1"<?php endif; ?>
+                                   <?php echo $checked; ?> />
+                        </td>
+                    <?php endforeach; ?>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php
+    }
+
+    /**
+     * Render a generic multi-question matrix: one column per question.
+     *
+     * Used when the instrument has multiple questions or non-Likert types.
+     */
+    private function render_multi_question_matrix() {
+        ?>
+        <table class="hl-ca-matrix hl-ca-matrix-multi">
+            <thead>
+                <tr>
+                    <th class="hl-ca-child-header"><?php esc_html_e( 'Child', 'hl-core' ); ?></th>
+                    <?php foreach ( $this->questions as $question ) : ?>
+                        <th class="hl-ca-question-header">
+                            <?php echo esc_html( $question['prompt_text'] ); ?>
+                            <?php if ( ! empty( $question['required'] ) ) : ?>
+                                <span class="hl-ca-required">*</span>
+                            <?php endif; ?>
+                        </th>
+                    <?php endforeach; ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $row_index = 0;
+                foreach ( $this->children as $child ) :
+                    $child    = (object) $child;
+                    $child_id = absint( $child->child_id );
+                    $child_answers = $this->get_child_answers( $child_id );
+                    $row_class = ( $row_index % 2 === 0 ) ? 'hl-ca-row-even' : 'hl-ca-row-odd';
+                    $row_index++;
+                ?>
+                <tr class="<?php echo esc_attr( $row_class ); ?>">
+                    <td class="hl-ca-child-cell">
+                        <?php echo esc_html( $this->format_child_label( $child ) ); ?>
+                        <?php $dob = $this->format_child_dob( $child ); ?>
+                        <?php if ( $dob ) : ?>
+                            <span class="hl-ca-child-dob">DOB: <?php echo esc_html( $dob ); ?></span>
+                        <?php endif; ?>
+                    </td>
+                    <?php foreach ( $this->questions as $question ) :
+                        $qid          = $question['question_id'];
+                        $existing_val = isset( $child_answers[ $qid ] ) ? $child_answers[ $qid ] : null;
+                    ?>
+                        <td class="hl-ca-input-cell">
+                            <?php $this->render_input( $child_id, $question, $existing_val ); ?>
+                        </td>
+                    <?php endforeach; ?>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php
+    }
+
+    // ─── Input Rendering ─────────────────────────────────────────────────
 
     /**
      * Render the appropriate input element for a single question + child intersection.
      *
-     * @param int          $child_id     The child's ID.
-     * @param array        $question     The question definition.
-     * @param mixed        $existing_val The previously saved value (if any).
+     * @param int   $child_id     The child's ID.
+     * @param array $question     The question definition.
+     * @param mixed $existing_val The previously saved value (if any).
      */
     private function render_input( $child_id, $question, $existing_val ) {
         $question_id   = $question['question_id'];
         $question_type = $question['question_type'];
         $is_required   = ! empty( $question['required'] );
         $field_name    = 'answers[' . $child_id . '][' . esc_attr( $question_id ) . ']';
-
-        // Parse allowed_values: can be a comma-separated string or an array.
-        $allowed_values = array();
-        if ( isset( $question['allowed_values'] ) ) {
-            if ( is_array( $question['allowed_values'] ) ) {
-                $allowed_values = $question['allowed_values'];
-            } elseif ( is_string( $question['allowed_values'] ) && $question['allowed_values'] !== '' ) {
-                $allowed_values = array_map( 'trim', explode( ',', $question['allowed_values'] ) );
-            }
-        }
-
-        // Required data attribute (toggled by JS).
+        $allowed_values = $this->parse_allowed_values( $question );
         $req_attr = $is_required ? ' data-hl-required="1"' : '';
 
         switch ( $question_type ) {
 
             case 'likert':
-                echo '<div class="hl-likert-group"' . $req_attr . '>';
+                echo '<div class="hl-ca-likert-group"' . $req_attr . '>';
                 foreach ( $allowed_values as $val ) {
-                    $checked = ( (string) $existing_val === (string) $val ) ? ' checked' : '';
+                    $checked  = ( (string) $existing_val === (string) $val ) ? ' checked' : '';
                     $input_id = 'hl_' . $child_id . '_' . esc_attr( $question_id ) . '_' . sanitize_key( $val );
-                    echo '<label class="hl-likert-label" for="' . esc_attr( $input_id ) . '" style="display:block;">';
+                    echo '<label class="hl-ca-likert-label" for="' . esc_attr( $input_id ) . '">';
                     echo '<input type="radio"'
                          . ' id="' . esc_attr( $input_id ) . '"'
                          . ' name="' . esc_attr( $field_name ) . '"'
                          . ' value="' . esc_attr( $val ) . '"'
                          . $checked
-                         . ' class="hl-input-radio"'
+                         . ' class="hl-ca-radio"'
                          . ' /> ';
                     echo esc_html( $val );
                     echo '</label>';
@@ -250,7 +473,7 @@ class HL_Instrument_Renderer {
                 echo '<input type="text"'
                      . ' name="' . esc_attr( $field_name ) . '"'
                      . $val_attr
-                     . ' class="hl-input-text"'
+                     . ' class="hl-ca-input-text"'
                      . $req_attr
                      . ' />';
                 break;
@@ -260,14 +483,14 @@ class HL_Instrument_Renderer {
                 echo '<input type="number"'
                      . ' name="' . esc_attr( $field_name ) . '"'
                      . $val_attr
-                     . ' class="hl-input-number"'
+                     . ' class="hl-ca-input-number"'
                      . $req_attr
                      . ' />';
                 break;
 
             case 'single_select':
                 echo '<select name="' . esc_attr( $field_name ) . '"'
-                     . ' class="hl-input-select"'
+                     . ' class="hl-ca-input-select"'
                      . $req_attr
                      . '>';
                 echo '<option value="">' . esc_html__( '-- Select --', 'hl-core' ) . '</option>';
@@ -289,17 +512,17 @@ class HL_Instrument_Renderer {
                     $existing_arr = is_array( $decoded ) ? $decoded : array( $existing_val );
                 }
                 $ms_field_name = 'answers[' . $child_id . '][' . esc_attr( $question_id ) . '][]';
-                echo '<div class="hl-multiselect-group"' . $req_attr . '>';
+                echo '<div class="hl-ca-multiselect-group"' . $req_attr . '>';
                 foreach ( $allowed_values as $val ) {
                     $checked  = in_array( (string) $val, array_map( 'strval', $existing_arr ), true ) ? ' checked' : '';
                     $input_id = 'hl_' . $child_id . '_' . esc_attr( $question_id ) . '_ms_' . sanitize_key( $val );
-                    echo '<label class="hl-multiselect-label" for="' . esc_attr( $input_id ) . '" style="display:block;">';
+                    echo '<label class="hl-ca-multiselect-label" for="' . esc_attr( $input_id ) . '">';
                     echo '<input type="checkbox"'
                          . ' id="' . esc_attr( $input_id ) . '"'
                          . ' name="' . esc_attr( $ms_field_name ) . '"'
                          . ' value="' . esc_attr( $val ) . '"'
                          . $checked
-                         . ' class="hl-input-checkbox"'
+                         . ' class="hl-ca-checkbox"'
                          . ' /> ';
                     echo esc_html( $val );
                     echo '</label>';
@@ -308,173 +531,542 @@ class HL_Instrument_Renderer {
                 break;
 
             default:
-                // Fallback: render as text input for unknown question types.
                 $val_attr = ( $existing_val !== null ) ? ' value="' . esc_attr( $existing_val ) . '"' : '';
                 echo '<input type="text"'
                      . ' name="' . esc_attr( $field_name ) . '"'
                      . $val_attr
-                     . ' class="hl-input-text"'
+                     . ' class="hl-ca-input-text"'
                      . $req_attr
                      . ' />';
                 break;
         }
     }
 
+    // ─── Helpers ─────────────────────────────────────────────────────────
+
     /**
-     * Render inline CSS for the instrument matrix.
+     * Check if the instrument is a single-question Likert assessment (B2E style).
+     *
+     * @return bool
+     */
+    private function is_single_question_likert() {
+        if ( count( $this->questions ) !== 1 ) {
+            return false;
+        }
+        return isset( $this->questions[0]['question_type'] ) && $this->questions[0]['question_type'] === 'likert';
+    }
+
+    /**
+     * Parse allowed_values from a question definition.
+     *
+     * @param array $question
+     * @return array
+     */
+    private function parse_allowed_values( $question ) {
+        if ( ! isset( $question['allowed_values'] ) ) {
+            return array();
+        }
+        if ( is_array( $question['allowed_values'] ) ) {
+            return $question['allowed_values'];
+        }
+        if ( is_string( $question['allowed_values'] ) && $question['allowed_values'] !== '' ) {
+            return array_map( 'trim', explode( ',', $question['allowed_values'] ) );
+        }
+        return array();
+    }
+
+    /**
+     * Get decoded answers for a child, handling the nested answers_json structure.
+     *
+     * @param int $child_id
+     * @return array
+     */
+    private function get_child_answers( $child_id ) {
+        if ( ! isset( $this->existing_answers[ $child_id ] ) ) {
+            return array();
+        }
+
+        $child_answers = $this->existing_answers[ $child_id ];
+
+        if ( isset( $child_answers['answers_json'] ) ) {
+            $decoded = $child_answers['answers_json'];
+            if ( is_string( $decoded ) ) {
+                $decoded = json_decode( $decoded, true );
+            }
+            return is_array( $decoded ) ? $decoded : array();
+        }
+
+        return is_array( $child_answers ) ? $child_answers : array();
+    }
+
+    /**
+     * Format a child's display label. Prefers child_display_code, falls back to name.
+     *
+     * @param object $child
+     * @return string
+     */
+    private function format_child_label( $child ) {
+        if ( ! empty( $child->child_display_code ) ) {
+            return $child->child_display_code;
+        }
+        return trim( $child->first_name . ' ' . $child->last_name );
+    }
+
+    /**
+     * Format a child's DOB for display.
+     *
+     * @param object $child
+     * @return string|null Formatted date or null.
+     */
+    private function format_child_dob( $child ) {
+        if ( empty( $child->dob ) ) {
+            return null;
+        }
+        $timestamp = strtotime( $child->dob );
+        if ( $timestamp === false ) {
+            return null;
+        }
+        return date( 'n/j/Y', $timestamp );
+    }
+
+    // ─── Inline Styles ───────────────────────────────────────────────────
+
+    /**
+     * Render inline CSS for the branded children assessment form.
      */
     private function render_inline_styles() {
         ?>
         <style>
-            .hl-instrument-form {
-                max-width: 100%;
-                margin: 1.5em 0;
+            /* ── Outer Container ─────────────────────────────────── */
+            .hl-ca-form-wrap {
+                max-width: 900px;
+                margin: 0 auto 2em;
+                background: var(--hl-surface, #fff);
+                border: 1px solid var(--hl-border, #E5E7EB);
+                border-radius: var(--hl-radius, 12px);
+                box-shadow: var(--hl-shadow, 0 2px 8px rgba(0,0,0,0.06));
+                padding: 40px 48px;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                color: var(--hl-text, #374151);
+                line-height: 1.6;
             }
-            .hl-instrument-header {
-                margin-bottom: 1em;
+
+            /* ── Branded Header ──────────────────────────────────── */
+            .hl-ca-branded-header {
+                text-align: center;
+                margin-bottom: 28px;
+                padding-bottom: 24px;
+                border-bottom: 2px solid var(--hl-border-light, #F3F4F6);
             }
-            .hl-instrument-header h2 {
-                margin: 0 0 0.25em 0;
-                font-size: 1.4em;
+            .hl-ca-brand-logo {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 16px;
             }
-            .hl-instrument-version {
-                color: #666;
-                font-size: 0.85em;
+            .hl-ca-brand-icon {
+                font-size: 36px;
+                color: var(--hl-secondary, #2C7BE5);
+                line-height: 1;
             }
-            .hl-instrument-notice {
-                padding: 12px 16px;
-                background: #fff8e1;
-                border-left: 4px solid #ffb300;
-                margin: 1em 0;
-            }
-            .hl-instrument-table-wrap {
-                overflow-x: auto;
-                margin-bottom: 1.5em;
-                -webkit-overflow-scrolling: touch;
-            }
-            table.hl-instrument-matrix {
-                border-collapse: collapse;
-                width: 100%;
-                min-width: 600px;
-                font-size: 0.9em;
-            }
-            table.hl-instrument-matrix th,
-            table.hl-instrument-matrix td {
-                border: 1px solid #ddd;
-                padding: 8px 10px;
+            .hl-ca-brand-name {
+                font-size: 20px;
+                font-weight: 700;
+                color: var(--hl-secondary, #2C7BE5);
+                line-height: 1.15;
                 text-align: left;
+                letter-spacing: 0.01em;
+            }
+            .hl-ca-brand-sub {
+                font-size: 16px;
+                font-weight: 600;
+                letter-spacing: 0.15em;
+                color: var(--hl-accent-dark, #059669);
+            }
+            .hl-ca-title {
+                font-size: 22px;
+                font-weight: 700;
+                color: var(--hl-text-heading, #1A2B47);
+                margin: 0;
+                line-height: 1.3;
+            }
+            .hl-ca-phase-label {
+                color: var(--hl-text-secondary, #6B7280);
+                font-weight: 400;
+            }
+
+            /* ── Teacher Info ────────────────────────────────────── */
+            .hl-ca-teacher-info {
+                margin-bottom: 28px;
+                padding-bottom: 20px;
+                border-bottom: 1px solid var(--hl-border-light, #F3F4F6);
+            }
+            .hl-ca-info-row {
+                margin-bottom: 6px;
+                font-size: 15px;
+            }
+            .hl-ca-info-label {
+                font-weight: 700;
+                color: var(--hl-text-heading, #1A2B47);
+                margin-right: 6px;
+            }
+            .hl-ca-info-value {
+                color: var(--hl-text, #374151);
+            }
+
+            /* ── Instructions ────────────────────────────────────── */
+            .hl-ca-instructions {
+                margin-bottom: 24px;
+            }
+            .hl-ca-instructions h3 {
+                font-size: 18px;
+                font-weight: 700;
+                color: var(--hl-text-heading, #1A2B47);
+                margin: 0 0 10px 0;
+            }
+            .hl-ca-instructions p {
+                font-size: 14px;
+                color: var(--hl-text-secondary, #6B7280);
+                margin: 0;
+                line-height: 1.7;
+            }
+
+            /* ── Behavior Key Table ──────────────────────────────── */
+            .hl-ca-behavior-key {
+                margin-bottom: 28px;
+            }
+            table.hl-ca-key-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 14px;
+                border: 1px solid var(--hl-border, #E5E7EB);
+                border-radius: var(--hl-radius-sm, 8px);
+                overflow: hidden;
+            }
+            table.hl-ca-key-table thead th {
+                background: var(--hl-primary, #1A2B47);
+                color: #fff;
+                padding: 12px 16px;
+                font-size: 15px;
+                font-weight: 600;
+                text-align: center;
+                letter-spacing: 0.02em;
+            }
+            table.hl-ca-key-table tbody td {
+                padding: 10px 16px;
+                border-bottom: 1px solid var(--hl-border-light, #F3F4F6);
                 vertical-align: top;
             }
-            table.hl-instrument-matrix thead th {
-                background: #f1f1f1;
+            table.hl-ca-key-table tbody tr:last-child td {
+                border-bottom: none;
+            }
+            .hl-ca-key-label-cell {
+                width: 140px;
+                min-width: 120px;
+                white-space: nowrap;
+            }
+            .hl-ca-key-label-cell strong {
+                display: block;
+                color: var(--hl-text-heading, #1A2B47);
+                font-size: 14px;
+            }
+            .hl-ca-key-freq {
+                display: block;
+                font-size: 12px;
+                color: var(--hl-text-muted, #9CA3AF);
+                margin-top: 2px;
+            }
+            .hl-ca-key-desc-cell {
+                color: var(--hl-text, #374151);
+                line-height: 1.5;
+            }
+
+            /* ── Question Section ────────────────────────────────── */
+            .hl-ca-question-section {
+                margin-bottom: 24px;
+            }
+            .hl-ca-question-section h3 {
+                font-size: 16px;
+                font-weight: 700;
+                color: var(--hl-text-heading, #1A2B47);
+                margin: 0 0 8px 0;
+            }
+            .hl-ca-question-text {
+                font-size: 15px;
+                color: #92400E;
+                line-height: 1.6;
+                margin: 0;
+                font-style: italic;
+            }
+
+            /* ── Matrix Table ────────────────────────────────────── */
+            .hl-ca-matrix-wrap {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin-bottom: 8px;
+            }
+            table.hl-ca-matrix {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 14px;
+                min-width: 500px;
+            }
+            table.hl-ca-matrix thead th {
+                padding: 12px 16px;
                 font-weight: 600;
-                position: sticky;
-                top: 0;
-                z-index: 2;
+                font-size: 13px;
+                color: var(--hl-text-secondary, #6B7280);
+                text-align: center;
+                border-bottom: 2px solid var(--hl-border, #E5E7EB);
+                white-space: nowrap;
             }
-            table.hl-instrument-matrix .hl-matrix-child-col,
-            table.hl-instrument-matrix .hl-matrix-child-cell {
-                position: sticky;
-                left: 0;
-                z-index: 1;
-                background: inherit;
-                min-width: 140px;
-                max-width: 200px;
+            table.hl-ca-matrix thead th.hl-ca-child-header {
+                text-align: left;
+                min-width: 180px;
             }
-            table.hl-instrument-matrix thead .hl-matrix-child-col {
-                z-index: 3;
+            table.hl-ca-matrix tbody td {
+                padding: 10px 16px;
+                vertical-align: middle;
+                text-align: center;
+                border-bottom: 1px solid var(--hl-border-light, #F3F4F6);
             }
-            tr.hl-matrix-row-even td {
-                background-color: #ffffff;
-            }
-            tr.hl-matrix-row-odd td {
-                background-color: #f9f9f9;
-            }
-            tr.hl-matrix-row-even .hl-matrix-child-cell {
-                background-color: #ffffff;
-            }
-            tr.hl-matrix-row-odd .hl-matrix-child-cell {
-                background-color: #f9f9f9;
-            }
-            .hl-child-name {
+            table.hl-ca-matrix tbody td.hl-ca-child-cell {
+                text-align: left;
                 font-weight: 500;
+                color: var(--hl-text-heading, #1A2B47);
+                white-space: nowrap;
+                min-width: 180px;
             }
-            .hl-child-code {
-                color: #888;
-                font-size: 0.85em;
+            .hl-ca-child-dob {
+                display: block;
+                font-size: 12px;
+                font-weight: 400;
+                color: var(--hl-text-muted, #9CA3AF);
+                margin-top: 1px;
             }
-            .hl-required-marker {
-                color: #d63638;
-                font-weight: bold;
-                margin-left: 2px;
+
+            /* Zebra striping */
+            table.hl-ca-matrix tbody tr.hl-ca-row-even td {
+                background-color: var(--hl-bg-alt, #FAFBFC);
             }
-            .hl-likert-group,
-            .hl-multiselect-group {
+            table.hl-ca-matrix tbody tr.hl-ca-row-odd td {
+                background-color: var(--hl-surface, #fff);
+            }
+            table.hl-ca-matrix tbody tr:hover td {
+                background-color: var(--hl-bg-hover, #EFF6FF);
+            }
+
+            /* Radio buttons */
+            .hl-ca-radio-cell {
+                padding: 10px 8px !important;
+            }
+            .hl-ca-radio {
+                width: 20px;
+                height: 20px;
+                cursor: pointer;
+                accent-color: var(--hl-primary, #1A2B47);
+                margin: 0;
+            }
+
+            /* Multi-question layout (fallback) */
+            .hl-ca-matrix-multi thead th.hl-ca-question-header {
+                text-align: left;
+                font-size: 13px;
+                max-width: 200px;
+                white-space: normal;
+            }
+            .hl-ca-input-cell {
+                text-align: left !important;
+            }
+            .hl-ca-likert-group {
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
             }
-            .hl-likert-label,
-            .hl-multiselect-label {
-                display: block;
+            .hl-ca-likert-label {
+                display: flex;
+                align-items: center;
+                gap: 6px;
                 cursor: pointer;
                 padding: 2px 0;
-                font-size: 0.9em;
-                white-space: nowrap;
+                font-size: 13px;
             }
-            .hl-input-text,
-            .hl-input-number {
+            .hl-ca-multiselect-group {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+            .hl-ca-multiselect-label {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+                padding: 2px 0;
+                font-size: 13px;
+            }
+            .hl-ca-input-text,
+            .hl-ca-input-number {
                 width: 100%;
                 max-width: 160px;
-                padding: 4px 6px;
-                border: 1px solid #ccc;
-                border-radius: 3px;
+                padding: 6px 8px;
+                border: 1px solid var(--hl-border-medium, #D1D5DB);
+                border-radius: var(--hl-radius-xs, 6px);
+                font-size: 14px;
+                transition: border-color 0.2s;
             }
-            .hl-input-select {
+            .hl-ca-input-text:focus,
+            .hl-ca-input-number:focus,
+            .hl-ca-input-select:focus {
+                outline: none;
+                border-color: var(--hl-secondary, #2C7BE5);
+                box-shadow: 0 0 0 3px rgba(44, 123, 229, 0.1);
+            }
+            .hl-ca-input-select {
                 width: 100%;
                 max-width: 180px;
-                padding: 4px 6px;
-                border: 1px solid #ccc;
-                border-radius: 3px;
+                padding: 6px 8px;
+                border: 1px solid var(--hl-border-medium, #D1D5DB);
+                border-radius: var(--hl-radius-xs, 6px);
+                font-size: 14px;
             }
-            .hl-instrument-actions {
+            .hl-ca-required {
+                color: var(--hl-error, #EF4444);
+                font-weight: bold;
+                margin-left: 2px;
+            }
+
+            /* ── Action Buttons ──────────────────────────────────── */
+            .hl-ca-actions {
                 display: flex;
                 gap: 12px;
+                justify-content: flex-start;
                 align-items: center;
-                flex-wrap: wrap;
-                padding: 1em 0;
+                padding: 20px 0 4px;
+                border-top: 1px solid var(--hl-border-light, #F3F4F6);
             }
-            .hl-btn-save-draft {
-                min-width: 120px;
+            .hl-ca-btn-draft {
+                min-width: 130px;
             }
-            .hl-btn-submit-assessment {
-                min-width: 160px;
+            .hl-ca-btn-submit {
+                min-width: 170px;
             }
-            /* Validation error styling */
-            .hl-validation-error {
-                border-color: #d63638 !important;
-                box-shadow: 0 0 0 1px #d63638;
+
+            /* ── Notice / Warning ────────────────────────────────── */
+            .hl-ca-notice {
+                padding: 12px 16px;
+                border-radius: var(--hl-radius-sm, 8px);
+                margin: 1em 0;
+            }
+            .hl-ca-notice-warning {
+                background: #FEF3C7;
+                border-left: 4px solid var(--hl-warning, #F59E0B);
+                color: #92400E;
+            }
+
+            /* ── Validation Error ────────────────────────────────── */
+            .hl-ca-validation-error {
+                border-color: var(--hl-error, #EF4444) !important;
+                box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+            }
+
+            /* ── Read-Only (Submitted) Styles ────────────────────── */
+            .hl-ca-form-wrap.hl-ca-readonly table.hl-ca-matrix tbody td {
+                font-size: 13px;
+            }
+            .hl-ca-submitted-banner {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 12px 16px;
+                background: var(--hl-status-complete-bg, #D1FAE5);
+                color: var(--hl-status-complete-text, #065F46);
+                border-radius: var(--hl-radius-sm, 8px);
+                margin-bottom: 24px;
+                font-weight: 600;
+                font-size: 14px;
+            }
+            .hl-ca-submitted-banner .hl-ca-submitted-icon {
+                font-size: 18px;
+            }
+            .hl-ca-answer-pill {
+                display: inline-block;
+                padding: 3px 12px;
+                border-radius: var(--hl-radius-pill, 100px);
+                background: var(--hl-bg, #F4F5F7);
+                color: var(--hl-text, #374151);
+                font-size: 13px;
+                font-weight: 500;
+            }
+
+            /* ── Responsive ──────────────────────────────────────── */
+            @media (max-width: 768px) {
+                .hl-ca-form-wrap {
+                    padding: 24px 20px;
+                    margin: 0 -10px 1.5em;
+                    border-radius: var(--hl-radius-sm, 8px);
+                }
+                .hl-ca-title {
+                    font-size: 18px;
+                }
+                .hl-ca-brand-logo {
+                    gap: 8px;
+                }
+                .hl-ca-brand-icon {
+                    font-size: 28px;
+                }
+                .hl-ca-brand-name {
+                    font-size: 16px;
+                }
+                .hl-ca-brand-sub {
+                    font-size: 13px;
+                }
+                table.hl-ca-key-table {
+                    font-size: 13px;
+                }
+                .hl-ca-key-label-cell {
+                    min-width: 90px;
+                    width: 100px;
+                }
+                .hl-ca-actions {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                .hl-ca-btn-draft,
+                .hl-ca-btn-submit {
+                    min-width: 0;
+                    width: 100%;
+                    text-align: center;
+                }
+                table.hl-ca-matrix thead th {
+                    padding: 8px 10px;
+                    font-size: 12px;
+                }
+                table.hl-ca-matrix tbody td {
+                    padding: 8px 10px;
+                }
+                table.hl-ca-matrix tbody td.hl-ca-child-cell {
+                    min-width: 140px;
+                    font-size: 13px;
+                }
             }
         </style>
         <?php
     }
 
+    // ─── Inline Script ───────────────────────────────────────────────────
+
     /**
      * Render inline JavaScript for validation toggle between draft and submit.
-     *
-     * When "Submit Assessment" is clicked, required fields are enforced
-     * via HTML5 required attribute. When "Save Draft" is clicked, required
-     * attributes are removed so partial data can be saved.
      */
     private function render_inline_script() {
         $instance_id = esc_js( $this->instance_id );
         ?>
         <script>
         (function() {
-            var formId        = 'hl-instrument-form-<?php echo $instance_id; ?>';
-            var hiddenFieldId = 'hl_requires_validation_<?php echo $instance_id; ?>';
-            var draftBtnId    = 'hl-btn-draft-<?php echo $instance_id; ?>';
-            var submitBtnId   = 'hl-btn-submit-<?php echo $instance_id; ?>';
+            var formId        = 'hl-ca-form-<?php echo $instance_id; ?>';
+            var hiddenFieldId = 'hl-ca-requires-validation-<?php echo $instance_id; ?>';
+            var draftBtnId    = 'hl-ca-btn-draft-<?php echo $instance_id; ?>';
+            var submitBtnId   = 'hl-ca-btn-submit-<?php echo $instance_id; ?>';
 
             var form        = document.getElementById(formId);
             var hiddenField = document.getElementById(hiddenFieldId);
@@ -485,10 +1077,6 @@ class HL_Instrument_Renderer {
                 return;
             }
 
-            /**
-             * Toggle HTML5 required attributes on all fields marked with
-             * data-hl-required="1" and on inputs/selects within those containers.
-             */
             function setValidation(enable) {
                 hiddenField.value = enable ? '1' : '0';
 
@@ -503,9 +1091,8 @@ class HL_Instrument_Renderer {
                             el.removeAttribute('required');
                         }
                     }
-                    // For groups (likert radios, multiselect checkboxes), we
-                    // require at least one radio/checkbox to be selected.
-                    // HTML5 required on radio groups works natively if set on each radio.
+
+                    // For radio groups
                     var radios = el.querySelectorAll('input[type="radio"]');
                     radios.forEach(function(radio) {
                         if (enable) {
@@ -515,8 +1102,7 @@ class HL_Instrument_Renderer {
                         }
                     });
 
-                    // For multi_select, mark the first checkbox as required
-                    // only if no checkbox in the group is checked.
+                    // For multi_select checkboxes
                     var checkboxes = el.querySelectorAll('input[type="checkbox"]');
                     if (checkboxes.length > 0) {
                         if (enable) {
@@ -533,12 +1119,21 @@ class HL_Instrument_Renderer {
                         }
                     }
                 });
+
+                // For the transposed Likert layout, radio inputs have data-hl-required directly.
+                var requiredRadios = form.querySelectorAll('input[type="radio"][data-hl-required="1"]');
+                requiredRadios.forEach(function(radio) {
+                    if (enable) {
+                        radio.setAttribute('required', 'required');
+                    } else {
+                        radio.removeAttribute('required');
+                    }
+                });
             }
 
-            // Draft: disable validation, allow partial save.
+            // Draft: disable validation.
             draftBtn.addEventListener('click', function(e) {
                 setValidation(false);
-                // Allow normal form submission.
             });
 
             // Submit: enable validation, confirm dialog.
@@ -548,16 +1143,14 @@ class HL_Instrument_Renderer {
                     return;
                 }
                 setValidation(true);
-                // Allow the browser's native validation to run.
-                // If validation fails, form won't submit.
             });
 
-            // Handle multi_select required toggling when checkboxes change.
+            // Handle multi_select required toggling.
             form.addEventListener('change', function(e) {
                 if (e.target.type !== 'checkbox') return;
                 if (hiddenField.value !== '1') return;
 
-                var group = e.target.closest('.hl-multiselect-group[data-hl-required="1"]');
+                var group = e.target.closest('.hl-ca-multiselect-group[data-hl-required="1"]');
                 if (!group) return;
 
                 var checkboxes = group.querySelectorAll('input[type="checkbox"]');

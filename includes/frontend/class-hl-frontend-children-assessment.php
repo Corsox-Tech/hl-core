@@ -481,106 +481,260 @@ class HL_Frontend_Children_Assessment {
         // Load childrows with answers
         $childrows = $this->assessment_service->get_children_assessment_childrows( $instance_id );
 
-        ?>
-        <div class="hl-dashboard hl-children-assessment hl-assessment-summary">
-            <div class="hl-assessment-header">
-                <h2 class="hl-section-title"><?php esc_html_e( 'Children Assessment — Submitted', 'hl-core' ); ?></h2>
-                <div class="hl-assessment-meta">
-                    <?php if ( $instrument ) : ?>
-                        <span class="hl-meta-item">
-                            <strong><?php esc_html_e( 'Instrument:', 'hl-core' ); ?></strong>
-                            <?php echo esc_html( $instrument['name'] ); ?>
-                        </span>
-                    <?php endif; ?>
-                    <span class="hl-meta-item">
-                        <strong><?php esc_html_e( 'Cohort:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( $instance['cohort_name'] ); ?>
-                    </span>
-                    <span class="hl-meta-item">
-                        <strong><?php esc_html_e( 'Classroom:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( $instance['classroom_name'] ); ?>
-                    </span>
-                    <span class="hl-meta-item">
-                        <strong><?php esc_html_e( 'Submitted:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( $this->format_date( $instance['submitted_at'] ) ); ?>
-                    </span>
-                    <span class="hl-meta-item">
-                        <?php $this->render_status_badge( 'submitted' ); ?>
-                    </span>
-                </div>
-            </div>
+        // Detect single-question Likert for transposed display
+        $is_single_likert = ( count( $questions ) === 1
+            && isset( $questions[0]['question_type'] )
+            && $questions[0]['question_type'] === 'likert' );
 
-            <?php if ( empty( $childrows ) ) : ?>
-                <div class="hl-notice hl-notice-info">
-                    <?php esc_html_e( 'No child responses recorded for this assessment.', 'hl-core' ); ?>
+        $allowed_values = array();
+        if ( $is_single_likert ) {
+            $q = $questions[0];
+            if ( isset( $q['allowed_values'] ) ) {
+                if ( is_array( $q['allowed_values'] ) ) {
+                    $allowed_values = $q['allowed_values'];
+                } elseif ( is_string( $q['allowed_values'] ) && $q['allowed_values'] !== '' ) {
+                    $allowed_values = array_map( 'trim', explode( ',', $q['allowed_values'] ) );
+                }
+            }
+            if ( empty( $allowed_values ) ) {
+                $allowed_values = array( 'Never', 'Rarely', 'Sometimes', 'Usually', 'Almost Always' );
+            }
+        }
+
+        // Inline styles for submitted summary (reuse the renderer's design tokens)
+        ?>
+        <style>
+            .hl-ca-summary-wrap {
+                max-width: 900px;
+                margin: 0 auto 2em;
+                background: var(--hl-surface, #fff);
+                border: 1px solid var(--hl-border, #E5E7EB);
+                border-radius: var(--hl-radius, 12px);
+                box-shadow: var(--hl-shadow, 0 2px 8px rgba(0,0,0,0.06));
+                padding: 40px 48px;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                color: var(--hl-text, #374151);
+                line-height: 1.6;
+            }
+            .hl-ca-summary-wrap .hl-ca-branded-header {
+                text-align: center;
+                margin-bottom: 28px;
+                padding-bottom: 24px;
+                border-bottom: 2px solid var(--hl-border-light, #F3F4F6);
+            }
+            .hl-ca-summary-wrap .hl-ca-brand-logo {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 16px;
+            }
+            .hl-ca-summary-wrap .hl-ca-brand-icon { font-size: 36px; color: var(--hl-secondary, #2C7BE5); line-height: 1; }
+            .hl-ca-summary-wrap .hl-ca-brand-name { font-size: 20px; font-weight: 700; color: var(--hl-secondary, #2C7BE5); line-height: 1.15; text-align: left; }
+            .hl-ca-summary-wrap .hl-ca-brand-sub { font-size: 16px; font-weight: 600; letter-spacing: 0.15em; color: var(--hl-accent-dark, #059669); }
+            .hl-ca-summary-wrap .hl-ca-title { font-size: 22px; font-weight: 700; color: var(--hl-text-heading, #1A2B47); margin: 0; }
+            .hl-ca-summary-wrap .hl-ca-phase-label { color: var(--hl-text-secondary, #6B7280); font-weight: 400; }
+            .hl-ca-summary-teacher-info { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--hl-border-light, #F3F4F6); }
+            .hl-ca-summary-teacher-info .hl-ca-info-row { margin-bottom: 6px; font-size: 15px; }
+            .hl-ca-summary-teacher-info .hl-ca-info-label { font-weight: 700; color: var(--hl-text-heading, #1A2B47); margin-right: 6px; }
+            .hl-ca-summary-teacher-info .hl-ca-info-value { color: var(--hl-text, #374151); }
+            .hl-ca-submitted-banner { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--hl-status-complete-bg, #D1FAE5); color: var(--hl-status-complete-text, #065F46); border-radius: var(--hl-radius-sm, 8px); margin-bottom: 24px; font-weight: 600; font-size: 14px; }
+            .hl-ca-submitted-banner .hl-ca-submitted-icon { font-size: 18px; }
+            .hl-ca-summary-matrix-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 16px; }
+            table.hl-ca-summary-matrix { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 500px; }
+            table.hl-ca-summary-matrix thead th { padding: 12px 16px; font-weight: 600; font-size: 13px; color: var(--hl-text-secondary, #6B7280); text-align: center; border-bottom: 2px solid var(--hl-border, #E5E7EB); white-space: nowrap; }
+            table.hl-ca-summary-matrix thead th:first-child { text-align: left; min-width: 180px; }
+            table.hl-ca-summary-matrix tbody td { padding: 10px 16px; vertical-align: middle; text-align: center; border-bottom: 1px solid var(--hl-border-light, #F3F4F6); }
+            table.hl-ca-summary-matrix tbody td:first-child { text-align: left; font-weight: 500; color: var(--hl-text-heading, #1A2B47); white-space: nowrap; min-width: 180px; }
+            table.hl-ca-summary-matrix tbody tr:nth-child(even) td { background-color: var(--hl-bg-alt, #FAFBFC); }
+            table.hl-ca-summary-matrix tbody tr:nth-child(odd) td { background-color: var(--hl-surface, #fff); }
+            .hl-ca-summary-child-dob { display: block; font-size: 12px; font-weight: 400; color: var(--hl-text-muted, #9CA3AF); }
+            .hl-ca-answer-pill { display: inline-block; padding: 3px 12px; border-radius: var(--hl-radius-pill, 100px); background: var(--hl-bg, #F4F5F7); color: var(--hl-text, #374151); font-size: 13px; font-weight: 500; }
+            .hl-ca-answer-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--hl-primary, #1A2B47); }
+            .hl-ca-answer-empty { color: var(--hl-text-muted, #9CA3AF); font-size: 13px; }
+            @media (max-width: 768px) {
+                .hl-ca-summary-wrap { padding: 24px 20px; margin: 0 -10px 1.5em; }
+                .hl-ca-summary-wrap .hl-ca-title { font-size: 18px; }
+            }
+        </style>
+
+        <div class="hl-dashboard hl-children-assessment hl-assessment-summary">
+            <div class="hl-ca-summary-wrap">
+
+                <?php // ── Branded Header ──────────────────────────────── ?>
+                <div class="hl-ca-branded-header">
+                    <div class="hl-ca-brand-logo">
+                        <span class="hl-ca-brand-icon">&#9672;</span>
+                        <span class="hl-ca-brand-name">Housman<br><span class="hl-ca-brand-sub">LEARNING</span></span>
+                    </div>
+                    <h2 class="hl-ca-title">
+                        <?php echo esc_html( $instrument ? $instrument['name'] : __( 'Children Assessment', 'hl-core' ) ); ?>
+                        <?php
+                        $phase = isset( $instance['phase'] ) ? $instance['phase'] : '';
+                        if ( $phase ) :
+                            $phase_label = ( $phase === 'post' ) ? __( 'Post', 'hl-core' ) : __( 'Pre', 'hl-core' );
+                        ?>
+                            <span class="hl-ca-phase-label">(<?php echo esc_html( $phase_label ); ?>)</span>
+                        <?php endif; ?>
+                    </h2>
                 </div>
-            <?php elseif ( ! empty( $questions ) ) : ?>
-                <div class="hl-instrument-matrix hl-readonly">
-                    <table class="hl-table widefat striped">
-                        <thead>
-                            <tr>
-                                <th><?php esc_html_e( 'Child', 'hl-core' ); ?></th>
-                                <?php foreach ( $questions as $question ) : ?>
-                                    <th><?php echo esc_html( $question['prompt_text'] ); ?></th>
-                                <?php endforeach; ?>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ( $childrows as $row ) :
-                                $child_name = trim( esc_html( $row['first_name'] ) . ' ' . esc_html( $row['last_name'] ) );
-                                $answers    = json_decode( $row['answers_json'], true );
-                                if ( ! is_array( $answers ) ) {
-                                    $answers = array();
-                                }
-                            ?>
+
+                <?php // ── Teacher / School / Classroom ────────────────── ?>
+                <div class="hl-ca-summary-teacher-info">
+                    <?php if ( ! empty( $instance['display_name'] ) ) : ?>
+                        <div class="hl-ca-info-row">
+                            <span class="hl-ca-info-label"><?php esc_html_e( 'Teacher:', 'hl-core' ); ?></span>
+                            <span class="hl-ca-info-value"><?php echo esc_html( $instance['display_name'] ); ?></span>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ( ! empty( $instance['center_name'] ) ) : ?>
+                        <div class="hl-ca-info-row">
+                            <span class="hl-ca-info-label"><?php esc_html_e( 'School:', 'hl-core' ); ?></span>
+                            <span class="hl-ca-info-value"><?php echo esc_html( $instance['center_name'] ); ?></span>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ( ! empty( $instance['classroom_name'] ) ) : ?>
+                        <div class="hl-ca-info-row">
+                            <span class="hl-ca-info-label"><?php esc_html_e( 'Classroom:', 'hl-core' ); ?></span>
+                            <span class="hl-ca-info-value"><?php echo esc_html( $instance['classroom_name'] ); ?></span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <?php // ── Submitted Banner ────────────────────────────── ?>
+                <div class="hl-ca-submitted-banner">
+                    <span class="hl-ca-submitted-icon">&#10003;</span>
+                    <?php
+                    printf(
+                        esc_html__( 'Assessment submitted on %s', 'hl-core' ),
+                        esc_html( $this->format_date( $instance['submitted_at'] ) )
+                    );
+                    ?>
+                </div>
+
+                <?php if ( empty( $childrows ) ) : ?>
+                    <div class="hl-notice hl-notice-info">
+                        <?php esc_html_e( 'No child responses recorded for this assessment.', 'hl-core' ); ?>
+                    </div>
+
+                <?php elseif ( $is_single_likert && ! empty( $allowed_values ) ) : ?>
+                    <?php // ── Transposed Likert summary (matches form layout) ── ?>
+                    <?php $qid = $questions[0]['question_id']; ?>
+
+                    <div class="hl-ca-summary-matrix-wrap">
+                        <table class="hl-ca-summary-matrix">
+                            <thead>
                                 <tr>
-                                    <td>
-                                        <strong><?php echo esc_html( $child_name ); ?></strong>
-                                        <?php if ( ! empty( $row['child_display_code'] ) ) : ?>
-                                            <br><small><?php echo esc_html( $row['child_display_code'] ); ?></small>
-                                        <?php endif; ?>
-                                    </td>
-                                    <?php foreach ( $questions as $question ) :
-                                        $qid   = isset( $question['question_id'] ) ? $question['question_id'] : '';
-                                        $value = isset( $answers[ $qid ] ) ? $answers[ $qid ] : '';
-                                    ?>
-                                        <td><?php echo esc_html( is_array( $value ) ? implode( ', ', $value ) : $value ); ?></td>
+                                    <th>&nbsp;</th>
+                                    <?php foreach ( $allowed_values as $val ) : ?>
+                                        <th><?php echo esc_html( $val ); ?></th>
                                     <?php endforeach; ?>
                                 </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php else : ?>
-                <?php // No instrument questions available — show raw answers ?>
-                <div class="hl-instrument-matrix hl-readonly">
-                    <table class="hl-table widefat striped">
-                        <thead>
-                            <tr>
-                                <th><?php esc_html_e( 'Child', 'hl-core' ); ?></th>
-                                <th><?php esc_html_e( 'Answers', 'hl-core' ); ?></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ( $childrows as $row ) :
-                                $child_name = trim( esc_html( $row['first_name'] ) . ' ' . esc_html( $row['last_name'] ) );
-                            ?>
-                                <tr>
-                                    <td>
-                                        <strong><?php echo esc_html( $child_name ); ?></strong>
-                                        <?php if ( ! empty( $row['child_display_code'] ) ) : ?>
-                                            <br><small><?php echo esc_html( $row['child_display_code'] ); ?></small>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><code><?php echo esc_html( $row['answers_json'] ); ?></code></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
+                            </thead>
+                            <tbody>
+                                <?php foreach ( $childrows as $row ) :
+                                    $child_label = ! empty( $row['child_display_code'] )
+                                        ? $row['child_display_code']
+                                        : trim( $row['first_name'] . ' ' . $row['last_name'] );
+                                    $answers = json_decode( $row['answers_json'], true );
+                                    if ( ! is_array( $answers ) ) { $answers = array(); }
+                                    $answer_val = isset( $answers[ $qid ] ) ? $answers[ $qid ] : '';
+                                    $dob = '';
+                                    if ( ! empty( $row['dob'] ) ) {
+                                        $ts = strtotime( $row['dob'] );
+                                        if ( $ts ) { $dob = date( 'n/j/Y', $ts ); }
+                                    }
+                                ?>
+                                    <tr>
+                                        <td>
+                                            <?php echo esc_html( $child_label ); ?>
+                                            <?php if ( $dob ) : ?>
+                                                <span class="hl-ca-summary-child-dob">DOB: <?php echo esc_html( $dob ); ?></span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <?php foreach ( $allowed_values as $val ) : ?>
+                                            <td>
+                                                <?php if ( (string) $answer_val === (string) $val ) : ?>
+                                                    <span class="hl-ca-answer-dot" title="<?php echo esc_attr( $val ); ?>"></span>
+                                                <?php else : ?>
+                                                    <span class="hl-ca-answer-empty">&mdash;</span>
+                                                <?php endif; ?>
+                                            </td>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
 
-            <p>
+                <?php elseif ( ! empty( $questions ) ) : ?>
+                    <?php // ── Multi-question summary ── ?>
+                    <div class="hl-ca-summary-matrix-wrap">
+                        <table class="hl-ca-summary-matrix">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e( 'Child', 'hl-core' ); ?></th>
+                                    <?php foreach ( $questions as $question ) : ?>
+                                        <th><?php echo esc_html( $question['prompt_text'] ); ?></th>
+                                    <?php endforeach; ?>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ( $childrows as $row ) :
+                                    $child_label = ! empty( $row['child_display_code'] )
+                                        ? $row['child_display_code']
+                                        : trim( $row['first_name'] . ' ' . $row['last_name'] );
+                                    $answers = json_decode( $row['answers_json'], true );
+                                    if ( ! is_array( $answers ) ) { $answers = array(); }
+                                ?>
+                                    <tr>
+                                        <td><?php echo esc_html( $child_label ); ?></td>
+                                        <?php foreach ( $questions as $question ) :
+                                            $qid   = isset( $question['question_id'] ) ? $question['question_id'] : '';
+                                            $value = isset( $answers[ $qid ] ) ? $answers[ $qid ] : '';
+                                        ?>
+                                            <td>
+                                                <?php if ( $value !== '' && $value !== null ) : ?>
+                                                    <span class="hl-ca-answer-pill"><?php echo esc_html( is_array( $value ) ? implode( ', ', $value ) : $value ); ?></span>
+                                                <?php else : ?>
+                                                    <span class="hl-ca-answer-empty">&mdash;</span>
+                                                <?php endif; ?>
+                                            </td>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                <?php else : ?>
+                    <?php // ── No instrument questions — raw answers ── ?>
+                    <div class="hl-ca-summary-matrix-wrap">
+                        <table class="hl-ca-summary-matrix">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e( 'Child', 'hl-core' ); ?></th>
+                                    <th><?php esc_html_e( 'Answers', 'hl-core' ); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ( $childrows as $row ) :
+                                    $child_label = ! empty( $row['child_display_code'] )
+                                        ? $row['child_display_code']
+                                        : trim( $row['first_name'] . ' ' . $row['last_name'] );
+                                ?>
+                                    <tr>
+                                        <td><?php echo esc_html( $child_label ); ?></td>
+                                        <td><code><?php echo esc_html( $row['answers_json'] ); ?></code></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+
+            </div>
+
+            <p style="margin-top: 16px;">
                 <a href="<?php echo esc_url( remove_query_arg( 'instance_id' ) ); ?>" class="hl-btn">
                     &larr; <?php esc_html_e( 'Back to Assessments', 'hl-core' ); ?>
                 </a>
@@ -596,8 +750,8 @@ class HL_Frontend_Children_Assessment {
     /**
      * Render the editable assessment form (instrument matrix).
      *
-     * If HL_Instrument_Renderer is available, delegates to it. Otherwise
-     * falls back to an inline matrix rendering.
+     * Delegates to HL_Instrument_Renderer for the branded form, including
+     * header, teacher info, instructions, behavior key, and matrix.
      *
      * @param array  $instance     Instance data.
      * @param array  $instrument   Instrument row from hl_instrument.
@@ -608,33 +762,9 @@ class HL_Frontend_Children_Assessment {
      */
     private function render_assessment_form( $instance, $instrument, $children, $answers_map, $message = '', $message_type = '' ) {
         $instance_id = absint( $instance['instance_id'] );
-        $questions   = json_decode( $instrument['questions'], true );
-        if ( ! is_array( $questions ) ) {
-            $questions = array();
-        }
 
         ?>
         <div class="hl-dashboard hl-children-assessment hl-assessment-form">
-            <div class="hl-assessment-header">
-                <h2 class="hl-section-title"><?php esc_html_e( 'Children Assessment', 'hl-core' ); ?></h2>
-                <div class="hl-assessment-meta">
-                    <span class="hl-meta-item">
-                        <strong><?php esc_html_e( 'Instrument:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( $instrument['name'] ); ?>
-                    </span>
-                    <span class="hl-meta-item">
-                        <strong><?php esc_html_e( 'Cohort:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( $instance['cohort_name'] ); ?>
-                    </span>
-                    <span class="hl-meta-item">
-                        <strong><?php esc_html_e( 'Classroom:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( $instance['classroom_name'] ); ?>
-                    </span>
-                    <span class="hl-meta-item">
-                        <?php $this->render_status_badge( $instance['status'] ); ?>
-                    </span>
-                </div>
-            </div>
 
             <?php if ( ! empty( $message ) ) : ?>
                 <div class="hl-notice hl-notice-<?php echo esc_attr( $message_type ); ?>">
@@ -642,192 +772,18 @@ class HL_Frontend_Children_Assessment {
                 </div>
             <?php endif; ?>
 
-            <?php if ( empty( $questions ) ) : ?>
-                <div class="hl-notice hl-notice-error">
-                    <?php esc_html_e( 'The instrument has no questions defined. Please contact your cohort administrator.', 'hl-core' ); ?>
-                </div>
-            <?php else : ?>
+            <?php
+            $renderer = new HL_Instrument_Renderer( $instrument, $children, $instance_id, $answers_map, $instance );
+            echo $renderer->render();
+            ?>
 
-                <?php
-                // Attempt to use HL_Instrument_Renderer if available
-                if ( class_exists( 'HL_Instrument_Renderer' ) ) :
-                    $renderer = new HL_Instrument_Renderer( $instrument, $children, $instance_id, $answers_map );
-                    echo $renderer->render();
-                else :
-                    // Fallback: inline matrix rendering
-                    $this->render_inline_matrix( $instance_id, $questions, $children, $answers_map );
-                endif;
-                ?>
-
-            <?php endif; ?>
-
-            <p>
+            <p style="margin-top: 16px;">
                 <a href="<?php echo esc_url( remove_query_arg( 'instance_id' ) ); ?>" class="hl-btn">
                     &larr; <?php esc_html_e( 'Back to Assessments', 'hl-core' ); ?>
                 </a>
             </p>
         </div>
         <?php
-    }
-
-    /**
-     * Fallback inline matrix form when HL_Instrument_Renderer is not yet
-     * available. Renders a table with one row per child and columns per
-     * question, with Save Draft and Submit buttons.
-     *
-     * @param int   $instance_id
-     * @param array $questions    Decoded questions JSON array.
-     * @param array $children     Array of child objects.
-     * @param array $answers_map  Map of child_id => [ question_id => value ].
-     */
-    private function render_inline_matrix( $instance_id, $questions, $children, $answers_map ) {
-        ?>
-        <form method="post" class="hl-assessment-matrix-form">
-            <?php wp_nonce_field( 'hl_children_assessment_' . $instance_id, '_hl_assessment_nonce' ); ?>
-            <input type="hidden" name="hl_instrument_instance_id" value="<?php echo esc_attr( $instance_id ); ?>" />
-
-            <div class="hl-instrument-matrix">
-                <table class="hl-table widefat">
-                    <thead>
-                        <tr>
-                            <th class="hl-child-column"><?php esc_html_e( 'Child', 'hl-core' ); ?></th>
-                            <?php foreach ( $questions as $question ) : ?>
-                                <th class="hl-question-column">
-                                    <?php echo esc_html( $question['prompt_text'] ); ?>
-                                    <?php if ( ! empty( $question['required'] ) ) : ?>
-                                        <span class="hl-required" title="<?php esc_attr_e( 'Required', 'hl-core' ); ?>">*</span>
-                                    <?php endif; ?>
-                                </th>
-                            <?php endforeach; ?>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ( $children as $child ) :
-                            $child_id   = absint( $child->child_id );
-                            $child_name = trim( $child->first_name . ' ' . $child->last_name );
-                            $child_answers = isset( $answers_map[ $child_id ] ) ? $answers_map[ $child_id ] : array();
-                        ?>
-                            <tr>
-                                <td class="hl-child-column">
-                                    <strong><?php echo esc_html( $child_name ); ?></strong>
-                                    <?php if ( ! empty( $child->child_display_code ) ) : ?>
-                                        <br><small class="hl-child-code"><?php echo esc_html( $child->child_display_code ); ?></small>
-                                    <?php endif; ?>
-                                </td>
-                                <?php foreach ( $questions as $question ) :
-                                    $qid  = isset( $question['question_id'] ) ? $question['question_id'] : '';
-                                    $type = isset( $question['type'] ) ? $question['type'] : 'text';
-                                    $current_value = isset( $child_answers[ $qid ] ) ? $child_answers[ $qid ] : '';
-                                    $field_name    = 'answers[' . $child_id . '][' . esc_attr( $qid ) . ']';
-                                    $required      = ! empty( $question['required'] );
-                                ?>
-                                    <td class="hl-question-column">
-                                        <?php $this->render_field( $field_name, $type, $question, $current_value, $required ); ?>
-                                    </td>
-                                <?php endforeach; ?>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="hl-form-actions">
-                <button type="submit" name="hl_assessment_action" value="draft" class="hl-btn hl-btn-secondary">
-                    <?php esc_html_e( 'Save Draft', 'hl-core' ); ?>
-                </button>
-                <button type="submit" name="hl_assessment_action" value="submit" class="hl-btn hl-btn-primary"
-                        onclick="return confirm('<?php echo esc_js( __( 'Are you sure you want to submit? You will not be able to edit answers after submission.', 'hl-core' ) ); ?>');">
-                    <?php esc_html_e( 'Submit Assessment', 'hl-core' ); ?>
-                </button>
-            </div>
-        </form>
-        <?php
-    }
-
-    // =====================================================================
-    // Field Rendering
-    // =====================================================================
-
-    /**
-     * Render a single form field for the matrix.
-     *
-     * @param string $name          Field name attribute.
-     * @param string $type          Question type: likert, text, number, single_select, multi_select.
-     * @param array  $question      Full question definition.
-     * @param mixed  $current_value Current answer value.
-     * @param bool   $required      Whether the field is required.
-     */
-    private function render_field( $name, $type, $question, $current_value, $required ) {
-        $req_attr = $required ? ' required' : '';
-
-        switch ( $type ) {
-            case 'likert':
-                $allowed = isset( $question['allowed_values'] ) ? (array) $question['allowed_values'] : array();
-                if ( empty( $allowed ) ) {
-                    $allowed = array( '1', '2', '3', '4', '5' );
-                }
-                echo '<div class="hl-likert-group">';
-                foreach ( $allowed as $val ) {
-                    $checked = ( (string) $current_value === (string) $val ) ? ' checked' : '';
-                    printf(
-                        '<label class="hl-likert-option"><input type="radio" name="%s" value="%s"%s%s /> %s</label> ',
-                        esc_attr( $name ),
-                        esc_attr( $val ),
-                        $checked,
-                        $req_attr,
-                        esc_html( $val )
-                    );
-                }
-                echo '</div>';
-                break;
-
-            case 'number':
-                printf(
-                    '<input type="number" name="%s" value="%s" class="hl-input-number"%s />',
-                    esc_attr( $name ),
-                    esc_attr( $current_value ),
-                    $req_attr
-                );
-                break;
-
-            case 'single_select':
-                $allowed = isset( $question['allowed_values'] ) ? (array) $question['allowed_values'] : array();
-                printf( '<select name="%s" class="hl-select"%s>', esc_attr( $name ), $req_attr );
-                echo '<option value="">' . esc_html__( '— Select —', 'hl-core' ) . '</option>';
-                foreach ( $allowed as $val ) {
-                    $selected = ( (string) $current_value === (string) $val ) ? ' selected' : '';
-                    printf( '<option value="%s"%s>%s</option>', esc_attr( $val ), $selected, esc_html( $val ) );
-                }
-                echo '</select>';
-                break;
-
-            case 'multi_select':
-                $allowed  = isset( $question['allowed_values'] ) ? (array) $question['allowed_values'] : array();
-                $selected_vals = is_array( $current_value ) ? $current_value : array();
-                echo '<div class="hl-multi-select">';
-                foreach ( $allowed as $val ) {
-                    $checked = in_array( (string) $val, array_map( 'strval', $selected_vals ), true ) ? ' checked' : '';
-                    printf(
-                        '<label class="hl-checkbox-option"><input type="checkbox" name="%s[]" value="%s"%s /> %s</label> ',
-                        esc_attr( $name ),
-                        esc_attr( $val ),
-                        $checked,
-                        esc_html( $val )
-                    );
-                }
-                echo '</div>';
-                break;
-
-            case 'text':
-            default:
-                printf(
-                    '<input type="text" name="%s" value="%s" class="hl-input-text"%s />',
-                    esc_attr( $name ),
-                    esc_attr( $current_value ),
-                    $req_attr
-                );
-                break;
-        }
     }
 
     // =====================================================================
