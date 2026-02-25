@@ -543,7 +543,7 @@ class HL_Frontend_Children_Assessment {
                 text-align: center;
                 margin-bottom: 16px;
             }
-            .hl-ca-summary-wrap .hl-ca-brand-img { max-width: 220px; height: auto; }
+            .hl-ca-summary-wrap .hl-ca-brand-img { max-width: 176px; height: auto; }
             .hl-ca-summary-wrap .hl-ca-title { font-size: 22px; font-weight: 700; color: var(--hl-text-heading, #1A2B47); margin: 0; }
             .hl-ca-summary-wrap .hl-ca-phase-label { color: var(--hl-text-secondary, #6B7280); font-weight: 400; }
             .hl-ca-summary-teacher-info { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--hl-border-light, #F3F4F6); }
@@ -646,9 +646,10 @@ class HL_Frontend_Children_Assessment {
                             </thead>
                             <tbody>
                                 <?php foreach ( $childrows as $row ) :
-                                    $child_label = ! empty( $row['child_display_code'] )
-                                        ? $row['child_display_code']
-                                        : trim( $row['first_name'] . ' ' . $row['last_name'] );
+                                    $child_name = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
+                                    $child_label = ! empty( $child_name )
+                                        ? $child_name
+                                        : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
                                     $answers = json_decode( $row['answers_json'], true );
                                     if ( ! is_array( $answers ) ) { $answers = array(); }
                                     $answer_val = isset( $answers[ $qid ] ) ? $answers[ $qid ] : '';
@@ -694,9 +695,10 @@ class HL_Frontend_Children_Assessment {
                             </thead>
                             <tbody>
                                 <?php foreach ( $childrows as $row ) :
-                                    $child_label = ! empty( $row['child_display_code'] )
-                                        ? $row['child_display_code']
-                                        : trim( $row['first_name'] . ' ' . $row['last_name'] );
+                                    $child_name = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
+                                    $child_label = ! empty( $child_name )
+                                        ? $child_name
+                                        : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
                                     $answers = json_decode( $row['answers_json'], true );
                                     if ( ! is_array( $answers ) ) { $answers = array(); }
                                 ?>
@@ -732,9 +734,10 @@ class HL_Frontend_Children_Assessment {
                             </thead>
                             <tbody>
                                 <?php foreach ( $childrows as $row ) :
-                                    $child_label = ! empty( $row['child_display_code'] )
-                                        ? $row['child_display_code']
-                                        : trim( $row['first_name'] . ' ' . $row['last_name'] );
+                                    $child_name = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
+                                    $child_label = ! empty( $child_name )
+                                        ? $child_name
+                                        : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
                                 ?>
                                     <tr>
                                         <td><?php echo esc_html( $child_label ); ?></td>

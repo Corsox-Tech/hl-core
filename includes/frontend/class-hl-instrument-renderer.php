@@ -703,16 +703,20 @@ class HL_Instrument_Renderer {
     }
 
     /**
-     * Format a child's display label. Prefers child_display_code, falls back to name.
+     * Format a child's display label. Uses first + last name, falls back to display code.
      *
      * @param object $child
      * @return string
      */
     private function format_child_label( $child ) {
+        $name = trim( ( isset( $child->first_name ) ? $child->first_name : '' ) . ' ' . ( isset( $child->last_name ) ? $child->last_name : '' ) );
+        if ( ! empty( $name ) ) {
+            return $name;
+        }
         if ( ! empty( $child->child_display_code ) ) {
             return $child->child_display_code;
         }
-        return trim( $child->first_name . ' ' . $child->last_name );
+        return __( 'Child', 'hl-core' );
     }
 
     /**
@@ -748,7 +752,7 @@ class HL_Instrument_Renderer {
                 border: 1px solid var(--hl-border, #E5E7EB);
                 border-radius: var(--hl-radius, 12px);
                 box-shadow: var(--hl-shadow, 0 2px 8px rgba(0,0,0,0.06));
-                padding: 40px 48px;
+                padding: 32px 40px;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                 color: var(--hl-text, #374151);
                 line-height: 1.6;
@@ -757,17 +761,17 @@ class HL_Instrument_Renderer {
             /* ── Branded Header ──────────────────────────────────── */
             .hl-ca-branded-header {
                 text-align: center;
-                margin-bottom: 28px;
-                padding-bottom: 24px;
+                margin-bottom: 20px;
+                padding-bottom: 18px;
                 border-bottom: 2px solid var(--hl-border-light, #F3F4F6);
             }
             .hl-ca-brand-logo {
                 display: block;
                 text-align: center;
-                margin-bottom: 16px;
+                margin-bottom: 12px;
             }
             .hl-ca-brand-img {
-                max-width: 220px;
+                max-width: 176px;
                 height: auto;
             }
             .hl-ca-title {
@@ -784,12 +788,12 @@ class HL_Instrument_Renderer {
 
             /* ── Teacher Info ────────────────────────────────────── */
             .hl-ca-teacher-info {
-                margin-bottom: 28px;
-                padding-bottom: 20px;
+                margin-bottom: 20px;
+                padding-bottom: 16px;
                 border-bottom: 1px solid var(--hl-border-light, #F3F4F6);
             }
             .hl-ca-info-row {
-                margin-bottom: 6px;
+                margin-bottom: 4px;
                 font-size: 15px;
             }
             .hl-ca-info-label {
@@ -803,24 +807,24 @@ class HL_Instrument_Renderer {
 
             /* ── Instructions ────────────────────────────────────── */
             .hl-ca-instructions {
-                margin-bottom: 24px;
+                margin-bottom: 18px;
             }
             .hl-ca-instructions h3 {
-                font-size: 18px;
+                font-size: 17px;
                 font-weight: 700;
                 color: var(--hl-text-heading, #1A2B47);
-                margin: 0 0 10px 0;
+                margin: 0 0 8px 0;
             }
             .hl-ca-instructions p {
                 font-size: 14px;
-                color: var(--hl-text-secondary, #6B7280);
+                color: #4B5563;
                 margin: 0;
                 line-height: 1.7;
             }
 
             /* ── Behavior Key Table ──────────────────────────────── */
             .hl-ca-behavior-key {
-                margin-bottom: 28px;
+                margin-bottom: 20px;
             }
             table.hl-ca-key-table {
                 width: 100%;
@@ -860,7 +864,7 @@ class HL_Instrument_Renderer {
             .hl-ca-key-freq {
                 display: block;
                 font-size: 12px;
-                color: var(--hl-text-muted, #9CA3AF);
+                color: #6B7280;
                 margin-top: 2px;
             }
             .hl-ca-key-desc-cell {
@@ -870,20 +874,20 @@ class HL_Instrument_Renderer {
 
             /* ── Question Section ────────────────────────────────── */
             .hl-ca-question-section {
-                margin-bottom: 24px;
+                margin-bottom: 18px;
             }
             .hl-ca-question-section h3 {
                 font-size: 16px;
                 font-weight: 700;
                 color: var(--hl-text-heading, #1A2B47);
-                margin: 0 0 8px 0;
+                margin: 0 0 6px 0;
             }
             .hl-ca-question-text {
                 font-size: 15px;
-                color: #92400E;
+                color: #1A2B47;
                 line-height: 1.6;
                 margin: 0;
-                font-style: italic;
+                font-weight: 600;
             }
 
             /* ── Matrix Table ────────────────────────────────────── */
@@ -902,7 +906,7 @@ class HL_Instrument_Renderer {
                 padding: 12px 16px;
                 font-weight: 600;
                 font-size: 13px;
-                color: var(--hl-text-secondary, #6B7280);
+                color: #374151;
                 text-align: center;
                 border-bottom: 2px solid var(--hl-border, #E5E7EB);
                 white-space: nowrap;
@@ -928,7 +932,7 @@ class HL_Instrument_Renderer {
                 display: block;
                 font-size: 12px;
                 font-weight: 400;
-                color: var(--hl-text-muted, #9CA3AF);
+                color: #6B7280;
                 margin-top: 1px;
             }
 
@@ -1028,7 +1032,7 @@ class HL_Instrument_Renderer {
                 gap: 12px;
                 justify-content: flex-start;
                 align-items: center;
-                padding: 20px 0 4px;
+                padding: 16px 0 4px;
                 border-top: 1px solid var(--hl-border-light, #F3F4F6);
             }
             .hl-ca-btn-draft {
@@ -1036,6 +1040,15 @@ class HL_Instrument_Renderer {
             }
             .hl-ca-btn-submit {
                 min-width: 170px;
+                background: var(--hl-primary, #1A2B47) !important;
+                color: #fff !important;
+                border-color: var(--hl-primary, #1A2B47) !important;
+            }
+            .hl-ca-btn-submit:hover {
+                background: var(--hl-primary-light, #2a3f5f) !important;
+                border-color: var(--hl-primary-light, #2a3f5f) !important;
+                transform: translateY(-1px);
+                box-shadow: 0 2px 8px rgba(26, 43, 71, 0.25);
             }
 
             /* ── Notice / Warning ────────────────────────────────── */
@@ -1096,7 +1109,7 @@ class HL_Instrument_Renderer {
                     font-size: 18px;
                 }
                 .hl-ca-brand-img {
-                    max-width: 180px;
+                    max-width: 140px;
                 }
                 table.hl-ca-key-table {
                     font-size: 13px;
