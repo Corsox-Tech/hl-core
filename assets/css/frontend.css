@@ -427,16 +427,20 @@ body:has(.hl-dashboard) h1.entry-title {
     border-radius: var(--hl-radius-xs);
 }
 
-.hl-btn-primary {
+a.hl-btn-primary,
+button.hl-btn-primary,
+.hl-btn.hl-btn-primary {
     background: var(--hl-primary);
-    color: var(--hl-surface);
+    color: #FFFFFF;
     border-color: var(--hl-primary);
 }
 
-.hl-btn-primary:hover {
+a.hl-btn-primary:hover,
+button.hl-btn-primary:hover,
+.hl-btn.hl-btn-primary:hover {
     background: var(--hl-primary-light);
     border-color: var(--hl-primary-light);
-    color: var(--hl-surface);
+    color: #FFFFFF;
     text-decoration: none;
     box-shadow: 0 2px 8px rgba(var(--hl-primary-rgb), 0.25);
     transform: translateY(-1px);
@@ -455,29 +459,37 @@ body:has(.hl-dashboard) h1.entry-title {
     text-decoration: none;
 }
 
-.hl-btn-success {
+a.hl-btn-success,
+button.hl-btn-success,
+.hl-btn.hl-btn-success {
     background: var(--hl-accent-dark);
-    color: var(--hl-surface);
+    color: #FFFFFF;
     border-color: var(--hl-accent-dark);
 }
 
-.hl-btn-success:hover {
+a.hl-btn-success:hover,
+button.hl-btn-success:hover,
+.hl-btn.hl-btn-success:hover {
     background: var(--hl-accent-darker);
     border-color: var(--hl-accent-darker);
-    color: var(--hl-surface);
+    color: #FFFFFF;
     text-decoration: none;
 }
 
-.hl-btn-danger {
+a.hl-btn-danger,
+button.hl-btn-danger,
+.hl-btn.hl-btn-danger {
     background: var(--hl-error);
-    color: var(--hl-surface);
+    color: #FFFFFF;
     border-color: var(--hl-error);
 }
 
-.hl-btn-danger:hover {
+a.hl-btn-danger:hover,
+button.hl-btn-danger:hover,
+.hl-btn.hl-btn-danger:hover {
     background: var(--hl-error-dark);
     border-color: var(--hl-error-dark);
-    color: var(--hl-surface);
+    color: #FFFFFF;
     text-decoration: none;
 }
 
