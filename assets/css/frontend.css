@@ -412,11 +412,13 @@ body:has(.hl-dashboard) h1.entry-title {
     font-size: 14px;
     font-weight: 600;
     text-decoration: none;
-    border: 2px solid transparent;
+    border: 2px solid var(--hl-border-medium);
     cursor: pointer;
     transition: var(--hl-transition);
     line-height: 1.4;
     gap: 6px;
+    background: var(--hl-surface);
+    color: var(--hl-primary);
 }
 
 .hl-btn-sm {

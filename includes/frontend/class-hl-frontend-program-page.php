@@ -159,12 +159,16 @@ class HL_Frontend_Program_Page {
             }
 
             // Resolve assessment instance status for status-aware buttons.
-            $assess_status = 'not_started';
+            $assess_status   = 'not_started';
+            $children_counts = null;
             $aid = (int) $activity->activity_id;
             if (isset($assessment_statuses['teacher'][$aid])) {
                 $assess_status = $assessment_statuses['teacher'][$aid];
             } elseif (isset($assessment_statuses['children'][$aid])) {
                 $assess_status = $assessment_statuses['children'][$aid];
+            }
+            if (isset($assessment_statuses['children_counts'][$aid])) {
+                $children_counts = $assessment_statuses['children_counts'][$aid];
             }
 
             $weight = max((float) $activity->weight, 0);
@@ -179,6 +183,7 @@ class HL_Frontend_Program_Page {
                 'completed_at'       => $completed_at,
                 'course_url'         => $course_url,
                 'assess_status'      => $assess_status,
+                'children_counts'    => $children_counts,
             );
         }
 
@@ -291,7 +296,13 @@ class HL_Frontend_Program_Page {
         $completed_at       = $ad['completed_at'];
         $course_url         = $ad['course_url'];
         $assess_status      = isset($ad['assess_status']) ? $ad['assess_status'] : 'not_started';
+        $children_counts    = isset($ad['children_counts']) ? $ad['children_counts'] : null;
         $avail_status       = $availability['availability_status'];
+
+        // For partial children assessment, compute completion percent from counts.
+        if ($assess_status === 'partial' && $children_counts && $children_counts['total'] > 0) {
+            $completion_percent = (int) round($children_counts['submitted'] / $children_counts['total'] * 100);
+        }
 
         // CSS classes.
         switch ($avail_status) {
@@ -360,7 +371,9 @@ class HL_Frontend_Program_Page {
                         <span class="hl-activity-lock-reason"><?php echo esc_html($this->get_lock_reason_text($availability)); ?></span>
                     <?php else : ?>
                         <span class="hl-activity-progress-text"><?php
-                            if ($assess_status === 'draft') {
+                            if ($assess_status === 'partial' && $children_counts) {
+                                printf(esc_html__('%d/%d Completed', 'hl-core'), $children_counts['submitted'], $children_counts['total']);
+                            } elseif ($assess_status === 'draft') {
                                 esc_html_e('Draft saved', 'hl-core');
                             } elseif ($assess_status === 'submitted') {
                                 esc_html_e('Submitted', 'hl-core');
@@ -485,6 +498,7 @@ class HL_Frontend_Program_Page {
             case 'submitted':
                 return __('View Responses', 'hl-core');
             case 'draft':
+            case 'partial':
                 return __('Continue Assessment', 'hl-core');
             default:
                 return __('Start Assessment', 'hl-core');
@@ -729,7 +743,7 @@ class HL_Frontend_Program_Page {
      */
     private function get_assessment_statuses($enrollment) {
         global $wpdb;
-        $result = array('teacher' => array(), 'children' => array());
+        $result = array('teacher' => array(), 'children' => array(), 'children_counts' => array());
 
         // Teacher self-assessment instances linked by activity_id.
         $teacher_rows = $wpdb->get_results($wpdb->prepare(
@@ -744,6 +758,7 @@ class HL_Frontend_Program_Page {
         }
 
         // Children assessment instances linked by activity_id.
+        // Group by activity_id to handle multiple instances per activity.
         $children_rows = $wpdb->get_results($wpdb->prepare(
             "SELECT activity_id, status
              FROM {$wpdb->prefix}hl_children_assessment_instance
@@ -751,8 +766,34 @@ class HL_Frontend_Program_Page {
             $enrollment->enrollment_id,
             $enrollment->cohort_id
         ), ARRAY_A);
+
+        $children_by_activity = array();
         foreach ($children_rows as $row) {
-            $result['children'][(int) $row['activity_id']] = $row['status'];
+            $aid = (int) $row['activity_id'];
+            if (!isset($children_by_activity[$aid])) {
+                $children_by_activity[$aid] = array();
+            }
+            $children_by_activity[$aid][] = $row['status'];
+        }
+
+        foreach ($children_by_activity as $aid => $statuses) {
+            $total       = count($statuses);
+            $submitted   = count(array_filter($statuses, function ($s) { return $s === 'submitted'; }));
+            $in_progress = count(array_filter($statuses, function ($s) { return $s === 'in_progress'; }));
+
+            $result['children_counts'][$aid] = array(
+                'total'       => $total,
+                'submitted'   => $submitted,
+                'in_progress' => $in_progress,
+            );
+
+            if ($submitted >= $total) {
+                $result['children'][$aid] = 'submitted';
+            } elseif ($submitted > 0 || $in_progress > 0) {
+                $result['children'][$aid] = 'partial';
+            } else {
+                $result['children'][$aid] = 'not_started';
+            }
         }
 
         return $result;

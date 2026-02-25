@@ -752,9 +752,17 @@ class HL_Frontend_Children_Assessment {
             </div>
 
             <p style="margin-top: 16px;">
-                <a href="<?php echo esc_url( remove_query_arg( 'instance_id' ) ); ?>" class="hl-btn">
-                    &larr; <?php esc_html_e( 'Back to Assessments', 'hl-core' ); ?>
-                </a>
+                <?php
+                $back_url = $this->build_program_back_url( $instance );
+                if ( $back_url ) : ?>
+                    <a href="<?php echo esc_url( $back_url ); ?>" class="hl-btn">
+                        &larr; <?php esc_html_e( 'Back to My Program', 'hl-core' ); ?>
+                    </a>
+                <?php else : ?>
+                    <a href="<?php echo esc_url( remove_query_arg( 'instance_id' ) ); ?>" class="hl-btn">
+                        &larr; <?php esc_html_e( 'Back to Assessments', 'hl-core' ); ?>
+                    </a>
+                <?php endif; ?>
             </p>
         </div>
         <?php
@@ -795,9 +803,17 @@ class HL_Frontend_Children_Assessment {
             ?>
 
             <p style="margin-top: 16px;">
-                <a href="<?php echo esc_url( remove_query_arg( 'instance_id' ) ); ?>" class="hl-btn">
-                    &larr; <?php esc_html_e( 'Back to Assessments', 'hl-core' ); ?>
-                </a>
+                <?php
+                $back_url = $this->build_program_back_url( $instance );
+                if ( $back_url ) : ?>
+                    <a href="<?php echo esc_url( $back_url ); ?>" class="hl-btn">
+                        &larr; <?php esc_html_e( 'Back to My Program', 'hl-core' ); ?>
+                    </a>
+                <?php else : ?>
+                    <a href="<?php echo esc_url( remove_query_arg( 'instance_id' ) ); ?>" class="hl-btn">
+                        &larr; <?php esc_html_e( 'Back to Assessments', 'hl-core' ); ?>
+                    </a>
+                <?php endif; ?>
             </p>
         </div>
         <?php
@@ -994,6 +1010,45 @@ class HL_Frontend_Children_Assessment {
      * @param string $date_string MySQL date or datetime string.
      * @return string Formatted date.
      */
+    private function find_shortcode_page_url( $shortcode ) {
+        global $wpdb;
+        $page_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s LIMIT 1",
+            '%[' . $wpdb->esc_like( $shortcode ) . '%'
+        ) );
+        return $page_id ? get_permalink( $page_id ) : '';
+    }
+
+    private function build_program_back_url( $instance ) {
+        global $wpdb;
+
+        $activity_id   = isset( $instance['activity_id'] ) ? absint( $instance['activity_id'] ) : 0;
+        $enrollment_id = isset( $instance['enrollment_id'] ) ? absint( $instance['enrollment_id'] ) : 0;
+
+        if ( ! $activity_id || ! $enrollment_id ) {
+            return '';
+        }
+
+        $pathway_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT pathway_id FROM {$wpdb->prefix}hl_activity WHERE activity_id = %d",
+            $activity_id
+        ) );
+
+        if ( ! $pathway_id ) {
+            return '';
+        }
+
+        $program_url = $this->find_shortcode_page_url( 'hl_program_page' );
+        if ( empty( $program_url ) ) {
+            return '';
+        }
+
+        return add_query_arg( array(
+            'id'         => $pathway_id,
+            'enrollment' => $enrollment_id,
+        ), $program_url );
+    }
+
     private function format_date( $date_string ) {
         if ( empty( $date_string ) ) {
             return '';

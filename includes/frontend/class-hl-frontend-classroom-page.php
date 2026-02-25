@@ -76,14 +76,21 @@ class HL_Frontend_Classroom_Page {
         // Children.
         $children = $this->classroom_service->get_children_in_classroom( $classroom_id );
 
-        // Breadcrumb URL.
-        $back_url = $this->build_back_url();
+        // Breadcrumb URL — control group teachers go to My Programs instead of My Cohort.
+        $is_control = $this->is_control_group_classroom( $user_id, $classroom_id );
+        if ( $is_control ) {
+            $back_url   = $this->find_shortcode_page_url( 'hl_my_programs' );
+            $back_label = __( 'Back to My Programs', 'hl-core' );
+        } else {
+            $back_url   = $this->build_back_url();
+            $back_label = __( 'Back to My Cohort', 'hl-core' );
+        }
 
         ?>
         <div class="hl-dashboard hl-classroom-page hl-frontend-wrap">
 
             <?php if ( ! empty( $back_url ) ) : ?>
-                <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr; <?php esc_html_e( 'Back to My Cohort', 'hl-core' ); ?></a>
+                <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr; <?php echo esc_html( $back_label ); ?></a>
             <?php endif; ?>
 
             <?php $this->render_header( $classroom, $center, $teacher_names ); ?>
@@ -285,6 +292,24 @@ class HL_Frontend_Classroom_Page {
             }
         }
         return '—';
+    }
+
+    private function is_control_group_classroom( $user_id, $classroom_id ) {
+        global $wpdb;
+
+        // Check if the user's teaching assignment for this classroom belongs to a control group cohort.
+        $is_control = $wpdb->get_var( $wpdb->prepare(
+            "SELECT c.is_control_group
+             FROM {$wpdb->prefix}hl_teaching_assignment ta
+             JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
+             JOIN {$wpdb->prefix}hl_cohort c ON e.cohort_id = c.cohort_id
+             WHERE ta.classroom_id = %d AND e.user_id = %d AND e.status = 'active'
+             LIMIT 1",
+            $classroom_id,
+            $user_id
+        ) );
+
+        return ! empty( $is_control );
     }
 
     private function build_back_url() {

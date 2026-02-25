@@ -337,13 +337,13 @@ _For program evaluation research design — comparing program vs control cohort 
 
 - [x] **21.13 Teacher Self-Assessment Submit Fix** — Fixed submit button doing nothing after confirm dialog. Root cause: paginated form sections use `display:none` for inactive steps, and `setValidation(true)` added HTML5 `required` attributes to radio inputs in hidden sections — browser native validation silently blocked submission because it can't show tooltips on hidden elements. Fix: replaced native HTML5 validation with custom JS validation that checks all radio groups across all sections, navigates to the first section with missing answers, highlights the unanswered row, and shows a clear error message. Restructured pagination JS to hoist `goToStep()` so the submit handler can call it.
 
-- [~] **21.14 Frontend Polish Batch (6 Fixes)** — PLANNED, not yet implemented. Six fixes:
-  (1) Change "Back to Assessments/Self-Assessments" links to "Back to My Program" with correct program page URL in both `class-hl-frontend-children-assessment.php` and `class-hl-frontend-teacher-assessment.php`.
-  (2) Multi-instance children assessment progress: aggregate instance statuses per activity_id in `get_assessment_statuses()` (`class-hl-frontend-program-page.php`), show "X/Y Completed" + partial progress bar + "Continue Assessment" button when only some instances are submitted.
-  (3) Hide "My Coaching" menu item for control-group-only teachers in `class-hl-buddyboss-integration.php` — add `is_control_group_only()` check.
-  (4) Classroom page: change "Back to My Cohort" to "Back to My Programs" for control group teachers in `class-hl-frontend-classroom-page.php`.
-  (5) Fix BuddyBoss sidebar menu spacing — update `render_custom_css()` to target outer `<li>` padding and section heading style.
-  (6) Hide "My Coach" widget for control group teachers in `class-hl-frontend-my-programs.php`; fix `.hl-btn` base class in `frontend.css` to have visible default colors.
+- [x] **21.14 Frontend Polish Batch (6 Fixes)** — All 6 fixes implemented:
+  (1) "Back to My Program" links in children + teacher assessment pages — added `find_shortcode_page_url()` + `build_program_back_url()` helpers, links back to program page with `?id=&enrollment=` params, fallback to original behavior if URL can't be built.
+  (2) Multi-instance children assessment progress — rewrote `get_assessment_statuses()` to group by `activity_id`, added `partial` status + `children_counts` array, card shows "X/Y Completed" text, progress bar fills proportionally, "Continue Assessment" button.
+  (3) Hidden "My Coaching" for control group — added `is_control_group_only()` to BuddyBoss integration, visibility = `$has_enrollment && !$is_control_only`.
+  (4) Classroom breadcrumb for control group — added `is_control_group_classroom()` check, shows "Back to My Programs" → `hl_my_programs` page for control group teachers.
+  (5) BuddyBoss sidebar spacing — added CSS for `.hl-core-menu-item` + `.hl-buddypanel-section` margin/padding reset and section heading styling.
+  (6) Hidden "My Coach" widget for control group in My Programs page; fixed `.hl-btn` base class with `background: var(--hl-surface)`, `color: var(--hl-primary)`, `border-color: var(--hl-border-medium)`.
 
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.

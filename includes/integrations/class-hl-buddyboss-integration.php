@@ -135,11 +135,31 @@ class HL_BuddyBoss_Integration {
                 vertical-align: middle !important;
             }
 
+            /* Outer li matches native BB item spacing */
+            .buddypanel-menu .hl-core-menu-item {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
             /* Reduced vertical padding to match native BB items */
             .buddypanel-menu .hl-core-menu-item > a {
                 padding-top: 4px !important;
                 padding-bottom: 4px !important;
                 line-height: 1.4 !important;
+            }
+
+            /* Section heading: match native BB section style */
+            .buddypanel-menu .hl-buddypanel-section {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .buddypanel-menu .hl-buddypanel-section > a {
+                padding: 15px 20px 5px !important;
+                font-size: 11px !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.5px !important;
+                opacity: 0.5 !important;
+                pointer-events: none !important;
             }
 
             /* Profile dropdown dashicon spacing */
@@ -482,7 +502,8 @@ class HL_BuddyBoss_Integration {
             return $cached;
         }
 
-        $cached = $this->build_menu_items($roles, $is_staff, $has_enrollment);
+        $is_control_only = $has_enrollment ? $this->is_control_group_only($user_id) : false;
+        $cached = $this->build_menu_items($roles, $is_staff, $has_enrollment, $is_control_only);
         return $cached;
     }
 
@@ -512,7 +533,7 @@ class HL_BuddyBoss_Integration {
      * @param bool     $has_enrollment Whether user has any active HL enrollment.
      * @return array<int, array{slug: string, label: string, url: string, icon: string}>
      */
-    private function build_menu_items(array $roles, bool $is_staff, bool $has_enrollment) {
+    private function build_menu_items(array $roles, bool $is_staff, bool $has_enrollment, bool $is_control_only = false) {
         $is_leader  = in_array('center_leader', $roles, true)
                    || in_array('district_leader', $roles, true);
         $is_mentor  = in_array('mentor', $roles, true);
@@ -523,7 +544,7 @@ class HL_BuddyBoss_Integration {
         $menu_def = array(
             // --- Personal (require active enrollment) ---
             array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment),
-            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $has_enrollment),
+            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $has_enrollment && !$is_control_only),
             array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor),
             array('my-cohort',      'hl_my_cohort',            __('My Cohort', 'hl-core'),      'dashicons-networking',           $is_leader || $is_mentor),
             // --- Directories / Management ---
@@ -606,6 +627,40 @@ class HL_BuddyBoss_Integration {
         self::$role_cache[$user_id] = $result;
 
         return $result;
+    }
+
+    // =========================================================================
+    // Control Group Detection
+    // =========================================================================
+
+    /**
+     * Check if all of a user's active enrollments belong to control group cohorts.
+     *
+     * @param int $user_id
+     * @return bool True if the user has enrollments AND all are control group.
+     */
+    private function is_control_group_only($user_id) {
+        global $wpdb;
+
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT c.is_control_group
+             FROM {$wpdb->prefix}hl_enrollment e
+             JOIN {$wpdb->prefix}hl_cohort c ON e.cohort_id = c.cohort_id
+             WHERE e.user_id = %d AND e.status = 'active'",
+            $user_id
+        ), ARRAY_A);
+
+        if (empty($rows)) {
+            return false;
+        }
+
+        foreach ($rows as $row) {
+            if (empty($row['is_control_group'])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // =========================================================================

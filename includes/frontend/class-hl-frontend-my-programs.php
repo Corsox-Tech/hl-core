@@ -150,9 +150,18 @@ class HL_Frontend_My_Programs {
             } // end foreach assigned_pathways
         }
 
+        // Check if all enrollments are control group — if so, skip coach widget.
+        $all_control = !empty($cards);
+        foreach ($cards as $card) {
+            if (empty($card['cohort']->is_control_group)) {
+                $all_control = false;
+                break;
+            }
+        }
+
         // Resolve coach for the first enrollment (shows one coach card).
         $coach = null;
-        if (!empty($enrollments)) {
+        if (!$all_control && !empty($enrollments)) {
             $coach_service = new HL_Coach_Assignment_Service();
             foreach ($enrollments as $e) {
                 $coach = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->cohort_id);
@@ -165,7 +174,9 @@ class HL_Frontend_My_Programs {
         <div class="hl-dashboard hl-my-programs">
             <h2><?php esc_html_e('My Programs', 'hl-core'); ?></h2>
 
-            <?php $this->render_coach_widget($coach); ?>
+            <?php if (!$all_control) : ?>
+                <?php $this->render_coach_widget($coach); ?>
+            <?php endif; ?>
 
             <?php if (empty($cards)) : ?>
                 <div class="hl-empty-state">
