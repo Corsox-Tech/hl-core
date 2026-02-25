@@ -1213,6 +1213,11 @@ class HL_CLI_Seed_Palm_Beach {
 	// ------------------------------------------------------------------
 
 	private function seed_teaching_assignments( $enrollments, $classrooms ) {
+		// Suppress auto-generation of children assessment instances during seeding.
+		// The seeder creates instances explicitly with proper activity_id, phase,
+		// and instrument_id values.
+		remove_all_actions( 'hl_core_teaching_assignment_changed' );
+
 		$svc   = new HL_Classroom_Service();
 		$count = 0;
 

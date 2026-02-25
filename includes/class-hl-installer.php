@@ -72,6 +72,9 @@ class HL_Installer {
         // Add activity_id, phase, responses_json columns to hl_children_assessment_instance.
         self::migrate_children_assessment_add_fields();
 
+        // Fix unique key on children_assessment_instance (include phase) and instrument_type enum→varchar.
+        self::migrate_children_assessment_fix_keys();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -94,7 +97,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 8;
+        $current_revision = 9;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -506,6 +509,58 @@ class HL_Installer {
     }
 
     /**
+     * Fix the unique key on hl_children_assessment_instance to include phase
+     * (so both PRE and POST instances can exist per enrollment+classroom).
+     * Also change hl_instrument.instrument_type from enum to varchar(50).
+     */
+    private static function migrate_children_assessment_fix_keys() {
+        global $wpdb;
+
+        // 1. Fix unique key on children_assessment_instance.
+        $cai_table = "{$wpdb->prefix}hl_children_assessment_instance";
+        $table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $cai_table ) ) === $cai_table;
+
+        if ( $table_exists ) {
+            // Drop old unique key (without phase) if it exists.
+            $old_key = $wpdb->get_var( $wpdb->prepare(
+                "SELECT INDEX_NAME FROM information_schema.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = 'cohort_enrollment_classroom'
+                 LIMIT 1",
+                $cai_table
+            ) );
+            if ( $old_key ) {
+                $wpdb->query( "ALTER TABLE `{$cai_table}` DROP INDEX `cohort_enrollment_classroom`" );
+            }
+
+            // Add new unique key (with phase) if it doesn't exist.
+            $new_key = $wpdb->get_var( $wpdb->prepare(
+                "SELECT INDEX_NAME FROM information_schema.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = 'cohort_enrollment_classroom_phase'
+                 LIMIT 1",
+                $cai_table
+            ) );
+            if ( ! $new_key ) {
+                $wpdb->query( "ALTER TABLE `{$cai_table}` ADD UNIQUE KEY `cohort_enrollment_classroom_phase` (`cohort_id`, `enrollment_id`, `classroom_id`, `phase`)" );
+            }
+        }
+
+        // 2. Change instrument_type from enum to varchar(50).
+        $inst_table = "{$wpdb->prefix}hl_instrument";
+        $inst_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $inst_table ) ) === $inst_table;
+
+        if ( $inst_exists ) {
+            $col_type = $wpdb->get_var( $wpdb->prepare(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = 'instrument_type'",
+                $inst_table
+            ) );
+            if ( $col_type && strpos( $col_type, 'enum' ) !== false ) {
+                $wpdb->query( "ALTER TABLE `{$inst_table}` MODIFY COLUMN `instrument_type` varchar(50) NOT NULL" );
+            }
+        }
+    }
+
+    /**
      * Add activity_id and started_at columns to hl_teacher_assessment_instance.
      */
     private static function migrate_teacher_assessment_add_activity_id() {
@@ -896,7 +951,7 @@ class HL_Installer {
             instrument_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             instrument_uuid char(36) NOT NULL,
             name varchar(255) NOT NULL,
-            instrument_type enum('children_infant','children_toddler','children_preschool') NOT NULL,
+            instrument_type varchar(50) NOT NULL,
             version varchar(20) NOT NULL DEFAULT '1.0',
             questions longtext NOT NULL COMMENT 'JSON array of question objects',
             effective_from date NULL,
@@ -971,7 +1026,7 @@ class HL_Installer {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (instance_id),
             UNIQUE KEY instance_uuid (instance_uuid),
-            KEY cohort_id (cohort_id),
+            UNIQUE KEY cohort_enrollment_classroom_phase (cohort_id, enrollment_id, classroom_id, phase),
             KEY enrollment_id (enrollment_id),
             KEY activity_id (activity_id),
             KEY classroom_id (classroom_id),

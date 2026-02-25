@@ -761,6 +761,9 @@ class HL_CLI_Seed_Demo {
      * @param array $classrooms  Classroom data.
      */
     private function seed_teaching_assignments( $enrollments, $classrooms ) {
+        // Suppress auto-generation of children assessment instances during seeding.
+        remove_all_actions( 'hl_core_teaching_assignment_changed' );
+
         $svc   = new HL_Classroom_Service();
         $count = 0;
 
