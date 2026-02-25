@@ -784,30 +784,31 @@ class HL_Teacher_Assessment_Renderer {
 
             if (!form || !hiddenField || !draftBtn || !submitBtn) return;
 
-            function setValidation(enable) {
-                hiddenField.value = enable ? '1' : '0';
+            /**
+             * Custom validation for paginated forms.
+             * Native HTML5 required validation silently fails on hidden (display:none) sections,
+             * so we check manually and navigate to the first section with missing answers.
+             */
+            function findMissingRequiredGroups() {
                 var radios = form.querySelectorAll('input[type="radio"][data-hl-required="1"]');
-
-                // Group radios by name; set required on each group
                 var groups = {};
                 radios.forEach(function(r) {
                     if (!groups[r.name]) groups[r.name] = [];
                     groups[r.name].push(r);
                 });
 
+                var missing = [];
                 Object.keys(groups).forEach(function(name) {
-                    groups[name].forEach(function(r) {
-                        if (enable) {
-                            r.setAttribute('required', 'required');
-                        } else {
-                            r.removeAttribute('required');
-                        }
-                    });
+                    var answered = groups[name].some(function(r) { return r.checked; });
+                    if (!answered) {
+                        missing.push(groups[name][0]); // first radio of the unanswered group
+                    }
                 });
+                return missing;
             }
 
             draftBtn.addEventListener('click', function() {
-                setValidation(false);
+                hiddenField.value = '0';
             });
 
             submitBtn.addEventListener('click', function(e) {
@@ -815,23 +816,47 @@ class HL_Teacher_Assessment_Renderer {
                     e.preventDefault();
                     return;
                 }
-                setValidation(true);
+
+                hiddenField.value = '1';
+
+                // Custom validation — check all required groups including hidden sections
+                var missing = findMissingRequiredGroups();
+                if (missing.length > 0) {
+                    e.preventDefault();
+
+                    // If paginated, navigate to the section containing the first missing answer
+                    var firstMissing = missing[0];
+                    var section = firstMissing.closest('.hl-tsa-section[data-step]');
+                    if (section && typeof goToStep === 'function') {
+                        var step = parseInt(section.getAttribute('data-step'), 10);
+                        goToStep(step);
+                    }
+
+                    // Highlight the missing row
+                    var row = firstMissing.closest('tr');
+                    if (row) {
+                        row.style.outline = '2px solid #EF4444';
+                        row.style.outlineOffset = '-2px';
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        setTimeout(function() {
+                            row.style.outline = '';
+                            row.style.outlineOffset = '';
+                        }, 3000);
+                    }
+
+                    alert('<?php echo esc_js( __( 'Please answer all questions before submitting. Unanswered questions are highlighted.', 'hl-core' ) ); ?>');
+                    return;
+                }
+
+                // All answered — submit the form
             });
 
             // ── Pagination ──────────────────────────────────────
-            if (!form.classList.contains('hl-tsa-form--paginated')) return;
-
-            var pSections   = form.querySelectorAll('.hl-tsa-section[data-step]');
-            var pSteps      = form.querySelectorAll('.hl-tsa-step');
-            var pActions    = form.querySelector('.hl-tsa-actions');
-            var pStepLabel  = form.querySelector('.hl-tsa-step-current');
-            var totalSteps  = pSections.length;
-            var currentStep = 0;
-
-            if (totalSteps <= 1) return;
+            var isPaginated = form.classList.contains('hl-tsa-form--paginated');
+            var pSections, pSteps, pActions, pStepLabel, totalSteps, currentStep;
 
             function goToStep(step) {
-                if (step < 0 || step >= totalSteps) return;
+                if (!isPaginated || !pSections || step < 0 || step >= totalSteps) return;
 
                 pSections.forEach(function(s) { s.classList.remove('hl-tsa-section--active'); });
                 pSections[step].classList.add('hl-tsa-section--active');
@@ -856,24 +881,35 @@ class HL_Teacher_Assessment_Renderer {
                 form.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
-            form.addEventListener('click', function(e) {
-                var target = e.target;
-                if (target.classList.contains('hl-tsa-btn-next')) {
-                    e.preventDefault();
-                    goToStep(currentStep + 1);
-                } else if (target.classList.contains('hl-tsa-btn-prev')) {
-                    e.preventDefault();
-                    goToStep(currentStep - 1);
+            if (isPaginated) {
+                pSections   = form.querySelectorAll('.hl-tsa-section[data-step]');
+                pSteps      = form.querySelectorAll('.hl-tsa-step');
+                pActions    = form.querySelector('.hl-tsa-actions');
+                pStepLabel  = form.querySelector('.hl-tsa-step-current');
+                totalSteps  = pSections.length;
+                currentStep = 0;
+
+                if (totalSteps > 1) {
+                    form.addEventListener('click', function(e) {
+                        var target = e.target;
+                        if (target.classList.contains('hl-tsa-btn-next')) {
+                            e.preventDefault();
+                            goToStep(currentStep + 1);
+                        } else if (target.classList.contains('hl-tsa-btn-prev')) {
+                            e.preventDefault();
+                            goToStep(currentStep - 1);
+                        }
+                    });
+
+                    pSteps.forEach(function(stepEl) {
+                        stepEl.addEventListener('click', function() {
+                            goToStep(parseInt(stepEl.getAttribute('data-step'), 10));
+                        });
+                    });
+
+                    goToStep(0);
                 }
-            });
-
-            pSteps.forEach(function(stepEl) {
-                stepEl.addEventListener('click', function() {
-                    goToStep(parseInt(stepEl.getAttribute('data-step'), 10));
-                });
-            });
-
-            goToStep(0);
+            }
         })();
         </script>
         <?php
