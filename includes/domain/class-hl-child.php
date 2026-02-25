@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 class HL_Child {
     public $child_id;
     public $child_uuid;
-    public $center_id;
+    public $school_id;
     public $first_name;
     public $last_name;
     public $dob;

@@ -8,7 +8,7 @@ class HL_Enrollment {
     public $user_id;
     public $roles;
     public $assigned_pathway_id;
-    public $center_id;
+    public $school_id;
     public $district_id;
     public $status;
     public $enrolled_at;

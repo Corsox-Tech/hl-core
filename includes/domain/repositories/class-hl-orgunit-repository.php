@@ -31,20 +31,25 @@ class HL_OrgUnit_Repository {
         return $this->get_all('district');
     }
 
-    public function get_centers($district_id = null) {
+    public function get_schools($district_id = null) {
         global $wpdb;
         if ($district_id) {
             $rows = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$this->table()} WHERE orgunit_type = 'center' AND parent_orgunit_id = %d ORDER BY name ASC",
+                "SELECT * FROM {$this->table()} WHERE orgunit_type = 'school' AND parent_orgunit_id = %d ORDER BY name ASC",
                 $district_id
             ), ARRAY_A);
         } else {
             $rows = $wpdb->get_results(
-                "SELECT * FROM {$this->table()} WHERE orgunit_type = 'center' ORDER BY name ASC",
+                "SELECT * FROM {$this->table()} WHERE orgunit_type = 'school' ORDER BY name ASC",
                 ARRAY_A
             );
         }
         return array_map(function($row) { return new HL_OrgUnit($row); }, $rows ?: array());
+    }
+
+    /** @deprecated Use get_schools() instead. */
+    public function get_centers($district_id = null) {
+        return $this->get_schools($district_id);
     }
 
     public function create($data) {

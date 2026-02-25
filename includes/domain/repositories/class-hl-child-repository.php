@@ -8,12 +8,12 @@ class HL_Child_Repository {
         return $wpdb->prefix . 'hl_child';
     }
 
-    public function get_all($center_id = null) {
+    public function get_all($school_id = null) {
         global $wpdb;
-        if ($center_id) {
+        if ($school_id) {
             $rows = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$this->table()} WHERE center_id = %d ORDER BY last_name ASC, first_name ASC",
-                $center_id
+                "SELECT * FROM {$this->table()} WHERE school_id = %d ORDER BY last_name ASC, first_name ASC",
+                $school_id
             ), ARRAY_A);
         } else {
             $rows = $wpdb->get_results(
@@ -40,8 +40,8 @@ class HL_Child_Repository {
         if (empty($data['child_fingerprint'])) {
             $data['child_fingerprint'] = self::compute_fingerprint($data);
         }
-        if (empty($data['child_display_code']) && !empty($data['center_id'])) {
-            $data['child_display_code'] = 'C-' . $data['center_id'] . '-' . substr($data['child_uuid'], 0, 8);
+        if (empty($data['child_display_code']) && !empty($data['school_id'])) {
+            $data['child_display_code'] = 'C-' . $data['school_id'] . '-' . substr($data['child_uuid'], 0, 8);
         }
         $wpdb->insert($this->table(), $data);
         return $wpdb->insert_id;
@@ -60,7 +60,7 @@ class HL_Child_Repository {
 
     public static function compute_fingerprint($data) {
         $parts = array();
-        $parts[] = isset($data['center_id']) ? $data['center_id'] : '';
+        $parts[] = isset($data['school_id']) ? $data['school_id'] : '';
         $parts[] = isset($data['dob']) ? $data['dob'] : '';
         $parts[] = isset($data['internal_child_id']) ? HL_Normalization::normalize_string($data['internal_child_id']) : '';
         $parts[] = isset($data['first_name']) ? HL_Normalization::normalize_string($data['first_name']) : '';
@@ -68,11 +68,11 @@ class HL_Child_Repository {
         return hash('sha256', implode('|', $parts));
     }
 
-    public function find_by_fingerprint($fingerprint, $center_id) {
+    public function find_by_fingerprint($fingerprint, $school_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$this->table()} WHERE child_fingerprint = %s AND center_id = %d",
-            $fingerprint, $center_id
+            "SELECT * FROM {$this->table()} WHERE child_fingerprint = %s AND school_id = %d",
+            $fingerprint, $school_id
         ), ARRAY_A) ?: array();
     }
 }

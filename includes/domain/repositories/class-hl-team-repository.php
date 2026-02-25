@@ -23,9 +23,9 @@ class HL_Team_Repository {
             $where[] = 'cohort_id = %d';
             $values[] = $filters['cohort_id'];
         }
-        if (!empty($filters['center_id'])) {
-            $where[] = 'center_id = %d';
-            $values[] = $filters['center_id'];
+        if (!empty($filters['school_id'])) {
+            $where[] = 'school_id = %d';
+            $values[] = $filters['school_id'];
         }
 
         if ($where) {

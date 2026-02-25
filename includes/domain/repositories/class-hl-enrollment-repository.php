@@ -19,9 +19,9 @@ class HL_Enrollment_Repository {
             $where[] = 'e.cohort_id = %d';
             $values[] = $filters['cohort_id'];
         }
-        if (!empty($filters['center_id'])) {
-            $where[] = 'e.center_id = %d';
-            $values[] = $filters['center_id'];
+        if (!empty($filters['school_id'])) {
+            $where[] = 'e.school_id = %d';
+            $values[] = $filters['school_id'];
         }
         if (!empty($filters['status'])) {
             $where[] = 'e.status = %s';

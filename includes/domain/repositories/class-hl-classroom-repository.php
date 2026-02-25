@@ -8,12 +8,12 @@ class HL_Classroom_Repository {
         return $wpdb->prefix . 'hl_classroom';
     }
 
-    public function get_all($center_id = null) {
+    public function get_all($school_id = null) {
         global $wpdb;
-        if ($center_id) {
+        if ($school_id) {
             $rows = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$this->table()} WHERE center_id = %d ORDER BY classroom_name ASC",
-                $center_id
+                "SELECT * FROM {$this->table()} WHERE school_id = %d ORDER BY classroom_name ASC",
+                $school_id
             ), ARRAY_A);
         } else {
             $rows = $wpdb->get_results(

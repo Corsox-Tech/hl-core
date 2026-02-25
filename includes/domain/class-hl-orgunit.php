@@ -25,8 +25,8 @@ class HL_OrgUnit {
         return $this->orgunit_type === 'district';
     }
 
-    public function is_center() {
-        return $this->orgunit_type === 'center';
+    public function is_school() {
+        return $this->orgunit_type === 'school';
     }
 
     public function to_array() {
