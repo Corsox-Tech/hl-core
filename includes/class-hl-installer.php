@@ -75,6 +75,9 @@ class HL_Installer {
         // Fix unique key on children_assessment_instance (include phase) and instrument_type enum→varchar.
         self::migrate_children_assessment_fix_keys();
 
+        // Phase 22A: Rename center → school across all tables.
+        self::migrate_center_to_school();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -97,7 +100,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 9;
+        $current_revision = 10;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -590,6 +593,115 @@ class HL_Installer {
     }
 
     /**
+     * Phase 22A: Rename "center" to "school" across all tables.
+     *
+     * 1. Rename table hl_cohort_center → hl_cohort_school
+     * 2. Rename center_id → school_id in: hl_cohort_school, hl_enrollment,
+     *    hl_team, hl_classroom, hl_child, hl_observation, hl_children_assessment_instance
+     * 3. Update hl_orgunit.orgunit_type enum: 'center' → 'school'
+     * 4. Update hl_coach_assignment.scope_type enum: 'center' → 'school'
+     *
+     * All operations are idempotent — safe to run multiple times.
+     */
+    private static function migrate_center_to_school() {
+        global $wpdb;
+
+        $prefix = $wpdb->prefix;
+
+        // Helper: check if a table exists.
+        $table_exists = function ( $name ) use ( $wpdb ) {
+            return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $name ) ) === $name;
+        };
+
+        // Helper: check if a column exists on a table.
+        $column_exists = function ( $table, $column ) use ( $wpdb ) {
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                    $table,
+                    $column
+                )
+            );
+            return ! empty( $row );
+        };
+
+        // Helper: check if an index exists on a table.
+        $index_exists = function ( $table, $index_name ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_var( $wpdb->prepare(
+                "SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s LIMIT 1",
+                $table,
+                $index_name
+            ) ) );
+        };
+
+        // ─── 1. Rename table hl_cohort_center → hl_cohort_school ────────
+        $old_table = "{$prefix}hl_cohort_center";
+        $new_table = "{$prefix}hl_cohort_school";
+
+        if ( $table_exists( $old_table ) && ! $table_exists( $new_table ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_table}` TO `{$new_table}`" );
+        }
+
+        // Rename center_id → school_id inside hl_cohort_school.
+        if ( $table_exists( $new_table ) && $column_exists( $new_table, 'center_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$new_table}` CHANGE `center_id` `school_id` bigint(20) unsigned NOT NULL" );
+            // Drop old indexes — dbDelta will recreate with correct names.
+            if ( $index_exists( $new_table, 'cohort_center' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_table}` DROP INDEX `cohort_center`" );
+            }
+            if ( $index_exists( $new_table, 'center_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_table}` DROP INDEX `center_id`" );
+            }
+        }
+
+        // ─── 2. Rename center_id → school_id in other tables ────────────
+        $tables_with_center_id = array(
+            "{$prefix}hl_enrollment"                   => 'NULL',
+            "{$prefix}hl_team"                         => 'NOT NULL',
+            "{$prefix}hl_classroom"                    => 'NOT NULL',
+            "{$prefix}hl_child"                        => 'NOT NULL',
+            "{$prefix}hl_observation"                  => 'NULL',
+            "{$prefix}hl_children_assessment_instance" => 'NULL',
+        );
+
+        foreach ( $tables_with_center_id as $table => $nullable ) {
+            if ( $table_exists( $table ) && $column_exists( $table, 'center_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$table}` CHANGE `center_id` `school_id` bigint(20) unsigned {$nullable}" );
+                // Drop old index — dbDelta will recreate.
+                if ( $index_exists( $table, 'center_id' ) ) {
+                    $wpdb->query( "ALTER TABLE `{$table}` DROP INDEX `center_id`" );
+                }
+            }
+        }
+
+        // Drop old composite unique key center_classroom on hl_classroom — dbDelta will recreate as school_classroom.
+        $classroom_table = "{$prefix}hl_classroom";
+        if ( $table_exists( $classroom_table ) && $index_exists( $classroom_table, 'center_classroom' ) ) {
+            $wpdb->query( "ALTER TABLE `{$classroom_table}` DROP INDEX `center_classroom`" );
+        }
+
+        // ─── 3. Update hl_orgunit.orgunit_type enum: 'center' → 'school' ─
+        $orgunit_table = "{$prefix}hl_orgunit";
+        if ( $table_exists( $orgunit_table ) ) {
+            // First update data, then alter the enum.
+            $wpdb->query( "UPDATE `{$orgunit_table}` SET orgunit_type = 'school' WHERE orgunit_type = 'center'" );
+            // Alter enum to include 'school' and remove 'center'.
+            $wpdb->query( "ALTER TABLE `{$orgunit_table}` MODIFY COLUMN orgunit_type enum('district','school') NOT NULL" );
+        }
+
+        // ─── 4. Update hl_coach_assignment.scope_type: 'center' → 'school' ─
+        $ca_table = "{$prefix}hl_coach_assignment";
+        if ( $table_exists( $ca_table ) && $column_exists( $ca_table, 'scope_type' ) ) {
+            // Temporarily expand enum to include both values.
+            $wpdb->query( "ALTER TABLE `{$ca_table}` MODIFY COLUMN scope_type enum('center','school','team','enrollment') NOT NULL" );
+            // Update data.
+            $wpdb->query( "UPDATE `{$ca_table}` SET scope_type = 'school' WHERE scope_type = 'center'" );
+            // Shrink enum to final values.
+            $wpdb->query( "ALTER TABLE `{$ca_table}` MODIFY COLUMN scope_type enum('school','team','enrollment') NOT NULL" );
+        }
+    }
+
+    /**
      * Get database schema
      */
     private static function get_schema() {
@@ -603,7 +715,7 @@ class HL_Installer {
             orgunit_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             orgunit_uuid char(36) NOT NULL,
             orgunit_code varchar(100) NOT NULL,
-            orgunit_type enum('district','center') NOT NULL,
+            orgunit_type enum('district','school') NOT NULL,
             parent_orgunit_id bigint(20) unsigned NULL,
             name varchar(255) NOT NULL,
             status enum('active','inactive','archived') DEFAULT 'active',
@@ -643,16 +755,16 @@ class HL_Installer {
             KEY start_date (start_date)
         ) $charset_collate;";
         
-        // Cohort-Center association
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_cohort_center (
+        // Cohort-School association
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_cohort_school (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             cohort_id bigint(20) unsigned NOT NULL,
-            center_id bigint(20) unsigned NOT NULL,
+            school_id bigint(20) unsigned NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            UNIQUE KEY cohort_center (cohort_id, center_id),
+            UNIQUE KEY cohort_school (cohort_id, school_id),
             KEY cohort_id (cohort_id),
-            KEY center_id (center_id)
+            KEY school_id (school_id)
         ) $charset_collate;";
         
         // Enrollment table
@@ -663,7 +775,7 @@ class HL_Installer {
             user_id bigint(20) unsigned NOT NULL,
             roles text NOT NULL COMMENT 'JSON array of cohort roles',
             assigned_pathway_id bigint(20) unsigned NULL,
-            center_id bigint(20) unsigned NULL,
+            school_id bigint(20) unsigned NULL,
             district_id bigint(20) unsigned NULL,
             status enum('active','inactive') DEFAULT 'active',
             enrolled_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -674,7 +786,7 @@ class HL_Installer {
             UNIQUE KEY cohort_user (cohort_id, user_id),
             KEY cohort_id (cohort_id),
             KEY user_id (user_id),
-            KEY center_id (center_id),
+            KEY school_id (school_id),
             KEY district_id (district_id),
             KEY status (status)
         ) $charset_collate;";
@@ -684,7 +796,7 @@ class HL_Installer {
             team_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             team_uuid char(36) NOT NULL,
             cohort_id bigint(20) unsigned NOT NULL,
-            center_id bigint(20) unsigned NOT NULL,
+            school_id bigint(20) unsigned NOT NULL,
             team_name varchar(255) NOT NULL,
             status enum('active','inactive') DEFAULT 'active',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -692,7 +804,7 @@ class HL_Installer {
             PRIMARY KEY (team_id),
             UNIQUE KEY team_uuid (team_uuid),
             KEY cohort_id (cohort_id),
-            KEY center_id (center_id),
+            KEY school_id (school_id),
             KEY status (status)
         ) $charset_collate;";
         
@@ -700,7 +812,7 @@ class HL_Installer {
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_classroom (
             classroom_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             classroom_uuid char(36) NOT NULL,
-            center_id bigint(20) unsigned NOT NULL,
+            school_id bigint(20) unsigned NOT NULL,
             classroom_name varchar(255) NOT NULL,
             age_band enum('infant','toddler','preschool','mixed') NULL,
             status enum('active','inactive') DEFAULT 'active',
@@ -708,9 +820,9 @@ class HL_Installer {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (classroom_id),
             UNIQUE KEY classroom_uuid (classroom_uuid),
-            KEY center_id (center_id),
+            KEY school_id (school_id),
             KEY status (status),
-            UNIQUE KEY center_classroom (center_id, classroom_name)
+            UNIQUE KEY school_classroom (school_id, classroom_name)
         ) $charset_collate;";
         
         // Audit log table
@@ -770,7 +882,7 @@ class HL_Installer {
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_child (
             child_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             child_uuid char(36) NOT NULL,
-            center_id bigint(20) unsigned NOT NULL,
+            school_id bigint(20) unsigned NOT NULL,
             first_name varchar(100) NULL,
             last_name varchar(100) NULL,
             dob date NULL,
@@ -783,7 +895,7 @@ class HL_Installer {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (child_id),
             UNIQUE KEY child_uuid (child_uuid),
-            KEY center_id (center_id),
+            KEY school_id (school_id),
             KEY child_fingerprint (child_fingerprint)
         ) $charset_collate;";
 
@@ -1013,7 +1125,7 @@ class HL_Installer {
             enrollment_id bigint(20) unsigned NOT NULL,
             activity_id bigint(20) unsigned NULL,
             classroom_id bigint(20) unsigned NULL,
-            center_id bigint(20) unsigned NULL,
+            school_id bigint(20) unsigned NULL,
             phase enum('pre','post') NULL,
             instrument_age_band varchar(20) NULL,
             instrument_id bigint(20) unsigned NULL,
@@ -1030,7 +1142,7 @@ class HL_Installer {
             KEY enrollment_id (enrollment_id),
             KEY activity_id (activity_id),
             KEY classroom_id (classroom_id),
-            KEY center_id (center_id)
+            KEY school_id (school_id)
         ) $charset_collate;";
 
         // Children Assessment Child Row table
@@ -1054,7 +1166,7 @@ class HL_Installer {
             cohort_id bigint(20) unsigned NOT NULL,
             mentor_enrollment_id bigint(20) unsigned NOT NULL,
             teacher_enrollment_id bigint(20) unsigned NULL,
-            center_id bigint(20) unsigned NULL,
+            school_id bigint(20) unsigned NULL,
             classroom_id bigint(20) unsigned NULL,
             instrument_id bigint(20) unsigned NULL,
             instrument_version varchar(20) NULL,
@@ -1069,7 +1181,7 @@ class HL_Installer {
             KEY cohort_id (cohort_id),
             KEY mentor_enrollment_id (mentor_enrollment_id),
             KEY teacher_enrollment_id (teacher_enrollment_id),
-            KEY center_id (center_id),
+            KEY school_id (school_id),
             KEY classroom_id (classroom_id)
         ) $charset_collate;";
 
@@ -1175,7 +1287,7 @@ class HL_Installer {
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_coach_assignment (
             coach_assignment_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             coach_user_id bigint(20) unsigned NOT NULL,
-            scope_type enum('center','team','enrollment') NOT NULL,
+            scope_type enum('school','team','enrollment') NOT NULL,
             scope_id bigint(20) unsigned NOT NULL,
             cohort_id bigint(20) unsigned NOT NULL,
             effective_from date NOT NULL,

@@ -345,6 +345,41 @@ _For program evaluation research design — comparing program vs control cohort 
   (5) BuddyBoss sidebar spacing — added CSS for `.hl-core-menu-item` + `.hl-buddypanel-section` margin/padding reset and section heading styling.
   (6) Hidden "My Coach" widget for control group in My Programs page; fixed `.hl-btn` base class with `background: var(--hl-surface)`, `color: var(--hl-primary)`, `border-color: var(--hl-border-medium)`.
 
+### Phase 22: Grand Rename — Center→School, Children→Child, Cohort→Track
+_See docs/RENAME_PLAN.md for full context and terminology mapping._
+_Branch: `feature/grand-rename` — merge only after ALL sub-tasks complete._
+
+**PHASE A: Center → School**
+
+- [ ] **A1 — DB Migration (Opus)** — In class-hl-installer.php: rename `hl_cohort_center` → `hl_cohort_school`, rename all `center_id` columns → `school_id` (in hl_classroom, hl_team, hl_child, hl_cohort_school, hl_observation), UPDATE `hl_orgunit` SET type='school' WHERE type='center', UPDATE `hl_coach_assignment` scope_type 'center'→'school'. Update `create_tables()` definitions. Bump schema revision.
+- [ ] **A2 — Domain Models & Repositories (Opus)** — Rename `center_id` → `school_id` properties in ALL domain model classes. Update `from_row()`/`to_array()`. In HL_OrgUnit: type 'center' → 'school'. Update ALL repository SQL queries (table names, column names). Rename methods: `get_centers_*` → `get_schools_*`.
+- [ ] **A3 — Services Layer (Opus)** — Update ALL 13+ service classes: rename parameters `$center_id` → `$school_id`, rename methods `*_center_*` → `*_school_*`, update SQL queries, update HL_Scope_Service (`center_ids` → `school_ids`, `can_view_center` → `can_view_school`). Grep for "center" to verify.
+- [ ] **A4 — Admin Pages (Sonnet, parallel with A5/A6)** — Update ALL admin page classes: "Center" → "School" in labels, `center_id` → `school_id` in forms/queries. Cohort editor "Centers" tab → "Schools" tab.
+- [ ] **A5 — Frontend Shortcodes (Sonnet, parallel with A4/A6)** — Rename `[hl_centers_listing]` → `[hl_schools_listing]`, `[hl_center_page]` → `[hl_school_page]`. Rename PHP files/classes. Update all user-visible labels. Update BuddyBoss menu items. Update CSS classes.
+- [ ] **A6 — CLI & REST API (Sonnet, parallel with A4/A5)** — Update all seeders (demo, palm-beach, lutheran): OrgUnit type='school', variable names. Update create-pages page titles. Update REST API type parameter.
+- [ ] **A7 — Documentation (Sonnet)** — Update ALL 11 docs + CLAUDE.md + README.md: "Center" → "School", table names, column names, relationship diagrams. Update Glossary §1.3 definition.
+
+**PHASE B: Children Assessment → Child Assessment**
+
+- [ ] **B1 — DB Migration (Opus)** — Rename tables `hl_children_assessment_instance` → `hl_child_assessment_instance`, `hl_children_assessment_childrow` → `hl_child_assessment_childrow`. UPDATE activity_type 'children_assessment' → 'child_assessment'. Bump schema revision.
+- [ ] **B2 — All PHP Code (Opus)** — Project-wide rename: `children_assessment` → `child_assessment` in ALL PHP files. Rename frontend class/file. Update shortcode `[hl_children_assessment]` → `[hl_child_assessment]`. Update all service methods, admin labels, CLI output. Grep to verify.
+- [ ] **B3 — Documentation (Sonnet)** — Update ALL 11 docs + CLAUDE.md + README.md: "Children Assessment" → "Child Assessment", table names, shortcode names.
+
+**PHASE C: Cohort → Track + CohortGroup → Cohort** _(most complex)_
+
+- [ ] **C1 — DB Migration (Opus, CRITICAL)** — RENAME `hl_cohort` → `hl_track` (rename PK cohort_id→track_id, cohort_code→track_code, cohort_group_id→cohort_id). RENAME `hl_cohort_group` → `hl_cohort` (rename PK group_id→cohort_id, etc.). RENAME `hl_cohort_school` → `hl_track_school`. Rename ALL FK columns: `cohort_id` → `track_id` in ~15 tables (enrollment, team, pathway, activity, assessments, coaching, etc.). Update `create_tables()`. Bump schema revision.
+- [ ] **C2 — Domain Models & Repositories (Opus)** — Rename HL_Cohort→HL_Track (class/file). Rename HL_Cohort_Group→HL_Cohort. Update HL_Enrollment (cohort_id→track_id). Update ALL repositories: HL_Cohort_Repository→HL_Track_Repository, cohort_group repo→HL_Cohort_Repository. Update all SQL.
+- [ ] **C3 — Services Layer (Opus)** — Rename HL_Cohort_Service→HL_Track_Service. Create NEW HL_Cohort_Service for container entity. Update ALL services: cohort_id→track_id. Update HL_Reporting_Service: group_summary→cohort_summary. Update HL_Scope_Service: cohort_ids→track_ids.
+- [ ] **C4 — Admin Pages (Opus, parallel with C5/C6)** — Rename admin-cohorts→admin-tracks. Rename admin-cohort-groups→admin-cohorts. Update ALL admin pages: cohort_id→track_id, labels. Menu: "Cohorts"→"Tracks" for runs, "Cohort Groups"→"Cohorts" for containers.
+- [ ] **C5 — Frontend Shortcodes (Opus, parallel with C4/C6)** — Rename shortcodes: `[hl_cohort_workspace]`→`[hl_track_workspace]`, `[hl_cohorts_listing]`→`[hl_tracks_listing]`, `[hl_my_cohort]`→`[hl_my_track]`. Rename files/classes. Update all labels and URL params. Update BuddyBoss menu. Update CSS.
+- [ ] **C6 — CLI & REST API (Sonnet, parallel with C4/C5)** — Update all seeders: create Tracks (not Cohorts) for runs, create Cohorts (not Groups) for containers. Update REST endpoints.
+- [ ] **C7 — Documentation (Sonnet)** — COMPREHENSIVE update of ALL 11 docs + CLAUDE.md + README.md. Rewrite Glossary: Cohort=container, Track=run. Rewrite Domain Model doc. Update all cross-references, relationship diagrams, table names, column names, shortcodes.
+
+**Post-Rename Verification**
+- [ ] **V1 — Grep verification** — `grep -ri "center_id\|children_assessment\|cohort_group\|hl_cohort_center" includes/` → 0 results
+- [ ] **V2 — Staging test** — `wp hl-core nuke --confirm="DELETE ALL DATA"` → `wp hl-core seed-demo` → verify admin + frontend
+- [ ] **V3 — Lutheran test** — `wp hl-core seed-lutheran` → verify control group workflow
+
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
 - [x] **Grace unlock override type** — `compute_availability()` now recognizes `grace_unlock` override type: bypasses prerequisite gate but NOT drip rules (mirrors `manual_unlock` which bypasses drip but NOT prereqs).
