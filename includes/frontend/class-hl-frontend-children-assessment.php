@@ -651,11 +651,8 @@ class HL_Frontend_Children_Assessment {
                 <?php
                 // Attempt to use HL_Instrument_Renderer if available
                 if ( class_exists( 'HL_Instrument_Renderer' ) ) :
-                    $renderer = new HL_Instrument_Renderer();
-                    echo $renderer->render( $instrument, $children, $answers_map, array(
-                        'instance_id' => $instance_id,
-                        'nonce'       => wp_create_nonce( 'hl_children_assessment_' . $instance_id ),
-                    ) );
+                    $renderer = new HL_Instrument_Renderer( $instrument, $children, $instance_id, $answers_map );
+                    echo $renderer->render();
                 else :
                     // Fallback: inline matrix rendering
                     $this->render_inline_matrix( $instance_id, $questions, $children, $answers_map );
