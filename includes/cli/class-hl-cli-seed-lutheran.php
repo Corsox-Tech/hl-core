@@ -1309,8 +1309,21 @@ class HL_CLI_Seed_Lutheran {
 					$ci_id = $children_instruments['mixed'];
 				}
 
+				// DEBUG: trace values for first enrollment only.
+				if ( $ca_count === 0 ) {
+					WP_CLI::log( sprintf(
+						'DEBUG CA INSERT: eid=%s, ca_pre_id=%s, classroom_id=%s, center_id=%s, phase=pre, age_band=%s, ci_id=%s',
+						var_export( $eid, true ),
+						var_export( $pathway_data['ca_pre_id'], true ),
+						var_export( $classroom_id, true ),
+						var_export( $center_id, true ),
+						var_export( $age_band, true ),
+						var_export( $ci_id, true )
+					) );
+				}
+
 				// Children Assessment Instance: PRE.
-				$wpdb->insert( $prefix . 'hl_children_assessment_instance', array(
+				$result_pre = $wpdb->insert( $prefix . 'hl_children_assessment_instance', array(
 					'instance_uuid'       => HL_DB_Utils::generate_uuid(),
 					'cohort_id'           => $cohort_id,
 					'enrollment_id'       => $eid,
@@ -1323,7 +1336,15 @@ class HL_CLI_Seed_Lutheran {
 					'instrument_version'  => $ci_id ? '1.0' : null,
 					'status'              => 'not_started',
 					'created_at'          => $now,
-				) );
+				);
+				if ( $ca_count === 0 ) {
+					WP_CLI::log( 'DEBUG CA PRE result: ' . var_export( $result_pre, true ) );
+					WP_CLI::log( 'DEBUG CA PRE error: ' . $wpdb->last_error );
+					WP_CLI::log( 'DEBUG CA PRE query: ' . $wpdb->last_query );
+					$check_id = $wpdb->insert_id;
+					$stored = $wpdb->get_row( "SELECT activity_id, phase, instrument_id FROM {$prefix}hl_children_assessment_instance WHERE instance_id = {$check_id}" );
+					WP_CLI::log( 'DEBUG CA PRE stored: ' . var_export( $stored, true ) );
+				}
 				$ca_count++;
 
 				// Children Assessment Instance: POST.
