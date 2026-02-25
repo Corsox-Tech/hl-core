@@ -72,7 +72,9 @@ class HL_Teacher_Assessment_Renderer {
             return ob_get_clean();
         }
 
-        $instance_id = absint( $this->instance->instance_id );
+        $instance_id    = absint( $this->instance->instance_id );
+        $total_sections = count( $sections );
+        $paginate       = ! $this->read_only && $total_sections > 1;
 
         ob_start();
 
@@ -104,16 +106,33 @@ class HL_Teacher_Assessment_Renderer {
             <?php endif; ?>
 
         <?php if ( ! $this->read_only ) : ?>
-            <form method="post" action="" class="hl-tsa-form" id="hl-tsa-form-<?php echo esc_attr( $instance_id ); ?>">
+            <form method="post" action="" class="hl-tsa-form<?php echo $paginate ? ' hl-tsa-form--paginated' : ''; ?>" id="hl-tsa-form-<?php echo esc_attr( $instance_id ); ?>">
                 <?php wp_nonce_field( 'hl_save_teacher_assessment', 'hl_teacher_assessment_nonce' ); ?>
                 <input type="hidden" name="hl_tsa_instance_id" value="<?php echo esc_attr( $instance_id ); ?>" />
                 <input type="hidden" name="hl_tsa_phase" value="<?php echo esc_attr( $this->phase ); ?>" />
                 <input type="hidden" name="hl_requires_validation" id="hl_tsa_requires_validation_<?php echo esc_attr( $instance_id ); ?>" value="0" />
+
+                <?php if ( $paginate ) : ?>
+                <div class="hl-tsa-step-indicator">
+                    <span class="hl-tsa-step-label"><?php
+                        /* translators: %1$s: current section number (with markup), %2$s: total sections */
+                        printf( 'Section %1$s of %2$s', '<span class="hl-tsa-step-current">1</span>', esc_html( $total_sections ) );
+                    ?></span>
+                    <div class="hl-tsa-step-dots">
+                        <?php for ( $si = 0; $si < $total_sections; $si++ ) : ?>
+                            <span class="hl-tsa-step<?php echo $si === 0 ? ' hl-tsa-step--active' : ''; ?>" data-step="<?php echo esc_attr( $si ); ?>"><?php echo esc_html( $si + 1 ); ?></span>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
         <?php endif; ?>
 
                 <?php
+                $step_index = 0;
                 foreach ( $sections as $section ) {
-                    $this->render_section( $section, $scale_labels );
+                    $this->render_section( $section, $scale_labels, $step_index, $total_sections, $paginate );
+                    $step_index++;
                 }
                 ?>
 
@@ -152,7 +171,7 @@ class HL_Teacher_Assessment_Renderer {
     /**
      * Render a single section (dispatches by type).
      */
-    private function render_section( $section, $scale_labels ) {
+    private function render_section( $section, $scale_labels, $step_index = 0, $total_sections = 1, $paginate = false ) {
         $section_key = isset( $section['section_key'] ) ? $section['section_key'] : '';
         $title       = isset( $section['title'] ) ? $section['title'] : '';
         $description = isset( $section['description'] ) ? $section['description'] : '';
@@ -161,8 +180,12 @@ class HL_Teacher_Assessment_Renderer {
         $items       = isset( $section['items'] ) ? $section['items'] : array();
         $labels      = isset( $scale_labels[ $scale_key ] ) ? $scale_labels[ $scale_key ] : array();
 
+        $active_class = ( $paginate && $step_index === 0 ) ? ' hl-tsa-section--active' : '';
+        $is_first     = ( $step_index === 0 );
+        $is_last      = ( $step_index === $total_sections - 1 );
+
         ?>
-        <div class="hl-tsa-section" data-section="<?php echo esc_attr( $section_key ); ?>">
+        <div class="hl-tsa-section<?php echo esc_attr( $active_class ); ?>" data-section="<?php echo esc_attr( $section_key ); ?>" data-step="<?php echo esc_attr( $step_index ); ?>">
             <h3 class="hl-tsa-section-title"><?php echo esc_html( $title ); ?></h3>
             <?php if ( $description ) : ?>
                 <p class="hl-tsa-section-desc"><?php echo esc_html( $description ); ?></p>
@@ -175,6 +198,17 @@ class HL_Teacher_Assessment_Renderer {
                 $this->render_likert_section( $section_key, $items, $labels );
             }
             ?>
+
+            <?php if ( $paginate ) : ?>
+            <div class="hl-tsa-nav">
+                <?php if ( ! $is_first ) : ?>
+                    <button type="button" class="button hl-tsa-btn-prev"><?php esc_html_e( 'Previous Section', 'hl-core' ); ?></button>
+                <?php endif; ?>
+                <?php if ( ! $is_last ) : ?>
+                    <button type="button" class="button button-primary hl-tsa-btn-next"><?php esc_html_e( 'Next Section', 'hl-core' ); ?></button>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -651,6 +685,79 @@ class HL_Teacher_Assessment_Renderer {
                 flex-wrap: wrap;
                 padding: 1.5em 0 1em;
             }
+
+            /* Pagination — sections hidden by default when paginated */
+            .hl-tsa-form--paginated .hl-tsa-section {
+                display: none;
+            }
+            .hl-tsa-form--paginated .hl-tsa-section--active {
+                display: block;
+            }
+            .hl-tsa-form--paginated .hl-tsa-actions {
+                display: none;
+            }
+            .hl-tsa-form--paginated .hl-tsa-actions--visible {
+                display: flex;
+            }
+
+            /* Step indicator */
+            .hl-tsa-step-indicator {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 1.5em;
+                padding: 12px 0;
+            }
+            .hl-tsa-step-label {
+                font-size: 0.9em;
+                color: #555;
+                font-weight: 500;
+            }
+            .hl-tsa-step-dots {
+                display: flex;
+                gap: 8px;
+            }
+            .hl-tsa-step {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                border: 2px solid #ccc;
+                font-size: 0.85em;
+                font-weight: 600;
+                color: #888;
+                background: #fff;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .hl-tsa-step:hover {
+                border-color: #999;
+            }
+            .hl-tsa-step--active {
+                border-color: #2271b1;
+                background: #2271b1;
+                color: #fff;
+            }
+            .hl-tsa-step--completed {
+                border-color: #2e7d32;
+                background: #e8f5e9;
+                color: #2e7d32;
+            }
+
+            /* Section navigation buttons */
+            .hl-tsa-nav {
+                display: flex;
+                gap: 12px;
+                padding: 1.5em 0 0.5em;
+                border-top: 1px solid #eee;
+                margin-top: 1.5em;
+            }
+            .hl-tsa-btn-next {
+                margin-left: auto;
+            }
         </style>
         <?php
     }
@@ -710,6 +817,63 @@ class HL_Teacher_Assessment_Renderer {
                 }
                 setValidation(true);
             });
+
+            // ── Pagination ──────────────────────────────────────
+            if (!form.classList.contains('hl-tsa-form--paginated')) return;
+
+            var pSections   = form.querySelectorAll('.hl-tsa-section[data-step]');
+            var pSteps      = form.querySelectorAll('.hl-tsa-step');
+            var pActions    = form.querySelector('.hl-tsa-actions');
+            var pStepLabel  = form.querySelector('.hl-tsa-step-current');
+            var totalSteps  = pSections.length;
+            var currentStep = 0;
+
+            if (totalSteps <= 1) return;
+
+            function goToStep(step) {
+                if (step < 0 || step >= totalSteps) return;
+
+                pSections.forEach(function(s) { s.classList.remove('hl-tsa-section--active'); });
+                pSections[step].classList.add('hl-tsa-section--active');
+
+                pSteps.forEach(function(s, i) {
+                    s.classList.remove('hl-tsa-step--active', 'hl-tsa-step--completed');
+                    if (i < step) s.classList.add('hl-tsa-step--completed');
+                    if (i === step) s.classList.add('hl-tsa-step--active');
+                });
+
+                if (pStepLabel) pStepLabel.textContent = step + 1;
+
+                if (pActions) {
+                    if (step === totalSteps - 1) {
+                        pActions.classList.add('hl-tsa-actions--visible');
+                    } else {
+                        pActions.classList.remove('hl-tsa-actions--visible');
+                    }
+                }
+
+                currentStep = step;
+                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            form.addEventListener('click', function(e) {
+                var target = e.target;
+                if (target.classList.contains('hl-tsa-btn-next')) {
+                    e.preventDefault();
+                    goToStep(currentStep + 1);
+                } else if (target.classList.contains('hl-tsa-btn-prev')) {
+                    e.preventDefault();
+                    goToStep(currentStep - 1);
+                }
+            });
+
+            pSteps.forEach(function(stepEl) {
+                stepEl.addEventListener('click', function() {
+                    goToStep(parseInt(stepEl.getAttribute('data-step'), 10));
+                });
+            });
+
+            goToStep(0);
         })();
         </script>
         <?php
