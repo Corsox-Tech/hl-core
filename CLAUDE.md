@@ -54,7 +54,9 @@ Example response format:
 >
 > Should I continue with [specific task], or do you have something else in mind?"
 
-### 3. Always update README.md after making changes
+### 3. ALWAYS update README.md after making changes (NON-NEGOTIABLE)
+**A task is NOT done until README.md is updated.** This is not optional. Every commit that changes functionality MUST include a README.md update in the same commit or immediately after.
+
 After completing any feature, fix, or refactoring:
 - Update the "What's Implemented" section if you built something new
 - Check off completed items in the Build Queue with `[x]`
@@ -62,12 +64,15 @@ After completing any feature, fix, or refactoring:
 - Update the "Architecture" file tree if you added new files/directories
 - Keep the format consistent with what's already there
 
-### 4. Before suggesting "Clear Context" or when the conversation is getting long
-If you're about to suggest clearing context, or if the session has been going a while:
-- **STOP and update README.md FIRST** before the context is cleared
+**Self-check before saying "done" or "committed":** Ask yourself: "Did I update README.md?" If no, do it NOW before reporting completion to the user.
+
+### 4. Before suggesting "Clear Context", ending a session, or reporting "all done"
+If you're about to suggest clearing context, the session has been going a while, OR you're about to tell the user everything is complete:
+- **STOP and update README.md FIRST** — this is the LAST thing you do before reporting completion
 - Check off all completed Build Queue items with `[x]`
 - Mark any in-progress items with `[~]` and write a clear note about exactly what's done and what's left
 - Update "What's Implemented" with anything new
+- **Do NOT tell the user "all done" or "committed and pushed" until README.md is updated and committed**
 
 ### 5. Read relevant docs before building features
 Don't build from memory or assumptions. Before implementing any feature, read the specific doc file(s) listed next to each build queue item.

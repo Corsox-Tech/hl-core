@@ -2,8 +2,8 @@
 /**
  * WP-CLI command: wp hl-core seed-lutheran
  *
- * Seeds the Lutheran Services Florida control group data from extracted
- * spreadsheet data in data/extracted_data.php.
+ * Seeds the Lutheran Services Florida control group data from
+ * includes/cli/lutheran-seed-data.php (committed companion file).
  * Use --clean to remove all Lutheran data first.
  *
  * @package HL_Core
@@ -26,6 +26,29 @@ class HL_CLI_Seed_Lutheran {
 
 	/** User meta key to tag Lutheran seed users. */
 	const SEED_META_KEY = '_hl_lutheran_seed';
+
+	/**
+	 * Roster center name aliases → full center info names.
+	 *
+	 * The teacher/child rosters use abbreviated center names that differ from
+	 * the official names in the Center Info spreadsheet. This map resolves them.
+	 */
+	private static $center_aliases = array(
+		'South Bay HS/EHS'              => 'South Bay Head Start/Early Head Start',
+		'West Palm Beach'               => 'West Palm Beach Head Start/Early Head Start',
+		'Jupiter HS'                    => 'Jupiter Head Start',
+		'Monica Turner FCCH'            => 'Monica Turner Faimly Child Care Home',
+		'Patricia Oliver FCCH'          => 'Patricia Oliver Family Child Care Home',
+		"Lisa's Lil' Wonders Childcare" => "Lisa's Lil Wonders Family Child Care Home",
+		"Lisa's Lil' Wonder"            => "Lisa's Lil Wonders Family Child Care Home",
+		'Nichola Griffiths-Butts FCCH'  => 'Nichola Griffiths-Butts Family Child Care Home',
+		'Smart Kids College FCCH'       => 'Smart Kidz College Family Child Care Home',
+		"My Precious Lillie's FCCH"     => 'My Precious Lillies Family Child Care Home',
+		"My Precious Lillie's HCCF"     => 'My Precious Lillies Family Child Care Home',
+		// Exact matches (listed for completeness; direct lookup handles these):
+		// 'Bear Necessities FCCH'      => 'Bear Necessities FCCH',
+		// 'Jessica Thurmond FCCH'      => 'Jessica Thurmond FCCH',
+	);
 
 	/**
 	 * Register the WP-CLI command.
@@ -64,8 +87,8 @@ class HL_CLI_Seed_Lutheran {
 			return;
 		}
 
-		// Load extracted data arrays.
-		$data_file = dirname( __DIR__, 2 ) . '/data/extracted_data.php';
+		// Load extracted data arrays (committed file in cli/ directory).
+		$data_file = __DIR__ . '/lutheran-seed-data.php';
 		if ( ! file_exists( $data_file ) ) {
 			WP_CLI::error( "Data file not found: {$data_file}" );
 			return;
@@ -86,6 +109,9 @@ class HL_CLI_Seed_Lutheran {
 
 		// Step 2: Centers.
 		$center_map = $this->seed_centers( $center_info_data, $district_id );
+
+		// Log center alias resolutions for verification.
+		$this->log_center_resolutions( $center_map );
 
 		// Step 3: Cohort.
 		$cohort_id = $this->seed_cohort( $district_id );
@@ -341,7 +367,12 @@ class HL_CLI_Seed_Lutheran {
 		$lower = strtolower( trim( $raw ) );
 
 		// Infant.
-		if ( in_array( $lower, array( 'infants', '0-12 months' ), true ) ) {
+		if ( in_array( $lower, array(
+			'infants',
+			'0-12 months',
+			'0 -12 months',
+			'0-12months',
+		), true ) ) {
 			return 'infant';
 		}
 
@@ -350,10 +381,13 @@ class HL_CLI_Seed_Lutheran {
 			'toddlers',
 			'1 year olds',
 			'1-2 year olds',
+			'1-2  year olds',
 			'infants/tooddlers',
 			'infants/toddlers',
 			'2 year olds',
 			'2 year old',
+			'2-3 year olds',
+			'1yr-2 1/2',
 		), true ) ) {
 			return 'toddler';
 		}
@@ -361,6 +395,8 @@ class HL_CLI_Seed_Lutheran {
 		// Preschool.
 		if ( in_array( $lower, array(
 			'3 year olds',
+			'3year old',
+			'3year olds',
 			'preschool',
 			'vpk',
 			'3 and 4 year olds',
@@ -392,17 +428,30 @@ class HL_CLI_Seed_Lutheran {
 	/**
 	 * Match a roster center name (often abbreviated) to a center_map key.
 	 *
+	 * Resolution order:
+	 * 1. Direct match against center_map keys
+	 * 2. Explicit alias lookup (covers abbreviations, typos, spelling variants)
+	 * 3. Fuzzy substring match (fallback)
+	 *
 	 * @param string $roster_name The abbreviated name from the roster.
 	 * @param array  $center_map  Keyed by full center name => center orgunit_id.
 	 * @return int|null The center orgunit_id or null if not matched.
 	 */
 	private function match_center_name( $roster_name, $center_map ) {
-		// Direct match.
+		// 1. Direct match.
 		if ( isset( $center_map[ $roster_name ] ) ) {
 			return $center_map[ $roster_name ];
 		}
 
-		// Fuzzy: check if roster name is contained in any center name or vice versa.
+		// 2. Explicit alias lookup.
+		if ( isset( self::$center_aliases[ $roster_name ] ) ) {
+			$canonical = self::$center_aliases[ $roster_name ];
+			if ( isset( $center_map[ $canonical ] ) ) {
+				return $center_map[ $canonical ];
+			}
+		}
+
+		// 3. Fuzzy: check if roster name is contained in any center name or vice versa.
 		foreach ( $center_map as $full_name => $id ) {
 			if ( stripos( $full_name, $roster_name ) !== false ) {
 				return $id;
@@ -412,17 +461,49 @@ class HL_CLI_Seed_Lutheran {
 			}
 		}
 
-		// Match first word.
-		$first_word = strtok( $roster_name, ' ' );
-		if ( $first_word ) {
-			foreach ( $center_map as $full_name => $id ) {
-				if ( stripos( $full_name, $first_word ) !== false ) {
-					return $id;
-				}
+		return null;
+	}
+
+	// ------------------------------------------------------------------
+	// Center name resolution helper
+	// ------------------------------------------------------------------
+
+	/**
+	 * Resolve a roster center name to the canonical center info name.
+	 *
+	 * Uses the $center_aliases map. If no alias exists, the original name
+	 * is returned as-is (it may already be canonical).
+	 *
+	 * @param string $roster_name The center name from the roster data.
+	 * @return string The canonical center name.
+	 */
+	private function resolve_center_name( $roster_name ) {
+		if ( isset( self::$center_aliases[ $roster_name ] ) ) {
+			return self::$center_aliases[ $roster_name ];
+		}
+		return $roster_name;
+	}
+
+	/**
+	 * Log all center alias resolutions that were actually used during seeding.
+	 *
+	 * Called once after all seed steps to show which roster names mapped to which canonical names.
+	 *
+	 * @param array $center_map Keyed by canonical center name => orgunit_id.
+	 */
+	private function log_center_resolutions( $center_map ) {
+		$resolved = 0;
+		foreach ( self::$center_aliases as $roster_name => $canonical ) {
+			if ( isset( $center_map[ $canonical ] ) ) {
+				WP_CLI::log( "    Alias resolved: \"{$roster_name}\" → \"{$canonical}\" (id={$center_map[$canonical]})" );
+				$resolved++;
 			}
 		}
-
-		return null;
+		if ( $resolved === 0 ) {
+			WP_CLI::log( '    No center aliases were resolved (all names matched directly).' );
+		} else {
+			WP_CLI::log( "    Total alias resolutions: {$resolved}" );
+		}
 	}
 
 	// ------------------------------------------------------------------
@@ -618,7 +699,7 @@ class HL_CLI_Seed_Lutheran {
 		$seen       = array();
 
 		foreach ( $teacher_roster_data as $row ) {
-			$center_name    = isset( $row[1] ) ? trim( $row[1] ) : '';
+			$center_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
 			$classroom_name = isset( $row[4] ) ? trim( $row[4] ) : '';
 			$age_group_raw  = isset( $row[5] ) ? trim( $row[5] ) : '';
 
@@ -626,7 +707,9 @@ class HL_CLI_Seed_Lutheran {
 				continue;
 			}
 
-			$key = $center_name . '::' . $classroom_name;
+			// Resolve abbreviated roster name to canonical center name for consistent keys.
+			$canonical_center = $this->resolve_center_name( $center_name );
+			$key = $canonical_center . '::' . $classroom_name;
 			if ( isset( $seen[ $key ] ) ) {
 				continue;
 			}
@@ -654,7 +737,7 @@ class HL_CLI_Seed_Lutheran {
 			$classrooms[ $key ] = array(
 				'classroom_id' => $id,
 				'center_id'    => $center_id,
-				'center_name'  => $center_name,
+				'center_name'  => $canonical_center,
 				'name'         => $classroom_name,
 				'age_band'     => $age_band,
 			);
@@ -678,7 +761,7 @@ class HL_CLI_Seed_Lutheran {
 		$users = array();
 
 		foreach ( $teacher_roster_data as $idx => $row ) {
-			$full_name = isset( $row[2] ) ? trim( $row[2] ) : '';
+			$full_name = isset( $row[1] ) ? trim( $row[1] ) : '';
 			$email     = isset( $row[3] ) ? trim( $row[3] ) : '';
 
 			if ( empty( $email ) || empty( $full_name ) ) {
@@ -777,7 +860,7 @@ class HL_CLI_Seed_Lutheran {
 				continue;
 			}
 
-			$center_name    = isset( $row[1] ) ? trim( $row[1] ) : '';
+			$center_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
 			$classroom_name = isset( $row[4] ) ? trim( $row[4] ) : '';
 			$center_id      = $this->match_center_name( $center_name, $center_map );
 
@@ -790,10 +873,11 @@ class HL_CLI_Seed_Lutheran {
 				'district_id' => $district_id,
 			) );
 
+			$canonical_center = $this->resolve_center_name( $center_name );
 			$enrollments[ $idx ] = array(
 				'enrollment_id'  => $eid,
 				'user_id'        => $users[ $idx ]['user_id'],
-				'center_name'    => $center_name,
+				'center_name'    => $canonical_center,
 				'classroom_name' => $classroom_name,
 			);
 		}
@@ -823,9 +907,10 @@ class HL_CLI_Seed_Lutheran {
 				continue;
 			}
 
-			$center_name    = isset( $row[1] ) ? trim( $row[1] ) : '';
+			$center_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
 			$classroom_name = isset( $row[4] ) ? trim( $row[4] ) : '';
-			$key            = $center_name . '::' . $classroom_name;
+			$canonical_center = $this->resolve_center_name( $center_name );
+			$key            = $canonical_center . '::' . $classroom_name;
 
 			if ( ! isset( $classrooms[ $key ] ) ) {
 				WP_CLI::warning( "Classroom not found for teaching assignment: {$key}" );
@@ -864,14 +949,14 @@ class HL_CLI_Seed_Lutheran {
 		$unmatched = 0;
 
 		foreach ( $child_roster_data as $row ) {
-			$center_name    = isset( $row[1] ) ? trim( $row[1] ) : '';
+			$center_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
+			$child_name     = isset( $row[1] ) ? trim( $row[1] ) : '';
 			$classroom_name = isset( $row[2] ) ? trim( $row[2] ) : '';
-			$child_name     = isset( $row[3] ) ? trim( $row[3] ) : '';
-			$age_group_raw  = isset( $row[4] ) ? trim( $row[4] ) : '';
+			$age_group_raw  = isset( $row[3] ) ? trim( $row[3] ) : '';
 			$dob            = isset( $row[5] ) ? trim( $row[5] ) : '';
 			$gender         = isset( $row[6] ) ? trim( $row[6] ) : '';
 			$ethnicity      = isset( $row[7] ) ? trim( $row[7] ) : '';
-			$language        = isset( $row[8] ) ? trim( $row[8] ) : '';
+			$language       = isset( $row[8] ) ? trim( $row[8] ) : '';
 
 			if ( empty( $child_name ) || empty( $center_name ) ) {
 				continue;
@@ -906,7 +991,8 @@ class HL_CLI_Seed_Lutheran {
 			) );
 
 			if ( $child_id ) {
-				$cr_key = $center_name . '::' . $classroom_name;
+				$canonical_center = $this->resolve_center_name( $center_name );
+				$cr_key = $canonical_center . '::' . $classroom_name;
 				if ( isset( $classrooms[ $cr_key ] ) ) {
 					$svc->assign_child_to_classroom( $child_id, $classrooms[ $cr_key ]['classroom_id'], 'Lutheran seed initial assignment' );
 				}
