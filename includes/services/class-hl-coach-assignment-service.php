@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) exit;
  * Coach Assignment Service
  *
  * Manages coach-to-participant assignments at three scope levels
- * (center, team, enrollment) with "most specific wins" resolution.
+ * (school, team, enrollment) with "most specific wins" resolution.
  *
  * @package HL_Core
  */
@@ -31,7 +31,7 @@ class HL_Coach_Assignment_Service {
             }
         }
 
-        $valid_scopes = array('center', 'team', 'enrollment');
+        $valid_scopes = array('school', 'team', 'enrollment');
         $scope_type = sanitize_text_field($data['scope_type']);
         if (!in_array($scope_type, $valid_scopes, true)) {
             return new WP_Error('invalid_scope', __('Invalid scope type.', 'hl-core'));
@@ -171,7 +171,7 @@ class HL_Coach_Assignment_Service {
      * Resolution order (most specific wins):
      *   1. enrollment-level → scope_id = enrollment_id
      *   2. team-level       → scope_id = team_id (from team_membership)
-     *   3. center-level     → scope_id = center_id (from enrollment)
+     *   3. school-level     → scope_id = school_id (from enrollment)
      *
      * "Active" = effective_from <= today AND (effective_to IS NULL OR effective_to >= today).
      *
@@ -234,26 +234,26 @@ class HL_Coach_Assignment_Service {
             }
         }
 
-        // 3. Center-level assignment.
-        $center_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT center_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+        // 3. School-level assignment.
+        $school_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT school_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
             $enrollment_id
         ));
 
-        if ($center_id) {
+        if ($school_id) {
             $coach = $wpdb->get_row($wpdb->prepare(
                 "SELECT ca.coach_assignment_id, ca.coach_user_id, ca.scope_type,
                         u.display_name AS coach_name, u.user_email AS coach_email
                  FROM {$wpdb->prefix}hl_coach_assignment ca
                  LEFT JOIN {$wpdb->users} u ON ca.coach_user_id = u.ID
                  WHERE ca.cohort_id = %d
-                   AND ca.scope_type = 'center'
+                   AND ca.scope_type = 'school'
                    AND ca.scope_id = %d
                    AND ca.effective_from <= %s
                    AND (ca.effective_to IS NULL OR ca.effective_to >= %s)
                  ORDER BY ca.coach_assignment_id DESC
                  LIMIT 1",
-                $cohort_id, $center_id, $today, $today
+                $cohort_id, $school_id, $today, $today
             ), ARRAY_A);
 
             if ($coach) {
@@ -354,13 +354,13 @@ class HL_Coach_Assignment_Service {
                     $enrollment_ids = array_merge($enrollment_ids, array_map('absint', $team_enrollments));
                     break;
 
-                case 'center':
-                    $center_enrollments = $wpdb->get_col($wpdb->prepare(
+                case 'school':
+                    $school_enrollments = $wpdb->get_col($wpdb->prepare(
                         "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment
-                         WHERE cohort_id = %d AND center_id = %d AND status = 'active'",
+                         WHERE cohort_id = %d AND school_id = %d AND status = 'active'",
                         $cohort_id, $a['scope_id']
                     ));
-                    $enrollment_ids = array_merge($enrollment_ids, array_map('absint', $center_enrollments));
+                    $enrollment_ids = array_merge($enrollment_ids, array_map('absint', $school_enrollments));
                     break;
             }
         }
@@ -374,7 +374,7 @@ class HL_Coach_Assignment_Service {
         $in_ids = implode(',', $enrollment_ids);
 
         return $wpdb->get_results(
-            "SELECT e.enrollment_id, e.cohort_id, e.roles, e.center_id,
+            "SELECT e.enrollment_id, e.cohort_id, e.roles, e.school_id,
                     u.ID AS user_id, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID

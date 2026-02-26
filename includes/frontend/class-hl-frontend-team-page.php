@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) exit;
  * - Team Members: table with name, email, role, completion %
  * - Report: completion report with per-activity detail expansion and CSV export
  *
- * Access: Housman Admin, Coach, Center Leaders, District Leaders, Team Members.
+ * Access: Housman Admin, Coach, School Leaders, District Leaders, Team Members.
  * URL: ?id={team_id}
  *
  * @package HL_Core
@@ -115,7 +115,7 @@ class HL_Frontend_Team_Page {
         }
 
         $cohort = $this->cohort_repo->get_by_id( $team->cohort_id );
-        $center = $team->center_id ? $this->orgunit_repo->get_by_id( $team->center_id ) : null;
+        $school = $team->school_id ? $this->orgunit_repo->get_by_id( $team->school_id ) : null;
 
         // Breadcrumb URL.
         $back_url = $this->build_back_url( $team );
@@ -145,7 +145,7 @@ class HL_Frontend_Team_Page {
                 ?></a>
             <?php endif; ?>
 
-            <?php $this->render_header( $team, $cohort, $center ); ?>
+            <?php $this->render_header( $team, $cohort, $school ); ?>
 
             <div class="hl-cohort-tabs">
                 <?php foreach ( $tabs as $key => $label ) : ?>
@@ -182,8 +182,8 @@ class HL_Frontend_Team_Page {
     /**
      * Check if the current user can view this team.
      *
-     * Allowed: staff (manage_hl_core), team members, center/district leaders
-     * whose scope includes the team's center.
+     * Allowed: staff (manage_hl_core), team members, school/district leaders
+     * whose scope includes the team's school.
      */
     private function verify_access( $team, $user_id ) {
         // Staff always has access.
@@ -199,7 +199,7 @@ class HL_Frontend_Team_Page {
             }
         }
 
-        // Check if user is a leader whose scope includes this team's center.
+        // Check if user is a leader whose scope includes this team's school.
         $enrollments = $this->enrollment_repo->get_all( array(
             'cohort_id' => $team->cohort_id,
             'status'    => 'active',
@@ -211,21 +211,21 @@ class HL_Frontend_Team_Page {
             }
             $roles = $enrollment->get_roles_array();
 
-            // Center leader — team must be in their center.
-            if ( in_array( 'center_leader', $roles, true ) && $enrollment->center_id ) {
-                if ( (int) $enrollment->center_id === (int) $team->center_id || empty( $team->center_id ) ) {
+            // School leader — team must be in their school.
+            if ( in_array( 'school_leader', $roles, true ) && $enrollment->school_id ) {
+                if ( (int) $enrollment->school_id === (int) $team->school_id || empty( $team->school_id ) ) {
                     return true;
                 }
             }
 
-            // District leader — team's center must be within their district.
+            // District leader — team's school must be within their district.
             if ( in_array( 'district_leader', $roles, true ) && $enrollment->district_id ) {
-                if ( empty( $team->center_id ) ) {
+                if ( empty( $team->school_id ) ) {
                     return true;
                 }
-                $centers = $this->orgunit_repo->get_centers( (int) $enrollment->district_id );
-                $center_ids = array_map( function ( $c ) { return (int) $c->orgunit_id; }, $centers );
-                if ( in_array( (int) $team->center_id, $center_ids, true ) ) {
+                $schools = $this->orgunit_repo->get_schools( (int) $enrollment->district_id );
+                $school_ids = array_map( function ( $c ) { return (int) $c->orgunit_id; }, $schools );
+                if ( in_array( (int) $team->school_id, $school_ids, true ) ) {
                     return true;
                 }
             }
@@ -238,7 +238,7 @@ class HL_Frontend_Team_Page {
     // Header
     // ========================================================================
 
-    private function render_header( $team, $cohort, $center ) {
+    private function render_header( $team, $cohort, $school ) {
         $members      = $this->team_repo->get_members( $team->team_id );
         $member_count = count( $members );
 
@@ -261,8 +261,8 @@ class HL_Frontend_Team_Page {
         <div class="hl-team-page-header">
             <div class="hl-team-page-header-info">
                 <h2 class="hl-cohort-title"><?php echo esc_html( $team->team_name ); ?></h2>
-                <?php if ( $center ) : ?>
-                    <p class="hl-scope-indicator"><?php echo esc_html( $center->name ); ?></p>
+                <?php if ( $school ) : ?>
+                    <p class="hl-scope-indicator"><?php echo esc_html( $school->name ); ?></p>
                 <?php endif; ?>
                 <div class="hl-cohort-meta">
                     <?php if ( $cohort ) : ?>

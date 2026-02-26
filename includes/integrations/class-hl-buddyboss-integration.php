@@ -516,15 +516,15 @@ class HL_BuddyBoss_Integration {
      * see only management/directory pages:
      *   My Programs, My Coaching: any active enrollment
      *   My Team: mentor role in enrollment
-     *   My Cohort: district_leader, center_leader, or mentor role
+     *   My Cohort: district_leader, school_leader, or mentor role
      *
      * Directory/management pages:
-     *   Cohorts, Institutions: staff OR district_leader OR center_leader
-     *   Classrooms: staff OR district_leader OR center_leader OR teacher
-     *   Learners: staff OR district_leader OR center_leader OR mentor
+     *   Cohorts, Institutions: staff OR district_leader OR school_leader
+     *   Classrooms: staff OR district_leader OR school_leader OR teacher
+     *   Learners: staff OR district_leader OR school_leader OR mentor
      *   Pathways: staff only
      *   Coaching Hub: staff OR mentor
-     *   Reports: staff OR district_leader OR center_leader
+     *   Reports: staff OR district_leader OR school_leader
      *
      * Multi-role users see the union of all their role menus.
      *
@@ -534,7 +534,7 @@ class HL_BuddyBoss_Integration {
      * @return array<int, array{slug: string, label: string, url: string, icon: string}>
      */
     private function build_menu_items(array $roles, bool $is_staff, bool $has_enrollment, bool $is_control_only = false) {
-        $is_leader  = in_array('center_leader', $roles, true)
+        $is_leader  = in_array('school_leader', $roles, true)
                    || in_array('district_leader', $roles, true);
         $is_mentor  = in_array('mentor', $roles, true);
         $is_teacher = in_array('teacher', $roles, true);
@@ -590,7 +590,7 @@ class HL_BuddyBoss_Integration {
      * Results are statically cached per user_id within the request.
      *
      * @param int $user_id WordPress user ID.
-     * @return string[] e.g. ['teacher', 'center_leader']
+     * @return string[] e.g. ['teacher', 'school_leader']
      */
     public function get_user_hl_roles($user_id) {
         $user_id = absint($user_id);

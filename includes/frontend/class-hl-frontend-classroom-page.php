@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) exit;
  *
  * Displays a single classroom detail view with header info and children table.
  *
- * Access: Housman Admin, Coach, Center Leaders, District Leaders,
+ * Access: Housman Admin, Coach, School Leaders, District Leaders,
  *         Teachers assigned to this classroom.
  * URL: ?id={classroom_id}
  *
@@ -62,7 +62,7 @@ class HL_Frontend_Classroom_Page {
             return ob_get_clean();
         }
 
-        $center = $classroom->center_id ? $this->orgunit_repo->get_by_id( $classroom->center_id ) : null;
+        $school = $classroom->school_id ? $this->orgunit_repo->get_by_id( $classroom->school_id ) : null;
 
         // Get teaching assignments for teacher names.
         $assignments   = $this->classroom_service->get_teaching_assignments( $classroom_id );
@@ -93,7 +93,7 @@ class HL_Frontend_Classroom_Page {
                 <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr; <?php echo esc_html( $back_label ); ?></a>
             <?php endif; ?>
 
-            <?php $this->render_header( $classroom, $center, $teacher_names ); ?>
+            <?php $this->render_header( $classroom, $school, $teacher_names ); ?>
 
             <div class="hl-table-container">
                 <div class="hl-table-header">
@@ -160,7 +160,7 @@ class HL_Frontend_Classroom_Page {
      * Check if the current user can view this classroom.
      *
      * Allowed: staff (manage_hl_core), teachers assigned to this classroom,
-     * center/district leaders whose scope includes the classroom's center.
+     * school/district leaders whose scope includes the classroom's school.
      */
     private function verify_access( $classroom, $user_id ) {
         // Staff always has access.
@@ -176,7 +176,7 @@ class HL_Frontend_Classroom_Page {
             }
         }
 
-        // Check if user is a leader whose scope includes this classroom's center.
+        // Check if user is a leader whose scope includes this classroom's school.
         // We need to check across all cohorts the user is enrolled in.
         global $wpdb;
         $enrollments = $wpdb->get_results( $wpdb->prepare(
@@ -189,18 +189,18 @@ class HL_Frontend_Classroom_Page {
             $enrollment = new HL_Enrollment( (array) $row );
             $roles      = $enrollment->get_roles_array();
 
-            // Center leader — classroom must be in their center.
-            if ( in_array( 'center_leader', $roles, true ) && $enrollment->center_id ) {
-                if ( (int) $enrollment->center_id === (int) $classroom->center_id ) {
+            // School leader — classroom must be in their school.
+            if ( in_array( 'school_leader', $roles, true ) && $enrollment->school_id ) {
+                if ( (int) $enrollment->school_id === (int) $classroom->school_id ) {
                     return true;
                 }
             }
 
-            // District leader — classroom's center must be within their district.
+            // District leader — classroom's school must be within their district.
             if ( in_array( 'district_leader', $roles, true ) && $enrollment->district_id ) {
-                $centers    = $this->orgunit_repo->get_centers( (int) $enrollment->district_id );
-                $center_ids = array_map( function ( $c ) { return (int) $c->orgunit_id; }, $centers );
-                if ( in_array( (int) $classroom->center_id, $center_ids, true ) ) {
+                $schools    = $this->orgunit_repo->get_schools( (int) $enrollment->district_id );
+                $school_ids = array_map( function ( $c ) { return (int) $c->orgunit_id; }, $schools );
+                if ( in_array( (int) $classroom->school_id, $school_ids, true ) ) {
                     return true;
                 }
             }
@@ -213,13 +213,13 @@ class HL_Frontend_Classroom_Page {
     // Header
     // ========================================================================
 
-    private function render_header( $classroom, $center, $teacher_names ) {
+    private function render_header( $classroom, $school, $teacher_names ) {
         ?>
         <div class="hl-classroom-page-header">
             <div class="hl-classroom-page-header-info">
                 <h2 class="hl-cohort-title"><?php echo esc_html( $classroom->classroom_name ); ?></h2>
-                <?php if ( $center ) : ?>
-                    <p class="hl-scope-indicator"><?php echo esc_html( $center->name ); ?></p>
+                <?php if ( $school ) : ?>
+                    <p class="hl-scope-indicator"><?php echo esc_html( $school->name ); ?></p>
                 <?php endif; ?>
                 <div class="hl-cohort-meta">
                     <?php if ( ! empty( $classroom->age_band ) ) : ?>

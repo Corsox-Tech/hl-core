@@ -125,7 +125,7 @@ class HL_CLI_Create_Pages {
             array( 'title' => 'Learners',              'shortcode' => 'hl_learners' ),
             array( 'title' => 'Pathways',              'shortcode' => 'hl_pathways_listing' ),
             array( 'title' => 'School Districts',      'shortcode' => 'hl_districts_listing' ),
-            array( 'title' => 'Centers',               'shortcode' => 'hl_centers_listing' ),
+            array( 'title' => 'Schools',               'shortcode' => 'hl_schools_listing' ),
 
             // Hub / workspace pages
             array( 'title' => 'Coaching Hub',          'shortcode' => 'hl_coaching_hub' ),
@@ -139,7 +139,7 @@ class HL_CLI_Create_Pages {
             array( 'title' => 'Team',                  'shortcode' => 'hl_team_page' ),
             array( 'title' => 'Classroom',             'shortcode' => 'hl_classroom_page' ),
             array( 'title' => 'District',              'shortcode' => 'hl_district_page' ),
-            array( 'title' => 'Center',                'shortcode' => 'hl_center_page' ),
+            array( 'title' => 'School',                'shortcode' => 'hl_school_page' ),
 
             // Assessment / observation pages
             array( 'title' => 'Children Assessment',       'shortcode' => 'hl_children_assessment' ),

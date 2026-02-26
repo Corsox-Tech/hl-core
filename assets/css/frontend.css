@@ -1636,7 +1636,7 @@ button.hl-btn-danger:hover,
     color: var(--hl-secondary);
 }
 
-.hl-team-card-center {
+.hl-team-card-school {
     font-size: 13px;
     color: var(--hl-text-muted);
     margin: 0 0 12px;
@@ -1866,7 +1866,7 @@ button.hl-btn-danger:hover,
     margin: 0;
 }
 
-/* Card grid for districts, centers, cohorts */
+/* Card grid for districts, schools, cohorts */
 .hl-crm-card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -2043,7 +2043,7 @@ button.hl-btn-danger:hover,
 }
 
 /* =====================================================
-   38. CRM DETAIL PAGE HEADER (District/Center)
+   38. CRM DETAIL PAGE HEADER (District/School)
    ===================================================== */
 
 .hl-crm-detail-header {

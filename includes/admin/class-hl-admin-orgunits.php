@@ -1,10 +1,10 @@
 <?php if (!defined('ABSPATH')) exit;
 
 /**
- * Admin OrgUnits Page — Hierarchical District → Center View
+ * Admin OrgUnits Page — Hierarchical District → School View
  *
- * Displays districts as collapsible sections with nested center tables.
- * Edit forms show related data (centers for districts, cohorts/classrooms/staff for centers).
+ * Displays districts as collapsible sections with nested school tables.
+ * Edit forms show related data (schools for districts, cohorts/classrooms/staff for schools).
  *
  * @package HL_Core
  */
@@ -122,87 +122,87 @@ class HL_Admin_OrgUnits {
     }
 
     /**
-     * Get all centers grouped by parent_orgunit_id
+     * Get all schools grouped by parent_orgunit_id
      *
      * @return array Keyed by parent_orgunit_id (0 for unassigned)
      */
-    private function get_centers_grouped() {
+    private function get_schools_grouped() {
         global $wpdb;
-        $centers = $wpdb->get_results(
-            "SELECT * FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'center' ORDER BY name ASC"
+        $schools = $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' ORDER BY name ASC"
         );
 
         $grouped = array();
-        foreach ($centers as $center) {
-            $parent = $center->parent_orgunit_id ? (int) $center->parent_orgunit_id : 0;
+        foreach ($schools as $school) {
+            $parent = $school->parent_orgunit_id ? (int) $school->parent_orgunit_id : 0;
             if (!isset($grouped[$parent])) {
                 $grouped[$parent] = array();
             }
-            $grouped[$parent][] = $center;
+            $grouped[$parent][] = $school;
         }
 
         return $grouped;
     }
 
     /**
-     * Get classroom counts per center
+     * Get classroom counts per school
      *
-     * @return array center_id => count
+     * @return array school_id => count
      */
     private function get_classroom_counts() {
         global $wpdb;
         $rows = $wpdb->get_results(
-            "SELECT center_id, COUNT(*) as cnt FROM {$wpdb->prefix}hl_classroom GROUP BY center_id"
+            "SELECT school_id, COUNT(*) as cnt FROM {$wpdb->prefix}hl_classroom GROUP BY school_id"
         );
 
         $counts = array();
         foreach ($rows as $row) {
-            $counts[(int) $row->center_id] = (int) $row->cnt;
+            $counts[(int) $row->school_id] = (int) $row->cnt;
         }
         return $counts;
     }
 
     /**
-     * Get active cohort counts per center
+     * Get active cohort counts per school
      *
-     * @return array center_id => count
+     * @return array school_id => count
      */
-    private function get_active_cohort_counts_per_center() {
+    private function get_active_cohort_counts_per_school() {
         global $wpdb;
         $rows = $wpdb->get_results(
-            "SELECT cc.center_id, COUNT(DISTINCT cc.cohort_id) as cnt
-             FROM {$wpdb->prefix}hl_cohort_center cc
+            "SELECT cc.school_id, COUNT(DISTINCT cc.cohort_id) as cnt
+             FROM {$wpdb->prefix}hl_cohort_school cc
              JOIN {$wpdb->prefix}hl_cohort c ON c.cohort_id = cc.cohort_id AND c.status = 'active'
-             GROUP BY cc.center_id"
+             GROUP BY cc.school_id"
         );
 
         $counts = array();
         foreach ($rows as $row) {
-            $counts[(int) $row->center_id] = (int) $row->cnt;
+            $counts[(int) $row->school_id] = (int) $row->cnt;
         }
         return $counts;
     }
 
     /**
-     * Get center leader display names per center
+     * Get school leader display names per school
      *
-     * @return array center_id => [names]
+     * @return array school_id => [names]
      */
-    private function get_center_leader_names() {
+    private function get_school_leader_names() {
         global $wpdb;
         $rows = $wpdb->get_results(
-            "SELECT e.center_id, u.display_name
+            "SELECT e.school_id, u.display_name
              FROM {$wpdb->prefix}hl_enrollment e
              JOIN {$wpdb->users} u ON u.ID = e.user_id
-             WHERE e.roles LIKE '%center_leader%'
+             WHERE e.roles LIKE '%school_leader%'
                AND e.status = 'active'
-               AND e.center_id IS NOT NULL
+               AND e.school_id IS NOT NULL
              ORDER BY u.display_name ASC"
         );
 
         $leaders = array();
         foreach ($rows as $row) {
-            $cid = (int) $row->center_id;
+            $cid = (int) $row->school_id;
             if (!isset($leaders[$cid])) {
                 $leaders[$cid] = array();
             }
@@ -301,10 +301,10 @@ class HL_Admin_OrgUnits {
     private function render_list() {
         // Batch-load all data
         $districts        = $this->get_districts();
-        $centers_grouped  = $this->get_centers_grouped();
+        $schools_grouped  = $this->get_schools_grouped();
         $classroom_counts = $this->get_classroom_counts();
-        $cohort_counts    = $this->get_active_cohort_counts_per_center();
-        $leader_names     = $this->get_center_leader_names();
+        $cohort_counts    = $this->get_active_cohort_counts_per_school();
+        $leader_names     = $this->get_school_leader_names();
 
         $stats = array(
             'classrooms' => $classroom_counts,
@@ -327,27 +327,27 @@ class HL_Admin_OrgUnits {
         // Header
         echo '<h1 class="wp-heading-inline">' . esc_html__('Org Units', 'hl-core') . '</h1>';
         $add_district_url = admin_url('admin.php?page=hl-orgunits&action=new&type=district');
-        $add_center_url   = admin_url('admin.php?page=hl-orgunits&action=new&type=center');
+        $add_school_url   = admin_url('admin.php?page=hl-orgunits&action=new&type=school');
         echo ' <a href="' . esc_url($add_district_url) . '" class="page-title-action">' . esc_html__('Add District', 'hl-core') . '</a>';
-        echo ' <a href="' . esc_url($add_center_url) . '" class="page-title-action">' . esc_html__('Add Center', 'hl-core') . '</a>';
+        echo ' <a href="' . esc_url($add_school_url) . '" class="page-title-action">' . esc_html__('Add School', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
-        if (empty($districts) && empty($centers_grouped)) {
-            echo '<p>' . esc_html__('No org units found. Create your first district or center.', 'hl-core') . '</p>';
+        if (empty($districts) && empty($schools_grouped)) {
+            echo '<p>' . esc_html__('No org units found. Create your first district or school.', 'hl-core') . '</p>';
             return;
         }
 
         // Render each district section
         foreach ($districts as $district) {
-            $district_centers = isset($centers_grouped[(int) $district->orgunit_id])
-                ? $centers_grouped[(int) $district->orgunit_id]
+            $district_schools = isset($schools_grouped[(int) $district->orgunit_id])
+                ? $schools_grouped[(int) $district->orgunit_id]
                 : array();
-            $this->render_district_section($district, $district_centers, $stats);
+            $this->render_district_section($district, $district_schools, $stats);
         }
 
-        // Render unassigned centers
-        if (!empty($centers_grouped[0])) {
-            $this->render_unassigned_section($centers_grouped[0], $stats);
+        // Render unassigned schools
+        if (!empty($schools_grouped[0])) {
+            $this->render_unassigned_section($schools_grouped[0], $stats);
         }
 
         $this->render_list_styles();
@@ -358,29 +358,29 @@ class HL_Admin_OrgUnits {
      * Render a single district as a collapsible section
      *
      * @param object $district
-     * @param array  $centers
+     * @param array  $schools
      * @param array  $stats
      */
-    private function render_district_section($district, $centers, $stats) {
+    private function render_district_section($district, $schools, $stats) {
         $did = (int) $district->orgunit_id;
         $edit_url   = admin_url('admin.php?page=hl-orgunits&action=edit&id=' . $did);
         $delete_url = wp_nonce_url(
             admin_url('admin.php?page=hl-orgunits&action=delete&id=' . $did),
             'hl_delete_orgunit_' . $did
         );
-        $add_center_url = admin_url('admin.php?page=hl-orgunits&action=new&type=center&parent_id=' . $did);
+        $add_school_url = admin_url('admin.php?page=hl-orgunits&action=new&type=school&parent_id=' . $did);
 
-        $center_count = count($centers);
+        $school_count = count($schools);
 
-        // Sum cohort counts from child centers
+        // Sum cohort counts from child schools
         $district_cohort_count = 0;
-        foreach ($centers as $c) {
+        foreach ($schools as $c) {
             $cid = (int) $c->orgunit_id;
             $district_cohort_count += isset($stats['cohorts'][$cid]) ? $stats['cohorts'][$cid] : 0;
         }
 
         $meta_parts = array();
-        $meta_parts[] = sprintf(_n('%d Center', '%d Centers', $center_count, 'hl-core'), $center_count);
+        $meta_parts[] = sprintf(_n('%d School', '%d Schools', $school_count, 'hl-core'), $school_count);
         $meta_parts[] = sprintf(_n('%d Active Cohort', '%d Active Cohorts', $district_cohort_count, 'hl-core'), $district_cohort_count);
 
         // Status
@@ -402,18 +402,18 @@ class HL_Admin_OrgUnits {
         echo '<span class="hl-district-meta">' . esc_html(implode(' &middot; ', $meta_parts)) . '</span>';
         echo '<span class="hl-district-actions">';
         echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
-        echo '<a href="' . esc_url($add_center_url) . '" class="button button-small">' . esc_html__('Add Center', 'hl-core') . '</a> ';
-        echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this district? Its child centers will become unassigned.', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
+        echo '<a href="' . esc_url($add_school_url) . '" class="button button-small">' . esc_html__('Add School', 'hl-core') . '</a> ';
+        echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this district? Its child schools will become unassigned.', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
         echo '</span>';
         echo '</div>';
 
         // Body
         echo '<div class="hl-district-body" id="hl-district-body-' . esc_attr($did) . '">';
 
-        if (empty($centers)) {
-            echo '<p class="hl-no-centers">' . esc_html__('No centers in this district.', 'hl-core') . '</p>';
+        if (empty($schools)) {
+            echo '<p class="hl-no-schools">' . esc_html__('No schools in this district.', 'hl-core') . '</p>';
         } else {
-            $this->render_center_table($centers, $stats);
+            $this->render_school_table($schools, $stats);
         }
 
         echo '</div>'; // .hl-district-body
@@ -421,32 +421,32 @@ class HL_Admin_OrgUnits {
     }
 
     /**
-     * Render the unassigned centers section
+     * Render the unassigned schools section
      *
-     * @param array $centers
+     * @param array $schools
      * @param array $stats
      */
-    private function render_unassigned_section($centers, $stats) {
+    private function render_unassigned_section($schools, $stats) {
         echo '<div class="hl-district-section hl-unassigned-section">';
         echo '<div class="hl-district-header hl-unassigned-header">';
-        echo '<strong style="color:#8c8f94;">' . esc_html__('Unassigned Centers', 'hl-core') . '</strong>';
-        echo '<span class="hl-district-meta" style="color:#8c8f94;">' . sprintf(_n('%d Center', '%d Centers', count($centers), 'hl-core'), count($centers)) . '</span>';
+        echo '<strong style="color:#8c8f94;">' . esc_html__('Unassigned Schools', 'hl-core') . '</strong>';
+        echo '<span class="hl-district-meta" style="color:#8c8f94;">' . sprintf(_n('%d School', '%d Schools', count($schools), 'hl-core'), count($schools)) . '</span>';
         echo '</div>';
 
         echo '<div class="hl-district-body">';
-        $this->render_center_table($centers, $stats);
+        $this->render_school_table($schools, $stats);
         echo '</div>';
         echo '</div>';
     }
 
     /**
-     * Render a table of centers
+     * Render a table of schools
      *
-     * @param array $centers
+     * @param array $schools
      * @param array $stats
      */
-    private function render_center_table($centers, $stats) {
-        echo '<table class="widefat striped hl-centers-table">';
+    private function render_school_table($schools, $stats) {
+        echo '<table class="widefat striped hl-schools-table">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Code', 'hl-core') . '</th>';
@@ -458,8 +458,8 @@ class HL_Admin_OrgUnits {
         echo '</tr></thead>';
         echo '<tbody>';
 
-        foreach ($centers as $center) {
-            $cid = (int) $center->orgunit_id;
+        foreach ($schools as $school) {
+            $cid = (int) $school->orgunit_id;
             $edit_url   = admin_url('admin.php?page=hl-orgunits&action=edit&id=' . $cid);
             $delete_url = wp_nonce_url(
                 admin_url('admin.php?page=hl-orgunits&action=delete&id=' . $cid),
@@ -470,18 +470,18 @@ class HL_Admin_OrgUnits {
             $classrooms  = isset($stats['classrooms'][$cid]) ? $stats['classrooms'][$cid] : 0;
             $cohorts     = isset($stats['cohorts'][$cid]) ? $stats['cohorts'][$cid] : 0;
 
-            $status_class = $center->status;
+            $status_class = $school->status;
 
             echo '<tr>';
-            echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($center->name) . '</a></strong></td>';
-            echo '<td><code>' . esc_html($center->orgunit_code) . '</code></td>';
+            echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($school->name) . '</a></strong></td>';
+            echo '<td><code>' . esc_html($school->orgunit_code) . '</code></td>';
             echo '<td>' . (!empty($leaders) ? esc_html(implode(', ', $leaders)) : '<span style="color:#8c8f94;">&mdash;</span>') . '</td>';
             echo '<td>' . esc_html($classrooms) . '</td>';
             echo '<td>' . esc_html($cohorts) . '</td>';
-            echo '<td><span class="hl-status-badge ' . esc_attr($status_class) . '">' . esc_html(ucfirst($center->status)) . '</span></td>';
+            echo '<td><span class="hl-status-badge ' . esc_attr($status_class) . '">' . esc_html(ucfirst($school->status)) . '</span></td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
-            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this center?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
+            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this school?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
             echo '</td>';
             echo '</tr>';
         }
@@ -552,18 +552,18 @@ class HL_Admin_OrgUnits {
             .hl-district-body.collapsed {
                 display: none;
             }
-            .hl-no-centers {
+            .hl-no-schools {
                 padding: 16px;
                 color: #8c8f94;
                 font-style: italic;
                 margin: 0;
             }
-            .hl-centers-table {
+            .hl-schools-table {
                 border: none;
                 border-radius: 0;
                 margin: 0;
             }
-            .hl-centers-table thead th {
+            .hl-schools-table thead th {
                 border-top: none;
             }
             .hl-district-section .hl-status-badge {
@@ -628,19 +628,19 @@ class HL_Admin_OrgUnits {
     private function render_form($orgunit = null) {
         $is_edit = ($orgunit !== null);
 
-        // Pre-fill from GET params (for "Add Center to this District" links)
+        // Pre-fill from GET params (for "Add School to this District" links)
         $prefill_type      = isset($_GET['type']) ? sanitize_text_field($_GET['type']) : '';
         $prefill_parent_id = isset($_GET['parent_id']) ? absint($_GET['parent_id']) : 0;
 
         // Dynamic title
         if ($is_edit) {
-            $type_label = ($orgunit->orgunit_type === 'district') ? __('District', 'hl-core') : __('Center', 'hl-core');
+            $type_label = ($orgunit->orgunit_type === 'district') ? __('District', 'hl-core') : __('School', 'hl-core');
             $title = sprintf(__('Edit %s: %s', 'hl-core'), $type_label, $orgunit->name);
         } else {
             if ($prefill_type === 'district') {
                 $title = __('Add New District', 'hl-core');
-            } elseif ($prefill_type === 'center') {
-                $title = __('Add New Center', 'hl-core');
+            } elseif ($prefill_type === 'school') {
+                $title = __('Add New School', 'hl-core');
             } else {
                 $title = __('Add New Org Unit', 'hl-core');
             }
@@ -655,7 +655,7 @@ class HL_Admin_OrgUnits {
         echo '<h1>' . esc_html($title) . '</h1>';
 
         // Contextual breadcrumb
-        if ($is_edit && $orgunit->orgunit_type === 'center' && $orgunit->parent_orgunit_id) {
+        if ($is_edit && $orgunit->orgunit_type === 'school' && $orgunit->parent_orgunit_id) {
             $parent = $this->get_orgunit($orgunit->parent_orgunit_id);
             if ($parent) {
                 $parent_edit_url = admin_url('admin.php?page=hl-orgunits&action=edit&id=' . $parent->orgunit_id);
@@ -695,11 +695,11 @@ class HL_Admin_OrgUnits {
         echo '<th scope="row"><label for="orgunit_type">' . esc_html__('Type', 'hl-core') . '</label></th>';
         echo '<td><select id="orgunit_type" name="orgunit_type">';
         echo '<option value="district"' . selected($current_type, 'district', false) . '>' . esc_html__('District', 'hl-core') . '</option>';
-        echo '<option value="center"' . selected($current_type, 'center', false) . '>' . esc_html__('Center', 'hl-core') . '</option>';
+        echo '<option value="school"' . selected($current_type, 'school', false) . '>' . esc_html__('School', 'hl-core') . '</option>';
         echo '</select></td>';
         echo '</tr>';
 
-        // Parent (for centers)
+        // Parent (for schools)
         $current_parent = $is_edit ? $orgunit->parent_orgunit_id : ($prefill_parent_id ?: '');
         echo '<tr>';
         echo '<th scope="row"><label for="parent_orgunit_id">' . esc_html__('Parent District', 'hl-core') . '</label></th>';
@@ -715,7 +715,7 @@ class HL_Admin_OrgUnits {
             }
         }
         echo '</select>';
-        echo '<p class="description">' . esc_html__('Required for Centers. Select the parent District.', 'hl-core') . '</p></td>';
+        echo '<p class="description">' . esc_html__('Required for Schools. Select the parent District.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
         // Status
@@ -740,8 +740,8 @@ class HL_Admin_OrgUnits {
             echo '<div class="hl-edit-extras">';
             if ($orgunit->orgunit_type === 'district') {
                 $this->render_district_edit_extras($orgunit);
-            } elseif ($orgunit->orgunit_type === 'center') {
-                $this->render_center_edit_extras($orgunit);
+            } elseif ($orgunit->orgunit_type === 'school') {
+                $this->render_school_edit_extras($orgunit);
             }
             echo '</div>';
         }
@@ -752,7 +752,7 @@ class HL_Admin_OrgUnits {
     // -------------------------------------------------------------------------
 
     /**
-     * Render related data for a district being edited: child centers table
+     * Render related data for a district being edited: child schools table
      *
      * @param object $orgunit
      */
@@ -760,17 +760,17 @@ class HL_Admin_OrgUnits {
         global $wpdb;
         $did = (int) $orgunit->orgunit_id;
 
-        $centers = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'center' AND parent_orgunit_id = %d ORDER BY name ASC",
+        $schools = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' AND parent_orgunit_id = %d ORDER BY name ASC",
             $did
         ));
 
-        $add_center_url = admin_url('admin.php?page=hl-orgunits&action=new&type=center&parent_id=' . $did);
+        $add_school_url = admin_url('admin.php?page=hl-orgunits&action=new&type=school&parent_id=' . $did);
 
-        echo '<h3>' . esc_html__('Centers in this District', 'hl-core') . '</h3>';
+        echo '<h3>' . esc_html__('Schools in this District', 'hl-core') . '</h3>';
 
-        if (empty($centers)) {
-            echo '<p>' . esc_html__('No centers assigned to this district yet.', 'hl-core') . '</p>';
+        if (empty($schools)) {
+            echo '<p>' . esc_html__('No schools assigned to this district yet.', 'hl-core') . '</p>';
         } else {
             echo '<table class="widefat striped">';
             echo '<thead><tr>';
@@ -780,17 +780,17 @@ class HL_Admin_OrgUnits {
             echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
             echo '</tr></thead><tbody>';
 
-            foreach ($centers as $center) {
-                $edit_url   = admin_url('admin.php?page=hl-orgunits&action=edit&id=' . $center->orgunit_id);
+            foreach ($schools as $school) {
+                $edit_url   = admin_url('admin.php?page=hl-orgunits&action=edit&id=' . $school->orgunit_id);
                 $delete_url = wp_nonce_url(
-                    admin_url('admin.php?page=hl-orgunits&action=delete&id=' . $center->orgunit_id),
-                    'hl_delete_orgunit_' . $center->orgunit_id
+                    admin_url('admin.php?page=hl-orgunits&action=delete&id=' . $school->orgunit_id),
+                    'hl_delete_orgunit_' . $school->orgunit_id
                 );
 
                 echo '<tr>';
-                echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($center->name) . '</a></strong></td>';
-                echo '<td><code>' . esc_html($center->orgunit_code) . '</code></td>';
-                echo '<td><span class="hl-status-badge ' . esc_attr($center->status) . '">' . esc_html(ucfirst($center->status)) . '</span></td>';
+                echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($school->name) . '</a></strong></td>';
+                echo '<td><code>' . esc_html($school->orgunit_code) . '</code></td>';
+                echo '<td><span class="hl-status-badge ' . esc_attr($school->status) . '">' . esc_html(ucfirst($school->status)) . '</span></td>';
                 echo '<td>';
                 echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
                 echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
@@ -801,15 +801,15 @@ class HL_Admin_OrgUnits {
             echo '</tbody></table>';
         }
 
-        echo '<p><a href="' . esc_url($add_center_url) . '" class="button">' . esc_html__('Add Center to this District', 'hl-core') . '</a></p>';
+        echo '<p><a href="' . esc_url($add_school_url) . '" class="button">' . esc_html__('Add School to this District', 'hl-core') . '</a></p>';
     }
 
     /**
-     * Render related data for a center being edited: cohorts, classrooms, staff
+     * Render related data for a school being edited: cohorts, classrooms, staff
      *
      * @param object $orgunit
      */
-    private function render_center_edit_extras($orgunit) {
+    private function render_school_edit_extras($orgunit) {
         global $wpdb;
         $cid = (int) $orgunit->orgunit_id;
 
@@ -818,15 +818,15 @@ class HL_Admin_OrgUnits {
 
         $cohorts = $wpdb->get_results($wpdb->prepare(
             "SELECT c.cohort_id, c.cohort_name, c.status, c.start_date
-             FROM {$wpdb->prefix}hl_cohort_center cc
+             FROM {$wpdb->prefix}hl_cohort_school cc
              JOIN {$wpdb->prefix}hl_cohort c ON c.cohort_id = cc.cohort_id
-             WHERE cc.center_id = %d
+             WHERE cc.school_id = %d
              ORDER BY c.start_date DESC",
             $cid
         ));
 
         if (empty($cohorts)) {
-            echo '<p>' . esc_html__('No cohorts linked to this center.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No cohorts linked to this school.', 'hl-core') . '</p>';
         } else {
             echo '<table class="widefat striped">';
             echo '<thead><tr>';
@@ -854,13 +854,13 @@ class HL_Admin_OrgUnits {
             "SELECT cl.classroom_id, cl.classroom_name, cl.age_band,
                     (SELECT COUNT(*) FROM {$wpdb->prefix}hl_child_classroom_current ccc WHERE ccc.classroom_id = cl.classroom_id) as child_count
              FROM {$wpdb->prefix}hl_classroom cl
-             WHERE cl.center_id = %d
+             WHERE cl.school_id = %d
              ORDER BY cl.classroom_name ASC",
             $cid
         ));
 
         if (empty($classrooms)) {
-            echo '<p>' . esc_html__('No classrooms at this center.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No classrooms at this school.', 'hl-core') . '</p>';
         } else {
             echo '<table class="widefat striped">';
             echo '<thead><tr>';
@@ -889,13 +889,13 @@ class HL_Admin_OrgUnits {
              FROM {$wpdb->prefix}hl_enrollment e
              JOIN {$wpdb->users} u ON u.ID = e.user_id
              JOIN {$wpdb->prefix}hl_cohort c ON c.cohort_id = e.cohort_id
-             WHERE e.center_id = %d AND e.status = 'active'
+             WHERE e.school_id = %d AND e.status = 'active'
              ORDER BY u.display_name ASC",
             $cid
         ));
 
         if (empty($staff)) {
-            echo '<p>' . esc_html__('No staff enrolled at this center.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No staff enrolled at this school.', 'hl-core') . '</p>';
         } else {
             echo '<table class="widefat striped">';
             echo '<thead><tr>';

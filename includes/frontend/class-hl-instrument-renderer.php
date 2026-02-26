@@ -34,7 +34,7 @@ class HL_Instrument_Renderer {
     /** @var array Existing answers keyed by child_id, each containing decoded answers_json. */
     private $existing_answers;
 
-    /** @var array Full instance data (display_name, center_name, classroom_name, phase, cohort_name, etc.). */
+    /** @var array Full instance data (display_name, school_name, classroom_name, phase, cohort_name, etc.). */
     private $instance;
 
     /**
@@ -181,7 +181,7 @@ class HL_Instrument_Renderer {
      */
     private function render_teacher_info() {
         $teacher   = isset( $this->instance['display_name'] ) ? $this->instance['display_name'] : '';
-        $school    = isset( $this->instance['center_name'] ) ? $this->instance['center_name'] : '';
+        $school    = isset( $this->instance['school_name'] ) ? $this->instance['school_name'] : '';
         $classroom = isset( $this->instance['classroom_name'] ) ? $this->instance['classroom_name'] : '';
 
         if ( empty( $teacher ) && empty( $school ) && empty( $classroom ) ) {

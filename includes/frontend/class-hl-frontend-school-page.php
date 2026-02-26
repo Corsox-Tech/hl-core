@@ -2,17 +2,17 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Renderer for the [hl_center_page] shortcode.
+ * Renderer for the [hl_school_page] shortcode.
  *
- * Center-level CRM view showing header, active cohorts, classrooms, and staff.
+ * School-level CRM view showing header, active cohorts, classrooms, and staff.
  *
- * Access: Housman Admin, Coach, Center Leader(s) of this center,
+ * Access: Housman Admin, Coach, School Leader(s) of this school,
  *         District Leader(s) of the parent district.
  * URL: ?id={orgunit_id}
  *
  * @package HL_Core
  */
-class HL_Frontend_Center_Page {
+class HL_Frontend_School_Page {
 
     /** @var HL_OrgUnit_Repository */
     private $orgunit_repo;
@@ -33,37 +33,37 @@ class HL_Frontend_Center_Page {
         ob_start();
 
         $user_id   = get_current_user_id();
-        $center_id = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
+        $school_id = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
 
-        if ( ! $center_id ) {
-            echo '<div class="hl-dashboard hl-center-page hl-frontend-wrap">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'Invalid center link.', 'hl-core' ) . '</div>';
+        if ( ! $school_id ) {
+            echo '<div class="hl-dashboard hl-school-page hl-frontend-wrap">';
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'Invalid school link.', 'hl-core' ) . '</div>';
             echo '</div>';
             return ob_get_clean();
         }
 
-        $center = $this->orgunit_repo->get_by_id( $center_id );
-        if ( ! $center || ! $center->is_center() ) {
-            echo '<div class="hl-dashboard hl-center-page hl-frontend-wrap">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'Center not found.', 'hl-core' ) . '</div>';
+        $school = $this->orgunit_repo->get_by_id( $school_id );
+        if ( ! $school || ! $school->is_school() ) {
+            echo '<div class="hl-dashboard hl-school-page hl-frontend-wrap">';
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'School not found.', 'hl-core' ) . '</div>';
             echo '</div>';
             return ob_get_clean();
         }
 
-        if ( ! $this->verify_access( $center, $user_id ) ) {
-            echo '<div class="hl-dashboard hl-center-page hl-frontend-wrap">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'You do not have access to this center.', 'hl-core' ) . '</div>';
+        if ( ! $this->verify_access( $school, $user_id ) ) {
+            echo '<div class="hl-dashboard hl-school-page hl-frontend-wrap">';
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'You do not have access to this school.', 'hl-core' ) . '</div>';
             echo '</div>';
             return ob_get_clean();
         }
 
-        $parent_district = $center->parent_orgunit_id
-            ? $this->orgunit_repo->get_by_id( $center->parent_orgunit_id )
+        $parent_district = $school->parent_orgunit_id
+            ? $this->orgunit_repo->get_by_id( $school->parent_orgunit_id )
             : null;
 
-        $cohorts    = $this->get_active_cohorts_for_center( $center_id );
-        $classrooms = $this->classroom_service->get_classrooms( $center_id );
-        $staff      = $this->get_staff_at_center( $center_id );
+        $cohorts    = $this->get_active_cohorts_for_school( $school_id );
+        $classrooms = $this->classroom_service->get_classrooms( $school_id );
+        $staff      = $this->get_staff_at_school( $school_id );
 
         // URLs.
         $district_page_url  = $this->find_shortcode_page_url( 'hl_district_page' );
@@ -73,12 +73,12 @@ class HL_Frontend_Center_Page {
         $back_url = '';
         if ( $parent_district && $district_page_url ) {
             $back_url = add_query_arg( 'id', $parent_district->orgunit_id, $district_page_url );
-        } elseif ( $this->find_shortcode_page_url( 'hl_centers_listing' ) ) {
-            $back_url = $this->find_shortcode_page_url( 'hl_centers_listing' );
+        } elseif ( $this->find_shortcode_page_url( 'hl_schools_listing' ) ) {
+            $back_url = $this->find_shortcode_page_url( 'hl_schools_listing' );
         }
 
         ?>
-        <div class="hl-dashboard hl-center-page hl-frontend-wrap">
+        <div class="hl-dashboard hl-school-page hl-frontend-wrap">
 
             <?php if ( ! empty( $back_url ) ) : ?>
                 <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr;
@@ -92,9 +92,9 @@ class HL_Frontend_Center_Page {
                 </a>
             <?php endif; ?>
 
-            <?php $this->render_header( $center, $parent_district, $district_page_url ); ?>
+            <?php $this->render_header( $school, $parent_district, $district_page_url ); ?>
 
-            <?php $this->render_cohorts_section( $cohorts, $workspace_page_url, $center_id ); ?>
+            <?php $this->render_cohorts_section( $cohorts, $workspace_page_url, $school_id ); ?>
 
             <?php $this->render_classrooms_section( $classrooms, $classroom_page_url ); ?>
 
@@ -110,37 +110,37 @@ class HL_Frontend_Center_Page {
     // Access Control
     // ========================================================================
 
-    private function verify_access( $center, $user_id ) {
+    private function verify_access( $school, $user_id ) {
         if ( HL_Security::can_manage() ) {
             return true;
         }
 
         global $wpdb;
 
-        // Center leaders of this center.
-        $is_center_leader = $wpdb->get_var( $wpdb->prepare(
+        // School leaders of this school.
+        $is_school_leader = $wpdb->get_var( $wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}hl_enrollment
              WHERE user_id = %d AND status = 'active'
-               AND center_id = %d
+               AND school_id = %d
                AND roles LIKE %s",
             $user_id,
-            $center->orgunit_id,
-            '%"center_leader"%'
+            $school->orgunit_id,
+            '%"school_leader"%'
         ) );
 
-        if ( (int) $is_center_leader > 0 ) {
+        if ( (int) $is_school_leader > 0 ) {
             return true;
         }
 
         // District leaders of the parent district.
-        if ( $center->parent_orgunit_id ) {
+        if ( $school->parent_orgunit_id ) {
             $is_district_leader = $wpdb->get_var( $wpdb->prepare(
                 "SELECT COUNT(*) FROM {$wpdb->prefix}hl_enrollment
                  WHERE user_id = %d AND status = 'active'
                    AND district_id = %d
                    AND roles LIKE %s",
                 $user_id,
-                $center->parent_orgunit_id,
+                $school->parent_orgunit_id,
                 '%"district_leader"%'
             ) );
 
@@ -156,11 +156,11 @@ class HL_Frontend_Center_Page {
     // Header
     // ========================================================================
 
-    private function render_header( $center, $parent_district, $district_page_url ) {
+    private function render_header( $school, $parent_district, $district_page_url ) {
         ?>
         <div class="hl-crm-detail-header">
             <div class="hl-crm-detail-header-info">
-                <h2 class="hl-cohort-title"><?php echo esc_html( $center->name ); ?></h2>
+                <h2 class="hl-cohort-title"><?php echo esc_html( $school->name ); ?></h2>
                 <?php if ( $parent_district ) :
                     $d_url = $district_page_url
                         ? add_query_arg( 'id', $parent_district->orgunit_id, $district_page_url )
@@ -185,13 +185,13 @@ class HL_Frontend_Center_Page {
     // Section: Active Cohorts
     // ========================================================================
 
-    private function render_cohorts_section( $cohorts, $workspace_url, $center_id ) {
+    private function render_cohorts_section( $cohorts, $workspace_url, $school_id ) {
         ?>
         <div class="hl-crm-section">
             <h3 class="hl-section-title"><?php esc_html_e( 'Active Cohorts', 'hl-core' ); ?></h3>
 
             <?php if ( empty( $cohorts ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No active cohorts at this center.', 'hl-core' ); ?></p></div>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No active cohorts at this school.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <div class="hl-crm-cohort-list">
                     <?php foreach ( $cohorts as $row ) :
@@ -201,7 +201,7 @@ class HL_Frontend_Center_Page {
                         $status_class     = 'hl-badge-' . sanitize_html_class( $status );
 
                         $cohort_url = $workspace_url
-                            ? add_query_arg( array( 'id' => $cohort->cohort_id, 'orgunit' => $center_id ), $workspace_url )
+                            ? add_query_arg( array( 'id' => $cohort->cohort_id, 'orgunit' => $school_id ), $workspace_url )
                             : '';
                     ?>
                         <div class="hl-crm-cohort-row">
@@ -248,7 +248,7 @@ class HL_Frontend_Center_Page {
             </h3>
 
             <?php if ( empty( $classrooms ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No classrooms at this center.', 'hl-core' ); ?></p></div>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No classrooms at this school.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <table class="hl-table">
                     <thead>
@@ -301,7 +301,7 @@ class HL_Frontend_Center_Page {
             </h3>
 
             <?php if ( empty( $staff ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No staff at this center.', 'hl-core' ); ?></p></div>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No staff at this school.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <table class="hl-table">
                     <thead>
@@ -333,9 +333,9 @@ class HL_Frontend_Center_Page {
     // ========================================================================
 
     /**
-     * Get active cohorts this center participates in, with participant count at this center.
+     * Get active cohorts this school participates in, with participant count at this school.
      */
-    private function get_active_cohorts_for_center( $center_id ) {
+    private function get_active_cohorts_for_school( $school_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -343,14 +343,14 @@ class HL_Frontend_Center_Page {
             "SELECT c.*,
                     (SELECT COUNT(*) FROM {$prefix}hl_enrollment e2
                      WHERE e2.cohort_id = c.cohort_id AND e2.status = 'active'
-                       AND e2.center_id = %d) AS participant_count
+                       AND e2.school_id = %d) AS participant_count
              FROM {$prefix}hl_cohort c
-             INNER JOIN {$prefix}hl_cohort_center cc ON c.cohort_id = cc.cohort_id
-             WHERE cc.center_id = %d
+             INNER JOIN {$prefix}hl_cohort_school cs ON c.cohort_id = cs.cohort_id
+             WHERE cs.school_id = %d
                AND c.status = 'active'
              ORDER BY c.start_date DESC",
-            $center_id,
-            $center_id
+            $school_id,
+            $school_id
         ), ARRAY_A );
 
         return array_map( function ( $row ) {
@@ -364,9 +364,9 @@ class HL_Frontend_Center_Page {
     }
 
     /**
-     * Get all staff enrolled at this center (across all cohorts).
+     * Get all staff enrolled at this school (across all cohorts).
      */
-    private function get_staff_at_center( $center_id ) {
+    private function get_staff_at_school( $school_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -376,10 +376,10 @@ class HL_Frontend_Center_Page {
              FROM {$prefix}hl_enrollment e
              INNER JOIN {$wpdb->users} u ON e.user_id = u.ID
              INNER JOIN {$prefix}hl_cohort c ON e.cohort_id = c.cohort_id
-             WHERE e.center_id = %d
+             WHERE e.school_id = %d
                AND e.status = 'active'
              ORDER BY u.display_name ASC",
-            $center_id
+            $school_id
         ), ARRAY_A );
 
         return array_map( function ( $row ) {

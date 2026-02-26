@@ -1,8 +1,8 @@
 <?php
-// === FILE 1: Center Info (Sheet2) ===
+// === FILE 1: School Info (Sheet2) ===
 // Headers: Organization/Center Name | School District | Center Address | Staff Count | Children Count | Technology Available | Center Leader Name | Center Leader Phone | Center Leader Email | Communication Preference | Liaison Name | Liaison Phone | Liaison Email
 
-$center_info_headers = array (
+$school_info_headers = array (
   0 => '',
   1 => 'Organization/Center Name',
   2 => 'School District',
@@ -19,7 +19,7 @@ $center_info_headers = array (
   13 => 'Liaison Email',
 );
 
-$center_info_data = array (
+$school_info_data = array (
   0 => 
   array (
     0 => '',

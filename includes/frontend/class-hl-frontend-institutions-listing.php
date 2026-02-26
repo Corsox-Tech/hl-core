@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * Renderer for the [hl_institutions_listing] shortcode.
  *
- * Combined districts + centers view with toggle, search, scope filtering.
+ * Combined districts + schools view with toggle, search, scope filtering.
  *
  * @package HL_Core
  */
@@ -30,7 +30,7 @@ class HL_Frontend_Institutions_Listing {
         $scope = HL_Scope_Service::get_scope();
 
         // Must be staff or have an enrollment with leader role.
-        if ( ! $scope['is_staff'] && empty( $scope['center_ids'] ) && empty( $scope['district_ids'] ) ) {
+        if ( ! $scope['is_staff'] && empty( $scope['school_ids'] ) && empty( $scope['district_ids'] ) ) {
             echo '<div class="hl-notice hl-notice-error">'
                 . esc_html__( 'You do not have access to this page.', 'hl-core' )
                 . '</div>';
@@ -38,20 +38,20 @@ class HL_Frontend_Institutions_Listing {
         }
 
         $districts    = $this->orgunit_repo->get_districts();
-        $all_centers  = $this->orgunit_repo->get_centers();
+        $all_schools  = $this->orgunit_repo->get_schools();
 
         // Scope filter.
         $districts = HL_Scope_Service::filter_by_ids( $districts, 'orgunit_id', $scope['district_ids'], $scope['is_admin'] );
-        $centers   = HL_Scope_Service::filter_by_ids( $all_centers, 'orgunit_id', $scope['center_ids'], $scope['is_admin'] );
+        $schools   = HL_Scope_Service::filter_by_ids( $all_schools, 'orgunit_id', $scope['school_ids'], $scope['is_admin'] );
 
         // Pre-compute stats.
-        $center_counts = $this->get_center_counts_by_district();
+        $school_counts = $this->get_school_counts_by_district();
         $cohort_counts = $this->get_active_cohort_counts_by_district();
-        $leaders       = $this->get_center_leaders();
+        $leaders       = $this->get_school_leaders();
         $district_map  = $this->build_district_map( $districts );
 
         $district_page_url = $this->find_shortcode_page_url( 'hl_district_page' );
-        $center_page_url   = $this->find_shortcode_page_url( 'hl_center_page' );
+        $school_page_url   = $this->find_shortcode_page_url( 'hl_school_page' );
 
         ?>
         <div class="hl-dashboard hl-institutions-listing hl-frontend-wrap">
@@ -66,11 +66,11 @@ class HL_Frontend_Institutions_Listing {
                 <div class="hl-toggle-group">
                     <button class="hl-tab hl-inst-toggle active" data-view="all"><?php esc_html_e( 'All', 'hl-core' ); ?></button>
                     <button class="hl-tab hl-inst-toggle" data-view="districts"><?php esc_html_e( 'Districts', 'hl-core' ); ?></button>
-                    <button class="hl-tab hl-inst-toggle" data-view="centers"><?php esc_html_e( 'Centers', 'hl-core' ); ?></button>
+                    <button class="hl-tab hl-inst-toggle" data-view="schools"><?php esc_html_e( 'Schools', 'hl-core' ); ?></button>
                 </div>
             </div>
 
-            <?php if ( empty( $districts ) && empty( $centers ) ) : ?>
+            <?php if ( empty( $districts ) && empty( $schools ) ) : ?>
                 <div class="hl-empty-state"><p><?php esc_html_e( 'No institutions found.', 'hl-core' ); ?></p></div>
             <?php else : ?>
 
@@ -84,7 +84,7 @@ class HL_Frontend_Institutions_Listing {
                         <div class="hl-crm-card-grid">
                             <?php foreach ( $districts as $district ) :
                                 $did         = (int) $district->orgunit_id;
-                                $num_centers = isset( $center_counts[ $did ] ) ? $center_counts[ $did ] : 0;
+                                $num_schools = isset( $school_counts[ $did ] ) ? $school_counts[ $did ] : 0;
                                 $num_cohorts = isset( $cohort_counts[ $did ] ) ? $cohort_counts[ $did ] : 0;
                                 $detail_url  = $district_page_url ? add_query_arg( 'id', $did, $district_page_url ) : '';
                             ?>
@@ -101,8 +101,8 @@ class HL_Frontend_Institutions_Listing {
                                         </h3>
                                         <div class="hl-crm-card-meta">
                                             <span class="hl-crm-card-stat">
-                                                <strong><?php echo esc_html( $num_centers ); ?></strong>
-                                                <?php echo esc_html( _n( 'Center', 'Centers', $num_centers, 'hl-core' ) ); ?>
+                                                <strong><?php echo esc_html( $num_schools ); ?></strong>
+                                                <?php echo esc_html( _n( 'School', 'Schools', $num_schools, 'hl-core' ) ); ?>
                                             </span>
                                             <span class="hl-crm-card-stat">
                                                 <strong><?php echo esc_html( $num_cohorts ); ?></strong>
@@ -123,31 +123,31 @@ class HL_Frontend_Institutions_Listing {
                     </div>
                 <?php endif; ?>
 
-                <!-- Centers Section -->
-                <?php if ( ! empty( $centers ) ) : ?>
-                    <div class="hl-inst-section hl-inst-centers" data-type="centers">
+                <!-- Schools Section -->
+                <?php if ( ! empty( $schools ) ) : ?>
+                    <div class="hl-inst-section hl-inst-schools" data-type="schools">
                         <h3 class="hl-section-title">
-                            <?php esc_html_e( 'Centers', 'hl-core' ); ?>
-                            <span class="hl-section-count">(<?php echo count( $centers ); ?>)</span>
+                            <?php esc_html_e( 'Schools', 'hl-core' ); ?>
+                            <span class="hl-section-count">(<?php echo count( $schools ); ?>)</span>
                         </h3>
                         <div class="hl-crm-card-grid">
-                            <?php foreach ( $centers as $center ) :
-                                $cid         = (int) $center->orgunit_id;
-                                $parent_name = isset( $district_map[ (int) $center->parent_orgunit_id ] )
-                                    ? $district_map[ (int) $center->parent_orgunit_id ]
+                            <?php foreach ( $schools as $school ) :
+                                $cid         = (int) $school->orgunit_id;
+                                $parent_name = isset( $district_map[ (int) $school->parent_orgunit_id ] )
+                                    ? $district_map[ (int) $school->parent_orgunit_id ]
                                     : '';
                                 $leader_list = isset( $leaders[ $cid ] ) ? $leaders[ $cid ] : array();
-                                $detail_url  = $center_page_url ? add_query_arg( 'id', $cid, $center_page_url ) : '';
+                                $detail_url  = $school_page_url ? add_query_arg( 'id', $cid, $school_page_url ) : '';
                             ?>
                                 <div class="hl-crm-card hl-inst-card"
-                                     data-name="<?php echo esc_attr( strtolower( $center->name . ' ' . $parent_name ) ); ?>"
-                                     data-type="center">
+                                     data-name="<?php echo esc_attr( strtolower( $school->name . ' ' . $parent_name ) ); ?>"
+                                     data-type="school">
                                     <div class="hl-crm-card-body">
                                         <h3 class="hl-crm-card-title">
                                             <?php if ( $detail_url ) : ?>
-                                                <a href="<?php echo esc_url( $detail_url ); ?>"><?php echo esc_html( $center->name ); ?></a>
+                                                <a href="<?php echo esc_url( $detail_url ); ?>"><?php echo esc_html( $school->name ); ?></a>
                                             <?php else : ?>
-                                                <?php echo esc_html( $center->name ); ?>
+                                                <?php echo esc_html( $school->name ); ?>
                                             <?php endif; ?>
                                         </h3>
                                         <?php if ( $parent_name ) : ?>
@@ -166,7 +166,7 @@ class HL_Frontend_Institutions_Listing {
                                     <?php if ( $detail_url ) : ?>
                                         <div class="hl-crm-card-action">
                                             <a href="<?php echo esc_url( $detail_url ); ?>" class="hl-btn hl-btn-sm hl-btn-secondary">
-                                                <?php esc_html_e( 'View Center', 'hl-core' ); ?>
+                                                <?php esc_html_e( 'View School', 'hl-core' ); ?>
                                             </a>
                                         </div>
                                     <?php endif; ?>
@@ -234,12 +234,12 @@ class HL_Frontend_Institutions_Listing {
     // Data helpers
     // =========================================================================
 
-    private function get_center_counts_by_district() {
+    private function get_school_counts_by_district() {
         global $wpdb;
         $results = $wpdb->get_results(
             "SELECT parent_orgunit_id, COUNT(*) AS cnt
              FROM {$wpdb->prefix}hl_orgunit
-             WHERE orgunit_type = 'center' AND parent_orgunit_id IS NOT NULL
+             WHERE orgunit_type = 'school' AND parent_orgunit_id IS NOT NULL
              GROUP BY parent_orgunit_id",
             ARRAY_A
         );
@@ -255,10 +255,10 @@ class HL_Frontend_Institutions_Listing {
         $prefix = $wpdb->prefix;
         $results = $wpdb->get_results(
             "SELECT ou.parent_orgunit_id AS district_id,
-                    COUNT(DISTINCT cc.cohort_id) AS cnt
-             FROM {$prefix}hl_cohort_center cc
-             INNER JOIN {$prefix}hl_orgunit ou ON cc.center_id = ou.orgunit_id
-             INNER JOIN {$prefix}hl_cohort c ON cc.cohort_id = c.cohort_id
+                    COUNT(DISTINCT cs.cohort_id) AS cnt
+             FROM {$prefix}hl_cohort_school cs
+             INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
+             INNER JOIN {$prefix}hl_cohort c ON cs.cohort_id = c.cohort_id
              WHERE ou.parent_orgunit_id IS NOT NULL AND c.status = 'active'
              GROUP BY ou.parent_orgunit_id",
             ARRAY_A
@@ -270,20 +270,20 @@ class HL_Frontend_Institutions_Listing {
         return $map;
     }
 
-    private function get_center_leaders() {
+    private function get_school_leaders() {
         global $wpdb;
         $prefix = $wpdb->prefix;
         $rows = $wpdb->get_results(
-            "SELECT e.center_id, u.display_name
+            "SELECT e.school_id, u.display_name
              FROM {$prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.status = 'active' AND e.roles LIKE '%center_leader%'
+             WHERE e.status = 'active' AND e.roles LIKE '%school_leader%'
              ORDER BY u.display_name ASC",
             ARRAY_A
         );
         $map = array();
         foreach ( $rows ?: array() as $row ) {
-            $cid = (int) $row['center_id'];
+            $cid = (int) $row['school_id'];
             if ( ! isset( $map[ $cid ] ) ) {
                 $map[ $cid ] = array();
             }

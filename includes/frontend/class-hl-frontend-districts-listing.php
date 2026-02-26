@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) exit;
  * Renderer for the [hl_districts_listing] shortcode.
  *
  * CRM-style directory — card grid of all school districts.
- * Each card shows: district name, # centers, # active cohorts.
+ * Each card shows: district name, # schools, # active cohorts.
  *
  * Access: Housman Admin, Coach (manage_hl_core).
  *
@@ -40,7 +40,7 @@ class HL_Frontend_Districts_Listing {
         $districts = $this->orgunit_repo->get_districts();
 
         // Pre-compute counts.
-        $center_counts = $this->get_center_counts();
+        $school_counts = $this->get_school_counts();
         $cohort_counts = $this->get_active_cohort_counts();
 
         $district_page_url = $this->find_shortcode_page_url( 'hl_district_page' );
@@ -58,7 +58,7 @@ class HL_Frontend_Districts_Listing {
                 <div class="hl-crm-card-grid">
                     <?php foreach ( $districts as $district ) :
                         $did          = $district->orgunit_id;
-                        $num_centers  = isset( $center_counts[ $did ] ) ? $center_counts[ $did ] : 0;
+                        $num_schools  = isset( $school_counts[ $did ] ) ? $school_counts[ $did ] : 0;
                         $num_cohorts  = isset( $cohort_counts[ $did ] ) ? $cohort_counts[ $did ] : 0;
                         $detail_url   = $district_page_url
                             ? add_query_arg( 'id', $did, $district_page_url )
@@ -75,8 +75,8 @@ class HL_Frontend_Districts_Listing {
                                 </h3>
                                 <div class="hl-crm-card-meta">
                                     <span class="hl-crm-card-stat">
-                                        <strong><?php echo esc_html( $num_centers ); ?></strong>
-                                        <?php echo esc_html( _n( 'Center', 'Centers', $num_centers, 'hl-core' ) ); ?>
+                                        <strong><?php echo esc_html( $num_schools ); ?></strong>
+                                        <?php echo esc_html( _n( 'School', 'Schools', $num_schools, 'hl-core' ) ); ?>
                                     </span>
                                     <span class="hl-crm-card-stat">
                                         <strong><?php echo esc_html( $num_cohorts ); ?></strong>
@@ -107,16 +107,16 @@ class HL_Frontend_Districts_Listing {
     // ========================================================================
 
     /**
-     * Count centers per district.
+     * Count schools per district.
      *
      * @return array [ district_orgunit_id => count ]
      */
-    private function get_center_counts() {
+    private function get_school_counts() {
         global $wpdb;
         $results = $wpdb->get_results(
             "SELECT parent_orgunit_id, COUNT(*) AS cnt
              FROM {$wpdb->prefix}hl_orgunit
-             WHERE orgunit_type = 'center' AND parent_orgunit_id IS NOT NULL
+             WHERE orgunit_type = 'school' AND parent_orgunit_id IS NOT NULL
              GROUP BY parent_orgunit_id",
             ARRAY_A
         );
@@ -131,7 +131,7 @@ class HL_Frontend_Districts_Listing {
     /**
      * Count active cohorts per district.
      *
-     * A cohort is linked to a district when it has centers (via hl_cohort_center)
+     * A cohort is linked to a district when it has schools (via hl_cohort_school)
      * whose parent_orgunit_id is the district.
      *
      * @return array [ district_orgunit_id => count ]
@@ -142,10 +142,10 @@ class HL_Frontend_Districts_Listing {
 
         $results = $wpdb->get_results(
             "SELECT ou.parent_orgunit_id AS district_id,
-                    COUNT(DISTINCT cc.cohort_id) AS cnt
-             FROM {$prefix}hl_cohort_center cc
-             INNER JOIN {$prefix}hl_orgunit ou ON cc.center_id = ou.orgunit_id
-             INNER JOIN {$prefix}hl_cohort c ON cc.cohort_id = c.cohort_id
+                    COUNT(DISTINCT cs.cohort_id) AS cnt
+             FROM {$prefix}hl_cohort_school cs
+             INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
+             INNER JOIN {$prefix}hl_cohort c ON cs.cohort_id = c.cohort_id
              WHERE ou.parent_orgunit_id IS NOT NULL
                AND c.status = 'active'
              GROUP BY ou.parent_orgunit_id",

@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * Renderer for the [hl_district_page] shortcode.
  *
- * District-level CRM view showing header, active cohorts, centers, and overview stats.
+ * District-level CRM view showing header, active cohorts, schools, and overview stats.
  *
  * Access: Housman Admin, Coach, District Leader(s) enrolled in that district.
  * URL: ?id={orgunit_id}
@@ -57,7 +57,7 @@ class HL_Frontend_District_Page {
             return ob_get_clean();
         }
 
-        $centers = $this->orgunit_repo->get_centers( $district_id );
+        $schools = $this->orgunit_repo->get_schools( $district_id );
         $cohorts = $this->get_active_cohorts_for_district( $district_id );
 
         // Stats.
@@ -65,7 +65,7 @@ class HL_Frontend_District_Page {
 
         // URLs.
         $back_url           = $this->find_shortcode_page_url( 'hl_districts_listing' );
-        $center_page_url    = $this->find_shortcode_page_url( 'hl_center_page' );
+        $school_page_url    = $this->find_shortcode_page_url( 'hl_school_page' );
         $workspace_page_url = $this->find_shortcode_page_url( 'hl_cohort_workspace' );
 
         ?>
@@ -75,13 +75,13 @@ class HL_Frontend_District_Page {
                 <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr; <?php esc_html_e( 'Back to Districts', 'hl-core' ); ?></a>
             <?php endif; ?>
 
-            <?php $this->render_header( $district, count( $centers ), $total_participants ); ?>
+            <?php $this->render_header( $district, count( $schools ), $total_participants ); ?>
 
             <?php $this->render_cohorts_section( $cohorts, $workspace_page_url, $district_id ); ?>
 
-            <?php $this->render_centers_section( $centers, $center_page_url ); ?>
+            <?php $this->render_schools_section( $schools, $school_page_url ); ?>
 
-            <?php $this->render_stats_section( count( $centers ), $total_participants ); ?>
+            <?php $this->render_stats_section( count( $schools ), $total_participants ); ?>
 
         </div>
         <?php
@@ -117,7 +117,7 @@ class HL_Frontend_District_Page {
     // Header
     // ========================================================================
 
-    private function render_header( $district, $num_centers, $total_participants ) {
+    private function render_header( $district, $num_schools, $total_participants ) {
         ?>
         <div class="hl-crm-detail-header">
             <div class="hl-crm-detail-header-info">
@@ -126,8 +126,8 @@ class HL_Frontend_District_Page {
             </div>
             <div class="hl-crm-detail-header-stats">
                 <div class="hl-crm-stat-box">
-                    <div class="hl-crm-stat-value"><?php echo esc_html( $num_centers ); ?></div>
-                    <div class="hl-crm-stat-label"><?php esc_html_e( 'Centers', 'hl-core' ); ?></div>
+                    <div class="hl-crm-stat-value"><?php echo esc_html( $num_schools ); ?></div>
+                    <div class="hl-crm-stat-label"><?php esc_html_e( 'Schools', 'hl-core' ); ?></div>
                 </div>
                 <div class="hl-crm-stat-box">
                     <div class="hl-crm-stat-value"><?php echo esc_html( $total_participants ); ?></div>
@@ -192,31 +192,31 @@ class HL_Frontend_District_Page {
     }
 
     // ========================================================================
-    // Section: Centers
+    // Section: Schools
     // ========================================================================
 
-    private function render_centers_section( $centers, $center_page_url ) {
+    private function render_schools_section( $schools, $school_page_url ) {
         ?>
         <div class="hl-crm-section">
-            <h3 class="hl-section-title"><?php esc_html_e( 'Centers', 'hl-core' ); ?></h3>
+            <h3 class="hl-section-title"><?php esc_html_e( 'Schools', 'hl-core' ); ?></h3>
 
-            <?php if ( empty( $centers ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No centers in this district.', 'hl-core' ); ?></p></div>
+            <?php if ( empty( $schools ) ) : ?>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No schools in this district.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <div class="hl-crm-card-grid">
-                    <?php foreach ( $centers as $center ) :
-                        $leader_names = $this->get_center_leader_names( $center->orgunit_id );
-                        $url = $center_page_url
-                            ? add_query_arg( 'id', $center->orgunit_id, $center_page_url )
+                    <?php foreach ( $schools as $school ) :
+                        $leader_names = $this->get_school_leader_names( $school->orgunit_id );
+                        $url = $school_page_url
+                            ? add_query_arg( 'id', $school->orgunit_id, $school_page_url )
                             : '';
                     ?>
                         <div class="hl-crm-card">
                             <div class="hl-crm-card-body">
                                 <h3 class="hl-crm-card-title">
                                     <?php if ( $url ) : ?>
-                                        <a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $center->name ); ?></a>
+                                        <a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $school->name ); ?></a>
                                     <?php else : ?>
-                                        <?php echo esc_html( $center->name ); ?>
+                                        <?php echo esc_html( $school->name ); ?>
                                     <?php endif; ?>
                                 </h3>
                                 <?php if ( ! empty( $leader_names ) ) : ?>
@@ -229,7 +229,7 @@ class HL_Frontend_District_Page {
                             <?php if ( $url ) : ?>
                                 <div class="hl-crm-card-action">
                                     <a href="<?php echo esc_url( $url ); ?>" class="hl-btn hl-btn-sm hl-btn-secondary">
-                                        <?php esc_html_e( 'View Center', 'hl-core' ); ?>
+                                        <?php esc_html_e( 'View School', 'hl-core' ); ?>
                                     </a>
                                 </div>
                             <?php endif; ?>
@@ -245,14 +245,14 @@ class HL_Frontend_District_Page {
     // Section: Stats
     // ========================================================================
 
-    private function render_stats_section( $num_centers, $total_participants ) {
+    private function render_stats_section( $num_schools, $total_participants ) {
         ?>
         <div class="hl-crm-section">
             <h3 class="hl-section-title"><?php esc_html_e( 'Overview', 'hl-core' ); ?></h3>
             <div class="hl-crm-stats-row">
                 <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $num_centers ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Total Centers', 'hl-core' ); ?></div>
+                    <div class="hl-metric-value"><?php echo esc_html( $num_schools ); ?></div>
+                    <div class="hl-metric-label"><?php esc_html_e( 'Total Schools', 'hl-core' ); ?></div>
                 </div>
                 <div class="hl-metric-card">
                     <div class="hl-metric-value"><?php echo esc_html( $total_participants ); ?></div>
@@ -268,7 +268,7 @@ class HL_Frontend_District_Page {
     // ========================================================================
 
     /**
-     * Get active cohorts that include centers in this district.
+     * Get active cohorts that include schools in this district.
      */
     private function get_active_cohorts_for_district( $district_id ) {
         global $wpdb;
@@ -277,8 +277,8 @@ class HL_Frontend_District_Page {
         $rows = $wpdb->get_results( $wpdb->prepare(
             "SELECT DISTINCT c.*
              FROM {$prefix}hl_cohort c
-             INNER JOIN {$prefix}hl_cohort_center cc ON c.cohort_id = cc.cohort_id
-             INNER JOIN {$prefix}hl_orgunit ou ON cc.center_id = ou.orgunit_id
+             INNER JOIN {$prefix}hl_cohort_school cs ON c.cohort_id = cs.cohort_id
+             INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
              WHERE ou.parent_orgunit_id = %d
                AND c.status = 'active'
              ORDER BY c.start_date DESC",
@@ -299,8 +299,8 @@ class HL_Frontend_District_Page {
             "SELECT COUNT(DISTINCT e.enrollment_id)
              FROM {$prefix}hl_enrollment e
              INNER JOIN {$prefix}hl_cohort c ON e.cohort_id = c.cohort_id
-             INNER JOIN {$prefix}hl_cohort_center cc ON c.cohort_id = cc.cohort_id
-             INNER JOIN {$prefix}hl_orgunit ou ON cc.center_id = ou.orgunit_id
+             INNER JOIN {$prefix}hl_cohort_school cs ON c.cohort_id = cs.cohort_id
+             INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
              WHERE ou.parent_orgunit_id = %d
                AND c.status = 'active'
                AND e.status = 'active'",
@@ -309,21 +309,21 @@ class HL_Frontend_District_Page {
     }
 
     /**
-     * Get center leader display names for a center.
+     * Get school leader display names for a school.
      */
-    private function get_center_leader_names( $center_id ) {
+    private function get_school_leader_names( $school_id ) {
         global $wpdb;
 
         $results = $wpdb->get_col( $wpdb->prepare(
             "SELECT DISTINCT u.display_name
              FROM {$wpdb->prefix}hl_enrollment e
              INNER JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.center_id = %d
+             WHERE e.school_id = %d
                AND e.status = 'active'
                AND e.roles LIKE %s
              ORDER BY u.display_name ASC",
-            $center_id,
-            '%"center_leader"%'
+            $school_id,
+            '%"school_leader"%'
         ) );
 
         return $results ?: array();

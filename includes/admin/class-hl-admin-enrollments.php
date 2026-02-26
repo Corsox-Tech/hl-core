@@ -124,7 +124,7 @@ class HL_Admin_Enrollments {
             'cohort_id'  => absint($_POST['cohort_id']),
             'user_id'     => absint($_POST['user_id']),
             'roles'       => wp_json_encode($roles),
-            'center_id'   => !empty($_POST['center_id']) ? absint($_POST['center_id']) : null,
+            'school_id'   => !empty($_POST['school_id']) ? absint($_POST['school_id']) : null,
             'district_id' => !empty($_POST['district_id']) ? absint($_POST['district_id']) : null,
             'status'      => sanitize_text_field($_POST['status']),
         );
@@ -215,14 +215,14 @@ class HL_Admin_Enrollments {
             "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
         );
 
-        // Get center names
-        $centers = array();
-        $center_rows = $wpdb->get_results(
-            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'center'"
+        // Get school names
+        $schools = array();
+        $school_rows = $wpdb->get_results(
+            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school'"
         );
-        if ($center_rows) {
-            foreach ($center_rows as $c) {
-                $centers[$c->orgunit_id] = $c->name;
+        if ($school_rows) {
+            foreach ($school_rows as $c) {
+                $schools[$c->orgunit_id] = $c->name;
             }
         }
 
@@ -280,7 +280,7 @@ class HL_Admin_Enrollments {
         echo '<th>' . esc_html__('Email', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Cohort', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Roles', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Center', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Enrolled At', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
@@ -299,10 +299,10 @@ class HL_Admin_Enrollments {
             $roles_array = json_decode($enrollment->roles, true);
             $roles_display = is_array($roles_array) ? implode(', ', $roles_array) : '';
 
-            // Center name
-            $center_name = '';
-            if ($enrollment->center_id && isset($centers[$enrollment->center_id])) {
-                $center_name = $centers[$enrollment->center_id];
+            // School name
+            $school_name = '';
+            if ($enrollment->school_id && isset($schools[$enrollment->school_id])) {
+                $school_name = $schools[$enrollment->school_id];
             }
 
             // Status
@@ -315,7 +315,7 @@ class HL_Admin_Enrollments {
             echo '<td>' . esc_html($enrollment->user_email) . '</td>';
             echo '<td>' . esc_html($enrollment->cohort_name) . '</td>';
             echo '<td>' . esc_html($roles_display) . '</td>';
-            echo '<td>' . esc_html($center_name) . '</td>';
+            echo '<td>' . esc_html($school_name) . '</td>';
             echo '<td><span style="' . esc_attr($status_style) . '">' . esc_html(ucfirst($enrollment->status)) . '</span></td>';
             echo '<td>' . esc_html($enrollment->enrolled_at) . '</td>';
             echo '<td>';
@@ -350,9 +350,9 @@ class HL_Admin_Enrollments {
             "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
         );
 
-        // Get centers
-        $centers_rows = $wpdb->get_results(
-            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'center' AND status = 'active' ORDER BY name ASC"
+        // Get schools
+        $schools_rows = $wpdb->get_results(
+            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' AND status = 'active' ORDER BY name ASC"
         );
 
         // Get districts
@@ -418,7 +418,7 @@ class HL_Admin_Enrollments {
         echo '</tr>';
 
         // Roles (checkboxes)
-        $available_roles = array('Teacher', 'Mentor', 'Center Leader', 'District Leader');
+        $available_roles = array('Teacher', 'Mentor', 'School Leader', 'District Leader');
         echo '<tr>';
         echo '<th scope="row">' . esc_html__('Roles', 'hl-core') . '</th>';
         echo '<td><fieldset>';
@@ -429,15 +429,15 @@ class HL_Admin_Enrollments {
         echo '</fieldset></td>';
         echo '</tr>';
 
-        // Center
-        $current_center = $is_edit ? $enrollment->center_id : '';
+        // School
+        $current_school = $is_edit ? $enrollment->school_id : '';
         echo '<tr>';
-        echo '<th scope="row"><label for="center_id">' . esc_html__('Center', 'hl-core') . '</label></th>';
-        echo '<td><select id="center_id" name="center_id">';
-        echo '<option value="">' . esc_html__('-- Select Center --', 'hl-core') . '</option>';
-        if ($centers_rows) {
-            foreach ($centers_rows as $center) {
-                echo '<option value="' . esc_attr($center->orgunit_id) . '"' . selected($current_center, $center->orgunit_id, false) . '>' . esc_html($center->name) . '</option>';
+        echo '<th scope="row"><label for="school_id">' . esc_html__('School', 'hl-core') . '</label></th>';
+        echo '<td><select id="school_id" name="school_id">';
+        echo '<option value="">' . esc_html__('-- Select School --', 'hl-core') . '</option>';
+        if ($schools_rows) {
+            foreach ($schools_rows as $school) {
+                echo '<option value="' . esc_attr($school->orgunit_id) . '"' . selected($current_school, $school->orgunit_id, false) . '>' . esc_html($school->name) . '</option>';
             }
         }
         echo '</select></td>';

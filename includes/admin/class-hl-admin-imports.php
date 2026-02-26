@@ -114,16 +114,16 @@ class HL_Admin_Imports {
                 </p>
                 <div id="hl-import-column-hints">
                     <p class="description" data-type="participants">
-                        <?php esc_html_e('Required columns: email, cohort_roles, center_name (or center_code). Optional: first_name, last_name, district_name, district_code.', 'hl-core'); ?>
+                        <?php esc_html_e('Required columns: email, cohort_roles, school_name (or school_code). Optional: first_name, last_name, district_name, district_code.', 'hl-core'); ?>
                     </p>
                     <p class="description" data-type="children" style="display:none;">
-                        <?php esc_html_e('Required columns: first_name (and/or last_name), center_name (or center_code). Optional: date_of_birth, child_identifier, classroom_name.', 'hl-core'); ?>
+                        <?php esc_html_e('Required columns: first_name (and/or last_name), school_name (or school_code). Optional: date_of_birth, child_identifier, classroom_name.', 'hl-core'); ?>
                     </p>
                     <p class="description" data-type="classrooms" style="display:none;">
-                        <?php esc_html_e('Required columns: classroom_name, center_name (or center_code). Optional: age_band (infant/toddler/preschool/mixed).', 'hl-core'); ?>
+                        <?php esc_html_e('Required columns: classroom_name, school_name (or school_code). Optional: age_band (infant/toddler/preschool/mixed).', 'hl-core'); ?>
                     </p>
                     <p class="description" data-type="teaching_assignments" style="display:none;">
-                        <?php esc_html_e('Required columns: email, classroom_name, center_name (or center_code). Optional: is_lead_teacher (yes/no).', 'hl-core'); ?>
+                        <?php esc_html_e('Required columns: email, classroom_name, school_name (or school_code). Optional: is_lead_teacher (yes/no).', 'hl-core'); ?>
                     </p>
                 </div>
             </div>
@@ -384,26 +384,26 @@ class HL_Admin_Imports {
                     $base['parsed_dob']          = isset($row['parsed_dob']) ? $row['parsed_dob'] : '';
                     $base['parsed_child_identifier'] = isset($row['parsed_child_identifier']) ? $row['parsed_child_identifier'] : '';
                     $base['parsed_classroom_name']   = isset($row['parsed_classroom_name']) ? $row['parsed_classroom_name'] : '';
-                    $base['raw_center'] = isset($row['raw_data']['center_name'])
-                        ? $row['raw_data']['center_name']
-                        : (isset($row['raw_data']['center_code']) ? $row['raw_data']['center_code'] : '');
+                    $base['raw_school'] = isset($row['raw_data']['school_name'])
+                        ? $row['raw_data']['school_name']
+                        : (isset($row['raw_data']['school_code']) ? $row['raw_data']['school_code'] : '');
                     break;
 
                 case 'classrooms':
                     $base['parsed_classroom_name'] = isset($row['parsed_classroom_name']) ? $row['parsed_classroom_name'] : '';
                     $base['parsed_age_band']       = isset($row['parsed_age_band']) ? $row['parsed_age_band'] : '';
-                    $base['raw_center'] = isset($row['raw_data']['center_name'])
-                        ? $row['raw_data']['center_name']
-                        : (isset($row['raw_data']['center_code']) ? $row['raw_data']['center_code'] : '');
+                    $base['raw_school'] = isset($row['raw_data']['school_name'])
+                        ? $row['raw_data']['school_name']
+                        : (isset($row['raw_data']['school_code']) ? $row['raw_data']['school_code'] : '');
                     break;
 
                 case 'teaching_assignments':
                     $base['parsed_email']          = isset($row['parsed_email']) ? $row['parsed_email'] : '';
                     $base['parsed_classroom_name'] = isset($row['parsed_classroom_name']) ? $row['parsed_classroom_name'] : '';
                     $base['parsed_is_lead']        = isset($row['parsed_is_lead']) ? $row['parsed_is_lead'] : false;
-                    $base['raw_center'] = isset($row['raw_data']['center_name'])
-                        ? $row['raw_data']['center_name']
-                        : (isset($row['raw_data']['center_code']) ? $row['raw_data']['center_code'] : '');
+                    $base['raw_school'] = isset($row['raw_data']['school_name'])
+                        ? $row['raw_data']['school_name']
+                        : (isset($row['raw_data']['school_code']) ? $row['raw_data']['school_code'] : '');
                     break;
 
                 case 'participants':
@@ -412,9 +412,9 @@ class HL_Admin_Imports {
                     $base['parsed_first_name'] = isset($row['parsed_first_name']) ? $row['parsed_first_name'] : '';
                     $base['parsed_last_name']  = isset($row['parsed_last_name']) ? $row['parsed_last_name'] : '';
                     $base['parsed_roles']      = isset($row['parsed_roles']) ? $row['parsed_roles'] : array();
-                    $base['raw_center'] = isset($row['raw_data']['center_name'])
-                        ? $row['raw_data']['center_name']
-                        : (isset($row['raw_data']['center_code']) ? $row['raw_data']['center_code'] : '');
+                    $base['raw_school'] = isset($row['raw_data']['school_name'])
+                        ? $row['raw_data']['school_name']
+                        : (isset($row['raw_data']['school_code']) ? $row['raw_data']['school_code'] : '');
                     $base['raw_district'] = isset($row['raw_data']['district_name'])
                         ? $row['raw_data']['district_name']
                         : (isset($row['raw_data']['district_code']) ? $row['raw_data']['district_code'] : '');

@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * Renderer for the [hl_my_cohort] shortcode.
  *
- * Auto-scoped cohort workspace for Center Leaders and District Leaders.
+ * Auto-scoped cohort workspace for School Leaders and District Leaders.
  * Tabs: Teams, Staff, Reports, Classrooms.
  *
  * @package HL_Core
@@ -83,8 +83,8 @@ class HL_Frontend_My_Cohort {
 
         if ( $user_enrollment && ! $is_staff ) {
             $roles = $user_enrollment->get_roles_array();
-            if ( in_array( 'center_leader', $roles, true ) && $user_enrollment->center_id ) {
-                $filters['center_id'] = (int) $user_enrollment->center_id;
+            if ( in_array( 'school_leader', $roles, true ) && $user_enrollment->school_id ) {
+                $filters['school_id'] = (int) $user_enrollment->school_id;
             } elseif ( in_array( 'district_leader', $roles, true ) && $user_enrollment->district_id ) {
                 $filters['district_id'] = (int) $user_enrollment->district_id;
             }
@@ -133,7 +133,7 @@ class HL_Frontend_My_Cohort {
         $leader_enrollments = array();
         foreach ( $user_enrollments as $enrollment ) {
             $roles = $enrollment->get_roles_array();
-            if ( in_array( 'center_leader', $roles, true )
+            if ( in_array( 'school_leader', $roles, true )
                 || in_array( 'district_leader', $roles, true )
                 || $is_staff
             ) {
@@ -143,7 +143,7 @@ class HL_Frontend_My_Cohort {
 
         if ( empty( $leader_enrollments ) ) {
             echo '<div class="hl-notice hl-notice-warning">'
-                . esc_html__( 'You do not have access to this page. My Cohort is available for Center Leaders and District Leaders.', 'hl-core' )
+                . esc_html__( 'You do not have access to this page. My Cohort is available for School Leaders and District Leaders.', 'hl-core' )
                 . '</div>';
             return ob_get_clean();
         }
@@ -243,7 +243,7 @@ class HL_Frontend_My_Cohort {
      *
      * @param HL_Enrollment $enrollment
      * @param bool          $is_staff
-     * @return array ['type' => center|district|all, 'orgunit_id' => int]
+     * @return array ['type' => school|district|all, 'orgunit_id' => int]
      */
     private function resolve_scope( $enrollment, $is_staff = false ) {
         $roles = $enrollment->get_roles_array();
@@ -252,8 +252,8 @@ class HL_Frontend_My_Cohort {
             return array( 'type' => 'district', 'orgunit_id' => (int) $enrollment->district_id );
         }
 
-        if ( in_array( 'center_leader', $roles, true ) && $enrollment->center_id ) {
-            return array( 'type' => 'center', 'orgunit_id' => (int) $enrollment->center_id );
+        if ( in_array( 'school_leader', $roles, true ) && $enrollment->school_id ) {
+            return array( 'type' => 'school', 'orgunit_id' => (int) $enrollment->school_id );
         }
 
         // Staff or leader without org-unit assignment — full cohort.
@@ -265,8 +265,8 @@ class HL_Frontend_My_Cohort {
      */
     private function get_scope_filters( $cohort_id, $scope ) {
         $filters = array( 'cohort_id' => $cohort_id );
-        if ( $scope['type'] === 'center' && $scope['orgunit_id'] ) {
-            $filters['center_id'] = $scope['orgunit_id'];
+        if ( $scope['type'] === 'school' && $scope['orgunit_id'] ) {
+            $filters['school_id'] = $scope['orgunit_id'];
         } elseif ( $scope['type'] === 'district' && $scope['orgunit_id'] ) {
             $filters['district_id'] = $scope['orgunit_id'];
         }
@@ -274,20 +274,20 @@ class HL_Frontend_My_Cohort {
     }
 
     /**
-     * Get center IDs that fall within the leader's scope.
+     * Get school IDs that fall within the leader's scope.
      *
      * @return int[] Empty array means "all" (no filtering).
      */
-    private function get_scoped_center_ids( $scope ) {
+    private function get_scoped_school_ids( $scope ) {
         if ( ! $scope || $scope['type'] === 'all' ) {
             return array();
         }
-        if ( $scope['type'] === 'center' ) {
+        if ( $scope['type'] === 'school' ) {
             return array( $scope['orgunit_id'] );
         }
         if ( $scope['type'] === 'district' ) {
-            $centers = $this->orgunit_repo->get_centers( $scope['orgunit_id'] );
-            return array_map( function ( $c ) { return (int) $c->orgunit_id; }, $centers );
+            $schools = $this->orgunit_repo->get_schools( $scope['orgunit_id'] );
+            return array_map( function ( $c ) { return (int) $c->orgunit_id; }, $schools );
         }
         return array();
     }
@@ -366,13 +366,13 @@ class HL_Frontend_My_Cohort {
 
     private function render_teams_tab( $cohort, $scope ) {
         $all_teams  = $this->team_repo->get_all( array( 'cohort_id' => $cohort->cohort_id ) );
-        $center_ids = $this->get_scoped_center_ids( $scope );
+        $school_ids = $this->get_scoped_school_ids( $scope );
 
-        if ( ! empty( $center_ids ) ) {
-            $all_teams = array_filter( $all_teams, function ( $t ) use ( $center_ids ) {
-                // Include teams matching a scoped center OR teams with no center assigned.
-                return empty( $t->center_id )
-                    || in_array( (int) $t->center_id, $center_ids, true );
+        if ( ! empty( $school_ids ) ) {
+            $all_teams = array_filter( $all_teams, function ( $t ) use ( $school_ids ) {
+                // Include teams matching a scoped school OR teams with no school assigned.
+                return empty( $t->school_id )
+                    || in_array( (int) $t->school_id, $school_ids, true );
             } );
             $all_teams = array_values( $all_teams );
         }
@@ -414,9 +414,9 @@ class HL_Frontend_My_Cohort {
 
         $progress_class = $avg >= 100 ? 'hl-progress-complete' : ( $avg > 0 ? 'hl-progress-active' : '' );
 
-        // Center name.
-        $center      = $team->center_id ? $this->orgunit_repo->get_by_id( $team->center_id ) : null;
-        $center_name = $center ? $center->name : '';
+        // School name.
+        $school      = $team->school_id ? $this->orgunit_repo->get_by_id( $team->school_id ) : null;
+        $school_name = $school ? $school->name : '';
 
         $team_url = $team_page_url
             ? add_query_arg( 'id', $team->team_id, $team_page_url )
@@ -432,8 +432,8 @@ class HL_Frontend_My_Cohort {
                         <?php echo esc_html( $team->team_name ); ?>
                     <?php endif; ?>
                 </h4>
-                <?php if ( $center_name ) : ?>
-                    <p class="hl-team-card-center"><?php echo esc_html( $center_name ); ?></p>
+                <?php if ( $school_name ) : ?>
+                    <p class="hl-team-card-school"><?php echo esc_html( $school_name ); ?></p>
                 <?php endif; ?>
                 <div class="hl-team-card-meta">
                     <?php if ( ! empty( $mentor_names ) ) : ?>
@@ -565,18 +565,18 @@ class HL_Frontend_My_Cohort {
         $age_bands_map = $this->get_enrollment_age_bands( $enrollment_ids );
 
         // Build filter options from participant data.
-        $center_options = array();
+        $school_options = array();
         $team_options   = array();
 
         foreach ( $participants as $p ) {
-            if ( ! empty( $p['center_name'] ) && ! in_array( $p['center_name'], $center_options, true ) ) {
-                $center_options[] = $p['center_name'];
+            if ( ! empty( $p['school_name'] ) && ! in_array( $p['school_name'], $school_options, true ) ) {
+                $school_options[] = $p['school_name'];
             }
             if ( ! empty( $p['team_name'] ) && ! in_array( $p['team_name'], $team_options, true ) ) {
                 $team_options[] = $p['team_name'];
             }
         }
-        sort( $center_options );
+        sort( $school_options );
         sort( $team_options );
 
         // CSV export URL.
@@ -596,10 +596,10 @@ class HL_Frontend_My_Cohort {
             </div>
 
             <div class="hl-report-filters">
-                <?php if ( ! empty( $center_options ) ) : ?>
-                    <select class="hl-select hl-report-filter" data-filter="center">
+                <?php if ( ! empty( $school_options ) ) : ?>
+                    <select class="hl-select hl-report-filter" data-filter="school">
                         <option value=""><?php esc_html_e( 'All Institutions', 'hl-core' ); ?></option>
-                        <?php foreach ( $center_options as $co ) : ?>
+                        <?php foreach ( $school_options as $co ) : ?>
                             <option value="<?php echo esc_attr( $co ); ?>"><?php echo esc_html( $co ); ?></option>
                         <?php endforeach; ?>
                     </select>
@@ -652,13 +652,13 @@ class HL_Frontend_My_Cohort {
                         ?>
                             <tr class="hl-report-row"
                                 data-name="<?php echo esc_attr( strtolower( $p['display_name'] ) ); ?>"
-                                data-center="<?php echo esc_attr( $p['center_name'] ); ?>"
+                                data-school="<?php echo esc_attr( $p['school_name'] ); ?>"
                                 data-team="<?php echo esc_attr( $p['team_name'] ); ?>">
                                 <td><?php echo esc_html( $row_num ); ?></td>
                                 <td><strong><?php echo esc_html( $p['display_name'] ); ?></strong></td>
                                 <td><?php echo esc_html( $p['team_name'] ?: '—' ); ?></td>
                                 <td><?php echo esc_html( $roles_str ); ?></td>
-                                <td><?php echo esc_html( $p['center_name'] ?: '—' ); ?></td>
+                                <td><?php echo esc_html( $p['school_name'] ?: '—' ); ?></td>
                                 <td><?php echo esc_html( $age_bands ); ?></td>
                                 <td>
                                     <div class="hl-inline-progress">
@@ -729,18 +729,18 @@ class HL_Frontend_My_Cohort {
     // ========================================================================
 
     private function render_classrooms_tab( $cohort, $scope ) {
-        $center_ids = $this->get_scoped_center_ids( $scope );
+        $school_ids = $this->get_scoped_school_ids( $scope );
 
         // Always get cohort-scoped classrooms (via teaching assignments),
-        // then optionally filter by the leader's center scope.
+        // then optionally filter by the leader's school scope.
         $classrooms = $this->get_cohort_classrooms( $cohort->cohort_id );
 
-        if ( ! empty( $center_ids ) ) {
-            $classrooms = array_filter( $classrooms, function ( $c ) use ( $center_ids ) {
+        if ( ! empty( $school_ids ) ) {
+            $classrooms = array_filter( $classrooms, function ( $c ) use ( $school_ids ) {
                 $cr = is_object( $c ) ? $c : (object) $c;
-                // Include classrooms matching a scoped center OR with no center assigned.
-                return empty( $cr->center_id )
-                    || in_array( (int) $cr->center_id, $center_ids, true );
+                // Include classrooms matching a scoped school OR with no school assigned.
+                return empty( $cr->school_id )
+                    || in_array( (int) $cr->school_id, $school_ids, true );
             } );
             $classrooms = array_values( $classrooms );
         }
@@ -760,7 +760,7 @@ class HL_Frontend_My_Cohort {
         $child_counts  = $this->get_classroom_child_counts( $classroom_ids );
         $teacher_names = $this->get_classroom_teacher_names( $classroom_ids, $cohort->cohort_id );
 
-        $center_cache       = array();
+        $school_cache       = array();
         $classroom_page_url = $this->find_shortcode_page_url( 'hl_classroom_page' );
 
         ?>
@@ -771,7 +771,7 @@ class HL_Frontend_My_Cohort {
                 <thead>
                     <tr>
                         <th><?php esc_html_e( 'Classroom', 'hl-core' ); ?></th>
-                        <th><?php esc_html_e( 'Center', 'hl-core' ); ?></th>
+                        <th><?php esc_html_e( 'School', 'hl-core' ); ?></th>
                         <th><?php esc_html_e( 'Age Band', 'hl-core' ); ?></th>
                         <th><?php esc_html_e( 'Children', 'hl-core' ); ?></th>
                         <th><?php esc_html_e( 'Teacher(s)', 'hl-core' ); ?></th>
@@ -782,9 +782,9 @@ class HL_Frontend_My_Cohort {
                         $cr  = is_object( $classroom ) ? $classroom : (object) $classroom;
                         $cid = $cr->classroom_id;
 
-                        if ( ! isset( $center_cache[ $cr->center_id ] ) ) {
-                            $center_obj                        = $this->orgunit_repo->get_by_id( $cr->center_id );
-                            $center_cache[ $cr->center_id ]    = $center_obj ? $center_obj->name : '';
+                        if ( ! isset( $school_cache[ $cr->school_id ] ) ) {
+                            $school_obj                        = $this->orgunit_repo->get_by_id( $cr->school_id );
+                            $school_cache[ $cr->school_id ]    = $school_obj ? $school_obj->name : '';
                         }
 
                         $count    = isset( $child_counts[ $cid ] ) ? $child_counts[ $cid ] : 0;
@@ -803,7 +803,7 @@ class HL_Frontend_My_Cohort {
                                     <strong><?php echo esc_html( $cr->classroom_name ); ?></strong>
                                 <?php endif; ?>
                             </td>
-                            <td><?php echo esc_html( $center_cache[ $cr->center_id ] ); ?></td>
+                            <td><?php echo esc_html( $school_cache[ $cr->school_id ] ); ?></td>
                             <td><?php echo esc_html( $cr->age_band ?: '—' ); ?></td>
                             <td><?php echo esc_html( $count ); ?></td>
                             <td><?php echo esc_html( $teachers ); ?></td>

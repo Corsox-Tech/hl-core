@@ -163,9 +163,9 @@ class HL_Frontend_Children_Assessment {
             return absint( $instance_id );
         }
 
-        // Resolve classroom, center, and instrument from teaching assignment
+        // Resolve classroom, school, and instrument from teaching assignment
         $teaching = $wpdb->get_row( $wpdb->prepare(
-            "SELECT ta.classroom_id, cr.center_id, cr.age_band
+            "SELECT ta.classroom_id, cr.school_id, cr.age_band
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_classroom cr ON ta.classroom_id = cr.classroom_id
              WHERE ta.enrollment_id = %d
@@ -174,7 +174,7 @@ class HL_Frontend_Children_Assessment {
         ) );
 
         $classroom_id = $teaching ? absint( $teaching->classroom_id ) : null;
-        $center_id    = $teaching ? absint( $teaching->center_id ) : null;
+        $school_id    = $teaching ? absint( $teaching->school_id ) : null;
         $age_band     = ( $teaching && ! empty( $teaching->age_band ) ) ? $teaching->age_band : null;
 
         // Resolve instrument: try activity external_ref first, then age_band lookup
@@ -203,7 +203,7 @@ class HL_Frontend_Children_Assessment {
             'enrollment_id'       => absint( $enrollment->enrollment_id ),
             'activity_id'         => absint( $activity_id ),
             'classroom_id'        => $classroom_id,
-            'center_id'           => $center_id,
+            'school_id'           => $school_id,
             'phase'               => $phase,
             'instrument_age_band' => $age_band,
             'instrument_id'       => $instrument_id,
@@ -600,10 +600,10 @@ class HL_Frontend_Children_Assessment {
                             <span class="hl-ca-info-value"><?php echo esc_html( $instance['display_name'] ); ?></span>
                         </div>
                     <?php endif; ?>
-                    <?php if ( ! empty( $instance['center_name'] ) ) : ?>
+                    <?php if ( ! empty( $instance['school_name'] ) ) : ?>
                         <div class="hl-ca-info-row">
                             <span class="hl-ca-info-label"><?php esc_html_e( 'School:', 'hl-core' ); ?></span>
-                            <span class="hl-ca-info-value"><?php echo esc_html( $instance['center_name'] ); ?></span>
+                            <span class="hl-ca-info-value"><?php echo esc_html( $instance['school_name'] ); ?></span>
                         </div>
                     <?php endif; ?>
                     <?php if ( ! empty( $instance['classroom_name'] ) ) : ?>
@@ -824,7 +824,7 @@ class HL_Frontend_Children_Assessment {
     // =====================================================================
 
     /**
-     * Backfill missing classroom, center, and instrument fields on an existing instance.
+     * Backfill missing classroom, school, and instrument fields on an existing instance.
      *
      * @param int    $instance_id
      * @param object $enrollment
@@ -834,7 +834,7 @@ class HL_Frontend_Children_Assessment {
         global $wpdb;
 
         $instance = $wpdb->get_row( $wpdb->prepare(
-            "SELECT instrument_id, classroom_id, center_id FROM {$wpdb->prefix}hl_children_assessment_instance WHERE instance_id = %d",
+            "SELECT instrument_id, classroom_id, school_id FROM {$wpdb->prefix}hl_children_assessment_instance WHERE instance_id = %d",
             $instance_id
         ), ARRAY_A );
 
@@ -850,10 +850,10 @@ class HL_Frontend_Children_Assessment {
         $updates  = array();
         $age_band = null;
 
-        // Resolve classroom and center from teaching assignment.
+        // Resolve classroom and school from teaching assignment.
         if ( empty( $instance['classroom_id'] ) ) {
             $teaching = $wpdb->get_row( $wpdb->prepare(
-                "SELECT ta.classroom_id, cr.center_id, cr.age_band
+                "SELECT ta.classroom_id, cr.school_id, cr.age_band
                  FROM {$wpdb->prefix}hl_teaching_assignment ta
                  JOIN {$wpdb->prefix}hl_classroom cr ON ta.classroom_id = cr.classroom_id
                  WHERE ta.enrollment_id = %d
@@ -863,8 +863,8 @@ class HL_Frontend_Children_Assessment {
 
             if ( $teaching ) {
                 $updates['classroom_id'] = absint( $teaching->classroom_id );
-                if ( empty( $instance['center_id'] ) ) {
-                    $updates['center_id'] = absint( $teaching->center_id );
+                if ( empty( $instance['school_id'] ) ) {
+                    $updates['school_id'] = absint( $teaching->school_id );
                 }
                 $age_band = ! empty( $teaching->age_band ) ? $teaching->age_band : null;
                 if ( $age_band ) {

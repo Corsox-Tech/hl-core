@@ -150,8 +150,8 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-classroom-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-districts-listing.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-district-page.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-centers-listing.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-center-page.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-schools-listing.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-school-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-cohort-workspace.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-coaching.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-cohorts-listing.php';

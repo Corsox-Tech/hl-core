@@ -309,11 +309,11 @@ class HL_Reporting_Service {
      * Get participant completion data with scope-based filtering
      *
      * Returns an array of enrollment rows with user info and completion data.
-     * Filters by scope: cohort, center, district, team.
+     * Filters by scope: cohort, school, district, team.
      *
-     * @param array $filters Keys: cohort_id (required), center_id, district_id, team_id, role, status
+     * @param array $filters Keys: cohort_id (required), school_id, district_id, team_id, role, status
      * @return array Array of rows with: enrollment_id, user_id, display_name, user_email, roles,
-     *               center_name, team_name, cohort_completion_percent, pathway_completion_percent
+     *               school_name, team_name, cohort_completion_percent, pathway_completion_percent
      */
     public function get_participant_report( $filters ) {
         global $wpdb;
@@ -334,17 +334,17 @@ class HL_Reporting_Service {
             $params[] = $status;
         }
 
-        // Center filter — use team.center_id via team_membership
-        $center_id = isset( $filters['center_id'] ) ? absint( $filters['center_id'] ) : 0;
-        if ( $center_id ) {
-            $where[]  = 't.center_id = %d';
-            $params[] = $center_id;
+        // School filter — use team.school_id via team_membership
+        $school_id = isset( $filters['school_id'] ) ? absint( $filters['school_id'] ) : 0;
+        if ( $school_id ) {
+            $where[]  = 't.school_id = %d';
+            $params[] = $school_id;
         }
 
-        // District filter — centers whose parent orgunit is the district
+        // District filter — schools whose parent orgunit is the district
         $district_id = isset( $filters['district_id'] ) ? absint( $filters['district_id'] ) : 0;
         if ( $district_id ) {
-            $where[]  = 'center_ou.parent_orgunit_id = %d';
+            $where[]  = 'school_ou.parent_orgunit_id = %d';
             $params[] = $district_id;
         }
 
@@ -370,7 +370,7 @@ class HL_Reporting_Service {
                     u.display_name,
                     u.user_email,
                     e.roles,
-                    COALESCE( center_ou.name, '' ) AS center_name,
+                    COALESCE( school_ou.name, '' ) AS school_name,
                     COALESCE( t.team_name, '' ) AS team_name,
                     COALESCE( cr.cohort_completion_percent, 0 ) AS cohort_completion_percent,
                     COALESCE( cr.pathway_completion_percent, 0 ) AS pathway_completion_percent
@@ -379,7 +379,7 @@ class HL_Reporting_Service {
                 LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
                 LEFT JOIN {$prefix}hl_team_membership tm ON e.enrollment_id = tm.enrollment_id
                 LEFT JOIN {$prefix}hl_team t ON tm.team_id = t.team_id AND t.cohort_id = e.cohort_id
-                LEFT JOIN {$prefix}hl_orgunit center_ou ON t.center_id = center_ou.orgunit_id
+                LEFT JOIN {$prefix}hl_orgunit school_ou ON t.school_id = school_ou.orgunit_id
                 WHERE {$where_sql}
                 GROUP BY e.enrollment_id
                 ORDER BY u.display_name ASC";
@@ -492,13 +492,13 @@ class HL_Reporting_Service {
     }
 
     /**
-     * Get completion summary grouped by center for a cohort
+     * Get completion summary grouped by school for a cohort
      *
      * @param int      $cohort_id
      * @param int|null $district_id Optional district filter
-     * @return array Array of: center_id, center_name, participant_count, avg_completion_percent
+     * @return array Array of: school_id, school_name, participant_count, avg_completion_percent
      */
-    public function get_center_summary( $cohort_id, $district_id = null ) {
+    public function get_school_summary( $cohort_id, $district_id = null ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -512,25 +512,25 @@ class HL_Reporting_Service {
 
         if ( $district_id ) {
             $district_id = absint( $district_id );
-            $where[]     = 'center_ou.parent_orgunit_id = %d';
+            $where[]     = 'school_ou.parent_orgunit_id = %d';
             $params[]    = $district_id;
         }
 
         $where_sql = implode( ' AND ', $where );
 
         $sql = "SELECT
-                    t.center_id,
-                    center_ou.name AS center_name,
+                    t.school_id,
+                    school_ou.name AS school_name,
                     COUNT( DISTINCT e.enrollment_id ) AS participant_count,
                     ROUND( AVG( COALESCE( cr.cohort_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
                 FROM {$prefix}hl_enrollment e
                 INNER JOIN {$prefix}hl_team_membership tm ON e.enrollment_id = tm.enrollment_id
                 INNER JOIN {$prefix}hl_team t ON tm.team_id = t.team_id AND t.cohort_id = e.cohort_id
-                INNER JOIN {$prefix}hl_orgunit center_ou ON t.center_id = center_ou.orgunit_id
+                INNER JOIN {$prefix}hl_orgunit school_ou ON t.school_id = school_ou.orgunit_id
                 LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
                 WHERE {$where_sql}
-                GROUP BY t.center_id, center_ou.name
-                ORDER BY center_ou.name ASC";
+                GROUP BY t.school_id, school_ou.name
+                ORDER BY school_ou.name ASC";
 
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         return $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A ) ?: array();
@@ -540,10 +540,10 @@ class HL_Reporting_Service {
      * Get completion summary grouped by team for a cohort
      *
      * @param int      $cohort_id
-     * @param int|null $center_id Optional center filter
-     * @return array Array of: team_id, team_name, center_name, member_count, avg_completion_percent
+     * @param int|null $school_id Optional school filter
+     * @return array Array of: team_id, team_name, school_name, member_count, avg_completion_percent
      */
-    public function get_team_summary( $cohort_id, $center_id = null ) {
+    public function get_team_summary( $cohort_id, $school_id = null ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -555,10 +555,10 @@ class HL_Reporting_Service {
         $where   = array( 'e.cohort_id = %d', "e.status = 'active'" );
         $params  = array( $cohort_id );
 
-        if ( $center_id ) {
-            $center_id = absint( $center_id );
-            $where[]   = 't.center_id = %d';
-            $params[]  = $center_id;
+        if ( $school_id ) {
+            $school_id = absint( $school_id );
+            $where[]   = 't.school_id = %d';
+            $params[]  = $school_id;
         }
 
         $where_sql = implode( ' AND ', $where );
@@ -566,17 +566,17 @@ class HL_Reporting_Service {
         $sql = "SELECT
                     t.team_id,
                     t.team_name,
-                    COALESCE( center_ou.name, '' ) AS center_name,
+                    COALESCE( school_ou.name, '' ) AS school_name,
                     COUNT( DISTINCT e.enrollment_id ) AS member_count,
                     ROUND( AVG( COALESCE( cr.cohort_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
                 FROM {$prefix}hl_enrollment e
                 INNER JOIN {$prefix}hl_team_membership tm ON e.enrollment_id = tm.enrollment_id
                 INNER JOIN {$prefix}hl_team t ON tm.team_id = t.team_id AND t.cohort_id = e.cohort_id
-                LEFT JOIN {$prefix}hl_orgunit center_ou ON t.center_id = center_ou.orgunit_id
+                LEFT JOIN {$prefix}hl_orgunit school_ou ON t.school_id = school_ou.orgunit_id
                 LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
                 WHERE {$where_sql}
-                GROUP BY t.team_id, t.team_name, center_ou.name
-                ORDER BY center_ou.name ASC, t.team_name ASC";
+                GROUP BY t.team_id, t.team_name, school_ou.name
+                ORDER BY school_ou.name ASC, t.team_name ASC";
 
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         return $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A ) ?: array();
@@ -744,7 +744,7 @@ class HL_Reporting_Service {
         }
 
         // Header row
-        $header = array( 'Name', 'Email', 'Roles', 'Center', 'Team', 'Cohort Completion %', 'Pathway Completion %' );
+        $header = array( 'Name', 'Email', 'Roles', 'School', 'Team', 'Cohort Completion %', 'Pathway Completion %' );
         if ( $include_activities ) {
             foreach ( $activities as $activity ) {
                 $header[] = $activity['title'] . ' (%)';
@@ -761,7 +761,7 @@ class HL_Reporting_Service {
                 $row['display_name'],
                 $row['user_email'],
                 $roles_str,
-                $row['center_name'],
+                $row['school_name'],
                 $row['team_name'],
                 $row['cohort_completion_percent'],
                 $row['pathway_completion_percent'],
@@ -790,25 +790,25 @@ class HL_Reporting_Service {
     }
 
     /**
-     * Export center summary as CSV
+     * Export school summary as CSV
      *
      * @param int      $cohort_id
      * @param int|null $district_id
      * @return string CSV content
      */
-    public function export_center_summary_csv( $cohort_id, $district_id = null ) {
-        $rows = $this->get_center_summary( $cohort_id, $district_id );
+    public function export_school_summary_csv( $cohort_id, $district_id = null ) {
+        $rows = $this->get_school_summary( $cohort_id, $district_id );
 
         $handle = fopen( 'php://temp', 'r+' );
         if ( $handle === false ) {
             return '';
         }
 
-        fputcsv( $handle, array( 'Center Name', 'Participant Count', 'Avg Completion %' ) );
+        fputcsv( $handle, array( 'School Name', 'Participant Count', 'Avg Completion %' ) );
 
         foreach ( $rows as $row ) {
             fputcsv( $handle, array(
-                $row['center_name'],
+                $row['school_name'],
                 $row['participant_count'],
                 $row['avg_completion_percent'],
             ) );
@@ -825,23 +825,23 @@ class HL_Reporting_Service {
      * Export team summary as CSV
      *
      * @param int      $cohort_id
-     * @param int|null $center_id
+     * @param int|null $school_id
      * @return string CSV content
      */
-    public function export_team_summary_csv( $cohort_id, $center_id = null ) {
-        $rows = $this->get_team_summary( $cohort_id, $center_id );
+    public function export_team_summary_csv( $cohort_id, $school_id = null ) {
+        $rows = $this->get_team_summary( $cohort_id, $school_id );
 
         $handle = fopen( 'php://temp', 'r+' );
         if ( $handle === false ) {
             return '';
         }
 
-        fputcsv( $handle, array( 'Team Name', 'Center Name', 'Member Count', 'Avg Completion %' ) );
+        fputcsv( $handle, array( 'Team Name', 'School Name', 'Member Count', 'Avg Completion %' ) );
 
         foreach ( $rows as $row ) {
             fputcsv( $handle, array(
                 $row['team_name'],
-                $row['center_name'],
+                $row['school_name'],
                 $row['member_count'],
                 $row['avg_completion_percent'],
             ) );

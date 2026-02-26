@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) exit;
  *   admin  (manage_options)       — sees ALL data, no filtering
  *   coach  (manage_hl_core only)  — filtered by hl_coach_assignment
  *   district_leader               — filtered by district from enrollment
- *   center_leader                 — filtered by center from enrollment
+ *   school_leader                 — filtered by school from enrollment
  *   mentor                        — filtered by team membership
  *   teacher                       — filtered by own enrollment/assignments
  *
@@ -33,7 +33,7 @@ class HL_Scope_Service {
      *     @type bool     $is_staff       manage_hl_core
      *     @type bool     $is_coach       staff but not admin
      *     @type int[]    $cohort_ids     Cohorts visible (empty = all for admin)
-     *     @type int[]    $center_ids     Centers visible
+     *     @type int[]    $school_ids     Schools visible
      *     @type int[]    $district_ids   Districts visible
      *     @type int[]    $team_ids       Teams visible
      *     @type int[]    $enrollment_ids Enrollments visible
@@ -76,14 +76,14 @@ class HL_Scope_Service {
     }
 
     /**
-     * Check if the current user can view a specific center.
+     * Check if the current user can view a specific school.
      */
-    public static function can_view_center( $center_id, $user_id = null ) {
+    public static function can_view_school( $school_id, $user_id = null ) {
         $scope = self::get_scope( $user_id );
         if ( $scope['is_admin'] ) {
             return true;
         }
-        return in_array( (int) $center_id, $scope['center_ids'], true );
+        return in_array( (int) $school_id, $scope['school_ids'], true );
     }
 
     /**
@@ -133,7 +133,7 @@ class HL_Scope_Service {
             'is_staff'       => $is_staff,
             'is_coach'       => $is_staff && ! $is_admin,
             'cohort_ids'     => array(),
-            'center_ids'     => array(),
+            'school_ids'     => array(),
             'district_ids'   => array(),
             'team_ids'       => array(),
             'enrollment_ids' => array(),
@@ -173,31 +173,31 @@ class HL_Scope_Service {
         ), ARRAY_A );
 
         $cohort_ids = array();
-        $center_ids = array();
+        $school_ids = array();
 
         foreach ( $assignments as $a ) {
             $cohort_ids[] = (int) $a['cohort_id'];
 
             switch ( $a['scope_type'] ) {
-                case 'center':
-                    $center_ids[] = (int) $a['scope_id'];
+                case 'school':
+                    $school_ids[] = (int) $a['scope_id'];
                     break;
                 case 'team':
                     $cid = $wpdb->get_var( $wpdb->prepare(
-                        "SELECT center_id FROM {$prefix}hl_team WHERE team_id = %d",
+                        "SELECT school_id FROM {$prefix}hl_team WHERE team_id = %d",
                         $a['scope_id']
                     ) );
                     if ( $cid ) {
-                        $center_ids[] = (int) $cid;
+                        $school_ids[] = (int) $cid;
                     }
                     break;
                 case 'enrollment':
                     $cid = $wpdb->get_var( $wpdb->prepare(
-                        "SELECT center_id FROM {$prefix}hl_enrollment WHERE enrollment_id = %d",
+                        "SELECT school_id FROM {$prefix}hl_enrollment WHERE enrollment_id = %d",
                         $a['scope_id']
                     ) );
                     if ( $cid ) {
-                        $center_ids[] = (int) $cid;
+                        $school_ids[] = (int) $cid;
                     }
                     break;
             }
@@ -205,7 +205,7 @@ class HL_Scope_Service {
 
         // Also include any personal enrollments.
         $own = $wpdb->get_results( $wpdb->prepare(
-            "SELECT enrollment_id, cohort_id, center_id, district_id, roles
+            "SELECT enrollment_id, cohort_id, school_id, district_id, roles
              FROM {$prefix}hl_enrollment
              WHERE user_id = %d AND status = 'active'",
             $user_id
@@ -215,17 +215,17 @@ class HL_Scope_Service {
         foreach ( $own as $e ) {
             $scope['enrollment_ids'][] = (int) $e['enrollment_id'];
             $cohort_ids[] = (int) $e['cohort_id'];
-            if ( $e['center_id'] ) {
-                $center_ids[] = (int) $e['center_id'];
+            if ( $e['school_id'] ) {
+                $school_ids[] = (int) $e['school_id'];
             }
             $roles    = json_decode( $e['roles'], true ) ?: array();
             $hl_roles = array_merge( $hl_roles, $roles );
         }
 
-        // Resolve districts from centers.
-        $center_ids = array_values( array_unique( array_filter( $center_ids ) ) );
-        if ( ! empty( $center_ids ) ) {
-            $in           = implode( ',', $center_ids );
+        // Resolve districts from schools.
+        $school_ids = array_values( array_unique( array_filter( $school_ids ) ) );
+        if ( ! empty( $school_ids ) ) {
+            $in           = implode( ',', $school_ids );
             $district_ids = $wpdb->get_col(
                 "SELECT DISTINCT parent_orgunit_id FROM {$prefix}hl_orgunit
                  WHERE orgunit_id IN ({$in}) AND parent_orgunit_id IS NOT NULL"
@@ -234,7 +234,7 @@ class HL_Scope_Service {
         }
 
         $scope['cohort_ids']     = array_values( array_unique( $cohort_ids ) );
-        $scope['center_ids']     = $center_ids;
+        $scope['school_ids']     = $school_ids;
         $scope['enrollment_ids'] = array_values( array_unique( $scope['enrollment_ids'] ) );
         $scope['hl_roles']       = array_values( array_unique( $hl_roles ) );
 
@@ -244,8 +244,8 @@ class HL_Scope_Service {
     /**
      * Enrollment scope: roles determine what the user can see.
      *
-     * district_leader → all centers in their district(s)
-     * center_leader   → their center(s)
+     * district_leader → all schools in their district(s)
+     * school_leader   → their school(s)
      * mentor          → their team(s)
      * teacher         → own enrollment only
      */
@@ -254,7 +254,7 @@ class HL_Scope_Service {
         $prefix = $wpdb->prefix;
 
         $enrollments = $wpdb->get_results( $wpdb->prepare(
-            "SELECT enrollment_id, cohort_id, center_id, district_id, roles
+            "SELECT enrollment_id, cohort_id, school_id, district_id, roles
              FROM {$prefix}hl_enrollment
              WHERE user_id = %d AND status = 'active'",
             $user_id
@@ -266,15 +266,15 @@ class HL_Scope_Service {
 
         $hl_roles       = array();
         $cohort_ids     = array();
-        $center_ids     = array();
+        $school_ids     = array();
         $district_ids   = array();
         $enrollment_ids = array();
 
         foreach ( $enrollments as $e ) {
             $enrollment_ids[] = (int) $e['enrollment_id'];
             $cohort_ids[]     = (int) $e['cohort_id'];
-            if ( $e['center_id'] ) {
-                $center_ids[] = (int) $e['center_id'];
+            if ( $e['school_id'] ) {
+                $school_ids[] = (int) $e['school_id'];
             }
 
             $roles    = json_decode( $e['roles'], true ) ?: array();
@@ -283,10 +283,10 @@ class HL_Scope_Service {
             // District leaders see their district scope.
             if ( in_array( 'district_leader', $roles, true ) ) {
                 $did = $e['district_id'] ?: null;
-                if ( ! $did && $e['center_id'] ) {
+                if ( ! $did && $e['school_id'] ) {
                     $did = $wpdb->get_var( $wpdb->prepare(
                         "SELECT parent_orgunit_id FROM {$prefix}hl_orgunit WHERE orgunit_id = %d",
-                        $e['center_id']
+                        $e['school_id']
                     ) );
                 }
                 if ( $did ) {
@@ -295,15 +295,15 @@ class HL_Scope_Service {
             }
         }
 
-        // Expand districts → centers.
+        // Expand districts → schools.
         $district_ids = array_values( array_unique( array_filter( $district_ids ) ) );
         if ( ! empty( $district_ids ) ) {
             $d_in             = implode( ',', $district_ids );
-            $district_centers = $wpdb->get_col(
+            $district_schools = $wpdb->get_col(
                 "SELECT orgunit_id FROM {$prefix}hl_orgunit
-                 WHERE parent_orgunit_id IN ({$d_in}) AND orgunit_type = 'center'"
+                 WHERE parent_orgunit_id IN ({$d_in}) AND orgunit_type = 'school'"
             );
-            $center_ids = array_merge( $center_ids, array_map( 'intval', $district_centers ) );
+            $school_ids = array_merge( $school_ids, array_map( 'intval', $district_schools ) );
         }
 
         // Team memberships.
@@ -318,7 +318,7 @@ class HL_Scope_Service {
 
         $scope['hl_roles']       = array_values( array_unique( $hl_roles ) );
         $scope['cohort_ids']     = array_values( array_unique( $cohort_ids ) );
-        $scope['center_ids']     = array_values( array_unique( $center_ids ) );
+        $scope['school_ids']     = array_values( array_unique( $school_ids ) );
         $scope['district_ids']   = $district_ids;
         $scope['team_ids']       = array_values( array_unique( $team_ids ) );
         $scope['enrollment_ids'] = array_values( array_unique( $enrollment_ids ) );

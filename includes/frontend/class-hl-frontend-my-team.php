@@ -68,9 +68,9 @@ class HL_Frontend_My_Team {
                                     <?php echo esc_html( $team['team_name'] ); ?>
                                 <?php endif; ?>
                             </h3>
-                            <?php if ( $team['center_name'] ) : ?>
+                            <?php if ( $team['school_name'] ) : ?>
                                 <div class="hl-crm-card-subtitle">
-                                    <?php echo esc_html( $team['center_name'] ); ?>
+                                    <?php echo esc_html( $team['school_name'] ); ?>
                                 </div>
                             <?php endif; ?>
                             <div class="hl-crm-card-meta">
@@ -111,13 +111,13 @@ class HL_Frontend_My_Team {
         $prefix = $wpdb->prefix;
 
         return $wpdb->get_results( $wpdb->prepare(
-            "SELECT t.team_id, t.team_name, t.center_id, t.cohort_id,
-                    ou.name AS center_name, co.cohort_name,
+            "SELECT t.team_id, t.team_name, t.school_id, t.cohort_id,
+                    ou.name AS school_name, co.cohort_name,
                     COALESCE(mc.member_count, 0) AS member_count
              FROM {$prefix}hl_team_membership tm
              JOIN {$prefix}hl_team t ON tm.team_id = t.team_id
              JOIN {$prefix}hl_enrollment e ON tm.enrollment_id = e.enrollment_id
-             LEFT JOIN {$prefix}hl_orgunit ou ON t.center_id = ou.orgunit_id
+             LEFT JOIN {$prefix}hl_orgunit ou ON t.school_id = ou.orgunit_id
              LEFT JOIN {$prefix}hl_cohort co ON t.cohort_id = co.cohort_id
              LEFT JOIN (
                  SELECT team_id, COUNT(*) AS member_count

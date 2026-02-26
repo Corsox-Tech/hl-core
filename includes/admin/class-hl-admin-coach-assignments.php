@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * Admin Coach Assignments Page
  *
- * Manage coach assignments at center, team, and enrollment levels.
+ * Manage coach assignments at school, team, and enrollment levels.
  * Shows current assignments with scope labels and allows create/reassign/delete.
  *
  * @package HL_Core
@@ -274,15 +274,15 @@ class HL_Admin_Coach_Assignments {
         // Scope type
         echo '<tr><th scope="row"><label for="scope_type">' . esc_html__('Scope Level', 'hl-core') . '</label></th>';
         echo '<td><select id="scope_type" name="scope_type" required>';
-        echo '<option value="center">' . esc_html__('Center (default for all participants at a center)', 'hl-core') . '</option>';
-        echo '<option value="team">' . esc_html__('Team (overrides center default)', 'hl-core') . '</option>';
+        echo '<option value="school">' . esc_html__('School (default for all participants at a school)', 'hl-core') . '</option>';
+        echo '<option value="team">' . esc_html__('Team (overrides school default)', 'hl-core') . '</option>';
         echo '<option value="enrollment">' . esc_html__('Enrollment (override for one participant)', 'hl-core') . '</option>';
         echo '</select></td></tr>';
 
         // Scope ID
         echo '<tr><th scope="row"><label for="scope_id">' . esc_html__('Scope ID', 'hl-core') . '</label></th>';
         echo '<td><input type="number" id="scope_id" name="scope_id" required min="1" class="small-text" />';
-        echo '<p class="description">' . esc_html__('Enter the Center ID, Team ID, or Enrollment ID depending on the scope level selected above.', 'hl-core') . '</p>';
+        echo '<p class="description">' . esc_html__('Enter the School ID, Team ID, or Enrollment ID depending on the scope level selected above.', 'hl-core') . '</p>';
         echo '</td></tr>';
 
         // Effective from
@@ -310,12 +310,12 @@ class HL_Admin_Coach_Assignments {
         global $wpdb;
 
         switch ($scope_type) {
-            case 'center':
+            case 'school':
                 $name = $wpdb->get_var($wpdb->prepare(
                     "SELECT name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_id = %d",
                     $scope_id
                 ));
-                return $name ?: "Center #{$scope_id}";
+                return $name ?: "School #{$scope_id}";
 
             case 'team':
                 $name = $wpdb->get_var($wpdb->prepare(

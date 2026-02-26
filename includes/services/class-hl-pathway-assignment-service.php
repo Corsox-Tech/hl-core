@@ -218,7 +218,7 @@ class HL_Pathway_Assignment_Service {
             $role_map = array(
                 'teacher'          => 'Teacher',
                 'mentor'           => 'Mentor',
-                'center_leader'    => 'Center Leader',
+                'school_leader'    => 'School Leader',
                 'district_leader'  => 'District Leader',
             );
 
@@ -245,7 +245,7 @@ class HL_Pathway_Assignment_Service {
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT pa.*, e.user_id, e.roles, e.center_id, e.status AS enrollment_status,
+            "SELECT pa.*, e.user_id, e.roles, e.school_id, e.status AS enrollment_status,
                     u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_pathway_assignment pa
              JOIN {$wpdb->prefix}hl_enrollment e ON pa.enrollment_id = e.enrollment_id
@@ -314,7 +314,7 @@ class HL_Pathway_Assignment_Service {
         $role_map = array(
             'teacher'          => 'Teacher',
             'mentor'           => 'Mentor',
-            'center_leader'    => 'Center Leader',
+            'school_leader'    => 'School Leader',
             'district_leader'  => 'District Leader',
         );
 

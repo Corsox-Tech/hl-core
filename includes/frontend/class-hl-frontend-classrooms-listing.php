@@ -4,8 +4,8 @@ if (!defined('ABSPATH')) exit;
 /**
  * Renderer for the [hl_classrooms_listing] shortcode.
  *
- * Searchable classroom directory with center, age band filters.
- * Scope: admin all, coach assigned, leader by center, teacher own assignments.
+ * Searchable classroom directory with school, age band filters.
+ * Scope: admin all, coach assigned, leader by school, teacher own assignments.
  *
  * @package HL_Core
  */
@@ -24,7 +24,7 @@ class HL_Frontend_Classrooms_Listing {
         }
 
         $classrooms = $this->get_classrooms( $scope );
-        $centers    = $this->get_center_options( $scope );
+        $schools    = $this->get_school_options( $scope );
         $age_bands  = $this->get_age_bands();
 
         $classroom_page_url = $this->find_shortcode_page_url( 'hl_classroom_page' );
@@ -39,10 +39,10 @@ class HL_Frontend_Classrooms_Listing {
             <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-classroom-search"
                        placeholder="<?php esc_attr_e( 'Search classrooms...', 'hl-core' ); ?>">
-                <?php if ( count( $centers ) > 1 ) : ?>
-                    <select class="hl-select" id="hl-classroom-center-filter">
-                        <option value=""><?php esc_html_e( 'All Centers', 'hl-core' ); ?></option>
-                        <?php foreach ( $centers as $c ) : ?>
+                <?php if ( count( $schools ) > 1 ) : ?>
+                    <select class="hl-select" id="hl-classroom-school-filter">
+                        <option value=""><?php esc_html_e( 'All Schools', 'hl-core' ); ?></option>
+                        <?php foreach ( $schools as $c ) : ?>
                             <option value="<?php echo esc_attr( $c->orgunit_id ); ?>">
                                 <?php echo esc_html( $c->name ); ?>
                             </option>
@@ -69,7 +69,7 @@ class HL_Frontend_Classrooms_Listing {
                         <thead>
                             <tr>
                                 <th><?php esc_html_e( 'Classroom', 'hl-core' ); ?></th>
-                                <th><?php esc_html_e( 'Center', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'School', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Age Band', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Children', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Teachers', 'hl-core' ); ?></th>
@@ -84,9 +84,9 @@ class HL_Frontend_Classrooms_Listing {
                             ?>
                                 <tr class="hl-classroom-row"
                                     data-search="<?php echo esc_attr( strtolower(
-                                        $cr['classroom_name'] . ' ' . $cr['center_name'] . ' ' . ( $cr['teacher_names'] ?: '' )
+                                        $cr['classroom_name'] . ' ' . $cr['school_name'] . ' ' . ( $cr['teacher_names'] ?: '' )
                                     ) ); ?>"
-                                    data-center="<?php echo esc_attr( $cr['center_id'] ); ?>"
+                                    data-school="<?php echo esc_attr( $cr['school_id'] ); ?>"
                                     data-age="<?php echo esc_attr( $cr['age_band'] ); ?>">
                                     <td>
                                         <?php if ( $detail_url ) : ?>
@@ -95,7 +95,7 @@ class HL_Frontend_Classrooms_Listing {
                                             <?php echo esc_html( $cr['classroom_name'] ); ?>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?php echo esc_html( $cr['center_name'] ); ?></td>
+                                    <td><?php echo esc_html( $cr['school_name'] ); ?></td>
                                     <td>
                                         <?php if ( $cr['age_band'] ) : ?>
                                             <span class="hl-badge"><?php echo esc_html( ucfirst( $cr['age_band'] ) ); ?></span>
@@ -132,16 +132,16 @@ class HL_Frontend_Classrooms_Listing {
 
             function filterRows() {
                 var query  = $('#hl-classroom-search').val().toLowerCase();
-                var center = $('#hl-classroom-center-filter').val();
+                var school = $('#hl-classroom-school-filter').val();
                 var age    = $('#hl-classroom-age-filter').val();
                 var visible = 0;
 
                 $rows.each(function(){
                     var $r = $(this);
                     var matchSearch = !query || $r.data('search').indexOf(query) !== -1;
-                    var matchCenter = !center || String($r.data('center')) === center;
+                    var matchSchool = !school || String($r.data('school')) === school;
                     var matchAge    = !age || $r.data('age') === age;
-                    var show = matchSearch && matchCenter && matchAge;
+                    var show = matchSearch && matchSchool && matchAge;
                     $r.toggle(show);
                     if (show) visible++;
                 });
@@ -149,7 +149,7 @@ class HL_Frontend_Classrooms_Listing {
             }
 
             $('#hl-classroom-search').on('input', filterRows);
-            $('#hl-classroom-center-filter, #hl-classroom-age-filter').on('change', filterRows);
+            $('#hl-classroom-school-filter, #hl-classroom-age-filter').on('change', filterRows);
         })(jQuery);
         </script>
         <?php
@@ -165,11 +165,11 @@ class HL_Frontend_Classrooms_Listing {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $sql = "SELECT c.classroom_id, c.classroom_name, c.age_band, c.center_id,
-                       ou.name AS center_name,
+        $sql = "SELECT c.classroom_id, c.classroom_name, c.age_band, c.school_id,
+                       ou.name AS school_name,
                        COALESCE(cc.child_count, 0) AS child_count
                 FROM {$prefix}hl_classroom c
-                LEFT JOIN {$prefix}hl_orgunit ou ON c.center_id = ou.orgunit_id
+                LEFT JOIN {$prefix}hl_orgunit ou ON c.school_id = ou.orgunit_id
                 LEFT JOIN (
                     SELECT classroom_id, COUNT(*) AS child_count
                     FROM {$prefix}hl_child_classroom_current
@@ -180,10 +180,10 @@ class HL_Frontend_Classrooms_Listing {
         $values = array();
 
         if ( ! $scope['is_admin'] ) {
-            if ( ! empty( $scope['center_ids'] ) ) {
-                $placeholders = implode( ',', array_fill( 0, count( $scope['center_ids'] ), '%d' ) );
-                $where[]      = "c.center_id IN ({$placeholders})";
-                $values       = array_merge( $values, $scope['center_ids'] );
+            if ( ! empty( $scope['school_ids'] ) ) {
+                $placeholders = implode( ',', array_fill( 0, count( $scope['school_ids'] ), '%d' ) );
+                $where[]      = "c.school_id IN ({$placeholders})";
+                $values       = array_merge( $values, $scope['school_ids'] );
             } else {
                 // Teacher: only classrooms they're assigned to.
                 $where[]  = "c.classroom_id IN (
@@ -240,10 +240,10 @@ class HL_Frontend_Classrooms_Listing {
         return $map;
     }
 
-    private function get_center_options( $scope ) {
+    private function get_school_options( $scope ) {
         $repo = new HL_OrgUnit_Repository();
-        $all  = $repo->get_centers();
-        return HL_Scope_Service::filter_by_ids( $all, 'orgunit_id', $scope['center_ids'], $scope['is_admin'] );
+        $all  = $repo->get_schools();
+        return HL_Scope_Service::filter_by_ids( $all, 'orgunit_id', $scope['school_ids'], $scope['is_admin'] );
     }
 
     private function get_age_bands() {

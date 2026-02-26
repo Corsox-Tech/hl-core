@@ -1357,7 +1357,7 @@ class HL_Admin_Pathways {
         echo '</tr>';
 
         // Target Roles
-        $available_roles = array('Teacher', 'Mentor', 'Center Leader', 'District Leader');
+        $available_roles = array('Teacher', 'Mentor', 'School Leader', 'District Leader');
         echo '<tr>';
         echo '<th scope="row">' . esc_html__('Target Roles', 'hl-core') . '</th>';
         echo '<td><fieldset>';

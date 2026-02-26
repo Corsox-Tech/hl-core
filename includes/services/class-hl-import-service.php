@@ -16,11 +16,11 @@ class HL_Import_Service {
         'roles'          => 'cohort_roles',
         'rol'            => 'cohort_roles',
 
-        'center_name'    => 'center_name',
-        'center'         => 'center_name',
-        'centro'         => 'center_name',
+        'school_name'    => 'school_name',
+        'school'         => 'school_name',
+        'centro'         => 'school_name',
 
-        'center_code'    => 'center_code',
+        'school_code'    => 'school_code',
 
         'district_name'  => 'district_name',
         'district'       => 'district_name',
@@ -64,15 +64,15 @@ class HL_Import_Service {
         'maestro'         => 'Teacher',
         'maestra'         => 'Teacher',
         'mentor'          => 'Mentor',
-        'center leader'   => 'Center Leader',
-        'center_leader'   => 'Center Leader',
-        'lider de centro' => 'Center Leader',
+        'school leader'   => 'School Leader',
+        'school_leader'   => 'School Leader',
+        'lider de centro' => 'School Leader',
         'district leader' => 'District Leader',
         'district_leader' => 'District Leader',
     );
 
     /** @var string[] Valid cohort roles */
-    private static $valid_roles = array('Teacher', 'Mentor', 'Center Leader', 'District Leader');
+    private static $valid_roles = array('Teacher', 'Mentor', 'School Leader', 'District Leader');
 
     /** @var int Maximum rows per import */
     const MAX_ROWS = 5000;
@@ -244,8 +244,8 @@ class HL_Import_Service {
         $preview_rows = array();
         $seen_emails = array();
 
-        // Pre-load centers and districts for matching
-        $centers = $this->load_centers_lookup();
+        // Pre-load schools and districts for matching
+        $schools = $this->load_schools_lookup();
         $districts = $this->load_districts_lookup();
 
         foreach ($parsed_rows as $index => $row) {
@@ -254,7 +254,7 @@ class HL_Import_Service {
                 'raw_data'               => $row,
                 'status'                 => 'ERROR',
                 'matched_user_id'        => null,
-                'matched_center_id'      => null,
+                'matched_school_id'      => null,
                 'matched_district_id'    => null,
                 'existing_enrollment_id' => null,
                 'validation_messages'    => array(),
@@ -347,29 +347,29 @@ class HL_Import_Service {
                 );
             }
 
-            // Match center (required)
-            $center_value = '';
-            if (!empty($row['center_code'])) {
-                $center_value = trim($row['center_code']);
-                $center = $this->match_center($center_value, $centers, 'code', $preview['matched_district_id']);
-            } elseif (!empty($row['center_name'])) {
-                $center_value = trim($row['center_name']);
-                $center = $this->match_center($center_value, $centers, 'name', $preview['matched_district_id']);
+            // Match school (required)
+            $school_value = '';
+            if (!empty($row['school_code'])) {
+                $school_value = trim($row['school_code']);
+                $school = $this->match_school($school_value, $schools, 'code', $preview['matched_district_id']);
+            } elseif (!empty($row['school_name'])) {
+                $school_value = trim($row['school_name']);
+                $school = $this->match_school($school_value, $schools, 'name', $preview['matched_district_id']);
             } else {
-                $center = null;
+                $school = null;
             }
 
-            if ($center) {
-                $preview['matched_center_id'] = $center->orgunit_id;
-            } elseif (empty($center_value)) {
-                $preview['validation_messages'][] = __('Missing required field: center_name or center_code', 'hl-core');
+            if ($school) {
+                $preview['matched_school_id'] = $school->orgunit_id;
+            } elseif (empty($school_value)) {
+                $preview['validation_messages'][] = __('Missing required field: school_name or school_code', 'hl-core');
                 $preview['status'] = 'ERROR';
                 $preview_rows[] = $preview;
                 continue;
             } else {
                 $preview['validation_messages'][] = sprintf(
-                    __('Center not found: %s', 'hl-core'),
-                    $center_value
+                    __('School not found: %s', 'hl-core'),
+                    $school_value
                 );
                 $preview['status'] = 'ERROR';
                 $preview_rows[] = $preview;
@@ -395,9 +395,9 @@ class HL_Import_Service {
                     sort($new_roles);
 
                     if ($existing_roles === $new_roles
-                        && (int) $existing->center_id === (int) $preview['matched_center_id']) {
+                        && (int) $existing->school_id === (int) $preview['matched_school_id']) {
                         $preview['status'] = 'SKIP';
-                        $preview['validation_messages'][] = __('Already enrolled with identical roles and center.', 'hl-core');
+                        $preview['validation_messages'][] = __('Already enrolled with identical roles and school.', 'hl-core');
                         $preview['selected'] = false;
                     } else {
                         $preview['status'] = 'UPDATE';
@@ -408,8 +408,8 @@ class HL_Import_Service {
                                 implode(', ', $new_roles)
                             );
                         }
-                        if ((int) $existing->center_id !== (int) $preview['matched_center_id']) {
-                            $changes[] = 'center updated';
+                        if ((int) $existing->school_id !== (int) $preview['matched_school_id']) {
+                            $changes[] = 'school updated';
                         }
                         $preview['proposed_actions'][] = sprintf(
                             __('Update enrollment: %s', 'hl-core'),
@@ -459,24 +459,24 @@ class HL_Import_Service {
      * Validate and match children rows against database
      *
      * @param array $parsed_rows Array of associative arrays
-     * @param int   $cohort_id   (used for context; children belong to centers, not cohorts directly)
+     * @param int   $cohort_id   (used for context; children belong to schools, not cohorts directly)
      * @return array Preview rows
      */
     public function validate_children_rows($parsed_rows, $cohort_id) {
         $child_repo = new HL_Child_Repository();
         $preview_rows = array();
 
-        // Pre-load centers for matching
-        $centers = $this->load_centers_lookup();
+        // Pre-load schools for matching
+        $schools = $this->load_schools_lookup();
         // Pre-load all classrooms for matching
-        $classrooms_by_center = $this->load_classrooms_by_center();
+        $classrooms_by_school = $this->load_classrooms_by_school();
 
         foreach ($parsed_rows as $index => $row) {
             $preview = array(
                 'row_index'           => $index,
                 'raw_data'            => $row,
                 'status'              => 'ERROR',
-                'matched_center_id'   => null,
+                'matched_school_id'   => null,
                 'matched_classroom_id' => null,
                 'matched_child_id'    => null,
                 'validation_messages' => array(),
@@ -523,47 +523,47 @@ class HL_Import_Service {
             // Parse classroom name (optional)
             $preview['parsed_classroom_name'] = isset($row['classroom_name']) ? trim($row['classroom_name']) : '';
 
-            // Match center (required)
-            $center_value = '';
-            if (!empty($row['center_code'])) {
-                $center_value = trim($row['center_code']);
-                $center = $this->match_center($center_value, $centers, 'code');
-            } elseif (!empty($row['center_name'])) {
-                $center_value = trim($row['center_name']);
-                $center = $this->match_center($center_value, $centers, 'name');
+            // Match school (required)
+            $school_value = '';
+            if (!empty($row['school_code'])) {
+                $school_value = trim($row['school_code']);
+                $school = $this->match_school($school_value, $schools, 'code');
+            } elseif (!empty($row['school_name'])) {
+                $school_value = trim($row['school_name']);
+                $school = $this->match_school($school_value, $schools, 'name');
             } else {
-                $center = null;
+                $school = null;
             }
 
-            if ($center) {
-                $preview['matched_center_id'] = $center->orgunit_id;
-            } elseif (empty($center_value)) {
-                $preview['validation_messages'][] = __('Missing required field: center_name or center_code', 'hl-core');
+            if ($school) {
+                $preview['matched_school_id'] = $school->orgunit_id;
+            } elseif (empty($school_value)) {
+                $preview['validation_messages'][] = __('Missing required field: school_name or school_code', 'hl-core');
                 $preview_rows[] = $preview;
                 continue;
             } else {
                 $preview['validation_messages'][] = sprintf(
-                    __('Center not found: %s', 'hl-core'),
-                    $center_value
+                    __('School not found: %s', 'hl-core'),
+                    $school_value
                 );
                 $preview_rows[] = $preview;
                 continue;
             }
 
-            $center_id = (int) $preview['matched_center_id'];
+            $school_id = (int) $preview['matched_school_id'];
 
-            // Match classroom within center (optional)
+            // Match classroom within school (optional)
             if (!empty($preview['parsed_classroom_name'])) {
                 $matched_classroom = $this->match_classroom(
                     $preview['parsed_classroom_name'],
-                    $center_id,
-                    $classrooms_by_center
+                    $school_id,
+                    $classrooms_by_school
                 );
                 if ($matched_classroom) {
                     $preview['matched_classroom_id'] = $matched_classroom->classroom_id;
                 } else {
                     $preview['validation_messages'][] = sprintf(
-                        __('Classroom not found in center: %s', 'hl-core'),
+                        __('Classroom not found in school: %s', 'hl-core'),
                         $preview['parsed_classroom_name']
                     );
                 }
@@ -571,7 +571,7 @@ class HL_Import_Service {
 
             // Identity matching: fingerprint-based
             $fingerprint_data = array(
-                'center_id'         => $center_id,
+                'school_id'         => $school_id,
                 'dob'               => $parsed_dob,
                 'internal_child_id' => $preview['parsed_child_identifier'],
                 'first_name'        => $first_name,
@@ -579,7 +579,7 @@ class HL_Import_Service {
             );
             $fingerprint = HL_Child_Repository::compute_fingerprint($fingerprint_data);
 
-            $matches = $child_repo->find_by_fingerprint($fingerprint, $center_id);
+            $matches = $child_repo->find_by_fingerprint($fingerprint, $school_id);
 
             if (count($matches) === 1) {
                 // Exact match — UPDATE
@@ -658,7 +658,7 @@ class HL_Import_Service {
             }
 
             $child_data = array(
-                'center_id'         => $row['matched_center_id'],
+                'school_id'         => $row['matched_school_id'],
                 'first_name'        => $row['parsed_first_name'],
                 'last_name'         => $row['parsed_last_name'],
                 'dob'               => !empty($row['parsed_dob']) ? $row['parsed_dob'] : null,
@@ -789,17 +789,17 @@ class HL_Import_Service {
         global $wpdb;
         $preview_rows = array();
 
-        // Pre-load centers for matching
-        $centers = $this->load_centers_lookup();
+        // Pre-load schools for matching
+        $schools = $this->load_schools_lookup();
         // Pre-load existing classrooms
-        $classrooms_by_center = $this->load_classrooms_by_center();
+        $classrooms_by_school = $this->load_classrooms_by_school();
 
         foreach ($parsed_rows as $index => $row) {
             $preview = array(
                 'row_index'           => $index,
                 'raw_data'            => $row,
                 'status'              => 'ERROR',
-                'matched_center_id'   => null,
+                'matched_school_id'   => null,
                 'existing_classroom_id' => null,
                 'validation_messages' => array(),
                 'proposed_actions'    => array(),
@@ -830,50 +830,50 @@ class HL_Import_Service {
             }
             $preview['parsed_age_band'] = $age_band;
 
-            // Match center (required)
-            $center_value = '';
-            if (!empty($row['center_code'])) {
-                $center_value = trim($row['center_code']);
-                $center = $this->match_center($center_value, $centers, 'code');
-            } elseif (!empty($row['center_name'])) {
-                $center_value = trim($row['center_name']);
-                $center = $this->match_center($center_value, $centers, 'name');
+            // Match school (required)
+            $school_value = '';
+            if (!empty($row['school_code'])) {
+                $school_value = trim($row['school_code']);
+                $school = $this->match_school($school_value, $schools, 'code');
+            } elseif (!empty($row['school_name'])) {
+                $school_value = trim($row['school_name']);
+                $school = $this->match_school($school_value, $schools, 'name');
             } else {
-                $center = null;
+                $school = null;
             }
 
-            if ($center) {
-                $preview['matched_center_id'] = $center->orgunit_id;
-            } elseif (empty($center_value)) {
-                $preview['validation_messages'][] = __('Missing required field: center_name or center_code', 'hl-core');
+            if ($school) {
+                $preview['matched_school_id'] = $school->orgunit_id;
+            } elseif (empty($school_value)) {
+                $preview['validation_messages'][] = __('Missing required field: school_name or school_code', 'hl-core');
                 $preview_rows[] = $preview;
                 continue;
             } else {
                 $preview['validation_messages'][] = sprintf(
-                    __('Center not found: %s', 'hl-core'),
-                    $center_value
+                    __('School not found: %s', 'hl-core'),
+                    $school_value
                 );
                 $preview_rows[] = $preview;
                 continue;
             }
 
-            $center_id = (int) $preview['matched_center_id'];
+            $school_id = (int) $preview['matched_school_id'];
 
-            // Check for existing classroom by (center_id, classroom_name)
-            $existing = $this->match_classroom($classroom_name, $center_id, $classrooms_by_center);
+            // Check for existing classroom by (school_id, classroom_name)
+            $existing = $this->match_classroom($classroom_name, $school_id, $classrooms_by_school);
 
             if ($existing) {
                 $preview['existing_classroom_id'] = $existing->classroom_id;
                 $preview['status'] = 'SKIP';
                 $preview['validation_messages'][] = sprintf(
-                    __('Classroom already exists in this center (ID: %d)', 'hl-core'),
+                    __('Classroom already exists in this school (ID: %d)', 'hl-core'),
                     $existing->classroom_id
                 );
                 $preview['selected'] = false;
             } else {
                 $preview['status'] = 'CREATE';
                 $preview['proposed_actions'][] = sprintf(
-                    __('Create classroom "%s" in center', 'hl-core'),
+                    __('Create classroom "%s" in school', 'hl-core'),
                     $classroom_name
                 );
                 $preview['selected'] = true;
@@ -926,7 +926,7 @@ class HL_Import_Service {
 
             $data = array(
                 'classroom_name' => $row['parsed_classroom_name'],
-                'center_id'      => $row['matched_center_id'],
+                'school_id'      => $row['matched_school_id'],
             );
             if (!empty($row['parsed_age_band'])) {
                 $data['age_band'] = $row['parsed_age_band'];
@@ -1016,9 +1016,9 @@ class HL_Import_Service {
         $enrollment_repo = new HL_Enrollment_Repository();
         $preview_rows = array();
 
-        // Pre-load centers and classrooms for matching
-        $centers = $this->load_centers_lookup();
-        $classrooms_by_center = $this->load_classrooms_by_center();
+        // Pre-load schools and classrooms for matching
+        $schools = $this->load_schools_lookup();
+        $classrooms_by_school = $this->load_classrooms_by_school();
 
         // Pre-load existing teaching assignments for this cohort for duplicate detection
         $existing_assignments = $wpdb->get_results($wpdb->prepare(
@@ -1039,7 +1039,7 @@ class HL_Import_Service {
                 'row_index'              => $index,
                 'raw_data'               => $row,
                 'status'                 => 'ERROR',
-                'matched_center_id'      => null,
+                'matched_school_id'      => null,
                 'matched_classroom_id'   => null,
                 'matched_enrollment_id'  => null,
                 'matched_user_id'        => null,
@@ -1083,42 +1083,42 @@ class HL_Import_Service {
             $is_lead_raw = isset($row['is_lead_teacher']) ? strtolower(trim($row['is_lead_teacher'])) : '';
             $preview['parsed_is_lead'] = in_array($is_lead_raw, array('1', 'yes', 'true', 'y', 'si'));
 
-            // Match center (required)
-            $center_value = '';
-            if (!empty($row['center_code'])) {
-                $center_value = trim($row['center_code']);
-                $center = $this->match_center($center_value, $centers, 'code');
-            } elseif (!empty($row['center_name'])) {
-                $center_value = trim($row['center_name']);
-                $center = $this->match_center($center_value, $centers, 'name');
+            // Match school (required)
+            $school_value = '';
+            if (!empty($row['school_code'])) {
+                $school_value = trim($row['school_code']);
+                $school = $this->match_school($school_value, $schools, 'code');
+            } elseif (!empty($row['school_name'])) {
+                $school_value = trim($row['school_name']);
+                $school = $this->match_school($school_value, $schools, 'name');
             } else {
-                $center = null;
+                $school = null;
             }
 
-            if ($center) {
-                $preview['matched_center_id'] = $center->orgunit_id;
-            } elseif (empty($center_value)) {
-                $preview['validation_messages'][] = __('Missing required field: center_name or center_code', 'hl-core');
+            if ($school) {
+                $preview['matched_school_id'] = $school->orgunit_id;
+            } elseif (empty($school_value)) {
+                $preview['validation_messages'][] = __('Missing required field: school_name or school_code', 'hl-core');
                 $preview_rows[] = $preview;
                 continue;
             } else {
                 $preview['validation_messages'][] = sprintf(
-                    __('Center not found: %s', 'hl-core'),
-                    $center_value
+                    __('School not found: %s', 'hl-core'),
+                    $school_value
                 );
                 $preview_rows[] = $preview;
                 continue;
             }
 
-            $center_id = (int) $preview['matched_center_id'];
+            $school_id = (int) $preview['matched_school_id'];
 
-            // Match classroom within center
-            $matched_classroom = $this->match_classroom($classroom_name, $center_id, $classrooms_by_center);
+            // Match classroom within school
+            $matched_classroom = $this->match_classroom($classroom_name, $school_id, $classrooms_by_school);
             if ($matched_classroom) {
                 $preview['matched_classroom_id'] = $matched_classroom->classroom_id;
             } else {
                 $preview['validation_messages'][] = sprintf(
-                    __('Classroom not found in center: %s', 'hl-core'),
+                    __('Classroom not found in school: %s', 'hl-core'),
                     $classroom_name
                 );
                 $preview_rows[] = $preview;
@@ -1355,7 +1355,7 @@ class HL_Import_Service {
 
             $email = $row['parsed_email'];
             $roles = $row['parsed_roles'];
-            $center_id = $row['matched_center_id'];
+            $school_id = $row['matched_school_id'];
             $district_id = $row['matched_district_id'];
 
             if ($row['status'] === 'CREATE') {
@@ -1405,7 +1405,7 @@ class HL_Import_Service {
                     'cohort_id'   => $cohort_id,
                     'user_id'     => $user_id,
                     'roles'       => $roles,
-                    'center_id'   => $center_id,
+                    'school_id'   => $school_id,
                     'district_id' => $district_id,
                     'status'      => 'active',
                     'enrolled_at' => current_time('mysql'),
@@ -1426,7 +1426,7 @@ class HL_Import_Service {
                     'cohort_id'   => $cohort_id,
                     'entity_type' => 'enrollment',
                     'entity_id'   => $enrollment_id,
-                    'after_data'  => array('user_id' => $user_id, 'roles' => $roles, 'center_id' => $center_id),
+                    'after_data'  => array('user_id' => $user_id, 'roles' => $roles, 'school_id' => $school_id),
                     'reason'      => sprintf('Import run #%d', $run_id),
                 ));
 
@@ -1447,11 +1447,11 @@ class HL_Import_Service {
 
                 // Get current enrollment for audit before_data
                 $current = $enrollment_repo->get_by_id($enrollment_id);
-                $before_data = $current ? array('roles' => $current->get_roles_array(), 'center_id' => $current->center_id) : array();
+                $before_data = $current ? array('roles' => $current->get_roles_array(), 'school_id' => $current->school_id) : array();
 
                 $update_data = array(
                     'roles'     => $roles,
-                    'center_id' => $center_id,
+                    'school_id' => $school_id,
                 );
                 if ($district_id) {
                     $update_data['district_id'] = $district_id;
@@ -1464,7 +1464,7 @@ class HL_Import_Service {
                     'entity_type' => 'enrollment',
                     'entity_id'   => $enrollment_id,
                     'before_data' => $before_data,
-                    'after_data'  => array('roles' => $roles, 'center_id' => $center_id),
+                    'after_data'  => array('roles' => $roles, 'school_id' => $school_id),
                     'reason'      => sprintf('Import run #%d', $run_id),
                 ));
 
@@ -1545,7 +1545,7 @@ class HL_Import_Service {
             'Row Number',
             'Email',
             'Cohort Roles',
-            'Center',
+            'School',
             'District',
             'Status',
             'Messages',
@@ -1576,7 +1576,7 @@ class HL_Import_Service {
                 $row['row_index'] + 1,
                 isset($raw['email']) ? $raw['email'] : '',
                 isset($raw['cohort_roles']) ? $raw['cohort_roles'] : '',
-                isset($raw['center_name']) ? $raw['center_name'] : (isset($raw['center_code']) ? $raw['center_code'] : ''),
+                isset($raw['school_name']) ? $raw['school_name'] : (isset($raw['school_code']) ? $raw['school_code'] : ''),
                 isset($raw['district_name']) ? $raw['district_name'] : (isset($raw['district_code']) ? $raw['district_code'] : ''),
                 $row['status'],
                 implode('; ', $messages),
@@ -1651,13 +1651,13 @@ class HL_Import_Service {
     }
 
     /**
-     * Load all centers indexed for fast lookup
+     * Load all schools indexed for fast lookup
      *
      * @return object[] Array of OrgUnit objects
      */
-    private function load_centers_lookup() {
+    private function load_schools_lookup() {
         $repo = new HL_OrgUnit_Repository();
-        return $repo->get_centers();
+        return $repo->get_schools();
     }
 
     /**
@@ -1671,27 +1671,27 @@ class HL_Import_Service {
     }
 
     /**
-     * Match a center by name or code, optionally scoped to a district
+     * Match a school by name or code, optionally scoped to a district
      *
      * @param string   $value
-     * @param object[] $centers
+     * @param object[] $schools
      * @param string   $match_by 'name' or 'code'
      * @param int|null $district_id
      * @return object|null
      */
-    private function match_center($value, $centers, $match_by, $district_id = null) {
+    private function match_school($value, $schools, $match_by, $district_id = null) {
         $normalized = HL_Normalization::normalize_string($value);
-        foreach ($centers as $center) {
+        foreach ($schools as $school) {
             $compare = ($match_by === 'code')
-                ? HL_Normalization::normalize_string($center->orgunit_code)
-                : HL_Normalization::normalize_string($center->name);
+                ? HL_Normalization::normalize_string($school->orgunit_code)
+                : HL_Normalization::normalize_string($school->name);
 
             if ($compare === $normalized) {
                 // If district filter is set, check parent
-                if ($district_id && $center->parent_orgunit_id != $district_id) {
+                if ($district_id && $school->parent_orgunit_id != $district_id) {
                     continue;
                 }
-                return $center;
+                return $school;
             }
         }
         return null;
@@ -1720,16 +1720,16 @@ class HL_Import_Service {
     }
 
     /**
-     * Load all classrooms grouped by center_id for fast lookup
+     * Load all classrooms grouped by school_id for fast lookup
      *
-     * @return array center_id => HL_Classroom[]
+     * @return array school_id => HL_Classroom[]
      */
-    private function load_classrooms_by_center() {
+    private function load_classrooms_by_school() {
         $repo = new HL_Classroom_Repository();
         $all = $repo->get_all();
         $grouped = array();
         foreach ($all as $classroom) {
-            $cid = (int) $classroom->center_id;
+            $cid = (int) $classroom->school_id;
             if (!isset($grouped[$cid])) {
                 $grouped[$cid] = array();
             }
@@ -1739,19 +1739,19 @@ class HL_Import_Service {
     }
 
     /**
-     * Match a classroom by name within a center
+     * Match a classroom by name within a school
      *
      * @param string $classroom_name
-     * @param int    $center_id
-     * @param array  $classrooms_by_center
+     * @param int    $school_id
+     * @param array  $classrooms_by_school
      * @return object|null HL_Classroom or null
      */
-    private function match_classroom($classroom_name, $center_id, $classrooms_by_center) {
-        if (!isset($classrooms_by_center[$center_id])) {
+    private function match_classroom($classroom_name, $school_id, $classrooms_by_school) {
+        if (!isset($classrooms_by_school[$school_id])) {
             return null;
         }
         $normalized = HL_Normalization::normalize_string($classroom_name);
-        foreach ($classrooms_by_center[$center_id] as $classroom) {
+        foreach ($classrooms_by_school[$school_id] as $classroom) {
             if (HL_Normalization::normalize_string($classroom->classroom_name) === $normalized) {
                 return $classroom;
             }
@@ -1773,16 +1773,16 @@ class HL_Import_Service {
             $suggestions[] = 'Check that the email address is correctly formatted.';
         }
         if (stripos($messages, 'Missing required field: cohort_roles') !== false) {
-            $suggestions[] = 'Add a role (Teacher, Mentor, Center Leader, or District Leader).';
+            $suggestions[] = 'Add a role (Teacher, Mentor, School Leader, or District Leader).';
         }
         if (stripos($messages, 'Unrecognized role') !== false) {
-            $suggestions[] = 'Use one of: Teacher, Mentor, Center Leader, District Leader.';
+            $suggestions[] = 'Use one of: Teacher, Mentor, School Leader, District Leader.';
         }
-        if (stripos($messages, 'Center not found') !== false) {
-            $suggestions[] = 'Check that the center name matches an existing center in the system.';
+        if (stripos($messages, 'School not found') !== false) {
+            $suggestions[] = 'Check that the school name matches an existing school in the system.';
         }
-        if (stripos($messages, 'Missing required field: center') !== false) {
-            $suggestions[] = 'Add a center_name or center_code column to the CSV.';
+        if (stripos($messages, 'Missing required field: school') !== false) {
+            $suggestions[] = 'Add a school_name or school_code column to the CSV.';
         }
         if (stripos($messages, 'Duplicate email') !== false) {
             $suggestions[] = 'Remove the duplicate row from the CSV file.';
@@ -1808,8 +1808,8 @@ class HL_Import_Service {
         }
 
         // Teaching assignment remediations
-        if (stripos($messages, 'Classroom not found in center') !== false) {
-            $suggestions[] = 'Check that the classroom name matches an existing classroom in the specified center.';
+        if (stripos($messages, 'Classroom not found in school') !== false) {
+            $suggestions[] = 'Check that the classroom name matches an existing classroom in the specified school.';
         }
         if (stripos($messages, 'No WordPress user found') !== false) {
             $suggestions[] = 'Import the participant first, then re-run this teaching assignment import.';

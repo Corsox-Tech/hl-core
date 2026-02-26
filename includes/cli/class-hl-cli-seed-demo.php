@@ -67,13 +67,13 @@ class HL_CLI_Seed_Demo {
         WP_CLI::line( '' );
 
         // Step 1: Org Structure
-        list( $district_id, $center_a_id, $center_b_id ) = $this->seed_orgunits();
+        list( $district_id, $school_a_id, $school_b_id ) = $this->seed_orgunits();
 
         // Step 2: Cohort
-        $cohort_id = $this->seed_cohort( $district_id, $center_a_id, $center_b_id );
+        $cohort_id = $this->seed_cohort( $district_id, $school_a_id, $school_b_id );
 
         // Step 3: Classrooms
-        $classrooms = $this->seed_classrooms( $center_a_id, $center_b_id );
+        $classrooms = $this->seed_classrooms( $school_a_id, $school_b_id );
 
         // Step 4: Instruments
         $instruments = $this->seed_instruments();
@@ -82,16 +82,16 @@ class HL_CLI_Seed_Demo {
         $users = $this->seed_users();
 
         // Step 6: Enrollments
-        $enrollments = $this->seed_enrollments( $users, $cohort_id, $center_a_id, $center_b_id, $district_id );
+        $enrollments = $this->seed_enrollments( $users, $cohort_id, $school_a_id, $school_b_id, $district_id );
 
         // Step 7: Teams
-        $teams = $this->seed_teams( $cohort_id, $center_a_id, $center_b_id, $enrollments );
+        $teams = $this->seed_teams( $cohort_id, $school_a_id, $school_b_id, $enrollments );
 
         // Step 8: Teaching Assignments
         $this->seed_teaching_assignments( $enrollments, $classrooms );
 
         // Step 9: Children
-        $this->seed_children( $classrooms, $center_a_id, $center_b_id );
+        $this->seed_children( $classrooms, $school_a_id, $school_b_id );
 
         // Step 10: Pathways & Activities
         $pathways = $this->seed_pathways( $cohort_id, $instruments );
@@ -112,7 +112,7 @@ class HL_CLI_Seed_Demo {
         $this->seed_rollups( $enrollments );
 
         // Step 16: Coach Assignments
-        $this->seed_coach_assignments( $cohort_id, $center_a_id, $center_b_id, $teams, $users );
+        $this->seed_coach_assignments( $cohort_id, $school_a_id, $school_b_id, $teams, $users );
 
         // Step 17: Coaching Sessions
         $this->seed_coaching_sessions( $cohort_id, $enrollments, $users );
@@ -123,7 +123,7 @@ class HL_CLI_Seed_Demo {
         WP_CLI::line( 'Summary:' );
         WP_CLI::line( "  Cohort:       {$cohort_id} (code: " . self::DEMO_COHORT_CODE . ')' );
         WP_CLI::line( "  District:     {$district_id}" );
-        WP_CLI::line( "  Centers:      {$center_a_id}, {$center_b_id}" );
+        WP_CLI::line( "  Schools:      {$school_a_id}, {$school_b_id}" );
         WP_CLI::line( '  Classrooms:   ' . count( $classrooms ) );
         WP_CLI::line( '  Instruments:  ' . count( $instruments ) );
         WP_CLI::line( '  Users:        ' . count( $users ) );
@@ -245,8 +245,8 @@ class HL_CLI_Seed_Demo {
             // Enrollments.
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE cohort_id = %d", $cohort_id ) );
 
-            // Cohort-center links.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort_center WHERE cohort_id = %d", $cohort_id ) );
+            // Cohort-school links.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort_school WHERE cohort_id = %d", $cohort_id ) );
 
             // Coach assignments.
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE cohort_id = %d", $cohort_id ) );
@@ -278,25 +278,25 @@ class HL_CLI_Seed_Demo {
         $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = 'b2e_self_assessment'" );
         WP_CLI::log( '  Deleted demo instruments.' );
 
-        // 4. Delete children for demo centers.
-        // Find demo center IDs by name.
-        $demo_center_ids = $wpdb->get_col(
-            "SELECT orgunit_id FROM {$wpdb->prefix}hl_orgunit WHERE name LIKE 'Demo Center%'"
+        // 4. Delete children for demo schools.
+        // Find demo school IDs by name.
+        $demo_school_ids = $wpdb->get_col(
+            "SELECT orgunit_id FROM {$wpdb->prefix}hl_orgunit WHERE name LIKE 'Demo School%'"
         );
-        if ( ! empty( $demo_center_ids ) ) {
-            $in_centers = implode( ',', array_map( 'intval', $demo_center_ids ) );
+        if ( ! empty( $demo_school_ids ) ) {
+            $in_schools = implode( ',', array_map( 'intval', $demo_school_ids ) );
 
             // Get classroom IDs.
             $demo_classroom_ids = $wpdb->get_col(
-                "SELECT classroom_id FROM {$wpdb->prefix}hl_classroom WHERE center_id IN ({$in_centers})"
+                "SELECT classroom_id FROM {$wpdb->prefix}hl_classroom WHERE school_id IN ({$in_schools})"
             );
             if ( ! empty( $demo_classroom_ids ) ) {
                 $in_cls = implode( ',', array_map( 'intval', $demo_classroom_ids ) );
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child_classroom_current WHERE classroom_id IN ({$in_cls})" );
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child_classroom_history WHERE classroom_id IN ({$in_cls})" );
             }
-            $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child WHERE center_id IN ({$in_centers})" );
-            $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_classroom WHERE center_id IN ({$in_centers})" );
+            $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child WHERE school_id IN ({$in_schools})" );
+            $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_classroom WHERE school_id IN ({$in_schools})" );
             WP_CLI::log( '  Deleted demo children and classrooms.' );
         }
 
@@ -316,9 +316,9 @@ class HL_CLI_Seed_Demo {
     // ------------------------------------------------------------------
 
     /**
-     * Seed org units: 1 district, 2 centers.
+     * Seed org units: 1 district, 2 schools.
      *
-     * @return array [district_id, center_a_id, center_b_id]
+     * @return array [district_id, school_a_id, school_b_id]
      */
     private function seed_orgunits() {
         $repo = new HL_OrgUnit_Repository();
@@ -328,21 +328,21 @@ class HL_CLI_Seed_Demo {
             'orgunit_type' => 'district',
         ) );
 
-        $center_a_id = $repo->create( array(
-            'name'             => 'Demo Center A',
-            'orgunit_type'     => 'center',
+        $school_a_id = $repo->create( array(
+            'name'             => 'Demo School A',
+            'orgunit_type'     => 'school',
             'parent_orgunit_id' => $district_id,
         ) );
 
-        $center_b_id = $repo->create( array(
-            'name'             => 'Demo Center B',
-            'orgunit_type'     => 'center',
+        $school_b_id = $repo->create( array(
+            'name'             => 'Demo School B',
+            'orgunit_type'     => 'school',
             'parent_orgunit_id' => $district_id,
         ) );
 
-        WP_CLI::log( "  [1/17] Org units created: district={$district_id}, centers={$center_a_id},{$center_b_id}" );
+        WP_CLI::log( "  [1/17] Org units created: district={$district_id}, schools={$school_a_id},{$school_b_id}" );
 
-        return array( $district_id, $center_a_id, $center_b_id );
+        return array( $district_id, $school_a_id, $school_b_id );
     }
 
     // ------------------------------------------------------------------
@@ -350,14 +350,14 @@ class HL_CLI_Seed_Demo {
     // ------------------------------------------------------------------
 
     /**
-     * Seed cohort and link to centers.
+     * Seed cohort and link to schools.
      *
      * @param int $district_id  District orgunit ID.
-     * @param int $center_a_id  Center A orgunit ID.
-     * @param int $center_b_id  Center B orgunit ID.
+     * @param int $school_a_id  School A orgunit ID.
+     * @param int $school_b_id  School B orgunit ID.
      * @return int Cohort ID.
      */
-    private function seed_cohort( $district_id, $center_a_id, $center_b_id ) {
+    private function seed_cohort( $district_id, $school_a_id, $school_b_id ) {
         global $wpdb;
 
         $repo = new HL_Cohort_Repository();
@@ -371,14 +371,14 @@ class HL_CLI_Seed_Demo {
             'end_date'    => '2026-12-31',
         ) );
 
-        // Link cohort to both centers.
-        $wpdb->insert( $wpdb->prefix . 'hl_cohort_center', array(
+        // Link cohort to both schools.
+        $wpdb->insert( $wpdb->prefix . 'hl_cohort_school', array(
             'cohort_id' => $cohort_id,
-            'center_id' => $center_a_id,
+            'school_id' => $school_a_id,
         ) );
-        $wpdb->insert( $wpdb->prefix . 'hl_cohort_center', array(
+        $wpdb->insert( $wpdb->prefix . 'hl_cohort_school', array(
             'cohort_id' => $cohort_id,
-            'center_id' => $center_b_id,
+            'school_id' => $school_b_id,
         ) );
 
         WP_CLI::log( "  [2/17] Cohort created: id={$cohort_id}, code=" . self::DEMO_COHORT_CODE );
@@ -391,22 +391,22 @@ class HL_CLI_Seed_Demo {
     // ------------------------------------------------------------------
 
     /**
-     * Seed 4 classrooms: 2 per center.
+     * Seed 4 classrooms: 2 per school.
      *
-     * @param int $center_a_id Center A.
-     * @param int $center_b_id Center B.
+     * @param int $school_a_id School A.
+     * @param int $school_b_id School B.
      * @return array Keyed classroom data.
      */
-    private function seed_classrooms( $center_a_id, $center_b_id ) {
+    private function seed_classrooms( $school_a_id, $school_b_id ) {
         $svc = new HL_Classroom_Service();
 
         $classrooms = array();
 
         $defs = array(
-            array( 'classroom_name' => 'Infant Room',    'center_id' => $center_a_id, 'age_band' => 'infant' ),
-            array( 'classroom_name' => 'Toddler Room',   'center_id' => $center_a_id, 'age_band' => 'toddler' ),
-            array( 'classroom_name' => 'Preschool Room',  'center_id' => $center_b_id, 'age_band' => 'preschool' ),
-            array( 'classroom_name' => 'Mixed Age Room',  'center_id' => $center_b_id, 'age_band' => 'mixed' ),
+            array( 'classroom_name' => 'Infant Room',    'school_id' => $school_a_id, 'age_band' => 'infant' ),
+            array( 'classroom_name' => 'Toddler Room',   'school_id' => $school_a_id, 'age_band' => 'toddler' ),
+            array( 'classroom_name' => 'Preschool Room',  'school_id' => $school_b_id, 'age_band' => 'preschool' ),
+            array( 'classroom_name' => 'Mixed Age Room',  'school_id' => $school_b_id, 'age_band' => 'mixed' ),
         );
 
         foreach ( $defs as $def ) {
@@ -525,7 +525,7 @@ class HL_CLI_Seed_Demo {
         $users = array(
             'teachers'        => array(),
             'mentors'         => array(),
-            'center_leaders'  => array(),
+            'school_leaders'  => array(),
             'district_leader' => null,
             'coach'           => null,
         );
@@ -545,11 +545,11 @@ class HL_CLI_Seed_Demo {
             $users['mentors'][] = $uid;
         }
 
-        // 2 center leaders.
+        // 2 school leaders.
         for ( $i = 1; $i <= 2; $i++ ) {
-            $email = "demo-centerleader-{$i}@" . self::DEMO_EMAIL_DOMAIN;
-            $uid   = $this->create_demo_user( $email, "Demo Center Leader {$i}", 'subscriber' );
-            $users['center_leaders'][] = $uid;
+            $email = "demo-schoolleader-{$i}@" . self::DEMO_EMAIL_DOMAIN;
+            $uid   = $this->create_demo_user( $email, "Demo School Leader {$i}", 'subscriber' );
+            $users['school_leaders'][] = $uid;
         }
 
         // 1 district leader.
@@ -561,7 +561,7 @@ class HL_CLI_Seed_Demo {
         $users['coach'] = $this->create_demo_user( $email, 'Demo Coach', 'coach' );
 
         $total = count( $users['teachers'] ) + count( $users['mentors'] )
-               + count( $users['center_leaders'] ) + 2; // +district_leader +coach
+               + count( $users['school_leaders'] ) + 2; // +district_leader +coach
         WP_CLI::log( "  [5/17] WP users created: {$total}" );
 
         return $users;
@@ -608,71 +608,71 @@ class HL_CLI_Seed_Demo {
      *
      * @param array $users        User arrays.
      * @param int   $cohort_id    Cohort ID.
-     * @param int   $center_a_id  Center A.
-     * @param int   $center_b_id  Center B.
+     * @param int   $school_a_id  School A.
+     * @param int   $school_b_id  School B.
      * @param int   $district_id  District ID.
      * @return array Enrollment data.
      */
-    private function seed_enrollments( $users, $cohort_id, $center_a_id, $center_b_id, $district_id ) {
+    private function seed_enrollments( $users, $cohort_id, $school_a_id, $school_b_id, $district_id ) {
         $repo = new HL_Enrollment_Repository();
 
         $enrollments = array(
-            'teachers_a'     => array(), // Teachers at Center A (indices 0-4).
-            'teachers_b'     => array(), // Teachers at Center B (indices 5-9).
+            'teachers_a'     => array(), // Teachers at School A (indices 0-4).
+            'teachers_b'     => array(), // Teachers at School B (indices 5-9).
             'mentors'        => array(),
-            'center_leaders' => array(),
+            'school_leaders' => array(),
             'district_leader' => null,
             'all'            => array(),
         );
 
-        // Teachers: first 5 to Center A, next 5 to Center B.
+        // Teachers: first 5 to School A, next 5 to School B.
         foreach ( $users['teachers'] as $idx => $uid ) {
-            $center = ( $idx < 5 ) ? $center_a_id : $center_b_id;
+            $school = ( $idx < 5 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
                 'cohort_id' => $cohort_id,
                 'roles'     => array( 'teacher' ),
                 'status'    => 'active',
-                'center_id' => $center,
+                'school_id' => $school,
                 'district_id' => $district_id,
             ) );
 
             if ( $idx < 5 ) {
-                $enrollments['teachers_a'][] = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'center_id' => $center );
+                $enrollments['teachers_a'][] = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'school_id' => $school );
             } else {
-                $enrollments['teachers_b'][] = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'center_id' => $center );
+                $enrollments['teachers_b'][] = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'school_id' => $school );
             }
             $enrollments['all'][] = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'role' => 'teacher' );
         }
 
-        // Mentors: 1 per center.
+        // Mentors: 1 per school.
         foreach ( $users['mentors'] as $idx => $uid ) {
-            $center = ( $idx === 0 ) ? $center_a_id : $center_b_id;
+            $school = ( $idx === 0 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
                 'cohort_id' => $cohort_id,
                 'roles'     => array( 'mentor' ),
                 'status'    => 'active',
-                'center_id' => $center,
+                'school_id' => $school,
                 'district_id' => $district_id,
             ) );
-            $enrollments['mentors'][] = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'center_id' => $center );
+            $enrollments['mentors'][] = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'school_id' => $school );
             $enrollments['all'][]     = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'role' => 'mentor' );
         }
 
-        // Center leaders: 1 per center.
-        foreach ( $users['center_leaders'] as $idx => $uid ) {
-            $center = ( $idx === 0 ) ? $center_a_id : $center_b_id;
+        // School leaders: 1 per school.
+        foreach ( $users['school_leaders'] as $idx => $uid ) {
+            $school = ( $idx === 0 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
                 'cohort_id' => $cohort_id,
-                'roles'     => array( 'center_leader' ),
+                'roles'     => array( 'school_leader' ),
                 'status'    => 'active',
-                'center_id' => $center,
+                'school_id' => $school,
                 'district_id' => $district_id,
             ) );
-            $enrollments['center_leaders'][] = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'center_id' => $center );
-            $enrollments['all'][]            = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'role' => 'center_leader' );
+            $enrollments['school_leaders'][] = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'school_id' => $school );
+            $enrollments['all'][]            = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'role' => 'school_leader' );
         }
 
         // District leader.
@@ -700,45 +700,45 @@ class HL_CLI_Seed_Demo {
      * Seed teams with mentor + teacher members.
      *
      * @param int   $cohort_id    Cohort.
-     * @param int   $center_a_id  Center A.
-     * @param int   $center_b_id  Center B.
+     * @param int   $school_a_id  School A.
+     * @param int   $school_b_id  School B.
      * @param array $enrollments  Enrollment data.
      * @return array Team IDs: ['team_a' => id, 'team_b' => id].
      */
-    private function seed_teams( $cohort_id, $center_a_id, $center_b_id, $enrollments ) {
+    private function seed_teams( $cohort_id, $school_a_id, $school_b_id, $enrollments ) {
         $svc = new HL_Team_Service();
 
         $team_ids = array( 'team_a' => 0, 'team_b' => 0 );
 
-        // Team A at Center A.
+        // Team A at School A.
         $team_a = $svc->create_team( array(
             'team_name' => 'Demo Team A',
             'cohort_id' => $cohort_id,
-            'center_id' => $center_a_id,
+            'school_id' => $school_a_id,
         ) );
 
         if ( ! is_wp_error( $team_a ) ) {
             $team_ids['team_a'] = $team_a;
             // Mentor 1.
             $svc->add_member( $team_a, $enrollments['mentors'][0]['enrollment_id'], 'mentor' );
-            // 5 teachers from Center A.
+            // 5 teachers from School A.
             foreach ( $enrollments['teachers_a'] as $t ) {
                 $svc->add_member( $team_a, $t['enrollment_id'], 'member' );
             }
         }
 
-        // Team B at Center B.
+        // Team B at School B.
         $team_b = $svc->create_team( array(
             'team_name' => 'Demo Team B',
             'cohort_id' => $cohort_id,
-            'center_id' => $center_b_id,
+            'school_id' => $school_b_id,
         ) );
 
         if ( ! is_wp_error( $team_b ) ) {
             $team_ids['team_b'] = $team_b;
             // Mentor 2.
             $svc->add_member( $team_b, $enrollments['mentors'][1]['enrollment_id'], 'mentor' );
-            // 5 teachers from Center B.
+            // 5 teachers from School B.
             foreach ( $enrollments['teachers_b'] as $t ) {
                 $svc->add_member( $team_b, $t['enrollment_id'], 'member' );
             }
@@ -767,7 +767,7 @@ class HL_CLI_Seed_Demo {
         $svc   = new HL_Classroom_Service();
         $count = 0;
 
-        // Center A teachers (5) split across 2 classrooms (indices 0,1).
+        // School A teachers (5) split across 2 classrooms (indices 0,1).
         foreach ( $enrollments['teachers_a'] as $idx => $t ) {
             $cr_idx   = ( $idx < 3 ) ? 0 : 1; // 3 in first classroom, 2 in second.
             $is_lead  = ( $idx === 0 || $idx === 3 ) ? 1 : 0;
@@ -781,7 +781,7 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        // Center B teachers (5) split across 2 classrooms (indices 2,3).
+        // School B teachers (5) split across 2 classrooms (indices 2,3).
         foreach ( $enrollments['teachers_b'] as $idx => $t ) {
             $cr_idx   = ( $idx < 3 ) ? 2 : 3;
             $is_lead  = ( $idx === 0 || $idx === 3 ) ? 1 : 0;
@@ -806,10 +806,10 @@ class HL_CLI_Seed_Demo {
      * Seed children: 6-7 per classroom.
      *
      * @param array $classrooms  Classroom data.
-     * @param int   $center_a_id Center A.
-     * @param int   $center_b_id Center B.
+     * @param int   $school_a_id School A.
+     * @param int   $school_b_id School B.
      */
-    private function seed_children( $classrooms, $center_a_id, $center_b_id ) {
+    private function seed_children( $classrooms, $school_a_id, $school_b_id ) {
         $repo = new HL_Child_Repository();
         $svc  = new HL_Classroom_Service();
 
@@ -818,7 +818,7 @@ class HL_CLI_Seed_Demo {
 
         $total = 0;
         foreach ( $classrooms as $cr ) {
-            $center_id = $cr['center_id'];
+            $school_id = $cr['school_id'];
             $child_count = ( $cr['age_band'] === 'infant' ) ? 5 : 7; // Fewer infants.
 
             for ( $i = 0; $i < $child_count; $i++ ) {
@@ -830,7 +830,7 @@ class HL_CLI_Seed_Demo {
                     'first_name' => $first_names[ $i % count( $first_names ) ],
                     'last_name'  => $last_names[ ( $i + $total ) % count( $last_names ) ],
                     'dob'        => $dob,
-                    'center_id'  => $center_id,
+                    'school_id'  => $school_id,
                 ) );
 
                 if ( $child_id ) {
@@ -1024,7 +1024,7 @@ class HL_CLI_Seed_Demo {
             } elseif ( $e['role'] === 'mentor' ) {
                 $pathway_id = $pathways['mentor_pathway_id'];
             }
-            // Center leaders and district leaders don't have pathways.
+            // School leaders and district leaders don't have pathways.
             if ( $pathway_id ) {
                 $repo->update( $e['enrollment_id'], array(
                     'assigned_pathway_id' => $pathway_id,
@@ -1218,15 +1218,15 @@ class HL_CLI_Seed_Demo {
     // ------------------------------------------------------------------
 
     /**
-     * Seed coach assignments: center-level for both centers, team-level for Team A.
+     * Seed coach assignments: school-level for both schools, team-level for Team A.
      *
      * @param int   $cohort_id   Cohort.
-     * @param int   $center_a_id Center A.
-     * @param int   $center_b_id Center B.
+     * @param int   $school_a_id School A.
+     * @param int   $school_b_id School B.
      * @param array $teams       Team IDs.
      * @param array $users       User data.
      */
-    private function seed_coach_assignments( $cohort_id, $center_a_id, $center_b_id, $teams, $users ) {
+    private function seed_coach_assignments( $cohort_id, $school_a_id, $school_b_id, $teams, $users ) {
         $service = new HL_Coach_Assignment_Service();
         $count   = 0;
 
@@ -1236,11 +1236,11 @@ class HL_CLI_Seed_Demo {
             return;
         }
 
-        // Center-level assignment for Center A.
+        // School-level assignment for School A.
         $result = $service->assign_coach( array(
             'coach_user_id'  => $coach_user_id,
-            'scope_type'     => 'center',
-            'scope_id'       => $center_a_id,
+            'scope_type'     => 'school',
+            'scope_id'       => $school_a_id,
             'cohort_id'      => $cohort_id,
             'effective_from' => '2026-01-01',
         ) );
@@ -1248,11 +1248,11 @@ class HL_CLI_Seed_Demo {
             $count++;
         }
 
-        // Center-level assignment for Center B.
+        // School-level assignment for School B.
         $result = $service->assign_coach( array(
             'coach_user_id'  => $coach_user_id,
-            'scope_type'     => 'center',
-            'scope_id'       => $center_b_id,
+            'scope_type'     => 'school',
+            'scope_id'       => $school_b_id,
             'cohort_id'      => $cohort_id,
             'effective_from' => '2026-01-01',
         ) );
@@ -1260,7 +1260,7 @@ class HL_CLI_Seed_Demo {
             $count++;
         }
 
-        // Team-level assignment for Team A (overrides center default).
+        // Team-level assignment for Team A (overrides school default).
         if ( ! empty( $teams['team_a'] ) ) {
             $result = $service->assign_coach( array(
                 'coach_user_id'  => $coach_user_id,
@@ -1380,7 +1380,7 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        // Teacher 5 from Center B: upcoming session.
+        // Teacher 5 from School B: upcoming session.
         if ( isset( $enrollments['teachers_b'][0] ) ) {
             $eid    = $enrollments['teachers_b'][0]['enrollment_id'];
             $result = $service->create_session( array(

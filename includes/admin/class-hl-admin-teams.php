@@ -126,7 +126,7 @@ class HL_Admin_Teams {
         $data = array(
             'team_name'  => sanitize_text_field($_POST['team_name']),
             'cohort_id' => absint($_POST['cohort_id']),
-            'center_id'  => absint($_POST['center_id']),
+            'school_id'  => absint($_POST['school_id']),
             'status'     => sanitize_text_field($_POST['status']),
         );
 
@@ -190,14 +190,14 @@ class HL_Admin_Teams {
         global $wpdb;
 
         $filter_cohort = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
-        $filter_center  = isset($_GET['center_id']) ? absint($_GET['center_id']) : 0;
+        $filter_school  = isset($_GET['school_id']) ? absint($_GET['school_id']) : 0;
 
         $where_clauses = array();
         if ($filter_cohort) {
             $where_clauses[] = $wpdb->prepare('t.cohort_id = %d', $filter_cohort);
         }
-        if ($filter_center) {
-            $where_clauses[] = $wpdb->prepare('t.center_id = %d', $filter_center);
+        if ($filter_school) {
+            $where_clauses[] = $wpdb->prepare('t.school_id = %d', $filter_school);
         }
 
         $where = '';
@@ -206,20 +206,20 @@ class HL_Admin_Teams {
         }
 
         $teams = $wpdb->get_results(
-            "SELECT t.*, p.cohort_name, o.name AS center_name
+            "SELECT t.*, p.cohort_name, o.name AS school_name
              FROM {$wpdb->prefix}hl_team t
              LEFT JOIN {$wpdb->prefix}hl_cohort p ON t.cohort_id = p.cohort_id
-             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON t.center_id = o.orgunit_id
+             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON t.school_id = o.orgunit_id
              {$where}
              ORDER BY t.team_name ASC"
         );
 
-        // Get cohorts and centers for filters
+        // Get cohorts and schools for filters
         $cohorts = $wpdb->get_results(
             "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
         );
-        $centers = $wpdb->get_results(
-            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'center' ORDER BY name ASC"
+        $schools = $wpdb->get_results(
+            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' ORDER BY name ASC"
         );
 
         // Messages
@@ -261,12 +261,12 @@ class HL_Admin_Teams {
         }
         echo '</select> ';
 
-        echo '<label><strong>' . esc_html__('Center:', 'hl-core') . '</strong> </label>';
-        echo '<select name="center_id">';
+        echo '<label><strong>' . esc_html__('School:', 'hl-core') . '</strong> </label>';
+        echo '<select name="school_id">';
         echo '<option value="">' . esc_html__('All', 'hl-core') . '</option>';
-        if ($centers) {
-            foreach ($centers as $center) {
-                echo '<option value="' . esc_attr($center->orgunit_id) . '"' . selected($filter_center, $center->orgunit_id, false) . '>' . esc_html($center->name) . '</option>';
+        if ($schools) {
+            foreach ($schools as $school) {
+                echo '<option value="' . esc_attr($school->orgunit_id) . '"' . selected($filter_school, $school->orgunit_id, false) . '>' . esc_html($school->name) . '</option>';
             }
         }
         echo '</select> ';
@@ -283,7 +283,7 @@ class HL_Admin_Teams {
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Team Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Cohort', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Center', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead>';
@@ -305,7 +305,7 @@ class HL_Admin_Teams {
             echo '<td>' . esc_html($team->team_id) . '</td>';
             echo '<td><strong><a href="' . esc_url($view_url) . '">' . esc_html($team->team_name) . '</a></strong></td>';
             echo '<td>' . esc_html($team->cohort_name) . '</td>';
-            echo '<td>' . esc_html($team->center_name) . '</td>';
+            echo '<td>' . esc_html($team->school_name) . '</td>';
             echo '<td><span style="' . esc_attr($status_style) . '">' . esc_html(ucfirst($team->status)) . '</span></td>';
             echo '<td>';
             echo '<a href="' . esc_url($view_url) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a> ';
@@ -329,15 +329,15 @@ class HL_Admin_Teams {
         $in_cohort = !empty($context['cohort_id']);
 
         // Get team members via team_member table or enrollment table
-        // Attempt team_member table first; fall back to showing enrollments at this center
+        // Attempt team_member table first; fall back to showing enrollments at this school
         $members = $wpdb->get_results($wpdb->prepare(
             "SELECT e.enrollment_id, e.roles, e.status, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.cohort_id = %d AND e.center_id = %d AND e.status = 'active'
+             WHERE e.cohort_id = %d AND e.school_id = %d AND e.status = 'active'
              ORDER BY u.display_name ASC",
             $team->cohort_id,
-            $team->center_id
+            $team->school_id
         ));
 
         $cohort = $wpdb->get_row($wpdb->prepare(
@@ -345,9 +345,9 @@ class HL_Admin_Teams {
             $team->cohort_id
         ));
 
-        $center = $wpdb->get_row($wpdb->prepare(
+        $school = $wpdb->get_row($wpdb->prepare(
             "SELECT name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_id = %d",
-            $team->center_id
+            $team->school_id
         ));
 
         if (!$in_cohort) {
@@ -359,14 +359,14 @@ class HL_Admin_Teams {
 
         echo '<table class="form-table">';
         echo '<tr><th>' . esc_html__('Cohort', 'hl-core') . '</th><td>' . esc_html($cohort ? $cohort->cohort_name : 'N/A') . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Center', 'hl-core') . '</th><td>' . esc_html($center ? $center->name : 'N/A') . '</td></tr>';
+        echo '<tr><th>' . esc_html__('School', 'hl-core') . '</th><td>' . esc_html($school ? $school->name : 'N/A') . '</td></tr>';
         echo '<tr><th>' . esc_html__('Status', 'hl-core') . '</th><td>' . esc_html(ucfirst($team->status)) . '</td></tr>';
         echo '</table>';
 
         echo '<h2>' . esc_html__('Team Members', 'hl-core') . '</h2>';
 
         if (empty($members)) {
-            echo '<p>' . esc_html__('No active enrollments found for this team\'s cohort and center.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No active enrollments found for this team\'s cohort and school.', 'hl-core') . '</p>';
             return;
         }
 
@@ -409,8 +409,8 @@ class HL_Admin_Teams {
             "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
         );
 
-        $centers = $wpdb->get_results(
-            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'center' AND status = 'active' ORDER BY name ASC"
+        $schools = $wpdb->get_results(
+            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' AND status = 'active' ORDER BY name ASC"
         );
 
         if (!$in_cohort) {
@@ -455,15 +455,15 @@ class HL_Admin_Teams {
         }
         echo '</tr>';
 
-        // Center
-        $current_center = $is_edit ? $team->center_id : '';
+        // School
+        $current_school = $is_edit ? $team->school_id : '';
         echo '<tr>';
-        echo '<th scope="row"><label for="center_id">' . esc_html__('Center', 'hl-core') . '</label></th>';
-        echo '<td><select id="center_id" name="center_id" required>';
-        echo '<option value="">' . esc_html__('-- Select Center --', 'hl-core') . '</option>';
-        if ($centers) {
-            foreach ($centers as $center) {
-                echo '<option value="' . esc_attr($center->orgunit_id) . '"' . selected($current_center, $center->orgunit_id, false) . '>' . esc_html($center->name) . '</option>';
+        echo '<th scope="row"><label for="school_id">' . esc_html__('School', 'hl-core') . '</label></th>';
+        echo '<td><select id="school_id" name="school_id" required>';
+        echo '<option value="">' . esc_html__('-- Select School --', 'hl-core') . '</option>';
+        if ($schools) {
+            foreach ($schools as $school) {
+                echo '<option value="' . esc_attr($school->orgunit_id) . '"' . selected($current_school, $school->orgunit_id, false) . '>' . esc_html($school->name) . '</option>';
             }
         }
         echo '</select></td>';

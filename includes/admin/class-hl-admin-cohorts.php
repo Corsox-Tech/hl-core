@@ -38,12 +38,12 @@ class HL_Admin_Cohorts {
             $this->handle_delete();
         }
 
-        if ($action === 'link_center') {
-            $this->handle_link_center();
+        if ($action === 'link_school') {
+            $this->handle_link_school();
         }
 
-        if ($action === 'unlink_center') {
-            $this->handle_unlink_center();
+        if ($action === 'unlink_school') {
+            $this->handle_unlink_school();
         }
     }
 
@@ -195,8 +195,8 @@ class HL_Admin_Cohorts {
         exit;
     }
 
-    private function handle_link_center() {
-        if (!isset($_POST['hl_link_center_nonce']) || !wp_verify_nonce($_POST['hl_link_center_nonce'], 'hl_link_center')) {
+    private function handle_link_school() {
+        if (!isset($_POST['hl_link_school_nonce']) || !wp_verify_nonce($_POST['hl_link_school_nonce'], 'hl_link_school')) {
             wp_die(__('Security check failed.', 'hl-core'));
         }
         if (!current_user_can('manage_hl_core')) {
@@ -205,32 +205,32 @@ class HL_Admin_Cohorts {
 
         global $wpdb;
         $cohort_id = absint($_POST['cohort_id']);
-        $center_id = absint($_POST['center_id']);
+        $school_id = absint($_POST['school_id']);
 
-        if ($cohort_id && $center_id) {
+        if ($cohort_id && $school_id) {
             $exists = $wpdb->get_var($wpdb->prepare(
-                "SELECT id FROM {$wpdb->prefix}hl_cohort_center WHERE cohort_id = %d AND center_id = %d",
-                $cohort_id, $center_id
+                "SELECT id FROM {$wpdb->prefix}hl_cohort_school WHERE cohort_id = %d AND school_id = %d",
+                $cohort_id, $school_id
             ));
             if (!$exists) {
-                $wpdb->insert($wpdb->prefix . 'hl_cohort_center', array(
+                $wpdb->insert($wpdb->prefix . 'hl_cohort_school', array(
                     'cohort_id' => $cohort_id,
-                    'center_id' => $center_id,
+                    'school_id' => $school_id,
                 ));
             }
         }
 
-        wp_redirect(admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=centers&message=center_linked'));
+        wp_redirect(admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=schools&message=school_linked'));
         exit;
     }
 
-    private function handle_unlink_center() {
+    private function handle_unlink_school() {
         $cohort_id = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
-        $center_id = isset($_GET['center_id']) ? absint($_GET['center_id']) : 0;
+        $school_id = isset($_GET['school_id']) ? absint($_GET['school_id']) : 0;
 
-        if (!$cohort_id || !$center_id) return;
+        if (!$cohort_id || !$school_id) return;
 
-        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_unlink_center_' . $center_id)) {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_unlink_school_' . $school_id)) {
             wp_die(__('Security check failed.', 'hl-core'));
         }
         if (!current_user_can('manage_hl_core')) {
@@ -238,12 +238,12 @@ class HL_Admin_Cohorts {
         }
 
         global $wpdb;
-        $wpdb->delete($wpdb->prefix . 'hl_cohort_center', array(
+        $wpdb->delete($wpdb->prefix . 'hl_cohort_school', array(
             'cohort_id' => $cohort_id,
-            'center_id' => $center_id,
+            'school_id' => $school_id,
         ));
 
-        wp_redirect(admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=centers&message=center_unlinked'));
+        wp_redirect(admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=schools&message=school_unlinked'));
         exit;
     }
 
@@ -271,14 +271,14 @@ class HL_Admin_Cohorts {
         echo '<hr class="wp-header-end">';
 
         global $wpdb;
-        $center_counts = array();
+        $school_counts = array();
         $counts = $wpdb->get_results(
-            "SELECT cohort_id, COUNT(*) as cnt FROM {$wpdb->prefix}hl_cohort_center GROUP BY cohort_id",
+            "SELECT cohort_id, COUNT(*) as cnt FROM {$wpdb->prefix}hl_cohort_school GROUP BY cohort_id",
             ARRAY_A
         );
         if ($counts) {
             foreach ($counts as $row) {
-                $center_counts[$row['cohort_id']] = $row['cnt'];
+                $school_counts[$row['cohort_id']] = $row['cnt'];
             }
         }
 
@@ -318,7 +318,7 @@ class HL_Admin_Cohorts {
         echo '<th>' . esc_html__('Start Date', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('District', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Group', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Centers', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Schools', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead>';
         echo '<tbody>';
@@ -340,7 +340,7 @@ class HL_Admin_Cohorts {
 
             $district_name = ($cohort->district_id && isset($districts[$cohort->district_id])) ? $districts[$cohort->district_id] : '';
             $group_name    = (!empty($cohort->cohort_group_id) && isset($group_names[$cohort->cohort_group_id])) ? $group_names[$cohort->cohort_group_id] : '';
-            $center_count  = isset($center_counts[$cohort->cohort_id]) ? $center_counts[$cohort->cohort_id] : 0;
+            $school_count  = isset($school_counts[$cohort->cohort_id]) ? $school_counts[$cohort->cohort_id] : 0;
 
             echo '<tr>';
             echo '<td>' . esc_html($cohort->cohort_id) . '</td>';
@@ -354,7 +354,7 @@ class HL_Admin_Cohorts {
             echo '<td>' . esc_html($cohort->start_date) . '</td>';
             echo '<td>' . esc_html($district_name) . '</td>';
             echo '<td>' . esc_html($group_name) . '</td>';
-            echo '<td>' . esc_html($center_count) . '</td>';
+            echo '<td>' . esc_html($school_count) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
             echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this cohort?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
@@ -400,8 +400,8 @@ class HL_Admin_Cohorts {
             $messages = array(
                 'created'            => __('Cohort created successfully.', 'hl-core'),
                 'updated'            => __('Cohort updated successfully.', 'hl-core'),
-                'center_linked'      => __('Center linked to cohort.', 'hl-core'),
-                'center_unlinked'    => __('Center unlinked from cohort.', 'hl-core'),
+                'school_linked'      => __('School linked to cohort.', 'hl-core'),
+                'school_unlinked'    => __('School unlinked from cohort.', 'hl-core'),
                 'pathway_saved'      => __('Pathway saved successfully.', 'hl-core'),
                 'pathway_deleted'    => __('Pathway deleted successfully.', 'hl-core'),
                 'pathway_cloned'     => __('Pathway cloned successfully.', 'hl-core'),
@@ -445,7 +445,7 @@ class HL_Admin_Cohorts {
         // Tabs.
         $tabs = array(
             'details'     => __('Details', 'hl-core'),
-            'centers'     => __('Centers', 'hl-core'),
+            'schools'     => __('Schools', 'hl-core'),
             'pathways'    => __('Pathways', 'hl-core'),
             'teams'       => __('Teams', 'hl-core'),
             'enrollments' => __('Enrollments', 'hl-core'),
@@ -469,8 +469,8 @@ class HL_Admin_Cohorts {
         echo '<div class="hl-tab-content" style="margin-top:15px;">';
 
         switch ($current_tab) {
-            case 'centers':
-                $this->render_tab_centers($cohort);
+            case 'schools':
+                $this->render_tab_schools($cohort);
                 break;
             case 'pathways':
                 $this->render_tab_pathways($cohort, $sub);
@@ -648,80 +648,80 @@ class HL_Admin_Cohorts {
     }
 
     // =========================================================================
-    // Tab: Centers
+    // Tab: Schools
     // =========================================================================
 
-    private function render_tab_centers($cohort) {
+    private function render_tab_schools($cohort) {
         global $wpdb;
         $cohort_id = $cohort->cohort_id;
 
-        // Linked centers.
+        // Linked schools.
         $linked = $wpdb->get_results($wpdb->prepare(
-            "SELECT cc.id AS link_id, cc.center_id, o.name AS center_name, o.parent_orgunit_id,
+            "SELECT cc.id AS link_id, cc.school_id, o.name AS school_name, o.parent_orgunit_id,
                     p.name AS district_name
-             FROM {$wpdb->prefix}hl_cohort_center cc
-             JOIN {$wpdb->prefix}hl_orgunit o ON cc.center_id = o.orgunit_id
+             FROM {$wpdb->prefix}hl_cohort_school cc
+             JOIN {$wpdb->prefix}hl_orgunit o ON cc.school_id = o.orgunit_id
              LEFT JOIN {$wpdb->prefix}hl_orgunit p ON o.parent_orgunit_id = p.orgunit_id
              WHERE cc.cohort_id = %d
              ORDER BY o.name ASC",
             $cohort_id
         ));
 
-        // Get leader names per center (enrolled as center_leader).
+        // Get leader names per school (enrolled as school_leader).
         $leader_names = array();
         if ($linked) {
-            $center_ids = wp_list_pluck($linked, 'center_id');
-            if (!empty($center_ids)) {
-                $in_ids  = implode(',', array_map('intval', $center_ids));
+            $school_ids = wp_list_pluck($linked, 'school_id');
+            if (!empty($school_ids)) {
+                $in_ids  = implode(',', array_map('intval', $school_ids));
                 $leaders = $wpdb->get_results(
-                    "SELECT e.center_id, u.display_name
+                    "SELECT e.school_id, u.display_name
                      FROM {$wpdb->prefix}hl_enrollment e
                      JOIN {$wpdb->users} u ON e.user_id = u.ID
-                     WHERE e.center_id IN ({$in_ids}) AND e.cohort_id = " . intval($cohort_id) . "
-                       AND e.roles LIKE '%center_leader%' AND e.status = 'active'",
+                     WHERE e.school_id IN ({$in_ids}) AND e.cohort_id = " . intval($cohort_id) . "
+                       AND e.roles LIKE '%school_leader%' AND e.status = 'active'",
                     ARRAY_A
                 );
                 foreach ($leaders as $l) {
-                    $leader_names[$l['center_id']][] = $l['display_name'];
+                    $leader_names[$l['school_id']][] = $l['display_name'];
                 }
             }
         }
 
-        // Available centers (not yet linked).
+        // Available schools (not yet linked).
         $available = $wpdb->get_results($wpdb->prepare(
             "SELECT o.orgunit_id, o.name
              FROM {$wpdb->prefix}hl_orgunit o
-             WHERE o.orgunit_type = 'center' AND o.status = 'active'
+             WHERE o.orgunit_type = 'school' AND o.status = 'active'
                AND o.orgunit_id NOT IN (
-                   SELECT center_id FROM {$wpdb->prefix}hl_cohort_center WHERE cohort_id = %d
+                   SELECT school_id FROM {$wpdb->prefix}hl_cohort_school WHERE cohort_id = %d
                )
              ORDER BY o.name ASC",
             $cohort_id
         ));
 
-        // Link Center form.
+        // Link School form.
         if (!empty($available)) {
-            echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-core&action=link_center')) . '" style="margin-bottom:15px; display:flex; gap:8px; align-items:center;">';
-            wp_nonce_field('hl_link_center', 'hl_link_center_nonce');
+            echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-core&action=link_school')) . '" style="margin-bottom:15px; display:flex; gap:8px; align-items:center;">';
+            wp_nonce_field('hl_link_school', 'hl_link_school_nonce');
             echo '<input type="hidden" name="cohort_id" value="' . esc_attr($cohort_id) . '" />';
-            echo '<select name="center_id" required>';
-            echo '<option value="">' . esc_html__('-- Select Center --', 'hl-core') . '</option>';
+            echo '<select name="school_id" required>';
+            echo '<option value="">' . esc_html__('-- Select School --', 'hl-core') . '</option>';
             foreach ($available as $c) {
                 echo '<option value="' . esc_attr($c->orgunit_id) . '">' . esc_html($c->name) . '</option>';
             }
             echo '</select>';
-            echo '<button type="submit" class="button button-primary">' . esc_html__('Link Center', 'hl-core') . '</button>';
+            echo '<button type="submit" class="button button-primary">' . esc_html__('Link School', 'hl-core') . '</button>';
             echo '</form>';
         }
 
         if (empty($linked)) {
-            echo '<p>' . esc_html__('No centers linked to this cohort yet.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No schools linked to this cohort yet.', 'hl-core') . '</p>';
             return;
         }
 
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
-        echo '<th>' . esc_html__('Center Name', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('School Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('District', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Leaders', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
@@ -729,16 +729,16 @@ class HL_Admin_Cohorts {
 
         foreach ($linked as $row) {
             $unlink_url = wp_nonce_url(
-                admin_url('admin.php?page=hl-core&action=unlink_center&cohort_id=' . $cohort_id . '&center_id=' . $row->center_id),
-                'hl_unlink_center_' . $row->center_id
+                admin_url('admin.php?page=hl-core&action=unlink_school&cohort_id=' . $cohort_id . '&school_id=' . $row->school_id),
+                'hl_unlink_school_' . $row->school_id
             );
-            $leaders = isset($leader_names[$row->center_id]) ? implode(', ', $leader_names[$row->center_id]) : '-';
+            $leaders = isset($leader_names[$row->school_id]) ? implode(', ', $leader_names[$row->school_id]) : '-';
 
             echo '<tr>';
-            echo '<td><strong>' . esc_html($row->center_name) . '</strong></td>';
+            echo '<td><strong>' . esc_html($row->school_name) . '</strong></td>';
             echo '<td>' . esc_html($row->district_name ?: '-') . '</td>';
             echo '<td>' . esc_html($leaders) . '</td>';
-            echo '<td><a href="' . esc_url($unlink_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Unlink this center?', 'hl-core')) . '\');">' . esc_html__('Unlink', 'hl-core') . '</a></td>';
+            echo '<td><a href="' . esc_url($unlink_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Unlink this school?', 'hl-core')) . '\');">' . esc_html__('Unlink', 'hl-core') . '</a></td>';
             echo '</tr>';
         }
 
@@ -973,10 +973,10 @@ class HL_Admin_Cohorts {
         $base_url  = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_id . '&tab=teams');
 
         $teams = $wpdb->get_results($wpdb->prepare(
-            "SELECT t.*, o.name AS center_name,
+            "SELECT t.*, o.name AS school_name,
                     (SELECT COUNT(*) FROM {$wpdb->prefix}hl_team_membership tm WHERE tm.team_id = t.team_id) as member_count
              FROM {$wpdb->prefix}hl_team t
-             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON t.center_id = o.orgunit_id
+             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON t.school_id = o.orgunit_id
              WHERE t.cohort_id = %d
              ORDER BY t.team_name ASC",
             $cohort_id
@@ -1015,7 +1015,7 @@ class HL_Admin_Cohorts {
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('Team Name', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Center', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Mentors', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Members', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
@@ -1037,7 +1037,7 @@ class HL_Admin_Cohorts {
 
             echo '<tr>';
             echo '<td><strong><a href="' . esc_url($view_url) . '">' . esc_html($t->team_name) . '</a></strong></td>';
-            echo '<td>' . esc_html($t->center_name ?: '-') . '</td>';
+            echo '<td>' . esc_html($t->school_name ?: '-') . '</td>';
             echo '<td>' . esc_html($mentors_str) . '</td>';
             echo '<td>' . esc_html($t->member_count) . '</td>';
             echo '<td><span style="' . esc_attr($status_style) . '">' . esc_html(ucfirst($t->status)) . '</span></td>';
@@ -1115,14 +1115,14 @@ class HL_Admin_Cohorts {
             $cohort_id, $per_page, $offset
         ));
 
-        // Get center names.
-        $centers = array();
-        $center_rows = $wpdb->get_results(
-            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'center'",
+        // Get school names.
+        $schools = array();
+        $school_rows = $wpdb->get_results(
+            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school'",
             ARRAY_A
         );
-        foreach ($center_rows as $r) {
-            $centers[$r['orgunit_id']] = $r['name'];
+        foreach ($school_rows as $r) {
+            $schools[$r['orgunit_id']] = $r['name'];
         }
 
         // Get completion data.
@@ -1168,7 +1168,7 @@ class HL_Admin_Cohorts {
         echo '<th>' . esc_html__('Roles', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Pathway', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Team', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Center', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Completion', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead><tbody>';
@@ -1194,7 +1194,7 @@ class HL_Admin_Cohorts {
         foreach ($enrollments as $e) {
             $roles = json_decode($e->roles, true);
             $roles_str = is_array($roles) ? implode(', ', $roles) : '';
-            $center_name = ($e->center_id && isset($centers[$e->center_id])) ? $centers[$e->center_id] : '-';
+            $school_name = ($e->school_id && isset($schools[$e->school_id])) ? $schools[$e->school_id] : '-';
             $completion  = isset($rollups[$e->enrollment_id]) ? $rollups[$e->enrollment_id] : 0;
             $team_name   = isset($team_map[$e->enrollment_id]) ? $team_map[$e->enrollment_id] : '-';
             $pw_names    = isset($pathway_names_map[$e->enrollment_id]) ? implode(', ', $pathway_names_map[$e->enrollment_id]) : '-';
@@ -1211,7 +1211,7 @@ class HL_Admin_Cohorts {
             echo '<td>' . esc_html($roles_str) . '</td>';
             echo '<td>' . esc_html($pw_names) . '</td>';
             echo '<td>' . esc_html($team_name) . '</td>';
-            echo '<td>' . esc_html($center_name) . '</td>';
+            echo '<td>' . esc_html($school_name) . '</td>';
             echo '<td>';
             echo '<div style="background:#e0e0e0; border-radius:4px; height:18px; width:100px; display:inline-block; vertical-align:middle;">';
             echo '<div style="background:#00a32a; border-radius:4px; height:18px; width:' . esc_attr(min(100, $completion)) . 'px;"></div>';
@@ -1358,24 +1358,24 @@ class HL_Admin_Cohorts {
         global $wpdb;
         $cohort_id = $cohort->cohort_id;
 
-        // Get centers linked to this cohort.
-        $center_ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT center_id FROM {$wpdb->prefix}hl_cohort_center WHERE cohort_id = %d",
+        // Get schools linked to this cohort.
+        $school_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT school_id FROM {$wpdb->prefix}hl_cohort_school WHERE cohort_id = %d",
             $cohort_id
         ));
 
-        if (empty($center_ids)) {
-            echo '<p>' . esc_html__('No centers linked to this cohort. Link centers in the Centers tab first.', 'hl-core') . '</p>';
+        if (empty($school_ids)) {
+            echo '<p>' . esc_html__('No schools linked to this cohort. Link schools in the Schools tab first.', 'hl-core') . '</p>';
             return;
         }
 
-        $in_ids = implode(',', array_map('intval', $center_ids));
+        $in_ids = implode(',', array_map('intval', $school_ids));
 
         $classrooms = $wpdb->get_results(
-            "SELECT c.*, o.name AS center_name
+            "SELECT c.*, o.name AS school_name
              FROM {$wpdb->prefix}hl_classroom c
-             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON c.center_id = o.orgunit_id
-             WHERE c.center_id IN ({$in_ids}) AND c.status = 'active'
+             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON c.school_id = o.orgunit_id
+             WHERE c.school_id IN ({$in_ids}) AND c.status = 'active'
              ORDER BY o.name ASC, c.classroom_name ASC"
         );
 
@@ -1385,7 +1385,7 @@ class HL_Admin_Cohorts {
             "SELECT classroom_id, COUNT(*) as cnt
              FROM {$wpdb->prefix}hl_child_classroom_current
              WHERE classroom_id IN (
-                 SELECT classroom_id FROM {$wpdb->prefix}hl_classroom WHERE center_id IN ({$in_ids})
+                 SELECT classroom_id FROM {$wpdb->prefix}hl_classroom WHERE school_id IN ({$in_ids})
              )
              GROUP BY classroom_id",
             ARRAY_A
@@ -1413,14 +1413,14 @@ class HL_Admin_Cohorts {
         echo '</div>';
 
         if (empty($classrooms)) {
-            echo '<p>' . esc_html__('No classrooms found at linked centers.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No classrooms found at linked schools.', 'hl-core') . '</p>';
             return;
         }
 
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('Classroom', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Center', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Age Band', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Children', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Teachers', 'hl-core') . '</th>';
@@ -1433,7 +1433,7 @@ class HL_Admin_Cohorts {
 
             echo '<tr>';
             echo '<td><strong>' . esc_html($c->classroom_name) . '</strong></td>';
-            echo '<td>' . esc_html($c->center_name) . '</td>';
+            echo '<td>' . esc_html($c->school_name) . '</td>';
             echo '<td>' . esc_html($c->age_band ? ucfirst($c->age_band) : '-') . '</td>';
             echo '<td>' . esc_html($children) . '</td>';
             echo '<td>' . esc_html($teachers) . '</td>';

@@ -28,12 +28,12 @@ class HL_CLI_Seed_Lutheran {
 	const SEED_META_KEY = '_hl_lutheran_seed';
 
 	/**
-	 * Roster center name aliases → full center info names.
+	 * Roster school name aliases → full school info names.
 	 *
-	 * The teacher/child rosters use abbreviated center names that differ from
-	 * the official names in the Center Info spreadsheet. This map resolves them.
+	 * The teacher/child rosters use abbreviated school names that differ from
+	 * the official names in the School Info spreadsheet. This map resolves them.
 	 */
-	private static $center_aliases = array(
+	private static $school_aliases = array(
 		'South Bay HS/EHS'              => 'South Bay Head Start/Early Head Start',
 		'West Palm Beach'               => 'West Palm Beach Head Start/Early Head Start',
 		'Jupiter HS'                    => 'Jupiter Head Start',
@@ -95,8 +95,8 @@ class HL_CLI_Seed_Lutheran {
 		}
 		require $data_file;
 
-		if ( ! isset( $center_info_data ) || ! isset( $teacher_roster_data ) || ! isset( $child_roster_data ) ) {
-			WP_CLI::error( 'Data file must define $center_info_data, $teacher_roster_data, and $child_roster_data arrays.' );
+		if ( ! isset( $school_info_data ) || ! isset( $teacher_roster_data ) || ! isset( $child_roster_data ) ) {
+			WP_CLI::error( 'Data file must define $school_info_data, $teacher_roster_data, and $child_roster_data arrays.' );
 			return;
 		}
 
@@ -107,35 +107,35 @@ class HL_CLI_Seed_Lutheran {
 		// Step 1: District.
 		$district_id = $this->seed_district();
 
-		// Step 2: Centers.
-		$center_map = $this->seed_centers( $center_info_data, $district_id );
+		// Step 2: Schools.
+		$school_map = $this->seed_schools( $school_info_data, $district_id );
 
-		// Log center alias resolutions for verification.
-		$this->log_center_resolutions( $center_map );
+		// Log school alias resolutions for verification.
+		$this->log_school_resolutions( $school_map );
 
 		// Step 3: Cohort.
 		$cohort_id = $this->seed_cohort( $district_id );
 
-		// Step 4: Link centers to cohort.
-		$this->link_centers_to_cohort( $cohort_id, $center_map );
+		// Step 4: Link schools to cohort.
+		$this->link_schools_to_cohort( $cohort_id, $school_map );
 
 		// Step 5: Cohort Group.
 		$group_id = $this->seed_cohort_group( $cohort_id );
 
 		// Step 6: Classrooms.
-		$classrooms = $this->seed_classrooms( $teacher_roster_data, $center_map );
+		$classrooms = $this->seed_classrooms( $teacher_roster_data, $school_map );
 
 		// Step 7: WP Users (Teachers).
 		$users = $this->seed_users( $teacher_roster_data );
 
 		// Step 8: Enrollments.
-		$enrollments = $this->seed_enrollments( $teacher_roster_data, $users, $cohort_id, $center_map, $district_id );
+		$enrollments = $this->seed_enrollments( $teacher_roster_data, $users, $cohort_id, $school_map, $district_id );
 
 		// Step 9: Teaching Assignments.
-		$this->seed_teaching_assignments( $teacher_roster_data, $enrollments, $classrooms, $center_map );
+		$this->seed_teaching_assignments( $teacher_roster_data, $enrollments, $classrooms, $school_map );
 
 		// Step 10: Children.
-		$this->seed_children( $child_roster_data, $classrooms, $center_map );
+		$this->seed_children( $child_roster_data, $classrooms, $school_map );
 
 		// Step 11: Pathway & Activities.
 		$pathway_data = $this->seed_pathway( $cohort_id );
@@ -150,7 +150,7 @@ class HL_CLI_Seed_Lutheran {
 		$children_instruments = $this->seed_children_instruments();
 
 		// Step 13: Assessment Instances.
-		$this->seed_assessment_instances( $enrollments, $cohort_id, $pathway_data, $instrument_id, $classrooms, $center_map, $teacher_roster_data, $children_instruments );
+		$this->seed_assessment_instances( $enrollments, $cohort_id, $pathway_data, $instrument_id, $classrooms, $school_map, $teacher_roster_data, $children_instruments );
 
 		// Step 14: Pathway Assignments.
 		$this->seed_pathway_assignments( $enrollments, $pathway_data['pathway_id'] );
@@ -160,7 +160,7 @@ class HL_CLI_Seed_Lutheran {
 		WP_CLI::line( '' );
 		WP_CLI::line( 'Summary:' );
 		WP_CLI::line( "  District:     {$district_id} (code: " . self::DISTRICT_CODE . ')' );
-		WP_CLI::line( '  Centers:      ' . count( $center_map ) );
+		WP_CLI::line( '  Schools:      ' . count( $school_map ) );
 		WP_CLI::line( "  Cohort:       {$cohort_id} (code: " . self::COHORT_CODE . ')' );
 		WP_CLI::line( "  Group:        {$group_id} (code: " . self::GROUP_CODE . ')' );
 		WP_CLI::line( '  Classrooms:   ' . count( $classrooms ) );
@@ -268,8 +268,8 @@ class HL_CLI_Seed_Lutheran {
 			// Delete enrollments.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_enrollment WHERE cohort_id = %d", $cohort_id ) );
 
-			// Delete cohort-center links.
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_cohort_center WHERE cohort_id = %d", $cohort_id ) );
+			// Delete cohort-school links.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_cohort_school WHERE cohort_id = %d", $cohort_id ) );
 
 			// Delete cohort.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_cohort WHERE cohort_id = %d", $cohort_id ) );
@@ -289,7 +289,7 @@ class HL_CLI_Seed_Lutheran {
 		);
 		WP_CLI::log( '  Deleted cohort group (' . self::GROUP_CODE . ').' );
 
-		// Delete district and centers.
+		// Delete district and schools.
 		$district_id = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT orgunit_id FROM {$prefix}hl_orgunit WHERE orgunit_code = %s AND orgunit_type = 'district' LIMIT 1",
@@ -298,35 +298,35 @@ class HL_CLI_Seed_Lutheran {
 		);
 
 		if ( $district_id ) {
-			$center_ids = $wpdb->get_col(
+			$school_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT orgunit_id FROM {$prefix}hl_orgunit WHERE parent_orgunit_id = %d AND orgunit_type = 'center'",
+					"SELECT orgunit_id FROM {$prefix}hl_orgunit WHERE parent_orgunit_id = %d AND orgunit_type = 'school'",
 					$district_id
 				)
 			);
 
-			if ( ! empty( $center_ids ) ) {
-				$in_c = implode( ',', array_map( 'intval', $center_ids ) );
+			if ( ! empty( $school_ids ) ) {
+				$in_c = implode( ',', array_map( 'intval', $school_ids ) );
 
-				// Delete children and classrooms for these centers.
+				// Delete children and classrooms for these schools.
 				$cls_ids = $wpdb->get_col(
-					"SELECT classroom_id FROM {$prefix}hl_classroom WHERE center_id IN ({$in_c})"
+					"SELECT classroom_id FROM {$prefix}hl_classroom WHERE school_id IN ({$in_c})"
 				);
 				if ( ! empty( $cls_ids ) ) {
 					$in_cls = implode( ',', array_map( 'intval', $cls_ids ) );
 					$wpdb->query( "DELETE FROM {$prefix}hl_child_classroom_current WHERE classroom_id IN ({$in_cls})" );
 					$wpdb->query( "DELETE FROM {$prefix}hl_child_classroom_history WHERE classroom_id IN ({$in_cls})" );
 				}
-				$wpdb->query( "DELETE FROM {$prefix}hl_child WHERE center_id IN ({$in_c})" );
-				$wpdb->query( "DELETE FROM {$prefix}hl_classroom WHERE center_id IN ({$in_c})" );
+				$wpdb->query( "DELETE FROM {$prefix}hl_child WHERE school_id IN ({$in_c})" );
+				$wpdb->query( "DELETE FROM {$prefix}hl_classroom WHERE school_id IN ({$in_c})" );
 
-				// Delete centers.
+				// Delete schools.
 				$wpdb->query( "DELETE FROM {$prefix}hl_orgunit WHERE orgunit_id IN ({$in_c})" );
 			}
 
 			// Delete district.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_orgunit WHERE orgunit_id = %d", $district_id ) );
-			WP_CLI::log( '  Deleted district and ' . count( $center_ids ) . ' centers.' );
+			WP_CLI::log( '  Deleted district and ' . count( $school_ids ) . ' schools.' );
 		}
 
 		// Delete B2E teacher instrument only if no other seeder is using it.
@@ -429,37 +429,37 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Center name matching (fuzzy)
+	// School name matching (fuzzy)
 	// ------------------------------------------------------------------
 
 	/**
-	 * Match a roster center name (often abbreviated) to a center_map key.
+	 * Match a roster school name (often abbreviated) to a school_map key.
 	 *
 	 * Resolution order:
-	 * 1. Direct match against center_map keys
+	 * 1. Direct match against school_map keys
 	 * 2. Explicit alias lookup (covers abbreviations, typos, spelling variants)
 	 * 3. Fuzzy substring match (fallback)
 	 *
 	 * @param string $roster_name The abbreviated name from the roster.
-	 * @param array  $center_map  Keyed by full center name => center orgunit_id.
-	 * @return int|null The center orgunit_id or null if not matched.
+	 * @param array  $school_map  Keyed by full school name => school orgunit_id.
+	 * @return int|null The school orgunit_id or null if not matched.
 	 */
-	private function match_center_name( $roster_name, $center_map ) {
+	private function match_school_name( $roster_name, $school_map ) {
 		// 1. Direct match.
-		if ( isset( $center_map[ $roster_name ] ) ) {
-			return $center_map[ $roster_name ];
+		if ( isset( $school_map[ $roster_name ] ) ) {
+			return $school_map[ $roster_name ];
 		}
 
 		// 2. Explicit alias lookup.
-		if ( isset( self::$center_aliases[ $roster_name ] ) ) {
-			$canonical = self::$center_aliases[ $roster_name ];
-			if ( isset( $center_map[ $canonical ] ) ) {
-				return $center_map[ $canonical ];
+		if ( isset( self::$school_aliases[ $roster_name ] ) ) {
+			$canonical = self::$school_aliases[ $roster_name ];
+			if ( isset( $school_map[ $canonical ] ) ) {
+				return $school_map[ $canonical ];
 			}
 		}
 
-		// 3. Fuzzy: check if roster name is contained in any center name or vice versa.
-		foreach ( $center_map as $full_name => $id ) {
+		// 3. Fuzzy: check if roster name is contained in any school name or vice versa.
+		foreach ( $school_map as $full_name => $id ) {
 			if ( stripos( $full_name, $roster_name ) !== false ) {
 				return $id;
 			}
@@ -472,42 +472,42 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Center name resolution helper
+	// School name resolution helper
 	// ------------------------------------------------------------------
 
 	/**
-	 * Resolve a roster center name to the canonical center info name.
+	 * Resolve a roster school name to the canonical school info name.
 	 *
-	 * Uses the $center_aliases map. If no alias exists, the original name
+	 * Uses the $school_aliases map. If no alias exists, the original name
 	 * is returned as-is (it may already be canonical).
 	 *
-	 * @param string $roster_name The center name from the roster data.
-	 * @return string The canonical center name.
+	 * @param string $roster_name The school name from the roster data.
+	 * @return string The canonical school name.
 	 */
-	private function resolve_center_name( $roster_name ) {
-		if ( isset( self::$center_aliases[ $roster_name ] ) ) {
-			return self::$center_aliases[ $roster_name ];
+	private function resolve_school_name( $roster_name ) {
+		if ( isset( self::$school_aliases[ $roster_name ] ) ) {
+			return self::$school_aliases[ $roster_name ];
 		}
 		return $roster_name;
 	}
 
 	/**
-	 * Log all center alias resolutions that were actually used during seeding.
+	 * Log all school alias resolutions that were actually used during seeding.
 	 *
 	 * Called once after all seed steps to show which roster names mapped to which canonical names.
 	 *
-	 * @param array $center_map Keyed by canonical center name => orgunit_id.
+	 * @param array $school_map Keyed by canonical school name => orgunit_id.
 	 */
-	private function log_center_resolutions( $center_map ) {
+	private function log_school_resolutions( $school_map ) {
 		$resolved = 0;
-		foreach ( self::$center_aliases as $roster_name => $canonical ) {
-			if ( isset( $center_map[ $canonical ] ) ) {
-				WP_CLI::log( "    Alias resolved: \"{$roster_name}\" → \"{$canonical}\" (id={$center_map[$canonical]})" );
+		foreach ( self::$school_aliases as $roster_name => $canonical ) {
+			if ( isset( $school_map[ $canonical ] ) ) {
+				WP_CLI::log( "    Alias resolved: \"{$roster_name}\" → \"{$canonical}\" (id={$school_map[$canonical]})" );
 				$resolved++;
 			}
 		}
 		if ( $resolved === 0 ) {
-			WP_CLI::log( '    No center aliases were resolved (all names matched directly).' );
+			WP_CLI::log( '    No school aliases were resolved (all names matched directly).' );
 		} else {
 			WP_CLI::log( "    Total alias resolutions: {$resolved}" );
 		}
@@ -520,7 +520,7 @@ class HL_CLI_Seed_Lutheran {
 	/**
 	 * Generate a code from a name (uppercase, underscored).
 	 *
-	 * @param string $name The center name.
+	 * @param string $name The school name.
 	 * @return string A slug-style code.
 	 */
 	private function slugify_code( $name ) {
@@ -552,21 +552,21 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 2: Centers
+	// Step 2: Schools
 	// ------------------------------------------------------------------
 
 	/**
-	 * Create centers from $center_info_data.
+	 * Create schools from $school_info_data.
 	 *
-	 * @param array $center_info_data Rows from extracted data. Each row: [index, name, leader, address, ...].
+	 * @param array $school_info_data Rows from extracted data. Each row: [index, name, leader, address, ...].
 	 * @param int   $district_id      Parent district orgunit_id.
-	 * @return array Keyed by center name => orgunit_id.
+	 * @return array Keyed by school name => orgunit_id.
 	 */
-	private function seed_centers( $center_info_data, $district_id ) {
+	private function seed_schools( $school_info_data, $district_id ) {
 		$repo       = new HL_OrgUnit_Repository();
-		$center_map = array();
+		$school_map = array();
 
-		foreach ( $center_info_data as $row ) {
+		foreach ( $school_info_data as $row ) {
 			$name    = isset( $row[1] ) ? trim( $row[1] ) : '';
 			$address = isset( $row[3] ) ? trim( $row[3] ) : '';
 			$leader  = isset( $row[2] ) ? trim( $row[2] ) : '';
@@ -578,22 +578,22 @@ class HL_CLI_Seed_Lutheran {
 			$code     = $this->slugify_code( $name );
 			$metadata = wp_json_encode( array(
 				'address'        => $address,
-				'center_leader'  => $leader,
+				'school_leader'  => $leader,
 			) );
 
-			$center_id = $repo->create( array(
+			$school_id = $repo->create( array(
 				'name'              => $name,
-				'orgunit_type'      => 'center',
+				'orgunit_type'      => 'school',
 				'orgunit_code'      => $code,
 				'parent_orgunit_id' => $district_id,
 				'metadata'          => $metadata,
 			) );
 
-			$center_map[ $name ] = $center_id;
+			$school_map[ $name ] = $school_id;
 		}
 
-		WP_CLI::log( '  [2/14] Centers: ' . count( $center_map ) . ' created' );
-		return $center_map;
+		WP_CLI::log( '  [2/14] Schools: ' . count( $school_map ) . ' created' );
+		return $school_map;
 	}
 
 	// ------------------------------------------------------------------
@@ -624,26 +624,26 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 4: Link centers to cohort
+	// Step 4: Link schools to cohort
 	// ------------------------------------------------------------------
 
 	/**
-	 * Insert hl_cohort_center records for each center.
+	 * Insert hl_cohort_school records for each school.
 	 *
 	 * @param int   $cohort_id  Cohort ID.
-	 * @param array $center_map Keyed by center name => orgunit_id.
+	 * @param array $school_map Keyed by school name => orgunit_id.
 	 */
-	private function link_centers_to_cohort( $cohort_id, $center_map ) {
+	private function link_schools_to_cohort( $cohort_id, $school_map ) {
 		global $wpdb;
 
-		foreach ( $center_map as $center_id ) {
-			$wpdb->insert( $wpdb->prefix . 'hl_cohort_center', array(
+		foreach ( $school_map as $school_id ) {
+			$wpdb->insert( $wpdb->prefix . 'hl_cohort_school', array(
 				'cohort_id' => $cohort_id,
-				'center_id' => $center_id,
+				'school_id' => $school_id,
 			) );
 		}
 
-		WP_CLI::log( '  [4/14] Linked ' . count( $center_map ) . ' centers to cohort' );
+		WP_CLI::log( '  [4/14] Linked ' . count( $school_map ) . ' schools to cohort' );
 	}
 
 	// ------------------------------------------------------------------
@@ -697,34 +697,34 @@ class HL_CLI_Seed_Lutheran {
 	 * Extract unique classrooms from teacher roster and create hl_classroom records.
 	 *
 	 * @param array $teacher_roster_data Rows from extracted data.
-	 * @param array $center_map          Keyed by center name => orgunit_id.
-	 * @return array Keyed by "center_name::classroom_name" => array with classroom_id, center_id, age_band.
+	 * @param array $school_map          Keyed by school name => orgunit_id.
+	 * @return array Keyed by "school_name::classroom_name" => array with classroom_id, school_id, age_band.
 	 */
-	private function seed_classrooms( $teacher_roster_data, $center_map ) {
+	private function seed_classrooms( $teacher_roster_data, $school_map ) {
 		$svc        = new HL_Classroom_Service();
 		$classrooms = array();
 		$seen       = array();
 
 		foreach ( $teacher_roster_data as $row ) {
-			$center_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
+			$school_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
 			$classroom_name = isset( $row[4] ) ? trim( $row[4] ) : '';
 			$age_group_raw  = isset( $row[5] ) ? trim( $row[5] ) : '';
 
-			if ( empty( $center_name ) || empty( $classroom_name ) ) {
+			if ( empty( $school_name ) || empty( $classroom_name ) ) {
 				continue;
 			}
 
-			// Resolve abbreviated roster name to canonical center name for consistent keys.
-			$canonical_center = $this->resolve_center_name( $center_name );
-			$key = $canonical_center . '::' . $classroom_name;
+			// Resolve abbreviated roster name to canonical school name for consistent keys.
+			$canonical_school = $this->resolve_school_name( $school_name );
+			$key = $canonical_school . '::' . $classroom_name;
 			if ( isset( $seen[ $key ] ) ) {
 				continue;
 			}
 			$seen[ $key ] = true;
 
-			$center_id = $this->match_center_name( $center_name, $center_map );
-			if ( ! $center_id ) {
-				WP_CLI::warning( "Center not matched for classroom: {$center_name} :: {$classroom_name}" );
+			$school_id = $this->match_school_name( $school_name, $school_map );
+			if ( ! $school_id ) {
+				WP_CLI::warning( "School not matched for classroom: {$school_name} :: {$classroom_name}" );
 				continue;
 			}
 
@@ -732,7 +732,7 @@ class HL_CLI_Seed_Lutheran {
 
 			$id = $svc->create_classroom( array(
 				'classroom_name' => $classroom_name,
-				'center_id'      => $center_id,
+				'school_id'      => $school_id,
 				'age_band'       => $age_band,
 			) );
 
@@ -743,8 +743,8 @@ class HL_CLI_Seed_Lutheran {
 
 			$classrooms[ $key ] = array(
 				'classroom_id' => $id,
-				'center_id'    => $center_id,
-				'center_name'  => $canonical_center,
+				'school_id'    => $school_id,
+				'school_name'  => $canonical_school,
 				'name'         => $classroom_name,
 				'age_band'     => $age_band,
 			);
@@ -854,11 +854,11 @@ class HL_CLI_Seed_Lutheran {
 	 * @param array $teacher_roster_data Rows from extracted data.
 	 * @param array $users               Keyed by row index => user data.
 	 * @param int   $cohort_id           Lutheran control cohort ID.
-	 * @param array $center_map          Keyed by center name => orgunit_id.
+	 * @param array $school_map          Keyed by school name => orgunit_id.
 	 * @param int   $district_id         District orgunit_id.
-	 * @return array Keyed by row index => array with enrollment_id, user_id, center_name, classroom_name.
+	 * @return array Keyed by row index => array with enrollment_id, user_id, school_name, classroom_name.
 	 */
-	private function seed_enrollments( $teacher_roster_data, $users, $cohort_id, $center_map, $district_id ) {
+	private function seed_enrollments( $teacher_roster_data, $users, $cohort_id, $school_map, $district_id ) {
 		$repo        = new HL_Enrollment_Repository();
 		$enrollments = array();
 
@@ -867,24 +867,24 @@ class HL_CLI_Seed_Lutheran {
 				continue;
 			}
 
-			$center_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
+			$school_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
 			$classroom_name = isset( $row[4] ) ? trim( $row[4] ) : '';
-			$center_id      = $this->match_center_name( $center_name, $center_map );
+			$school_id      = $this->match_school_name( $school_name, $school_map );
 
 			$eid = $repo->create( array(
 				'user_id'     => $users[ $idx ]['user_id'],
 				'cohort_id'   => $cohort_id,
 				'roles'       => array( 'teacher' ),
 				'status'      => 'active',
-				'center_id'   => $center_id,
+				'school_id'   => $school_id,
 				'district_id' => $district_id,
 			) );
 
-			$canonical_center = $this->resolve_center_name( $center_name );
+			$canonical_school = $this->resolve_school_name( $school_name );
 			$enrollments[ $idx ] = array(
 				'enrollment_id'  => $eid,
 				'user_id'        => $users[ $idx ]['user_id'],
-				'center_name'    => $canonical_center,
+				'school_name'    => $canonical_school,
 				'classroom_name' => $classroom_name,
 			);
 		}
@@ -902,10 +902,10 @@ class HL_CLI_Seed_Lutheran {
 	 *
 	 * @param array $teacher_roster_data Rows from extracted data.
 	 * @param array $enrollments         Keyed by row index.
-	 * @param array $classrooms          Keyed by "center_name::classroom_name".
-	 * @param array $center_map          Keyed by center name => orgunit_id.
+	 * @param array $classrooms          Keyed by "school_name::classroom_name".
+	 * @param array $school_map          Keyed by school name => orgunit_id.
 	 */
-	private function seed_teaching_assignments( $teacher_roster_data, $enrollments, $classrooms, $center_map ) {
+	private function seed_teaching_assignments( $teacher_roster_data, $enrollments, $classrooms, $school_map ) {
 		// Suppress auto-generation of children assessment instances during seeding.
 		// The seeder creates instances explicitly in step 13 with proper activity_id,
 		// phase, and instrument_id values. Without this, the hook fires before
@@ -920,10 +920,10 @@ class HL_CLI_Seed_Lutheran {
 				continue;
 			}
 
-			$center_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
+			$school_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
 			$classroom_name = isset( $row[4] ) ? trim( $row[4] ) : '';
-			$canonical_center = $this->resolve_center_name( $center_name );
-			$key            = $canonical_center . '::' . $classroom_name;
+			$canonical_school = $this->resolve_school_name( $school_name );
+			$key            = $canonical_school . '::' . $classroom_name;
 
 			if ( ! isset( $classrooms[ $key ] ) ) {
 				WP_CLI::warning( "Classroom not found for teaching assignment: {$key}" );
@@ -952,17 +952,17 @@ class HL_CLI_Seed_Lutheran {
 	 * Create hl_child records from child roster data.
 	 *
 	 * @param array $child_roster_data Rows from extracted data.
-	 * @param array $classrooms        Keyed by "center_name::classroom_name".
-	 * @param array $center_map        Keyed by center name => orgunit_id.
+	 * @param array $classrooms        Keyed by "school_name::classroom_name".
+	 * @param array $school_map        Keyed by school name => orgunit_id.
 	 */
-	private function seed_children( $child_roster_data, $classrooms, $center_map ) {
+	private function seed_children( $child_roster_data, $classrooms, $school_map ) {
 		$repo      = new HL_Child_Repository();
 		$svc       = new HL_Classroom_Service();
 		$total     = 0;
 		$unmatched = 0;
 
 		foreach ( $child_roster_data as $row ) {
-			$center_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
+			$school_name    = isset( $row[0] ) ? trim( $row[0] ) : '';
 			$child_name     = isset( $row[1] ) ? trim( $row[1] ) : '';
 			$classroom_name = isset( $row[2] ) ? trim( $row[2] ) : '';
 			$age_group_raw  = isset( $row[3] ) ? trim( $row[3] ) : '';
@@ -971,7 +971,7 @@ class HL_CLI_Seed_Lutheran {
 			$ethnicity      = isset( $row[7] ) ? trim( $row[7] ) : '';
 			$language       = isset( $row[8] ) ? trim( $row[8] ) : '';
 
-			if ( empty( $child_name ) || empty( $center_name ) ) {
+			if ( empty( $child_name ) || empty( $school_name ) ) {
 				continue;
 			}
 
@@ -980,8 +980,8 @@ class HL_CLI_Seed_Lutheran {
 			$first_name = $name_parts[0];
 			$last_name  = isset( $name_parts[1] ) ? $name_parts[1] : '';
 
-			$center_id = $this->match_center_name( $center_name, $center_map );
-			if ( ! $center_id ) {
+			$school_id = $this->match_school_name( $school_name, $school_map );
+			if ( ! $school_id ) {
 				$unmatched++;
 				continue;
 			}
@@ -998,14 +998,14 @@ class HL_CLI_Seed_Lutheran {
 				'first_name' => $first_name,
 				'last_name'  => $last_name,
 				'dob'        => $dob,
-				'center_id'  => $center_id,
+				'school_id'  => $school_id,
 				'ethnicity'  => $ethnicity,
 				'metadata'   => $metadata,
 			) );
 
 			if ( $child_id ) {
-				$canonical_center = $this->resolve_center_name( $center_name );
-				$cr_key = $canonical_center . '::' . $classroom_name;
+				$canonical_school = $this->resolve_school_name( $school_name );
+				$cr_key = $canonical_school . '::' . $classroom_name;
 				if ( isset( $classrooms[ $cr_key ] ) ) {
 					$svc->assign_child_to_classroom( $child_id, $classrooms[ $cr_key ]['classroom_id'], 'Lutheran seed initial assignment' );
 				}
@@ -1015,7 +1015,7 @@ class HL_CLI_Seed_Lutheran {
 
 		$msg = "  [10/14] Children created: {$total}";
 		if ( $unmatched > 0 ) {
-			$msg .= " ({$unmatched} unmatched centers)";
+			$msg .= " ({$unmatched} unmatched schools)";
 		}
 		WP_CLI::log( $msg );
 	}
@@ -1255,12 +1255,12 @@ class HL_CLI_Seed_Lutheran {
 	 * @param int   $cohort_id             Cohort ID.
 	 * @param array $pathway_data          Pathway and activity IDs.
 	 * @param int   $instrument_id         Teacher assessment instrument ID.
-	 * @param array $classrooms            Keyed by "center_name::classroom_name".
-	 * @param array $center_map            Keyed by center name => orgunit_id.
+	 * @param array $classrooms            Keyed by "school_name::classroom_name".
+	 * @param array $school_map            Keyed by school name => orgunit_id.
 	 * @param array $teacher_roster_data   Teacher roster rows.
 	 * @param array $children_instruments  Keyed by age band: 'infant' => id, etc.
 	 */
-	private function seed_assessment_instances( $enrollments, $cohort_id, $pathway_data, $instrument_id, $classrooms, $center_map, $teacher_roster_data, $children_instruments = array() ) {
+	private function seed_assessment_instances( $enrollments, $cohort_id, $pathway_data, $instrument_id, $classrooms, $school_map, $teacher_roster_data, $children_instruments = array() ) {
 		global $wpdb;
 		$prefix       = $wpdb->prefix;
 		$now          = current_time( 'mysql' );
@@ -1300,10 +1300,10 @@ class HL_CLI_Seed_Lutheran {
 			$tsa_count++;
 
 			// Children Assessment Instances: look up teacher's classroom.
-			$center_name    = $enrollment['center_name'];
+			$school_name    = $enrollment['school_name'];
 			$classroom_name = $enrollment['classroom_name'];
-			$cr_key         = $center_name . '::' . $classroom_name;
-			$center_id      = $this->match_center_name( $center_name, $center_map );
+			$cr_key         = $school_name . '::' . $classroom_name;
+			$school_id      = $this->match_school_name( $school_name, $school_map );
 
 			if ( isset( $classrooms[ $cr_key ] ) ) {
 				$classroom_id = $classrooms[ $cr_key ]['classroom_id'];
@@ -1322,7 +1322,7 @@ class HL_CLI_Seed_Lutheran {
 					'enrollment_id'       => $eid,
 					'activity_id'         => $pathway_data['ca_pre_id'],
 					'classroom_id'        => $classroom_id,
-					'center_id'           => $center_id,
+					'school_id'           => $school_id,
 					'phase'               => 'pre',
 					'instrument_age_band' => $age_band,
 					'instrument_id'       => $ci_id,
@@ -1339,7 +1339,7 @@ class HL_CLI_Seed_Lutheran {
 					'enrollment_id'       => $eid,
 					'activity_id'         => $pathway_data['ca_post_id'],
 					'classroom_id'        => $classroom_id,
-					'center_id'           => $center_id,
+					'school_id'           => $school_id,
 					'phase'               => 'post',
 					'instrument_age_band' => $age_band,
 					'instrument_id'       => $ci_id,

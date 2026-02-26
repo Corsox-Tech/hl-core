@@ -439,10 +439,10 @@ class HL_Frontend_Observations {
             return new WP_Error( 'not_authorized', __( 'You are not authorized to create observations for this enrollment.', 'hl-core' ) );
         }
 
-        // Get the cohort_id and center_id from the mentor enrollment
+        // Get the cohort_id and school_id from the mentor enrollment
         global $wpdb;
         $enrollment = $wpdb->get_row( $wpdb->prepare(
-            "SELECT cohort_id, center_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+            "SELECT cohort_id, school_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
             $mentor_enrollment_id
         ), ARRAY_A );
 
@@ -455,7 +455,7 @@ class HL_Frontend_Observations {
             'mentor_enrollment_id'  => $mentor_enrollment_id,
             'teacher_enrollment_id' => $teacher_enrollment_id,
             'classroom_id'          => $classroom_id ?: null,
-            'center_id'             => ! empty( $enrollment['center_id'] ) ? $enrollment['center_id'] : null,
+            'school_id'             => ! empty( $enrollment['school_id'] ) ? $enrollment['school_id'] : null,
         ) );
     }
 

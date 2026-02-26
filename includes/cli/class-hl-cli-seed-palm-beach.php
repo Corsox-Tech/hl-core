@@ -120,7 +120,7 @@ class HL_CLI_Seed_Palm_Beach {
 		WP_CLI::line( '' );
 		WP_CLI::line( 'Summary:' );
 		WP_CLI::line( "  Cohort:       {$cohort_id} (code: " . self::COHORT_CODE . ')' );
-		WP_CLI::line( '  Centers:      ' . count( $orgunits['centers'] ) );
+		WP_CLI::line( '  Schools:      ' . count( $orgunits['schools'] ) );
 		WP_CLI::line( '  Classrooms:   ' . count( $classrooms ) );
 		WP_CLI::line( '  Instruments:  ' . count( $instruments ) );
 		WP_CLI::line( '  Users:        ' . count( $users['all_ids'] ) );
@@ -138,11 +138,11 @@ class HL_CLI_Seed_Palm_Beach {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Get center definitions.
+	 * Get school definitions.
 	 *
-	 * @return array Keyed by center slug.
+	 * @return array Keyed by school slug.
 	 */
-	private function get_center_defs() {
+	private function get_school_defs() {
 		return array(
 			'south_bay' => 'South Bay Head Start/Early Head Start',
 			'wpb'       => 'West Palm Beach Head Start/Early Head Start',
@@ -161,7 +161,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 	/**
 	 * Get classroom definitions.
-	 * Each: [name, center_key, age_band].
+	 * Each: [name, school_key, age_band].
 	 *
 	 * @return array
 	 */
@@ -205,7 +205,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 	/**
 	 * Get teacher definitions.
-	 * Each: [first_name, last_name, email, center_key, classroom_name, is_lead, is_also_center_leader].
+	 * Each: [first_name, last_name, email, school_key, classroom_name, is_lead, is_also_school_leader].
 	 *
 	 * @return array
 	 */
@@ -252,7 +252,7 @@ class HL_CLI_Seed_Palm_Beach {
 			array( 'Johnnie', 'Guyton', 'johnnie.guyton@lsfnet.org', 'south_bay', 'EHS-B', false, false ),
 			array( 'Carlene', 'Thornton', 'carlene.thornton@lsfnet.org', 'south_bay', 'EHS-C', true, false ),
 			array( 'Alejandra', 'Hernandez', 'alejandra.hernandez@lsfnet.org', 'south_bay', 'EHS-C', false, false ),
-			// FCCH teachers (9) - dual-role teachers marked with true for is_also_center_leader.
+			// FCCH teachers (9) - dual-role teachers marked with true for is_also_school_leader.
 			array( 'Monica', 'Turner', 'monicat52@aol.com', 'turner', 'Turner', true, true ),
 			array( 'Patricia', 'Oliver', 'oliverfcc@yahoo.com', 'oliver', 'Dr. Seuss', true, true ),
 			array( 'Lisa', 'Dupree', 'ladyd0316@yahoo.com', 'lisas', "Lisa's Classroom", true, true ),
@@ -267,7 +267,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 	/**
 	 * Get children definitions.
-	 * Each: [first_name, last_initial, classroom_name, center_key, dob_excel_serial, gender, ethnicity].
+	 * Each: [first_name, last_initial, classroom_name, school_key, dob_excel_serial, gender, ethnicity].
 	 *
 	 * @return array
 	 */
@@ -684,7 +684,7 @@ class HL_CLI_Seed_Palm_Beach {
 			}
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_team WHERE cohort_id = %d", $cohort_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE cohort_id = %d", $cohort_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort_center WHERE cohort_id = %d", $cohort_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort_school WHERE cohort_id = %d", $cohort_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE cohort_id = %d", $cohort_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE cohort_id = %d", $cohort_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d", $cohort_id ) );
@@ -750,31 +750,31 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 		WP_CLI::log( '  Deleted Palm Beach instruments.' );
 
-		// Delete children for Palm Beach centers.
-		$center_names = array_values( $this->get_center_defs() );
-		$placeholders = implode( ',', array_fill( 0, count( $center_names ), '%s' ) );
-		$pb_center_ids = $wpdb->get_col(
+		// Delete children for Palm Beach schools.
+		$school_names = array_values( $this->get_school_defs() );
+		$placeholders = implode( ',', array_fill( 0, count( $school_names ), '%s' ) );
+		$pb_school_ids = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT orgunit_id FROM {$wpdb->prefix}hl_orgunit WHERE name IN ({$placeholders})",
-				$center_names
+				$school_names
 			)
 		);
-		if ( ! empty( $pb_center_ids ) ) {
-			$in_c = implode( ',', array_map( 'intval', $pb_center_ids ) );
-			$cls_ids = $wpdb->get_col( "SELECT classroom_id FROM {$wpdb->prefix}hl_classroom WHERE center_id IN ({$in_c})" );
+		if ( ! empty( $pb_school_ids ) ) {
+			$in_c = implode( ',', array_map( 'intval', $pb_school_ids ) );
+			$cls_ids = $wpdb->get_col( "SELECT classroom_id FROM {$wpdb->prefix}hl_classroom WHERE school_id IN ({$in_c})" );
 			if ( ! empty( $cls_ids ) ) {
 				$in_cls = implode( ',', array_map( 'intval', $cls_ids ) );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child_classroom_current WHERE classroom_id IN ({$in_cls})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child_classroom_history WHERE classroom_id IN ({$in_cls})" );
 			}
-			$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child WHERE center_id IN ({$in_c})" );
-			$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_classroom WHERE center_id IN ({$in_c})" );
+			$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child WHERE school_id IN ({$in_c})" );
+			$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_classroom WHERE school_id IN ({$in_c})" );
 			WP_CLI::log( '  Deleted Palm Beach children and classrooms.' );
 		}
 
 		// Delete orgunits.
 		$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_orgunit WHERE name = 'ELC Palm Beach County'" );
-		if ( ! empty( $pb_center_ids ) ) {
+		if ( ! empty( $pb_school_ids ) ) {
 			$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_id IN ({$in_c})" );
 		}
 		WP_CLI::log( '  Deleted Palm Beach org units.' );
@@ -805,18 +805,18 @@ class HL_CLI_Seed_Palm_Beach {
 			'orgunit_type' => 'district',
 		) );
 
-		$centers = array();
-		foreach ( $this->get_center_defs() as $key => $name ) {
-			$centers[ $key ] = $repo->create( array(
+		$schools = array();
+		foreach ( $this->get_school_defs() as $key => $name ) {
+			$schools[ $key ] = $repo->create( array(
 				'name'              => $name,
-				'orgunit_type'      => 'center',
+				'orgunit_type'      => 'school',
 				'parent_orgunit_id' => $district_id,
 			) );
 		}
 
-		WP_CLI::log( "  [1/17] Org units created: district={$district_id}, centers=" . count( $centers ) );
+		WP_CLI::log( "  [1/17] Org units created: district={$district_id}, schools=" . count( $schools ) );
 
-		return array( 'district_id' => $district_id, 'centers' => $centers );
+		return array( 'district_id' => $district_id, 'schools' => $schools );
 	}
 
 	// ------------------------------------------------------------------
@@ -836,10 +836,10 @@ class HL_CLI_Seed_Palm_Beach {
 			'end_date'    => '2026-12-31',
 		) );
 
-		foreach ( $orgunits['centers'] as $center_id ) {
-			$wpdb->insert( $wpdb->prefix . 'hl_cohort_center', array(
+		foreach ( $orgunits['schools'] as $school_id ) {
+			$wpdb->insert( $wpdb->prefix . 'hl_cohort_school', array(
 				'cohort_id' => $cohort_id,
-				'center_id' => $center_id,
+				'school_id' => $school_id,
 			) );
 		}
 
@@ -856,10 +856,10 @@ class HL_CLI_Seed_Palm_Beach {
 		$classrooms = array();
 
 		foreach ( $this->get_classroom_defs() as $def ) {
-			$center_id = $orgunits['centers'][ $def[1] ];
+			$school_id = $orgunits['schools'][ $def[1] ];
 			$id = $svc->create_classroom( array(
 				'classroom_name' => $def[0],
-				'center_id'      => $center_id,
+				'school_id'      => $school_id,
 				'age_band'       => $def[2],
 			) );
 			if ( is_wp_error( $id ) ) {
@@ -869,8 +869,8 @@ class HL_CLI_Seed_Palm_Beach {
 			$key = $def[1] . '::' . $def[0];
 			$classrooms[ $key ] = array(
 				'classroom_id' => $id,
-				'center_id'    => $center_id,
-				'center_key'   => $def[1],
+				'school_id'    => $school_id,
+				'school_key'   => $def[1],
 				'name'         => $def[0],
 				'age_band'     => $def[2],
 			);
@@ -951,7 +951,7 @@ class HL_CLI_Seed_Palm_Beach {
 	private function seed_users() {
 		$users = array(
 			'teachers'        => array(),
-			'center_leaders'  => array(),
+			'school_leaders'  => array(),
 			'mentors'         => array(),
 			'district_leader' => null,
 			'coach'           => null,
@@ -963,15 +963,15 @@ class HL_CLI_Seed_Palm_Beach {
 			$uid = $this->create_demo_user( $t[2], $t[0], $t[1], 'subscriber' );
 			$users['teachers'][] = array(
 				'user_id'               => $uid,
-				'center_key'            => $t[3],
+				'school_key'            => $t[3],
 				'classroom_name'        => $t[4],
 				'is_lead'               => $t[5],
-				'is_also_center_leader' => $t[6],
+				'is_also_school_leader' => $t[6],
 			);
 			$users['all_ids'][] = $uid;
 		}
 
-		// 4 Center leaders (non-teacher, for large centers).
+		// 4 School leaders (non-teacher, for large schools).
 		$cl_data = array(
 			array( 'Francetine', 'Inman-Dennard', 'francetine.inman@lsfnet.org', 'south_bay' ),
 			array( 'Gwendolyn', 'Kelly', 'gwendolyn.kelly@lsfnet.org', 'wpb' ),
@@ -980,7 +980,7 @@ class HL_CLI_Seed_Palm_Beach {
 		);
 		foreach ( $cl_data as $cl ) {
 			$uid = $this->create_demo_user( $cl[2], $cl[0], $cl[1], 'subscriber' );
-			$users['center_leaders'][] = array( 'user_id' => $uid, 'center_key' => $cl[3] );
+			$users['school_leaders'][] = array( 'user_id' => $uid, 'school_key' => $cl[3] );
 			$users['all_ids'][] = $uid;
 		}
 
@@ -993,7 +993,7 @@ class HL_CLI_Seed_Palm_Beach {
 		);
 		foreach ( $mentor_data as $m ) {
 			$uid = $this->create_demo_user( $m[2], $m[0], $m[1], 'subscriber' );
-			$users['mentors'][] = array( 'user_id' => $uid, 'center_key' => $m[3] );
+			$users['mentors'][] = array( 'user_id' => $uid, 'school_key' => $m[3] );
 			$users['all_ids'][] = $uid;
 		}
 
@@ -1060,7 +1060,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 	private function seed_enrollments( $users, $cohort_id, $orgunits ) {
 		$repo = new HL_Enrollment_Repository();
-		$c    = $orgunits['centers'];
+		$c    = $orgunits['schools'];
 		$did  = $orgunits['district_id'];
 
 		$enrollments = array(
@@ -1071,55 +1071,55 @@ class HL_CLI_Seed_Palm_Beach {
 
 		// Teachers.
 		foreach ( $users['teachers'] as $idx => $t ) {
-			$center_id = $c[ $t['center_key'] ];
+			$school_id = $c[ $t['school_key'] ];
 			$roles     = array( 'teacher' );
-			if ( $t['is_also_center_leader'] ) {
-				$roles[] = 'center_leader';
+			if ( $t['is_also_school_leader'] ) {
+				$roles[] = 'school_leader';
 			}
 			$eid = $repo->create( array(
 				'user_id'     => $t['user_id'],
 				'cohort_id'   => $cohort_id,
 				'roles'       => $roles,
 				'status'      => 'active',
-				'center_id'   => $center_id,
+				'school_id'   => $school_id,
 				'district_id' => $did,
 			) );
 			$enrollments['teachers'][ $idx ] = array(
 				'enrollment_id'  => $eid,
 				'user_id'        => $t['user_id'],
-				'center_key'     => $t['center_key'],
+				'school_key'     => $t['school_key'],
 				'classroom_name' => $t['classroom_name'],
 				'is_lead'        => $t['is_lead'],
 			);
 			$enrollments['all'][] = array( 'enrollment_id' => $eid, 'user_id' => $t['user_id'], 'role' => 'teacher' );
 		}
 
-		// Center leaders (non-teacher).
-		foreach ( $users['center_leaders'] as $cl ) {
-			$center_id = $c[ $cl['center_key'] ];
+		// School leaders (non-teacher).
+		foreach ( $users['school_leaders'] as $cl ) {
+			$school_id = $c[ $cl['school_key'] ];
 			$eid = $repo->create( array(
 				'user_id'     => $cl['user_id'],
 				'cohort_id'   => $cohort_id,
-				'roles'       => array( 'center_leader' ),
+				'roles'       => array( 'school_leader' ),
 				'status'      => 'active',
-				'center_id'   => $center_id,
+				'school_id'   => $school_id,
 				'district_id' => $did,
 			) );
-			$enrollments['all'][] = array( 'enrollment_id' => $eid, 'user_id' => $cl['user_id'], 'role' => 'center_leader' );
+			$enrollments['all'][] = array( 'enrollment_id' => $eid, 'user_id' => $cl['user_id'], 'role' => 'school_leader' );
 		}
 
 		// Mentors.
 		foreach ( $users['mentors'] as $m ) {
-			$center_id = $c[ $m['center_key'] ];
+			$school_id = $c[ $m['school_key'] ];
 			$eid = $repo->create( array(
 				'user_id'     => $m['user_id'],
 				'cohort_id'   => $cohort_id,
 				'roles'       => array( 'mentor' ),
 				'status'      => 'active',
-				'center_id'   => $center_id,
+				'school_id'   => $school_id,
 				'district_id' => $did,
 			) );
-			$enrollments['mentors'][] = array( 'enrollment_id' => $eid, 'user_id' => $m['user_id'], 'center_key' => $m['center_key'] );
+			$enrollments['mentors'][] = array( 'enrollment_id' => $eid, 'user_id' => $m['user_id'], 'school_key' => $m['school_key'] );
 			$enrollments['all'][] = array( 'enrollment_id' => $eid, 'user_id' => $m['user_id'], 'role' => 'mentor' );
 		}
 
@@ -1144,18 +1144,18 @@ class HL_CLI_Seed_Palm_Beach {
 
 	private function seed_teams( $cohort_id, $orgunits, $enrollments ) {
 		$svc       = new HL_Team_Service();
-		$c         = $orgunits['centers'];
+		$c         = $orgunits['schools'];
 		$team_ids  = array();
 		$mem_count = 0;
 
 		// WPB Team Alpha: mentor 1, first 13 WPB teachers (indices 0-12).
-		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Alpha', 'cohort_id' => $cohort_id, 'center_id' => $c['wpb'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Alpha', 'cohort_id' => $cohort_id, 'school_id' => $c['wpb'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['wpb_alpha'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][0]['enrollment_id'], 'mentor' );
 			$mem_count++;
 			for ( $i = 0; $i < 13 && isset( $enrollments['teachers'][ $i ] ); $i++ ) {
-				if ( $enrollments['teachers'][ $i ]['center_key'] === 'wpb' ) {
+				if ( $enrollments['teachers'][ $i ]['school_key'] === 'wpb' ) {
 					$svc->add_member( $team_id, $enrollments['teachers'][ $i ]['enrollment_id'], 'member' );
 					$mem_count++;
 				}
@@ -1163,13 +1163,13 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 
 		// WPB Team Beta: mentor 2, remaining WPB teachers (indices 13-24).
-		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Beta', 'cohort_id' => $cohort_id, 'center_id' => $c['wpb'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Beta', 'cohort_id' => $cohort_id, 'school_id' => $c['wpb'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['wpb_beta'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][1]['enrollment_id'], 'mentor' );
 			$mem_count++;
 			for ( $i = 13; $i < 25 && isset( $enrollments['teachers'][ $i ] ); $i++ ) {
-				if ( $enrollments['teachers'][ $i ]['center_key'] === 'wpb' ) {
+				if ( $enrollments['teachers'][ $i ]['school_key'] === 'wpb' ) {
 					$svc->add_member( $team_id, $enrollments['teachers'][ $i ]['enrollment_id'], 'member' );
 					$mem_count++;
 				}
@@ -1177,13 +1177,13 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 
 		// Jupiter Team: mentor 3, all Jupiter teachers (indices 25-31).
-		$team_id = $svc->create_team( array( 'team_name' => 'Jupiter Team', 'cohort_id' => $cohort_id, 'center_id' => $c['jupiter'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'Jupiter Team', 'cohort_id' => $cohort_id, 'school_id' => $c['jupiter'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['jupiter'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][2]['enrollment_id'], 'mentor' );
 			$mem_count++;
 			for ( $i = 25; $i < 32 && isset( $enrollments['teachers'][ $i ] ); $i++ ) {
-				if ( $enrollments['teachers'][ $i ]['center_key'] === 'jupiter' ) {
+				if ( $enrollments['teachers'][ $i ]['school_key'] === 'jupiter' ) {
 					$svc->add_member( $team_id, $enrollments['teachers'][ $i ]['enrollment_id'], 'member' );
 					$mem_count++;
 				}
@@ -1191,13 +1191,13 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 
 		// South Bay Team: mentor 4, all South Bay teachers (indices 32-37).
-		$team_id = $svc->create_team( array( 'team_name' => 'South Bay Team', 'cohort_id' => $cohort_id, 'center_id' => $c['south_bay'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'South Bay Team', 'cohort_id' => $cohort_id, 'school_id' => $c['south_bay'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['south_bay'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][3]['enrollment_id'], 'mentor' );
 			$mem_count++;
 			for ( $i = 32; $i < 38 && isset( $enrollments['teachers'][ $i ] ); $i++ ) {
-				if ( $enrollments['teachers'][ $i ]['center_key'] === 'south_bay' ) {
+				if ( $enrollments['teachers'][ $i ]['school_key'] === 'south_bay' ) {
 					$svc->add_member( $team_id, $enrollments['teachers'][ $i ]['enrollment_id'], 'member' );
 					$mem_count++;
 				}
@@ -1222,7 +1222,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$count = 0;
 
 		foreach ( $enrollments['teachers'] as $t ) {
-			$key = $t['center_key'] . '::' . $t['classroom_name'];
+			$key = $t['school_key'] . '::' . $t['classroom_name'];
 			if ( ! isset( $classrooms[ $key ] ) ) {
 				WP_CLI::warning( "Classroom not found for key: {$key}" );
 				continue;
@@ -1250,8 +1250,8 @@ class HL_CLI_Seed_Palm_Beach {
 		$total = 0;
 
 		foreach ( $this->get_children_defs() as $ch ) {
-			// [first_name, last_initial, classroom_name, center_key, dob_serial, gender, ethnicity]
-			$center_id = $orgunits['centers'][ $ch[3] ];
+			// [first_name, last_initial, classroom_name, school_key, dob_serial, gender, ethnicity]
+			$school_id = $orgunits['schools'][ $ch[3] ];
 			$dob       = $this->excel_date_to_ymd( $ch[4] );
 			$metadata  = wp_json_encode( array( 'gender' => $ch[5], 'ethnicity' => $ch[6] ) );
 
@@ -1259,7 +1259,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'first_name' => $ch[0],
 				'last_name'  => $ch[1],
 				'dob'        => $dob,
-				'center_id'  => $center_id,
+				'school_id'  => $school_id,
 				'metadata'   => $metadata,
 			) );
 
@@ -1458,7 +1458,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 	private function seed_coach_assignments( $cohort_id, $orgunits, $teams, $users ) {
 		$service       = new HL_Coach_Assignment_Service();
-		$c             = $orgunits['centers'];
+		$c             = $orgunits['schools'];
 		$coach_user_id = $users['coach'];
 		$count         = 0;
 
@@ -1467,11 +1467,11 @@ class HL_CLI_Seed_Palm_Beach {
 			return;
 		}
 
-		// Center-level: WPB, Jupiter, South Bay.
+		// School-level: WPB, Jupiter, South Bay.
 		foreach ( array( 'wpb', 'jupiter', 'south_bay' ) as $ck ) {
 			$result = $service->assign_coach( array(
 				'coach_user_id'  => $coach_user_id,
-				'scope_type'     => 'center',
+				'scope_type'     => 'school',
 				'scope_id'       => $c[ $ck ],
 				'cohort_id'      => $cohort_id,
 				'effective_from' => '2026-01-01',
@@ -1719,7 +1719,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$enrollment_repo = new HL_Enrollment_Repository();
 		$ctrl_enrollment_ids = array();
 
-		// Real LSF center info from spreadsheet: 6 staff were to participate.
+		// Real LSF school info from spreadsheet: 6 staff were to participate.
 		$ctrl_teachers = array(
 			array( 'name' => 'Maria Santos',    'email' => 'maria.santos@lsfnet.org' ),
 			array( 'name' => 'Angela Roberts',  'email' => 'angela.roberts@lsfnet.org' ),

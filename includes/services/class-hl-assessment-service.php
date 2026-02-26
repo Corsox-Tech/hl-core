@@ -413,12 +413,12 @@ class HL_Assessment_Service {
     public function get_children_assessments_by_cohort($cohort_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT cai.*, u.display_name, u.user_email, cr.classroom_name, o.name AS center_name
+            "SELECT cai.*, u.display_name, u.user_email, cr.classroom_name, o.name AS school_name
              FROM {$wpdb->prefix}hl_children_assessment_instance cai
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$wpdb->prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
-             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON cai.center_id = o.orgunit_id
+             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON cai.school_id = o.orgunit_id
              WHERE cai.cohort_id = %d
              ORDER BY u.display_name ASC, cr.classroom_name ASC",
             $cohort_id
@@ -432,13 +432,13 @@ class HL_Assessment_Service {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
             "SELECT cai.*, u.display_name, u.user_email, e.user_id, c.cohort_name,
-                    cr.classroom_name, o.name AS center_name
+                    cr.classroom_name, o.name AS school_name
              FROM {$wpdb->prefix}hl_children_assessment_instance cai
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$wpdb->prefix}hl_cohort c ON cai.cohort_id = c.cohort_id
              LEFT JOIN {$wpdb->prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
-             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON cai.center_id = o.orgunit_id
+             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON cai.school_id = o.orgunit_id
              WHERE cai.instance_id = %d",
             $instance_id
         ), ARRAY_A);
@@ -727,7 +727,7 @@ class HL_Assessment_Service {
         // Get all teaching assignments for this cohort (join through enrollment)
         $assignments = $wpdb->get_results($wpdb->prepare(
             "SELECT ta.assignment_id, ta.enrollment_id, ta.classroom_id,
-                    cr.center_id, cr.age_band, cr.classroom_name
+                    cr.school_id, cr.age_band, cr.classroom_name
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
              JOIN {$wpdb->prefix}hl_classroom cr ON ta.classroom_id = cr.classroom_id
@@ -791,7 +791,7 @@ class HL_Assessment_Service {
                 'cohort_id'          => absint($cohort_id),
                 'enrollment_id'      => absint($ta->enrollment_id),
                 'classroom_id'       => absint($ta->classroom_id),
-                'center_id'          => absint($ta->center_id),
+                'school_id'          => absint($ta->school_id),
                 'instrument_age_band' => $age_band,
                 'instrument_id'      => $instrument ? $instrument->instrument_id : null,
                 'instrument_version' => $instrument ? $instrument->version : null,
@@ -934,7 +934,7 @@ class HL_Assessment_Service {
         $output = fopen('php://temp', 'r+');
 
         // Header
-        $header = array('Instance ID', 'Teacher Name', 'Classroom', 'Center', 'Age Band', 'Status', 'Child Name', 'Child Code', 'DOB');
+        $header = array('Instance ID', 'Teacher Name', 'Classroom', 'School', 'Age Band', 'Status', 'Child Name', 'Child Code', 'DOB');
         foreach ($all_question_ids as $qid) {
             $header[] = $qid;
         }
@@ -950,7 +950,7 @@ class HL_Assessment_Service {
                     $inst['instance_id'],
                     $inst['display_name'],
                     $inst['classroom_name'],
-                    $inst['center_name'],
+                    $inst['school_name'],
                     $inst['instrument_age_band'] ?: 'N/A',
                     $inst['status'],
                     '', '', '',
@@ -969,7 +969,7 @@ class HL_Assessment_Service {
                     $inst['instance_id'],
                     $inst['display_name'],
                     $inst['classroom_name'],
-                    $inst['center_name'],
+                    $inst['school_name'],
                     $inst['instrument_age_band'] ?: 'N/A',
                     $inst['status'],
                     trim($cr['first_name'] . ' ' . $cr['last_name']),

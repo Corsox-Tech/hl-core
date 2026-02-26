@@ -152,20 +152,20 @@
                         { key: 'name',       label: hl_import_i18n.col_name || 'Name' },
                         { key: 'dob',        label: hl_import_i18n.col_dob || 'DOB' },
                         { key: 'child_id',   label: hl_import_i18n.col_child_id || 'Child ID' },
-                        { key: 'center',     label: hl_import_i18n.col_center || 'Center' },
+                        { key: 'school',     label: hl_import_i18n.col_school || 'School' },
                         { key: 'classroom',  label: hl_import_i18n.col_classroom || 'Classroom' }
                     ];
                 case 'classrooms':
                     return [
                         { key: 'classroom',  label: hl_import_i18n.col_classroom || 'Classroom' },
-                        { key: 'center',     label: hl_import_i18n.col_center || 'Center' },
+                        { key: 'school',     label: hl_import_i18n.col_school || 'School' },
                         { key: 'age_band',   label: hl_import_i18n.col_age_band || 'Age Band' }
                     ];
                 case 'teaching_assignments':
                     return [
                         { key: 'email',      label: hl_import_i18n.col_email || 'Email' },
                         { key: 'classroom',  label: hl_import_i18n.col_classroom || 'Classroom' },
-                        { key: 'center',     label: hl_import_i18n.col_center || 'Center' },
+                        { key: 'school',     label: hl_import_i18n.col_school || 'School' },
                         { key: 'lead',       label: hl_import_i18n.col_lead || 'Lead' }
                     ];
                 case 'participants':
@@ -174,7 +174,7 @@
                         { key: 'email',    label: hl_import_i18n.col_email || 'Email' },
                         { key: 'name',     label: hl_import_i18n.col_name || 'Name' },
                         { key: 'roles',    label: hl_import_i18n.col_roles || 'Roles' },
-                        { key: 'center',   label: hl_import_i18n.col_center || 'Center' }
+                        { key: 'school',   label: hl_import_i18n.col_school || 'School' }
                     ];
             }
         },
@@ -190,8 +190,8 @@
                     return $.trim((row.parsed_first_name || '') + ' ' + (row.parsed_last_name || ''));
                 case 'roles':
                     return (row.parsed_roles || []).join(', ');
-                case 'center':
-                    return row.raw_center || '';
+                case 'school':
+                    return row.raw_school || '';
                 case 'dob':
                     return row.parsed_dob || '';
                 case 'child_id':

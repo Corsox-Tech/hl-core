@@ -18,8 +18,8 @@ class HL_Team_Service {
     }
 
     public function create_team($data) {
-        if (empty($data['team_name']) || empty($data['cohort_id']) || empty($data['center_id'])) {
-            return new WP_Error('missing_fields', __('Team name, cohort, and center are required.', 'hl-core'));
+        if (empty($data['team_name']) || empty($data['cohort_id']) || empty($data['school_id'])) {
+            return new WP_Error('missing_fields', __('Team name, cohort, and school are required.', 'hl-core'));
         }
         $team_id = $this->repository->create($data);
         do_action('hl_team_created', $team_id, $data);

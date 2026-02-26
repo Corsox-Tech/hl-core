@@ -9,8 +9,8 @@ class HL_Classroom_Service {
         $this->repository = new HL_Classroom_Repository();
     }
 
-    public function get_classrooms($center_id = null) {
-        return $this->repository->get_all($center_id);
+    public function get_classrooms($school_id = null) {
+        return $this->repository->get_all($school_id);
     }
 
     public function get_classroom($classroom_id) {
@@ -18,8 +18,8 @@ class HL_Classroom_Service {
     }
 
     public function create_classroom($data) {
-        if (empty($data['classroom_name']) || empty($data['center_id'])) {
-            return new WP_Error('missing_fields', __('Classroom name and center are required.', 'hl-core'));
+        if (empty($data['classroom_name']) || empty($data['school_id'])) {
+            return new WP_Error('missing_fields', __('Classroom name and school are required.', 'hl-core'));
         }
         return $this->repository->create($data);
     }
@@ -61,7 +61,7 @@ class HL_Classroom_Service {
     public function get_classrooms_for_teacher($enrollment_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT ta.*, cr.classroom_name, cr.center_id
+            "SELECT ta.*, cr.classroom_name, cr.school_id
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              LEFT JOIN {$wpdb->prefix}hl_classroom cr ON ta.classroom_id = cr.classroom_id
              WHERE ta.enrollment_id = %d
@@ -218,7 +218,7 @@ class HL_Classroom_Service {
     public function get_child_current_classroom($child_id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
-            "SELECT cc.*, cr.classroom_name, cr.center_id
+            "SELECT cc.*, cr.classroom_name, cr.school_id
              FROM {$wpdb->prefix}hl_child_classroom_current cc
              JOIN {$wpdb->prefix}hl_classroom cr ON cc.classroom_id = cr.classroom_id
              WHERE cc.child_id = %d",

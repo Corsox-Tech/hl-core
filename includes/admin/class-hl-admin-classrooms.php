@@ -115,7 +115,7 @@ class HL_Admin_Classrooms {
 
         $data = array(
             'classroom_name' => sanitize_text_field($_POST['classroom_name']),
-            'center_id'      => absint($_POST['center_id']),
+            'school_id'      => absint($_POST['school_id']),
             'age_band'       => sanitize_text_field($_POST['age_band']),
             'status'         => sanitize_text_field($_POST['status']),
         );
@@ -169,23 +169,23 @@ class HL_Admin_Classrooms {
     private function render_list() {
         global $wpdb;
 
-        $filter_center = isset($_GET['center_id']) ? absint($_GET['center_id']) : 0;
+        $filter_school = isset($_GET['school_id']) ? absint($_GET['school_id']) : 0;
 
         $where = '';
-        if ($filter_center) {
-            $where = $wpdb->prepare(' WHERE c.center_id = %d', $filter_center);
+        if ($filter_school) {
+            $where = $wpdb->prepare(' WHERE c.school_id = %d', $filter_school);
         }
 
         $classrooms = $wpdb->get_results(
-            "SELECT c.*, o.name AS center_name
+            "SELECT c.*, o.name AS school_name
              FROM {$wpdb->prefix}hl_classroom c
-             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON c.center_id = o.orgunit_id
+             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON c.school_id = o.orgunit_id
              {$where}
              ORDER BY c.classroom_name ASC"
         );
 
-        $centers = $wpdb->get_results(
-            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'center' ORDER BY name ASC"
+        $schools = $wpdb->get_results(
+            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' ORDER BY name ASC"
         );
 
         // Messages
@@ -204,15 +204,15 @@ class HL_Admin_Classrooms {
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-classrooms&action=new')) . '" class="page-title-action">' . esc_html__('Add New', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
-        // Center filter
+        // School filter
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-classrooms" />';
-        echo '<label><strong>' . esc_html__('Center:', 'hl-core') . '</strong> </label>';
-        echo '<select name="center_id">';
+        echo '<label><strong>' . esc_html__('School:', 'hl-core') . '</strong> </label>';
+        echo '<select name="school_id">';
         echo '<option value="">' . esc_html__('All', 'hl-core') . '</option>';
-        if ($centers) {
-            foreach ($centers as $center) {
-                echo '<option value="' . esc_attr($center->orgunit_id) . '"' . selected($filter_center, $center->orgunit_id, false) . '>' . esc_html($center->name) . '</option>';
+        if ($schools) {
+            foreach ($schools as $school) {
+                echo '<option value="' . esc_attr($school->orgunit_id) . '"' . selected($filter_school, $school->orgunit_id, false) . '>' . esc_html($school->name) . '</option>';
             }
         }
         echo '</select> ';
@@ -228,7 +228,7 @@ class HL_Admin_Classrooms {
         echo '<thead><tr>';
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Classroom Name', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Center', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Age Band', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
@@ -250,7 +250,7 @@ class HL_Admin_Classrooms {
             echo '<tr>';
             echo '<td>' . esc_html($classroom->classroom_id) . '</td>';
             echo '<td><strong><a href="' . esc_url($view_url) . '">' . esc_html($classroom->classroom_name) . '</a></strong></td>';
-            echo '<td>' . esc_html($classroom->center_name) . '</td>';
+            echo '<td>' . esc_html($classroom->school_name) . '</td>';
             echo '<td>' . esc_html($classroom->age_band ? ucfirst($classroom->age_band) : '-') . '</td>';
             echo '<td><span style="' . esc_attr($status_style) . '">' . esc_html(ucfirst($classroom->status)) . '</span></td>';
             echo '<td>';
@@ -273,8 +273,8 @@ class HL_Admin_Classrooms {
 
         global $wpdb;
 
-        $centers = $wpdb->get_results(
-            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'center' AND status = 'active' ORDER BY name ASC"
+        $schools = $wpdb->get_results(
+            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' AND status = 'active' ORDER BY name ASC"
         );
 
         echo '<h1>' . esc_html($title) . '</h1>';
@@ -295,15 +295,15 @@ class HL_Admin_Classrooms {
         echo '<td><input type="text" id="classroom_name" name="classroom_name" value="' . esc_attr($is_edit ? $classroom->classroom_name : '') . '" class="regular-text" required /></td>';
         echo '</tr>';
 
-        // Center
-        $current_center = $is_edit ? $classroom->center_id : '';
+        // School
+        $current_school = $is_edit ? $classroom->school_id : '';
         echo '<tr>';
-        echo '<th scope="row"><label for="center_id">' . esc_html__('Center', 'hl-core') . '</label></th>';
-        echo '<td><select id="center_id" name="center_id" required>';
-        echo '<option value="">' . esc_html__('-- Select Center --', 'hl-core') . '</option>';
-        if ($centers) {
-            foreach ($centers as $center) {
-                echo '<option value="' . esc_attr($center->orgunit_id) . '"' . selected($current_center, $center->orgunit_id, false) . '>' . esc_html($center->name) . '</option>';
+        echo '<th scope="row"><label for="school_id">' . esc_html__('School', 'hl-core') . '</label></th>';
+        echo '<td><select id="school_id" name="school_id" required>';
+        echo '<option value="">' . esc_html__('-- Select School --', 'hl-core') . '</option>';
+        if ($schools) {
+            foreach ($schools as $school) {
+                echo '<option value="' . esc_attr($school->orgunit_id) . '"' . selected($current_school, $school->orgunit_id, false) . '>' . esc_html($school->name) . '</option>';
             }
         }
         echo '</select></td>';
@@ -347,9 +347,9 @@ class HL_Admin_Classrooms {
     private function render_classroom_detail($classroom) {
         global $wpdb;
 
-        $center = $wpdb->get_row($wpdb->prepare(
+        $school = $wpdb->get_row($wpdb->prepare(
             "SELECT name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_id = %d",
-            $classroom->center_id
+            $classroom->school_id
         ));
 
         // Messages
@@ -372,7 +372,7 @@ class HL_Admin_Classrooms {
         echo '<a href="' . esc_url(admin_url('admin.php?page=hl-classrooms')) . '">&larr; ' . esc_html__('Back to Classrooms', 'hl-core') . '</a>';
 
         echo '<table class="form-table">';
-        echo '<tr><th>' . esc_html__('Center', 'hl-core') . '</th><td>' . esc_html($center ? $center->name : 'N/A') . '</td></tr>';
+        echo '<tr><th>' . esc_html__('School', 'hl-core') . '</th><td>' . esc_html($school ? $school->name : 'N/A') . '</td></tr>';
         echo '<tr><th>' . esc_html__('Age Band', 'hl-core') . '</th><td>' . esc_html($classroom->age_band ? ucfirst($classroom->age_band) : 'Not set') . '</td></tr>';
         echo '<tr><th>' . esc_html__('Status', 'hl-core') . '</th><td>' . esc_html(ucfirst($classroom->status)) . '</td></tr>';
         echo '</table>';
@@ -512,15 +512,15 @@ class HL_Admin_Classrooms {
 
         // Add form (only when cohort selected)
         if ($selected_cohort) {
-            // Get enrollments with Teacher role at this center for the selected cohort
+            // Get enrollments with Teacher role at this school for the selected cohort
             $all_enrollments = $wpdb->get_results($wpdb->prepare(
                 "SELECT e.enrollment_id, e.roles, u.display_name, u.user_email
                  FROM {$wpdb->prefix}hl_enrollment e
                  LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-                 WHERE e.cohort_id = %d AND e.center_id = %d AND e.status = 'active'
+                 WHERE e.cohort_id = %d AND e.school_id = %d AND e.status = 'active'
                  ORDER BY u.display_name ASC",
                 $selected_cohort,
-                $classroom->center_id
+                $classroom->school_id
             ));
 
             // Filter to Teacher role
@@ -583,7 +583,7 @@ class HL_Admin_Classrooms {
                 submit_button(__('Add Assignment', 'hl-core'), 'primary');
                 echo '</form>';
             } elseif (empty($all_enrollments)) {
-                echo '<p>' . esc_html__('No active enrollments found for this cohort and center.', 'hl-core') . '</p>';
+                echo '<p>' . esc_html__('No active enrollments found for this cohort and school.', 'hl-core') . '</p>';
             } else {
                 echo '<p>' . esc_html__('All available teachers are already assigned.', 'hl-core') . '</p>';
             }
@@ -691,20 +691,20 @@ class HL_Admin_Classrooms {
             echo '<p>' . esc_html__('No children assigned to this classroom.', 'hl-core') . '</p>';
         }
 
-        // Assign child form — children from same center
-        $center_children = $wpdb->get_results($wpdb->prepare(
+        // Assign child form — children from same school
+        $school_children = $wpdb->get_results($wpdb->prepare(
             "SELECT c.child_id, c.first_name, c.last_name, c.child_display_code, cc.classroom_id AS current_classroom_id
              FROM {$wpdb->prefix}hl_child c
              LEFT JOIN {$wpdb->prefix}hl_child_classroom_current cc ON c.child_id = cc.child_id
-             WHERE c.center_id = %d
+             WHERE c.school_id = %d
              ORDER BY c.last_name ASC, c.first_name ASC",
-            $classroom->center_id
+            $classroom->school_id
         ));
 
         // Split into unassigned and in-other-classroom
         $unassigned = array();
         $in_other   = array();
-        foreach ($center_children as $c) {
+        foreach ($school_children as $c) {
             if (empty($c->current_classroom_id)) {
                 $unassigned[] = $c;
             } elseif ((int) $c->current_classroom_id !== (int) $classroom->classroom_id) {
@@ -752,7 +752,7 @@ class HL_Admin_Classrooms {
             submit_button(__('Assign', 'hl-core'), 'primary', 'submit', false);
             echo '</form>';
         } else {
-            echo '<p class="description">' . esc_html__('No children available to assign from this center.', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('No children available to assign from this school.', 'hl-core') . '</p>';
         }
     }
 }

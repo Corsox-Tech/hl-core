@@ -28,17 +28,17 @@
             $(this).toggleClass('expanded');
         });
 
-        // === Center Filter (Cohort Dashboard) ===
-        $('.hl-center-filter').on('change', function() {
-            var centerId = $(this).val();
+        // === School Filter (Cohort Dashboard) ===
+        $('.hl-school-filter').on('change', function() {
+            var schoolId = $(this).val();
             var $table = $(this).closest('.hl-cohort-content, .hl-frontend-wrap').find('.hl-data-table');
 
-            if (!centerId) {
+            if (!schoolId) {
                 $table.find('tbody tr').show();
             } else {
                 $table.find('tbody tr').each(function() {
-                    var rowCenter = $(this).data('center-id');
-                    $(this).toggle(String(rowCenter) === String(centerId));
+                    var rowSchool = $(this).data('school-id');
+                    $(this).toggle(String(rowSchool) === String(schoolId));
                 });
             }
         });
@@ -85,10 +85,10 @@
             });
         });
 
-        // === Report Filters (center, team, name) ===
+        // === Report Filters (school, team, name) ===
         $(document).on('input change', '.hl-report-filter, .hl-report-search', function() {
             var $container = $(this).closest('.hl-reports-container');
-            var center = $container.find('[data-filter="center"]').val() || '';
+            var school = $container.find('[data-filter="school"]').val() || '';
             var team   = $container.find('[data-filter="team"]').val() || '';
             var name   = ($container.find('.hl-report-search').val() || '').toLowerCase();
 
@@ -96,7 +96,7 @@
                 var $row = $(this);
                 var match = true;
 
-                if (center && $row.data('center') !== center) match = false;
+                if (school && $row.data('school') !== school) match = false;
                 if (team && $row.data('team') !== team) match = false;
                 if (name && ($row.data('name') || '').indexOf(name) === -1) match = false;
 

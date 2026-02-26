@@ -83,7 +83,7 @@ class HL_Frontend_Reports_Hub {
 
         $reports[] = array(
             'title'       => __( 'Completion Report', 'hl-core' ),
-            'description' => __( 'View participant completion rates by cohort, center, team, and individual. Export CSV.', 'hl-core' ),
+            'description' => __( 'View participant completion rates by cohort, school, team, and individual. Export CSV.', 'hl-core' ),
             'url'         => $completion_url,
         );
 
@@ -98,7 +98,7 @@ class HL_Frontend_Reports_Hub {
         }
 
         // Team Report — leaders and staff.
-        if ( $scope['is_staff'] || in_array( 'center_leader', $scope['hl_roles'], true )
+        if ( $scope['is_staff'] || in_array( 'school_leader', $scope['hl_roles'], true )
             || in_array( 'district_leader', $scope['hl_roles'], true ) ) {
             $team_url = '';
             if ( $scope['is_staff'] && $workspace_url ) {

@@ -44,7 +44,7 @@ class HL_Frontend_Cohorts_Listing {
 
         // Pre-compute counts.
         $participant_counts = $this->get_participant_counts();
-        $center_counts      = $this->get_center_counts();
+        $school_counts      = $this->get_school_counts();
 
         // Cohort groups for filter.
         $cohort_groups = $this->get_cohort_groups();
@@ -92,7 +92,7 @@ class HL_Frontend_Cohorts_Listing {
                         $cid           = (int) $cohort->cohort_id;
                         $status        = $cohort->status ?: 'active';
                         $num_participants = isset( $participant_counts[ $cid ] ) ? $participant_counts[ $cid ] : 0;
-                        $num_centers   = isset( $center_counts[ $cid ] ) ? $center_counts[ $cid ] : 0;
+                        $num_schools   = isset( $school_counts[ $cid ] ) ? $school_counts[ $cid ] : 0;
                         $detail_url    = $workspace_url
                             ? add_query_arg( 'id', $cid, $workspace_url )
                             : '';
@@ -131,8 +131,8 @@ class HL_Frontend_Cohorts_Listing {
                                         <?php echo esc_html( _n( 'Participant', 'Participants', $num_participants, 'hl-core' ) ); ?>
                                     </span>
                                     <span class="hl-crm-card-stat">
-                                        <strong><?php echo esc_html( $num_centers ); ?></strong>
-                                        <?php echo esc_html( _n( 'Center', 'Centers', $num_centers, 'hl-core' ) ); ?>
+                                        <strong><?php echo esc_html( $num_schools ); ?></strong>
+                                        <?php echo esc_html( _n( 'School', 'Schools', $num_schools, 'hl-core' ) ); ?>
                                     </span>
                                 </div>
                             </div>
@@ -209,11 +209,11 @@ class HL_Frontend_Cohorts_Listing {
         return $map;
     }
 
-    private function get_center_counts() {
+    private function get_school_counts() {
         global $wpdb;
         $results = $wpdb->get_results(
-            "SELECT cohort_id, COUNT(DISTINCT center_id) AS cnt
-             FROM {$wpdb->prefix}hl_cohort_center
+            "SELECT cohort_id, COUNT(DISTINCT school_id) AS cnt
+             FROM {$wpdb->prefix}hl_cohort_school
              GROUP BY cohort_id",
             ARRAY_A
         );

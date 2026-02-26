@@ -126,7 +126,7 @@ class HL_Admin {
                 'col_email'          => __('Email', 'hl-core'),
                 'col_name'           => __('Name', 'hl-core'),
                 'col_roles'          => __('Roles', 'hl-core'),
-                'col_center'         => __('Center', 'hl-core'),
+                'col_school'         => __('School', 'hl-core'),
                 'col_details'        => __('Details', 'hl-core'),
                 'col_row'            => __('Row', 'hl-core'),
                 'col_error'          => __('Error', 'hl-core'),

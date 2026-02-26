@@ -339,7 +339,7 @@ class HL_Admin_Assessments {
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Teacher', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Classroom', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Center', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Age Band', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Instrument', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
@@ -357,7 +357,7 @@ class HL_Admin_Assessments {
             echo '<td>' . esc_html($inst['instance_id']) . '</td>';
             echo '<td>' . esc_html($inst['display_name']) . '</td>';
             echo '<td>' . esc_html($inst['classroom_name']) . '</td>';
-            echo '<td>' . esc_html($inst['center_name']) . '</td>';
+            echo '<td>' . esc_html($inst['school_name']) . '</td>';
             echo '<td>' . $age_band_display . '</td>';
             echo '<td>' . $instrument_display . '</td>';
             echo '<td>' . $this->render_status_badge($inst['status']) . '</td>';
@@ -461,7 +461,7 @@ class HL_Admin_Assessments {
         echo '<tr><th>' . esc_html__('Cohort', 'hl-core') . '</th><td>' . esc_html($instance['cohort_name']) . '</td></tr>';
         echo '<tr><th>' . esc_html__('Teacher', 'hl-core') . '</th><td>' . esc_html($instance['display_name']) . ' (' . esc_html($instance['user_email']) . ')</td></tr>';
         echo '<tr><th>' . esc_html__('Classroom', 'hl-core') . '</th><td>' . esc_html($instance['classroom_name']) . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Center', 'hl-core') . '</th><td>' . esc_html($instance['center_name']) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('School', 'hl-core') . '</th><td>' . esc_html($instance['school_name']) . '</td></tr>';
         echo '<tr><th>' . esc_html__('Age Band', 'hl-core') . '</th><td>' . esc_html($instance['instrument_age_band'] ? ucfirst($instance['instrument_age_band']) : 'Needs Review') . '</td></tr>';
         echo '<tr><th>' . esc_html__('Status', 'hl-core') . '</th><td>' . $this->render_status_badge($instance['status']) . '</td></tr>';
         echo '<tr><th>' . esc_html__('Submitted At', 'hl-core') . '</th><td>' . esc_html($instance['submitted_at'] ?: 'Not yet submitted') . '</td></tr>';

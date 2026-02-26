@@ -3,7 +3,7 @@
 /**
  * Admin Reporting Dashboard
  *
- * Full reporting dashboard with scope-based filtering (cohort, center, district, team),
+ * Full reporting dashboard with scope-based filtering (cohort, school, district, team),
  * summary metrics, participant completion table, activity drill-down, and CSV export.
  *
  * @package HL_Core
@@ -96,7 +96,7 @@ class HL_Admin_Reporting {
     private function get_filters() {
         return array(
             'cohort_id'   => isset($_GET['cohort_id'])   ? absint($_GET['cohort_id'])   : 0,
-            'center_id'   => isset($_GET['center_id'])   ? absint($_GET['center_id'])   : 0,
+            'school_id'   => isset($_GET['school_id'])   ? absint($_GET['school_id'])   : 0,
             'district_id' => isset($_GET['district_id']) ? absint($_GET['district_id']) : 0,
             'team_id'     => isset($_GET['team_id'])     ? absint($_GET['team_id'])     : 0,
             'role'        => isset($_GET['role'])         ? sanitize_text_field($_GET['role']) : '',
@@ -174,7 +174,7 @@ class HL_Admin_Reporting {
             return;
         }
 
-        if (!$cohort_id && in_array($export_type, array('completion_csv', 'center_summary_csv', 'team_summary_csv', 'teacher_assessment_csv', 'children_assessment_csv'), true)) {
+        if (!$cohort_id && in_array($export_type, array('completion_csv', 'school_summary_csv', 'team_summary_csv', 'teacher_assessment_csv', 'children_assessment_csv'), true)) {
             // Cohort is required for all exports; fall through to render page with error
             return;
         }
@@ -189,13 +189,13 @@ class HL_Admin_Reporting {
                 $filename = 'completion-report-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
-            case 'center_summary_csv':
-                $csv      = $reporting->export_center_summary_csv($cohort_id, $filters['district_id']);
-                $filename = 'center-summary-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
+            case 'school_summary_csv':
+                $csv      = $reporting->export_school_summary_csv($cohort_id, $filters['district_id']);
+                $filename = 'school-summary-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             case 'team_summary_csv':
-                $csv      = $reporting->export_team_summary_csv($cohort_id, $filters['center_id']);
+                $csv      = $reporting->export_team_summary_csv($cohort_id, $filters['school_id']);
                 $filename = 'team-summary-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
@@ -295,7 +295,7 @@ class HL_Admin_Reporting {
         // Summary cards
         $this->render_summary_cards($reporting, $filters);
 
-        // Summary tables (center or team level)
+        // Summary tables (school or team level)
         $this->render_summary_tables($reporting, $filters);
 
         // Participant table
@@ -348,18 +348,18 @@ class HL_Admin_Reporting {
 
         $cohorts   = $cohort_repo->get_all();
         $districts = $orgunit_repo->get_districts();
-        $centers   = $orgunit_repo->get_centers();
+        $schools   = $orgunit_repo->get_schools();
 
         $teams = array();
         if ($filters['cohort_id']) {
             $team_filters = array('cohort_id' => $filters['cohort_id']);
-            if ($filters['center_id']) {
-                $team_filters['center_id'] = $filters['center_id'];
+            if ($filters['school_id']) {
+                $team_filters['school_id'] = $filters['school_id'];
             }
             $teams = $team_service->get_teams($team_filters);
         }
 
-        $roles = array('Teacher', 'Mentor', 'Center Leader', 'District Leader');
+        $roles = array('Teacher', 'Mentor', 'School Leader', 'District Leader');
 
         // Fetch cohort groups for the group filter.
         global $wpdb;
@@ -410,13 +410,13 @@ class HL_Admin_Reporting {
         echo '</select>';
         echo '</div>';
 
-        // Center dropdown (optional)
+        // School dropdown (optional)
         echo '<div style="flex: 1; min-width: 140px;">';
-        echo '<label for="center_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Center', 'hl-core') . '</label>';
-        echo '<select name="center_id" id="center_id" style="width: 100%;">';
-        echo '<option value="">' . esc_html__('All Centers', 'hl-core') . '</option>';
-        foreach ($centers as $center) {
-            echo '<option value="' . esc_attr($center->orgunit_id) . '"' . selected($filters['center_id'], $center->orgunit_id, false) . '>' . esc_html($center->name) . '</option>';
+        echo '<label for="school_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('School', 'hl-core') . '</label>';
+        echo '<select name="school_id" id="school_id" style="width: 100%;">';
+        echo '<option value="">' . esc_html__('All Schools', 'hl-core') . '</option>';
+        foreach ($schools as $school) {
+            echo '<option value="' . esc_attr($school->orgunit_id) . '"' . selected($filters['school_id'], $school->orgunit_id, false) . '>' . esc_html($school->name) . '</option>';
         }
         echo '</select>';
         echo '</div>';
@@ -496,8 +496,8 @@ class HL_Admin_Reporting {
         $cohort_id = $filters['cohort_id'];
         $summary   = $reporting->get_cohort_summary($cohort_id);
 
-        // Get center count from filtered data
-        $center_count = $this->get_center_count($filters);
+        // Get school count from filtered data
+        $school_count = $this->get_school_count($filters);
         $team_count   = $this->get_team_count($filters);
 
         echo '<div class="hl-metrics-row">';
@@ -514,10 +514,10 @@ class HL_Admin_Reporting {
         echo '<div class="metric-label">' . esc_html__('Avg Completion', 'hl-core') . '</div>';
         echo '</div>';
 
-        // Centers
+        // Schools
         echo '<div class="hl-metric-card">';
-        echo '<div class="metric-value">' . esc_html(number_format_i18n($center_count)) . '</div>';
-        echo '<div class="metric-label">' . esc_html__('Centers', 'hl-core') . '</div>';
+        echo '<div class="metric-value">' . esc_html(number_format_i18n($school_count)) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Schools', 'hl-core') . '</div>';
         echo '</div>';
 
         // Teams
@@ -530,27 +530,27 @@ class HL_Admin_Reporting {
     }
 
     /**
-     * Get count of centers for the current filter scope
+     * Get count of schools for the current filter scope
      *
      * @param array $filters
      * @return int
      */
-    private function get_center_count($filters) {
+    private function get_school_count($filters) {
         global $wpdb;
 
-        if ($filters['center_id']) {
+        if ($filters['school_id']) {
             return 1;
         }
 
-        // Count centers linked to this cohort
-        $sql = "SELECT COUNT(DISTINCT cc.center_id)
-                FROM {$wpdb->prefix}hl_cohort_center cc";
+        // Count schools linked to this cohort
+        $sql = "SELECT COUNT(DISTINCT cc.school_id)
+                FROM {$wpdb->prefix}hl_cohort_school cc";
 
         $where  = array('cc.cohort_id = %d');
         $values = array($filters['cohort_id']);
 
         if ($filters['district_id']) {
-            $sql .= " JOIN {$wpdb->prefix}hl_orgunit o ON cc.center_id = o.orgunit_id";
+            $sql .= " JOIN {$wpdb->prefix}hl_orgunit o ON cc.school_id = o.orgunit_id";
             $where[]  = 'o.parent_orgunit_id = %d';
             $values[] = $filters['district_id'];
         }
@@ -573,9 +573,9 @@ class HL_Admin_Reporting {
         $where  = array('cohort_id = %d');
         $values = array($filters['cohort_id']);
 
-        if ($filters['center_id']) {
-            $where[]  = 'center_id = %d';
-            $values[] = $filters['center_id'];
+        if ($filters['school_id']) {
+            $where[]  = 'school_id = %d';
+            $values[] = $filters['school_id'];
         }
 
         if ($filters['team_id']) {
@@ -590,14 +590,14 @@ class HL_Admin_Reporting {
     }
 
     // =========================================================================
-    // Summary Tables (Center / Team)
+    // Summary Tables (School / Team)
     // =========================================================================
 
     /**
      * Render scope-level summary tables
      *
-     * Shows center summary when no specific center is selected;
-     * shows team summary when a center is selected or team filter is active.
+     * Shows school summary when no specific school is selected;
+     * shows team summary when a school is selected or team filter is active.
      *
      * @param HL_Reporting_Service $reporting
      * @param array                $filters
@@ -605,9 +605,9 @@ class HL_Admin_Reporting {
     private function render_summary_tables($reporting, $filters) {
         $cohort_id = $filters['cohort_id'];
 
-        if (!$filters['center_id'] && !$filters['team_id']) {
-            // Show center summary
-            $this->render_center_summary_table($reporting, $filters);
+        if (!$filters['school_id'] && !$filters['team_id']) {
+            // Show school summary
+            $this->render_school_summary_table($reporting, $filters);
         } else {
             // Show team summary
             $this->render_team_summary_table($reporting, $filters);
@@ -615,49 +615,49 @@ class HL_Admin_Reporting {
     }
 
     /**
-     * Render center summary table
+     * Render school summary table
      *
      * @param HL_Reporting_Service $reporting
      * @param array                $filters
      */
-    private function render_center_summary_table($reporting, $filters) {
+    private function render_school_summary_table($reporting, $filters) {
         $cohort_id = $filters['cohort_id'];
-        $centers   = $reporting->get_center_summary($cohort_id, $filters['district_id']);
+        $schools   = $reporting->get_school_summary($cohort_id, $filters['district_id']);
 
         echo '<div style="margin-bottom: 20px;">';
-        echo '<h2 style="display: inline-block; margin-right: 10px;">' . esc_html__('Center Summary', 'hl-core') . '</h2>';
+        echo '<h2 style="display: inline-block; margin-right: 10px;">' . esc_html__('School Summary', 'hl-core') . '</h2>';
 
-        // Center summary CSV export
-        $export_url = $this->page_url(array_merge($filters, array('export' => 'center_summary_csv')));
+        // School summary CSV export
+        $export_url = $this->page_url(array_merge($filters, array('export' => 'school_summary_csv')));
         echo '<a href="' . esc_url($export_url) . '" class="button button-small" style="vertical-align: middle;">' . esc_html__('Export CSV', 'hl-core') . '</a>';
         echo '</div>';
 
-        if (empty($centers)) {
-            echo '<p>' . esc_html__('No center data available for this cohort.', 'hl-core') . '</p>';
+        if (empty($schools)) {
+            echo '<p>' . esc_html__('No school data available for this cohort.', 'hl-core') . '</p>';
             return;
         }
 
         echo '<table class="widefat striped" style="margin-bottom: 30px;">';
         echo '<thead><tr>';
-        echo '<th>' . esc_html__('Center Name', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('School Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Participants', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Avg Completion %', 'hl-core') . '</th>';
         echo '</tr></thead>';
         echo '<tbody>';
 
-        foreach ($centers as $center) {
-            $center_name      = isset($center['center_name']) ? $center['center_name'] : __('Unknown', 'hl-core');
-            $participant_count = isset($center['participant_count']) ? $center['participant_count'] : 0;
-            $avg_percent       = isset($center['avg_completion_percent']) ? floatval($center['avg_completion_percent']) : 0;
+        foreach ($schools as $school) {
+            $school_name      = isset($school['school_name']) ? $school['school_name'] : __('Unknown', 'hl-core');
+            $participant_count = isset($school['participant_count']) ? $school['participant_count'] : 0;
+            $avg_percent       = isset($school['avg_completion_percent']) ? floatval($school['avg_completion_percent']) : 0;
 
-            // Link to filter by this center
-            $center_url = $this->page_url(array(
+            // Link to filter by this school
+            $school_url = $this->page_url(array(
                 'cohort_id' => $filters['cohort_id'],
-                'center_id' => isset($center['center_id']) ? $center['center_id'] : 0,
+                'school_id' => isset($school['school_id']) ? $school['school_id'] : 0,
             ));
 
             echo '<tr>';
-            echo '<td><a href="' . esc_url($center_url) . '">' . esc_html($center_name) . '</a></td>';
+            echo '<td><a href="' . esc_url($school_url) . '">' . esc_html($school_name) . '</a></td>';
             echo '<td>' . esc_html($participant_count) . '</td>';
             echo '<td>' . $this->render_progress_bar($avg_percent) . '</td>';
             echo '</tr>';
@@ -674,8 +674,8 @@ class HL_Admin_Reporting {
      */
     private function render_team_summary_table($reporting, $filters) {
         $cohort_id = $filters['cohort_id'];
-        $center_id = $filters['center_id'];
-        $teams     = $reporting->get_team_summary($cohort_id, $center_id);
+        $school_id = $filters['school_id'];
+        $teams     = $reporting->get_team_summary($cohort_id, $school_id);
 
         echo '<div style="margin-bottom: 20px;">';
         echo '<h2 style="display: inline-block; margin-right: 10px;">' . esc_html__('Team Summary', 'hl-core') . '</h2>';
@@ -693,8 +693,8 @@ class HL_Admin_Reporting {
         echo '<table class="widefat striped" style="margin-bottom: 30px;">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('Team Name', 'hl-core') . '</th>';
-        if (!$center_id) {
-            echo '<th>' . esc_html__('Center', 'hl-core') . '</th>';
+        if (!$school_id) {
+            echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         }
         echo '<th>' . esc_html__('Members', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Avg Completion %', 'hl-core') . '</th>';
@@ -703,21 +703,21 @@ class HL_Admin_Reporting {
 
         foreach ($teams as $team) {
             $team_name    = isset($team['team_name']) ? $team['team_name'] : __('Unknown', 'hl-core');
-            $center_name  = isset($team['center_name']) ? $team['center_name'] : '';
+            $school_name  = isset($team['school_name']) ? $team['school_name'] : '';
             $member_count = isset($team['member_count']) ? $team['member_count'] : 0;
             $avg_percent  = isset($team['avg_completion_percent']) ? floatval($team['avg_completion_percent']) : 0;
 
             // Link to filter by this team
             $team_url = $this->page_url(array(
                 'cohort_id' => $filters['cohort_id'],
-                'center_id' => $filters['center_id'],
+                'school_id' => $filters['school_id'],
                 'team_id'   => isset($team['team_id']) ? $team['team_id'] : 0,
             ));
 
             echo '<tr>';
             echo '<td><a href="' . esc_url($team_url) . '">' . esc_html($team_name) . '</a></td>';
-            if (!$center_id) {
-                echo '<td>' . esc_html($center_name) . '</td>';
+            if (!$school_id) {
+                echo '<td>' . esc_html($school_name) . '</td>';
             }
             echo '<td>' . esc_html($member_count) . '</td>';
             echo '<td>' . $this->render_progress_bar($avg_percent) . '</td>';
@@ -752,7 +752,7 @@ class HL_Admin_Reporting {
         echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Email', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Role(s)', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Center', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Team', 'hl-core') . '</th>';
         echo '<th style="min-width: 180px;">' . esc_html__('Completion %', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
@@ -763,7 +763,7 @@ class HL_Admin_Reporting {
             $display_name = isset($p['display_name']) ? $p['display_name'] : '';
             $user_email   = isset($p['user_email'])   ? $p['user_email']   : '';
             $roles_raw    = isset($p['roles'])         ? $p['roles']        : '';
-            $center_name  = isset($p['center_name'])   ? $p['center_name'] : '';
+            $school_name  = isset($p['school_name'])   ? $p['school_name'] : '';
             $team_name    = isset($p['team_name'])     ? $p['team_name']   : '';
             $completion   = isset($p['cohort_completion_percent']) ? floatval($p['cohort_completion_percent']) : 0;
             $enrollment_id = isset($p['enrollment_id']) ? absint($p['enrollment_id']) : 0;
@@ -778,7 +778,7 @@ class HL_Admin_Reporting {
             echo '<td><strong>' . esc_html($display_name) . '</strong></td>';
             echo '<td>' . esc_html($user_email) . '</td>';
             echo '<td>' . $roles_display . '</td>';
-            echo '<td>' . esc_html($center_name) . '</td>';
+            echo '<td>' . esc_html($school_name) . '</td>';
             echo '<td>' . esc_html($team_name) . '</td>';
             echo '<td>' . $this->render_progress_bar($completion) . '</td>';
             echo '<td><a href="' . esc_url($detail_url) . '" class="button button-small">' . esc_html__('View Detail', 'hl-core') . '</a></td>';

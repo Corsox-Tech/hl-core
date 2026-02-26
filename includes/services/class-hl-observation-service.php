@@ -162,7 +162,7 @@ class HL_Observation_Service {
      *
      * @param array $data Keys: cohort_id (required), mentor_enrollment_id (required),
      *                     teacher_enrollment_id (required), classroom_id (optional),
-     *                     center_id (optional).
+     *                     school_id (optional).
      * @return int|WP_Error observation_id on success, WP_Error on failure.
      */
     public function create_observation( $data ) {
@@ -210,7 +210,7 @@ class HL_Observation_Service {
             'mentor_enrollment_id'  => absint( $data['mentor_enrollment_id'] ),
             'teacher_enrollment_id' => absint( $data['teacher_enrollment_id'] ),
             'classroom_id'          => ! empty( $data['classroom_id'] ) ? absint( $data['classroom_id'] ) : null,
-            'center_id'             => ! empty( $data['center_id'] ) ? absint( $data['center_id'] ) : null,
+            'school_id'             => ! empty( $data['school_id'] ) ? absint( $data['school_id'] ) : null,
             'status'                => 'draft',
         );
 
@@ -280,13 +280,13 @@ class HL_Observation_Service {
      * select which classroom the observation takes place in.
      *
      * @param int $teacher_enrollment_id Teacher's enrollment ID.
-     * @return array Array of classroom objects with classroom_id, classroom_name, center_id.
+     * @return array Array of classroom objects with classroom_id, classroom_name, school_id.
      */
     public function get_teacher_classrooms( $teacher_enrollment_id ) {
         global $wpdb;
 
         return $wpdb->get_results( $wpdb->prepare(
-            "SELECT ta.classroom_id, cr.classroom_name, cr.center_id
+            "SELECT ta.classroom_id, cr.classroom_name, cr.school_id
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_classroom cr ON ta.classroom_id = cr.classroom_id
              WHERE ta.enrollment_id = %d

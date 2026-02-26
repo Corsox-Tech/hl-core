@@ -2,16 +2,16 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Renderer for the [hl_centers_listing] shortcode.
+ * Renderer for the [hl_schools_listing] shortcode.
  *
- * CRM-style directory — card grid of all centers.
- * Each card shows: center name, parent district, leader name(s).
+ * CRM-style directory — card grid of all schools.
+ * Each card shows: school name, parent district, leader name(s).
  *
  * Access: Housman Admin, Coach (manage_hl_core).
  *
  * @package HL_Core
  */
-class HL_Frontend_Centers_Listing {
+class HL_Frontend_Schools_Listing {
 
     /** @var HL_OrgUnit_Repository */
     private $orgunit_repo;
@@ -29,7 +29,7 @@ class HL_Frontend_Centers_Listing {
 
         // Staff-only access.
         if ( ! HL_Security::can_manage() ) {
-            echo '<div class="hl-dashboard hl-centers-listing hl-frontend-wrap">';
+            echo '<div class="hl-dashboard hl-schools-listing hl-frontend-wrap">';
             echo '<div class="hl-notice hl-notice-error">'
                 . esc_html__( 'You do not have access to this page.', 'hl-core' )
                 . '</div>';
@@ -37,41 +37,41 @@ class HL_Frontend_Centers_Listing {
             return ob_get_clean();
         }
 
-        $centers = $this->orgunit_repo->get_centers();
+        $schools = $this->orgunit_repo->get_schools();
 
         // Pre-compute parent district names.
         $district_map   = $this->get_district_map();
-        $leader_map     = $this->get_all_center_leaders();
-        $center_page_url = $this->find_shortcode_page_url( 'hl_center_page' );
+        $leader_map     = $this->get_all_school_leaders();
+        $school_page_url = $this->find_shortcode_page_url( 'hl_school_page' );
 
         ?>
-        <div class="hl-dashboard hl-centers-listing hl-frontend-wrap">
+        <div class="hl-dashboard hl-schools-listing hl-frontend-wrap">
 
             <div class="hl-crm-page-header">
                 <h2 class="hl-crm-page-title"><?php esc_html_e( 'Institutions', 'hl-core' ); ?></h2>
             </div>
 
-            <?php if ( empty( $centers ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No centers found.', 'hl-core' ); ?></p></div>
+            <?php if ( empty( $schools ) ) : ?>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No schools found.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <div class="hl-crm-card-grid">
-                    <?php foreach ( $centers as $center ) :
-                        $cid           = $center->orgunit_id;
-                        $district_name = isset( $district_map[ $center->parent_orgunit_id ] )
-                            ? $district_map[ $center->parent_orgunit_id ]
+                    <?php foreach ( $schools as $school ) :
+                        $cid           = $school->orgunit_id;
+                        $district_name = isset( $district_map[ $school->parent_orgunit_id ] )
+                            ? $district_map[ $school->parent_orgunit_id ]
                             : '';
                         $leaders       = isset( $leader_map[ $cid ] ) ? $leader_map[ $cid ] : array();
-                        $url           = $center_page_url
-                            ? add_query_arg( 'id', $cid, $center_page_url )
+                        $url           = $school_page_url
+                            ? add_query_arg( 'id', $cid, $school_page_url )
                             : '';
                     ?>
                         <div class="hl-crm-card">
                             <div class="hl-crm-card-body">
                                 <h3 class="hl-crm-card-title">
                                     <?php if ( $url ) : ?>
-                                        <a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $center->name ); ?></a>
+                                        <a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $school->name ); ?></a>
                                     <?php else : ?>
-                                        <?php echo esc_html( $center->name ); ?>
+                                        <?php echo esc_html( $school->name ); ?>
                                     <?php endif; ?>
                                 </h3>
                                 <?php if ( $district_name ) : ?>
@@ -87,7 +87,7 @@ class HL_Frontend_Centers_Listing {
                             <?php if ( $url ) : ?>
                                 <div class="hl-crm-card-action">
                                     <a href="<?php echo esc_url( $url ); ?>" class="hl-btn hl-btn-sm hl-btn-secondary">
-                                        <?php esc_html_e( 'View Center', 'hl-core' ); ?>
+                                        <?php esc_html_e( 'View School', 'hl-core' ); ?>
                                     </a>
                                 </div>
                             <?php endif; ?>
@@ -119,25 +119,25 @@ class HL_Frontend_Centers_Listing {
     }
 
     /**
-     * Map center_id => [ leader_display_names ].
+     * Map school_id => [ leader_display_names ].
      */
-    private function get_all_center_leaders() {
+    private function get_all_school_leaders() {
         global $wpdb;
 
         $results = $wpdb->get_results(
-            "SELECT e.center_id, u.display_name
+            "SELECT e.school_id, u.display_name
              FROM {$wpdb->prefix}hl_enrollment e
              INNER JOIN {$wpdb->users} u ON e.user_id = u.ID
              WHERE e.status = 'active'
-               AND e.center_id IS NOT NULL
-               AND e.roles LIKE '%\"center_leader\"%'
+               AND e.school_id IS NOT NULL
+               AND e.roles LIKE '%\"school_leader\"%'
              ORDER BY u.display_name ASC",
             ARRAY_A
         );
 
         $map = array();
         foreach ( $results ?: array() as $row ) {
-            $cid = $row['center_id'];
+            $cid = $row['school_id'];
             if ( ! isset( $map[ $cid ] ) ) {
                 $map[ $cid ] = array();
             }

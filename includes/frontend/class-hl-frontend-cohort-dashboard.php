@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * Cohort Dashboard shortcode renderer.
  *
- * Renders the [hl_cohort_dashboard] shortcode for Center Leaders,
+ * Renders the [hl_cohort_dashboard] shortcode for School Leaders,
  * District Leaders, and Staff to view cohort-level participant overview.
  *
  * @package HL_Core
@@ -51,16 +51,16 @@ class HL_Frontend_Cohort_Dashboard {
         if ($scope === false) {
             return $this->render_access_denied();
         }
-        $participants = $this->get_participants($cohort, $scope);
+        $participants  = $this->get_participants($cohort, $scope);
         $metrics       = $this->calculate_metrics($participants);
-        $center_map    = $this->build_center_map($participants);
-        $scope_centers = $this->get_scope_centers($scope);
+        $school_map    = $this->build_school_map($participants);
+        $scope_schools = $this->get_scope_schools($scope);
         ob_start();
         ?>
         <div class="hl-dashboard hl-cohort-dashboard">
             <?php $this->render_header($accessible_cohorts, $selected_cohort_id); ?>
             <?php $this->render_metrics_row($metrics); ?>
-            <?php $this->render_participant_table($participants, $scope_centers, $center_map); ?>
+            <?php $this->render_participant_table($participants, $scope_schools, $school_map); ?>
         </div>
         <?php
         return ob_get_clean();
@@ -82,7 +82,7 @@ class HL_Frontend_Cohort_Dashboard {
                 continue;
             }
             $roles = $enrollment->get_roles_array();
-            if (in_array('Center Leader', $roles, true) || in_array('District Leader', $roles, true)) {
+            if (in_array('School Leader', $roles, true) || in_array('District Leader', $roles, true)) {
                 $cohort_ids[] = (int) $enrollment->cohort_id;
             }
         }
@@ -118,7 +118,7 @@ class HL_Frontend_Cohort_Dashboard {
 
     private function determine_scope($user_id, $cohort, $is_staff) {
         if ($is_staff) {
-            return array('type' => 'staff', 'center_ids' => array(), 'district_id' => null);
+            return array('type' => 'staff', 'school_ids' => array(), 'district_id' => null);
         }
         $enrollment = $this->enrollment_repo->get_by_cohort_and_user($cohort->cohort_id, $user_id);
         if (!$enrollment) {
@@ -127,18 +127,18 @@ class HL_Frontend_Cohort_Dashboard {
         $roles = $enrollment->get_roles_array();
         if (in_array('District Leader', $roles, true)) {
             $district_id = !empty($enrollment->district_id) ? (int) $enrollment->district_id : (!empty($cohort->district_id) ? (int) $cohort->district_id : null);
-            $center_ids = array();
+            $school_ids = array();
             if ($district_id) {
-                $centers = $this->orgunit_repo->get_centers($district_id);
-                foreach ($centers as $c) {
-                    $center_ids[] = (int) $c->orgunit_id;
+                $schools = $this->orgunit_repo->get_schools($district_id);
+                foreach ($schools as $s) {
+                    $school_ids[] = (int) $s->orgunit_id;
                 }
             }
-            return array('type' => 'district', 'center_ids' => $center_ids, 'district_id' => $district_id);
+            return array('type' => 'district', 'school_ids' => $school_ids, 'district_id' => $district_id);
         }
-        if (in_array('Center Leader', $roles, true)) {
-            $center_id = !empty($enrollment->center_id) ? (int) $enrollment->center_id : null;
-            return array('type' => 'center', 'center_ids' => $center_id ? array($center_id) : array(), 'district_id' => null);
+        if (in_array('School Leader', $roles, true)) {
+            $school_id = !empty($enrollment->school_id) ? (int) $enrollment->school_id : null;
+            return array('type' => 'school', 'school_ids' => $school_id ? array($school_id) : array(), 'district_id' => null);
         }
         return false;
     }
@@ -147,7 +147,7 @@ class HL_Frontend_Cohort_Dashboard {
         global $wpdb;
         $prefix = $wpdb->prefix;
         $sql = $wpdb->prepare(
-            "SELECT cr.cohort_completion_percent, e.enrollment_id, e.user_id, e.roles, e.center_id, u.display_name, u.user_email
+            "SELECT cr.cohort_completion_percent, e.enrollment_id, e.user_id, e.roles, e.school_id, u.display_name, u.user_email
              FROM {$prefix}hl_enrollment e
              LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
@@ -157,13 +157,13 @@ class HL_Frontend_Cohort_Dashboard {
         );
         $rows = $wpdb->get_results($sql, ARRAY_A);
         if (!$rows) { $rows = array(); }
-        if ($scope['type'] !== 'staff' && !empty($scope['center_ids'])) {
-            $allowed = $scope['center_ids'];
+        if ($scope['type'] !== 'staff' && !empty($scope['school_ids'])) {
+            $allowed = $scope['school_ids'];
             $rows = array_filter($rows, function ($row) use ($allowed) {
-                return in_array((int) $row['center_id'], $allowed, true);
+                return in_array((int) $row['school_id'], $allowed, true);
             });
             $rows = array_values($rows);
-        } elseif ($scope['type'] === 'center' && empty($scope['center_ids'])) {
+        } elseif ($scope['type'] === 'school' && empty($scope['school_ids'])) {
             $rows = array();
         }
         foreach ($rows as &$row) {
@@ -178,7 +178,7 @@ class HL_Frontend_Cohort_Dashboard {
     private function calculate_metrics($participants) {
         $total = count($participants);
         $completions = array();
-        $role_counts = array('Teacher' => 0, 'Mentor' => 0, 'Center Leader' => 0, 'District Leader' => 0);
+        $role_counts = array('Teacher' => 0, 'Mentor' => 0, 'School Leader' => 0, 'District Leader' => 0);
         foreach ($participants as $p) {
             $completions[] = (int) $p['completion'];
             foreach ($p['roles_array'] as $role) {
@@ -189,29 +189,29 @@ class HL_Frontend_Cohort_Dashboard {
         return array('total' => $total, 'avg_completion' => $avg_completion, 'role_counts' => $role_counts);
     }
 
-    private function build_center_map($participants) {
-        $center_ids = array();
+    private function build_school_map($participants) {
+        $school_ids = array();
         foreach ($participants as $p) {
-            if (!empty($p['center_id'])) { $center_ids[(int) $p['center_id']] = true; }
+            if (!empty($p['school_id'])) { $school_ids[(int) $p['school_id']] = true; }
         }
         $map = array();
-        foreach (array_keys($center_ids) as $cid) {
-            $unit = $this->orgunit_repo->get_by_id($cid);
-            $map[$cid] = $unit ? $unit->name : __('Unknown Center', 'hl-core');
+        foreach (array_keys($school_ids) as $sid) {
+            $unit = $this->orgunit_repo->get_by_id($sid);
+            $map[$sid] = $unit ? $unit->name : __('Unknown School', 'hl-core');
         }
         return $map;
     }
 
-    private function get_scope_centers($scope) {
-        if ($scope['type'] === 'staff') { return $this->orgunit_repo->get_centers(); }
-        if ($scope['type'] === 'district' && !empty($scope['district_id'])) { return $this->orgunit_repo->get_centers($scope['district_id']); }
-        if ($scope['type'] === 'center' && !empty($scope['center_ids'])) {
-            $centers = array();
-            foreach ($scope['center_ids'] as $cid) {
-                $unit = $this->orgunit_repo->get_by_id($cid);
-                if ($unit) { $centers[] = $unit; }
+    private function get_scope_schools($scope) {
+        if ($scope['type'] === 'staff') { return $this->orgunit_repo->get_schools(); }
+        if ($scope['type'] === 'district' && !empty($scope['district_id'])) { return $this->orgunit_repo->get_schools($scope['district_id']); }
+        if ($scope['type'] === 'school' && !empty($scope['school_ids'])) {
+            $schools = array();
+            foreach ($scope['school_ids'] as $sid) {
+                $unit = $this->orgunit_repo->get_by_id($sid);
+                if ($unit) { $schools[] = $unit; }
             }
-            return $centers;
+            return $schools;
         }
         return array();
     }
@@ -258,19 +258,19 @@ class HL_Frontend_Cohort_Dashboard {
         <?php
     }
 
-    private function render_participant_table($participants, $scope_centers, $center_map) {
-        $show_center_filter = count($scope_centers) > 1;
+    private function render_participant_table($participants, $scope_schools, $school_map) {
+        $show_school_filter = count($scope_schools) > 1;
         ?>
         <div class="hl-table-container">
             <div class="hl-table-header">
                 <h3 class="hl-section-title"><?php echo esc_html__('Participants', 'hl-core'); ?></h3>
-                <?php if ($show_center_filter) : ?>
+                <?php if ($show_school_filter) : ?>
                     <div class="hl-table-filters">
-                        <select class="hl-select hl-filter-center" onchange="hlFilterCenter(this.value)">
-                            <option value=""><?php echo esc_html__('All Centers', 'hl-core'); ?></option>
-                            <?php foreach ($scope_centers as $center) : ?>
-                                <option value="<?php echo esc_attr($center->orgunit_id); ?>">
-                                    <?php echo esc_html($center->name); ?>
+                        <select class="hl-select hl-filter-school" onchange="hlFilterSchool(this.value)">
+                            <option value=""><?php echo esc_html__('All Schools', 'hl-core'); ?></option>
+                            <?php foreach ($scope_schools as $school) : ?>
+                                <option value="<?php echo esc_attr($school->orgunit_id); ?>">
+                                    <?php echo esc_html($school->name); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -287,18 +287,18 @@ class HL_Frontend_Cohort_Dashboard {
                         <th><?php echo esc_html__('Name', 'hl-core'); ?></th>
                         <th><?php echo esc_html__('Email', 'hl-core'); ?></th>
                         <th><?php echo esc_html__('Role(s)', 'hl-core'); ?></th>
-                        <th><?php echo esc_html__('Center', 'hl-core'); ?></th>
+                        <th><?php echo esc_html__('School', 'hl-core'); ?></th>
                         <th><?php echo esc_html__('Completion', 'hl-core'); ?></th>
                     </tr></thead>
                     <tbody>
                         <?php foreach ($participants as $p) :
-                            $center_name = '';
-                            if (!empty($p['center_id']) && isset($center_map[(int) $p['center_id']])) {
-                                $center_name = $center_map[(int) $p['center_id']];
+                            $school_name = '';
+                            if (!empty($p['school_id']) && isset($school_map[(int) $p['school_id']])) {
+                                $school_name = $school_map[(int) $p['school_id']];
                             }
                             $completion = (int) $p['completion'];
                         ?>
-                            <tr data-center-id="<?php echo esc_attr($p['center_id']); ?>">
+                            <tr data-school-id="<?php echo esc_attr($p['school_id']); ?>">
                                 <td class="hl-td-name"><?php echo esc_html($p['display_name']); ?></td>
                                 <td class="hl-td-email"><?php echo esc_html($p['user_email']); ?></td>
                                 <td class="hl-td-roles">
@@ -306,7 +306,7 @@ class HL_Frontend_Cohort_Dashboard {
                                         <span class="hl-badge hl-badge-role"><?php echo esc_html($role); ?></span>
                                     <?php endforeach; ?>
                                 </td>
-                                <td class="hl-td-center"><?php echo esc_html($center_name); ?></td>
+                                <td class="hl-td-school"><?php echo esc_html($school_name); ?></td>
                                 <td class="hl-td-completion">
                                     <div class="hl-inline-progress">
                                         <div class="hl-progress-bar-container hl-progress-inline">
@@ -319,12 +319,12 @@ class HL_Frontend_Cohort_Dashboard {
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-                <?php if ($show_center_filter) : ?>
+                <?php if ($show_school_filter) : ?>
                     <script>
-                    function hlFilterCenter(centerId) {
+                    function hlFilterSchool(schoolId) {
                         var rows = document.querySelectorAll('.hl-cohort-dashboard .hl-table tbody tr');
                         for (var i = 0; i < rows.length; i++) {
-                            if (!centerId || rows[i].getAttribute('data-center-id') === centerId) {
+                            if (!schoolId || rows[i].getAttribute('data-school-id') === schoolId) {
                                 rows[i].style.display = '';
                             } else {
                                 rows[i].style.display = 'none';
@@ -341,7 +341,7 @@ class HL_Frontend_Cohort_Dashboard {
     private function render_access_denied() {
         return '<div class="hl-dashboard hl-cohort-dashboard">'
             . '<div class="hl-notice hl-notice-error">'
-            . esc_html__('You do not have permission to view the cohort dashboard. This view is available to Center Leaders, District Leaders, and Staff.', 'hl-core')
+            . esc_html__('You do not have permission to view the cohort dashboard. This view is available to School Leaders, District Leaders, and Staff.', 'hl-core')
             . '</div></div>';
     }
 

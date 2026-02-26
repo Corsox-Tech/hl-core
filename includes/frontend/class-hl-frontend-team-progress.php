@@ -140,7 +140,7 @@ class HL_Frontend_Team_Progress {
             return array(
                 'cohort'       => $cohort,
                 'team'          => null,
-                'center_name'   => '',
+                'school_name'   => '',
                 'members'       => array(),
                 'team_avg'      => 0,
             );
@@ -151,12 +151,12 @@ class HL_Frontend_Team_Progress {
             return null;
         }
 
-        // Resolve center name.
-        $center_name = '';
-        if (!empty($team->center_id)) {
-            $center = $this->orgunit_repo->get_by_id($team->center_id);
-            if ($center) {
-                $center_name = $center->name;
+        // Resolve school name.
+        $school_name = '';
+        if (!empty($team->school_id)) {
+            $school = $this->orgunit_repo->get_by_id($team->school_id);
+            if ($school) {
+                $school_name = $school->name;
             }
         }
 
@@ -184,9 +184,9 @@ class HL_Frontend_Team_Progress {
         $team_avg = ($member_count > 0) ? round($completion_sum / $member_count) : 0;
 
         return array(
-            'cohort'     => $cohort,
+            'cohort'      => $cohort,
             'team'        => $team,
-            'center_name' => $center_name,
+            'school_name' => $school_name,
             'members'     => $members,
             'team_avg'    => $team_avg,
         );
@@ -337,7 +337,7 @@ class HL_Frontend_Team_Progress {
     private function render_cohort_block($block) {
         $cohort     = $block['cohort'];
         $team        = $block['team'];
-        $center_name = $block['center_name'];
+        $school_name = $block['school_name'];
         $members     = $block['members'];
         $team_avg    = $block['team_avg'];
         ?>
@@ -353,8 +353,8 @@ class HL_Frontend_Team_Progress {
                     <h2 class="hl-team-title"><?php echo esc_html($team->team_name); ?></h2>
                     <div class="hl-cohort-meta">
                         <span class="hl-meta-item"><strong><?php esc_html_e('Cohort:', 'hl-core'); ?></strong> <?php echo esc_html($cohort->cohort_code . ' - ' . $this->format_year($cohort->start_date)); ?></span>
-                        <?php if (!empty($center_name)) : ?>
-                        <span class="hl-meta-item"><strong><?php esc_html_e('Center:', 'hl-core'); ?></strong> <?php echo esc_html($center_name); ?></span>
+                        <?php if (!empty($school_name)) : ?>
+                        <span class="hl-meta-item"><strong><?php esc_html_e('School:', 'hl-core'); ?></strong> <?php echo esc_html($school_name); ?></span>
                         <?php endif; ?>
                         <span class="hl-meta-item"><strong><?php esc_html_e('Members:', 'hl-core'); ?></strong> <?php echo esc_html(count($members)); ?></span>
                     </div>

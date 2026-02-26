@@ -27,14 +27,14 @@ class HL_Frontend_Learners {
         // Mentors who are not staff/leaders can only see their team members.
         $mentor_only = ! $scope['is_staff']
             && in_array( 'mentor', $scope['hl_roles'], true )
-            && ! in_array( 'center_leader', $scope['hl_roles'], true )
+            && ! in_array( 'school_leader', $scope['hl_roles'], true )
             && ! in_array( 'district_leader', $scope['hl_roles'], true );
 
         $page = max( 1, absint( $_GET['paged'] ?? 1 ) );
         $data = $this->get_learners( $scope, $mentor_only, $page );
 
         $cohorts = $this->get_cohort_options( $scope );
-        $centers = $this->get_center_options( $scope );
+        $schools = $this->get_school_options( $scope );
 
         ?>
         <div class="hl-dashboard hl-learners hl-frontend-wrap">
@@ -56,10 +56,10 @@ class HL_Frontend_Learners {
                         <?php endforeach; ?>
                     </select>
                 <?php endif; ?>
-                <?php if ( count( $centers ) > 1 ) : ?>
-                    <select class="hl-select" id="hl-learner-center-filter">
-                        <option value=""><?php esc_html_e( 'All Centers', 'hl-core' ); ?></option>
-                        <?php foreach ( $centers as $c ) : ?>
+                <?php if ( count( $schools ) > 1 ) : ?>
+                    <select class="hl-select" id="hl-learner-school-filter">
+                        <option value=""><?php esc_html_e( 'All Schools', 'hl-core' ); ?></option>
+                        <?php foreach ( $schools as $c ) : ?>
                             <option value="<?php echo esc_attr( $c->orgunit_id ); ?>">
                                 <?php echo esc_html( $c->name ); ?>
                             </option>
@@ -70,7 +70,7 @@ class HL_Frontend_Learners {
                     <option value=""><?php esc_html_e( 'All Roles', 'hl-core' ); ?></option>
                     <option value="teacher"><?php esc_html_e( 'Teacher', 'hl-core' ); ?></option>
                     <option value="mentor"><?php esc_html_e( 'Mentor', 'hl-core' ); ?></option>
-                    <option value="center_leader"><?php esc_html_e( 'Center Leader', 'hl-core' ); ?></option>
+                    <option value="school_leader"><?php esc_html_e( 'School Leader', 'hl-core' ); ?></option>
                     <option value="district_leader"><?php esc_html_e( 'District Leader', 'hl-core' ); ?></option>
                 </select>
             </div>
@@ -85,7 +85,7 @@ class HL_Frontend_Learners {
                                 <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Email', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Role(s)', 'hl-core' ); ?></th>
-                                <th><?php esc_html_e( 'Center', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'School', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Cohort', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Completion', 'hl-core' ); ?></th>
                             </tr>
@@ -102,7 +102,7 @@ class HL_Frontend_Learners {
                                 <tr class="hl-learner-row"
                                     data-search="<?php echo esc_attr( strtolower( $r['display_name'] . ' ' . $r['user_email'] ) ); ?>"
                                     data-cohort="<?php echo esc_attr( $r['cohort_id'] ); ?>"
-                                    data-center="<?php echo esc_attr( $r['center_id'] ); ?>"
+                                    data-school="<?php echo esc_attr( $r['school_id'] ); ?>"
                                     data-roles="<?php echo esc_attr( strtolower( implode( ',', $roles_arr ) ) ); ?>">
                                     <td>
                                         <?php
@@ -117,7 +117,7 @@ class HL_Frontend_Learners {
                                     </td>
                                     <td><?php echo esc_html( $r['user_email'] ); ?></td>
                                     <td><?php echo esc_html( $roles_str ?: '—' ); ?></td>
-                                    <td><?php echo esc_html( $r['center_name'] ?: '—' ); ?></td>
+                                    <td><?php echo esc_html( $r['school_name'] ?: '—' ); ?></td>
                                     <td><?php echo esc_html( $r['cohort_name'] ?: '—' ); ?></td>
                                     <td>
                                         <div class="hl-inline-progress" style="width:110px;">
@@ -152,7 +152,7 @@ class HL_Frontend_Learners {
             function filterRows() {
                 var query  = $('#hl-learner-search').val().toLowerCase();
                 var cohort = $('#hl-learner-cohort-filter').val();
-                var center = $('#hl-learner-center-filter').val();
+                var school = $('#hl-learner-school-filter').val();
                 var role   = $('#hl-learner-role-filter').val();
                 var visible = 0;
 
@@ -160,9 +160,9 @@ class HL_Frontend_Learners {
                     var $r = $(this);
                     var matchSearch = !query || $r.data('search').indexOf(query) !== -1;
                     var matchCohort = !cohort || String($r.data('cohort')) === cohort;
-                    var matchCenter = !center || String($r.data('center')) === center;
+                    var matchSchool = !school || String($r.data('school')) === school;
                     var matchRole   = !role || ($r.data('roles') && $r.data('roles').indexOf(role) !== -1);
-                    var show = matchSearch && matchCohort && matchCenter && matchRole;
+                    var show = matchSearch && matchCohort && matchSchool && matchRole;
                     $r.toggle(show);
                     if (show) visible++;
                 });
@@ -170,7 +170,7 @@ class HL_Frontend_Learners {
             }
 
             $('#hl-learner-search').on('input', filterRows);
-            $('#hl-learner-cohort-filter, #hl-learner-center-filter, #hl-learner-role-filter').on('change', filterRows);
+            $('#hl-learner-cohort-filter, #hl-learner-school-filter, #hl-learner-role-filter').on('change', filterRows);
         })(jQuery);
         </script>
         <?php
@@ -206,7 +206,7 @@ class HL_Frontend_Learners {
 
         $base_sql = "FROM {$prefix}hl_enrollment e
                      LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-                     LEFT JOIN {$prefix}hl_orgunit ou ON e.center_id = ou.orgunit_id
+                     LEFT JOIN {$prefix}hl_orgunit ou ON e.school_id = ou.orgunit_id
                      LEFT JOIN {$prefix}hl_cohort co ON e.cohort_id = co.cohort_id
                      LEFT JOIN {$prefix}hl_completion_rollup cr
                          ON cr.enrollment_id = e.enrollment_id AND cr.pathway_id IS NULL";
@@ -241,9 +241,9 @@ class HL_Frontend_Learners {
         $total = (int) $wpdb->get_var( $count_sql );
 
         // Data page.
-        $data_sql = "SELECT e.enrollment_id, e.cohort_id, e.center_id, e.roles,
+        $data_sql = "SELECT e.enrollment_id, e.cohort_id, e.school_id, e.roles,
                             e.user_id, u.display_name, u.user_email,
-                            ou.name AS center_name, co.cohort_name,
+                            ou.name AS school_name, co.cohort_name,
                             cr.overall_percent
                      {$base_sql}{$where_clause}
                      ORDER BY u.display_name ASC
@@ -271,9 +271,9 @@ class HL_Frontend_Learners {
         ) ?: array();
     }
 
-    private function get_center_options( $scope ) {
+    private function get_school_options( $scope ) {
         $repo = new HL_OrgUnit_Repository();
-        $all  = $repo->get_centers();
-        return HL_Scope_Service::filter_by_ids( $all, 'orgunit_id', $scope['center_ids'], $scope['is_admin'] );
+        $all  = $repo->get_schools();
+        return HL_Scope_Service::filter_by_ids( $all, 'orgunit_id', $scope['school_ids'], $scope['is_admin'] );
     }
 }
