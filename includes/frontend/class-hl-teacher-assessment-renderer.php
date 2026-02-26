@@ -215,11 +215,12 @@ class HL_Teacher_Assessment_Renderer {
             }
             ?>
 
-            <?php if ( $paginate ) : ?>
+            <?php if ( $paginate && ! $this->read_only ) : ?>
             <div class="hl-tsa-nav">
                 <?php if ( ! $is_first ) : ?>
                     <button type="button" class="button hl-tsa-btn-prev"><?php esc_html_e( 'Previous Section', 'hl-core' ); ?></button>
                 <?php endif; ?>
+                <button type="submit" name="hl_tsa_action" value="draft" class="button hl-btn-save-draft hl-tsa-nav-draft"><?php esc_html_e( 'Save Draft', 'hl-core' ); ?></button>
                 <?php if ( ! $is_last ) : ?>
                     <button type="button" class="button button-primary hl-tsa-btn-next"><?php esc_html_e( 'Next Section', 'hl-core' ); ?></button>
                 <?php endif; ?>
@@ -909,6 +910,16 @@ class HL_Teacher_Assessment_Renderer {
             .hl-tsa-form-wrap .hl-tsa-btn-prev::before {
                 content: '\2190\00a0';
             }
+            .hl-tsa-form-wrap .hl-tsa-nav-draft {
+                background: #fff;
+                border-color: var(--hl-border, #D1D5DB);
+                color: var(--hl-text-muted, #6B7280);
+                font-size: 0.85em;
+            }
+            .hl-tsa-form-wrap .hl-tsa-nav-draft:hover {
+                background: var(--hl-surface-alt, #F3F4F6);
+                border-color: #9CA3AF;
+            }
             .hl-tsa-form-wrap .hl-tsa-btn-next {
                 margin-left: auto;
                 background: var(--hl-primary, #2271b1);
@@ -961,15 +972,13 @@ class HL_Teacher_Assessment_Renderer {
         (function() {
             var formId        = 'hl-tsa-form-<?php echo $esc_id; ?>';
             var hiddenFieldId = 'hl_tsa_requires_validation_<?php echo $esc_id; ?>';
-            var draftBtnId    = 'hl-tsa-btn-draft-<?php echo $esc_id; ?>';
             var submitBtnId   = 'hl-tsa-btn-submit-<?php echo $esc_id; ?>';
 
             var form        = document.getElementById(formId);
             var hiddenField = document.getElementById(hiddenFieldId);
-            var draftBtn    = document.getElementById(draftBtnId);
             var submitBtn   = document.getElementById(submitBtnId);
 
-            if (!form || !hiddenField || !draftBtn || !submitBtn) return;
+            if (!form || !hiddenField) return;
 
             /**
              * Custom validation for paginated forms.
@@ -1023,11 +1032,14 @@ class HL_Teacher_Assessment_Renderer {
                 return true;
             }
 
-            draftBtn.addEventListener('click', function() {
-                hiddenField.value = '0';
+            // All draft buttons (main + nav-inline) — disable validation
+            form.querySelectorAll('.hl-btn-save-draft').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    hiddenField.value = '0';
+                });
             });
 
-            submitBtn.addEventListener('click', function(e) {
+            if (submitBtn) submitBtn.addEventListener('click', function(e) {
                 if (!confirm('<?php echo esc_js( __( 'Once submitted, answers cannot be changed. Continue?', 'hl-core' ) ); ?>')) {
                     e.preventDefault();
                     return;

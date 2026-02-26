@@ -1201,9 +1201,11 @@ class HL_Admin_Instruments {
      * Render a single item row inside a section.
      */
     private function render_teacher_item_row($section_index, $item_index, $item) {
-        $key  = isset($item['key']) ? $item['key'] : '';
-        $text = isset($item['text']) ? $item['text'] : '';
-        $name_prefix = 'sections[' . $section_index . '][items][' . $item_index . ']';
+        $key          = isset($item['key']) ? $item['key'] : '';
+        $text         = isset($item['text']) ? $item['text'] : '';
+        $left_anchor  = isset($item['left_anchor']) ? $item['left_anchor'] : '';
+        $right_anchor = isset($item['right_anchor']) ? $item['right_anchor'] : '';
+        $name_prefix  = 'sections[' . $section_index . '][items][' . $item_index . ']';
         ?>
         <tr class="hl-te-item-row">
             <td>
@@ -1218,6 +1220,14 @@ class HL_Admin_Instruments {
                     </div>
                     <div class="hl-te-richtext-editor" contenteditable="true"><?php echo wp_kses_post($text); ?></div>
                     <textarea name="<?php echo esc_attr($name_prefix); ?>[text]" class="hl-te-richtext-hidden" style="display:none;"><?php echo esc_textarea($text); ?></textarea>
+                </div>
+                <div class="hl-te-anchor-fields" style="display:none;">
+                    <label class="hl-te-anchor-label"><?php esc_html_e('0 =', 'hl-core'); ?>
+                        <input type="text" name="<?php echo esc_attr($name_prefix); ?>[left_anchor]" value="<?php echo esc_attr($left_anchor); ?>" placeholder="<?php esc_attr_e('e.g. Not at all', 'hl-core'); ?>" class="regular-text" />
+                    </label>
+                    <label class="hl-te-anchor-label"><?php esc_html_e('10 =', 'hl-core'); ?>
+                        <input type="text" name="<?php echo esc_attr($name_prefix); ?>[right_anchor]" value="<?php echo esc_attr($right_anchor); ?>" placeholder="<?php esc_attr_e('e.g. Very', 'hl-core'); ?>" class="regular-text" />
+                    </label>
                 </div>
             </td>
             <td><button type="button" class="button-link button-link-delete hl-te-remove-item"><?php esc_html_e('Remove', 'hl-core'); ?></button></td>

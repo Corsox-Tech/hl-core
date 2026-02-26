@@ -1499,7 +1499,7 @@ class HL_CLI_Seed_Demo {
         return array(
             'practices_5' => array( 'Almost Never', 'Rarely', 'Sometimes', 'Often', 'Almost Always' ),
             'likert_7'    => array( 'Strongly Disagree', 'Disagree', 'Slightly Disagree', 'Neither Agree nor Disagree', 'Slightly Agree', 'Agree', 'Strongly Agree' ),
-            'scale_0_10'  => array( 'low' => '0', 'high' => '10' ),
+            'scale_0_10'  => array( 'low' => 'Not at all', 'high' => 'Very' ),
         );
     }
 

@@ -129,6 +129,30 @@
         });
     }
 
+    // ─── Section type toggle (show/hide anchor fields) ──────
+
+    function toggleAnchorFields(sectionPanel) {
+        var typeSelect = sectionPanel.querySelector('.hl-te-section-type-select');
+        if (!typeSelect) return;
+        var isScale = typeSelect.value === 'scale';
+        sectionPanel.querySelectorAll('.hl-te-anchor-fields').forEach(function (el) {
+            el.style.display = isScale ? 'flex' : 'none';
+        });
+    }
+
+    function initSectionTypeToggle(container) {
+        container.querySelectorAll('.hl-te-section-type-select').forEach(function (sel) {
+            if (sel._hlTypeBound) return;
+            sel._hlTypeBound = true;
+            // Initial state
+            toggleAnchorFields(sel.closest('.hl-te-section-panel'));
+            // On change
+            sel.addEventListener('change', function () {
+                toggleAnchorFields(sel.closest('.hl-te-section-panel'));
+            });
+        });
+    }
+
     // ─── Accordion toggle ────────────────────────────────────
 
     function initAccordionInContainer(container) {
@@ -194,6 +218,10 @@
                 var itemIdx = tbody.querySelectorAll('.hl-te-item-row').length;
                 var prefix = 'sections[' + secIdx + '][items][' + itemIdx + ']';
 
+                var isScale = false;
+                var typeSelect = panel.querySelector('.hl-te-section-type-select');
+                if (typeSelect) isScale = typeSelect.value === 'scale';
+
                 var tr = document.createElement('tr');
                 tr.className = 'hl-te-item-row';
                 tr.innerHTML =
@@ -207,6 +235,10 @@
                             '</div>' +
                             '<div class="hl-te-richtext-editor" contenteditable="true"></div>' +
                             '<textarea name="' + prefix + '[text]" class="hl-te-richtext-hidden" style="display:none;"></textarea>' +
+                        '</div>' +
+                        '<div class="hl-te-anchor-fields" style="display:' + (isScale ? 'flex' : 'none') + ';">' +
+                            '<label class="hl-te-anchor-label">0 = <input type="text" name="' + prefix + '[left_anchor]" value="" placeholder="e.g. Not at all" class="regular-text" /></label>' +
+                            '<label class="hl-te-anchor-label">10 = <input type="text" name="' + prefix + '[right_anchor]" value="" placeholder="e.g. Very" class="regular-text" /></label>' +
                         '</div>' +
                     '</td>' +
                     '<td><button type="button" class="button-link button-link-delete hl-te-remove-item">' + escHtml(i18n.remove || 'Remove') + '</button></td>';
@@ -408,6 +440,7 @@
             initTitleSyncInContainer(panel);
             initRemoveHandlers(panel);
             initRichTextInContainer(panel);
+            initSectionTypeToggle(panel);
         });
     }
 
@@ -419,5 +452,6 @@
     initRichTextInContainer(sectionsContainer);
     initRichTextInContainer(document); // catch description editors outside sections
     initScaleHandlers(scalesContainer);
+    initSectionTypeToggle(sectionsContainer);
 
 })();
