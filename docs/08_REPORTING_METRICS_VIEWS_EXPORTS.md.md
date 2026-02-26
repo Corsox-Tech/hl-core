@@ -18,7 +18,7 @@ This document specifies:
 
 Rules:
 - Reporting must be based on Enrollment (User ↔ Cohort).
-- Non-staff roles must never see assessment responses for Teacher/Children assessments.
+- Non-staff roles must never see assessment responses for Teacher/Child assessments.
 - LearnDash course completion % is read from LearnDash; other activities are binary 0/100.
 
 ---
@@ -53,7 +53,7 @@ Reference: 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md
 - Teacher: self scope within enrolled cohort(s)
 
 Non-negotiable:
-- Teacher Self-Assessment responses and Children Assessment responses visible ONLY to staff.
+- Teacher Self-Assessment responses and Child Assessment responses visible ONLY to staff.
 - Non-staff reports show completion status only.
 
 ---
@@ -105,8 +105,8 @@ Display for staff:
 
 ---
 
-### 3.2.3 Children Assessment Activity
-Children assessments are required per (Cohort, Classroom, Teacher).
+### 3.2.3 Child Assessment Activity
+Child assessments are required per (Cohort, Classroom, Teacher).
 
 For a given teacher Enrollment:
 - Determine required instances = all ChildrenAssessmentInstances for that teacher in the Cohort
@@ -382,12 +382,12 @@ Exports must include:
 ## 7.2 Assessment Response Exports (Staff-only)
 Separate export endpoints for:
 - Teacher Self-Assessments (pre/post)
-- Children Assessments (infant/toddler/preschool)
+- Child Assessments (infant/toddler/preschool)
 - Program vs Control Comparison (when Cohort Group filter active; includes Cohen's d)
 
 These exports may include:
 - question-level responses
-- child-level rows for children assessment
+- child-level rows for child assessment
 
 Non-staff must not access these exports.
 
@@ -399,7 +399,7 @@ Reporting must be performant for typical B2B sizes:
 - district with multiple schools
 - schools with multiple teams
 - teachers with multiple classrooms
-- children assessments with many children per classroom
+- child assessments with many children per classroom
 
 Recommendations:
 - precompute or cache completion rollups per enrollment

@@ -131,14 +131,14 @@ If both PRE and POST are separate activities:
 
 ---
 
-### 3.2.3 Children Assessment Activity (Custom PHP — NOT JetFormBuilder)
-- activity_type = "children_assessment"
+### 3.2.3 Child Assessment Activity (Custom PHP — NOT JetFormBuilder)
+- activity_type = "child_assessment"
 - external_ref: `{"instrument_id": <HL instrument ID>}`
 
 This activity type uses a custom PHP form because it is inherently dynamic: the form renders one row per child in the teacher's assigned classroom, using questions from the HL Core instrument definition.
 
 Important assignment rule:
-- Children assessment instances are generated per (Cohort, Classroom, Teacher assignment).
+- Child assessment instances are generated per (Cohort, Classroom, Teacher assignment).
 - This Activity represents the requirement category, while completion is computed from required instances.
 - Completion for a teacher is 100% only when all required classroom instances are submitted.
 
@@ -147,11 +147,11 @@ Completion:
 - 100% when all required classroom assessment instances are complete
 
 Privacy:
-- Responses stored in `hl_children_assessment_childrow` (answers_json per child)
+- Responses stored in `hl_child_assessment_childrow` (answers_json per child)
 - Visible only to Housman Admin/Coach
 - Completion visible per reporting permissions.
 
-See doc 06 for full details on instance generation rules and the children assessment object model.
+See doc 06 for full details on instance generation rules and the child assessment object model.
 
 ---
 
@@ -204,7 +204,7 @@ Every activity must produce:
 Rules:
 - LearnDash Course: use LearnDash percent
 - JFB-powered activities (teacher self-assessment, observations): 0 or 100 (binary, based on form submission)
-- Children Assessment: computed 0/100 across required classroom instances
+- Child Assessment: computed 0/100 across required classroom instances
 - Coaching attendance: 0 or 100
 
 ## 4.2 Cohort/Pathway Completion Percent
@@ -260,7 +260,7 @@ To implement this cleanly, the plugin must support:
 - CRUD for Activities (per Pathway)
 - Mapping LearnDash course_id into LearnDash Course Activities
 - Mapping JetFormBuilder form_id into JFB-powered Activities (teacher self-assessment, observations)
-- Mapping HL Core instrument_id into Children Assessment Activities
+- Mapping HL Core instrument_id into Child Assessment Activities
 - JFB form dropdown in Activity admin UI (queries available JFB forms)
 - Computation of completion outputs for each activity type
 - Aggregation into pathway/cohort completion percentages

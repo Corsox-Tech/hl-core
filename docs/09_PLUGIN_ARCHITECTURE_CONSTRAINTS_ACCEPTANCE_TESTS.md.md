@@ -20,7 +20,7 @@ Rules:
 - Enforce server-side authorization checks on all reads/writes that expose scoped data.
 - Store core domain data in custom tables (recommended).
 - Do not depend on legacy JetEngine/Automator CPT/meta setup.
-- Use JetFormBuilder for static questionnaire forms (teacher self-assessment, observations); use custom PHP for dynamic forms (children assessment) and admin CRUD (coaching sessions).
+- Use JetFormBuilder for static questionnaire forms (teacher self-assessment, observations); use custom PHP for dynamic forms (child assessment) and admin CRUD (coaching sessions).
 
 ---
 
@@ -51,7 +51,7 @@ Core services to implement:
 - ClassroomService (classrooms, teaching assignments, children)
 - PathwayService (pathways, activities)
 - RulesEngineService (prereq + drip + availability)
-- AssessmentService (children assessments — custom forms; teacher assessment instance tracking for JFB)
+- AssessmentService (child assessments — custom forms; teacher assessment instance tracking for JFB)
 - ObservationService (observation record management — JFB handles the form)
 - CoachingService (custom admin CRUD)
 - JFBIntegrationService (hook listener for JFB form submissions, form embedding helper)
@@ -66,7 +66,7 @@ Core services to implement:
 ## 2.1 Why custom tables
 HL Core has:
 - many-to-many relationships (teams, teaching assignments)
-- high-volume assessment data (child-level rows for children assessments)
+- high-volume assessment data (child-level rows for child assessments)
 - reporting needs requiring fast scoped queries
 Using post_meta/user_meta would become brittle and slow.
 
@@ -106,13 +106,13 @@ State/rollups:
 - hl_activity_state (per enrollment/activity computed or cached)
 - hl_completion_rollup (per enrollment overall percent, cached)
 
-Instruments (Children Assessment only):
-- hl_instrument (stores question definitions for children assessment instruments: infant/toddler/preschool)
+Instruments (Child Assessment only):
+- hl_instrument (stores question definitions for child assessment instruments: infant/toddler/preschool)
 
 Assessment orchestration:
 - hl_teacher_assessment_instance (tracks pre/post status per teacher — does NOT store responses; JFB stores those)
-- hl_children_assessment_instance (tracks required instances per teacher/classroom)
-- hl_children_assessment_childrow (stores per-child answers — this IS the response storage for children assessments)
+- hl_child_assessment_instance (tracks required instances per teacher/classroom)
+- hl_child_assessment_childrow (stores per-child answers — this IS the response storage for child assessments)
 
 Observations + coaching:
 - hl_observation (tracks who observed whom, status — does NOT store form responses; JFB stores those)
@@ -192,7 +192,7 @@ Minimum WP Admin pages:
 - create/edit pathways per cohort
 - create/edit activities per pathway (type, ref, weight)
 - for JFB-powered types: dropdown to select a JetFormBuilder form
-- for children assessment type: dropdown to select an hl_instrument
+- for child assessment type: dropdown to select an hl_instrument
 - for LearnDash course type: dropdown/field to select a LearnDash course
 - configure prereqs and drip rules
 
@@ -206,13 +206,13 @@ Minimum WP Admin pages:
 - preview table with CREATE/UPDATE/SKIP/NEEDS_REVIEW/ERROR
 - commit and download error report
 
-7) Instruments (Children Assessment only)
-- create/edit children assessment instruments (infant/toddler/preschool)
+7) Instruments (Child Assessment only)
+- create/edit child assessment instruments (infant/toddler/preschool)
 - manage questions (question_id, type, prompt, allowed values)
 - version management
 
 8) Assessments (Staff-only viewers)
-- children assessment viewer: list instances, view per-child answers, export CSV
+- child assessment viewer: list instances, view per-child answers, export CSV
 - teacher self-assessment: link to JFB Form Records for response viewing (or embed JFB's viewer)
 
 9) Reporting
@@ -229,7 +229,7 @@ Minimum WP Admin pages:
 HL Core should provide at least:
 - Participant Progress page (self) — shows pathway with activities, click to open JFB forms or custom forms
 - Mentor Team Progress page (team scope) — includes "New Observation" flow (select teacher → JFB form)
-- Children Assessment form page — custom PHP form with per-child matrix
+- Child Assessment form page — custom PHP form with per-child matrix
 - School/District leader report pages (scoped)
 
 Implementation options:
@@ -252,7 +252,7 @@ Context includes:
 - requested scope (district/school/team/self)
 
 ## 6.2 Assessment privacy enforcement
-For children assessments: any endpoint that returns answers_json content must require staff role.
+For child assessments: any endpoint that returns answers_json content must require staff role.
 For JFB-powered forms: responses are in JFB Form Records (WP admin only). HL Core front-end views must not expose response content — only completion status.
 Non-staff can only see completion status (binary + timestamps).
 
@@ -262,7 +262,7 @@ They cannot edit existing users or reset passwords.
 
 ## 6.4 Audit sensitive access
 Log:
-- staff viewing/exporting children assessment responses
+- staff viewing/exporting child assessment responses
 - overrides applied
 - imports committed
 - JFB form submissions (via hook listener)
@@ -292,7 +292,7 @@ Log:
 - Prefer precomputing rollups (hl_completion_rollup) and updating on events:
   - LearnDash course completion update hooks (if available)
   - JFB form submissions (via hl_core_form_submitted hook)
-  - children assessment submissions
+  - child assessment submissions
   - coaching attendance marked
   - overrides applied
   - pathway changes (trigger recompute)
@@ -311,9 +311,9 @@ These are the required behaviors. The implementation must pass them.
 3) In a Cohort, a participant cannot be assigned to two different Teams. Attempt must be blocked with an error.
 4) A Team can have up to 2 mentors; adding a 3rd mentor must be blocked or require explicit override.
 
-## 9.3 Teaching Assignments & Children Assessments
-5) If a teacher is assigned to two classrooms in the same Cohort, two separate children assessment instances are required.
-6) Children assessment completion for a teacher is 100% only when all required classroom instances are submitted.
+## 9.3 Teaching Assignments & Child Assessments
+5) If a teacher is assigned to two classrooms in the same Cohort, two separate child assessment instances are required.
+6) Child assessment completion for a teacher is 100% only when all required classroom instances are submitted.
 
 ## 9.4 Unlocking Logic
 7) If prerequisites are incomplete, an activity stays locked even if the drip date has passed.
@@ -334,8 +334,8 @@ These are the required behaviors. The implementation must pass them.
 
 ## 9.7 Assessment Privacy
 18) Non-staff roles cannot view teacher self-assessment answers (JFB Form Records are admin-only; HL Core front-end shows completion only).
-19) Non-staff roles cannot view children assessment answers (only completion).
-20) Staff view/export of children assessment responses must be logged.
+19) Non-staff roles cannot view child assessment answers (only completion).
+20) Staff view/export of child assessment responses must be logged.
 
 ## 9.8 Imports
 21) User import matched by email: existing WP user is enrolled rather than duplicated.
@@ -364,7 +364,7 @@ These are the required behaviors. The implementation must pass them.
 - Do not treat WP user roles as cohort roles.
 - Do not build custom form rendering for teacher self-assessments or observations (JetFormBuilder handles those).
 - Do not store teacher self-assessment or observation responses in HL Core tables (JFB Form Records handles that).
-- DO build custom form rendering for children assessments (JFB cannot handle the dynamic per-child matrix).
+- DO build custom form rendering for child assessments (JFB cannot handle the dynamic per-child matrix).
 
 ---
 

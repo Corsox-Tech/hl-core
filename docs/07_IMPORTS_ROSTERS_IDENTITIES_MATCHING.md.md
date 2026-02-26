@@ -272,7 +272,7 @@ Rules:
 - Multiple classrooms per teacher supported
 
 Important:
-- Children assessment requirements depend on these assignments.
+- Child assessment requirements depend on these assignments.
 
 ---
 

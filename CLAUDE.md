@@ -21,7 +21,7 @@ This is the Housman Learning Academy (HLA) WordPress site. The primary developme
 - **README.md:** `wp-content/plugins/hl-core/README.md` — This is the living status tracker for the entire plugin. It documents what's built, what's pending, architecture, and design decisions.
 - **LearnDash plugin:** `wp-content/plugins/sfwd-lms/` — Reference for hooks, functions, and integration points.
 - **Private data files:** `wp-content/plugins/hl-core/data/` — Contains real program Excel files and assessment documents. Gitignored — never commit to repo.
-  - `data/Assessments/` — B2E Teacher Self-Assessment (Pre/Post) and Children Assessment source documents
+  - `data/Assessments/` — B2E Teacher Self-Assessment (Pre/Post) and Child Assessment source documents
   - `data/Lutheran - Control Group/` — School info, teacher roster, child roster spreadsheets for Lutheran seeder
 
 ## Documentation Files (in docs/)
@@ -156,7 +156,7 @@ HL Core uses a **primarily custom PHP approach** for forms and data collection:
 
 ### Custom PHP handles:
 - **Teacher Self-Assessment** (pre and post) — Custom instrument system with structured JSON definitions in `hl_teacher_assessment_instrument`, response storage in `hl_teacher_assessment_instance.responses_json`. Custom renderer supports PRE (single-column) and POST (dual-column retrospective with PRE responses shown alongside new ratings).
-- **Children Assessment** — Dynamic per-child matrix generated from classroom roster + instrument definition. Rendered from `hl_instrument.questions` JSON.
+- **Child Assessment** — Dynamic per-child matrix generated from classroom roster + instrument definition. Rendered from `hl_instrument.questions` JSON.
 - **Coaching Sessions** — Admin CRUD workflow (attendance, notes, observation links, attachments).
 
 ### JetFormBuilder handles:
@@ -182,7 +182,7 @@ Teacher self-assessment activities can still reference JFB forms via `external_r
 ### Purpose
 Housman measures program impact by comparing:
 - **Program cohorts**: full B2E Mastery curriculum (courses, coaching, observations + assessments)
-- **Control cohorts**: assessment-only (Teacher Self-Assessment Pre/Post + Children Assessment Pre/Post)
+- **Control cohorts**: assessment-only (Teacher Self-Assessment Pre/Post + Child Assessment Pre/Post)
 
 ### How it works
 1. Create a **Cohort Group** (e.g., "B2E Mastery - Lutheran Services Florida")
@@ -344,7 +344,7 @@ node_modules/
 **Active development:**
 - Lutheran control group seeder (seed-lutheran command)
 - Nuclear clean command (nuke)
-- Children assessment system enhancements
+- Child assessment system enhancements
 - Frontend assessment routing for teacher pathway view
 
 **Remaining (Future/Lower Priority):**

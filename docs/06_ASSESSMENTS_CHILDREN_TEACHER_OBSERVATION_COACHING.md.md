@@ -10,7 +10,7 @@ Timezone: America/Bogota
 
 This document specifies HL Core data structures and rules for:
 - Teacher Self-Assessments (pre/post) — **Custom PHP instrument system**
-- Children Assessments (per teacher, covering all assigned children) — **Custom PHP instrument system**
+- Child Assessments (per teacher, covering all assigned children) — **Custom PHP instrument system**
 - Observations (mentor-submitted) — **JetFormBuilder-powered**
 - Coaching Sessions (coach-submitted; linked to observations) — **Custom PHP admin CRUD**
 
@@ -20,7 +20,7 @@ HL Core uses a **primarily custom PHP approach** for assessments:
 
 **HL Core custom PHP handles:**
 - **Teacher Self-Assessments** — structured instrument definitions stored as JSON in `hl_teacher_assessment_instrument`, responses stored as JSON in `hl_teacher_assessment_instance.responses_json`. Custom renderer supports PRE (single-column) and POST (dual-column retrospective) modes.
-- **Children Assessments** — dynamic per-child form generated from classroom roster + instrument definition. Rendered from `hl_instrument.questions` JSON.
+- **Child Assessments** — dynamic per-child form generated from classroom roster + instrument definition. Rendered from `hl_instrument.questions` JSON.
 - **Coaching Sessions** — admin CRUD workflow (attendance, notes, observation links, attachments). Not a questionnaire.
 
 **JetFormBuilder handles:**
@@ -41,7 +41,7 @@ HL Core uses a **primarily custom PHP approach** for assessments:
 ## 1.1 Assessment response privacy
 Raw responses for:
 - Teacher Self-Assessments (stored in `hl_teacher_assessment_instance.responses_json`)
-- Children Assessments (stored in `hl_children_assessment_instance.responses_json` or `hl_children_assessment_childrow`)
+- Child Assessments (stored in `hl_child_assessment_instance.responses_json` or `hl_child_assessment_childrow`)
 must be visible ONLY to:
 - Housman Admin
 - Coach
@@ -208,13 +208,13 @@ When `activity_type = 'teacher_self_assessment'`:
 
 ---
 
-# 3) Children Assessment (Custom PHP)
+# 3) Child Assessment (Custom PHP)
 
 ## 3.1 Purpose
-Children assessments measure social-emotional development of children in a teacher's classrooms.
+Child assessments measure social-emotional development of children in a teacher's classrooms.
 
 Key requirement:
-- A teacher completes ONE children assessment activity per assessment period (pre or post)
+- A teacher completes ONE child assessment activity per assessment period (pre or post)
 - That single activity covers ALL children in the teacher's assigned classrooms
 - The form lists each child with their age band and the age-appropriate question + rating scale
 - Children no longer in the classroom can be marked "No longer enrolled" (skipped)
@@ -232,7 +232,7 @@ There are 4 age-band variants, each with 1 question on a 5-point scale (Never=0,
 Each variant includes example behaviors per scale point (from the B2E Child Assessment document).
 
 ## 3.3 Instruments (hl_instrument)
-The `hl_instrument` table stores children assessment instrument definitions:
+The `hl_instrument` table stores child assessment instrument definitions:
 - instrument_id
 - name
 - instrument_type in { "children_infant", "children_toddler", "children_preschool" }
@@ -244,7 +244,7 @@ Note: These are the ONLY instrument types in `hl_instrument`. Teacher self-asses
 
 ## 3.4 Object Model
 
-### hl_children_assessment_instance
+### hl_child_assessment_instance
 - instance_id (PK)
 - enrollment_id (teacher enrollment)
 - activity_id (FK to hl_activity)
@@ -265,11 +265,11 @@ Note: These are the ONLY instrument types in `hl_instrument`. Teacher self-asses
 ```
 Keys are child_id from hl_child table.
 
-### Legacy: hl_children_assessment_childrow
+### Legacy: hl_child_assessment_childrow
 Earlier implementations stored per-child rows in a separate table. The responses_json approach is preferred for new implementations as it aligns with the teacher assessment pattern and simplifies comparison reporting.
 
 ## 3.5 Form Rendering
-The children assessment form:
+The child assessment form:
 - Groups children by classroom
 - For each child: shows name, age band badge, the age-appropriate question text, radio buttons (Never -> Almost Always)
 - "No longer enrolled" checkbox per child (skips rating)
@@ -277,11 +277,11 @@ The children assessment form:
 - Pre-populate from existing responses_json
 - Read-only mode for submitted assessments
 
-## 3.6 Admin: Generate Children Assessment Instances
+## 3.6 Admin: Generate Child Assessment Instances
 Admin can generate assessment instances for all teachers in a cohort with one click:
 - For each teacher enrollment in the cohort
 - Find their classrooms (via hl_classroom_teacher / hl_teaching_assignment)
-- If classrooms have children, create pre and post children_assessment instances
+- If classrooms have children, create pre and post child_assessment instances
 - Create corresponding hl_activity_state records
 
 This can be done via admin button or WP-CLI command.
@@ -392,18 +392,18 @@ This is an admin-side CRUD workflow, not a user-facing questionnaire.
 ## 6.1 Purpose
 Control group cohorts use an assessment-only pathway. Teachers in the control group complete:
 1. Teacher Self-Assessment (Pre) — available immediately
-2. Children Assessment (Pre) — available immediately
+2. Child Assessment (Pre) — available immediately
 3. Teacher Self-Assessment (Post) — locked until end-of-program date via drip rule
-4. Children Assessment (Post) — locked until end-of-program date via drip rule
+4. Child Assessment (Post) — locked until end-of-program date via drip rule
 
 No courses, coaching, observations, or mentorship activities are included.
 
 ## 6.2 Pathway Structure
 The control group pathway contains exactly 4 activities:
 - Activity 1: teacher_self_assessment, phase=pre, sort_order=1, no drip rule
-- Activity 2: children_assessment, phase=pre, sort_order=2, no drip rule
+- Activity 2: child_assessment, phase=pre, sort_order=2, no drip rule
 - Activity 3: teacher_self_assessment, phase=post, sort_order=3, drip: fixed_date
-- Activity 4: children_assessment, phase=post, sort_order=4, drip: fixed_date
+- Activity 4: child_assessment, phase=post, sort_order=4, drip: fixed_date
 
 ## 6.3 Comparison Reporting
 When a Cohort Group contains both program and control cohorts:
@@ -418,7 +418,7 @@ When a Cohort Group contains both program and control cohorts:
 
 HL Core provides staff workflows for:
 - Viewing teacher self-assessment responses: Admin Assessments page (queries responses_json)
-- Viewing children assessment responses: Admin Assessments page (queries responses_json or childrow table)
+- Viewing child assessment responses: Admin Assessments page (queries responses_json or childrow table)
 - Exporting responses: CSV export from Admin Reports and Admin Assessments pages
 - Reviewing observations: staff can view observation records and access JFB Form Records
 - Creating coaching sessions linked to observations
@@ -427,7 +427,7 @@ HL Core provides staff workflows for:
 
 Non-staff workflows:
 - Teachers submit their self-assessment (custom form at `[hl_teacher_assessment]`)
-- Teachers submit their children assessment (custom form at `[hl_children_assessment]`)
+- Teachers submit their child assessment (custom form at `[hl_child_assessment]`)
 - Mentors submit observations (JFB form at `[hl_observations]`)
 
 ---

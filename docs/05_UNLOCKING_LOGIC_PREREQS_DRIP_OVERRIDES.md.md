@@ -235,7 +235,7 @@ Scenario:
 - Teacher quits; replacement teacher joins and is assigned to classrooms.
 Rules:
 - Replacement gets a new Enrollment (same user if they already exist; new enrollment in that Cohort).
-- Replacement's Children Assessment requirements are generated based on current TeachingAssignments.
+- Replacement's Child Assessment requirements are generated based on current TeachingAssignments.
 - Replacement does NOT inherit completion unless Admin exempts.
 
 ---

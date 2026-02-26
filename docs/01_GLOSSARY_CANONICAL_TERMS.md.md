@@ -104,7 +104,7 @@ Notes:
 ---
 
 ## 1.5 Control Group (Research Design)
-**Definition**: A cohort flagged with `is_control_group = true` whose participants do NOT receive the full B2E Mastery program. Control group participants complete only assessment activities (Teacher Self-Assessment Pre/Post and Children Assessment Pre/Post) for research comparison.
+**Definition**: A cohort flagged with `is_control_group = true` whose participants do NOT receive the full B2E Mastery program. Control group participants complete only assessment activities (Teacher Self-Assessment Pre/Post and Child Assessment Pre/Post) for research comparison.
 
 **Purpose**: Housman measures program impact by comparing:
 - **Program cohort** participants: full curriculum, coaching, observations + assessments
@@ -275,7 +275,7 @@ Properties:
 Supported Activity types (v1):
 - LearnDash Course (progress percent from LearnDash)
 - Teacher Self-Assessment (Custom PHP form via HL Core instrument system; completion 0/100)
-- Children Assessment (Custom PHP form via HL Core instrument system; completion 0/100)
+- Child Assessment (Custom PHP form via HL Core instrument system; completion 0/100)
 - Coaching Session Attendance (HL Core record; completion 0/100, set by Coach/Admin)
 - Observation (JFB form; parallel requirement; may be excluded from pathway UI)
 
@@ -327,11 +327,11 @@ Privacy:
 
 ---
 
-## 7.2 Children Assessment
+## 7.2 Child Assessment
 **Definition**: Classroom-based assessment completed by each Teacher for their assigned children, rendered by HL Core's custom instrument system.
 
 Key rules:
-- The teacher completes ONE children assessment activity per assessment period (pre or post)
+- The teacher completes ONE child assessment activity per assessment period (pre or post)
 - That single activity covers ALL children in the teacher's assigned classrooms
 - The form lists each child with their age band and the age-appropriate question + rating scale
 - Children no longer in the classroom can be marked "No longer enrolled" (skipped)
@@ -389,7 +389,7 @@ Metrics:
 - Pre-to-post change (delta) for each group
 - Cohen's d effect size (difference in change between groups, normalized by pooled standard deviation)
 
-This comparison uses `responses_json` from `hl_teacher_assessment_instance` and children assessment data.
+This comparison uses `responses_json` from `hl_teacher_assessment_instance` and child assessment data.
 
 ---
 

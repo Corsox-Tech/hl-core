@@ -251,7 +251,7 @@ Cohort (optionally in a CohortGroup; optionally is_control_group=true)
   │     └── TeachingAssignment [0..n] → Classroom
   ├── Pathways/Activities (see doc 04/05)
   ├── Teacher Self-Assessments (see doc 06)
-  ├── Children Assessments (see doc 06)
+  ├── Child Assessments (see doc 06)
   ├── Observation [0..n]
   └── CoachingSession [0..n]
 
@@ -346,8 +346,8 @@ HL Core must support efficient queries for:
 - list all teachers assigned to a classroom (including lead flag)
 - list all classrooms assigned to a teacher
 
-5) Children assessments generation:
-- for each Cohort + Classroom + Teacher assignment → require one Children Assessment instance
+5) Child assessments generation:
+- for each Cohort + Classroom + Teacher assignment → require one Child Assessment instance
 
 ---
 

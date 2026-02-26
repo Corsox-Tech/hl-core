@@ -85,7 +85,7 @@ Scopes are evaluated relative to a specific Cohort.
 ## 3.2 Assessment response privacy
 Raw responses for:
 - Teacher Self-Assessment
-- Children Assessment
+- Child Assessment
 are visible ONLY to:
 - Housman Admin
 - Coach
@@ -207,7 +207,7 @@ Note:
 ✅ Allowed:
 - cohort.view (only cohorts where enrolled)
 - reports.view (self scope only)
-- assessment.submit (teacher self-assessment; children assessment; if assigned)
+- assessment.submit (teacher self-assessment; child assessment; if assigned)
 - assessment.view_completion (self completion only)
 - observation.view (optional; not required v1)
 ❌ Not allowed:
@@ -305,7 +305,7 @@ Teacher can view/report only their own enrollment record.
 - Non-staff can see completion only (complete/not complete, timestamps)
 - Staff can see responses and export
 
-## 7.2 Children Assessment
+## 7.2 Child Assessment
 - Required per (Cohort, Classroom, Teacher assignment)
 - Teacher can submit for assigned classrooms
 - Non-staff can see completion only

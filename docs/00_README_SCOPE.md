@@ -15,7 +15,7 @@ The plugin must manage:
 - People and cohort participation: Users enrolled into a Cohort with Cohort Roles
 - Teams within Schools for mentorship structure
 - Cohort learning configuration: Pathways and Activities with prerequisite + drip rules
-- Assessments: Teacher Self-Assessment (via JetFormBuilder) and Children Assessment (custom PHP)
+- Assessments: Teacher Self-Assessment (via JetFormBuilder) and Child Assessment (custom PHP)
 - Mentorship workflow: Observations (via JetFormBuilder, submitted by Mentors) and Coaching Sessions (custom admin CRUD, logged by Coaches)
 - Imports: roster + children + classroom relationships (CSV/XLS/XLSX) with preview + validation
 - Reporting: progress/completion by scope (Cohort / District / School / Team / User), export to CSV
@@ -109,7 +109,7 @@ HL Core may optionally add cohort-related navigation links or dashboards, but it
 ## 5.3 Assessment Privacy
 Raw responses for:
 - Teacher Self-Assessments (stored in JFB Form Records — admin-only access)
-- Children Assessments (stored in hl_children_assessment_childrow — enforced by HL_Security)
+- Child Assessments (stored in hl_child_assessment_childrow — enforced by HL_Security)
 are visible ONLY to Housman Admins and Coaches.
 
 Non-staff roles may see completion status only.
@@ -126,7 +126,7 @@ Never rely on front-end hiding alone.
 HL Core should not rely on scattered post_meta/user_meta as the primary database for:
 - Cohorts, enrollments, team membership, classroom assignments
 - Pathway graph + activity states
-- Children assessment responses
+- Child assessment responses
 - Imports + audit logs
 
 Use WP Users as the identity layer only.

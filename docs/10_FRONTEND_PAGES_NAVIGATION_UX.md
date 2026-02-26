@@ -41,7 +41,7 @@ The internal data model uses technical terms. The front-end uses participant-fri
 ```
 My Programs (list of assigned pathways)
   └─ Program Page (pathway detail + activity cards with progress)
-       └─ Activity Page (JFB form, children assessment, or redirect to LearnDash course)
+       └─ Activity Page (JFB form, child assessment, or redirect to LearnDash course)
 ```
 
 ## 2.2 Leader Pages (School Leaders, District Leaders)
@@ -157,7 +157,7 @@ Content:
 - Grid or list of activity cards, ordered by sequence
 - Each activity card shows:
   - Activity title
-  - Activity type icon (course, self-assessment, children assessment, coaching, observation)
+  - Activity type icon (course, self-assessment, child assessment, coaching, observation)
   - Completion status: progress bar (0-100%)
   - Status badge:
     - **Completed** (green) — shows completion date
@@ -168,7 +168,7 @@ Content:
     - **Locked:** No click action. Shows lock icon + unlock requirements
     - **LearnDash course:** "Start" / "Continue" button → redirects to LearnDash course URL
     - **JFB-powered activity** (self-assessment, observation): "Start" button → navigates to Activity Page with embedded JFB form
-    - **Children Assessment:** "Start" button → navigates to Activity Page with custom matrix form
+    - **Child Assessment:** "Start" button → navigates to Activity Page with custom matrix form
     - **Coaching Attendance:** Shows attendance status (attended/missed/pending). No click action for participant
     - **Completed:** Shows completion date. No re-submission. Optionally "View" if viewing past responses is allowed
 
@@ -199,7 +199,7 @@ This page's content depends entirely on the activity type:
 - On submit: JFB fires `hl_core_form_submitted` hook → HL Core updates activity_state
 - After submit: redirect back to Program Page with success message
 
-### Children Assessment
+### Child Assessment
 - Page header: Activity title, pathway breadcrumb
 - Custom PHP matrix form rendered by `HL_Instrument_Renderer`
 - One row per child in teacher's assigned classroom(s)
