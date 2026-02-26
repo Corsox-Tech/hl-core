@@ -178,7 +178,7 @@ class HL_Admin_Assessments {
         echo '<option value="">' . esc_html__('-- Select Track --', 'hl-core') . '</option>';
         if ($tracks) {
             foreach ($tracks as $track_obj) {
-                $label = $track->track_name;
+                $label = $track_obj->track_name;
                 if ($track_obj->status !== 'active') {
                     $label .= ' (' . ucfirst($track_obj->status) . ')';
                 }
