@@ -254,12 +254,10 @@ class HL_BuddyBoss_Integration {
         $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
 
         // Section header — uses native bb-menu-section class.
-        // BuddyBoss CSS handles uppercase, font-weight:600, opacity:0.5, hidden icon.
+        // BuddyBoss CSS handles uppercase, font-weight:600, opacity:0.5.
+        // No icon — matches native BuddyBoss section headers (e.g. "ACCOUNT").
         $html = '<li class="menu-item bb-menu-section hl-buddypanel-section">';
-        $html .= '<a href="#">';
-        $html .= '<span class="dashicons dashicons-welcome-learn-more"></span>';
         $html .= '<span class="link-text">' . esc_html__('Learning Hub', 'hl-core') . '</span>';
-        $html .= '</a>';
         $html .= '</li>';
 
         foreach ($menu_items as $item) {
@@ -357,11 +355,10 @@ class HL_BuddyBoss_Integration {
                 // Build section header.
                 var section = document.createElement('li');
                 section.className = 'menu-item bb-menu-section hl-buddypanel-section';
-                var sectionLink = document.createElement('a');
-                sectionLink.href = '#';
-                sectionLink.innerHTML = '<span class="dashicons dashicons-welcome-learn-more"></span>'
-                    + '<span class="link-text">' + sectionTitle + '</span>';
-                section.appendChild(sectionLink);
+                var sectionText = document.createElement('span');
+                sectionText.className = 'link-text';
+                sectionText.textContent = sectionTitle;
+                section.appendChild(sectionText);
 
                 // Build item elements.
                 var fragment = document.createDocumentFragment();

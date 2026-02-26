@@ -431,7 +431,7 @@ a.hl-btn-primary,
 button.hl-btn-primary,
 .hl-btn.hl-btn-primary {
     background: var(--hl-primary);
-    color: #FFFFFF;
+    color: #FFFFFF !important;
     border-color: var(--hl-primary);
 }
 
@@ -440,7 +440,7 @@ button.hl-btn-primary:hover,
 .hl-btn.hl-btn-primary:hover {
     background: var(--hl-primary-light);
     border-color: var(--hl-primary-light);
-    color: #FFFFFF;
+    color: #FFFFFF !important;
     text-decoration: none;
     box-shadow: 0 2px 8px rgba(var(--hl-primary-rgb), 0.25);
     transform: translateY(-1px);
@@ -463,7 +463,7 @@ a.hl-btn-success,
 button.hl-btn-success,
 .hl-btn.hl-btn-success {
     background: var(--hl-accent-dark);
-    color: #FFFFFF;
+    color: #FFFFFF !important;
     border-color: var(--hl-accent-dark);
 }
 
@@ -472,7 +472,7 @@ button.hl-btn-success:hover,
 .hl-btn.hl-btn-success:hover {
     background: var(--hl-accent-darker);
     border-color: var(--hl-accent-darker);
-    color: #FFFFFF;
+    color: #FFFFFF !important;
     text-decoration: none;
 }
 
@@ -480,7 +480,7 @@ a.hl-btn-danger,
 button.hl-btn-danger,
 .hl-btn.hl-btn-danger {
     background: var(--hl-error);
-    color: #FFFFFF;
+    color: #FFFFFF !important;
     border-color: var(--hl-error);
 }
 
@@ -489,7 +489,7 @@ button.hl-btn-danger:hover,
 .hl-btn.hl-btn-danger:hover {
     background: var(--hl-error-dark);
     border-color: var(--hl-error-dark);
-    color: #FFFFFF;
+    color: #FFFFFF !important;
     text-decoration: none;
 }
 
