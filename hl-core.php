@@ -109,6 +109,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-assignment-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scope-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-pathway-assignment-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-child-snapshot-service.php';
         
         // Integrations
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-learndash-integration.php';

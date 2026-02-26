@@ -722,6 +722,9 @@ class HL_Assessment_Service {
     public function generate_child_assessment_instances($track_id) {
         global $wpdb;
 
+        // Freeze age groups for all children in this track before generating instances.
+        HL_Child_Snapshot_Service::freeze_age_groups( $track_id );
+
         $result = array('created' => 0, 'existing' => 0, 'errors' => array());
 
         // Get all teaching assignments for this track (join through enrollment)
