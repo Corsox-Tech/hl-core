@@ -78,6 +78,9 @@ class HL_Installer {
         // Phase 22A: Rename center → school across all tables.
         self::migrate_center_to_school();
 
+        // Phase 22B: Rename children_assessment → child_assessment tables + activity_type.
+        self::migrate_children_to_child_assessment();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -100,7 +103,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 10;
+        $current_revision = 11;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -493,7 +496,7 @@ class HL_Installer {
         }
 
         if ( ! $column_exists( 'phase' ) ) {
-            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN phase enum('pre','post') NULL AFTER center_id" );
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN phase enum('pre','post') NULL AFTER school_id" );
         }
 
         if ( ! $column_exists( 'responses_json' ) ) {
@@ -698,6 +701,53 @@ class HL_Installer {
             $wpdb->query( "UPDATE `{$ca_table}` SET scope_type = 'school' WHERE scope_type = 'center'" );
             // Shrink enum to final values.
             $wpdb->query( "ALTER TABLE `{$ca_table}` MODIFY COLUMN scope_type enum('school','team','enrollment') NOT NULL" );
+        }
+    }
+
+    /**
+     * Phase 22B: Rename "children_assessment" to "child_assessment".
+     *
+     * 1. Rename table hl_children_assessment_instance → hl_child_assessment_instance
+     * 2. Rename table hl_children_assessment_childrow → hl_child_assessment_childrow
+     * 3. Update hl_activity.activity_type: 'children_assessment' → 'child_assessment'
+     *
+     * All operations are idempotent — safe to run multiple times.
+     */
+    private static function migrate_children_to_child_assessment() {
+        global $wpdb;
+
+        $prefix = $wpdb->prefix;
+
+        // Helper: check if a table exists.
+        $table_exists = function ( $name ) use ( $wpdb ) {
+            return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $name ) ) === $name;
+        };
+
+        // ─── 1. Rename hl_children_assessment_instance → hl_child_assessment_instance ─
+        $old_instance = "{$prefix}hl_children_assessment_instance";
+        $new_instance = "{$prefix}hl_child_assessment_instance";
+
+        if ( $table_exists( $old_instance ) && ! $table_exists( $new_instance ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_instance}` TO `{$new_instance}`" );
+        }
+
+        // ─── 2. Rename hl_children_assessment_childrow → hl_child_assessment_childrow ─
+        $old_childrow = "{$prefix}hl_children_assessment_childrow";
+        $new_childrow = "{$prefix}hl_child_assessment_childrow";
+
+        if ( $table_exists( $old_childrow ) && ! $table_exists( $new_childrow ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_childrow}` TO `{$new_childrow}`" );
+        }
+
+        // ─── 3. Update activity_type: 'children_assessment' → 'child_assessment' ─
+        $activity_table = "{$prefix}hl_activity";
+        if ( $table_exists( $activity_table ) ) {
+            // Temporarily expand enum to include both values.
+            $wpdb->query( "ALTER TABLE `{$activity_table}` MODIFY COLUMN activity_type enum('learndash_course','teacher_self_assessment','children_assessment','child_assessment','coaching_session_attendance','observation') NOT NULL" );
+            // Update data.
+            $wpdb->query( "UPDATE `{$activity_table}` SET activity_type = 'child_assessment' WHERE activity_type = 'children_assessment'" );
+            // Shrink enum to final values.
+            $wpdb->query( "ALTER TABLE `{$activity_table}` MODIFY COLUMN activity_type enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','observation') NOT NULL" );
         }
     }
 
@@ -956,7 +1006,7 @@ class HL_Installer {
             activity_uuid char(36) NOT NULL,
             cohort_id bigint(20) unsigned NOT NULL,
             pathway_id bigint(20) unsigned NOT NULL,
-            activity_type enum('learndash_course','teacher_self_assessment','children_assessment','coaching_session_attendance','observation') NOT NULL,
+            activity_type enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','observation') NOT NULL,
             title varchar(255) NOT NULL,
             description text NULL,
             ordering_hint int NOT NULL DEFAULT 0,
@@ -1117,8 +1167,8 @@ class HL_Installer {
             KEY question_id (question_id)
         ) $charset_collate;";
 
-        // Children Assessment Instance table
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_children_assessment_instance (
+        // Child Assessment Instance table
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_child_assessment_instance (
             instance_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             instance_uuid char(36) NOT NULL,
             cohort_id bigint(20) unsigned NOT NULL,
@@ -1145,8 +1195,8 @@ class HL_Installer {
             KEY school_id (school_id)
         ) $charset_collate;";
 
-        // Children Assessment Child Row table
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_children_assessment_childrow (
+        // Child Assessment Child Row table
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_child_assessment_childrow (
             row_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             instance_id bigint(20) unsigned NOT NULL,
             child_id bigint(20) unsigned NOT NULL,
