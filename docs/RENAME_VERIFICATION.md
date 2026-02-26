@@ -49,6 +49,34 @@ All 11 spec docs (00-10) + CLAUDE.md updated for Track/Cohort hierarchy. Only re
 
 ### Verdict: PASS
 
-## V3: Staging seed-lutheran Test
+## V3: Staging seed-lutheran Test (2026-02-25)
 
-_(Pending)_
+1. `wp hl-core nuke --confirm='DELETE ALL DATA'` — SUCCESS
+2. `wp hl-core seed-lutheran` — SUCCESS (14/14 steps completed)
+   - District: 1 (code: LSF_PALM_BEACH)
+   - Schools: 11 (with alias resolution for 11 Excel name variants)
+   - Track: id=1, code=LUTHERAN_CONTROL_2026, is_control_group=1
+   - Cohort (container): id=1, code=B2E_LSF, name="B2E Mastery - Lutheran Services Florida"
+   - Track.cohort_id = 1 (correctly linked to container)
+   - 29 classrooms, 47 teachers, 286 children
+   - 1 pathway, 4 activities (2 pre + 2 post with drip rules)
+   - 1 B2E Teacher Assessment Instrument, 4 Child Assessment Instruments
+   - 94 teacher + 94 children assessment instances, 188 activity states
+   - 47 pathway assignments
+3. DB verification:
+   - `wp_hl_track`: track_id=1, track_code=LUTHERAN_CONTROL_2026, cohort_id=1, is_control_group=1
+   - `wp_hl_cohort`: cohort_id=1, cohort_name="B2E Mastery - Lutheran Services Florida", cohort_code=B2E_LSF
+
+### Verdict: PASS
+
+---
+
+## All Verifications Complete
+
+| Check | Result | Date |
+|-------|--------|------|
+| V1 — Grep verification | PASS | 2026-02-25 |
+| V2 — seed-demo staging | PASS | 2026-02-25 |
+| V3 — seed-lutheran staging | PASS | 2026-02-25 |
+
+Grand Rename Phase 22 is fully complete.

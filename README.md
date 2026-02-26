@@ -378,7 +378,7 @@ _Branch: `feature/grand-rename` — merge only after ALL sub-tasks complete._
 **Post-Rename Verification**
 - [x] **V1 — Grep verification** — All stale patterns (center_id, children_assessment, cohort_group, hl_cohort_center, hl_cohort_school) → 0 results in includes/ PHP (excl. installer migrations). All `hl_cohort` refs correctly refer to the container entity. See docs/RENAME_VERIFICATION.md for full results.
 - [x] **V2 — Staging test** — nuke (36 tables, 1774 rows) → seed-demo (17/17 steps, track_id=1, code=DEMO-2026) → DB verified. See docs/RENAME_VERIFICATION.md.
-- [ ] **V3 — Lutheran test** — `wp hl-core seed-lutheran` → verify control group workflow
+- [x] **V3 — Lutheran test** — nuke → seed-lutheran (14/14 steps, track_id=1, cohort_id=1, is_control_group=1, 47 teachers, 286 children) → DB verified. See docs/RENAME_VERIFICATION.md.
 
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
