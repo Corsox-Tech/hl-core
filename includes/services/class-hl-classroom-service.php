@@ -197,16 +197,22 @@ class HL_Classroom_Service {
      * @param int $classroom_id
      * @return array
      */
-    public function get_children_in_classroom($classroom_id) {
+    public function get_children_in_classroom( $classroom_id, $include_removed = false ) {
         global $wpdb;
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT ch.*, cc.assigned_at
+
+        $status_clause = $include_removed ? '' : "AND cc.status = 'active'";
+
+        return $wpdb->get_results( $wpdb->prepare(
+            "SELECT ch.*, cc.assigned_at, cc.status AS roster_status,
+                    cc.added_by_enrollment_id, cc.added_at,
+                    cc.removed_by_enrollment_id, cc.removed_at,
+                    cc.removal_reason, cc.removal_note
              FROM {$wpdb->prefix}hl_child_classroom_current cc
              JOIN {$wpdb->prefix}hl_child ch ON cc.child_id = ch.child_id
-             WHERE cc.classroom_id = %d
+             WHERE cc.classroom_id = %d {$status_clause}
              ORDER BY ch.last_name ASC, ch.first_name ASC",
             $classroom_id
-        ));
+        ) );
     }
 
     /**
@@ -349,6 +355,285 @@ class HL_Classroom_Service {
         ));
 
         return true;
+    }
+
+    // =========================================================================
+    // Teacher Roster Management
+    // =========================================================================
+
+    /**
+     * Teacher soft-removes a child from classroom.
+     *
+     * @param int    $classroom_id
+     * @param int    $child_id
+     * @param int    $enrollment_id  Teacher's enrollment_id.
+     * @param string $reason         left_school|moved_classroom|other
+     * @param string $note           Optional note.
+     * @return true|WP_Error
+     */
+    public function teacher_remove_child( $classroom_id, $child_id, $enrollment_id, $reason, $note = '' ) {
+        global $wpdb;
+
+        // Verify the enrollment has a teaching assignment for this classroom.
+        $has_assignment = $wpdb->get_var( $wpdb->prepare(
+            "SELECT assignment_id FROM {$wpdb->prefix}hl_teaching_assignment
+             WHERE enrollment_id = %d AND classroom_id = %d",
+            $enrollment_id,
+            $classroom_id
+        ) );
+
+        if ( ! $has_assignment ) {
+            return new WP_Error( 'no_assignment', __( 'You are not assigned to teach this classroom.', 'hl-core' ) );
+        }
+
+        $valid_reasons = array( 'left_school', 'moved_classroom', 'other' );
+        if ( ! in_array( $reason, $valid_reasons, true ) ) {
+            return new WP_Error( 'invalid_reason', __( 'Invalid removal reason.', 'hl-core' ) );
+        }
+
+        $now = current_time( 'mysql' );
+        $today = current_time( 'Y-m-d' );
+
+        // Update current assignment to removed.
+        $updated = $wpdb->update(
+            $wpdb->prefix . 'hl_child_classroom_current',
+            array(
+                'status'                   => 'teacher_removed',
+                'removed_by_enrollment_id' => absint( $enrollment_id ),
+                'removed_at'               => $now,
+                'removal_reason'           => $reason,
+                'removal_note'             => sanitize_textarea_field( $note ),
+            ),
+            array(
+                'child_id'     => absint( $child_id ),
+                'classroom_id' => absint( $classroom_id ),
+                'status'       => 'active',
+            )
+        );
+
+        if ( $updated === false || $updated === 0 ) {
+            return new WP_Error( 'not_found', __( 'Child is not active in this classroom.', 'hl-core' ) );
+        }
+
+        // Close history row.
+        $wpdb->update(
+            $wpdb->prefix . 'hl_child_classroom_history',
+            array( 'end_date' => $today, 'reason' => 'Teacher removed: ' . $reason ),
+            array( 'child_id' => $child_id, 'classroom_id' => $classroom_id, 'end_date' => null )
+        );
+
+        HL_Audit_Service::log( 'child_classroom.teacher_removed', array(
+            'entity_type' => 'child_classroom',
+            'entity_id'   => $child_id,
+            'after_data'  => array(
+                'classroom_id' => $classroom_id,
+                'removed_by'   => $enrollment_id,
+                'reason'       => $reason,
+                'note'         => $note,
+            ),
+        ) );
+
+        return true;
+    }
+
+    /**
+     * Teacher adds a child to their classroom.
+     *
+     * @param int   $classroom_id
+     * @param int   $enrollment_id Teacher's enrollment_id.
+     * @param array $data          Keys: first_name, last_name, dob, gender.
+     * @return int|WP_Error child_id on success.
+     */
+    public function teacher_add_child( $classroom_id, $enrollment_id, $data ) {
+        global $wpdb;
+
+        // Verify the enrollment has a teaching assignment for this classroom.
+        $has_assignment = $wpdb->get_var( $wpdb->prepare(
+            "SELECT assignment_id FROM {$wpdb->prefix}hl_teaching_assignment
+             WHERE enrollment_id = %d AND classroom_id = %d",
+            $enrollment_id,
+            $classroom_id
+        ) );
+
+        if ( ! $has_assignment ) {
+            return new WP_Error( 'no_assignment', __( 'You are not assigned to teach this classroom.', 'hl-core' ) );
+        }
+
+        $first_name = sanitize_text_field( $data['first_name'] ?? '' );
+        $last_name  = sanitize_text_field( $data['last_name'] ?? '' );
+        $dob        = sanitize_text_field( $data['dob'] ?? '' );
+        $gender     = sanitize_text_field( $data['gender'] ?? '' );
+
+        if ( empty( $first_name ) || empty( $last_name ) || empty( $dob ) ) {
+            return new WP_Error( 'missing_fields', __( 'First name, last name, and date of birth are required.', 'hl-core' ) );
+        }
+
+        // Get school_id from classroom.
+        $school_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT school_id FROM {$wpdb->prefix}hl_classroom WHERE classroom_id = %d",
+            $classroom_id
+        ) );
+
+        if ( ! $school_id ) {
+            return new WP_Error( 'invalid_classroom', __( 'Classroom not found.', 'hl-core' ) );
+        }
+
+        // Duplicate detection: match on (first_name, last_name, dob, school_id).
+        $existing_child = $wpdb->get_row( $wpdb->prepare(
+            "SELECT ch.child_id
+             FROM {$wpdb->prefix}hl_child ch
+             WHERE ch.first_name = %s AND ch.last_name = %s AND ch.dob = %s AND ch.school_id = %d",
+            $first_name,
+            $last_name,
+            $dob,
+            $school_id
+        ) );
+
+        $child_id = null;
+        $now      = current_time( 'mysql' );
+
+        if ( $existing_child ) {
+            $child_id = (int) $existing_child->child_id;
+
+            // Check if child is already active in this classroom.
+            $active_here = $wpdb->get_var( $wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}hl_child_classroom_current
+                 WHERE child_id = %d AND classroom_id = %d AND status = 'active'",
+                $child_id,
+                $classroom_id
+            ) );
+
+            if ( $active_here ) {
+                return new WP_Error( 'already_exists', __( 'This child is already in your classroom.', 'hl-core' ) );
+            }
+
+            // If child was previously removed from this classroom, reactivate.
+            $removed_here = $wpdb->get_var( $wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}hl_child_classroom_current
+                 WHERE child_id = %d AND classroom_id = %d AND status = 'teacher_removed'",
+                $child_id,
+                $classroom_id
+            ) );
+
+            if ( $removed_here ) {
+                $wpdb->update(
+                    $wpdb->prefix . 'hl_child_classroom_current',
+                    array(
+                        'status'                   => 'active',
+                        'removed_by_enrollment_id' => null,
+                        'removed_at'               => null,
+                        'removal_reason'           => null,
+                        'removal_note'             => null,
+                        'added_by_enrollment_id'   => absint( $enrollment_id ),
+                        'added_at'                 => $now,
+                        'assigned_at'              => $now,
+                    ),
+                    array( 'child_id' => $child_id, 'classroom_id' => $classroom_id )
+                );
+            } else {
+                // Child exists elsewhere — delete old current and create new.
+                $wpdb->delete(
+                    $wpdb->prefix . 'hl_child_classroom_current',
+                    array( 'child_id' => $child_id )
+                );
+
+                $wpdb->insert( $wpdb->prefix . 'hl_child_classroom_current', array(
+                    'child_id'                 => $child_id,
+                    'classroom_id'             => absint( $classroom_id ),
+                    'assigned_at'              => $now,
+                    'status'                   => 'active',
+                    'added_by_enrollment_id'   => absint( $enrollment_id ),
+                    'added_at'                 => $now,
+                ) );
+            }
+        } else {
+            // Create new child record.
+            $fingerprint = HL_Normalization::child_fingerprint( $first_name, $last_name, $dob );
+            $metadata    = ! empty( $gender ) ? wp_json_encode( array( 'gender' => $gender ) ) : null;
+
+            $wpdb->insert( $wpdb->prefix . 'hl_child', array(
+                'child_uuid'        => HL_DB_Utils::generate_uuid(),
+                'school_id'         => absint( $school_id ),
+                'first_name'        => $first_name,
+                'last_name'         => $last_name,
+                'dob'               => $dob,
+                'child_fingerprint' => $fingerprint,
+                'metadata'          => $metadata,
+            ) );
+            $child_id = $wpdb->insert_id;
+
+            if ( ! $child_id ) {
+                return new WP_Error( 'insert_failed', __( 'Failed to create child record.', 'hl-core' ) );
+            }
+
+            // Create classroom assignment.
+            $wpdb->insert( $wpdb->prefix . 'hl_child_classroom_current', array(
+                'child_id'                 => $child_id,
+                'classroom_id'             => absint( $classroom_id ),
+                'assigned_at'              => $now,
+                'status'                   => 'active',
+                'added_by_enrollment_id'   => absint( $enrollment_id ),
+                'added_at'                 => $now,
+            ) );
+        }
+
+        // Insert history row.
+        $wpdb->insert( $wpdb->prefix . 'hl_child_classroom_history', array(
+            'child_id'     => $child_id,
+            'classroom_id' => absint( $classroom_id ),
+            'start_date'   => current_time( 'Y-m-d' ),
+            'reason'       => 'Teacher added',
+        ) );
+
+        // Auto-create snapshot for all tracks this classroom is linked to.
+        $track_ids = $wpdb->get_col( $wpdb->prepare(
+            "SELECT DISTINCT e.track_id
+             FROM {$wpdb->prefix}hl_teaching_assignment ta
+             JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
+             WHERE ta.classroom_id = %d AND e.status = 'active'",
+            $classroom_id
+        ) );
+
+        foreach ( $track_ids as $track_id ) {
+            HL_Child_Snapshot_Service::ensure_snapshot( $child_id, (int) $track_id, $dob );
+        }
+
+        HL_Audit_Service::log( 'child_classroom.teacher_added', array(
+            'entity_type' => 'child',
+            'entity_id'   => $child_id,
+            'after_data'  => array(
+                'classroom_id' => $classroom_id,
+                'added_by'     => $enrollment_id,
+                'first_name'   => $first_name,
+                'last_name'    => $last_name,
+                'dob'          => $dob,
+            ),
+        ) );
+
+        return $child_id;
+    }
+
+    /**
+     * Get removed children in a classroom.
+     *
+     * @param int $classroom_id
+     * @return array
+     */
+    public function get_removed_children_in_classroom( $classroom_id ) {
+        global $wpdb;
+
+        return $wpdb->get_results( $wpdb->prepare(
+            "SELECT ch.*, cc.removed_at, cc.removal_reason, cc.removal_note,
+                    cc.removed_by_enrollment_id,
+                    u.display_name AS removed_by_name
+             FROM {$wpdb->prefix}hl_child_classroom_current cc
+             JOIN {$wpdb->prefix}hl_child ch ON cc.child_id = ch.child_id
+             LEFT JOIN {$wpdb->prefix}hl_enrollment e ON cc.removed_by_enrollment_id = e.enrollment_id
+             LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+             WHERE cc.classroom_id = %d AND cc.status = 'teacher_removed'
+             ORDER BY cc.removed_at DESC",
+            $classroom_id
+        ) );
     }
 
     /**
