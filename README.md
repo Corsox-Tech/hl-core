@@ -391,7 +391,7 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
 - [x] **23.6 — Child Assessment Frontend + Reconciliation (Opus)** — Smart roster reconciliation at render time (removed children hidden, new children added with blank answers). Submit-time race condition handling (stale_at_submit, not_yet_assessed). Per-child "No longer in my classroom" checkbox with skip_reason. AJAX draft save endpoint for "Missing a child?" flow. Submitted summary grouped by age group with skip badges.
 - [x] **23.7 — Admin Updates (Sonnet)** — Admin Classrooms: collapsible "Removed Children" section with badges. Teacher-added children "Added by {name}" badges. Admin Assessments: childrow status badges (skipped/stale/not_in_classroom), frozen_age_group badges, grouped by age group. CSV export: frozen_age_group, child status, instrument_name columns added.
 - [x] **23.8 — Seeders Update (Sonnet)** — All 3 seeders (demo, palm-beach, lutheran) call `freeze_age_groups()` after creating children. Demo data already has mixed age groups (Mixed Age Room classroom). All --clean commands delete from hl_child_track_snapshot.
-- [ ] **23.9 — Documentation (Sonnet)** — Update docs 01, 02, 06, 10 + CLAUDE.md + README.md. Add Frozen Age Group and Child Track Snapshot to glossary/domain model. Update Key Design Decisions.
+- [x] **23.9 — Documentation (Sonnet)** — Updated docs 01 (added Frozen Age Group + Child Track Snapshot glossary terms), 02 (added ChildTrackSnapshot entity, updated ChildClassroomAssignment fields), 06 (added per-child age group section, updated instruments/form rendering/admin generation), 10 (updated Classroom Page + Child Assessment UX), CLAUDE.md, README.md Key Design Decisions.
 - [ ] **23.10 — Staging Deploy + Test (Sonnet)** — Deploy, nuke, seed-demo, seed-lutheran. Verify hl_child_track_snapshot has mixed age groups. Log results.
 
 ### Lower Priority (Future)
@@ -432,7 +432,8 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
 - Track roles stored on Enrollment, NOT WP user roles
 - Custom database tables for all core domain data (no post_meta abuse)
 - Teacher self-assessment responses stored in `hl_teacher_assessment_instance.responses_json` (custom system); observation form responses stored in JFB Form Records; HL Core tracks completion status, instance metadata, and structured response data for research comparison
-- Child assessment responses stored in `hl_child_assessment_childrow` (custom table) because the form is dynamically generated from classroom roster
+- Child assessment responses stored in `hl_child_assessment_childrow` (custom table) with per-child frozen_age_group, instrument_id, and status columns. Form dynamically generated from classroom roster.
+- **Frozen age groups (hl_child_track_snapshot):** Each child's age group is calculated from DOB and frozen per-track at the time children are associated with a track. This ensures PRE and POST assessments use the same instrument/question per child for research consistency. Mixed-age classrooms render multiple age-group sections in a single form. `HL_Child_Snapshot_Service` manages freeze logic. `HL_Age_Group_Helper` provides age-range definitions (infant <12mo, toddler 12-35mo, preschool 36-59mo, k2 60+mo).
 - Enrollments are unique per (track_id, user_id)
 - Children identity uses fingerprint hashing for import matching
 - Rules engine evaluates prerequisites + drip independently per enrollment

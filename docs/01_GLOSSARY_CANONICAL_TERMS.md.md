@@ -263,6 +263,30 @@ Important constraints:
 Notes:
 - Children may change classrooms mid-Track (assume possible).
 - History retention is recommended.
+- Teachers can add/remove children from their classroom via the front-end Classroom Page. Removals are soft-deletes (status='teacher_removed') with reason and note.
+
+---
+
+## 5.3 Frozen Age Group
+**Definition**: The age band (infant, toddler, preschool, k2) assigned to a child based on their date of birth, frozen at the time the child enters a Track.
+
+Key rules:
+- Calculated from DOB relative to the track's reference date (usually current date at freeze time).
+- Once frozen, the age group does NOT change even if the child ages past a boundary during the track.
+- Ensures research consistency: PRE and POST assessments use the same instrument/question per child.
+- Stored in `hl_child_track_snapshot.frozen_age_group`.
+
+---
+
+## 5.4 Child Track Snapshot
+**Definition**: A per-child, per-track record that captures the child's frozen age group at the time they are associated with a track.
+
+Fields: child_id, track_id, frozen_age_group, dob_at_freeze, age_months_at_freeze, frozen_at.
+Unique constraint: one snapshot per (child_id, track_id).
+
+Created automatically when:
+- `freeze_age_groups()` is called during assessment instance generation
+- A teacher adds a child mid-track (auto-snapshot via `ensure_snapshot()`)
 
 ---
 

@@ -201,12 +201,19 @@ This page's content depends entirely on the activity type:
 - After submit: redirect back to Program Page with success message
 
 ### Child Assessment
-- Page header: Activity title, pathway breadcrumb
-- Custom PHP matrix form rendered by `HL_Instrument_Renderer`
-- One row per child in teacher's assigned classroom(s)
-- Each row shows the instrument's questions
+- Branded header: Housman logo, assessment title, teacher info (name, school, classroom)
+- Instructions section explaining assessment purpose
+- Behavior key legend: explains each rating level (Never through Almost Always) with age-appropriate example behaviors
+- Custom PHP form rendered by `HL_Instrument_Renderer` with age-group sections:
+  - Children grouped by frozen_age_group from `hl_child_track_snapshot`
+  - Each section: header (e.g., "Infant (3 children)"), behavior key, question text, transposed Likert matrix
+  - Transposed layout: children as columns, rating levels as rows, radio buttons at intersections
+  - Per-child "Not in my classroom" checkbox with skip reason dropdown
+- "Missing a child?" link at bottom — AJAX auto-saves draft before navigating to Classroom Page
+- Render-time reconciliation: new children added, removed children hidden, stale drafts handled
 - "Save as Draft" and "Submit" buttons
-- On submit: HL Core updates activity_state
+- On submit: HL Core validates, saves childrows with frozen_age_group/instrument_id/status, updates activity_state
+- After submit: read-only summary grouped by age group with skip badges
 - After submit: redirect back to Program Page with success message
 
 ### LearnDash Course
@@ -398,11 +405,13 @@ Content:
 - Teacher(s) assigned (names)
 - Breadcrumb: "← Back to [source page]"
 
-### Content
-- Table of children in this classroom
-- Columns: Child Name (or identifier), Date of Birth, Age, Gender
-- Sortable columns
-- No edit functionality on front-end (admin-side only)
+### Content — Children Roster
+- Table of active children in this classroom
+- Columns: Child Name, Date of Birth, Age, Frozen Age Group (badge), Gender
+- For assigned teachers: "Add a Child" form (first name, last name, DOB, gender) with duplicate detection
+- For assigned teachers: "Remove" button per child with reason dropdown (left school, moved classroom, other) and optional note
+- Removal is soft-delete (status='teacher_removed'); removed children tracked with removed_by, removed_at, reason, note
+- `?return_to_assessment=INSTANCE_ID` parameter: shows "Return to Assessment" link for seamless navigation from child assessment form
 
 ---
 

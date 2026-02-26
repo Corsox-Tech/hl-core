@@ -179,12 +179,39 @@ Relationships:
 - ChildClassroomAssignment.child_id → Child
 - ChildClassroomAssignment.classroom_id → Classroom
 
+Fields:
+- status (enum: active, teacher_removed) — soft-delete for teacher removals
+- added_by_enrollment_id (nullable) — tracks which teacher added this child
+- added_at (datetime, nullable)
+- removed_by_enrollment_id (nullable) — tracks which teacher removed this child
+- removed_at (datetime, nullable)
+- removal_reason (enum: left_school, moved_classroom, other, nullable)
+- removal_note (text, nullable)
+
 Constraint:
 - A Child has exactly one current classroom assignment at a time.
 
 ---
 
-## 1.11 ChildClassroomHistory (Optional but Recommended)
+## 1.11 ChildTrackSnapshot
+Represents the frozen per-child age group at the time a child is associated with a Track.
+
+Relationships:
+- ChildTrackSnapshot.child_id → Child
+- ChildTrackSnapshot.track_id → Track
+
+Fields:
+- frozen_age_group (enum: infant, toddler, preschool, k2)
+- dob_at_freeze (date)
+- age_months_at_freeze (int)
+- frozen_at (datetime)
+
+Constraint:
+- Unique per (child_id, track_id) — one snapshot per child per track.
+
+---
+
+## 1.12 ChildClassroomHistory (Optional but Recommended)
 Stores history of child movement between classrooms.
 
 Relationships:
@@ -198,7 +225,7 @@ Fields:
 
 ---
 
-## 1.12 Observation
+## 1.13 Observation
 Mentor-submitted form artifact.
 
 Relationships (recommended):
@@ -214,7 +241,7 @@ Observation supports:
 
 ---
 
-## 1.13 CoachingSession
+## 1.14 CoachingSession
 Coach-submitted artifact linked to a mentor and optionally observations.
 
 Relationships (recommended):

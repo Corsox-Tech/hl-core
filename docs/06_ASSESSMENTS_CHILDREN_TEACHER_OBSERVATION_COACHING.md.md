@@ -221,7 +221,26 @@ Key requirement:
 
 **Why custom PHP:** The form dynamically renders one row per child in the classroom roster. The number of children, their names, and which age-band question applies are all determined at runtime. No form builder can handle this.
 
-## 3.2 Age Band Variants
+## 3.2 Per-Child Age Group Assignment (Frozen Snapshots)
+
+Each child's age group is determined per-child (not per-classroom) and frozen for the duration of the track via `hl_child_track_snapshot`.
+
+**How age groups are determined:**
+1. When children are associated with a Track (via instance generation or teacher add), the system reads each child's DOB from `hl_child`
+2. Age in months is calculated relative to current date at freeze time
+3. Age-to-band mapping (from `HL_Age_Group_Helper`):
+   - 0-11 months → infant
+   - 12-35 months → toddler
+   - 36-59 months → preschool
+   - 60+ months → k2
+4. The resulting age group is stored as `frozen_age_group` in `hl_child_track_snapshot`
+5. Once frozen, the age group does NOT change even if the child ages past a boundary
+
+**Why frozen:** Research integrity requires PRE and POST assessments to use the same instrument per child. If the age group changed mid-track, the pre/post comparison would use different questions.
+
+**Mixed-age classrooms:** A single classroom may contain children of different age groups. The form renders age-group sections within one form, each section using its age-group-specific instrument and question text.
+
+## 3.3 Age Band Variants
 There are 4 age-band variants, each with 1 question on a 5-point scale (Never=0, Rarely=1, Sometimes=2, Usually=3, Almost Always=4):
 
 - **Infant**: "In the last month, how often did the infant notice and respond to their own feelings and the feelings of the people around them?"
@@ -231,18 +250,18 @@ There are 4 age-band variants, each with 1 question on a 5-point scale (Never=0,
 
 Each variant includes example behaviors per scale point (from the B2E Child Assessment document).
 
-## 3.3 Instruments (hl_instrument)
+## 3.4 Instruments (hl_instrument)
 The `hl_instrument` table stores child assessment instrument definitions:
 - instrument_id
 - name
-- instrument_type in { "child_infant", "child_toddler", "child_preschool" }
+- instrument_type in { "children_infant", "children_toddler", "children_preschool", "children_k2" }
 - version
 - questions (JSON array)
 - effective_from / effective_to (optional)
 
 Note: These are the ONLY instrument types in `hl_instrument`. Teacher self-assessment instruments are in a separate table (`hl_teacher_assessment_instrument`).
 
-## 3.4 Object Model
+## 3.5 Object Model
 
 ### hl_child_assessment_instance
 - instance_id (PK)
@@ -265,28 +284,41 @@ Note: These are the ONLY instrument types in `hl_instrument`. Teacher self-asses
 ```
 Keys are child_id from hl_child table.
 
-### Legacy: hl_child_assessment_childrow
-Earlier implementations stored per-child rows in a separate table. The responses_json approach is preferred for new implementations as it aligns with the teacher assessment pattern and simplifies comparison reporting.
+### hl_child_assessment_childrow
+Per-child response rows stored in a dedicated table for structured access:
+- childrow_id (PK)
+- instance_id (FK)
+- child_id (FK)
+- answers_json (per-child answers)
+- status (enum: active, skipped, not_in_classroom, stale_at_submit) — tracks child's state at submission time
+- skip_reason (varchar, nullable) — reason for skip (left_school, moved_classroom)
+- frozen_age_group (varchar) — copied from hl_child_track_snapshot at save time
+- instrument_id (int, nullable) — which instrument was used for this child's age group
 
-## 3.5 Form Rendering
+## 3.6 Form Rendering
 The child assessment form:
-- Groups children by classroom
-- For each child: shows name, age band badge, the age-appropriate question text, radio buttons (Never -> Almost Always)
-- "No longer enrolled" checkbox per child (skips rating)
+- Groups children by frozen_age_group (sections: Infant, Toddler, Preschool, K-2)
+- Each section has its own behavior key, question text, and Likert scale from the age-group-specific instrument
+- Transposed Likert matrix: children as columns, rating levels as rows
+- Per-child "Not in my classroom" checkbox with reason dropdown (skips rating)
+- "Missing a child?" link at bottom with AJAX draft auto-save before navigating to Classroom Page
+- Render-time reconciliation: compares current roster against draft, adds new children, hides removed children
+- Submit-time validation: detects roster changes since form load, marks stale children
 - Save Draft + Submit buttons
-- Pre-populate from existing responses_json
-- Read-only mode for submitted assessments
+- Read-only submitted summary grouped by age group
 
-## 3.6 Admin: Generate Child Assessment Instances
+## 3.7 Admin: Generate Child Assessment Instances
 Admin can generate assessment instances for all teachers in a track with one click:
+- Calls `freeze_age_groups($track_id)` first to create `hl_child_track_snapshot` records
 - For each teacher enrollment in the track
-- Find their classrooms (via hl_classroom_teacher / hl_teaching_assignment)
-- If classrooms have children, create pre and post child_assessment instances
+- Find their classrooms (via hl_teaching_assignment)
+- If classrooms have children, create child_assessment instances
+- Instance instrument_id is nullable (resolved per-child from frozen_age_group at render time)
 - Create corresponding hl_activity_state records
 
 This can be done via admin button or WP-CLI command.
 
-## 3.7 Completion Rule
+## 3.8 Completion Rule
 - 0% if instance.status != submitted
 - 100% when instance.status == submitted
 - PRE and POST are separate activities, each independent 0/100

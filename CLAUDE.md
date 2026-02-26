@@ -156,7 +156,7 @@ HL Core uses a **primarily custom PHP approach** for forms and data collection:
 
 ### Custom PHP handles:
 - **Teacher Self-Assessment** (pre and post) — Custom instrument system with structured JSON definitions in `hl_teacher_assessment_instrument`, response storage in `hl_teacher_assessment_instance.responses_json`. Custom renderer supports PRE (single-column) and POST (dual-column retrospective with PRE responses shown alongside new ratings).
-- **Child Assessment** — Dynamic per-child matrix generated from classroom roster + instrument definition. Rendered from `hl_instrument.questions` JSON.
+- **Child Assessment** — Dynamic per-child matrix generated from classroom roster + instrument definition. Children grouped by frozen_age_group (from `hl_child_track_snapshot`) with per-age-group instruments. Rendered by `HL_Instrument_Renderer` with age-group sections, transposed Likert matrices, per-child skip controls, and AJAX draft auto-save. Responses stored in `hl_child_assessment_childrow` with frozen_age_group, instrument_id, and status per child.
 - **Coaching Sessions** — Admin CRUD workflow (attendance, notes, observation links, attachments).
 
 ### JetFormBuilder handles:
