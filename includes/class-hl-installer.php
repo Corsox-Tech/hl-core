@@ -84,6 +84,9 @@ class HL_Installer {
         // Phase 22C: Restructure cohort hierarchy — cohort→track, cohort_group→cohort.
         self::migrate_cohort_to_track();
 
+        // Phase 23: Child assessment restructure — snapshot table + column additions.
+        self::migrate_child_assessment_restructure();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -106,7 +109,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 12;
+        $current_revision = 13;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -950,6 +953,80 @@ class HL_Installer {
     }
 
     /**
+     * Phase 23: Child assessment restructure migration.
+     *
+     * a. CREATE TABLE hl_child_track_snapshot (handled by dbDelta in get_schema).
+     * b. ALTER hl_child_classroom_current — add status, removed_by, removed_at, removal_reason, removal_note, added_by, added_at columns.
+     * c. ALTER hl_child_assessment_childrow — add status, skip_reason, frozen_age_group, instrument_id columns.
+     * d. ALTER hl_child_assessment_instance — make instrument_id nullable (already nullable in schema).
+     */
+    private static function migrate_child_assessment_restructure() {
+        global $wpdb;
+
+        $prefix = $wpdb->prefix;
+
+        // Helper: check if a table exists.
+        $table_exists = function ( $name ) use ( $wpdb ) {
+            return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $name ) ) === $name;
+        };
+
+        // Helper: check if a column exists on a table.
+        $column_exists = function ( $table, $column ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                    $table,
+                    $column
+                )
+            ) );
+        };
+
+        // ─── b. ALTER hl_child_classroom_current ──────────────────────────
+        $ccc_table = "{$prefix}hl_child_classroom_current";
+        if ( $table_exists( $ccc_table ) ) {
+            if ( ! $column_exists( $ccc_table, 'status' ) ) {
+                $wpdb->query( "ALTER TABLE `{$ccc_table}` ADD COLUMN `status` ENUM('active','teacher_removed') NOT NULL DEFAULT 'active'" );
+                $wpdb->query( "ALTER TABLE `{$ccc_table}` ADD INDEX `status` (`status`)" );
+            }
+            if ( ! $column_exists( $ccc_table, 'removed_by_enrollment_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$ccc_table}` ADD COLUMN `removed_by_enrollment_id` bigint(20) unsigned NULL" );
+            }
+            if ( ! $column_exists( $ccc_table, 'removed_at' ) ) {
+                $wpdb->query( "ALTER TABLE `{$ccc_table}` ADD COLUMN `removed_at` datetime NULL" );
+            }
+            if ( ! $column_exists( $ccc_table, 'removal_reason' ) ) {
+                $wpdb->query( "ALTER TABLE `{$ccc_table}` ADD COLUMN `removal_reason` ENUM('left_school','moved_classroom','other') NULL" );
+            }
+            if ( ! $column_exists( $ccc_table, 'removal_note' ) ) {
+                $wpdb->query( "ALTER TABLE `{$ccc_table}` ADD COLUMN `removal_note` text NULL" );
+            }
+            if ( ! $column_exists( $ccc_table, 'added_by_enrollment_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$ccc_table}` ADD COLUMN `added_by_enrollment_id` bigint(20) unsigned NULL" );
+            }
+            if ( ! $column_exists( $ccc_table, 'added_at' ) ) {
+                $wpdb->query( "ALTER TABLE `{$ccc_table}` ADD COLUMN `added_at` datetime NULL" );
+            }
+        }
+
+        // ─── c. ALTER hl_child_assessment_childrow ────────────────────────
+        $childrow_table = "{$prefix}hl_child_assessment_childrow";
+        if ( $table_exists( $childrow_table ) ) {
+            if ( ! $column_exists( $childrow_table, 'status' ) ) {
+                $wpdb->query( "ALTER TABLE `{$childrow_table}` ADD COLUMN `status` ENUM('active','skipped','not_in_classroom','stale_at_submit') NOT NULL DEFAULT 'active'" );
+            }
+            if ( ! $column_exists( $childrow_table, 'skip_reason' ) ) {
+                $wpdb->query( "ALTER TABLE `{$childrow_table}` ADD COLUMN `skip_reason` varchar(255) NULL" );
+            }
+            if ( ! $column_exists( $childrow_table, 'frozen_age_group' ) ) {
+                $wpdb->query( "ALTER TABLE `{$childrow_table}` ADD COLUMN `frozen_age_group` varchar(20) NULL" );
+            }
+            if ( ! $column_exists( $childrow_table, 'instrument_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$childrow_table}` ADD COLUMN `instrument_id` bigint(20) unsigned NULL" );
+            }
+        }
+    }
+
+    /**
      * Get database schema
      */
     private static function get_schema() {
@@ -1153,11 +1230,19 @@ class HL_Installer {
             child_id bigint(20) unsigned NOT NULL,
             classroom_id bigint(20) unsigned NOT NULL,
             assigned_at datetime NOT NULL,
+            status enum('active','teacher_removed') NOT NULL DEFAULT 'active',
+            removed_by_enrollment_id bigint(20) unsigned NULL,
+            removed_at datetime NULL,
+            removal_reason enum('left_school','moved_classroom','other') NULL,
+            removal_note text NULL,
+            added_by_enrollment_id bigint(20) unsigned NULL,
+            added_at datetime NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY child_id (child_id),
-            KEY classroom_id (classroom_id)
+            KEY classroom_id (classroom_id),
+            KEY status (status)
         ) $charset_collate;";
 
         // Child Classroom History table
@@ -1172,6 +1257,21 @@ class HL_Installer {
             PRIMARY KEY (id),
             KEY child_id (child_id),
             KEY classroom_id (classroom_id)
+        ) $charset_collate;";
+
+        // Child Track Snapshot table (frozen age group per child per track)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_child_track_snapshot (
+            snapshot_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            child_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
+            frozen_age_group varchar(20) NOT NULL,
+            dob_at_freeze date NULL,
+            age_months_at_freeze int NULL,
+            frozen_at datetime NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (snapshot_id),
+            UNIQUE KEY child_track (child_id, track_id),
+            KEY track_id (track_id)
         ) $charset_collate;";
 
         // Pathway table
@@ -1399,6 +1499,10 @@ class HL_Installer {
             instance_id bigint(20) unsigned NOT NULL,
             child_id bigint(20) unsigned NOT NULL,
             answers_json longtext NULL,
+            status enum('active','skipped','not_in_classroom','stale_at_submit') NOT NULL DEFAULT 'active',
+            skip_reason varchar(255) NULL,
+            frozen_age_group varchar(20) NULL,
+            instrument_id bigint(20) unsigned NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (row_id),
