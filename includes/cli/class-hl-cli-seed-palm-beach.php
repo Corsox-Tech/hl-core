@@ -88,6 +88,10 @@ class HL_CLI_Seed_Palm_Beach {
 		// Step 9: Children.
 		$this->seed_children( $classrooms, $orgunits );
 
+		// Step 9b: Freeze child age groups for this track.
+		$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $track_id );
+		WP_CLI::log( "  [9b] Frozen age group snapshots: {$frozen}" );
+
 		// Step 10: Pathways & Activities.
 		$pathways = $this->seed_pathways( $track_id, $instruments );
 
@@ -687,6 +691,7 @@ class HL_CLI_Seed_Palm_Beach {
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track_school WHERE track_id = %d", $track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE track_id = %d", $track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE track_id = %d", $track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_track_snapshot WHERE track_id = %d", $track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $track_id ) );
 
 			WP_CLI::log( "  Deleted track {$track_id} and all related records." );
@@ -715,6 +720,7 @@ class HL_CLI_Seed_Palm_Beach {
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE track_id = %d", $control_track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE track_id = %d", $control_track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE track_id = %d", $control_track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_track_snapshot WHERE track_id = %d", $control_track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $control_track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE track_id = %d", $control_track_id ) );
 			WP_CLI::log( "  Deleted control track {$control_track_id} and related records." );

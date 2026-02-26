@@ -93,6 +93,10 @@ class HL_CLI_Seed_Demo {
         // Step 9: Children
         $this->seed_children( $classrooms, $school_a_id, $school_b_id );
 
+        // Step 9b: Freeze child age groups for this track
+        $frozen = HL_Child_Snapshot_Service::freeze_age_groups( $track_id );
+        WP_CLI::log( "  [9b/17] Frozen age group snapshots: {$frozen}" );
+
         // Step 10: Pathways & Activities
         $pathways = $this->seed_pathways( $track_id, $instruments );
 
@@ -253,6 +257,9 @@ class HL_CLI_Seed_Demo {
 
             // Coaching sessions.
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE track_id = %d", $track_id ) );
+
+            // Child track snapshots.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_track_snapshot WHERE track_id = %d", $track_id ) );
 
             // Track.
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $track_id ) );

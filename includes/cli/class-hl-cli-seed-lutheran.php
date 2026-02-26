@@ -137,6 +137,10 @@ class HL_CLI_Seed_Lutheran {
 		// Step 10: Children.
 		$this->seed_children( $child_roster_data, $classrooms, $school_map );
 
+		// Step 10b: Freeze child age groups for this track.
+		$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $track_id );
+		WP_CLI::log( "  [10b] Frozen age group snapshots: {$frozen}" );
+
 		// Step 11: Pathway & Activities.
 		$pathway_data = $this->seed_pathway( $track_id );
 
@@ -270,6 +274,9 @@ class HL_CLI_Seed_Lutheran {
 
 			// Delete track-school links.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_track_school WHERE track_id = %d", $track_id ) );
+
+			// Delete child track snapshots.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_child_track_snapshot WHERE track_id = %d", $track_id ) );
 
 			// Delete track.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_track WHERE track_id = %d", $track_id ) );
