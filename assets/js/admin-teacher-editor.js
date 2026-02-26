@@ -84,8 +84,10 @@
     }
 
     function initRichTextInContainer(container) {
-        // Toolbar buttons
+        // Toolbar buttons (guard against double-binding)
         container.querySelectorAll('.hl-te-rt-btn').forEach(function (btn) {
+            if (btn._hlBound) return;
+            btn._hlBound = true;
             btn.addEventListener('mousedown', function (e) {
                 e.preventDefault(); // keep focus in contenteditable
             });
@@ -99,8 +101,10 @@
             });
         });
 
-        // Sync on input
+        // Sync on input (guard against double-binding)
         container.querySelectorAll('.hl-te-richtext-editor').forEach(function (editor) {
+            if (editor._hlBound) return;
+            editor._hlBound = true;
             editor.addEventListener('input', function () {
                 syncRichText(editor);
             });
