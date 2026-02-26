@@ -110,10 +110,15 @@
         });
     }
 
-    // Sync all rich-text fields before form submit
+    // Sync all rich-text fields + TinyMCE before form submit
     var form = document.getElementById('hl-teacher-instrument-form');
     if (form) {
         form.addEventListener('submit', function () {
+            // Sync TinyMCE (wp_editor) content to textarea
+            if (typeof tinyMCE !== 'undefined') {
+                tinyMCE.triggerSave();
+            }
+            // Sync contenteditable fields to hidden textareas
             document.querySelectorAll('.hl-te-richtext-editor').forEach(function (editor) {
                 syncRichText(editor);
             });

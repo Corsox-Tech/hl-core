@@ -97,15 +97,13 @@ class HL_Teacher_Assessment_Renderer {
         ?>
         <div class="hl-tsa-form-wrap">
             <div class="hl-tsa-header">
-                <h2><?php echo esc_html( $phase_label ); ?></h2>
+                <h2><?php echo esc_html( $this->instrument->instrument_name ); ?></h2>
                 <?php if ( $this->display_options['show_program_name'] && ! empty( $this->display_options['program_name'] ) ) : ?>
                     <span class="hl-tsa-program-name"><?php echo esc_html( $this->display_options['program_name'] ); ?></span>
                 <?php endif; ?>
-                <?php if ( $this->display_options['show_instrument_name'] ) : ?>
-                    <span class="hl-tsa-phase-badge hl-tsa-phase-<?php echo esc_attr( $this->phase ); ?>">
-                        <?php echo esc_html( $this->instrument->instrument_name ); ?>
-                    </span>
-                <?php endif; ?>
+                <span class="hl-tsa-phase-badge hl-tsa-phase-<?php echo esc_attr( $this->phase ); ?>">
+                    <?php echo esc_html( $phase_label ); ?>
+                </span>
             </div>
 
             <?php
@@ -702,26 +700,34 @@ class HL_Teacher_Assessment_Renderer {
             }
 
             /* Custom radio styling */
-            .hl-tsa-radio {
-                appearance: none;
-                -webkit-appearance: none;
-                width: 20px;
-                height: 20px;
-                border: 2px solid #D1D5DB;
-                border-radius: 50%;
+            .hl-tsa-form-wrap input[type="radio"].hl-tsa-radio {
+                appearance: none !important;
+                -webkit-appearance: none !important;
+                -moz-appearance: none !important;
+                width: 22px !important;
+                height: 22px !important;
+                min-width: 22px !important;
+                min-height: 22px !important;
+                border: 2px solid #D1D5DB !important;
+                border-radius: 50% !important;
                 cursor: pointer;
                 transition: all 0.15s ease;
-                margin: 0;
+                margin: 0 !important;
+                padding: 0 !important;
                 position: relative;
+                background: #fff !important;
+                box-shadow: none !important;
+                outline: none !important;
+                flex-shrink: 0;
             }
-            .hl-tsa-radio:hover {
-                border-color: var(--hl-primary, #2271b1);
+            .hl-tsa-form-wrap input[type="radio"].hl-tsa-radio:hover {
+                border-color: var(--hl-primary, #2271b1) !important;
             }
-            .hl-tsa-radio:checked {
-                border-color: var(--hl-primary, #2271b1);
-                background: var(--hl-primary, #2271b1);
+            .hl-tsa-form-wrap input[type="radio"].hl-tsa-radio:checked {
+                border-color: var(--hl-primary, #2271b1) !important;
+                background: var(--hl-primary, #2271b1) !important;
             }
-            .hl-tsa-radio:checked::after {
+            .hl-tsa-form-wrap input[type="radio"].hl-tsa-radio:checked::after {
                 content: '';
                 position: absolute;
                 top: 50%;
@@ -731,6 +737,13 @@ class HL_Teacher_Assessment_Renderer {
                 height: 8px;
                 border-radius: 50%;
                 background: #fff;
+            }
+            /* Scale-section radios: slightly larger for touchability */
+            .hl-tsa-scale-label input[type="radio"].hl-tsa-radio {
+                width: 24px !important;
+                height: 24px !important;
+                min-width: 24px !important;
+                min-height: 24px !important;
             }
 
             .hl-tsa-before-col {
@@ -876,20 +889,38 @@ class HL_Teacher_Assessment_Renderer {
                 border-top: 1px solid var(--hl-border, #E5E7EB);
                 margin-top: 1.5em;
             }
-            .hl-tsa-nav .button {
-                padding: 8px 20px;
+            .hl-tsa-form-wrap .hl-tsa-nav .button {
+                padding: 10px 24px;
                 border-radius: 8px;
-                min-height: 40px;
-                font-size: 0.93em;
+                min-height: 44px;
+                font-size: 0.95em;
+                font-weight: 500;
+                transition: all 0.15s ease;
             }
-            .hl-tsa-btn-prev::before {
-                content: '\2190 ';
+            .hl-tsa-form-wrap .hl-tsa-btn-prev {
+                background: #fff;
+                border-color: var(--hl-border, #D1D5DB);
+                color: var(--hl-text, #374151);
             }
-            .hl-tsa-btn-next {
+            .hl-tsa-form-wrap .hl-tsa-btn-prev:hover {
+                background: var(--hl-surface-alt, #F3F4F6);
+                border-color: #9CA3AF;
+            }
+            .hl-tsa-form-wrap .hl-tsa-btn-prev::before {
+                content: '\2190\00a0';
+            }
+            .hl-tsa-form-wrap .hl-tsa-btn-next {
                 margin-left: auto;
+                background: var(--hl-primary, #2271b1);
+                border-color: var(--hl-primary, #2271b1);
+                color: #fff;
             }
-            .hl-tsa-btn-next::after {
-                content: ' \2192';
+            .hl-tsa-form-wrap .hl-tsa-btn-next:hover {
+                background: var(--hl-primary-dark, #135e96);
+                border-color: var(--hl-primary-dark, #135e96);
+            }
+            .hl-tsa-form-wrap .hl-tsa-btn-next::after {
+                content: '\00a0\2192';
             }
 
             /* ── Responsive ──────────────────────────────────── */
@@ -946,7 +977,14 @@ class HL_Teacher_Assessment_Renderer {
              * so we check manually and navigate to the first section with missing answers.
              */
             function findMissingRequiredGroups() {
-                var radios = form.querySelectorAll('input[type="radio"][data-hl-required="1"]');
+                return findMissingInContainer(form);
+            }
+
+            /**
+             * Find unanswered required radio groups within a specific container element.
+             */
+            function findMissingInContainer(container) {
+                var radios = container.querySelectorAll('input[type="radio"][data-hl-required="1"]');
                 var groups = {};
                 radios.forEach(function(r) {
                     if (!groups[r.name]) groups[r.name] = [];
@@ -957,10 +995,32 @@ class HL_Teacher_Assessment_Renderer {
                 Object.keys(groups).forEach(function(name) {
                     var answered = groups[name].some(function(r) { return r.checked; });
                     if (!answered) {
-                        missing.push(groups[name][0]); // first radio of the unanswered group
+                        missing.push(groups[name][0]);
                     }
                 });
                 return missing;
+            }
+
+            /**
+             * Highlight the first missing answer in a container and show an alert.
+             * Returns true if there are missing answers.
+             */
+            function highlightMissing(missing) {
+                if (missing.length === 0) return false;
+                var first = missing[0];
+                // Try row highlight (likert table) or scale-row highlight
+                var row = first.closest('tr') || first.closest('.hl-tsa-scale-row');
+                if (row) {
+                    row.style.outline = '2px solid #EF4444';
+                    row.style.outlineOffset = '-2px';
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(function() {
+                        row.style.outline = '';
+                        row.style.outlineOffset = '';
+                    }, 3000);
+                }
+                alert('<?php echo esc_js( __( 'Please answer all questions in this section before continuing.', 'hl-core' ) ); ?>');
+                return true;
             }
 
             draftBtn.addEventListener('click', function() {
@@ -988,19 +1048,7 @@ class HL_Teacher_Assessment_Renderer {
                         goToStep(step);
                     }
 
-                    // Highlight the missing row
-                    var row = firstMissing.closest('tr');
-                    if (row) {
-                        row.style.outline = '2px solid #EF4444';
-                        row.style.outlineOffset = '-2px';
-                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        setTimeout(function() {
-                            row.style.outline = '';
-                            row.style.outlineOffset = '';
-                        }, 3000);
-                    }
-
-                    alert('<?php echo esc_js( __( 'Please answer all questions before submitting. Unanswered questions are highlighted.', 'hl-core' ) ); ?>');
+                    highlightMissing(missing);
                     return;
                 }
 
@@ -1046,11 +1094,23 @@ class HL_Teacher_Assessment_Renderer {
                 currentStep = 0;
 
                 if (totalSteps > 1) {
+                    /**
+                     * Validate the current section before allowing forward navigation.
+                     * Returns false if validation fails (missing answers).
+                     */
+                    function validateCurrentSection() {
+                        if (!pSections || !pSections[currentStep]) return true;
+                        var missing = findMissingInContainer(pSections[currentStep]);
+                        return !highlightMissing(missing);
+                    }
+
                     form.addEventListener('click', function(e) {
                         var target = e.target;
                         if (target.classList.contains('hl-tsa-btn-next')) {
                             e.preventDefault();
-                            goToStep(currentStep + 1);
+                            if (validateCurrentSection()) {
+                                goToStep(currentStep + 1);
+                            }
                         } else if (target.classList.contains('hl-tsa-btn-prev')) {
                             e.preventDefault();
                             goToStep(currentStep - 1);
@@ -1059,7 +1119,12 @@ class HL_Teacher_Assessment_Renderer {
 
                     pSteps.forEach(function(stepEl) {
                         stepEl.addEventListener('click', function() {
-                            goToStep(parseInt(stepEl.getAttribute('data-step'), 10));
+                            var targetStep = parseInt(stepEl.getAttribute('data-step'), 10);
+                            // Only validate when moving forward
+                            if (targetStep > currentStep) {
+                                if (!validateCurrentSection()) return;
+                            }
+                            goToStep(targetStep);
                         });
                     });
 
