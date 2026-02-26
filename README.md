@@ -2,16 +2,16 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for observation forms only)
-**Status:** v1 complete — Phases 1-21 done (26 shortcode pages, 15 admin pages, 35 DB tables, tabbed cohort editor, paginated TSA, child assessment instruments)
+**Status:** v1 complete — Phases 1-22 done (26 shortcode pages, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments)
 
 ## Overview
 
-HL Core is the system-of-record plugin for Housman Learning Academy Cohort management. It manages organizations, cohort enrollment, learning pathways, assessments, observations, coaching sessions, imports, and reporting.
+HL Core is the system-of-record plugin for Housman Learning Academy Track and Cohort management. It manages organizations, track enrollment, learning pathways, assessments, observations, coaching sessions, imports, and reporting.
 
 ## What's Implemented
 
 ### Database Schema (35 custom tables)
-- **Org & Cohort:** `hl_orgunit`, `hl_cohort` (with `is_control_group` flag), `hl_cohort_school`, `hl_cohort_group`
+- **Org & Track/Cohort:** `hl_orgunit`, `hl_track` (with `is_control_group` flag), `hl_track_school`, `hl_cohort` (container)
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
 - **Classrooms:** `hl_classroom`, `hl_teaching_assignment`, `hl_child`, `hl_child_classroom_current`, `hl_child_classroom_history`
 - **Learning Config:** `hl_pathway`, `hl_pathway_assignment`, `hl_activity`, `hl_activity_prereq_group`, `hl_activity_prereq_item`, `hl_activity_drip_rule`, `hl_activity_override`
@@ -373,10 +373,10 @@ _Branch: `feature/grand-rename` — merge only after ALL sub-tasks complete._
 - [x] **C4 — Admin Pages (Opus, parallel with C5/C6)** — Rename admin-cohorts→admin-tracks. Rename admin-cohort-groups→admin-cohorts. Update ALL admin pages: cohort_id→track_id, labels. Menu: "Cohorts"→"Tracks" for runs, "Cohort Groups"→"Cohorts" for containers.
 - [x] **C5 — Frontend Shortcodes (Opus, parallel with C4/C6)** — Rename shortcodes: `[hl_cohort_workspace]`→`[hl_track_workspace]`, `[hl_cohorts_listing]`→`[hl_tracks_listing]`, `[hl_my_cohort]`→`[hl_my_track]`. Rename files/classes. Update all labels and URL params. Update BuddyBoss menu. Update CSS.
 - [x] **C6 — CLI & REST API (Sonnet, parallel with C4/C5)** — Update all seeders: create Tracks (not Cohorts) for runs, create Cohorts (not Groups) for containers. Update REST endpoints.
-- [ ] **C7 — Documentation (Sonnet)** — COMPREHENSIVE update of ALL 11 docs + CLAUDE.md + README.md. Rewrite Glossary: Cohort=container, Track=run. Rewrite Domain Model doc. Update all cross-references, relationship diagrams, table names, column names, shortcodes.
+- [x] **C7 — Documentation (Sonnet)** — COMPREHENSIVE update of ALL 11 docs + CLAUDE.md + README.md. Rewrite Glossary: Cohort=container, Track=run. Rewrite Domain Model doc. Update all cross-references, relationship diagrams, table names, column names, shortcodes.
 
 **Post-Rename Verification**
-- [ ] **V1 — Grep verification** — `grep -ri "center_id\|child_assessment\|cohort_group\|hl_cohort_center" includes/` → 0 results (Phase A verified: only installer migration code + deprecated alias remain)
+- [x] **V1 — Grep verification** — All stale patterns (center_id, children_assessment, cohort_group, hl_cohort_center, hl_cohort_school) → 0 results in includes/ PHP (excl. installer migrations). All `hl_cohort` refs correctly refer to the container entity. See docs/RENAME_VERIFICATION.md for full results.
 - [ ] **V2 — Staging test** — `wp hl-core nuke --confirm="DELETE ALL DATA"` → `wp hl-core seed-demo` → verify admin + frontend
 - [ ] **V3 — Lutheran test** — `wp hl-core seed-lutheran` → verify control group workflow
 
@@ -402,7 +402,7 @@ _Branch: `feature/grand-rename` — merge only after ALL sub-tasks complete._
     /services/                   # Business logic (14+ services incl. HL_Scope_Service, HL_Pathway_Assignment_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss (3 classes)
-    /admin/                      # WP admin pages (15+ controllers incl. Cohort Groups)
+    /admin/                      # WP admin pages (15+ controllers incl. Cohorts, Tracks)
     /frontend/                   # Shortcode renderers (26 pages + instrument renderer + teacher assessment renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization helpers
@@ -415,16 +415,16 @@ _Branch: `feature/grand-rename` — merge only after ALL sub-tasks complete._
 
 ## Key Design Decisions
 - **Custom-first assessment architecture:** Teacher Self-Assessments use a custom PHP instrument system (structured JSON definitions in `hl_teacher_assessment_instrument`, responses in `hl_teacher_assessment_instance.responses_json`) because the POST version requires a dual-column retrospective format and structured data is needed for research comparison. Child Assessments use custom PHP (dynamic per-child matrix from classroom roster). Observations are the only remaining JFB-powered form type (admins need to customize observation questions without a developer). Coaching Sessions are custom PHP admin CRUD. Legacy JFB teacher assessment support retained for backward compatibility. See CLAUDE.md and doc 06 for details.
-- Cohort roles stored on Enrollment, NOT WP user roles
+- Track roles stored on Enrollment, NOT WP user roles
 - Custom database tables for all core domain data (no post_meta abuse)
 - Teacher self-assessment responses stored in `hl_teacher_assessment_instance.responses_json` (custom system); observation form responses stored in JFB Form Records; HL Core tracks completion status, instance metadata, and structured response data for research comparison
 - Child assessment responses stored in `hl_child_assessment_childrow` (custom table) because the form is dynamically generated from classroom roster
-- Enrollments are unique per (cohort_id, user_id)
+- Enrollments are unique per (track_id, user_id)
 - Children identity uses fingerprint hashing for import matching
 - Rules engine evaluates prerequisites + drip independently per enrollment
 - Child classroom assignments maintain current + history tables for audit trail
 - Import wizard uses preview/commit pattern with row-level selection
-- **Control group research design:** `is_control_group` flag on `hl_cohort` drives UI adaptations (hidden coaching/teams tabs) and enables program-vs-control comparison reporting at the Cohort Group level. Cohen's d effect size for measuring program effectiveness. Comparison uses `responses_json` from `hl_teacher_assessment_instance`.
+- **Control group research design:** `is_control_group` flag on `hl_track` drives UI adaptations (hidden coaching/teams tabs) and enables program-vs-control comparison reporting at the Cohort level. Cohen's d effect size for measuring program effectiveness. Comparison uses `responses_json` from `hl_teacher_assessment_instance`.
 
 ## Plugin Dependencies
 - **WordPress 6.0+**
