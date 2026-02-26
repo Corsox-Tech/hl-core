@@ -377,7 +377,7 @@ _Branch: `feature/grand-rename` — merge only after ALL sub-tasks complete._
 
 **Post-Rename Verification**
 - [x] **V1 — Grep verification** — All stale patterns (center_id, children_assessment, cohort_group, hl_cohort_center, hl_cohort_school) → 0 results in includes/ PHP (excl. installer migrations). All `hl_cohort` refs correctly refer to the container entity. See docs/RENAME_VERIFICATION.md for full results.
-- [ ] **V2 — Staging test** — `wp hl-core nuke --confirm="DELETE ALL DATA"` → `wp hl-core seed-demo` → verify admin + frontend
+- [x] **V2 — Staging test** — nuke (36 tables, 1774 rows) → seed-demo (17/17 steps, track_id=1, code=DEMO-2026) → DB verified. See docs/RENAME_VERIFICATION.md.
 - [ ] **V3 — Lutheran test** — `wp hl-core seed-lutheran` → verify control group workflow
 
 ### Lower Priority (Future)

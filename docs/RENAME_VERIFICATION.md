@@ -35,9 +35,19 @@ All 11 spec docs (00-10) + CLAUDE.md updated for Track/Cohort hierarchy. Only re
 
 ---
 
-## V2: Staging seed-demo Test
+## V2: Staging seed-demo Test (2026-02-25)
 
-_(Pending)_
+1. `wp hl-core nuke --confirm='DELETE ALL DATA'` — SUCCESS (36 tables truncated, 1774 rows deleted)
+2. `wp hl-core seed-demo` — SUCCESS (17/17 steps completed)
+   - Track created: id=1, code=DEMO-2026
+   - 1 district, 2 schools, 4 classrooms, 4 instruments
+   - 15 enrollments, 2 teams, 10 teaching assignments, 26 children
+   - 2 pathways (7 activities total), prereq rules (ALL_OF, ANY_OF, N_OF_M), drip rules
+   - 12 activity states, 15 completion rollups
+   - 3 coach assignments, 6 coaching sessions
+3. DB verification: `wp_hl_track` contains `track_id=1, track_code=DEMO-2026, track_name='Demo Track 2026'`
+
+### Verdict: PASS
 
 ## V3: Staging seed-lutheran Test
 
