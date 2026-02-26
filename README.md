@@ -361,7 +361,7 @@ _Branch: `feature/grand-rename` — merge only after ALL sub-tasks complete._
 
 **PHASE B: Children Assessment → Child Assessment**
 
-- [ ] **B1 — DB Migration (Opus)** — Rename tables `hl_children_assessment_instance` → `hl_child_assessment_instance`, `hl_children_assessment_childrow` → `hl_child_assessment_childrow`. UPDATE activity_type 'children_assessment' → 'child_assessment'. Bump schema revision.
+- [x] **B1 — DB Migration (Opus)** — Schema revision 11: renamed `hl_children_assessment_instance` → `hl_child_assessment_instance`, `hl_children_assessment_childrow` → `hl_child_assessment_childrow`, activity_type enum 'children_assessment'→'child_assessment'. Fixed stale AFTER center_id in old migration.
 - [ ] **B2 — All PHP Code (Opus)** — Project-wide rename: `children_assessment` → `child_assessment` in ALL PHP files. Rename frontend class/file. Update shortcode `[hl_children_assessment]` → `[hl_child_assessment]`. Update all service methods, admin labels, CLI output. Grep to verify.
 - [ ] **B3 — Documentation (Sonnet)** — Update ALL 11 docs + CLAUDE.md + README.md: "Children Assessment" → "Child Assessment", table names, shortcode names.
 
