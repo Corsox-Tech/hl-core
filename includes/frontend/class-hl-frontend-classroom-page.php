@@ -4,7 +4,8 @@ if (!defined('ABSPATH')) exit;
 /**
  * Renderer for the [hl_classroom_page] shortcode.
  *
- * Displays a single classroom detail view with header info and children table.
+ * Displays a single classroom detail view with header info, children table,
+ * and teacher add/remove functionality.
  *
  * Access: Housman Admin, Coach, School Leaders, District Leaders,
  *         Teachers assigned to this classroom.
@@ -27,6 +28,109 @@ class HL_Frontend_Classroom_Page {
         $this->classroom_service = new HL_Classroom_Service();
         $this->orgunit_repo      = new HL_OrgUnit_Repository();
         $this->enrollment_repo   = new HL_Enrollment_Repository();
+
+        // Handle POST actions early via template_redirect.
+        add_action( 'template_redirect', array( $this, 'handle_post_actions' ) );
+    }
+
+    // ========================================================================
+    // POST Handlers
+    // ========================================================================
+
+    public function handle_post_actions() {
+        if ( $_SERVER['REQUEST_METHOD'] !== 'POST' ) {
+            return;
+        }
+
+        $classroom_id = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
+        if ( ! $classroom_id ) {
+            return;
+        }
+
+        // Add child.
+        if ( isset( $_POST['hl_action'] ) && $_POST['hl_action'] === 'add_child' ) {
+            $this->handle_add_child( $classroom_id );
+        }
+
+        // Remove child.
+        if ( isset( $_POST['hl_action'] ) && $_POST['hl_action'] === 'remove_child' ) {
+            $this->handle_remove_child( $classroom_id );
+        }
+    }
+
+    private function handle_add_child( $classroom_id ) {
+        if ( ! wp_verify_nonce( $_POST['_hl_nonce'] ?? '', 'hl_add_child_' . $classroom_id ) ) {
+            return;
+        }
+
+        $enrollment_id = $this->get_teacher_enrollment_for_classroom( get_current_user_id(), $classroom_id );
+        if ( ! $enrollment_id && ! HL_Security::can_manage() ) {
+            return;
+        }
+
+        // Staff without enrollment can still add children.
+        if ( ! $enrollment_id ) {
+            $enrollment_id = 0;
+        }
+
+        $data = array(
+            'first_name' => $_POST['first_name'] ?? '',
+            'last_name'  => $_POST['last_name'] ?? '',
+            'dob'        => $_POST['dob'] ?? '',
+            'gender'     => $_POST['gender'] ?? '',
+        );
+
+        $result = $this->classroom_service->teacher_add_child( $classroom_id, $enrollment_id, $data );
+
+        $redirect = $this->get_classroom_page_url( $classroom_id );
+
+        if ( is_wp_error( $result ) ) {
+            $redirect = add_query_arg( 'hl_error', urlencode( $result->get_error_message() ), $redirect );
+        } else {
+            $return_to = isset( $_POST['return_to_assessment'] ) ? absint( $_POST['return_to_assessment'] ) : 0;
+            $redirect  = add_query_arg( 'hl_success', 'child_added', $redirect );
+            if ( $return_to ) {
+                $redirect = add_query_arg( 'return_to_assessment', $return_to, $redirect );
+            }
+        }
+
+        wp_safe_redirect( $redirect );
+        exit;
+    }
+
+    private function handle_remove_child( $classroom_id ) {
+        if ( ! wp_verify_nonce( $_POST['_hl_nonce'] ?? '', 'hl_remove_child_' . $classroom_id ) ) {
+            return;
+        }
+
+        $enrollment_id = $this->get_teacher_enrollment_for_classroom( get_current_user_id(), $classroom_id );
+        if ( ! $enrollment_id && ! HL_Security::can_manage() ) {
+            return;
+        }
+
+        if ( ! $enrollment_id ) {
+            $enrollment_id = 0;
+        }
+
+        $child_id = absint( $_POST['child_id'] ?? 0 );
+        $reason   = sanitize_text_field( $_POST['removal_reason'] ?? 'other' );
+        $note     = sanitize_textarea_field( $_POST['removal_note'] ?? '' );
+
+        if ( ! $child_id ) {
+            return;
+        }
+
+        $result  = $this->classroom_service->teacher_remove_child( $classroom_id, $child_id, $enrollment_id, $reason, $note );
+        $redirect = $this->get_classroom_page_url( $classroom_id );
+
+        if ( is_wp_error( $result ) ) {
+            $redirect = add_query_arg( 'hl_error', urlencode( $result->get_error_message() ), $redirect );
+        } else {
+            $redirect = add_query_arg( 'hl_success', 'child_removed', $redirect );
+        }
+
+        wp_safe_redirect( $redirect );
+        exit;
     }
 
     // ========================================================================
@@ -73,6 +177,10 @@ class HL_Frontend_Classroom_Page {
             }
         }
 
+        // Detect if user can manage roster.
+        $is_assigned_teacher = (bool) $this->get_teacher_enrollment_for_classroom( $user_id, $classroom_id );
+        $can_manage_roster   = $is_assigned_teacher || HL_Security::can_manage();
+
         // Children.
         $children = $this->classroom_service->get_children_in_classroom( $classroom_id );
 
@@ -86,6 +194,9 @@ class HL_Frontend_Classroom_Page {
             $back_label = __( 'Back to My Track', 'hl-core' );
         }
 
+        // Success/error notices.
+        $return_to_assessment = isset( $_GET['return_to_assessment'] ) ? absint( $_GET['return_to_assessment'] ) : 0;
+
         ?>
         <div class="hl-dashboard hl-classroom-page hl-frontend-wrap">
 
@@ -95,24 +206,34 @@ class HL_Frontend_Classroom_Page {
 
             <?php $this->render_header( $classroom, $school, $teacher_names ); ?>
 
+            <?php $this->render_notices( $return_to_assessment ); ?>
+
             <div class="hl-table-container">
                 <div class="hl-table-header">
                     <h3 class="hl-section-title">
                         <?php
                         printf(
-                            /* translators: %d: number of children */
                             esc_html__( 'Children (%d)', 'hl-core' ),
                             count( $children )
                         );
                         ?>
                     </h3>
-                    <?php if ( ! empty( $children ) ) : ?>
-                        <div class="hl-table-filters">
+                    <div class="hl-table-filters" style="display:flex; gap:8px; align-items:center;">
+                        <?php if ( ! empty( $children ) ) : ?>
                             <input type="text" class="hl-search-input" data-table="hl-children-table"
                                    placeholder="<?php esc_attr_e( 'Search by name...', 'hl-core' ); ?>">
-                        </div>
-                    <?php endif; ?>
+                        <?php endif; ?>
+                        <?php if ( $can_manage_roster ) : ?>
+                            <button type="button" class="hl-btn hl-btn-primary hl-btn-sm" id="hl-toggle-add-child">
+                                + <?php esc_html_e( 'Add Child', 'hl-core' ); ?>
+                            </button>
+                        <?php endif; ?>
+                    </div>
                 </div>
+
+                <?php if ( $can_manage_roster ) : ?>
+                    <?php $this->render_add_child_form( $classroom_id, $return_to_assessment ); ?>
+                <?php endif; ?>
 
                 <?php if ( empty( $children ) ) : ?>
                     <div class="hl-empty-state"><p><?php esc_html_e( 'No children currently assigned to this classroom.', 'hl-core' ); ?></p></div>
@@ -124,6 +245,9 @@ class HL_Frontend_Classroom_Page {
                                 <th><?php esc_html_e( 'Date of Birth', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Age', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Gender', 'hl-core' ); ?></th>
+                                <?php if ( $can_manage_roster ) : ?>
+                                    <th style="width:100px;"><?php esc_html_e( 'Actions', 'hl-core' ); ?></th>
+                                <?php endif; ?>
                             </tr>
                         </thead>
                         <tbody>
@@ -139,6 +263,15 @@ class HL_Frontend_Classroom_Page {
                                     <td><?php echo esc_html( $dob ?: '—' ); ?></td>
                                     <td><?php echo esc_html( $age ); ?></td>
                                     <td><?php echo esc_html( $gender ); ?></td>
+                                    <?php if ( $can_manage_roster ) : ?>
+                                        <td>
+                                            <button type="button" class="hl-btn hl-btn-sm hl-btn-danger hl-remove-child-btn"
+                                                    data-child-id="<?php echo absint( $child->child_id ); ?>"
+                                                    data-child-name="<?php echo esc_attr( $name ); ?>">
+                                                <?php esc_html_e( 'Remove', 'hl-core' ); ?>
+                                            </button>
+                                        </td>
+                                    <?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -146,10 +279,191 @@ class HL_Frontend_Classroom_Page {
                 <?php endif; ?>
             </div>
 
+            <?php if ( $can_manage_roster ) : ?>
+                <?php $this->render_remove_modal( $classroom_id ); ?>
+            <?php endif; ?>
+
         </div>
+
+        <?php if ( $can_manage_roster ) : ?>
+            <?php $this->render_roster_js(); ?>
+        <?php endif; ?>
         <?php
 
         return ob_get_clean();
+    }
+
+    // ========================================================================
+    // Notices
+    // ========================================================================
+
+    private function render_notices( $return_to_assessment ) {
+        $success = isset( $_GET['hl_success'] ) ? sanitize_text_field( $_GET['hl_success'] ) : '';
+        $error   = isset( $_GET['hl_error'] ) ? sanitize_text_field( $_GET['hl_error'] ) : '';
+
+        if ( $success === 'child_added' ) {
+            echo '<div class="hl-notice hl-notice-success">';
+            esc_html_e( 'Child added successfully.', 'hl-core' );
+            if ( $return_to_assessment ) {
+                $assessment_url = $this->find_shortcode_page_url( 'hl_child_assessment' );
+                if ( $assessment_url ) {
+                    $assessment_url = add_query_arg( 'instance_id', $return_to_assessment, $assessment_url );
+                    echo ' <a href="' . esc_url( $assessment_url ) . '">' . esc_html__( 'Return to your assessment &rarr;', 'hl-core' ) . '</a>';
+                }
+            }
+            echo '</div>';
+        }
+
+        if ( $success === 'child_removed' ) {
+            echo '<div class="hl-notice hl-notice-success">';
+            esc_html_e( 'Child removed from classroom.', 'hl-core' );
+            echo '</div>';
+        }
+
+        if ( $error ) {
+            echo '<div class="hl-notice hl-notice-error">' . esc_html( $error ) . '</div>';
+        }
+    }
+
+    // ========================================================================
+    // Add Child Form
+    // ========================================================================
+
+    private function render_add_child_form( $classroom_id, $return_to_assessment ) {
+        ?>
+        <div id="hl-add-child-form" style="display:none; padding:20px; background:var(--hl-bg-secondary, #f9f9f9); border:1px solid var(--hl-border, #ddd); border-radius:6px; margin-bottom:16px;">
+            <h4 style="margin-top:0;"><?php esc_html_e( 'Add a Child', 'hl-core' ); ?></h4>
+            <form method="post">
+                <input type="hidden" name="hl_action" value="add_child">
+                <input type="hidden" name="_hl_nonce" value="<?php echo wp_create_nonce( 'hl_add_child_' . $classroom_id ); ?>">
+                <?php if ( $return_to_assessment ) : ?>
+                    <input type="hidden" name="return_to_assessment" value="<?php echo absint( $return_to_assessment ); ?>">
+                <?php endif; ?>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div>
+                        <label for="hl-first-name"><strong><?php esc_html_e( 'First Name', 'hl-core' ); ?> *</strong></label>
+                        <input type="text" id="hl-first-name" name="first_name" required style="width:100%;">
+                    </div>
+                    <div>
+                        <label for="hl-last-name"><strong><?php esc_html_e( 'Last Name', 'hl-core' ); ?> *</strong></label>
+                        <input type="text" id="hl-last-name" name="last_name" required style="width:100%;">
+                    </div>
+                    <div>
+                        <label for="hl-dob"><strong><?php esc_html_e( 'Date of Birth', 'hl-core' ); ?> *</strong></label>
+                        <input type="date" id="hl-dob" name="dob" required style="width:100%;">
+                    </div>
+                    <div>
+                        <label for="hl-gender"><strong><?php esc_html_e( 'Gender', 'hl-core' ); ?></strong></label>
+                        <select id="hl-gender" name="gender" style="width:100%;">
+                            <option value=""><?php esc_html_e( '— Select —', 'hl-core' ); ?></option>
+                            <option value="male"><?php esc_html_e( 'Male', 'hl-core' ); ?></option>
+                            <option value="female"><?php esc_html_e( 'Female', 'hl-core' ); ?></option>
+                            <option value="other"><?php esc_html_e( 'Other', 'hl-core' ); ?></option>
+                            <option value="prefer_not_to_say"><?php esc_html_e( 'Prefer not to say', 'hl-core' ); ?></option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button type="submit" class="hl-btn hl-btn-primary hl-btn-sm"><?php esc_html_e( 'Add Child', 'hl-core' ); ?></button>
+                    <button type="button" class="hl-btn hl-btn-sm" id="hl-cancel-add-child"><?php esc_html_e( 'Cancel', 'hl-core' ); ?></button>
+                </div>
+            </form>
+        </div>
+        <?php
+    }
+
+    // ========================================================================
+    // Remove Modal
+    // ========================================================================
+
+    private function render_remove_modal( $classroom_id ) {
+        ?>
+        <div id="hl-remove-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+            <div style="background:#fff; border-radius:8px; padding:24px; max-width:400px; width:90%; margin:auto; position:relative; top:50%; transform:translateY(-50%);">
+                <h4 style="margin-top:0;"><?php esc_html_e( 'Remove Child', 'hl-core' ); ?></h4>
+                <p id="hl-remove-confirm-text"></p>
+                <form method="post">
+                    <input type="hidden" name="hl_action" value="remove_child">
+                    <input type="hidden" name="_hl_nonce" value="<?php echo wp_create_nonce( 'hl_remove_child_' . $classroom_id ); ?>">
+                    <input type="hidden" name="child_id" id="hl-remove-child-id" value="">
+                    <div style="margin-bottom:12px;">
+                        <label for="hl-removal-reason"><strong><?php esc_html_e( 'Reason', 'hl-core' ); ?></strong></label>
+                        <select name="removal_reason" id="hl-removal-reason" style="width:100%;">
+                            <option value="left_school"><?php esc_html_e( 'No longer at this school', 'hl-core' ); ?></option>
+                            <option value="moved_classroom"><?php esc_html_e( 'Moved to another classroom', 'hl-core' ); ?></option>
+                            <option value="other"><?php esc_html_e( 'Other', 'hl-core' ); ?></option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label for="hl-removal-note"><strong><?php esc_html_e( 'Note (optional)', 'hl-core' ); ?></strong></label>
+                        <textarea name="removal_note" id="hl-removal-note" rows="2" style="width:100%;"></textarea>
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button type="button" class="hl-btn hl-btn-sm" id="hl-cancel-remove"><?php esc_html_e( 'Cancel', 'hl-core' ); ?></button>
+                        <button type="submit" class="hl-btn hl-btn-danger hl-btn-sm"><?php esc_html_e( 'Confirm Remove', 'hl-core' ); ?></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <?php
+    }
+
+    // ========================================================================
+    // Inline JS for roster management
+    // ========================================================================
+
+    private function render_roster_js() {
+        ?>
+        <script>
+        (function(){
+            // Toggle add child form.
+            var toggleBtn = document.getElementById('hl-toggle-add-child');
+            var addForm   = document.getElementById('hl-add-child-form');
+            var cancelBtn = document.getElementById('hl-cancel-add-child');
+
+            if (toggleBtn && addForm) {
+                toggleBtn.addEventListener('click', function() {
+                    addForm.style.display = addForm.style.display === 'none' ? 'block' : 'none';
+                });
+            }
+            if (cancelBtn && addForm) {
+                cancelBtn.addEventListener('click', function() {
+                    addForm.style.display = 'none';
+                });
+            }
+
+            // Remove child modal.
+            var modal = document.getElementById('hl-remove-modal');
+            var removeButtons = document.querySelectorAll('.hl-remove-child-btn');
+            var cancelRemove  = document.getElementById('hl-cancel-remove');
+            var childIdInput  = document.getElementById('hl-remove-child-id');
+            var confirmText   = document.getElementById('hl-remove-confirm-text');
+
+            removeButtons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var childId   = btn.getAttribute('data-child-id');
+                    var childName = btn.getAttribute('data-child-name');
+                    childIdInput.value = childId;
+                    confirmText.textContent = 'Remove ' + childName + ' from this classroom?';
+                    modal.style.display = 'flex';
+                });
+            });
+
+            if (cancelRemove && modal) {
+                cancelRemove.addEventListener('click', function() {
+                    modal.style.display = 'none';
+                });
+            }
+
+            // Close modal on outside click.
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) modal.style.display = 'none';
+                });
+            }
+        })();
+        </script>
+        <?php
     }
 
     // ========================================================================
@@ -158,17 +472,12 @@ class HL_Frontend_Classroom_Page {
 
     /**
      * Check if the current user can view this classroom.
-     *
-     * Allowed: staff (manage_hl_core), teachers assigned to this classroom,
-     * school/district leaders whose scope includes the classroom's school.
      */
     private function verify_access( $classroom, $user_id ) {
-        // Staff always has access.
         if ( HL_Security::can_manage() ) {
             return true;
         }
 
-        // Check if user is a teacher assigned to this classroom (any track).
         $assignments = $this->classroom_service->get_teaching_assignments( $classroom->classroom_id );
         foreach ( $assignments as $ta ) {
             if ( isset( $ta->user_id ) && (int) $ta->user_id === $user_id ) {
@@ -176,8 +485,6 @@ class HL_Frontend_Classroom_Page {
             }
         }
 
-        // Check if user is a leader whose scope includes this classroom's school.
-        // We need to check across all tracks the user is enrolled in.
         global $wpdb;
         $enrollments = $wpdb->get_results( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_enrollment
@@ -189,14 +496,12 @@ class HL_Frontend_Classroom_Page {
             $enrollment = new HL_Enrollment( (array) $row );
             $roles      = $enrollment->get_roles_array();
 
-            // School leader — classroom must be in their school.
             if ( in_array( 'school_leader', $roles, true ) && $enrollment->school_id ) {
                 if ( (int) $enrollment->school_id === (int) $classroom->school_id ) {
                     return true;
                 }
             }
 
-            // District leader — classroom's school must be within their district.
             if ( in_array( 'district_leader', $roles, true ) && $enrollment->district_id ) {
                 $schools    = $this->orgunit_repo->get_schools( (int) $enrollment->district_id );
                 $school_ids = array_map( function ( $c ) { return (int) $c->orgunit_id; }, $schools );
@@ -207,6 +512,27 @@ class HL_Frontend_Classroom_Page {
         }
 
         return false;
+    }
+
+    /**
+     * Get the enrollment_id for a teacher assigned to this classroom.
+     *
+     * @param int $user_id
+     * @param int $classroom_id
+     * @return int|null
+     */
+    private function get_teacher_enrollment_for_classroom( $user_id, $classroom_id ) {
+        global $wpdb;
+
+        return $wpdb->get_var( $wpdb->prepare(
+            "SELECT ta.enrollment_id
+             FROM {$wpdb->prefix}hl_teaching_assignment ta
+             JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
+             WHERE ta.classroom_id = %d AND e.user_id = %d AND e.status = 'active'
+             LIMIT 1",
+            $classroom_id,
+            $user_id
+        ) );
     }
 
     // ========================================================================
@@ -244,6 +570,14 @@ class HL_Frontend_Classroom_Page {
     // Helpers
     // ========================================================================
 
+    private function get_classroom_page_url( $classroom_id ) {
+        $page_url = $this->find_shortcode_page_url( 'hl_classroom_page' );
+        if ( ! $page_url ) {
+            $page_url = home_url();
+        }
+        return add_query_arg( 'id', $classroom_id, $page_url );
+    }
+
     private function format_date( $date_string ) {
         if ( empty( $date_string ) ) {
             return '';
@@ -266,13 +600,11 @@ class HL_Frontend_Classroom_Page {
 
             if ( $diff->y > 0 ) {
                 return sprintf(
-                    /* translators: 1: years, 2: months */
                     _n( '%d yr', '%d yrs', $diff->y, 'hl-core' ),
                     $diff->y
                 );
             }
             return sprintf(
-                /* translators: %d: months */
                 _n( '%d mo', '%d mos', $diff->m, 'hl-core' ),
                 $diff->m
             );
@@ -281,9 +613,6 @@ class HL_Frontend_Classroom_Page {
         }
     }
 
-    /**
-     * Get gender from the child's metadata JSON or return dash.
-     */
     private function get_gender( $child ) {
         if ( ! empty( $child->metadata ) ) {
             $meta = json_decode( $child->metadata, true );
@@ -297,7 +626,6 @@ class HL_Frontend_Classroom_Page {
     private function is_control_group_classroom( $user_id, $classroom_id ) {
         global $wpdb;
 
-        // Check if the user's teaching assignment for this classroom belongs to a control group track.
         $is_control = $wpdb->get_var( $wpdb->prepare(
             "SELECT t.is_control_group
              FROM {$wpdb->prefix}hl_teaching_assignment ta
