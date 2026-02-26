@@ -247,7 +247,7 @@ class HL_Admin_Assessments {
         echo '</div>';
 
         // Table
-        $can_switch = class_exists('BP_Core_Members_Switching') && current_user_can('switch_users');
+        $can_switch = class_exists('BP_Core_Members_Switching') && current_user_can('edit_users');
         $col_count = $can_switch ? 8 : 7;
 
         $phase_counts = array();
@@ -362,7 +362,7 @@ class HL_Admin_Assessments {
         echo '</div>';
 
         // Table
-        $can_switch = class_exists('BP_Core_Members_Switching') && current_user_can('switch_users');
+        $can_switch = class_exists('BP_Core_Members_Switching') && current_user_can('edit_users');
         $col_count = $can_switch ? 11 : 10;
 
         $phase_counts = array();
