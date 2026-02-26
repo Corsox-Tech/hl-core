@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 02_DOMAIN_MODEL_ORG_STRUCTURE.md
-Version: 1.1
-Last Updated: 2026-02-24
+Version: 2.0
+Last Updated: 2026-02-25
 Timezone: America/Bogota
 
 ---
@@ -12,8 +12,8 @@ This document defines the **canonical domain model** (objects + relationships + 
 
 Rules:
 - This is the system-of-record model. Do not rely on ad-hoc WP meta for core relationships.
-- WordPress Users provide identity only; cohort participation is modeled via Enrollment.
-- Org Structure persists across years; Cohorts are repeatable/iterable instances.
+- WordPress Users provide identity only; track participation is modeled via Enrollment.
+- Org Structure persists across years; Tracks are repeatable/iterable instances within Cohorts.
 
 ---
 
@@ -25,7 +25,7 @@ HL Core manages the following entities:
 Represents either a District or a School.
 
 - OrgUnit.type ∈ { "district", "school" }
-- OrgUnit is persistent (not tied to a Cohort).
+- OrgUnit is persistent (not tied to a Track).
 
 OrgUnit relationships:
 - A School OrgUnit may have a parent District OrgUnit (optional).
@@ -37,52 +37,78 @@ Rationale:
 ---
 
 ## 1.2 Cohort
-A time-bounded implementation/run (formerly "cohort/cohort instance").
+The contract/container entity — the biggest organizational entity. Groups one or more Tracks together.
+
+Cohort fields:
+- cohort_id (PK)
+- cohort_uuid (primary internal)
+- cohort_name
+- cohort_code (globally unique; human-readable)
+- description (text)
+- status ∈ { "active", "archived" }
 
 Cohort relationships:
-- Cohort may be associated to:
-  - one District OrgUnit (optional)
-  - one or more School OrgUnits (required at least 1)
-  - one Cohort Group (optional; see §1.13)
+- Cohort has many Tracks (via Track.cohort_id FK)
 
-Cohort flags:
-- is_control_group (boolean, default false) — When true, indicates this cohort is a research control group. Control cohorts receive assessment-only pathways (no courses, coaching, observations). Admin UI hides Coaching and Teams tabs for control cohorts. See doc 06 §6 for control group assessment workflow.
+Purpose:
+- Groups related tracks for cross-track reporting (e.g., multiple phases of the same program)
+- Enables program-vs-control comparison reporting when the cohort contains both program tracks (is_control_group=false) and control tracks (is_control_group=true)
+- Comparison metrics include per-section/per-item assessment means, pre-to-post change, and Cohen's d effect size
 
-Important:
-- District is optional. A single-school Cohort has no District association.
+Example:
+- "B2E Mastery - Lutheran Services Florida" cohort containing:
+  - "Lutheran B2E Phase 1 2026" (program track, is_control_group=false)
+  - "Lutheran Control Group 2026" (control track, is_control_group=true)
 
 ---
 
-## 1.3 Enrollment
-Join object: (User ↔ Cohort)
+## 1.3 Track
+A time-bounded implementation/run within a Cohort (formerly "Cohort").
+
+Track relationships:
+- Track.cohort_id → Cohort (FK to container)
+- Track may be associated to:
+  - one District OrgUnit (optional)
+  - one or more School OrgUnits (required at least 1)
+
+Track flags:
+- is_control_group (boolean, default false) — When true, indicates this track is a research control group. Control tracks receive assessment-only pathways (no courses, coaching, observations). Admin UI hides Coaching and Teams tabs for control tracks. See doc 06 §6 for control group assessment workflow.
+
+Important:
+- District is optional. A single-school Track has no District association.
+
+---
+
+## 1.4 Enrollment
+Join object: (User ↔ Track)
 
 Enrollment relationships:
 - Enrollment.user_id → WP User
-- Enrollment.cohort_id → Cohort
+- Enrollment.track_id → Track
 
 Enrollment holds:
-- cohort_roles (set)
+- track_roles (set)
 - pathway assignments (see 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md)
 - scope bindings (school/district as applicable)
 - status (active/inactive)
 
 Key rule:
-- Cohort Roles live on Enrollment, not WP user.
+- Track Roles live on Enrollment, not WP user.
 
 ---
 
-## 1.4 Team
-Mentorship group inside a School for a specific Cohort.
+## 1.5 Team
+Mentorship group inside a School for a specific Track.
 
 Team relationships:
-- Team.cohort_id → Cohort
+- Team.track_id → Track
 - Team.school_id → OrgUnit(type=school)
 
 Team membership is represented by TeamMembership (below).
 
 ---
 
-## 1.5 TeamMembership
+## 1.6 TeamMembership
 Join object: (Enrollment ↔ Team)
 
 TeamMembership relationships:
@@ -95,8 +121,8 @@ TeamMembership fields:
   - member = teacher participants assigned as mentees
 
 Constraints:
-- An Enrollment can belong to **at most one Team per Cohort**.
-  - Implementation: enforce uniqueness of (cohort_id, enrollment_id) across team memberships.
+- An Enrollment can belong to **at most one Team per Track**.
+  - Implementation: enforce uniqueness of (track_id, enrollment_id) across team memberships.
 - A Team can have 1–2 mentors (soft constraint; enforce at UI/service layer).
 
 Notes:
@@ -104,17 +130,17 @@ Notes:
 
 ---
 
-## 1.6 Classroom
-A classroom belonging to a School (persistent across Cohorts).
+## 1.7 Classroom
+A classroom belonging to a School (persistent across Tracks).
 
 Classroom relationships:
 - Classroom.school_id → OrgUnit(type=school)
 
-Classrooms exist independently of Cohorts, but Cohorts reference "current" classroom rosters and assignments.
+Classrooms exist independently of Tracks, but Tracks reference "current" classroom rosters and assignments.
 
 ---
 
-## 1.7 TeachingAssignment
+## 1.8 TeachingAssignment
 Join object: (Enrollment ↔ Classroom)
 
 TeachingAssignment relationships:
@@ -134,7 +160,7 @@ Constraints:
 
 ---
 
-## 1.8 Child
+## 1.9 Child
 Child record belonging to a School.
 
 Child relationships:
@@ -146,7 +172,7 @@ Identity:
 
 ---
 
-## 1.9 ChildClassroomAssignment (Current)
+## 1.10 ChildClassroomAssignment (Current)
 Represents current placement of a Child in a Classroom.
 
 Relationships:
@@ -158,7 +184,7 @@ Constraint:
 
 ---
 
-## 1.10 ChildClassroomHistory (Optional but Recommended)
+## 1.11 ChildClassroomHistory (Optional but Recommended)
 Stores history of child movement between classrooms.
 
 Relationships:
@@ -172,11 +198,11 @@ Fields:
 
 ---
 
-## 1.11 Observation
+## 1.12 Observation
 Mentor-submitted form artifact.
 
 Relationships (recommended):
-- Observation.cohort_id → Cohort
+- Observation.track_id → Track
 - Observation.mentor_enrollment_id → Enrollment
 - Observation.teacher_enrollment_id → Enrollment (optional but recommended)
 - Observation.school_id → OrgUnit(type=school) (optional)
@@ -188,11 +214,11 @@ Observation supports:
 
 ---
 
-## 1.12 CoachingSession
+## 1.13 CoachingSession
 Coach-submitted artifact linked to a mentor and optionally observations.
 
 Relationships (recommended):
-- CoachingSession.cohort_id → Cohort
+- CoachingSession.track_id → Track
 - CoachingSession.coach_user_id → WP User (staff)
 - CoachingSession.mentor_enrollment_id → Enrollment
 - CoachingSession.related_observation_ids[] → Observation (0..n)
@@ -204,37 +230,10 @@ Fields:
 
 ---
 
-## 1.13 CohortGroup
-A container that groups related Cohorts together for program-level reporting and research comparison.
-
-CohortGroup fields:
-- group_id (PK)
-- group_uuid
-- group_name
-- group_code (unique)
-- description (text)
-- status ∈ { "active", "archived" }
-
-CohortGroup relationships:
-- CohortGroup has many Cohorts (via Cohort.cohort_group_id FK)
-- A Cohort may belong to at most one CohortGroup
-
-Purpose:
-- Groups related cohorts for cross-cohort reporting (e.g., multiple phases of the same program)
-- Enables program-vs-control comparison reporting when the group contains both program cohorts (is_control_group=false) and control cohorts (is_control_group=true)
-- Comparison metrics include per-section/per-item assessment means, pre-to-post change, and Cohen's d effect size
-
-Example:
-- "B2E Mastery - Lutheran Services Florida" group containing:
-  - "Lutheran B2E Phase 1 2026" (program cohort, is_control_group=false)
-  - "Lutheran Control Group 2026" (control cohort, is_control_group=true)
-
----
-
 # 2) Relationship Diagram (Text)
 
-CohortGroup (optional)
-  └── Cohort [1..n]
+Cohort (container)
+  └── Track [1..n]
 
 OrgUnit(district)
   └── OrgUnit(school) [0..n]
@@ -243,11 +242,11 @@ OrgUnit(school)
   ├── Classroom [0..n]
   │     └── ChildClassroomAssignment (current)
   │           └── Child [0..n]
-  └── Team [0..n] (per Cohort)
+  └── Team [0..n] (per Track)
 
-Cohort (optionally in a CohortGroup; optionally is_control_group=true)
-  ├── Enrollment [0..n] (User ↔ Cohort)
-  │     ├── TeamMembership [0..1 per Cohort] → Team
+Track (within a Cohort; optionally is_control_group=true)
+  ├── Enrollment [0..n] (User ↔ Track)
+  │     ├── TeamMembership [0..1 per Track] → Team
   │     └── TeachingAssignment [0..n] → Classroom
   ├── Pathways/Activities (see doc 04/05)
   ├── Teacher Self-Assessments (see doc 06)
@@ -260,10 +259,10 @@ Cohort (optionally in a CohortGroup; optionally is_control_group=true)
 # 3) Constraints (Hard vs Soft)
 
 ## 3.1 Hard Constraints (Must enforce at DB or service layer)
-- Enrollment is unique per (cohort_id, user_id)
-- TeamMembership uniqueness: each enrollment_id can be in at most one team per cohort
+- Enrollment is unique per (track_id, user_id)
+- TeamMembership uniqueness: each enrollment_id can be in at most one team per track
 - Classroom belongs to exactly one School
-- Team belongs to exactly one Cohort and one School
+- Team belongs to exactly one Track and one School
 - Child belongs to exactly one School
 - Child has exactly one current classroom assignment
 
@@ -276,20 +275,20 @@ Cohort (optionally in a CohortGroup; optionally is_control_group=true)
 
 # 4) Role Rules that Affect the Model
 
-Cohort roles are stored on Enrollment as a set:
+Track roles are stored on Enrollment as a set:
 - Teacher
 - Mentor
 - School Leader
 - District Leader
 
 Notes:
-- A user can be both School Leader and Mentor in the same Cohort (allowed).
+- A user can be both School Leader and Mentor in the same Track (allowed).
 - Leaders are few; manual assignment is acceptable.
 
 Role-driven filtering requirements:
-- When selecting District Leaders for a District, UI must filter to enrollments in that Cohort with role District Leader.
-- When selecting School Leaders for a School, UI must filter to enrollments in that Cohort with role School Leader.
-- When selecting Team Mentors, UI must filter to enrollments in that Cohort with role Mentor (and optionally allow leaders with Mentor role).
+- When selecting District Leaders for a District, UI must filter to enrollments in that Track with role District Leader.
+- When selecting School Leaders for a School, UI must filter to enrollments in that Track with role School Leader.
+- When selecting Team Mentors, UI must filter to enrollments in that Track with role Mentor (and optionally allow leaders with Mentor role).
 
 ---
 
@@ -299,28 +298,28 @@ Role-driven filtering requirements:
 - orgunit_uuid (primary internal)
 - orgunit_code (unique within type; human-readable; recommended)
 
-## 5.2 Cohort
+## 5.2 Cohort (Container)
 - cohort_uuid (primary internal)
 - cohort_code (globally unique; human-readable)
-- status, start_date, end_date
-- is_control_group (boolean)
-- cohort_group_id (FK, nullable)
-
-## 5.2b CohortGroup
-- group_uuid (primary internal)
-- group_code (globally unique; human-readable)
 - status
 
-## 5.3 Enrollment
-- enrollment_uuid (primary internal)
-- unique(cohort_id, user_id)
+## 5.3 Track (Run)
+- track_uuid (primary internal)
+- track_code (globally unique; human-readable)
+- status, start_date, end_date
+- is_control_group (boolean)
+- cohort_id (FK to Cohort container, nullable)
 
-## 5.4 Classroom
+## 5.4 Enrollment
+- enrollment_uuid (primary internal)
+- unique(track_id, user_id)
+
+## 5.5 Classroom
 - classroom_uuid (primary internal)
 - classroom_name
 - unique(school_id, classroom_name) recommended for matching
 
-## 5.5 Child
+## 5.6 Child
 - child_uuid (primary internal)
 - child_fingerprint (computed; used for import matching with "Needs Review" fallback)
 
@@ -330,14 +329,14 @@ Role-driven filtering requirements:
 
 HL Core must support efficient queries for:
 
-1) Cohort roster:
-- list all enrollments in a Cohort
+1) Track roster:
+- list all enrollments in a Track
 - filter by role (Teacher/Mentor/Leader)
 - filter by school
 
 2) District/School reporting:
-- list all participants under a District for a Cohort
-- list all participants under a School for a Cohort
+- list all participants under a District for a Track
+- list all participants under a School for a Track
 
 3) Mentor visibility:
 - mentor enrollment → team → member enrollments (mentees) → progress summaries
@@ -347,7 +346,7 @@ HL Core must support efficient queries for:
 - list all classrooms assigned to a teacher
 
 5) Child assessments generation:
-- for each Cohort + Classroom + Teacher assignment → require one Child Assessment instance
+- for each Track + Classroom + Teacher assignment → require one Child Assessment instance
 
 ---
 

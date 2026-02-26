@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 01_GLOSSARY_CANONICAL_TERMS.md
-Version: 1.1
-Last Updated: 2026-02-24
+Version: 2.0
+Last Updated: 2026-02-25
 Timezone: America/Bogota
 
 ---
@@ -20,14 +20,43 @@ Rules:
 # 1) Canonical Top-Level Terms
 
 ## 1.1 Cohort
-**Definition**: A Cohort is a time-bounded run/implementation for a client, containing participants, configuration, learning requirements, and reporting.
+**Definition**: A Cohort is the contract/container entity — the biggest organizational entity. It groups one or more Tracks together for a client or program wave.
+
 Examples:
-- "ELCPB - 2026"
-- "Sunrise School - Spring 2026"
-- "Lutheran Control Group 2026"
+- "B2E Mastery - Lutheran Services Florida"
+- "B2E Mastery - ELC Palm Beach 2026"
 
 **Cohort contains**:
-- Cohort Participants (via Enrollment)
+- One or more Tracks (time-bounded runs)
+- Program-level configuration and reporting aggregation
+- Cross-track comparison reporting (program vs control)
+
+**Minimum required fields (conceptual)**:
+- cohort_name (display name)
+- cohort_code (unique human-readable identifier)
+- cohort_uuid (primary internal)
+- status (active/archived)
+- description (optional)
+
+**Table**: `hl_cohort`
+**PK**: `cohort_id`
+
+**DO NOT USE**:
+- "CohortGroup" (deprecated; absorbed into Cohort)
+- "Program Group" (deprecated; replaced by Cohort)
+
+---
+
+## 1.2 Track
+**Definition**: A Track is a time-bounded run/implementation within a Cohort, containing participants, configuration, learning requirements, and reporting.
+
+Examples:
+- "ELCPB - 2026" (a program track within its Cohort)
+- "Sunrise School - Spring 2026"
+- "Lutheran Control Group 2026" (a control track within a Cohort)
+
+**Track contains**:
+- Track Participants (via Enrollment)
 - Pathways and Activities (configuration)
 - Teams, Classrooms, Children rosters (data)
 - Progress state (LearnDash + HL Core)
@@ -35,87 +64,68 @@ Examples:
 - Reports and exports
 
 **Minimum required fields (conceptual)**:
-- cohort_name (display name)
-- cohort_code (unique human-readable identifier)
+- track_name (display name)
+- track_code (unique human-readable identifier)
+- track_uuid (primary internal)
 - status (draft/active/paused/archived)
 - start_date (required; can be future)
 - end_date (optional)
-- is_control_group (boolean; see §1.6)
+- is_control_group (boolean; see §1.5)
+- cohort_id (FK to Cohort container)
+
+**Table**: `hl_track`
+**PK**: `track_id`
+**FK**: `cohort_id` → `hl_cohort`
 
 **DO NOT USE**:
-- "Program" (deprecated; replaced by Cohort)
+- "Cohort" when referring to the run entity (use Track)
+- "Program" (deprecated; replaced by Track)
 
 ---
 
-## 1.2 District
+## 1.3 District
 **Definition**: Optional organizational parent grouping one or more Schools.
-A District can exist independently of Cohorts and persists across years.
+A District can exist independently of Tracks and persists across years.
 
 Notes:
-- Some Cohorts have no District (single-school clients).
-- District Leaders are participants in a Cohort and gain district-scope report access for that Cohort.
+- Some Tracks have no District (single-school clients).
+- District Leaders are participants in a Track and gain district-scope report access for that Track.
 
 **DO NOT USE**:
 - "School District" (use District)
 
 ---
 
-## 1.3 School
+## 1.4 School
 **Definition**: A site (school) where Classrooms exist and Teachers work.
 A School can optionally belong to a District.
 
 Notes:
 - School persists across years.
-- Schools can participate in multiple Cohorts.
+- Schools can participate in multiple Tracks.
 
 **Synonyms (UI labels allowed)**:
 - "School" (canonical term)
 
 **DO NOT USE**:
+- "Center" (deprecated; replaced by School)
 - "Institution" (deprecated; replaced by School)
 
 ---
 
-## 1.4 Cohort Group
-**Definition**: A container that groups related Cohorts together for program-level reporting and research comparison.
-
-A Cohort Group typically contains:
-- One or more **program cohorts** (full B2E Mastery curriculum)
-- Optionally one or more **control cohorts** (assessment-only, no program access)
-
-Examples:
-- "B2E Mastery - Lutheran Services Florida" group containing:
-  - "Lutheran B2E Phase 1 2026" (program cohort)
-  - "Lutheran Control Group 2026" (control cohort)
-
-**Purpose**: Enables side-by-side comparison reporting (program vs control) with effect size calculations (Cohen's d). Also useful for grouping multiple cohorts in the same program wave.
-
-Fields:
-- group_name
-- group_code (unique)
-- status (active/archived)
-- description
-
-Notes:
-- A Cohort may belong to at most one Cohort Group (via cohort_group_id FK).
-- A Cohort Group can contain any number of Cohorts.
-- The comparison reporting section in Admin Reports activates when a selected Cohort Group contains both program and control cohorts.
-
----
-
 ## 1.5 Control Group (Research Design)
-**Definition**: A cohort flagged with `is_control_group = true` whose participants do NOT receive the full B2E Mastery program. Control group participants complete only assessment activities (Teacher Self-Assessment Pre/Post and Child Assessment Pre/Post) for research comparison.
+**Definition**: A track flagged with `is_control_group = true` whose participants do NOT receive the full B2E Mastery program. Control group participants complete only assessment activities (Teacher Self-Assessment Pre/Post and Child Assessment Pre/Post) for research comparison.
 
 **Purpose**: Housman measures program impact by comparing:
-- **Program cohort** participants: full curriculum, coaching, observations + assessments
-- **Control cohort** participants: assessments only (no courses, coaching, observations)
+- **Program track** participants: full curriculum, coaching, observations + assessments
+- **Control track** participants: assessments only (no courses, coaching, observations)
 
 The difference in pre-to-post assessment change between program and control groups indicates program effectiveness.
 
-**UI/UX adaptations for control cohorts:**
-- Admin cohort list shows purple "Control" badge
-- Tabbed cohort editor hides Coaching and Teams tabs
-- Frontend Cohort Workspace hides Teams tab
+**UI/UX adaptations for control tracks:**
+- Admin track list shows purple "Control" badge
+- Tabbed track editor hides Coaching and Teams tabs
+- Frontend Track Workspace hides Teams tab
 - Assessment-only pathway (no course or coaching activities)
 
 **DO NOT USE**:
@@ -127,33 +137,33 @@ The difference in pre-to-post assessment change between program and control grou
 
 ## 2.1 User
 **Definition**: A WordPress user account (identity).
-A User may participate in zero or more Cohorts.
+A User may participate in zero or more Tracks.
 
 Important:
-- WP user role/caps are NOT used to represent cohort roles like Teacher/Mentor/Leader.
+- WP user role/caps are NOT used to represent track roles like Teacher/Mentor/Leader.
 
 ---
 
 ## 2.2 Enrollment
-**Definition**: Enrollment is the join between (User ↔ Cohort).
-Enrollment is the canonical place to store cohort participation details.
+**Definition**: Enrollment is the join between (User ↔ Track).
+Enrollment is the canonical place to store track participation details.
 
 Key rule:
-- **Cohort Roles MUST be stored on Enrollment, not on the WP User**.
-  This preserves history across Cohorts.
+- **Track Roles MUST be stored on Enrollment, not on the WP User**.
+  This preserves history across Tracks.
 
 Enrollment conceptually stores:
-- cohort_id
+- track_id
 - user_id
-- cohort_roles (one or more roles; see below)
+- track_roles (one or more roles; see below)
 - pathway_assignment (Teacher/Mentor/Leader pathway selection; may be manual for leaders)
 - scope bindings (school_id and/or district_id where applicable)
-- status (active/inactive) within the Cohort
+- status (active/inactive) within the Track
 
 ---
 
-## 2.3 Cohort Roles
-**Definition**: Roles assigned to an Enrollment within a Cohort.
+## 2.3 Track Roles
+**Definition**: Roles assigned to an Enrollment within a Track.
 
 Allowed values (canonical):
 - Teacher
@@ -162,8 +172,8 @@ Allowed values (canonical):
 - District Leader
 
 Notes:
-- A User may have different Cohort Roles across different Cohorts.
-- Within a Cohort, some Users may hold multiple Cohort Roles (rare; allowed).
+- A User may have different Track Roles across different Tracks.
+- Within a Track, some Users may hold multiple Track Roles (rare; allowed).
 - Leaders are few and may be managed manually.
 
 **DO NOT USE**:
@@ -173,42 +183,42 @@ Notes:
 ---
 
 ## 2.4 Housman Staff Roles (System-level)
-These are not Cohort Roles. They represent Housman internal access.
+These are not Track Roles. They represent Housman internal access.
 
 Canonical:
 - Housman Admin: WordPress administrator; full system permissions
 - Coach: Housman staff; elevated permissions (create users; view assessments; mark coaching sessions)
 
 Notes:
-- Staff roles exist outside any Cohort.
-- Staff can act across Cohorts.
+- Staff roles exist outside any Track.
+- Staff can act across Tracks.
 
 ---
 
 ## 2.5 Participant
-**Definition**: Any User who has an Enrollment in a Cohort.
-A Participant is a User in the context of a specific Cohort.
+**Definition**: Any User who has an Enrollment in a Track.
+A Participant is a User in the context of a specific Track.
 
 ---
 
 # 3) Mentorship Structure
 
 ## 3.1 Team
-**Definition**: A mentorship group inside a School for a specific Cohort.
+**Definition**: A mentorship group inside a School for a specific Track.
 
 Team characteristics:
-- Belongs to exactly one Cohort
+- Belongs to exactly one Track
 - Belongs to exactly one School
 - Contains:
-  - 1-2 Mentors (selected from Participants with Cohort Role Mentor OR manually permitted)
-  - multiple Teachers (selected from Participants with Cohort Role Teacher and/or Mentor if allowed)
+  - 1-2 Mentors (selected from Participants with Track Role Mentor OR manually permitted)
+  - multiple Teachers (selected from Participants with Track Role Teacher and/or Mentor if allowed)
 
 Constraint:
-- A Participant can belong to **at most one Team per Cohort**.
+- A Participant can belong to **at most one Team per Track**.
 
 Notes:
 - Teams do NOT determine classroom assignment. Teachers can teach multiple classrooms regardless of team.
-- Control group cohorts typically do NOT use Teams (since there is no mentorship).
+- Control group tracks typically do NOT use Teams (since there is no mentorship).
 
 ---
 
@@ -216,7 +226,7 @@ Notes:
 
 ## 4.1 Classroom
 **Definition**: A classroom belonging to a School.
-Classrooms exist independently of Cohorts, but Cohorts can reference the current roster.
+Classrooms exist independently of Tracks, but Tracks can reference the current roster.
 
 ---
 
@@ -224,10 +234,10 @@ Classrooms exist independently of Cohorts, but Cohorts can reference the current
 **Definition**: The relationship between a Teacher (participant) and a Classroom (many-to-many).
 
 Teaching Assignment includes:
-- teacher (user_id, in Cohort context)
+- teacher (user_id, in Track context)
 - classroom_id
 - is_lead_teacher (boolean)
-- effective dates (optional; recommended if tracking mid-cohort changes)
+- effective dates (optional; recommended if tracking mid-track changes)
 
 Rules:
 - A Teacher may teach in multiple Classrooms.
@@ -251,7 +261,7 @@ Important constraints:
 **Definition**: Current classroom placement for a Child.
 
 Notes:
-- Children may change classrooms mid-Cohort (assume possible).
+- Children may change classrooms mid-Track (assume possible).
 - History retention is recommended.
 
 ---
@@ -259,13 +269,13 @@ Notes:
 # 6) Learning Configuration
 
 ## 6.1 Pathway
-**Definition**: A configurable set/graph of required Activities assigned to Participants in a Cohort.
+**Definition**: A configurable set/graph of required Activities assigned to Participants in a Track.
 
 Properties:
-- Defined per Cohort
-- Usually defined per Cohort Role (Teacher, Mentor, Leaders)
-- Can differ between Cohorts and between schools within a Cohort if manually configured
-- Control group cohorts typically have a single assessment-only pathway
+- Defined per Track
+- Usually defined per Track Role (Teacher, Mentor, Leaders)
+- Can differ between Tracks and between schools within a Track if manually configured
+- Control group tracks typically have a single assessment-only pathway
 
 ---
 
@@ -374,15 +384,15 @@ Privacy:
 
 ---
 
-## 8.2 Cohort Completion Percentage
-**Definition**: Weighted average across all Activities assigned to a Participant in a Cohort.
+## 8.2 Track Completion Percentage
+**Definition**: Weighted average across all Activities assigned to a Participant in a Track.
 - Default weight=1 unless configured otherwise.
 - Non-staff reports show completion only; assessment responses remain hidden.
 
 ---
 
 ## 8.3 Program vs Control Comparison
-**Definition**: When a Cohort Group contains both program and control cohorts, the reporting system can compute side-by-side comparison of assessment outcomes.
+**Definition**: When a Cohort contains both program and control tracks, the reporting system can compute side-by-side comparison of assessment outcomes.
 
 Metrics:
 - Per-section and per-item mean scores for PRE and POST phases

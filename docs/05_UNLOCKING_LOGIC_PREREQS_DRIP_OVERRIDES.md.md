@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 05_UNLOCKING_LOGIC_PREREQS_DRIP_OVERRIDES.md
-Version: 1.0
-Last Updated: 2026-02-13
+Version: 2.0
+Last Updated: 2026-02-25
 Timezone: America/Bogota
 
 ---
@@ -12,12 +12,12 @@ This document defines the HL Core rules engine for Activity availability and com
 - Prerequisites (dependency graph)
 - Drip / release rules (time-based and completion-based)
 - Overrides (exempt, manual unlock, optional grace unlock)
-- Edge cases (late enrollments, pathway changes mid-Cohort, staffing replacements)
+- Edge cases (late enrollments, pathway changes mid-Track, staffing replacements)
 
 Rules:
 - Unlocking logic must be deterministic and auditable.
 - "Most restrictive wins" means all applicable gates must pass.
-- Unlock checks must be evaluated per Enrollment (User ↔ Cohort).
+- Unlock checks must be evaluated per Enrollment (User ↔ Track).
 
 ---
 
@@ -30,7 +30,7 @@ An Activity is either:
 - Completed
 
 Availability is evaluated per:
-- cohort_id
+- track_id
 - enrollment_id
 - activity_id
 
@@ -105,16 +105,16 @@ A target Activity may have:
 ## 3.2 Drip Rule Types
 
 ### 3.2.1 FIXED_DATE
-Activity is locked until a configured calendar date (in Cohort timezone).
+Activity is locked until a configured calendar date (in Track timezone).
 - drip_type = "fixed_date"
 - release_at_date = YYYY-MM-DD (date) OR YYYY-MM-DD HH:MM (datetime)
-- timezone = Cohort timezone (default: America/Bogota)
+- timezone = Track timezone (default: America/Bogota)
 
 Evaluation:
 - date_satisfied = now >= release_at_date
 
 Notes:
-- Cohort start_date may be earlier or later than release_at_date.
+- Track start_date may be earlier or later than release_at_date.
 - If release_at_date is missing, this gate is ignored.
 
 ---
@@ -222,7 +222,7 @@ If implemented, it must be:
 # 6) Late Enrollment and Replacement Rules
 
 ## 6.1 Late Enrollments
-If an enrollment is added after a Cohort starts:
+If an enrollment is added after a Track starts:
 - Availability is computed using current time and configured rules.
 - FIXED_DATE gates may already be satisfied; prerequisites still required.
 
@@ -230,17 +230,17 @@ No special acceleration is implied unless Admin uses overrides.
 
 ---
 
-## 6.2 Teacher Replacement Mid-Cohort
+## 6.2 Teacher Replacement Mid-Track
 Scenario:
 - Teacher quits; replacement teacher joins and is assigned to classrooms.
 Rules:
-- Replacement gets a new Enrollment (same user if they already exist; new enrollment in that Cohort).
+- Replacement gets a new Enrollment (same user if they already exist; new enrollment in that Track).
 - Replacement's Child Assessment requirements are generated based on current TeachingAssignments.
 - Replacement does NOT inherit completion unless Admin exempts.
 
 ---
 
-# 7) Pathway / Activity Changes Mid-Cohort
+# 7) Pathway / Activity Changes Mid-Track
 
 ## 7.1 When a Pathway is edited
 Edits may include:
@@ -254,7 +254,7 @@ Required behavior:
 - Completion records must remain immutable history; configuration changes affect future availability.
 
 Recommended approach:
-- Version pathway configurations or log configuration snapshots per Cohort.
+- Version pathway configurations or log configuration snapshots per Track.
 - If versioning is too heavy for v1, record a "config_changed_at" and recompute availability dynamically.
 
 ## 7.2 Removing an Activity
@@ -293,7 +293,7 @@ Log events:
 - override applied (exempt/manual unlock/grace unlock)
 Each log entry includes:
 - actor_user_id
-- cohort_id
+- track_id
 - enrollment_id (if applicable)
 - activity_id (if applicable)
 - timestamp

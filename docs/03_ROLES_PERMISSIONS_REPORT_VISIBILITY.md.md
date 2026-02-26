@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md
-Version: 1.0
-Last Updated: 2026-02-13
+Version: 2.0
+Last Updated: 2026-02-25
 Timezone: America/Bogota
 
 ---
@@ -9,7 +9,7 @@ Timezone: America/Bogota
 # 0) Purpose
 
 This document defines the **authorization model** for HL Core:
-- Roles (system-level and cohort-level)
+- Roles (system-level and track-level)
 - Scopes (district / school / team / self)
 - Exactly what each role can read/write
 - Report visibility rules
@@ -18,14 +18,14 @@ This document defines the **authorization model** for HL Core:
 Rules:
 - All permission checks MUST be enforced server-side.
 - Never rely on UI-only hiding.
-- Cohort participation and roles are stored on Enrollment (User ↔ Cohort).
+- Track participation and roles are stored on Enrollment (User ↔ Track).
 
 ---
 
 # 1) Role Types
 
 ## 1.1 System Roles (Global / WP-level)
-These reflect Housman internal staff access. They are not tied to a Cohort.
+These reflect Housman internal staff access. They are not tied to a Track.
 
 ### Housman Admin
 - WordPress admin
@@ -33,54 +33,54 @@ These reflect Housman internal staff access. They are not tied to a Cohort.
 
 ### Coach
 - Housman staff (not necessarily WP admin)
-- Elevated permissions across Cohorts, within staff rules defined below
+- Elevated permissions across Tracks, within staff rules defined below
 
 ---
 
-## 1.2 Cohort Roles (Enrollment-level)
-These are roles assigned per Enrollment within a Cohort.
+## 1.2 Track Roles (Enrollment-level)
+These are roles assigned per Enrollment within a Track.
 
-Allowed Cohort Roles:
+Allowed Track Roles:
 - Teacher
 - Mentor
 - School Leader
 - District Leader
 
 Notes:
-- A User can have different roles in different Cohorts.
-- A User may hold multiple Cohort Roles in the same Cohort (rare; allowed).
+- A User can have different roles in different Tracks.
+- A User may hold multiple Track Roles in the same Track (rare; allowed).
 - Leaders are few and manual assignment is acceptable.
 
 ---
 
 # 2) Scopes (Where permissions apply)
 
-Scopes are evaluated relative to a specific Cohort.
+Scopes are evaluated relative to a specific Track.
 
 ## 2.1 Self Scope
 - Data for the current user's own Enrollment only.
 
 ## 2.2 Team Scope
-- Data for Enrollments belonging to the same Team in the Cohort.
+- Data for Enrollments belonging to the same Team in the Track.
 - Mentor visibility is based on TeamMembership.
 
 ## 2.3 School Scope
-- Data for Enrollments assigned to a specific School in the Cohort.
+- Data for Enrollments assigned to a specific School in the Track.
 - School Leaders see School scope reports.
 
 ## 2.4 District Scope
-- Data for all Schools under a District (OrgUnit hierarchy) within the Cohort.
+- Data for all Schools under a District (OrgUnit hierarchy) within the Track.
 - District Leaders see District scope reports.
 
 ## 2.5 Staff Scope
-- All Cohorts and all scopes.
+- All Tracks and all scopes.
 
 ---
 
 # 3) Core Security Rules (Non-negotiable)
 
 ## 3.1 Enrollment-based authorization
-- If a user is not enrolled in a Cohort, they have no Cohort access unless they are Staff.
+- If a user is not enrolled in a Track, they have no Track access unless they are Staff.
 
 ## 3.2 Assessment response privacy
 Raw responses for:
@@ -96,8 +96,8 @@ Non-staff roles may see only:
 
 ## 3.3 User management restrictions for client roles
 Client leaders have limited user creation abilities:
-- District Leaders can create users within their Cohort + District scope only
-- School Leaders can create users within their Cohort + School scope only
+- District Leaders can create users within their Track + District scope only
+- School Leaders can create users within their Track + School scope only
 Client leaders cannot:
 - edit existing users
 - delete or deactivate users
@@ -109,12 +109,12 @@ Client leaders cannot:
 
 Use these canonical capability names in code and docs.
 
-## 4.1 Cohort & Configuration
-- cohort.view
-- cohort.create
-- cohort.edit
-- cohort.archive
-- cohort.manage_settings
+## 4.1 Track & Configuration
+- track.view
+- track.create
+- track.edit
+- track.archive
+- track.manage_settings
 - pathway.manage
 - activity.manage
 - unlock_rules.manage
@@ -167,18 +167,18 @@ Use these canonical capability names in code and docs.
 # 5) Permissions Matrix (Role × Capability)
 
 Legend:
-- ✅ allowed
-- ❌ not allowed
-- ⚠️ allowed with scope limits (see Scope Rules section)
+- allowed
+- not allowed
+- allowed with scope limits (see Scope Rules section)
 
 ## 5.1 Staff Roles (Global)
 
 ### Housman Admin
-- All capabilities ✅
+- All capabilities allowed
 
 ### Coach (Housman staff)
-✅ Allowed:
-- cohort.view
+Allowed:
+- track.view
 - orgunit.view
 - enrollment.view
 - enrollment.create (create WP users + enroll)
@@ -190,8 +190,8 @@ Legend:
 - coaching.mark_attendance
 - overrides.apply (exempt activities only)
 
-❌ Not allowed by default (may be enabled if desired):
-- cohort.create / edit / archive
+Not allowed by default (may be enabled if desired):
+- track.create / edit / archive
 - pathway.manage / activity.manage / unlock_rules.manage
 - manual unlock overrides (if reserved for Admin only)
 
@@ -201,16 +201,16 @@ Note:
 
 ---
 
-## 5.2 Cohort Roles (Enrollment-level)
+## 5.2 Track Roles (Enrollment-level)
 
 ### Teacher
-✅ Allowed:
-- cohort.view (only cohorts where enrolled)
+Allowed:
+- track.view (only tracks where enrolled)
 - reports.view (self scope only)
 - assessment.submit (teacher self-assessment; child assessment; if assigned)
 - assessment.view_completion (self completion only)
 - observation.view (optional; not required v1)
-❌ Not allowed:
+Not allowed:
 - reports.export
 - assessment.view_responses
 - any management permissions
@@ -221,17 +221,17 @@ Scope:
 ---
 
 ### Mentor
-✅ Allowed:
-- cohort.view (enrolled cohorts only)
+Allowed:
+- track.view (enrolled tracks only)
 - reports.view (team scope)
 - reports.export (team scope) [optional; enable if desired]
 - observation.submit (mentor forms)
 - observation.view (for their own submissions; staff view for all)
 - assessment.view_completion (team scope completion only; no responses)
-❌ Not allowed:
+Not allowed:
 - assessment.view_responses
 - user management
-- cohort configuration
+- track configuration
 
 Scope:
 - Team.
@@ -239,16 +239,16 @@ Scope:
 ---
 
 ### School Leader
-✅ Allowed:
-- cohort.view (enrolled cohorts only)
+Allowed:
+- track.view (enrolled tracks only)
 - reports.view (school scope)
 - reports.export (school scope)
-- users.create ⚠️ (create-only; within cohort + school scope)
-- enrollment.create ⚠️ (enroll newly created users into same cohort + school)
-❌ Not allowed:
+- users.create (create-only; within track + school scope)
+- enrollment.create (enroll newly created users into same track + school)
+Not allowed:
 - users.edit / deactivate / reset_password
 - assessment.view_responses
-- cohort/pathway configuration
+- track/pathway configuration
 
 Scope:
 - School.
@@ -256,16 +256,16 @@ Scope:
 ---
 
 ### District Leader
-✅ Allowed:
-- cohort.view (enrolled cohorts only)
+Allowed:
+- track.view (enrolled tracks only)
 - reports.view (district scope)
 - reports.export (district scope)
-- users.create ⚠️ (create-only; within cohort + district scope)
-- enrollment.create ⚠️ (enroll newly created users into same cohort + district/school mapping)
-❌ Not allowed:
+- users.create (create-only; within track + district scope)
+- enrollment.create (enroll newly created users into same track + district/school mapping)
+Not allowed:
 - users.edit / deactivate / reset_password
 - assessment.view_responses
-- cohort/pathway configuration
+- track/pathway configuration
 
 Scope:
 - District.
@@ -274,23 +274,23 @@ Scope:
 
 # 6) Scope Enforcement Rules (Must implement)
 
-## 6.1 Cohort access
-Non-staff users can only access a Cohort if they have an Enrollment for that Cohort.
+## 6.1 Track access
+Non-staff users can only access a Track if they have an Enrollment for that Track.
 
 ## 6.2 District scope resolution
 District Leader can view/report enrollments where:
-- enrollment.cohort_id matches AND
+- enrollment.track_id matches AND
 - enrollment.school_id is a child school of the leader's district OR
 - enrollment has district_id matching (implementation dependent)
 
 ## 6.3 School scope resolution
 School Leader can view/report enrollments where:
-- enrollment.cohort_id matches AND
+- enrollment.track_id matches AND
 - enrollment.school_id matches their school(s)
 
 ## 6.4 Team scope resolution
 Mentor can view/report enrollments where:
-- enrollment.cohort_id matches AND
+- enrollment.track_id matches AND
 - enrollment is in the same team as the mentor (TeamMembership join)
 
 ## 6.5 Self scope resolution
@@ -306,7 +306,7 @@ Teacher can view/report only their own enrollment record.
 - Staff can see responses and export
 
 ## 7.2 Child Assessment
-- Required per (Cohort, Classroom, Teacher assignment)
+- Required per (Track, Classroom, Teacher assignment)
 - Teacher can submit for assigned classrooms
 - Non-staff can see completion only
 - Staff can see responses and export
@@ -320,26 +320,26 @@ Client leader user creation is restricted.
 ## 8.1 District Leader create-only
 District Leaders may:
 - create a WP user with email + name (minimum)
-- immediately enroll that user in the same Cohort
+- immediately enroll that user in the same Track
 - assign that enrollment to an allowed school within their district
 
 District Leaders may NOT:
 - edit existing users
 - deactivate users
 - reset passwords
-- create users outside their Cohort or outside their district scope
+- create users outside their Track or outside their district scope
 
 ## 8.2 School Leader create-only
 School Leaders may:
 - create a WP user with email + name (minimum)
-- immediately enroll that user in the same Cohort
+- immediately enroll that user in the same Track
 - assign that enrollment to their school
 
 School Leaders may NOT:
 - edit existing users
 - deactivate users
 - reset passwords
-- create users outside their Cohort or outside their school scope
+- create users outside their Track or outside their school scope
 
 Implementation note:
 - If a user email already exists, leaders should not modify the existing user.
@@ -352,7 +352,7 @@ Implementation note:
 Log these events with:
 - actor_user_id
 - timestamp
-- cohort_id (if applicable)
+- track_id (if applicable)
 - affected entity IDs
 - before/after (where possible)
 
