@@ -8,16 +8,16 @@ class HL_Pathway_Repository {
         return $wpdb->prefix . 'hl_pathway';
     }
 
-    public function get_all($cohort_id = null) {
+    public function get_all($track_id = null) {
         global $wpdb;
-        if ($cohort_id) {
+        if ($track_id) {
             $rows = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$this->table()} WHERE cohort_id = %d ORDER BY pathway_name ASC",
-                $cohort_id
+                "SELECT * FROM {$this->table()} WHERE track_id = %d ORDER BY pathway_name ASC",
+                $track_id
             ), ARRAY_A);
         } else {
             $rows = $wpdb->get_results(
-                "SELECT * FROM {$this->table()} ORDER BY cohort_id DESC, pathway_name ASC",
+                "SELECT * FROM {$this->table()} ORDER BY track_id DESC, pathway_name ASC",
                 ARRAY_A
             );
         }

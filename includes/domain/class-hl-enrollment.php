@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 class HL_Enrollment {
     public $enrollment_id;
     public $enrollment_uuid;
-    public $cohort_id;
+    public $track_id;
     public $user_id;
     public $roles;
     public $assigned_pathway_id;

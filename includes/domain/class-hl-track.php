@@ -1,6 +1,6 @@
 <?php
 /**
- * Cohort domain model
+ * Track domain model (a time-bounded run within a Cohort)
  *
  * @package HL_Core
  */
@@ -9,13 +9,13 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class HL_Cohort {
-    public $cohort_id;
-    public $cohort_uuid;
-    public $cohort_code;
-    public $cohort_name;
+class HL_Track {
+    public $track_id;
+    public $track_uuid;
+    public $track_code;
+    public $track_name;
     public $district_id;
-    public $cohort_group_id;
+    public $cohort_id;
     public $is_control_group;
     public $status;
     public $start_date;
@@ -35,12 +35,12 @@ class HL_Cohort {
 
     public function to_array() {
         return array(
-            'cohort_id' => $this->cohort_id,
-            'cohort_uuid' => $this->cohort_uuid,
-            'cohort_code' => $this->cohort_code,
-            'cohort_name' => $this->cohort_name,
+            'track_id' => $this->track_id,
+            'track_uuid' => $this->track_uuid,
+            'track_code' => $this->track_code,
+            'track_name' => $this->track_name,
             'district_id' => $this->district_id,
-            'cohort_group_id' => $this->cohort_group_id,
+            'cohort_id' => $this->cohort_id,
             'is_control_group' => $this->is_control_group,
             'status' => $this->status,
             'start_date' => $this->start_date,

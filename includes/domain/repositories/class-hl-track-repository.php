@@ -1,6 +1,6 @@
 <?php
 /**
- * Cohort Repository
+ * Track Repository
  *
  * @package HL_Core
  */
@@ -9,56 +9,56 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class HL_Cohort_Repository {
+class HL_Track_Repository {
 
     /**
-     * Get all cohorts
+     * Get all tracks
      */
     public function get_all() {
         global $wpdb;
         $results = $wpdb->get_results(
-            "SELECT * FROM {$wpdb->prefix}hl_cohort ORDER BY created_at DESC",
+            "SELECT * FROM {$wpdb->prefix}hl_track ORDER BY created_at DESC",
             ARRAY_A
         );
 
-        $cohorts = array();
+        $tracks = array();
         foreach ($results as $row) {
-            $cohorts[] = new HL_Cohort($row);
+            $tracks[] = new HL_Track($row);
         }
-        return $cohorts;
+        return $tracks;
     }
 
     /**
-     * Get cohort by ID
+     * Get track by ID
      */
-    public function get_by_id($cohort_id) {
+    public function get_by_id($track_id) {
         global $wpdb;
         $row = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d",
-            $cohort_id
+            "SELECT * FROM {$wpdb->prefix}hl_track WHERE track_id = %d",
+            $track_id
         ), ARRAY_A);
 
-        return $row ? new HL_Cohort($row) : null;
+        return $row ? new HL_Track($row) : null;
     }
 
     /**
-     * Create cohort
+     * Create track
      */
     public function create($data) {
         global $wpdb;
 
         // Generate UUID if not provided
-        if (empty($data['cohort_uuid'])) {
-            $data['cohort_uuid'] = HL_DB_Utils::generate_uuid();
+        if (empty($data['track_uuid'])) {
+            $data['track_uuid'] = HL_DB_Utils::generate_uuid();
         }
 
         // Generate code if not provided
-        if (empty($data['cohort_code']) && !empty($data['cohort_name'])) {
-            $data['cohort_code'] = HL_Normalization::generate_code($data['cohort_name']);
+        if (empty($data['track_code']) && !empty($data['track_name'])) {
+            $data['track_code'] = HL_Normalization::generate_code($data['track_name']);
         }
 
         $wpdb->insert(
-            $wpdb->prefix . 'hl_cohort',
+            $wpdb->prefix . 'hl_track',
             $data
         );
 
@@ -66,18 +66,15 @@ class HL_Cohort_Repository {
     }
 
     /**
-     * Update cohort
+     * Update track
      */
-    public function update($cohort_id, $data) {
+    public function update($track_id, $data) {
         global $wpdb;
 
         // Build explicit format array so $wpdb doesn't rely on auto-detection.
         $formats = array();
         foreach ($data as $key => $value) {
             if (is_null($value)) {
-                // wpdb handles NULL values specially (SET col = NULL) —
-                // the format entry is ignored for NULLs but we still need
-                // a placeholder to keep the arrays aligned.
                 $formats[] = '%s';
             } elseif (is_int($value) || is_bool($value)) {
                 $formats[] = '%d';
@@ -89,29 +86,29 @@ class HL_Cohort_Repository {
         }
 
         $result = $wpdb->update(
-            $wpdb->prefix . 'hl_cohort',
+            $wpdb->prefix . 'hl_track',
             $data,
-            array('cohort_id' => $cohort_id),
+            array('track_id' => $track_id),
             $formats,
             array('%d')
         );
 
         if ($result === false) {
-            error_log('[HL Core] Cohort update FAILED for ID ' . $cohort_id . ': ' . $wpdb->last_error);
+            error_log('[HL Core] Track update FAILED for ID ' . $track_id . ': ' . $wpdb->last_error);
             error_log('[HL Core] Failed query: ' . $wpdb->last_query);
         }
 
-        return $this->get_by_id($cohort_id);
+        return $this->get_by_id($track_id);
     }
 
     /**
-     * Delete cohort
+     * Delete track
      */
-    public function delete($cohort_id) {
+    public function delete($track_id) {
         global $wpdb;
         return $wpdb->delete(
-            $wpdb->prefix . 'hl_cohort',
-            array('cohort_id' => $cohort_id)
+            $wpdb->prefix . 'hl_track',
+            array('track_id' => $track_id)
         );
     }
 }

@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 class HL_Activity {
     public $activity_id;
     public $activity_uuid;
-    public $cohort_id;
+    public $track_id;
     public $pathway_id;
     public $activity_type;
     public $title;
