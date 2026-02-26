@@ -511,6 +511,31 @@ class HL_Assessment_Service {
             $child_id = absint($row['child_id']);
             $answers  = is_array($row['answers_json']) ? wp_json_encode($row['answers_json']) : $row['answers_json'];
 
+            $update_data = array('answers_json' => $answers);
+            $insert_data = array(
+                'instance_id'  => $instance_id,
+                'child_id'     => $child_id,
+                'answers_json' => $answers,
+            );
+
+            // Phase 23: add frozen_age_group, instrument_id, status if provided.
+            if ( isset( $row['frozen_age_group'] ) && $row['frozen_age_group'] ) {
+                $update_data['frozen_age_group'] = sanitize_text_field( $row['frozen_age_group'] );
+                $insert_data['frozen_age_group'] = $update_data['frozen_age_group'];
+            }
+            if ( isset( $row['instrument_id'] ) && $row['instrument_id'] ) {
+                $update_data['instrument_id'] = absint( $row['instrument_id'] );
+                $insert_data['instrument_id'] = $update_data['instrument_id'];
+            }
+            if ( isset( $row['status'] ) && $row['status'] ) {
+                $update_data['status'] = sanitize_text_field( $row['status'] );
+                $insert_data['status'] = $update_data['status'];
+            }
+            if ( isset( $row['skip_reason'] ) && $row['skip_reason'] ) {
+                $update_data['skip_reason'] = sanitize_text_field( $row['skip_reason'] );
+                $insert_data['skip_reason'] = $update_data['skip_reason'];
+            }
+
             $existing = $wpdb->get_var($wpdb->prepare(
                 "SELECT row_id FROM {$wpdb->prefix}hl_child_assessment_childrow
                  WHERE instance_id = %d AND child_id = %d",
@@ -520,15 +545,11 @@ class HL_Assessment_Service {
             if ($existing) {
                 $wpdb->update(
                     $wpdb->prefix . 'hl_child_assessment_childrow',
-                    array('answers_json' => $answers),
+                    $update_data,
                     array('row_id' => $existing)
                 );
             } else {
-                $wpdb->insert($wpdb->prefix . 'hl_child_assessment_childrow', array(
-                    'instance_id'  => $instance_id,
-                    'child_id'     => $child_id,
-                    'answers_json' => $answers,
-                ));
+                $wpdb->insert($wpdb->prefix . 'hl_child_assessment_childrow', $insert_data);
             }
         }
 

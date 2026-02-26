@@ -40,6 +40,68 @@ class HL_Frontend_Child_Assessment {
     public function __construct() {
         $this->assessment_service = new HL_Assessment_Service();
         $this->classroom_service  = new HL_Classroom_Service();
+
+        // AJAX draft save endpoint for "Missing a child?" flow.
+        add_action( 'wp_ajax_hl_save_assessment_draft', array( $this, 'ajax_save_draft' ) );
+    }
+
+    /**
+     * AJAX handler: save child assessment draft.
+     */
+    public function ajax_save_draft() {
+        $instance_id = absint( $_POST['hl_instrument_instance_id'] ?? 0 );
+
+        if ( ! $instance_id ) {
+            wp_send_json_error( array( 'message' => 'Missing instance ID.' ) );
+        }
+
+        if ( ! wp_verify_nonce( $_POST['_hl_assessment_nonce'] ?? '', 'hl_child_assessment_' . $instance_id ) ) {
+            wp_send_json_error( array( 'message' => 'Invalid nonce.' ) );
+        }
+
+        $instance = $this->assessment_service->get_child_assessment( $instance_id );
+        if ( ! $instance || (int) $instance['user_id'] !== get_current_user_id() ) {
+            wp_send_json_error( array( 'message' => 'Unauthorized.' ) );
+        }
+
+        $posted_answers = isset( $_POST['answers'] ) && is_array( $_POST['answers'] ) ? $_POST['answers'] : array();
+        $childrow_data  = array();
+
+        foreach ( $posted_answers as $child_id => $answers ) {
+            $child_id = absint( $child_id );
+            if ( $child_id <= 0 ) continue;
+
+            $age_group     = isset( $answers['_age_group'] ) ? sanitize_text_field( $answers['_age_group'] ) : null;
+            $instrument_id = isset( $answers['_instrument_id'] ) ? absint( $answers['_instrument_id'] ) : null;
+            $is_skip       = isset( $answers['_skip'] ) && $answers['_skip'] === '1';
+            $skip_reason   = isset( $answers['_skip_reason'] ) ? sanitize_text_field( $answers['_skip_reason'] ) : '';
+            unset( $answers['_age_group'], $answers['_instrument_id'], $answers['_skip'], $answers['_skip_reason'] );
+
+            $sanitized = array();
+            if ( is_array( $answers ) ) {
+                foreach ( $answers as $qid => $val ) {
+                    $qid = sanitize_text_field( $qid );
+                    $sanitized[ $qid ] = is_array( $val ) ? array_map( 'sanitize_text_field', $val ) : sanitize_text_field( $val );
+                }
+            }
+
+            $childrow_data[] = array(
+                'child_id'         => $child_id,
+                'answers_json'     => $sanitized,
+                'frozen_age_group' => $age_group,
+                'instrument_id'    => $instrument_id,
+                'status'           => $is_skip ? 'skipped' : null,
+                'skip_reason'      => $is_skip ? $skip_reason : null,
+            );
+        }
+
+        $result = $this->assessment_service->save_child_assessment( $instance_id, $childrow_data, 'draft' );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+        }
+
+        wp_send_json_success( array( 'message' => 'Draft saved.' ) );
     }
 
     /**
@@ -332,29 +394,7 @@ class HL_Frontend_Child_Assessment {
             return;
         }
 
-        // ── No instrument assigned → error ───────────────────────────
-        if ( empty( $instance['instrument_id'] ) ) {
-            ?>
-            <div class="hl-notice hl-notice-error">
-                <?php esc_html_e( 'No instrument assigned to this assessment. Please contact your track administrator.', 'hl-core' ); ?>
-            </div>
-            <?php
-            return;
-        }
-
-        // ── Load the instrument ──────────────────────────────────────
-        $instrument = $this->get_instrument( $instance['instrument_id'] );
-
-        if ( ! $instrument ) {
-            ?>
-            <div class="hl-notice hl-notice-error">
-                <?php esc_html_e( 'The assessment instrument could not be loaded. Please contact your track administrator.', 'hl-core' ); ?>
-            </div>
-            <?php
-            return;
-        }
-
-        // ── Load children in the classroom ───────────────────────────
+        // ── Load children in the classroom (active only) ────────────
         $children = $this->classroom_service->get_children_in_classroom( $instance['classroom_id'] );
 
         if ( empty( $children ) ) {
@@ -366,9 +406,40 @@ class HL_Frontend_Child_Assessment {
             return;
         }
 
+        // ── Roster reconciliation ─────────────────────────────────────
+        // Ensure all active children have snapshots.
+        $track_id = absint( $instance['track_id'] );
+        foreach ( $children as $child ) {
+            $child = (object) $child;
+            if ( ! empty( $child->dob ) ) {
+                HL_Child_Snapshot_Service::ensure_snapshot( $child->child_id, $track_id, $child->dob );
+            }
+        }
+
         // ── Load existing answers (childrows) ────────────────────────
         $childrows = $this->assessment_service->get_child_assessment_childrows( $instance_id );
         $answers_map = $this->build_answers_map( $childrows );
+
+        // Reconciliation: mark removed children's draft rows as not_in_classroom.
+        $active_child_ids = wp_list_pluck( $children, 'child_id' );
+        foreach ( $childrows as $row ) {
+            if ( ! in_array( (int) $row['child_id'], array_map( 'intval', $active_child_ids ), true ) ) {
+                global $wpdb;
+                $wpdb->update(
+                    $wpdb->prefix . 'hl_child_assessment_childrow',
+                    array( 'status' => 'not_in_classroom' ),
+                    array( 'row_id' => $row['row_id'] ),
+                    array( '%s' ),
+                    array( '%d' )
+                );
+            }
+        }
+
+        // ── Load instrument (single or per-age-group) ─────────────────
+        $instrument = null;
+        if ( ! empty( $instance['instrument_id'] ) ) {
+            $instrument = $this->get_instrument( $instance['instrument_id'] );
+        }
 
         // ── Handle POST submission ───────────────────────────────────
         $message      = '';
@@ -393,10 +464,31 @@ class HL_Frontend_Child_Assessment {
                     $posted_answers = isset( $_POST['answers'] ) && is_array( $_POST['answers'] ) ? $_POST['answers'] : array();
                     $childrow_data  = array();
 
+                    // Re-check roster at submit time for race condition handling.
+                    $current_active_ids = array_map( 'intval', wp_list_pluck(
+                        $this->classroom_service->get_children_in_classroom( $instance['classroom_id'] ),
+                        'child_id'
+                    ) );
+
                     foreach ( $posted_answers as $child_id => $answers ) {
                         $child_id = absint( $child_id );
                         if ( $child_id <= 0 ) {
                             continue;
+                        }
+
+                        // Extract age group, instrument_id, and skip metadata.
+                        $age_group     = isset( $answers['_age_group'] ) ? sanitize_text_field( $answers['_age_group'] ) : null;
+                        $instrument_id = isset( $answers['_instrument_id'] ) ? absint( $answers['_instrument_id'] ) : null;
+                        $is_skip       = isset( $answers['_skip'] ) && $answers['_skip'] === '1';
+                        $skip_reason   = isset( $answers['_skip_reason'] ) ? sanitize_text_field( $answers['_skip_reason'] ) : '';
+                        unset( $answers['_age_group'], $answers['_instrument_id'], $answers['_skip'], $answers['_skip_reason'] );
+
+                        // Determine childrow status.
+                        $childrow_status = 'active';
+                        if ( $is_skip ) {
+                            $childrow_status = 'skipped';
+                        } elseif ( ! in_array( $child_id, $current_active_ids, true ) ) {
+                            $childrow_status = 'stale_at_submit';
                         }
 
                         // Sanitize each answer value
@@ -413,8 +505,12 @@ class HL_Frontend_Child_Assessment {
                         }
 
                         $childrow_data[] = array(
-                            'child_id'     => $child_id,
-                            'answers_json' => $sanitized_answers,
+                            'child_id'         => $child_id,
+                            'answers_json'     => $sanitized_answers,
+                            'status'           => $childrow_status,
+                            'skip_reason'      => $is_skip ? $skip_reason : null,
+                            'frozen_age_group' => $age_group,
+                            'instrument_id'    => $instrument_id,
                         );
                     }
 
@@ -465,57 +561,57 @@ class HL_Frontend_Child_Assessment {
     private function render_submitted_summary( $instance ) {
         $instance_id = absint( $instance['instance_id'] );
 
-        // Load the instrument
-        $instrument = null;
-        $questions  = array();
-        if ( ! empty( $instance['instrument_id'] ) ) {
-            $instrument = $this->get_instrument( $instance['instrument_id'] );
-            if ( $instrument ) {
-                $questions = json_decode( $instrument['questions'], true );
-                if ( ! is_array( $questions ) ) {
-                    $questions = array();
+        // Load childrows with answers.
+        $childrows = $this->assessment_service->get_child_assessment_childrows( $instance_id );
+
+        // Group childrows by frozen_age_group.
+        $age_order  = array( 'infant', 'toddler', 'preschool', 'k2' );
+        $groups     = array();
+        $ungrouped  = array();
+        foreach ( $childrows as $row ) {
+            $group = ! empty( $row['frozen_age_group'] ) ? $row['frozen_age_group'] : '';
+            if ( $group ) {
+                $groups[ $group ][] = $row;
+            } else {
+                $ungrouped[] = $row;
+            }
+        }
+        $has_groups = ! empty( $groups );
+
+        // Load instruments + questions per age group.
+        $group_questions = array();
+        if ( $has_groups ) {
+            foreach ( $groups as $grp => $rows ) {
+                $instr_id = ! empty( $rows[0]['instrument_id'] ) ? absint( $rows[0]['instrument_id'] ) : null;
+                if ( $instr_id ) {
+                    $instr = $this->get_instrument( $instr_id );
+                    if ( $instr ) {
+                        $qs = json_decode( $instr['questions'], true );
+                        $group_questions[ $grp ] = is_array( $qs ) ? $qs : array();
+                    }
                 }
             }
         }
 
-        // Load childrows with answers
-        $childrows = $this->assessment_service->get_child_assessment_childrows( $instance_id );
-
-        // Detect single-question Likert for transposed display
-        $q_type = '';
-        if ( count( $questions ) === 1 ) {
-            $q_type = isset( $questions[0]['question_type'] ) ? $questions[0]['question_type'] : ( isset( $questions[0]['type'] ) ? $questions[0]['type'] : '' );
+        // Fallback: instance-level instrument for ungrouped rows or old data.
+        $instrument = null;
+        $questions  = array();
+        if ( ! $has_groups || ! empty( $ungrouped ) ) {
+            if ( ! empty( $instance['instrument_id'] ) ) {
+                $instrument = $this->get_instrument( $instance['instrument_id'] );
+                if ( $instrument ) {
+                    $questions = json_decode( $instrument['questions'], true );
+                    if ( ! is_array( $questions ) ) {
+                        $questions = array();
+                    }
+                }
+            }
         }
-        $is_single_likert = ( $q_type === 'likert' );
 
-        // Likert value-to-label mapping (0-4 → Never...Almost Always)
+        // Likert label mapping.
         $likert_labels = array(
             '0' => 'Never', '1' => 'Rarely', '2' => 'Sometimes', '3' => 'Usually', '4' => 'Almost Always',
         );
-
-        $allowed_values = array();
-        $use_likert_labels = false;
-        if ( $is_single_likert ) {
-            $q = $questions[0];
-            if ( isset( $q['allowed_values'] ) ) {
-                if ( is_array( $q['allowed_values'] ) ) {
-                    $allowed_values = $q['allowed_values'];
-                } elseif ( is_string( $q['allowed_values'] ) && $q['allowed_values'] !== '' ) {
-                    $allowed_values = array_map( 'trim', explode( ',', $q['allowed_values'] ) );
-                }
-            }
-            if ( empty( $allowed_values ) ) {
-                $allowed_values = array( '0', '1', '2', '3', '4' );
-            }
-            // Check if values are numeric (0-4) and need label mapping
-            $use_likert_labels = true;
-            foreach ( $allowed_values as $v ) {
-                if ( ! isset( $likert_labels[ (string) $v ] ) ) {
-                    $use_likert_labels = false;
-                    break;
-                }
-            }
-        }
 
         // Inline styles for submitted summary (reuse the renderer's design tokens)
         ?>
@@ -564,6 +660,9 @@ class HL_Frontend_Child_Assessment {
             .hl-ca-answer-pill { display: inline-block; padding: 3px 12px; border-radius: var(--hl-radius-pill, 100px); background: var(--hl-bg, #F4F5F7); color: var(--hl-text, #374151); font-size: 13px; font-weight: 500; }
             .hl-ca-answer-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--hl-primary, #1A2B47); }
             .hl-ca-answer-empty { color: var(--hl-text-muted, #9CA3AF); font-size: 13px; }
+            .hl-ca-summary-group-header { font-size: 16px; font-weight: 700; color: var(--hl-primary, #1A2B47); margin: 24px 0 10px; padding: 8px 12px; background: var(--hl-bg-alt, #FAFBFC); border-radius: 8px; border-left: 4px solid var(--hl-secondary, #2C7BE5); }
+            .hl-ca-summary-group-header:first-of-type { margin-top: 0; }
+            .hl-ca-skip-badge { display: inline-block; padding: 2px 8px; border-radius: 100px; background: var(--hl-bg, #F4F5F7); color: var(--hl-text-muted, #9CA3AF); font-size: 11px; font-weight: 500; font-style: italic; }
             @media (max-width: 768px) {
                 .hl-ca-summary-wrap { padding: 24px 20px; margin: 0 -10px 1.5em; }
                 .hl-ca-summary-wrap .hl-ca-title { font-size: 18px; }
@@ -630,123 +729,36 @@ class HL_Frontend_Child_Assessment {
                         <?php esc_html_e( 'No child responses recorded for this assessment.', 'hl-core' ); ?>
                     </div>
 
-                <?php elseif ( $is_single_likert && ! empty( $allowed_values ) ) : ?>
-                    <?php // ── Transposed Likert summary (matches form layout) ── ?>
-                    <?php $qid = $questions[0]['question_id']; ?>
+                <?php elseif ( $has_groups ) : ?>
+                    <?php // ── Age-group-grouped summary ── ?>
+                    <?php foreach ( $age_order as $grp ) :
+                        if ( ! isset( $groups[ $grp ] ) ) continue;
+                        $grp_rows  = $groups[ $grp ];
+                        $grp_qs    = isset( $group_questions[ $grp ] ) ? $group_questions[ $grp ] : array();
+                        $grp_label = HL_Age_Group_Helper::get_label( $grp );
+                        $grp_count = count( $grp_rows );
+                    ?>
+                        <h3 class="hl-ca-summary-group-header">
+                            <?php
+                            printf(
+                                esc_html__( '%1$s (%2$d %3$s)', 'hl-core' ),
+                                esc_html( $grp_label ),
+                                $grp_count,
+                                _n( 'child', 'children', $grp_count, 'hl-core' )
+                            );
+                            ?>
+                        </h3>
+                        <?php $this->render_summary_table( $grp_rows, $grp_qs, $likert_labels ); ?>
+                    <?php endforeach; ?>
 
-                    <div class="hl-ca-summary-matrix-wrap">
-                        <table class="hl-ca-summary-matrix">
-                            <thead>
-                                <tr>
-                                    <th>&nbsp;</th>
-                                    <?php foreach ( $allowed_values as $val ) : ?>
-                                        <th><?php echo esc_html( $use_likert_labels && isset( $likert_labels[ (string) $val ] ) ? $likert_labels[ (string) $val ] : $val ); ?></th>
-                                    <?php endforeach; ?>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ( $childrows as $row ) :
-                                    $child_name = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
-                                    $child_label = ! empty( $child_name )
-                                        ? $child_name
-                                        : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
-                                    $answers = json_decode( $row['answers_json'], true );
-                                    if ( ! is_array( $answers ) ) { $answers = array(); }
-                                    $answer_val = isset( $answers[ $qid ] ) ? $answers[ $qid ] : '';
-                                    $dob = '';
-                                    if ( ! empty( $row['dob'] ) ) {
-                                        $ts = strtotime( $row['dob'] );
-                                        if ( $ts ) { $dob = date( 'n/j/Y', $ts ); }
-                                    }
-                                ?>
-                                    <tr>
-                                        <td>
-                                            <?php echo esc_html( $child_label ); ?>
-                                            <?php if ( $dob ) : ?>
-                                                <span class="hl-ca-summary-child-dob">DOB: <?php echo esc_html( $dob ); ?></span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <?php foreach ( $allowed_values as $val ) : ?>
-                                            <td>
-                                                <?php if ( (string) $answer_val === (string) $val ) : ?>
-                                                    <span class="hl-ca-answer-dot" title="<?php echo esc_attr( $val ); ?>"></span>
-                                                <?php else : ?>
-                                                    <span class="hl-ca-answer-empty">&mdash;</span>
-                                                <?php endif; ?>
-                                            </td>
-                                        <?php endforeach; ?>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-
-                <?php elseif ( ! empty( $questions ) ) : ?>
-                    <?php // ── Multi-question summary ── ?>
-                    <div class="hl-ca-summary-matrix-wrap">
-                        <table class="hl-ca-summary-matrix">
-                            <thead>
-                                <tr>
-                                    <th><?php esc_html_e( 'Child', 'hl-core' ); ?></th>
-                                    <?php foreach ( $questions as $question ) : ?>
-                                        <th><?php echo esc_html( $question['prompt_text'] ); ?></th>
-                                    <?php endforeach; ?>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ( $childrows as $row ) :
-                                    $child_name = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
-                                    $child_label = ! empty( $child_name )
-                                        ? $child_name
-                                        : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
-                                    $answers = json_decode( $row['answers_json'], true );
-                                    if ( ! is_array( $answers ) ) { $answers = array(); }
-                                ?>
-                                    <tr>
-                                        <td><?php echo esc_html( $child_label ); ?></td>
-                                        <?php foreach ( $questions as $question ) :
-                                            $qid   = isset( $question['question_id'] ) ? $question['question_id'] : '';
-                                            $value = isset( $answers[ $qid ] ) ? $answers[ $qid ] : '';
-                                        ?>
-                                            <td>
-                                                <?php if ( $value !== '' && $value !== null ) : ?>
-                                                    <span class="hl-ca-answer-pill"><?php echo esc_html( is_array( $value ) ? implode( ', ', $value ) : $value ); ?></span>
-                                                <?php else : ?>
-                                                    <span class="hl-ca-answer-empty">&mdash;</span>
-                                                <?php endif; ?>
-                                            </td>
-                                        <?php endforeach; ?>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                    <?php if ( ! empty( $ungrouped ) ) : ?>
+                        <h3 class="hl-ca-summary-group-header"><?php esc_html_e( 'Other', 'hl-core' ); ?></h3>
+                        <?php $this->render_summary_table( $ungrouped, $questions, $likert_labels ); ?>
+                    <?php endif; ?>
 
                 <?php else : ?>
-                    <?php // ── No instrument questions — raw answers ── ?>
-                    <div class="hl-ca-summary-matrix-wrap">
-                        <table class="hl-ca-summary-matrix">
-                            <thead>
-                                <tr>
-                                    <th><?php esc_html_e( 'Child', 'hl-core' ); ?></th>
-                                    <th><?php esc_html_e( 'Answers', 'hl-core' ); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ( $childrows as $row ) :
-                                    $child_name = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
-                                    $child_label = ! empty( $child_name )
-                                        ? $child_name
-                                        : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
-                                ?>
-                                    <tr>
-                                        <td><?php echo esc_html( $child_label ); ?></td>
-                                        <td><code><?php echo esc_html( $row['answers_json'] ); ?></code></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                    <?php // ── Legacy flat summary (no age groups stored) ── ?>
+                    <?php $this->render_summary_table( $childrows, $questions, $likert_labels ); ?>
                 <?php endif; ?>
 
             </div>
@@ -798,7 +810,17 @@ class HL_Frontend_Child_Assessment {
             <?php endif; ?>
 
             <?php
-            $renderer = new HL_Instrument_Renderer( $instrument, $children, $instance_id, $answers_map, $instance );
+            // Use multi-age-group renderer (per-child frozen age groups).
+            $track_id     = absint( $instance['track_id'] );
+            $classroom_id = absint( $instance['classroom_id'] );
+            $renderer = HL_Instrument_Renderer::create_multi_age_group(
+                $classroom_id,
+                $track_id,
+                $instance_id,
+                $answers_map,
+                $instance,
+                $children
+            );
             echo $renderer->render();
             ?>
 
@@ -817,6 +839,185 @@ class HL_Frontend_Child_Assessment {
             </p>
         </div>
         <?php
+    }
+
+    // =====================================================================
+    // Summary Table Rendering
+    // =====================================================================
+
+    /**
+     * Render a summary table for a set of childrows with given questions.
+     *
+     * Detects single-question Likert for transposed dot-matrix display.
+     * Handles skipped children with a badge.
+     *
+     * @param array $rows           Childrow data with answers_json, first_name, etc.
+     * @param array $questions      Parsed questions array for these rows.
+     * @param array $likert_labels  Likert value-to-label mapping.
+     */
+    private function render_summary_table( $rows, $questions, $likert_labels ) {
+        if ( empty( $rows ) ) {
+            return;
+        }
+
+        // Detect single-question Likert for transposed display.
+        $q_type = '';
+        if ( count( $questions ) === 1 ) {
+            $q_type = isset( $questions[0]['question_type'] ) ? $questions[0]['question_type'] : ( isset( $questions[0]['type'] ) ? $questions[0]['type'] : '' );
+        }
+        $is_single_likert = ( $q_type === 'likert' );
+
+        // Resolve allowed values and label mode.
+        $allowed_values    = array();
+        $use_likert_labels = false;
+        if ( $is_single_likert ) {
+            $q = $questions[0];
+            if ( isset( $q['allowed_values'] ) ) {
+                if ( is_array( $q['allowed_values'] ) ) {
+                    $allowed_values = $q['allowed_values'];
+                } elseif ( is_string( $q['allowed_values'] ) && $q['allowed_values'] !== '' ) {
+                    $allowed_values = array_map( 'trim', explode( ',', $q['allowed_values'] ) );
+                }
+            }
+            if ( empty( $allowed_values ) ) {
+                $allowed_values = array( '0', '1', '2', '3', '4' );
+            }
+            $use_likert_labels = true;
+            foreach ( $allowed_values as $v ) {
+                if ( ! isset( $likert_labels[ (string) $v ] ) ) {
+                    $use_likert_labels = false;
+                    break;
+                }
+            }
+        }
+
+        if ( $is_single_likert && ! empty( $allowed_values ) ) :
+            // ── Transposed Likert summary ──
+            $qid = $questions[0]['question_id'];
+            ?>
+            <div class="hl-ca-summary-matrix-wrap">
+                <table class="hl-ca-summary-matrix">
+                    <thead>
+                        <tr>
+                            <th>&nbsp;</th>
+                            <?php foreach ( $allowed_values as $val ) : ?>
+                                <th><?php echo esc_html( $use_likert_labels && isset( $likert_labels[ (string) $val ] ) ? $likert_labels[ (string) $val ] : $val ); ?></th>
+                            <?php endforeach; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $rows as $row ) :
+                            $child_name  = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
+                            $child_label = ! empty( $child_name ) ? $child_name : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
+                            $is_skipped  = ( isset( $row['status'] ) && $row['status'] === 'skipped' );
+                            $answers     = json_decode( $row['answers_json'], true );
+                            if ( ! is_array( $answers ) ) { $answers = array(); }
+                            $answer_val = isset( $answers[ $qid ] ) ? $answers[ $qid ] : '';
+                            $dob = '';
+                            if ( ! empty( $row['dob'] ) ) {
+                                $ts = strtotime( $row['dob'] );
+                                if ( $ts ) { $dob = date( 'n/j/Y', $ts ); }
+                            }
+                        ?>
+                            <tr<?php echo $is_skipped ? ' style="opacity:0.5;"' : ''; ?>>
+                                <td>
+                                    <?php echo esc_html( $child_label ); ?>
+                                    <?php if ( $dob ) : ?>
+                                        <span class="hl-ca-summary-child-dob">DOB: <?php echo esc_html( $dob ); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <?php if ( $is_skipped ) : ?>
+                                    <td colspan="<?php echo count( $allowed_values ); ?>" style="text-align:center;">
+                                        <span class="hl-ca-skip-badge"><?php esc_html_e( 'Skipped', 'hl-core' ); ?></span>
+                                    </td>
+                                <?php else : ?>
+                                    <?php foreach ( $allowed_values as $val ) : ?>
+                                        <td>
+                                            <?php if ( (string) $answer_val === (string) $val ) : ?>
+                                                <span class="hl-ca-answer-dot" title="<?php echo esc_attr( $val ); ?>"></span>
+                                            <?php else : ?>
+                                                <span class="hl-ca-answer-empty">&mdash;</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+        <?php elseif ( ! empty( $questions ) ) : ?>
+            <?php // ── Multi-question summary ── ?>
+            <div class="hl-ca-summary-matrix-wrap">
+                <table class="hl-ca-summary-matrix">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( 'Child', 'hl-core' ); ?></th>
+                            <?php foreach ( $questions as $question ) : ?>
+                                <th><?php echo esc_html( $question['prompt_text'] ); ?></th>
+                            <?php endforeach; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $rows as $row ) :
+                            $child_name  = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
+                            $child_label = ! empty( $child_name ) ? $child_name : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
+                            $is_skipped  = ( isset( $row['status'] ) && $row['status'] === 'skipped' );
+                            $answers     = json_decode( $row['answers_json'], true );
+                            if ( ! is_array( $answers ) ) { $answers = array(); }
+                        ?>
+                            <tr<?php echo $is_skipped ? ' style="opacity:0.5;"' : ''; ?>>
+                                <td><?php echo esc_html( $child_label ); ?></td>
+                                <?php if ( $is_skipped ) : ?>
+                                    <td colspan="<?php echo count( $questions ); ?>" style="text-align:center;">
+                                        <span class="hl-ca-skip-badge"><?php esc_html_e( 'Skipped', 'hl-core' ); ?></span>
+                                    </td>
+                                <?php else : ?>
+                                    <?php foreach ( $questions as $question ) :
+                                        $qid   = isset( $question['question_id'] ) ? $question['question_id'] : '';
+                                        $value = isset( $answers[ $qid ] ) ? $answers[ $qid ] : '';
+                                    ?>
+                                        <td>
+                                            <?php if ( $value !== '' && $value !== null ) : ?>
+                                                <span class="hl-ca-answer-pill"><?php echo esc_html( is_array( $value ) ? implode( ', ', $value ) : $value ); ?></span>
+                                            <?php else : ?>
+                                                <span class="hl-ca-answer-empty">&mdash;</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+        <?php else : ?>
+            <?php // ── No instrument questions — raw answers ── ?>
+            <div class="hl-ca-summary-matrix-wrap">
+                <table class="hl-ca-summary-matrix">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( 'Child', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Answers', 'hl-core' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $rows as $row ) :
+                            $child_name  = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
+                            $child_label = ! empty( $child_name ) ? $child_name : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
+                        ?>
+                            <tr>
+                                <td><?php echo esc_html( $child_label ); ?></td>
+                                <td><code><?php echo esc_html( $row['answers_json'] ); ?></code></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php
+        endif;
     }
 
     // =====================================================================

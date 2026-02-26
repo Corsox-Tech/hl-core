@@ -525,13 +525,15 @@ class HL_Instrument_Renderer {
                                     $row_class = ( $row_index % 2 === 0 ) ? 'hl-ca-row-even' : 'hl-ca-row-odd';
                                     $row_index++;
                                 ?>
-                                <tr class="<?php echo esc_attr( $row_class ); ?>">
+                                <?php $is_skipped = $this->is_child_skipped( $child_id ); ?>
+                                <tr class="<?php echo esc_attr( $row_class . ( $is_skipped ? ' hl-ca-row-skipped' : '' ) ); ?>" data-child-id="<?php echo absint( $child_id ); ?>">
                                     <td class="hl-ca-child-cell">
                                         <?php echo esc_html( $this->format_child_label( $child ) ); ?>
                                         <?php $dob = $this->format_child_dob( $child ); ?>
                                         <?php if ( $dob ) : ?>
                                             <span class="hl-ca-child-dob">DOB: <?php echo esc_html( $dob ); ?></span>
                                         <?php endif; ?>
+                                        <?php $this->render_child_skip_controls( $child_id ); ?>
                                     </td>
                                     <?php foreach ( $allowed_vals as $val ) :
                                         $checked  = ( (string) $existing_val === (string) $val ) ? ' checked' : '';
@@ -544,7 +546,8 @@ class HL_Instrument_Renderer {
                                                    value="<?php echo esc_attr( $val ); ?>"
                                                    class="hl-ca-radio"
                                                    <?php if ( $is_required ) : ?>data-hl-required="1"<?php endif; ?>
-                                                   <?php echo $checked; ?> />
+                                                   <?php echo $checked; ?>
+                                                   <?php echo $is_skipped ? ' disabled' : ''; ?> />
                                         </td>
                                     <?php endforeach; ?>
                                 </tr>
@@ -649,13 +652,15 @@ class HL_Instrument_Renderer {
                     $row_class = ( $row_index % 2 === 0 ) ? 'hl-ca-row-even' : 'hl-ca-row-odd';
                     $row_index++;
                 ?>
-                <tr class="<?php echo esc_attr( $row_class ); ?>">
+                <?php $is_skipped = $this->is_child_skipped( $child_id ); ?>
+                <tr class="<?php echo esc_attr( $row_class . ( $is_skipped ? ' hl-ca-row-skipped' : '' ) ); ?>" data-child-id="<?php echo absint( $child_id ); ?>">
                     <td class="hl-ca-child-cell">
                         <?php echo esc_html( $this->format_child_label( $child ) ); ?>
                         <?php $dob = $this->format_child_dob( $child ); ?>
                         <?php if ( $dob ) : ?>
                             <span class="hl-ca-child-dob">DOB:<?php echo esc_html( $dob ); ?></span>
                         <?php endif; ?>
+                        <?php $this->render_child_skip_controls( $child_id ); ?>
                     </td>
                     <?php foreach ( $allowed_values as $val ) :
                         $checked  = ( (string) $existing_val === (string) $val ) ? ' checked' : '';
@@ -668,7 +673,8 @@ class HL_Instrument_Renderer {
                                    value="<?php echo esc_attr( $val ); ?>"
                                    class="hl-ca-radio"
                                    <?php if ( $is_required ) : ?>data-hl-required="1"<?php endif; ?>
-                                   <?php echo $checked; ?> />
+                                   <?php echo $checked; ?>
+                                   <?php echo $is_skipped ? ' disabled' : ''; ?> />
                         </td>
                     <?php endforeach; ?>
                 </tr>
@@ -1056,6 +1062,43 @@ class HL_Instrument_Renderer {
         return date( 'n/j/Y', $timestamp );
     }
 
+    /**
+     * Check if a child is marked as skipped in existing draft data.
+     *
+     * @param int $child_id
+     * @return bool
+     */
+    private function is_child_skipped( $child_id ) {
+        $data = isset( $this->existing_answers[ $child_id ] ) ? $this->existing_answers[ $child_id ] : array();
+        return ( isset( $data['status'] ) && $data['status'] === 'skipped' );
+    }
+
+    /**
+     * Render "Not in my classroom" skip controls for a child row.
+     *
+     * @param int $child_id
+     */
+    private function render_child_skip_controls( $child_id ) {
+        $child_id   = absint( $child_id );
+        $is_skipped = $this->is_child_skipped( $child_id );
+        $data       = isset( $this->existing_answers[ $child_id ] ) ? $this->existing_answers[ $child_id ] : array();
+        $reason     = isset( $data['skip_reason'] ) ? $data['skip_reason'] : '';
+        ?>
+        <div class="hl-ca-skip-wrap">
+            <label class="hl-ca-skip-label">
+                <input type="checkbox" class="hl-ca-skip-checkbox" data-child-id="<?php echo $child_id; ?>"<?php echo $is_skipped ? ' checked' : ''; ?> />
+                <?php esc_html_e( 'Not in my classroom', 'hl-core' ); ?>
+            </label>
+            <select class="hl-ca-skip-reason" name="answers[<?php echo $child_id; ?>][_skip_reason]"<?php echo $is_skipped ? '' : ' style="display:none;"'; ?>>
+                <option value=""><?php esc_html_e( '-- Reason --', 'hl-core' ); ?></option>
+                <option value="left_school"<?php selected( $reason, 'left_school' ); ?>><?php esc_html_e( 'Left school', 'hl-core' ); ?></option>
+                <option value="moved_classroom"<?php selected( $reason, 'moved_classroom' ); ?>><?php esc_html_e( 'Moved to another classroom', 'hl-core' ); ?></option>
+            </select>
+            <input type="hidden" class="hl-ca-skip-flag" name="answers[<?php echo $child_id; ?>][_skip]" value="<?php echo $is_skipped ? '1' : '0'; ?>" />
+        </div>
+        <?php
+    }
+
     // ─── Inline Styles ───────────────────────────────────────────────────
 
     /**
@@ -1229,6 +1272,50 @@ class HL_Instrument_Renderer {
                 background: var(--hl-bg-alt, #FAFBFC);
                 border-radius: var(--hl-radius-sm, 8px);
                 border-left: 4px solid var(--hl-secondary, #2C7BE5);
+            }
+
+            /* ── Skip Controls ──────────────────────────────────── */
+            .hl-ca-skip-wrap {
+                margin-top: 4px;
+            }
+            .hl-ca-skip-label {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                font-size: 11px;
+                font-weight: 400;
+                color: var(--hl-text-muted, #9CA3AF);
+                cursor: pointer;
+                white-space: nowrap;
+            }
+            .hl-ca-skip-label:hover {
+                color: var(--hl-error, #EF4444);
+            }
+            .hl-ca-skip-checkbox {
+                width: 14px;
+                height: 14px;
+                accent-color: var(--hl-error, #EF4444);
+                margin: 0;
+                cursor: pointer;
+            }
+            .hl-ca-skip-reason {
+                display: block;
+                margin-top: 4px;
+                font-size: 11px;
+                padding: 2px 6px;
+                border: 1px solid var(--hl-border-medium, #D1D5DB);
+                border-radius: 4px;
+                color: var(--hl-text, #374151);
+                max-width: 180px;
+            }
+            tr.hl-ca-row-skipped td {
+                opacity: 0.45;
+            }
+            tr.hl-ca-row-skipped td.hl-ca-child-cell {
+                opacity: 1;
+            }
+            tr.hl-ca-row-skipped td.hl-ca-child-cell .hl-ca-skip-wrap {
+                opacity: 1;
             }
 
             /* ── Matrix Table ────────────────────────────────────── */
@@ -1595,6 +1682,32 @@ class HL_Instrument_Renderer {
                 if (!anyChecked) {
                     checkboxes[0].setAttribute('required', 'required');
                 }
+            });
+
+            // "Not in my classroom" skip checkbox toggle.
+            var skipCheckboxes = form ? form.querySelectorAll('.hl-ca-skip-checkbox') : [];
+            skipCheckboxes.forEach(function(cb) {
+                cb.addEventListener('change', function() {
+                    var childId = cb.getAttribute('data-child-id');
+                    var row = form.querySelector('tr[data-child-id="' + childId + '"]');
+                    if (!row) return;
+
+                    var radios     = row.querySelectorAll('input.hl-ca-radio');
+                    var skipFlag   = form.querySelector('.hl-ca-skip-flag[name="answers[' + childId + '][_skip]"]');
+                    var skipReason = form.querySelector('.hl-ca-skip-reason[name="answers[' + childId + '][_skip_reason]"]');
+
+                    if (cb.checked) {
+                        row.classList.add('hl-ca-row-skipped');
+                        radios.forEach(function(r) { r.disabled = true; });
+                        if (skipFlag) skipFlag.value = '1';
+                        if (skipReason) skipReason.style.display = '';
+                    } else {
+                        row.classList.remove('hl-ca-row-skipped');
+                        radios.forEach(function(r) { r.disabled = false; });
+                        if (skipFlag) skipFlag.value = '0';
+                        if (skipReason) { skipReason.style.display = 'none'; skipReason.value = ''; }
+                    }
+                });
             });
 
             // "Missing a child?" link — auto-save draft via AJAX before navigating.
