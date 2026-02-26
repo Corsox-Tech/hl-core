@@ -851,21 +851,21 @@ class HL_Teacher_Assessment_Renderer {
                 border-radius: 8px;
                 min-height: 44px;
             }
-            .hl-tsa-actions .hl-btn-submit-assessment {
-                background: var(--hl-primary, #2271b1);
-                border-color: var(--hl-primary, #2271b1);
-                color: #fff;
+            .hl-tsa-form-wrap .hl-tsa-actions .hl-btn-submit-assessment {
+                background: var(--hl-primary, #2271b1) !important;
+                border-color: var(--hl-primary, #2271b1) !important;
+                color: #fff !important;
             }
-            .hl-tsa-actions .hl-btn-submit-assessment:hover {
-                background: var(--hl-primary-dark, #135e96);
+            .hl-tsa-form-wrap .hl-tsa-actions .hl-btn-submit-assessment:hover {
+                background: var(--hl-primary-dark, #135e96) !important;
             }
-            .hl-tsa-actions .hl-btn-save-draft {
-                background: #fff;
-                border-color: var(--hl-border, #D1D5DB);
-                color: var(--hl-text, #374151);
+            .hl-tsa-form-wrap .hl-tsa-actions .hl-btn-save-draft {
+                background: #fff !important;
+                border-color: var(--hl-border, #D1D5DB) !important;
+                color: var(--hl-text, #374151) !important;
             }
-            .hl-tsa-actions .hl-btn-save-draft:hover {
-                background: var(--hl-surface-alt, #F3F4F6);
+            .hl-tsa-form-wrap .hl-tsa-actions .hl-btn-save-draft:hover {
+                background: var(--hl-surface-alt, #F3F4F6) !important;
             }
 
             /* ── Pagination ──────────────────────────────────── */
@@ -898,37 +898,37 @@ class HL_Teacher_Assessment_Renderer {
                 font-weight: 500;
                 transition: all 0.15s ease;
             }
-            .hl-tsa-form-wrap .hl-tsa-btn-prev {
-                background: #fff;
-                border-color: var(--hl-border, #D1D5DB);
-                color: var(--hl-text, #374151);
+            .hl-tsa-form-wrap .hl-tsa-nav .hl-tsa-btn-prev {
+                background: #fff !important;
+                border-color: var(--hl-border, #D1D5DB) !important;
+                color: var(--hl-text, #374151) !important;
             }
-            .hl-tsa-form-wrap .hl-tsa-btn-prev:hover {
-                background: var(--hl-surface-alt, #F3F4F6);
-                border-color: #9CA3AF;
+            .hl-tsa-form-wrap .hl-tsa-nav .hl-tsa-btn-prev:hover {
+                background: var(--hl-surface-alt, #F3F4F6) !important;
+                border-color: #9CA3AF !important;
             }
-            .hl-tsa-form-wrap .hl-tsa-btn-prev::before {
+            .hl-tsa-form-wrap .hl-tsa-nav .hl-tsa-btn-prev::before {
                 content: '\2190\00a0';
             }
-            .hl-tsa-form-wrap .hl-tsa-nav-draft {
-                background: #fff;
-                border-color: var(--hl-border, #D1D5DB);
-                color: var(--hl-text-muted, #6B7280);
+            .hl-tsa-form-wrap .hl-tsa-nav .hl-tsa-nav-draft {
+                background: #fff !important;
+                border-color: var(--hl-border, #D1D5DB) !important;
+                color: var(--hl-text-muted, #6B7280) !important;
                 font-size: 0.85em;
             }
-            .hl-tsa-form-wrap .hl-tsa-nav-draft:hover {
-                background: var(--hl-surface-alt, #F3F4F6);
-                border-color: #9CA3AF;
+            .hl-tsa-form-wrap .hl-tsa-nav .hl-tsa-nav-draft:hover {
+                background: var(--hl-surface-alt, #F3F4F6) !important;
+                border-color: #9CA3AF !important;
             }
-            .hl-tsa-form-wrap .hl-tsa-btn-next {
+            .hl-tsa-form-wrap .hl-tsa-nav .hl-tsa-btn-next {
                 margin-left: auto;
-                background: var(--hl-primary, #2271b1);
-                border-color: var(--hl-primary, #2271b1);
-                color: #fff;
+                background: var(--hl-primary, #2271b1) !important;
+                border-color: var(--hl-primary, #2271b1) !important;
+                color: #fff !important;
             }
-            .hl-tsa-form-wrap .hl-tsa-btn-next:hover {
-                background: var(--hl-primary-dark, #135e96);
-                border-color: var(--hl-primary-dark, #135e96);
+            .hl-tsa-form-wrap .hl-tsa-nav .hl-tsa-btn-next:hover {
+                background: var(--hl-primary-dark, #135e96) !important;
+                border-color: var(--hl-primary-dark, #135e96) !important;
             }
             .hl-tsa-form-wrap .hl-tsa-btn-next::after {
                 content: '\00a0\2192';
