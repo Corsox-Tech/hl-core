@@ -34,6 +34,9 @@ class HL_Teacher_Assessment_Renderer {
     /** @var bool Whether to render in read-only mode (submitted view). */
     private $read_only;
 
+    /** @var array Display options (show_instrument_name, show_program_name, program_name). */
+    private $display_options;
+
     /**
      * Constructor.
      *
@@ -43,14 +46,20 @@ class HL_Teacher_Assessment_Renderer {
      * @param array                            $existing_responses Decoded responses_json for this instance.
      * @param array                            $pre_responses      Decoded PRE responses (only used for POST phase).
      * @param bool                             $read_only          Whether the form is read-only.
+     * @param array                            $display_options    Optional display overrides.
      */
-    public function __construct( $instrument, $instance, $phase, $existing_responses = array(), $pre_responses = array(), $read_only = false ) {
+    public function __construct( $instrument, $instance, $phase, $existing_responses = array(), $pre_responses = array(), $read_only = false, $display_options = array() ) {
         $this->instrument         = $instrument;
         $this->instance           = (object) $instance;
         $this->phase              = $phase;
         $this->existing_responses = is_array( $existing_responses ) ? $existing_responses : array();
         $this->pre_responses      = is_array( $pre_responses ) ? $pre_responses : array();
         $this->read_only          = $read_only;
+        $this->display_options    = wp_parse_args( $display_options, array(
+            'show_instrument_name' => true,
+            'show_program_name'    => false,
+            'program_name'         => '',
+        ) );
     }
 
     /**
@@ -88,16 +97,25 @@ class HL_Teacher_Assessment_Renderer {
         ?>
         <div class="hl-tsa-form-wrap">
             <div class="hl-tsa-header">
-                <h2><?php echo esc_html( $this->instrument->instrument_name ); ?></h2>
-                <span class="hl-tsa-phase-badge hl-tsa-phase-<?php echo esc_attr( $this->phase ); ?>">
-                    <?php echo esc_html( $phase_label ); ?>
-                </span>
-                <?php if ( ! empty( $this->instrument->instrument_version ) ) : ?>
-                    <span class="hl-tsa-version">
-                        <?php printf( esc_html__( 'v%s', 'hl-core' ), esc_html( $this->instrument->instrument_version ) ); ?>
+                <h2><?php echo esc_html( $phase_label ); ?></h2>
+                <?php if ( $this->display_options['show_program_name'] && ! empty( $this->display_options['program_name'] ) ) : ?>
+                    <span class="hl-tsa-program-name"><?php echo esc_html( $this->display_options['program_name'] ); ?></span>
+                <?php endif; ?>
+                <?php if ( $this->display_options['show_instrument_name'] ) : ?>
+                    <span class="hl-tsa-phase-badge hl-tsa-phase-<?php echo esc_attr( $this->phase ); ?>">
+                        <?php echo esc_html( $this->instrument->instrument_name ); ?>
                     </span>
                 <?php endif; ?>
             </div>
+
+            <?php
+            // Instrument-level instructions (stored in DB)
+            $instructions = $this->instrument->get_instructions();
+            if ( ! empty( $instructions ) ) : ?>
+                <div class="hl-tsa-instructions">
+                    <?php echo wp_kses_post( $instructions ); ?>
+                </div>
+            <?php endif; ?>
 
             <?php if ( $this->phase === 'post' ) : ?>
                 <div class="hl-tsa-post-instructions">
@@ -188,7 +206,7 @@ class HL_Teacher_Assessment_Renderer {
         <div class="hl-tsa-section<?php echo esc_attr( $active_class ); ?>" data-section="<?php echo esc_attr( $section_key ); ?>" data-step="<?php echo esc_attr( $step_index ); ?>">
             <h3 class="hl-tsa-section-title"><?php echo esc_html( $title ); ?></h3>
             <?php if ( $description ) : ?>
-                <p class="hl-tsa-section-desc"><?php echo esc_html( $description ); ?></p>
+                <div class="hl-tsa-section-desc"><?php echo wp_kses_post( $description ); ?></div>
             <?php endif; ?>
 
             <?php
@@ -275,7 +293,7 @@ class HL_Teacher_Assessment_Renderer {
                         $pre_val     = isset( $this->pre_responses[ $section_key ][ $item_key ] ) ? $this->pre_responses[ $section_key ][ $item_key ] : null;
                     ?>
                     <tr class="<?php echo esc_attr( $row_class ); ?>">
-                        <td class="hl-tsa-item-cell"><?php echo esc_html( $item_text ); ?></td>
+                        <td class="hl-tsa-item-cell"><?php echo wp_kses_post( $item_text ); ?></td>
                         <?php if ( $is_post ) : ?>
                             <?php // Before column (pre-filled, disabled) ?>
                             <?php for ( $i = 0; $i < $num_options; $i++ ) :
@@ -381,7 +399,7 @@ class HL_Teacher_Assessment_Renderer {
                 $pre_val     = isset( $this->pre_responses[ $section_key ][ $item_key ] ) ? $this->pre_responses[ $section_key ][ $item_key ] : null;
             ?>
             <div class="hl-tsa-scale-row <?php echo esc_attr( $row_class ); ?>">
-                <div class="hl-tsa-scale-text"><?php echo esc_html( $item_text ); ?></div>
+                <div class="hl-tsa-scale-text"><?php echo wp_kses_post( $item_text ); ?></div>
                 <div class="hl-tsa-scale-anchors">
                     <span class="hl-tsa-anchor-low">0 = <?php echo esc_html( $low_label ); ?></span>
                     <span class="hl-tsa-anchor-high">10 = <?php echo esc_html( $high_label ); ?></span>
@@ -473,28 +491,43 @@ class HL_Teacher_Assessment_Renderer {
     private function render_inline_styles() {
         ?>
         <style>
+            /* ── Card container ──────────────────────────────── */
             .hl-tsa-form-wrap {
-                max-width: 100%;
-                margin: 1.5em 0;
+                max-width: 900px;
+                margin: 2em auto;
+                background: var(--hl-surface, #ffffff);
+                border-radius: var(--hl-radius, 12px);
+                box-shadow: var(--hl-shadow, 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04));
+                padding: 32px 40px;
             }
+
+            /* ── Header ─────────────────────────────────────── */
             .hl-tsa-header {
-                margin-bottom: 1em;
-                display: flex;
-                align-items: baseline;
-                gap: 12px;
-                flex-wrap: wrap;
+                text-align: center;
+                margin-bottom: 1.5em;
+                padding-bottom: 1.5em;
+                border-bottom: 1px solid var(--hl-border, #E5E7EB);
             }
             .hl-tsa-header h2 {
-                margin: 0;
-                font-size: 1.4em;
+                margin: 0 0 6px 0;
+                font-size: 1.6em;
+                font-weight: 700;
+                color: var(--hl-text, #1F2937);
+            }
+            .hl-tsa-program-name {
+                display: block;
+                font-size: 0.95em;
+                color: var(--hl-text-secondary, #6B7280);
+                margin-bottom: 8px;
             }
             .hl-tsa-phase-badge {
                 display: inline-block;
-                padding: 2px 10px;
-                border-radius: 12px;
-                font-size: 0.8em;
+                padding: 3px 12px;
+                border-radius: 20px;
+                font-size: 0.75em;
                 font-weight: 600;
                 text-transform: uppercase;
+                letter-spacing: 0.03em;
             }
             .hl-tsa-phase-pre {
                 background: #e3f2fd;
@@ -504,58 +537,124 @@ class HL_Teacher_Assessment_Renderer {
                 background: #e8f5e9;
                 color: #2e7d32;
             }
-            .hl-tsa-version {
-                color: #666;
-                font-size: 0.85em;
-            }
-            .hl-tsa-post-instructions {
-                background: #f0f6ff;
-                border-left: 4px solid #2271b1;
-                padding: 10px 16px;
+
+            /* ── Instructions ────────────────────────────────── */
+            .hl-tsa-instructions {
+                background: var(--hl-surface-alt, #F9FAFB);
+                border: 1px solid var(--hl-border, #E5E7EB);
+                border-radius: var(--hl-radius, 12px);
+                padding: 16px 20px;
                 margin-bottom: 1.5em;
                 font-size: 0.95em;
+                line-height: 1.6;
+                color: var(--hl-text-secondary, #4B5563);
             }
-            .hl-tsa-post-instructions p {
-                margin: 0;
+            .hl-tsa-instructions p:first-child { margin-top: 0; }
+            .hl-tsa-instructions p:last-child { margin-bottom: 0; }
+
+            .hl-tsa-post-instructions {
+                background: #f0f6ff;
+                border-left: 4px solid var(--hl-primary, #2271b1);
+                border-radius: 0 8px 8px 0;
+                padding: 12px 18px;
+                margin-bottom: 1.5em;
+                font-size: 0.93em;
             }
+            .hl-tsa-post-instructions p { margin: 0; }
+
             .hl-tsa-notice {
-                padding: 12px 16px;
+                padding: 14px 18px;
                 background: #fff8e1;
                 border-left: 4px solid #ffb300;
+                border-radius: 0 8px 8px 0;
                 margin: 1em 0;
             }
 
-            /* Section */
-            .hl-tsa-section {
+            /* ── Step indicator (modern dots) ────────────────── */
+            .hl-tsa-step-indicator {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
                 margin-bottom: 2em;
+                padding: 16px 0 8px;
             }
-            .hl-tsa-section-title {
-                font-size: 1.15em;
-                margin: 0 0 0.3em 0;
-                padding-bottom: 0.3em;
-                border-bottom: 2px solid #e0e0e0;
+            .hl-tsa-step-label {
+                font-size: 0.85em;
+                color: var(--hl-text-secondary, #6B7280);
+                font-weight: 500;
             }
-            .hl-tsa-section-desc {
-                color: #555;
-                font-size: 0.93em;
-                margin: 0 0 1em 0;
+            .hl-tsa-step-dots {
+                display: flex;
+                gap: 10px;
+            }
+            .hl-tsa-step {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                border: 2px solid var(--hl-border, #D1D5DB);
+                font-size: 0.85em;
+                font-weight: 600;
+                color: var(--hl-text-secondary, #9CA3AF);
+                background: #fff;
+                cursor: pointer;
+                transition: all 0.25s ease;
+            }
+            .hl-tsa-step:hover {
+                border-color: var(--hl-primary, #2271b1);
+                color: var(--hl-primary, #2271b1);
+            }
+            .hl-tsa-step--active {
+                border-color: var(--hl-primary, #2271b1);
+                background: var(--hl-primary, #2271b1);
+                color: #fff;
+                transform: scale(1.1);
+            }
+            .hl-tsa-step--completed {
+                border-color: #2e7d32;
+                background: #e8f5e9;
+                color: #2e7d32;
             }
 
-            /* Likert table */
+            /* ── Section ─────────────────────────────────────── */
+            .hl-tsa-section {
+                margin-bottom: 2.5em;
+            }
+            .hl-tsa-section-title {
+                font-size: 1.25em;
+                font-weight: 600;
+                margin: 0 0 0.4em 0;
+                padding-bottom: 0.4em;
+                border-bottom: 2px solid var(--hl-border, #E5E7EB);
+                color: var(--hl-text, #1F2937);
+            }
+            .hl-tsa-section-desc {
+                color: var(--hl-text-secondary, #6B7280);
+                font-size: 0.93em;
+                margin: 0 0 1.2em 0;
+                line-height: 1.5;
+            }
+
+            /* ── Likert table ────────────────────────────────── */
             .hl-tsa-table-wrap {
                 overflow-x: auto;
                 margin-bottom: 1em;
                 -webkit-overflow-scrolling: touch;
+                border-radius: 8px;
+                border: 1px solid var(--hl-border, #E5E7EB);
             }
             table.hl-tsa-likert-table {
                 border-collapse: collapse;
                 width: 100%;
-                font-size: 0.9em;
+                font-size: 0.93em;
             }
             table.hl-tsa-likert-table th,
             table.hl-tsa-likert-table td {
-                border: 1px solid #ddd;
-                padding: 8px 6px;
+                border: 1px solid var(--hl-border, #E5E7EB);
+                padding: 10px 8px;
                 text-align: center;
                 vertical-align: middle;
             }
@@ -564,17 +663,18 @@ class HL_Teacher_Assessment_Renderer {
                 text-align: left;
                 min-width: 280px;
                 max-width: 420px;
+                line-height: 1.4;
             }
             table.hl-tsa-likert-table thead th {
-                background: #f5f5f5;
+                background: var(--hl-surface-alt, #F9FAFB);
                 font-weight: 600;
-                font-size: 0.85em;
+                font-size: 0.88em;
             }
             table.hl-tsa-likert-table .hl-tsa-label-col {
                 min-width: 50px;
                 max-width: 100px;
-                font-size: 0.78em;
-                line-height: 1.2;
+                font-size: 0.92em;
+                line-height: 1.3;
             }
             .hl-tsa-group-header {
                 background: #e8e8e8 !important;
@@ -585,23 +685,56 @@ class HL_Teacher_Assessment_Renderer {
                 background: #e8f5e9 !important;
             }
             .hl-tsa-sublabel-row th {
-                font-size: 0.75em !important;
-                padding: 4px 3px !important;
+                font-size: 0.8em !important;
+                padding: 5px 4px !important;
             }
             .hl-tsa-before-label {
-                background: #f5f5f5;
+                background: var(--hl-surface-alt, #F9FAFB);
             }
             .hl-tsa-now-label {
                 background: #f0faf0;
             }
             tr.hl-tsa-row-even td { background-color: #ffffff; }
-            tr.hl-tsa-row-odd td  { background-color: #fafafa; }
+            tr.hl-tsa-row-odd td  { background-color: var(--hl-surface-alt, #FAFAFA); }
             .hl-tsa-radio-cell {
-                width: 40px;
-                min-width: 40px;
+                width: 44px;
+                min-width: 44px;
             }
+
+            /* Custom radio styling */
+            .hl-tsa-radio {
+                appearance: none;
+                -webkit-appearance: none;
+                width: 20px;
+                height: 20px;
+                border: 2px solid #D1D5DB;
+                border-radius: 50%;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                margin: 0;
+                position: relative;
+            }
+            .hl-tsa-radio:hover {
+                border-color: var(--hl-primary, #2271b1);
+            }
+            .hl-tsa-radio:checked {
+                border-color: var(--hl-primary, #2271b1);
+                background: var(--hl-primary, #2271b1);
+            }
+            .hl-tsa-radio:checked::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #fff;
+            }
+
             .hl-tsa-before-col {
-                background-color: #f9f9f9 !important;
+                background-color: var(--hl-surface-alt, #F9F9F9) !important;
             }
             .hl-tsa-now-col {
                 background-color: #f5fdf5 !important;
@@ -611,7 +744,7 @@ class HL_Teacher_Assessment_Renderer {
                 cursor: not-allowed;
             }
 
-            /* Scale section */
+            /* ── Scale section ───────────────────────────────── */
             .hl-tsa-scale-section {
                 margin-bottom: 1em;
             }
@@ -620,25 +753,28 @@ class HL_Teacher_Assessment_Renderer {
                 justify-content: space-between;
                 padding: 6px 0;
                 font-size: 0.85em;
-                color: #666;
+                color: var(--hl-text-secondary, #6B7280);
                 font-style: italic;
                 margin-bottom: 0.5em;
             }
             .hl-tsa-scale-row {
-                padding: 12px 14px;
-                border: 1px solid #eee;
-                margin-bottom: -1px;
+                padding: 16px 18px;
+                border: 1px solid var(--hl-border, #E5E7EB);
+                border-radius: 8px;
+                margin-bottom: 10px;
+                background: #fff;
             }
             .hl-tsa-scale-row.hl-tsa-row-odd {
-                background: #fafafa;
+                background: var(--hl-surface-alt, #FAFAFA);
             }
             .hl-tsa-scale-text {
-                margin-bottom: 8px;
-                font-size: 0.93em;
+                margin-bottom: 10px;
+                font-size: 0.95em;
+                line-height: 1.4;
             }
             .hl-tsa-scale-radios {
                 display: flex;
-                gap: 2px;
+                gap: 4px;
                 flex-wrap: wrap;
                 align-items: center;
             }
@@ -646,15 +782,21 @@ class HL_Teacher_Assessment_Renderer {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                min-width: 32px;
+                min-width: 36px;
                 cursor: pointer;
-                padding: 2px 4px;
-                font-size: 0.82em;
+                padding: 4px 6px;
+                font-size: 0.95em;
                 text-align: center;
+                border-radius: 6px;
+                transition: background 0.15s ease;
+            }
+            .hl-tsa-scale-label:hover {
+                background: var(--hl-surface-alt, #F3F4F6);
             }
             .hl-tsa-scale-label span {
-                margin-top: 2px;
-                color: #666;
+                margin-top: 3px;
+                color: var(--hl-text-secondary, #6B7280);
+                font-size: 0.9em;
             }
             .hl-tsa-scale-dual {
                 display: flex;
@@ -669,24 +811,50 @@ class HL_Teacher_Assessment_Renderer {
                 display: block;
                 font-size: 0.8em;
                 font-weight: 600;
-                color: #555;
-                margin-bottom: 4px;
+                color: var(--hl-text-secondary, #6B7280);
+                margin-bottom: 6px;
                 text-transform: uppercase;
+                letter-spacing: 0.03em;
             }
             .hl-tsa-before-group {
-                opacity: 0.65;
+                opacity: 0.6;
             }
 
-            /* Actions */
+            /* ── Action buttons ──────────────────────────────── */
             .hl-tsa-actions {
                 display: flex;
-                gap: 12px;
+                gap: 14px;
                 align-items: center;
+                justify-content: center;
                 flex-wrap: wrap;
-                padding: 1.5em 0 1em;
+                padding: 2em 0 1em;
+                border-top: 1px solid var(--hl-border, #E5E7EB);
+                margin-top: 1em;
+            }
+            .hl-tsa-actions .button {
+                padding: 10px 28px;
+                font-size: 0.95em;
+                border-radius: 8px;
+                min-height: 44px;
+            }
+            .hl-tsa-actions .hl-btn-submit-assessment {
+                background: var(--hl-primary, #2271b1);
+                border-color: var(--hl-primary, #2271b1);
+                color: #fff;
+            }
+            .hl-tsa-actions .hl-btn-submit-assessment:hover {
+                background: var(--hl-primary-dark, #135e96);
+            }
+            .hl-tsa-actions .hl-btn-save-draft {
+                background: #fff;
+                border-color: var(--hl-border, #D1D5DB);
+                color: var(--hl-text, #374151);
+            }
+            .hl-tsa-actions .hl-btn-save-draft:hover {
+                background: var(--hl-surface-alt, #F3F4F6);
             }
 
-            /* Pagination — sections hidden by default when paginated */
+            /* ── Pagination ──────────────────────────────────── */
             .hl-tsa-form--paginated .hl-tsa-section {
                 display: none;
             }
@@ -700,63 +868,51 @@ class HL_Teacher_Assessment_Renderer {
                 display: flex;
             }
 
-            /* Step indicator */
-            .hl-tsa-step-indicator {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 8px;
-                margin-bottom: 1.5em;
-                padding: 12px 0;
-            }
-            .hl-tsa-step-label {
-                font-size: 0.9em;
-                color: #555;
-                font-weight: 500;
-            }
-            .hl-tsa-step-dots {
-                display: flex;
-                gap: 8px;
-            }
-            .hl-tsa-step {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                border: 2px solid #ccc;
-                font-size: 0.85em;
-                font-weight: 600;
-                color: #888;
-                background: #fff;
-                cursor: pointer;
-                transition: all 0.2s;
-            }
-            .hl-tsa-step:hover {
-                border-color: #999;
-            }
-            .hl-tsa-step--active {
-                border-color: #2271b1;
-                background: #2271b1;
-                color: #fff;
-            }
-            .hl-tsa-step--completed {
-                border-color: #2e7d32;
-                background: #e8f5e9;
-                color: #2e7d32;
-            }
-
-            /* Section navigation buttons */
+            /* ── Section navigation buttons ──────────────────── */
             .hl-tsa-nav {
                 display: flex;
-                gap: 12px;
+                gap: 14px;
                 padding: 1.5em 0 0.5em;
-                border-top: 1px solid #eee;
+                border-top: 1px solid var(--hl-border, #E5E7EB);
                 margin-top: 1.5em;
+            }
+            .hl-tsa-nav .button {
+                padding: 8px 20px;
+                border-radius: 8px;
+                min-height: 40px;
+                font-size: 0.93em;
+            }
+            .hl-tsa-btn-prev::before {
+                content: '\2190 ';
             }
             .hl-tsa-btn-next {
                 margin-left: auto;
+            }
+            .hl-tsa-btn-next::after {
+                content: ' \2192';
+            }
+
+            /* ── Responsive ──────────────────────────────────── */
+            @media screen and (max-width: 768px) {
+                .hl-tsa-form-wrap {
+                    padding: 20px 16px;
+                    margin: 1em 0;
+                    border-radius: 8px;
+                }
+                .hl-tsa-header h2 {
+                    font-size: 1.3em;
+                }
+                table.hl-tsa-likert-table .hl-tsa-item-col,
+                table.hl-tsa-likert-table .hl-tsa-item-cell {
+                    min-width: 200px;
+                }
+                .hl-tsa-scale-row {
+                    padding: 12px;
+                }
+                .hl-tsa-actions .button {
+                    width: 100%;
+                    text-align: center;
+                }
             }
         </style>
         <?php

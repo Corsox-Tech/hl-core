@@ -19,6 +19,7 @@ class HL_Teacher_Assessment_Instrument {
     public $instrument_key;
     public $sections;
     public $scale_labels;
+    public $instructions;
     public $status;
     public $created_at;
     public $updated_at;
@@ -56,6 +57,15 @@ class HL_Teacher_Assessment_Instrument {
     }
 
     /**
+     * Get the instructions HTML.
+     *
+     * @return string
+     */
+    public function get_instructions() {
+        return is_string( $this->instructions ) ? $this->instructions : '';
+    }
+
+    /**
      * Convert to array for database operations.
      *
      * @return array
@@ -68,6 +78,7 @@ class HL_Teacher_Assessment_Instrument {
             'instrument_key'     => $this->instrument_key,
             'sections'           => $this->sections,
             'scale_labels'       => $this->scale_labels,
+            'instructions'       => $this->instructions,
             'status'             => $this->status,
             'created_at'         => $this->created_at,
             'updated_at'         => $this->updated_at,

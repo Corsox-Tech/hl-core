@@ -1333,7 +1333,7 @@ class HL_Instrument_Renderer {
             table.hl-ca-matrix thead th {
                 padding: 12px 16px;
                 font-weight: 600;
-                font-size: 13px;
+                font-size: 15px;
                 color: #374151;
                 text-align: center;
                 border-bottom: 2px solid var(--hl-border, #E5E7EB);

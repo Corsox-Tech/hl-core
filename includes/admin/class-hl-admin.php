@@ -101,6 +101,12 @@ class HL_Admin {
             wp_enqueue_media();
         }
 
+        // Teacher instrument visual editor (only on hl-instruments page)
+        if (strpos($hook, 'hl-instruments') !== false) {
+            wp_enqueue_style('hl-admin-teacher-editor', HL_CORE_ASSETS_URL . 'css/admin-teacher-editor.css', array('hl-admin'), HL_CORE_VERSION);
+            wp_enqueue_script('hl-admin-teacher-editor', HL_CORE_ASSETS_URL . 'js/admin-teacher-editor.js', array(), HL_CORE_VERSION, true);
+        }
+
         // Import wizard assets (only on hl-imports page)
         if (strpos($hook, 'hl-imports') !== false) {
             wp_enqueue_style('hl-admin-import-wizard', HL_CORE_ASSETS_URL . 'css/admin-import-wizard.css', array('hl-admin'), HL_CORE_VERSION);

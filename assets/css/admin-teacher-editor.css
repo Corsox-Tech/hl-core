@@ -1,0 +1,221 @@
+/**
+ * Teacher Assessment Instrument Visual Editor Styles
+ *
+ * @package HL_Core
+ */
+
+/* ── Scale Panels ──────────────────────────────────────────── */
+
+.hl-te-scale-panel {
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    background: #fff;
+}
+
+.hl-te-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #f6f7f7;
+    border-bottom: 1px solid #ccd0d4;
+    cursor: default;
+}
+
+.hl-te-panel-actions {
+    margin-left: auto;
+}
+
+.hl-te-panel-body {
+    padding: 14px;
+}
+
+.hl-te-panel-body p {
+    margin: 0 0 10px;
+}
+
+.hl-te-panel-body label {
+    display: inline-block;
+    min-width: 100px;
+    font-weight: 600;
+}
+
+.hl-te-scale-key-display {
+    font-size: 13px;
+}
+
+.hl-te-scale-labels-list {
+    margin: 8px 0;
+}
+
+.hl-te-scale-label-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.hl-te-scale-label-row input {
+    max-width: 300px;
+}
+
+.hl-te-remove-label {
+    color: #b32d2e !important;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    text-decoration: none !important;
+    padding: 0 4px;
+}
+
+/* ── Section Panels (Accordion) ────────────────────────────── */
+
+.hl-te-section-panel {
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    background: #fff;
+}
+
+.hl-te-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    background: #f0f0f1;
+    border-bottom: 1px solid #ccd0d4;
+    cursor: pointer;
+    user-select: none;
+}
+
+.hl-te-section-header:hover {
+    background: #e8e8e9;
+}
+
+.hl-te-section-toggle {
+    transition: transform 0.2s ease;
+}
+
+.hl-te-section-panel.hl-te-collapsed .hl-te-section-toggle {
+    transform: rotate(-90deg);
+}
+
+.hl-te-section-header-title {
+    font-weight: 600;
+    font-size: 14px;
+    flex: 1;
+}
+
+.hl-te-section-header-meta {
+    color: #666;
+    font-size: 12px;
+}
+
+.hl-te-section-body {
+    padding: 14px;
+}
+
+.hl-te-section-panel.hl-te-collapsed .hl-te-section-body {
+    display: none;
+}
+
+/* Items table inside section */
+
+.hl-te-items-table {
+    margin-top: 8px;
+}
+
+.hl-te-items-table th {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 8px;
+}
+
+.hl-te-items-table td {
+    padding: 6px 8px;
+    vertical-align: top;
+}
+
+.hl-te-item-row input[type="text"] {
+    width: 100%;
+}
+
+/* ── Rich Text (contenteditable) ──────────────────────────── */
+
+.hl-te-richtext-wrap {
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.hl-te-richtext-toolbar {
+    display: flex;
+    gap: 2px;
+    padding: 4px 6px;
+    background: #f6f7f7;
+    border-bottom: 1px solid #dcdcde;
+    border-radius: 4px 4px 0 0;
+}
+
+.hl-te-rt-btn {
+    background: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #1e1e1e;
+}
+
+.hl-te-rt-btn:hover {
+    background: #dcdcde;
+    border-color: #c3c4c7;
+}
+
+.hl-te-richtext-editor {
+    min-height: 60px;
+    padding: 8px 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    outline: none;
+}
+
+.hl-te-richtext-editor:focus {
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+/* Inline (compact) variant for item text */
+.hl-te-richtext-inline .hl-te-richtext-editor {
+    min-height: 36px;
+    padding: 6px 8px;
+}
+
+.hl-te-rt-mini {
+    padding: 2px 4px;
+}
+
+.hl-te-rt-mini .hl-te-rt-btn {
+    padding: 1px 4px;
+    font-size: 12px;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+
+@media screen and (max-width: 782px) {
+    .hl-te-section-header {
+        flex-wrap: wrap;
+    }
+
+    .hl-te-section-header-meta {
+        width: 100%;
+        margin-top: 4px;
+    }
+
+    .hl-te-panel-body label {
+        min-width: auto;
+        display: block;
+        margin-bottom: 4px;
+    }
+}

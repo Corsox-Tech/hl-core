@@ -1675,6 +1675,7 @@ class HL_Installer {
             instrument_key varchar(50) NOT NULL,
             sections longtext NOT NULL,
             scale_labels longtext DEFAULT NULL,
+            instructions longtext DEFAULT NULL,
             status varchar(20) NOT NULL DEFAULT 'active',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,

@@ -712,24 +712,80 @@ class HL_Admin_Instruments {
             'instrument_key'     => sanitize_text_field($_POST['instrument_key']),
             'instrument_version' => sanitize_text_field($_POST['instrument_version'] ?: '1.0'),
             'status'             => sanitize_text_field($_POST['status']),
+            'instructions'       => wp_kses_post(wp_unslash($_POST['instructions'] ?? '')),
         );
 
-        // Sections and scale_labels are stored as JSON
-        $sections_raw = isset($_POST['sections_json']) ? wp_unslash($_POST['sections_json']) : '[]';
-        $scale_labels_raw = isset($_POST['scale_labels_json']) ? wp_unslash($_POST['scale_labels_json']) : '{}';
-
-        // Validate JSON
-        $sections_decoded = json_decode($sections_raw, true);
-        if ($sections_decoded === null && json_last_error() !== JSON_ERROR_NONE) {
-            wp_die(__('Invalid JSON in sections field.', 'hl-core'));
+        // Build scale_labels from structured POST fields
+        $scale_labels = array();
+        if (!empty($_POST['scale_labels']) && is_array($_POST['scale_labels'])) {
+            foreach ($_POST['scale_labels'] as $scale_key => $scale_data) {
+                $scale_key = sanitize_text_field($scale_key);
+                if (isset($scale_data['type']) && $scale_data['type'] === 'object') {
+                    // Object scale: {low, high}
+                    $scale_labels[$scale_key] = array(
+                        'low'  => sanitize_text_field($scale_data['low'] ?? ''),
+                        'high' => sanitize_text_field($scale_data['high'] ?? ''),
+                    );
+                } else {
+                    // Array scale: ordered labels
+                    $labels = array();
+                    if (!empty($scale_data['labels']) && is_array($scale_data['labels'])) {
+                        foreach ($scale_data['labels'] as $label) {
+                            $label = sanitize_text_field($label);
+                            if ($label !== '') {
+                                $labels[] = $label;
+                            }
+                        }
+                    }
+                    $scale_labels[$scale_key] = $labels;
+                }
+            }
         }
-        $scale_decoded = json_decode($scale_labels_raw, true);
-        if ($scale_decoded === null && json_last_error() !== JSON_ERROR_NONE) {
-            wp_die(__('Invalid JSON in scale labels field.', 'hl-core'));
+
+        // Build sections from structured POST fields
+        $sections = array();
+        if (!empty($_POST['sections']) && is_array($_POST['sections'])) {
+            foreach ($_POST['sections'] as $s) {
+                $section_key = sanitize_text_field($s['section_key'] ?? '');
+                if (empty($section_key)) {
+                    continue;
+                }
+                $section = array(
+                    'section_key' => $section_key,
+                    'title'       => sanitize_text_field($s['title'] ?? ''),
+                    'description' => wp_kses_post(wp_unslash($s['description'] ?? '')),
+                    'type'        => sanitize_text_field($s['type'] ?? 'likert'),
+                    'scale_key'   => sanitize_text_field($s['scale_key'] ?? ''),
+                );
+
+                $items = array();
+                if (!empty($s['items']) && is_array($s['items'])) {
+                    foreach ($s['items'] as $item) {
+                        $item_key = sanitize_text_field($item['key'] ?? '');
+                        if (empty($item_key)) {
+                            continue;
+                        }
+                        $item_entry = array(
+                            'key'  => $item_key,
+                            'text' => wp_kses_post(wp_unslash($item['text'] ?? '')),
+                        );
+                        // Preserve left_anchor / right_anchor for scale items
+                        if (isset($item['left_anchor'])) {
+                            $item_entry['left_anchor'] = sanitize_text_field($item['left_anchor']);
+                        }
+                        if (isset($item['right_anchor'])) {
+                            $item_entry['right_anchor'] = sanitize_text_field($item['right_anchor']);
+                        }
+                        $items[] = $item_entry;
+                    }
+                }
+                $section['items'] = $items;
+                $sections[] = $section;
+            }
         }
 
-        $data['sections']     = wp_json_encode($sections_decoded);
-        $data['scale_labels'] = wp_json_encode($scale_decoded);
+        $data['sections']     = wp_json_encode($sections);
+        $data['scale_labels'] = wp_json_encode($scale_labels);
 
         global $wpdb;
 
@@ -882,7 +938,7 @@ class HL_Admin_Instruments {
     }
 
     /**
-     * Render the teacher instrument add/edit form.
+     * Render the teacher instrument add/edit form (visual editor).
      *
      * @param object|null $instrument Existing instrument for edit, null for create.
      */
@@ -890,38 +946,45 @@ class HL_Admin_Instruments {
         $is_edit = ($instrument !== null);
         $title   = $is_edit ? __('Edit Teacher Assessment Instrument', 'hl-core') : __('Add New Teacher Assessment Instrument', 'hl-core');
 
+        // Parse existing data
+        $sections     = array();
+        $scale_labels = array();
+        $instructions = '';
+        if ($is_edit) {
+            $sections     = json_decode($instrument->sections, true) ?: array();
+            $scale_labels = json_decode($instrument->scale_labels, true) ?: array();
+            $instructions = isset($instrument->instructions) ? $instrument->instructions : '';
+        }
+
         echo '<h1>' . esc_html($title) . '</h1>';
         echo '<a href="' . esc_url(admin_url('admin.php?page=hl-instruments&tab=teacher')) . '">&larr; ' . esc_html__('Back to Teacher Instruments', 'hl-core') . '</a>';
 
-        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-instruments&tab=teacher')) . '">';
+        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-instruments&tab=teacher')) . '" id="hl-teacher-instrument-form">';
         wp_nonce_field('hl_save_teacher_instrument', 'hl_teacher_instrument_nonce');
 
         if ($is_edit) {
             echo '<input type="hidden" name="instrument_id" value="' . esc_attr($instrument->instrument_id) . '" />';
         }
 
+        // ── Metadata fields ──────────────────────────────────────────────
         echo '<table class="form-table">';
 
-        // Name
         echo '<tr>';
         echo '<th scope="row"><label for="instrument_name">' . esc_html__('Instrument Name', 'hl-core') . '</label></th>';
         echo '<td><input type="text" id="instrument_name" name="instrument_name" value="' . esc_attr($is_edit ? $instrument->instrument_name : '') . '" class="regular-text" required /></td>';
         echo '</tr>';
 
-        // Key
         echo '<tr>';
         echo '<th scope="row"><label for="instrument_key">' . esc_html__('Instrument Key', 'hl-core') . '</label></th>';
         echo '<td><input type="text" id="instrument_key" name="instrument_key" value="' . esc_attr($is_edit ? $instrument->instrument_key : '') . '" class="regular-text" required />';
         echo '<p class="description">' . esc_html__('Unique identifier (e.g., b2e_self_assessment). Used in code and seed data.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
-        // Version
         echo '<tr>';
         echo '<th scope="row"><label for="instrument_version">' . esc_html__('Version', 'hl-core') . '</label></th>';
         echo '<td><input type="text" id="instrument_version" name="instrument_version" value="' . esc_attr($is_edit ? $instrument->instrument_version : '1.0') . '" class="small-text" /></td>';
         echo '</tr>';
 
-        // Status
         $current_status = $is_edit ? $instrument->status : 'active';
         echo '<tr>';
         echo '<th scope="row"><label for="status">' . esc_html__('Status', 'hl-core') . '</label></th>';
@@ -931,37 +994,279 @@ class HL_Admin_Instruments {
         echo '</select></td>';
         echo '</tr>';
 
-        // Sections JSON
-        $sections_json = $is_edit ? $instrument->sections : '[]';
-        // Pretty-print for editing
-        $sections_decoded = json_decode($sections_json, true);
-        $sections_pretty  = wp_json_encode($sections_decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-
-        echo '<tr>';
-        echo '<th scope="row"><label for="sections_json">' . esc_html__('Sections (JSON)', 'hl-core') . '</label></th>';
-        echo '<td>';
-        echo '<textarea id="sections_json" name="sections_json" rows="20" class="large-text code" style="font-family: monospace;">' . esc_textarea($sections_pretty) . '</textarea>';
-        echo '<p class="description">' . esc_html__('JSON array of section objects. Each section: {section_key, title, description, type (likert|scale), scale_key, items: [{key, text}]}', 'hl-core') . '</p>';
-        echo '</td>';
-        echo '</tr>';
-
-        // Scale Labels JSON
-        $scale_labels_json = $is_edit ? $instrument->scale_labels : '{}';
-        $scale_decoded     = json_decode($scale_labels_json, true);
-        $scale_pretty      = wp_json_encode($scale_decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-
-        echo '<tr>';
-        echo '<th scope="row"><label for="scale_labels_json">' . esc_html__('Scale Labels (JSON)', 'hl-core') . '</label></th>';
-        echo '<td>';
-        echo '<textarea id="scale_labels_json" name="scale_labels_json" rows="8" class="large-text code" style="font-family: monospace;">' . esc_textarea($scale_pretty) . '</textarea>';
-        echo '<p class="description">' . esc_html__('JSON map: {scale_key: [labels]} for likert scales, {scale_key: {low, high}} for numeric scales.', 'hl-core') . '</p>';
-        echo '</td>';
-        echo '</tr>';
-
         echo '</table>';
 
+        // ── Instructions (wp_editor) ─────────────────────────────────────
+        echo '<h2>' . esc_html__('Instructions', 'hl-core') . '</h2>';
+        echo '<p class="description">' . esc_html__('Displayed to the teacher above the assessment form. Supports bold, italic, and underline formatting.', 'hl-core') . '</p>';
+        wp_editor($instructions, 'teacher_instructions', array(
+            'textarea_name' => 'instructions',
+            'media_buttons' => false,
+            'textarea_rows' => 4,
+            'teeny'         => true,
+            'tinymce'       => array(
+                'toolbar1' => 'bold,italic,underline,bullist,numlist',
+                'toolbar2' => '',
+            ),
+            'quicktags'     => array('buttons' => 'strong,em,ul,ol,li'),
+        ));
+
+        // ── Scale Labels ─────────────────────────────────────────────────
+        echo '<h2 style="margin-top:2em;">' . esc_html__('Scale Labels', 'hl-core') . '</h2>';
+        echo '<p class="description">' . esc_html__('Define named scales that sections can reference. Likert scales use ordered labels; numeric scales use low/high anchors.', 'hl-core') . '</p>';
+        echo '<div id="hl-te-scales-container">';
+
+        $scale_index = 0;
+        foreach ($scale_labels as $scale_key => $scale_data) {
+            $this->render_teacher_scale_panel($scale_index, $scale_key, $scale_data);
+            $scale_index++;
+        }
+
+        echo '</div>';
+        echo '<p><button type="button" class="button" id="hl-te-add-scale">' . esc_html__('+ Add Scale', 'hl-core') . '</button></p>';
+
+        // ── Sections ─────────────────────────────────────────────────────
+        echo '<h2 style="margin-top:2em;">' . esc_html__('Sections', 'hl-core') . '</h2>';
+        echo '<p class="description">' . esc_html__('Each section groups related items. Click a section header to expand/collapse.', 'hl-core') . '</p>';
+        echo '<div id="hl-te-sections-container">';
+
+        $scale_keys = array_keys($scale_labels);
+        foreach ($sections as $idx => $section) {
+            $this->render_teacher_section_panel($idx, $section, $scale_keys);
+        }
+
+        echo '</div>';
+        echo '<p><button type="button" class="button" id="hl-te-add-section">' . esc_html__('+ Add Section', 'hl-core') . '</button></p>';
+
+        // Submit
         submit_button($is_edit ? __('Update Instrument', 'hl-core') : __('Create Instrument', 'hl-core'));
 
         echo '</form>';
+
+        // Render the inline JS data for the editor
+        $this->render_teacher_editor_data(count($sections), $scale_index, $scale_keys);
+    }
+
+    /**
+     * Render a single scale label panel.
+     */
+    private function render_teacher_scale_panel($index, $scale_key, $scale_data) {
+        $is_object = is_array($scale_data) && isset($scale_data['low']);
+        $prefix    = 'scale_labels[' . esc_attr($scale_key) . ']';
+        ?>
+        <div class="hl-te-scale-panel" data-scale-index="<?php echo esc_attr($index); ?>">
+            <div class="hl-te-panel-header">
+                <strong><?php esc_html_e('Scale:', 'hl-core'); ?></strong>
+                <code class="hl-te-scale-key-display"><?php echo esc_html($scale_key); ?></code>
+                <span class="hl-te-panel-actions">
+                    <button type="button" class="button-link hl-te-remove-scale"><?php esc_html_e('Remove', 'hl-core'); ?></button>
+                </span>
+            </div>
+            <div class="hl-te-panel-body">
+                <p>
+                    <label><?php esc_html_e('Scale Key:', 'hl-core'); ?></label>
+                    <input type="text" class="regular-text hl-te-scale-key-input" value="<?php echo esc_attr($scale_key); ?>" data-old-key="<?php echo esc_attr($scale_key); ?>" />
+                </p>
+                <p>
+                    <label><?php esc_html_e('Type:', 'hl-core'); ?></label>
+                    <select class="hl-te-scale-type-select">
+                        <option value="array" <?php selected(!$is_object); ?>><?php esc_html_e('Likert (ordered labels)', 'hl-core'); ?></option>
+                        <option value="object" <?php selected($is_object); ?>><?php esc_html_e('Numeric (low/high anchors)', 'hl-core'); ?></option>
+                    </select>
+                    <input type="hidden" name="<?php echo esc_attr($prefix); ?>[type]" value="<?php echo $is_object ? 'object' : 'array'; ?>" class="hl-te-scale-type-hidden" />
+                </p>
+                <div class="hl-te-scale-array-fields" <?php echo $is_object ? 'style="display:none;"' : ''; ?>>
+                    <label><?php esc_html_e('Labels (in order):', 'hl-core'); ?></label>
+                    <div class="hl-te-scale-labels-list">
+                        <?php if (!$is_object && is_array($scale_data)) : ?>
+                            <?php foreach ($scale_data as $label) : ?>
+                                <div class="hl-te-scale-label-row">
+                                    <input type="text" name="<?php echo esc_attr($prefix); ?>[labels][]" value="<?php echo esc_attr($label); ?>" class="regular-text" />
+                                    <button type="button" class="button-link hl-te-remove-label">&times;</button>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                    <button type="button" class="button button-small hl-te-add-label"><?php esc_html_e('+ Add Label', 'hl-core'); ?></button>
+                </div>
+                <div class="hl-te-scale-object-fields" <?php echo $is_object ? '' : 'style="display:none;"'; ?>>
+                    <p>
+                        <label><?php esc_html_e('Low anchor:', 'hl-core'); ?></label>
+                        <input type="text" name="<?php echo esc_attr($prefix); ?>[low]" value="<?php echo esc_attr($is_object ? $scale_data['low'] : ''); ?>" class="regular-text" />
+                    </p>
+                    <p>
+                        <label><?php esc_html_e('High anchor:', 'hl-core'); ?></label>
+                        <input type="text" name="<?php echo esc_attr($prefix); ?>[high]" value="<?php echo esc_attr($is_object ? $scale_data['high'] : ''); ?>" class="regular-text" />
+                    </p>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render a single section accordion panel.
+     */
+    private function render_teacher_section_panel($index, $section, $scale_keys) {
+        $section_key = isset($section['section_key']) ? $section['section_key'] : '';
+        $title       = isset($section['title']) ? $section['title'] : '';
+        $description = isset($section['description']) ? $section['description'] : '';
+        $type        = isset($section['type']) ? $section['type'] : 'likert';
+        $scale_key   = isset($section['scale_key']) ? $section['scale_key'] : '';
+        $items       = isset($section['items']) ? $section['items'] : array();
+        $prefix      = 'sections[' . $index . ']';
+
+        ?>
+        <div class="hl-te-section-panel" data-section-index="<?php echo esc_attr($index); ?>">
+            <div class="hl-te-section-header" role="button" tabindex="0">
+                <span class="hl-te-section-toggle dashicons dashicons-arrow-down-alt2"></span>
+                <span class="hl-te-section-header-title">
+                    <?php echo esc_html($title ?: __('(Untitled Section)', 'hl-core')); ?>
+                </span>
+                <span class="hl-te-section-header-meta">
+                    <?php echo esc_html(sprintf(__('%d items', 'hl-core'), count($items))); ?>
+                </span>
+                <span class="hl-te-panel-actions">
+                    <button type="button" class="button-link hl-te-remove-section"><?php esc_html_e('Remove', 'hl-core'); ?></button>
+                </span>
+            </div>
+            <div class="hl-te-section-body">
+                <table class="form-table">
+                    <tr>
+                        <th><label><?php esc_html_e('Section Key', 'hl-core'); ?></label></th>
+                        <td><input type="text" name="<?php echo esc_attr($prefix); ?>[section_key]" value="<?php echo esc_attr($section_key); ?>" class="regular-text" required /></td>
+                    </tr>
+                    <tr>
+                        <th><label><?php esc_html_e('Title', 'hl-core'); ?></label></th>
+                        <td><input type="text" name="<?php echo esc_attr($prefix); ?>[title]" value="<?php echo esc_attr($title); ?>" class="regular-text hl-te-section-title-input" /></td>
+                    </tr>
+                    <tr>
+                        <th><label><?php esc_html_e('Description', 'hl-core'); ?></label></th>
+                        <td>
+                            <div class="hl-te-richtext-wrap">
+                                <div class="hl-te-richtext-toolbar">
+                                    <button type="button" class="hl-te-rt-btn" data-command="bold" title="Bold"><strong>B</strong></button>
+                                    <button type="button" class="hl-te-rt-btn" data-command="italic" title="Italic"><em>I</em></button>
+                                    <button type="button" class="hl-te-rt-btn" data-command="underline" title="Underline"><u>U</u></button>
+                                </div>
+                                <div class="hl-te-richtext-editor" contenteditable="true"><?php echo wp_kses_post($description); ?></div>
+                                <textarea name="<?php echo esc_attr($prefix); ?>[description]" class="hl-te-richtext-hidden" style="display:none;"><?php echo esc_textarea($description); ?></textarea>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label><?php esc_html_e('Type', 'hl-core'); ?></label></th>
+                        <td>
+                            <select name="<?php echo esc_attr($prefix); ?>[type]" class="hl-te-section-type-select">
+                                <option value="likert" <?php selected($type, 'likert'); ?>><?php esc_html_e('Likert', 'hl-core'); ?></option>
+                                <option value="scale" <?php selected($type, 'scale'); ?>><?php esc_html_e('Scale (0-10)', 'hl-core'); ?></option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label><?php esc_html_e('Scale Key', 'hl-core'); ?></label></th>
+                        <td>
+                            <select name="<?php echo esc_attr($prefix); ?>[scale_key]" class="hl-te-scale-key-select">
+                                <option value=""><?php esc_html_e('-- Select Scale --', 'hl-core'); ?></option>
+                                <?php foreach ($scale_keys as $sk) : ?>
+                                    <option value="<?php echo esc_attr($sk); ?>" <?php selected($scale_key, $sk); ?>><?php echo esc_html($sk); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+                </table>
+
+                <h4><?php esc_html_e('Items', 'hl-core'); ?></h4>
+                <table class="widefat hl-te-items-table">
+                    <thead>
+                        <tr>
+                            <th style="width:180px;"><?php esc_html_e('Item Key', 'hl-core'); ?></th>
+                            <th><?php esc_html_e('Item Text', 'hl-core'); ?></th>
+                            <th style="width:80px;"><?php esc_html_e('Actions', 'hl-core'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody class="hl-te-items-body">
+                        <?php foreach ($items as $item_idx => $item) : ?>
+                            <?php $this->render_teacher_item_row($index, $item_idx, $item); ?>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <p><button type="button" class="button button-small hl-te-add-item"><?php esc_html_e('+ Add Item', 'hl-core'); ?></button></p>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render a single item row inside a section.
+     */
+    private function render_teacher_item_row($section_index, $item_index, $item) {
+        $key  = isset($item['key']) ? $item['key'] : '';
+        $text = isset($item['text']) ? $item['text'] : '';
+        $name_prefix = 'sections[' . $section_index . '][items][' . $item_index . ']';
+        ?>
+        <tr class="hl-te-item-row">
+            <td>
+                <input type="text" name="<?php echo esc_attr($name_prefix); ?>[key]" value="<?php echo esc_attr($key); ?>" class="widefat" />
+            </td>
+            <td>
+                <div class="hl-te-richtext-wrap hl-te-richtext-inline">
+                    <div class="hl-te-richtext-toolbar hl-te-rt-mini">
+                        <button type="button" class="hl-te-rt-btn" data-command="bold" title="Bold"><strong>B</strong></button>
+                        <button type="button" class="hl-te-rt-btn" data-command="italic" title="Italic"><em>I</em></button>
+                        <button type="button" class="hl-te-rt-btn" data-command="underline" title="Underline"><u>U</u></button>
+                    </div>
+                    <div class="hl-te-richtext-editor" contenteditable="true"><?php echo wp_kses_post($text); ?></div>
+                    <textarea name="<?php echo esc_attr($name_prefix); ?>[text]" class="hl-te-richtext-hidden" style="display:none;"><?php echo esc_textarea($text); ?></textarea>
+                </div>
+            </td>
+            <td><button type="button" class="button-link button-link-delete hl-te-remove-item"><?php esc_html_e('Remove', 'hl-core'); ?></button></td>
+        </tr>
+        <?php
+    }
+
+    /**
+     * Render inline JS data for the teacher editor (initial counts + scale keys).
+     */
+    private function render_teacher_editor_data($section_count, $scale_count, $scale_keys) {
+        ?>
+        <script>
+        var hlTeacherEditorData = {
+            sectionCount: <?php echo intval($section_count); ?>,
+            scaleCount: <?php echo intval($scale_count); ?>,
+            scaleKeys: <?php echo wp_json_encode($scale_keys); ?>,
+            i18n: {
+                removeSection: <?php echo wp_json_encode(__('Remove this entire section and all its items?', 'hl-core')); ?>,
+                removeItem: <?php echo wp_json_encode(__('Remove this item?', 'hl-core')); ?>,
+                removeScale: <?php echo wp_json_encode(__('Remove this scale? Sections referencing it will need to be updated.', 'hl-core')); ?>,
+                untitledSection: <?php echo wp_json_encode(__('(Untitled Section)', 'hl-core')); ?>,
+                items: <?php echo wp_json_encode(__('items', 'hl-core')); ?>,
+                selectScale: <?php echo wp_json_encode(__('-- Select Scale --', 'hl-core')); ?>,
+                scaleLabel: <?php echo wp_json_encode(__('Scale:', 'hl-core')); ?>,
+                scaleKeyLabel: <?php echo wp_json_encode(__('Scale Key:', 'hl-core')); ?>,
+                typeLabel: <?php echo wp_json_encode(__('Type:', 'hl-core')); ?>,
+                likertType: <?php echo wp_json_encode(__('Likert (ordered labels)', 'hl-core')); ?>,
+                numericType: <?php echo wp_json_encode(__('Numeric (low/high anchors)', 'hl-core')); ?>,
+                lowAnchor: <?php echo wp_json_encode(__('Low anchor:', 'hl-core')); ?>,
+                highAnchor: <?php echo wp_json_encode(__('High anchor:', 'hl-core')); ?>,
+                labelsInOrder: <?php echo wp_json_encode(__('Labels (in order):', 'hl-core')); ?>,
+                addLabel: <?php echo wp_json_encode(__('+ Add Label', 'hl-core')); ?>,
+                remove: <?php echo wp_json_encode(__('Remove', 'hl-core')); ?>,
+                sectionKey: <?php echo wp_json_encode(__('Section Key', 'hl-core')); ?>,
+                titleLabel: <?php echo wp_json_encode(__('Title', 'hl-core')); ?>,
+                descriptionLabel: <?php echo wp_json_encode(__('Description', 'hl-core')); ?>,
+                typeFieldLabel: <?php echo wp_json_encode(__('Type', 'hl-core')); ?>,
+                scaleKeyField: <?php echo wp_json_encode(__('Scale Key', 'hl-core')); ?>,
+                likert: <?php echo wp_json_encode(__('Likert', 'hl-core')); ?>,
+                scaleType: <?php echo wp_json_encode(__('Scale (0-10)', 'hl-core')); ?>,
+                itemsLabel: <?php echo wp_json_encode(__('Items', 'hl-core')); ?>,
+                itemKey: <?php echo wp_json_encode(__('Item Key', 'hl-core')); ?>,
+                itemText: <?php echo wp_json_encode(__('Item Text', 'hl-core')); ?>,
+                actions: <?php echo wp_json_encode(__('Actions', 'hl-core')); ?>,
+                addItem: <?php echo wp_json_encode(__('+ Add Item', 'hl-core')); ?>
+            }
+        };
+        </script>
+        <?php
     }
 }

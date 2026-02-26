@@ -368,16 +368,6 @@ class HL_Frontend_Teacher_Assessment {
             <?php if ( $is_submitted ) : ?>
                 <?php $this->render_submitted_summary( $instance, $instrument, $existing_responses, $pre_responses ); ?>
             <?php else : ?>
-                <div class="hl-assessment-meta">
-                    <span class="hl-meta-item">
-                        <strong><?php esc_html_e( 'Program:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( $instance['track_name'] ); ?>
-                    </span>
-                    <span class="hl-meta-item">
-                        <?php $this->render_status_badge( $instance['status'] ); ?>
-                    </span>
-                </div>
-
                 <?php
                 $renderer = new HL_Teacher_Assessment_Renderer(
                     $instrument,
@@ -385,7 +375,12 @@ class HL_Frontend_Teacher_Assessment {
                     $phase,
                     $existing_responses,
                     $pre_responses,
-                    false
+                    false,
+                    array(
+                        'show_instrument_name' => false,
+                        'show_program_name'    => true,
+                        'program_name'         => $instance['track_name'],
+                    )
                 );
                 echo $renderer->render();
                 ?>
@@ -419,12 +414,7 @@ class HL_Frontend_Teacher_Assessment {
 
         ?>
         <div class="hl-assessment-header">
-            <h2 class="hl-section-title"><?php echo esc_html( $phase_label ); ?> — <?php esc_html_e( 'Submitted', 'hl-core' ); ?></h2>
             <div class="hl-assessment-meta">
-                <span class="hl-meta-item">
-                    <strong><?php esc_html_e( 'Instrument:', 'hl-core' ); ?></strong>
-                    <?php echo esc_html( $instrument->instrument_name ); ?>
-                </span>
                 <span class="hl-meta-item">
                     <strong><?php esc_html_e( 'Program:', 'hl-core' ); ?></strong>
                     <?php echo esc_html( $instance['track_name'] ); ?>
@@ -447,7 +437,12 @@ class HL_Frontend_Teacher_Assessment {
             $instance['phase'],
             $existing_responses,
             $pre_responses,
-            true // read-only
+            true, // read-only
+            array(
+                'show_instrument_name' => false,
+                'show_program_name'    => false,
+                'program_name'         => '',
+            )
         );
         echo $renderer->render();
     }
