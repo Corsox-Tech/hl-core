@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * Renderer for the [hl_school_page] shortcode.
  *
- * School-level CRM view showing header, active cohorts, classrooms, and staff.
+ * School-level CRM view showing header, active tracks, classrooms, and staff.
  *
  * Access: Housman Admin, Coach, School Leader(s) of this school,
  *         District Leader(s) of the parent district.
@@ -61,13 +61,13 @@ class HL_Frontend_School_Page {
             ? $this->orgunit_repo->get_by_id( $school->parent_orgunit_id )
             : null;
 
-        $cohorts    = $this->get_active_cohorts_for_school( $school_id );
+        $tracks    = $this->get_active_tracks_for_school( $school_id );
         $classrooms = $this->classroom_service->get_classrooms( $school_id );
         $staff      = $this->get_staff_at_school( $school_id );
 
         // URLs.
         $district_page_url  = $this->find_shortcode_page_url( 'hl_district_page' );
-        $workspace_page_url = $this->find_shortcode_page_url( 'hl_cohort_workspace' );
+        $workspace_page_url = $this->find_shortcode_page_url( 'hl_track_workspace' );
         $classroom_page_url = $this->find_shortcode_page_url( 'hl_classroom_page' );
 
         $back_url = '';
@@ -94,7 +94,7 @@ class HL_Frontend_School_Page {
 
             <?php $this->render_header( $school, $parent_district, $district_page_url ); ?>
 
-            <?php $this->render_cohorts_section( $cohorts, $workspace_page_url, $school_id ); ?>
+            <?php $this->render_tracks_section( $tracks, $workspace_page_url, $school_id ); ?>
 
             <?php $this->render_classrooms_section( $classrooms, $classroom_page_url ); ?>
 
@@ -160,7 +160,7 @@ class HL_Frontend_School_Page {
         ?>
         <div class="hl-crm-detail-header">
             <div class="hl-crm-detail-header-info">
-                <h2 class="hl-cohort-title"><?php echo esc_html( $school->name ); ?></h2>
+                <h2 class="hl-track-title"><?php echo esc_html( $school->name ); ?></h2>
                 <?php if ( $parent_district ) :
                     $d_url = $district_page_url
                         ? add_query_arg( 'id', $parent_district->orgunit_id, $district_page_url )
@@ -182,42 +182,42 @@ class HL_Frontend_School_Page {
     }
 
     // ========================================================================
-    // Section: Active Cohorts
+    // Section: Active Tracks
     // ========================================================================
 
-    private function render_cohorts_section( $cohorts, $workspace_url, $school_id ) {
+    private function render_tracks_section( $tracks, $workspace_url, $school_id ) {
         ?>
         <div class="hl-crm-section">
-            <h3 class="hl-section-title"><?php esc_html_e( 'Active Cohorts', 'hl-core' ); ?></h3>
+            <h3 class="hl-section-title"><?php esc_html_e( 'Active Tracks', 'hl-core' ); ?></h3>
 
-            <?php if ( empty( $cohorts ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No active cohorts at this school.', 'hl-core' ); ?></p></div>
+            <?php if ( empty( $tracks ) ) : ?>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No active tracks at this school.', 'hl-core' ); ?></p></div>
             <?php else : ?>
-                <div class="hl-crm-cohort-list">
-                    <?php foreach ( $cohorts as $row ) :
-                        $cohort           = $row['cohort'];
+                <div class="hl-crm-track-list">
+                    <?php foreach ( $tracks as $row ) :
+                        $trk              = $row['track'];
                         $participant_count = $row['participant_count'];
-                        $status           = $cohort->status ?: 'active';
+                        $status           = $track->status ?: 'active';
                         $status_class     = 'hl-badge-' . sanitize_html_class( $status );
 
-                        $cohort_url = $workspace_url
-                            ? add_query_arg( array( 'id' => $cohort->cohort_id, 'orgunit' => $school_id ), $workspace_url )
+                        $track_url = $workspace_url
+                            ? add_query_arg( array( 'id' => $track->track_id, 'orgunit' => $school_id ), $workspace_url )
                             : '';
                     ?>
-                        <div class="hl-crm-cohort-row">
-                            <div class="hl-crm-cohort-info">
-                                <strong><?php echo esc_html( $cohort->cohort_name ); ?></strong>
+                        <div class="hl-crm-track-row">
+                            <div class="hl-crm-track-info">
+                                <strong><?php echo esc_html( $track->track_name ); ?></strong>
                                 <span class="hl-badge <?php echo esc_attr( $status_class ); ?>"><?php echo esc_html( ucfirst( $status ) ); ?></span>
-                                <span class="hl-crm-cohort-count">
+                                <span class="hl-crm-track-count">
                                     <?php printf(
                                         esc_html( _n( '%d participant', '%d participants', $participant_count, 'hl-core' ) ),
                                         $participant_count
                                     ); ?>
                                 </span>
                             </div>
-                            <?php if ( $cohort_url ) : ?>
-                                <a href="<?php echo esc_url( $cohort_url ); ?>" class="hl-btn hl-btn-sm hl-btn-primary">
-                                    <?php esc_html_e( 'Open Cohort', 'hl-core' ); ?>
+                            <?php if ( $track_url ) : ?>
+                                <a href="<?php echo esc_url( $track_url ); ?>" class="hl-btn hl-btn-sm hl-btn-primary">
+                                    <?php esc_html_e( 'Open Track', 'hl-core' ); ?>
                                 </a>
                             <?php endif; ?>
                         </div>
@@ -309,7 +309,7 @@ class HL_Frontend_School_Page {
                             <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Email', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Role', 'hl-core' ); ?></th>
-                            <th><?php esc_html_e( 'Cohort', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Track', 'hl-core' ); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -318,7 +318,7 @@ class HL_Frontend_School_Page {
                                 <td><strong><?php echo esc_html( $s['display_name'] ); ?></strong></td>
                                 <td><?php echo esc_html( $s['user_email'] ); ?></td>
                                 <td><?php echo esc_html( $s['roles_str'] ); ?></td>
-                                <td><?php echo esc_html( $s['cohort_name'] ); ?></td>
+                                <td><?php echo esc_html( $s['track_name'] ); ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -333,22 +333,22 @@ class HL_Frontend_School_Page {
     // ========================================================================
 
     /**
-     * Get active cohorts this school participates in, with participant count at this school.
+     * Get active tracks this school participates in, with participant count at this school.
      */
-    private function get_active_cohorts_for_school( $school_id ) {
+    private function get_active_tracks_for_school( $school_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
         $rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT c.*,
+            "SELECT t.*,
                     (SELECT COUNT(*) FROM {$prefix}hl_enrollment e2
-                     WHERE e2.cohort_id = c.cohort_id AND e2.status = 'active'
+                     WHERE e2.track_id = t.track_id AND e2.status = 'active'
                        AND e2.school_id = %d) AS participant_count
-             FROM {$prefix}hl_cohort c
-             INNER JOIN {$prefix}hl_cohort_school cs ON c.cohort_id = cs.cohort_id
+             FROM {$prefix}hl_track t
+             INNER JOIN {$prefix}hl_track_school cs ON t.track_id = cs.track_id
              WHERE cs.school_id = %d
-               AND c.status = 'active'
-             ORDER BY c.start_date DESC",
+               AND t.status = 'active'
+             ORDER BY t.start_date DESC",
             $school_id,
             $school_id
         ), ARRAY_A );
@@ -357,14 +357,14 @@ class HL_Frontend_School_Page {
             $count = isset( $row['participant_count'] ) ? (int) $row['participant_count'] : 0;
             unset( $row['participant_count'] );
             return array(
-                'cohort'            => new HL_Cohort( $row ),
+                'track'             => new HL_Track( $row ),
                 'participant_count' => $count,
             );
         }, $rows ?: array() );
     }
 
     /**
-     * Get all staff enrolled at this school (across all cohorts).
+     * Get all staff enrolled at this school (across all tracks).
      */
     private function get_staff_at_school( $school_id ) {
         global $wpdb;
@@ -372,10 +372,10 @@ class HL_Frontend_School_Page {
 
         $rows = $wpdb->get_results( $wpdb->prepare(
             "SELECT e.enrollment_id, u.display_name, u.user_email, e.roles,
-                    c.cohort_name
+                    t.track_name
              FROM {$prefix}hl_enrollment e
              INNER JOIN {$wpdb->users} u ON e.user_id = u.ID
-             INNER JOIN {$prefix}hl_cohort c ON e.cohort_id = c.cohort_id
+             INNER JOIN {$prefix}hl_track t ON e.track_id = t.track_id
              WHERE e.school_id = %d
                AND e.status = 'active'
              ORDER BY u.display_name ASC",
@@ -424,7 +424,7 @@ class HL_Frontend_School_Page {
     }
 
     /**
-     * Batch-get teacher names per classroom (across all cohorts).
+     * Batch-get teacher names per classroom (across all tracks).
      */
     private function get_classroom_teacher_names( $classroom_ids ) {
         global $wpdb;

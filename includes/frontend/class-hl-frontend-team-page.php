@@ -21,8 +21,8 @@ class HL_Frontend_Team_Page {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Cohort_Repository */
-    private $cohort_repo;
+    /** @var HL_Track_Repository */
+    private $track_repo;
 
     /** @var HL_OrgUnit_Repository */
     private $orgunit_repo;
@@ -33,7 +33,7 @@ class HL_Frontend_Team_Page {
     public function __construct() {
         $this->team_repo         = new HL_Team_Repository();
         $this->enrollment_repo   = new HL_Enrollment_Repository();
-        $this->cohort_repo       = new HL_Cohort_Repository();
+        $this->track_repo       = new HL_Track_Repository();
         $this->orgunit_repo      = new HL_OrgUnit_Repository();
         $this->reporting_service = HL_Reporting_Service::instance();
     }
@@ -66,7 +66,7 @@ class HL_Frontend_Team_Page {
 
         $reporting = HL_Reporting_Service::instance();
         $filters   = array(
-            'cohort_id' => $team->cohort_id,
+            'track_id' => $team->track_id,
             'team_id'   => $team->team_id,
         );
         $csv = $reporting->export_completion_csv( $filters, true );
@@ -114,7 +114,7 @@ class HL_Frontend_Team_Page {
             return ob_get_clean();
         }
 
-        $cohort = $this->cohort_repo->get_by_id( $team->cohort_id );
+        $track = $this->track_repo->get_by_id( $team->track_id );
         $school = $team->school_id ? $this->orgunit_repo->get_by_id( $team->school_id ) : null;
 
         // Breadcrumb URL.
@@ -137,19 +137,19 @@ class HL_Frontend_Team_Page {
 
             <?php if ( ! empty( $back_url ) ) : ?>
                 <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr; <?php
-                    if ( $cohort ) {
-                        printf( esc_html__( 'Back to %s', 'hl-core' ), esc_html( $cohort->cohort_name ) );
+                    if ( $track ) {
+                        printf( esc_html__( 'Back to %s', 'hl-core' ), esc_html( $track->track_name ) );
                     } else {
-                        esc_html_e( 'Back to My Cohort', 'hl-core' );
+                        esc_html_e( 'Back to My Track', 'hl-core' );
                     }
                 ?></a>
             <?php endif; ?>
 
-            <?php $this->render_header( $team, $cohort, $school ); ?>
+            <?php $this->render_header( $team, $track, $school ); ?>
 
-            <div class="hl-cohort-tabs">
+            <div class="hl-track-tabs">
                 <?php foreach ( $tabs as $key => $label ) : ?>
-                    <button class="hl-tab hl-cohort-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
+                    <button class="hl-tab hl-track-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
                             data-target="hl-tab-<?php echo esc_attr( $key ); ?>">
                         <?php echo esc_html( $label ); ?>
                     </button>
@@ -158,12 +158,12 @@ class HL_Frontend_Team_Page {
 
             <?php foreach ( $tabs as $key => $label ) : ?>
                 <div id="hl-tab-<?php echo esc_attr( $key ); ?>"
-                     class="hl-cohort-content <?php echo $active_tab === $key ? 'active' : ''; ?>">
+                     class="hl-track-content <?php echo $active_tab === $key ? 'active' : ''; ?>">
                     <?php
                     if ( $key === 'members' ) {
                         $this->render_members_tab( $team );
                     } else {
-                        $this->render_report_tab( $team, $cohort );
+                        $this->render_report_tab( $team, $track );
                     }
                     ?>
                 </div>
@@ -201,7 +201,7 @@ class HL_Frontend_Team_Page {
 
         // Check if user is a leader whose scope includes this team's school.
         $enrollments = $this->enrollment_repo->get_all( array(
-            'cohort_id' => $team->cohort_id,
+            'track_id' => $team->track_id,
             'status'    => 'active',
         ) );
 
@@ -238,7 +238,7 @@ class HL_Frontend_Team_Page {
     // Header
     // ========================================================================
 
-    private function render_header( $team, $cohort, $school ) {
+    private function render_header( $team, $track, $school ) {
         $members      = $this->team_repo->get_members( $team->team_id );
         $member_count = count( $members );
 
@@ -260,15 +260,15 @@ class HL_Frontend_Team_Page {
         ?>
         <div class="hl-team-page-header">
             <div class="hl-team-page-header-info">
-                <h2 class="hl-cohort-title"><?php echo esc_html( $team->team_name ); ?></h2>
+                <h2 class="hl-track-title"><?php echo esc_html( $team->team_name ); ?></h2>
                 <?php if ( $school ) : ?>
                     <p class="hl-scope-indicator"><?php echo esc_html( $school->name ); ?></p>
                 <?php endif; ?>
-                <div class="hl-cohort-meta">
-                    <?php if ( $cohort ) : ?>
+                <div class="hl-track-meta">
+                    <?php if ( $track ) : ?>
                         <span class="hl-meta-item">
-                            <strong><?php esc_html_e( 'Cohort:', 'hl-core' ); ?></strong>
-                            <?php echo esc_html( $cohort->cohort_name ); ?>
+                            <strong><?php esc_html_e( 'Track:', 'hl-core' ); ?></strong>
+                            <?php echo esc_html( $track->track_name ); ?>
                         </span>
                     <?php endif; ?>
                     <span class="hl-meta-item">
@@ -360,16 +360,16 @@ class HL_Frontend_Team_Page {
     // Tab: Report
     // ========================================================================
 
-    private function render_report_tab( $team, $cohort ) {
-        if ( ! $cohort ) {
+    private function render_report_tab( $team, $track ) {
+        if ( ! $track ) {
             echo '<div class="hl-empty-state"><p>'
-                . esc_html__( 'Cohort data unavailable.', 'hl-core' )
+                . esc_html__( 'Track data unavailable.', 'hl-core' )
                 . '</p></div>';
             return;
         }
 
         $filters      = array(
-            'cohort_id' => $cohort->cohort_id,
+            'track_id' => $track->track_id,
             'team_id'   => $team->team_id,
         );
         $participants = $this->reporting_service->get_participant_report( $filters );
@@ -380,11 +380,11 @@ class HL_Frontend_Team_Page {
         $activities      = array();
 
         if ( ! empty( $enrollment_ids ) ) {
-            $activity_detail = $this->reporting_service->get_cohort_activity_detail(
-                $cohort->cohort_id,
+            $activity_detail = $this->reporting_service->get_track_activity_detail(
+                $track->track_id,
                 $enrollment_ids
             );
-            $activities = $this->reporting_service->get_cohort_activities( $cohort->cohort_id );
+            $activities = $this->reporting_service->get_track_activities( $track->track_id );
         }
 
         // CSV export URL.
@@ -428,7 +428,7 @@ class HL_Frontend_Team_Page {
                                     return ucwords( str_replace( '_', ' ', $r ) );
                                 }, $roles_raw ) )
                                 : '';
-                            $completion = round( floatval( $p['cohort_completion_percent'] ) );
+                            $completion = round( floatval( $p['track_completion_percent'] ) );
                             $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
                         ?>
                             <tr class="hl-report-row"
@@ -505,14 +505,14 @@ class HL_Frontend_Team_Page {
     // ========================================================================
 
     private function build_back_url( $team ) {
-        // Link back to My Cohort with the classrooms tab for the team's cohort.
-        $base = apply_filters( 'hl_core_my_cohort_page_url', '' );
+        // Link back to My Track with the classrooms tab for the team's track.
+        $base = apply_filters( 'hl_core_my_track_page_url', '' );
         if ( empty( $base ) ) {
-            $base = $this->find_shortcode_page_url( 'hl_my_cohort' );
+            $base = $this->find_shortcode_page_url( 'hl_my_track' );
         }
         if ( ! empty( $base ) ) {
             return add_query_arg( array(
-                'cohort_id' => $team->cohort_id,
+                'track_id' => $team->track_id,
                 'tab'       => 'teams',
             ), $base );
         }

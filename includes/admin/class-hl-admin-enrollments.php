@@ -121,7 +121,7 @@ class HL_Admin_Enrollments {
         }
 
         $data = array(
-            'cohort_id'  => absint($_POST['cohort_id']),
+            'track_id'    => absint($_POST['track_id']),
             'user_id'     => absint($_POST['user_id']),
             'roles'       => wp_json_encode($roles),
             'school_id'   => !empty($_POST['school_id']) ? absint($_POST['school_id']) : null,
@@ -129,7 +129,7 @@ class HL_Admin_Enrollments {
             'status'      => sanitize_text_field($_POST['status']),
         );
 
-        $cohort_context = isset($_POST['_hl_cohort_context']) ? absint($_POST['_hl_cohort_context']) : 0;
+        $track_context = isset($_POST['_hl_track_context']) ? absint($_POST['_hl_track_context']) : 0;
 
         if ($enrollment_id > 0) {
             $wpdb->update(
@@ -137,8 +137,8 @@ class HL_Admin_Enrollments {
                 $data,
                 array('enrollment_id' => $enrollment_id)
             );
-            if ($cohort_context) {
-                $redirect = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_context . '&tab=enrollments&message=enrollment_updated');
+            if ($track_context) {
+                $redirect = admin_url('admin.php?page=hl-tracks&action=edit&id=' . $track_context . '&tab=enrollments&message=enrollment_updated');
             } else {
                 $redirect = admin_url('admin.php?page=hl-enrollments&message=updated');
             }
@@ -146,8 +146,8 @@ class HL_Admin_Enrollments {
             $data['enrollment_uuid'] = HL_DB_Utils::generate_uuid();
             $data['enrolled_at']     = current_time('mysql');
             $wpdb->insert($wpdb->prefix . 'hl_enrollment', $data);
-            if ($cohort_context) {
-                $redirect = admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_context . '&tab=enrollments&message=enrollment_created');
+            if ($track_context) {
+                $redirect = admin_url('admin.php?page=hl-tracks&action=edit&id=' . $track_context . '&tab=enrollments&message=enrollment_created');
             } else {
                 $redirect = admin_url('admin.php?page=hl-enrollments&message=created');
             }
@@ -178,9 +178,9 @@ class HL_Admin_Enrollments {
         global $wpdb;
         $wpdb->delete($wpdb->prefix . 'hl_enrollment', array('enrollment_id' => $enrollment_id));
 
-        $cohort_context = isset($_GET['cohort_context']) ? absint($_GET['cohort_context']) : 0;
-        if ($cohort_context) {
-            wp_redirect(admin_url('admin.php?page=hl-core&action=edit&id=' . $cohort_context . '&tab=enrollments&message=enrollment_deleted'));
+        $track_context = isset($_GET['track_context']) ? absint($_GET['track_context']) : 0;
+        if ($track_context) {
+            wp_redirect(admin_url('admin.php?page=hl-tracks&action=edit&id=' . $track_context . '&tab=enrollments&message=enrollment_deleted'));
         } else {
             wp_redirect(admin_url('admin.php?page=hl-enrollments&message=deleted'));
         }
@@ -193,26 +193,26 @@ class HL_Admin_Enrollments {
     private function render_list() {
         global $wpdb;
 
-        // Filter by cohort
-        $filter_cohort = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
+        // Filter by track
+        $filter_track = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
 
         $where = '';
-        if ($filter_cohort) {
-            $where = $wpdb->prepare(' WHERE e.cohort_id = %d', $filter_cohort);
+        if ($filter_track) {
+            $where = $wpdb->prepare(' WHERE e.track_id = %d', $filter_track);
         }
 
         $enrollments = $wpdb->get_results(
-            "SELECT e.*, p.cohort_name, u.display_name, u.user_email
+            "SELECT e.*, t.track_name, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_enrollment e
-             LEFT JOIN {$wpdb->prefix}hl_cohort p ON e.cohort_id = p.cohort_id
+             LEFT JOIN {$wpdb->prefix}hl_track t ON e.track_id = t.track_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              {$where}
              ORDER BY e.enrolled_at DESC"
         );
 
-        // Get cohorts for filter dropdown
-        $cohorts = $wpdb->get_results(
-            "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
+        // Get tracks for filter dropdown
+        $tracks = $wpdb->get_results(
+            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
         );
 
         // Get school names
@@ -238,14 +238,14 @@ class HL_Admin_Enrollments {
             }
         }
 
-        // Cohort breadcrumb.
-        if ($filter_cohort) {
+        // Track breadcrumb.
+        if ($filter_track) {
             global $wpdb;
-            $cohort_name = $wpdb->get_var($wpdb->prepare(
-                "SELECT cohort_name FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d", $filter_cohort
+            $track_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT track_name FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $filter_track
             ));
-            if ($cohort_name) {
-                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-core&action=edit&id=' . $filter_cohort . '&tab=enrollments')) . '">&larr; ' . sprintf(esc_html__('Cohort: %s', 'hl-core'), esc_html($cohort_name)) . '</a></p>';
+            if ($track_name) {
+                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-tracks&action=edit&id=' . $filter_track . '&tab=enrollments')) . '">&larr; ' . sprintf(esc_html__('Track: %s', 'hl-core'), esc_html($track_name)) . '</a></p>';
             }
         }
 
@@ -253,15 +253,15 @@ class HL_Admin_Enrollments {
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-enrollments&action=new')) . '" class="page-title-action">' . esc_html__('Add New', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
-        // Cohort filter form
+        // Track filter form
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-enrollments" />';
-        echo '<label for="cohort_id_filter"><strong>' . esc_html__('Filter by Cohort:', 'hl-core') . '</strong> </label>';
-        echo '<select name="cohort_id" id="cohort_id_filter">';
-        echo '<option value="">' . esc_html__('All Cohorts', 'hl-core') . '</option>';
-        if ($cohorts) {
-            foreach ($cohorts as $cohort) {
-                echo '<option value="' . esc_attr($cohort->cohort_id) . '"' . selected($filter_cohort, $cohort->cohort_id, false) . '>' . esc_html($cohort->cohort_name) . '</option>';
+        echo '<label for="track_id_filter"><strong>' . esc_html__('Filter by Track:', 'hl-core') . '</strong> </label>';
+        echo '<select name="track_id" id="track_id_filter">';
+        echo '<option value="">' . esc_html__('All Tracks', 'hl-core') . '</option>';
+        if ($tracks) {
+            foreach ($tracks as $track) {
+                echo '<option value="' . esc_attr($track->track_id) . '"' . selected($filter_track, $track->track_id, false) . '>' . esc_html($track->track_name) . '</option>';
             }
         }
         echo '</select> ';
@@ -278,7 +278,7 @@ class HL_Admin_Enrollments {
         echo '<tr>';
         echo '<th>' . esc_html__('User Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Email', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Cohort', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Track', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Roles', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
@@ -313,7 +313,7 @@ class HL_Admin_Enrollments {
             echo '<tr>';
             echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($enrollment->display_name) . '</a></strong></td>';
             echo '<td>' . esc_html($enrollment->user_email) . '</td>';
-            echo '<td>' . esc_html($enrollment->cohort_name) . '</td>';
+            echo '<td>' . esc_html($enrollment->track_name) . '</td>';
             echo '<td>' . esc_html($roles_display) . '</td>';
             echo '<td>' . esc_html($school_name) . '</td>';
             echo '<td><span style="' . esc_attr($status_style) . '">' . esc_html(ucfirst($enrollment->status)) . '</span></td>';
@@ -333,21 +333,21 @@ class HL_Admin_Enrollments {
      * Render the create/edit form
      *
      * @param object|null $enrollment Enrollment row for edit, null for create.
-     * @param array       $context    Optional cohort context. Keys: 'cohort_id', 'cohort_name'.
+     * @param array       $context    Optional track context. Keys: 'track_id', 'track_name'.
      */
     public function render_form($enrollment = null, $context = array()) {
-        $is_edit   = ($enrollment !== null);
-        $title     = $is_edit ? __('Edit Enrollment', 'hl-core') : __('Add New Enrollment', 'hl-core');
-        $in_cohort = !empty($context['cohort_id']);
+        $is_edit  = ($enrollment !== null);
+        $title    = $is_edit ? __('Edit Enrollment', 'hl-core') : __('Add New Enrollment', 'hl-core');
+        $in_track = !empty($context['track_id']);
 
         global $wpdb;
 
         // Get WP users for dropdown
         $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC', 'number' => 500));
 
-        // Get cohorts
-        $cohorts = $wpdb->get_results(
-            "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
+        // Get tracks
+        $tracks = $wpdb->get_results(
+            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
         );
 
         // Get schools
@@ -369,15 +369,15 @@ class HL_Admin_Enrollments {
             }
         }
 
-        if (!$in_cohort) {
+        if (!$in_track) {
             echo '<h1>' . esc_html($title) . '</h1>';
             echo '<a href="' . esc_url(admin_url('admin.php?page=hl-enrollments')) . '">&larr; ' . esc_html__('Back to Enrollments', 'hl-core') . '</a>';
         }
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-enrollments')) . '">';
         wp_nonce_field('hl_save_enrollment', 'hl_enrollment_nonce');
-        if ($in_cohort) {
-            echo '<input type="hidden" name="_hl_cohort_context" value="' . esc_attr($context['cohort_id']) . '" />';
+        if ($in_track) {
+            echo '<input type="hidden" name="_hl_track_context" value="' . esc_attr($context['track_id']) . '" />';
         }
 
         if ($is_edit) {
@@ -398,19 +398,19 @@ class HL_Admin_Enrollments {
         echo '</select></td>';
         echo '</tr>';
 
-        // Cohort
-        $current_cohort = $in_cohort ? absint($context['cohort_id']) : ($is_edit ? $enrollment->cohort_id : '');
+        // Track
+        $current_track = $in_track ? absint($context['track_id']) : ($is_edit ? $enrollment->track_id : '');
         echo '<tr>';
-        echo '<th scope="row"><label for="cohort_id">' . esc_html__('Cohort', 'hl-core') . '</label></th>';
-        if ($in_cohort) {
-            echo '<td><strong>' . esc_html($context['cohort_name']) . '</strong>';
-            echo '<input type="hidden" id="cohort_id" name="cohort_id" value="' . esc_attr($context['cohort_id']) . '" /></td>';
+        echo '<th scope="row"><label for="track_id">' . esc_html__('Track', 'hl-core') . '</label></th>';
+        if ($in_track) {
+            echo '<td><strong>' . esc_html($context['track_name']) . '</strong>';
+            echo '<input type="hidden" id="track_id" name="track_id" value="' . esc_attr($context['track_id']) . '" /></td>';
         } else {
-            echo '<td><select id="cohort_id" name="cohort_id" required>';
-            echo '<option value="">' . esc_html__('-- Select Cohort --', 'hl-core') . '</option>';
-            if ($cohorts) {
-                foreach ($cohorts as $cohort) {
-                    echo '<option value="' . esc_attr($cohort->cohort_id) . '"' . selected($current_cohort, $cohort->cohort_id, false) . '>' . esc_html($cohort->cohort_name) . '</option>';
+            echo '<td><select id="track_id" name="track_id" required>';
+            echo '<option value="">' . esc_html__('-- Select Track --', 'hl-core') . '</option>';
+            if ($tracks) {
+                foreach ($tracks as $track) {
+                    echo '<option value="' . esc_attr($track->track_id) . '"' . selected($current_track, $track->track_id, false) . '>' . esc_html($track->track_name) . '</option>';
                 }
             }
             echo '</select></td>';

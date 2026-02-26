@@ -18,16 +18,16 @@ class HL_REST_API {
     }
 
     public function register_routes() {
-        // Cohorts
-        register_rest_route($this->namespace, '/cohorts', array(
+        // Tracks (run-level entities, formerly "cohorts")
+        register_rest_route($this->namespace, '/tracks', array(
             'methods'             => 'GET',
-            'callback'            => array($this, 'get_cohorts'),
+            'callback'            => array($this, 'get_tracks'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
 
-        register_rest_route($this->namespace, '/cohorts/(?P<id>\d+)', array(
+        register_rest_route($this->namespace, '/tracks/(?P<id>\d+)', array(
             'methods'             => 'GET',
-            'callback'            => array($this, 'get_cohort'),
+            'callback'            => array($this, 'get_track'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
 
@@ -64,27 +64,27 @@ class HL_REST_API {
         return current_user_can('manage_hl_core');
     }
 
-    public function get_cohorts($request) {
-        $repo = new HL_Cohort_Repository();
-        $cohorts = $repo->get_all();
-        $data = array_map(function($c) { return $c->to_array(); }, $cohorts);
+    public function get_tracks($request) {
+        $repo = new HL_Track_Repository();
+        $tracks = $repo->get_all();
+        $data = array_map(function($t) { return $t->to_array(); }, $tracks);
         return new WP_REST_Response($data, 200);
     }
 
-    public function get_cohort($request) {
-        $repo = new HL_Cohort_Repository();
-        $cohort = $repo->get_by_id($request['id']);
-        if (!$cohort) {
-            return new WP_Error('not_found', 'Cohort not found', array('status' => 404));
+    public function get_track($request) {
+        $repo = new HL_Track_Repository();
+        $track = $repo->get_by_id($request['id']);
+        if (!$track) {
+            return new WP_Error('not_found', 'Track not found', array('status' => 404));
         }
-        return new WP_REST_Response($cohort->to_array(), 200);
+        return new WP_REST_Response($track->to_array(), 200);
     }
 
     public function get_enrollments($request) {
         $repo = new HL_Enrollment_Repository();
         $filters = array();
-        if ($request->get_param('cohort_id')) {
-            $filters['cohort_id'] = intval($request->get_param('cohort_id'));
+        if ($request->get_param('track_id')) {
+            $filters['track_id'] = intval($request->get_param('track_id'));
         }
         $enrollments = $repo->get_all($filters);
         $data = array_map(function($e) { return $e->to_array(); }, $enrollments);
@@ -101,8 +101,8 @@ class HL_REST_API {
 
     public function get_pathways($request) {
         $repo = new HL_Pathway_Repository();
-        $cohort_id = $request->get_param('cohort_id') ? intval($request->get_param('cohort_id')) : null;
-        $pathways = $repo->get_all($cohort_id);
+        $track_id = $request->get_param('track_id') ? intval($request->get_param('track_id')) : null;
+        $pathways = $repo->get_all($track_id);
         $data = array_map(function($p) { return $p->to_array(); }, $pathways);
         return new WP_REST_Response($data, 200);
     }
@@ -110,8 +110,8 @@ class HL_REST_API {
     public function get_teams($request) {
         $repo = new HL_Team_Repository();
         $filters = array();
-        if ($request->get_param('cohort_id')) {
-            $filters['cohort_id'] = intval($request->get_param('cohort_id'));
+        if ($request->get_param('track_id')) {
+            $filters['track_id'] = intval($request->get_param('track_id'));
         }
         $teams = $repo->get_all($filters);
         $data = array_map(function($t) { return $t->to_array(); }, $teams);

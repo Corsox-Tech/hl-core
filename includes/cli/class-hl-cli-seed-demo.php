@@ -14,8 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class HL_CLI_Seed_Demo {
 
-    /** Demo cohort code used to identify seeded data. */
-    const DEMO_COHORT_CODE = 'DEMO-2026';
+    /** Demo track code used to identify seeded data. */
+    const DEMO_TRACK_CODE = 'DEMO-2026';
 
     /** Email domain pattern for demo users. */
     const DEMO_EMAIL_DOMAIN = 'example.com';
@@ -69,8 +69,8 @@ class HL_CLI_Seed_Demo {
         // Step 1: Org Structure
         list( $district_id, $school_a_id, $school_b_id ) = $this->seed_orgunits();
 
-        // Step 2: Cohort
-        $cohort_id = $this->seed_cohort( $district_id, $school_a_id, $school_b_id );
+        // Step 2: Track
+        $track_id = $this->seed_track( $district_id, $school_a_id, $school_b_id );
 
         // Step 3: Classrooms
         $classrooms = $this->seed_classrooms( $school_a_id, $school_b_id );
@@ -82,10 +82,10 @@ class HL_CLI_Seed_Demo {
         $users = $this->seed_users();
 
         // Step 6: Enrollments
-        $enrollments = $this->seed_enrollments( $users, $cohort_id, $school_a_id, $school_b_id, $district_id );
+        $enrollments = $this->seed_enrollments( $users, $track_id, $school_a_id, $school_b_id, $district_id );
 
         // Step 7: Teams
-        $teams = $this->seed_teams( $cohort_id, $school_a_id, $school_b_id, $enrollments );
+        $teams = $this->seed_teams( $track_id, $school_a_id, $school_b_id, $enrollments );
 
         // Step 8: Teaching Assignments
         $this->seed_teaching_assignments( $enrollments, $classrooms );
@@ -94,7 +94,7 @@ class HL_CLI_Seed_Demo {
         $this->seed_children( $classrooms, $school_a_id, $school_b_id );
 
         // Step 10: Pathways & Activities
-        $pathways = $this->seed_pathways( $cohort_id, $instruments );
+        $pathways = $this->seed_pathways( $track_id, $instruments );
 
         // Step 11: Update Enrollment assigned_pathway_id
         $this->assign_pathways( $enrollments, $pathways );
@@ -112,16 +112,16 @@ class HL_CLI_Seed_Demo {
         $this->seed_rollups( $enrollments );
 
         // Step 16: Coach Assignments
-        $this->seed_coach_assignments( $cohort_id, $school_a_id, $school_b_id, $teams, $users );
+        $this->seed_coach_assignments( $track_id, $school_a_id, $school_b_id, $teams, $users );
 
         // Step 17: Coaching Sessions
-        $this->seed_coaching_sessions( $cohort_id, $enrollments, $users );
+        $this->seed_coaching_sessions( $track_id, $enrollments, $users );
 
         WP_CLI::line( '' );
         WP_CLI::success( 'Demo data seeded successfully!' );
         WP_CLI::line( '' );
         WP_CLI::line( 'Summary:' );
-        WP_CLI::line( "  Cohort:       {$cohort_id} (code: " . self::DEMO_COHORT_CODE . ')' );
+        WP_CLI::line( "  Track:        {$track_id} (code: " . self::DEMO_TRACK_CODE . ')' );
         WP_CLI::line( "  District:     {$district_id}" );
         WP_CLI::line( "  Schools:      {$school_a_id}, {$school_b_id}" );
         WP_CLI::line( '  Classrooms:   ' . count( $classrooms ) );
@@ -144,8 +144,8 @@ class HL_CLI_Seed_Demo {
         global $wpdb;
         $row = $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT cohort_id FROM {$wpdb->prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
-                self::DEMO_COHORT_CODE
+                "SELECT track_id FROM {$wpdb->prefix}hl_track WHERE track_code = %s LIMIT 1",
+                self::DEMO_TRACK_CODE
             )
         );
         return ! empty( $row );
@@ -159,22 +159,22 @@ class HL_CLI_Seed_Demo {
 
         WP_CLI::line( 'Cleaning demo data...' );
 
-        // 1. Find demo cohort.
-        $cohort_id = $wpdb->get_var(
+        // 1. Find demo track.
+        $track_id = $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT cohort_id FROM {$wpdb->prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
-                self::DEMO_COHORT_CODE
+                "SELECT track_id FROM {$wpdb->prefix}hl_track WHERE track_code = %s LIMIT 1",
+                self::DEMO_TRACK_CODE
             )
         );
 
-        if ( $cohort_id ) {
+        if ( $track_id ) {
             // Delete dependent data in reverse dependency order.
 
             // Activity states & rollups via enrollments.
             $enrollment_ids = $wpdb->get_col(
                 $wpdb->prepare(
-                    "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE cohort_id = %d",
-                    $cohort_id
+                    "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE track_id = %d",
+                    $track_id
                 )
             );
 
@@ -201,14 +201,14 @@ class HL_CLI_Seed_Demo {
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
 
                 // Observations.
-                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE cohort_id = {$cohort_id}" );
+                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE track_id = {$track_id}" );
             }
 
             // Activities and related rules.
             $activity_ids = $wpdb->get_col(
                 $wpdb->prepare(
-                    "SELECT activity_id FROM {$wpdb->prefix}hl_activity WHERE cohort_id = %d",
-                    $cohort_id
+                    "SELECT activity_id FROM {$wpdb->prefix}hl_activity WHERE track_id = %d",
+                    $track_id
                 )
             );
             if ( ! empty( $activity_ids ) ) {
@@ -224,40 +224,40 @@ class HL_CLI_Seed_Demo {
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id IN ({$in_act})" );
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_drip_rule WHERE activity_id IN ({$in_act})" );
             }
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE cohort_id = %d", $cohort_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE track_id = %d", $track_id ) );
 
             // Pathways.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE cohort_id = %d", $cohort_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE track_id = %d", $track_id ) );
 
             // Teams.
             $team_ids = $wpdb->get_col(
                 $wpdb->prepare(
-                    "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE cohort_id = %d",
-                    $cohort_id
+                    "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE track_id = %d",
+                    $track_id
                 )
             );
             if ( ! empty( $team_ids ) ) {
                 $in_teams = implode( ',', array_map( 'intval', $team_ids ) );
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_team_membership WHERE team_id IN ({$in_teams})" );
             }
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_team WHERE cohort_id = %d", $cohort_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_team WHERE track_id = %d", $track_id ) );
 
             // Enrollments.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE cohort_id = %d", $cohort_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE track_id = %d", $track_id ) );
 
-            // Cohort-school links.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort_school WHERE cohort_id = %d", $cohort_id ) );
+            // Track-school links.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track_school WHERE track_id = %d", $track_id ) );
 
             // Coach assignments.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE cohort_id = %d", $cohort_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE track_id = %d", $track_id ) );
 
             // Coaching sessions.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE cohort_id = %d", $cohort_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE track_id = %d", $track_id ) );
 
-            // Cohort.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d", $cohort_id ) );
+            // Track.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $track_id ) );
 
-            WP_CLI::log( "  Deleted cohort {$cohort_id} and all related records." );
+            WP_CLI::log( "  Deleted track {$track_id} and all related records." );
         }
 
         // 2. Find and delete demo users.
@@ -304,9 +304,9 @@ class HL_CLI_Seed_Demo {
         $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_orgunit WHERE name LIKE 'Demo %'" );
         WP_CLI::log( '  Deleted demo org units.' );
 
-        // 6. Clean up audit log entries for the demo cohort.
-        if ( $cohort_id ) {
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE cohort_id = %d", $cohort_id ) );
+        // 6. Clean up audit log entries for the demo track.
+        if ( $track_id ) {
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE track_id = %d", $track_id ) );
             WP_CLI::log( '  Deleted demo audit log entries.' );
         }
     }
@@ -346,44 +346,44 @@ class HL_CLI_Seed_Demo {
     }
 
     // ------------------------------------------------------------------
-    // Step 2: Cohort
+    // Step 2: Track
     // ------------------------------------------------------------------
 
     /**
-     * Seed cohort and link to schools.
+     * Seed track and link to schools.
      *
      * @param int $district_id  District orgunit ID.
      * @param int $school_a_id  School A orgunit ID.
      * @param int $school_b_id  School B orgunit ID.
-     * @return int Cohort ID.
+     * @return int Track ID.
      */
-    private function seed_cohort( $district_id, $school_a_id, $school_b_id ) {
+    private function seed_track( $district_id, $school_a_id, $school_b_id ) {
         global $wpdb;
 
-        $repo = new HL_Cohort_Repository();
+        $repo = new HL_Track_Repository();
 
-        $cohort_id = $repo->create( array(
-            'cohort_name' => 'Demo Cohort 2026',
-            'cohort_code' => self::DEMO_COHORT_CODE,
+        $track_id = $repo->create( array(
+            'track_name' => 'Demo Track 2026',
+            'track_code' => self::DEMO_TRACK_CODE,
             'district_id' => $district_id,
             'status'      => 'active',
             'start_date'  => '2026-01-01',
             'end_date'    => '2026-12-31',
         ) );
 
-        // Link cohort to both schools.
-        $wpdb->insert( $wpdb->prefix . 'hl_cohort_school', array(
-            'cohort_id' => $cohort_id,
+        // Link track to both schools.
+        $wpdb->insert( $wpdb->prefix . 'hl_track_school', array(
+            'track_id' => $track_id,
             'school_id' => $school_a_id,
         ) );
-        $wpdb->insert( $wpdb->prefix . 'hl_cohort_school', array(
-            'cohort_id' => $cohort_id,
+        $wpdb->insert( $wpdb->prefix . 'hl_track_school', array(
+            'track_id' => $track_id,
             'school_id' => $school_b_id,
         ) );
 
-        WP_CLI::log( "  [2/17] Cohort created: id={$cohort_id}, code=" . self::DEMO_COHORT_CODE );
+        WP_CLI::log( "  [2/17] Track created: id={$track_id}, code=" . self::DEMO_TRACK_CODE );
 
-        return $cohort_id;
+        return $track_id;
     }
 
     // ------------------------------------------------------------------
@@ -607,13 +607,13 @@ class HL_CLI_Seed_Demo {
      * Seed enrollments for all users except coach.
      *
      * @param array $users        User arrays.
-     * @param int   $cohort_id    Cohort ID.
+     * @param int   $track_id    Track ID.
      * @param int   $school_a_id  School A.
      * @param int   $school_b_id  School B.
      * @param int   $district_id  District ID.
      * @return array Enrollment data.
      */
-    private function seed_enrollments( $users, $cohort_id, $school_a_id, $school_b_id, $district_id ) {
+    private function seed_enrollments( $users, $track_id, $school_a_id, $school_b_id, $district_id ) {
         $repo = new HL_Enrollment_Repository();
 
         $enrollments = array(
@@ -630,7 +630,7 @@ class HL_CLI_Seed_Demo {
             $school = ( $idx < 5 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
-                'cohort_id' => $cohort_id,
+                'track_id' => $track_id,
                 'roles'     => array( 'teacher' ),
                 'status'    => 'active',
                 'school_id' => $school,
@@ -650,7 +650,7 @@ class HL_CLI_Seed_Demo {
             $school = ( $idx === 0 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
-                'cohort_id' => $cohort_id,
+                'track_id' => $track_id,
                 'roles'     => array( 'mentor' ),
                 'status'    => 'active',
                 'school_id' => $school,
@@ -665,7 +665,7 @@ class HL_CLI_Seed_Demo {
             $school = ( $idx === 0 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
-                'cohort_id' => $cohort_id,
+                'track_id' => $track_id,
                 'roles'     => array( 'school_leader' ),
                 'status'    => 'active',
                 'school_id' => $school,
@@ -679,7 +679,7 @@ class HL_CLI_Seed_Demo {
         $uid = $users['district_leader'];
         $eid = $repo->create( array(
             'user_id'   => $uid,
-            'cohort_id' => $cohort_id,
+            'track_id' => $track_id,
             'roles'     => array( 'district_leader' ),
             'status'    => 'active',
             'district_id' => $district_id,
@@ -699,13 +699,13 @@ class HL_CLI_Seed_Demo {
     /**
      * Seed teams with mentor + teacher members.
      *
-     * @param int   $cohort_id    Cohort.
+     * @param int   $track_id    Track ID.
      * @param int   $school_a_id  School A.
      * @param int   $school_b_id  School B.
      * @param array $enrollments  Enrollment data.
      * @return array Team IDs: ['team_a' => id, 'team_b' => id].
      */
-    private function seed_teams( $cohort_id, $school_a_id, $school_b_id, $enrollments ) {
+    private function seed_teams( $track_id, $school_a_id, $school_b_id, $enrollments ) {
         $svc = new HL_Team_Service();
 
         $team_ids = array( 'team_a' => 0, 'team_b' => 0 );
@@ -713,7 +713,7 @@ class HL_CLI_Seed_Demo {
         // Team A at School A.
         $team_a = $svc->create_team( array(
             'team_name' => 'Demo Team A',
-            'cohort_id' => $cohort_id,
+            'track_id' => $track_id,
             'school_id' => $school_a_id,
         ) );
 
@@ -730,7 +730,7 @@ class HL_CLI_Seed_Demo {
         // Team B at School B.
         $team_b = $svc->create_team( array(
             'team_name' => 'Demo Team B',
-            'cohort_id' => $cohort_id,
+            'track_id' => $track_id,
             'school_id' => $school_b_id,
         ) );
 
@@ -870,17 +870,17 @@ class HL_CLI_Seed_Demo {
     /**
      * Seed pathways and activities.
      *
-     * @param int   $cohort_id   Cohort.
+     * @param int   $track_id   Track ID.
      * @param array $instruments Instrument IDs keyed by age band.
      * @return array Pathway data with activity IDs.
      */
-    private function seed_pathways( $cohort_id, $instruments ) {
+    private function seed_pathways( $track_id, $instruments ) {
         $svc = new HL_Pathway_Service();
 
         // --- Teacher Pathway ---
         $tp_id = $svc->create_pathway( array(
             'pathway_name' => 'Teacher Pathway',
-            'cohort_id'    => $cohort_id,
+            'track_id'    => $track_id,
             'target_roles' => array( 'teacher' ),
             'active_status' => 1,
         ) );
@@ -891,7 +891,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Foundations of Early Learning',
             'pathway_id'    => $tp_id,
-            'cohort_id'     => $cohort_id,
+            'track_id'     => $track_id,
             'activity_type' => 'learndash_course',
             'weight'        => 2.0,
             'ordering_hint' => 1,
@@ -903,7 +903,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Pre Self-Assessment',
             'pathway_id'    => $tp_id,
-            'cohort_id'     => $cohort_id,
+            'track_id'     => $track_id,
             'activity_type' => 'teacher_self_assessment',
             'weight'        => 1.0,
             'ordering_hint' => 2,
@@ -918,7 +918,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Post Self-Assessment',
             'pathway_id'    => $tp_id,
-            'cohort_id'     => $cohort_id,
+            'track_id'     => $track_id,
             'activity_type' => 'teacher_self_assessment',
             'weight'        => 1.0,
             'ordering_hint' => 3,
@@ -933,7 +933,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Child Assessment',
             'pathway_id'    => $tp_id,
-            'cohort_id'     => $cohort_id,
+            'track_id'     => $track_id,
             'activity_type' => 'child_assessment',
             'weight'        => 2.0,
             'ordering_hint' => 4,
@@ -945,7 +945,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Coaching Attendance',
             'pathway_id'    => $tp_id,
-            'cohort_id'     => $cohort_id,
+            'track_id'     => $track_id,
             'activity_type' => 'coaching_session_attendance',
             'weight'        => 1.0,
             'ordering_hint' => 5,
@@ -956,7 +956,7 @@ class HL_CLI_Seed_Demo {
         // --- Mentor Pathway ---
         $mp_id = $svc->create_pathway( array(
             'pathway_name' => 'Mentor Pathway',
-            'cohort_id'    => $cohort_id,
+            'track_id'    => $track_id,
             'target_roles' => array( 'mentor' ),
             'active_status' => 1,
         ) );
@@ -967,7 +967,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Mentor Training Course',
             'pathway_id'    => $mp_id,
-            'cohort_id'     => $cohort_id,
+            'track_id'     => $track_id,
             'activity_type' => 'learndash_course',
             'weight'        => 2.0,
             'ordering_hint' => 1,
@@ -979,7 +979,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Teacher Observations',
             'pathway_id'    => $mp_id,
-            'cohort_id'     => $cohort_id,
+            'track_id'     => $track_id,
             'activity_type' => 'observation',
             'weight'        => 1.0,
             'ordering_hint' => 2,
@@ -1220,13 +1220,13 @@ class HL_CLI_Seed_Demo {
     /**
      * Seed coach assignments: school-level for both schools, team-level for Team A.
      *
-     * @param int   $cohort_id   Cohort.
+     * @param int   $track_id   Track ID.
      * @param int   $school_a_id School A.
      * @param int   $school_b_id School B.
      * @param array $teams       Team IDs.
      * @param array $users       User data.
      */
-    private function seed_coach_assignments( $cohort_id, $school_a_id, $school_b_id, $teams, $users ) {
+    private function seed_coach_assignments( $track_id, $school_a_id, $school_b_id, $teams, $users ) {
         $service = new HL_Coach_Assignment_Service();
         $count   = 0;
 
@@ -1241,7 +1241,7 @@ class HL_CLI_Seed_Demo {
             'coach_user_id'  => $coach_user_id,
             'scope_type'     => 'school',
             'scope_id'       => $school_a_id,
-            'cohort_id'      => $cohort_id,
+            'track_id'      => $track_id,
             'effective_from' => '2026-01-01',
         ) );
         if ( ! is_wp_error( $result ) ) {
@@ -1253,7 +1253,7 @@ class HL_CLI_Seed_Demo {
             'coach_user_id'  => $coach_user_id,
             'scope_type'     => 'school',
             'scope_id'       => $school_b_id,
-            'cohort_id'      => $cohort_id,
+            'track_id'      => $track_id,
             'effective_from' => '2026-01-01',
         ) );
         if ( ! is_wp_error( $result ) ) {
@@ -1266,7 +1266,7 @@ class HL_CLI_Seed_Demo {
                 'coach_user_id'  => $coach_user_id,
                 'scope_type'     => 'team',
                 'scope_id'       => $teams['team_a'],
-                'cohort_id'      => $cohort_id,
+                'track_id'      => $track_id,
                 'effective_from' => '2026-01-15',
             ) );
             if ( ! is_wp_error( $result ) ) {
@@ -1290,11 +1290,11 @@ class HL_CLI_Seed_Demo {
      * - Teacher 3: missed session (past)
      * - Teacher 4: cancelled + rescheduled session
      *
-     * @param int   $cohort_id   Cohort.
+     * @param int   $track_id   Track ID.
      * @param array $enrollments Enrollment data.
      * @param array $users       User data.
      */
-    private function seed_coaching_sessions( $cohort_id, $enrollments, $users ) {
+    private function seed_coaching_sessions( $track_id, $enrollments, $users ) {
         $service = new HL_Coaching_Service();
         $count   = 0;
 
@@ -1308,7 +1308,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_a'][0] ) ) {
             $eid    = $enrollments['teachers_a'][0]['enrollment_id'];
             $result = $service->create_session( array(
-                'cohort_id'            => $cohort_id,
+                'track_id'            => $track_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1325,7 +1325,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_a'][1] ) ) {
             $eid    = $enrollments['teachers_a'][1]['enrollment_id'];
             $result = $service->create_session( array(
-                'cohort_id'            => $cohort_id,
+                'track_id'            => $track_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1341,7 +1341,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_a'][2] ) ) {
             $eid    = $enrollments['teachers_a'][2]['enrollment_id'];
             $result = $service->create_session( array(
-                'cohort_id'            => $cohort_id,
+                'track_id'            => $track_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1359,7 +1359,7 @@ class HL_CLI_Seed_Demo {
 
             // Original session (will be rescheduled).
             $orig = $service->create_session( array(
-                'cohort_id'            => $cohort_id,
+                'track_id'            => $track_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1384,7 +1384,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_b'][0] ) ) {
             $eid    = $enrollments['teachers_b'][0]['enrollment_id'];
             $result = $service->create_session( array(
-                'cohort_id'            => $cohort_id,
+                'track_id'            => $track_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',

@@ -69,21 +69,21 @@ class HL_Frontend_Reports_Hub {
     private function get_report_cards( $scope ) {
         $reports = array();
 
-        // Completion Report — links to Cohort Workspace reports tab.
-        $workspace_url = $this->find_shortcode_page_url( 'hl_cohort_workspace' );
-        $cohort_url    = $this->find_shortcode_page_url( 'hl_my_cohort' );
+        // Completion Report — links to Track Workspace reports tab.
+        $workspace_url = $this->find_shortcode_page_url( 'hl_track_workspace' );
+        $track_url     = $this->find_shortcode_page_url( 'hl_my_track' );
 
-        // Completion report — staff use workspace, leaders use my-cohort.
+        // Completion report — staff use workspace, leaders use my-track.
         $completion_url = '';
         if ( $scope['is_staff'] && $workspace_url ) {
             $completion_url = add_query_arg( 'tab', 'reports', $workspace_url );
-        } elseif ( $cohort_url ) {
-            $completion_url = add_query_arg( 'tab', 'reports', $cohort_url );
+        } elseif ( $track_url ) {
+            $completion_url = add_query_arg( 'tab', 'reports', $track_url );
         }
 
         $reports[] = array(
             'title'       => __( 'Completion Report', 'hl-core' ),
-            'description' => __( 'View participant completion rates by cohort, school, team, and individual. Export CSV.', 'hl-core' ),
+            'description' => __( 'View participant completion rates by track, school, team, and individual. Export CSV.', 'hl-core' ),
             'url'         => $completion_url,
         );
 
@@ -103,8 +103,8 @@ class HL_Frontend_Reports_Hub {
             $team_url = '';
             if ( $scope['is_staff'] && $workspace_url ) {
                 $team_url = add_query_arg( 'tab', 'teams', $workspace_url );
-            } elseif ( $cohort_url ) {
-                $team_url = add_query_arg( 'tab', 'teams', $cohort_url );
+            } elseif ( $track_url ) {
+                $team_url = add_query_arg( 'tab', 'teams', $track_url );
             }
             $reports[] = array(
                 'title'       => __( 'Team Summary', 'hl-core' ),
@@ -117,7 +117,7 @@ class HL_Frontend_Reports_Hub {
         if ( $scope['is_staff'] || in_array( 'district_leader', $scope['hl_roles'], true ) ) {
             $reports[] = array(
                 'title'       => __( 'Program Group Report', 'hl-core' ),
-                'description' => __( 'View cross-cohort aggregate metrics for cohort groups. Compare cohorts within a program.', 'hl-core' ),
+                'description' => __( 'View cross-track aggregate metrics for cohort groups. Compare tracks within a program.', 'hl-core' ),
                 'url'         => '', // TODO: link to dedicated group report page when built
             );
         }

@@ -28,7 +28,7 @@
             this.$notices    = this.$wrap.find('.hl-import-notices');
 
             // Step 1
-            this.$cohortSelect = $('#hl-import-cohort');
+            this.$trackSelect = $('#hl-import-track');
             this.$typeSelect   = $('#hl-import-type');
             this.$fileInput    = $('#hl-import-file');
             this.$uploadBtn    = $('#hl-import-upload-btn');
@@ -91,9 +91,9 @@
         handleUpload: function(e) {
             e.preventDefault();
 
-            var cohortId = this.$cohortSelect.val();
-            if (!cohortId) {
-                this.showNotice('error', hl_import_i18n.select_cohort);
+            var trackId = this.$trackSelect.val();
+            if (!trackId) {
+                this.showNotice('error', hl_import_i18n.select_track);
                 return;
             }
 
@@ -108,7 +108,7 @@
             var formData = new FormData();
             formData.append('action', 'hl_import_upload');
             formData.append('nonce', hl_import_i18n.nonce_upload);
-            formData.append('cohort_id', cohortId);
+            formData.append('track_id', trackId);
             formData.append('import_type', this.importType);
             formData.append('file', files[0]);
 

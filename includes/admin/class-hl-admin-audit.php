@@ -41,7 +41,7 @@ class HL_Admin_Audit {
     public function render_page() {
         global $wpdb;
 
-        $filter_cohort     = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
+        $filter_track     = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
         $filter_action_type = isset($_GET['action_type']) ? sanitize_text_field($_GET['action_type']) : '';
 
         // Pagination
@@ -53,9 +53,9 @@ class HL_Admin_Audit {
         $where_clauses = array();
         $prepare_args  = array();
 
-        if ($filter_cohort) {
-            $where_clauses[] = 'al.cohort_id = %d';
-            $prepare_args[]  = $filter_cohort;
+        if ($filter_track) {
+            $where_clauses[] = 'al.track_id = %d';
+            $prepare_args[]  = $filter_track;
         }
 
         if (!empty($filter_action_type)) {
@@ -79,10 +79,10 @@ class HL_Admin_Audit {
         $total_pages = ceil($total_items / $per_page);
 
         // Fetch rows
-        $sql = "SELECT al.*, u.display_name AS actor_name, p.cohort_name
+        $sql = "SELECT al.*, u.display_name AS actor_name, t.track_name
                 FROM {$wpdb->prefix}hl_audit_log al
                 LEFT JOIN {$wpdb->users} u ON al.actor_user_id = u.ID
-                LEFT JOIN {$wpdb->prefix}hl_cohort p ON al.cohort_id = p.cohort_id
+                LEFT JOIN {$wpdb->prefix}hl_track t ON al.track_id = t.track_id
                 {$where}
                 ORDER BY al.created_at DESC
                 LIMIT %d OFFSET %d";
@@ -95,9 +95,9 @@ class HL_Admin_Audit {
             "SELECT DISTINCT action_type FROM {$wpdb->prefix}hl_audit_log ORDER BY action_type ASC"
         );
 
-        // Get cohorts for filter
-        $cohorts = $wpdb->get_results(
-            "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
+        // Get tracks for filter
+        $tracks = $wpdb->get_results(
+            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
         );
 
         echo '<div class="wrap">';
@@ -107,12 +107,12 @@ class HL_Admin_Audit {
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-audit" />';
 
-        echo '<label><strong>' . esc_html__('Cohort:', 'hl-core') . '</strong> </label>';
-        echo '<select name="cohort_id">';
+        echo '<label><strong>' . esc_html__('Track:', 'hl-core') . '</strong> </label>';
+        echo '<select name="track_id">';
         echo '<option value="">' . esc_html__('All', 'hl-core') . '</option>';
-        if ($cohorts) {
-            foreach ($cohorts as $coh) {
-                echo '<option value="' . esc_attr($coh->cohort_id) . '"' . selected($filter_cohort, $coh->cohort_id, false) . '>' . esc_html($coh->cohort_name) . '</option>';
+        if ($tracks) {
+            foreach ($tracks as $coh) {
+                echo '<option value="' . esc_attr($coh->track_id) . '"' . selected($filter_track, $coh->track_id, false) . '>' . esc_html($coh->track_name) . '</option>';
             }
         }
         echo '</select> ';
@@ -148,7 +148,7 @@ class HL_Admin_Audit {
         echo '<th>' . esc_html__('Actor', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Action', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Entity', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Cohort', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Track', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Details', 'hl-core') . '</th>';
         echo '</tr></thead>';
         echo '<tbody>';
@@ -178,7 +178,7 @@ class HL_Admin_Audit {
             echo '<td>' . esc_html($log->actor_name ? $log->actor_name : __('System', 'hl-core')) . '</td>';
             echo '<td><code>' . esc_html($log->action_type) . '</code></td>';
             echo '<td>' . esc_html($entity_display) . '</td>';
-            echo '<td>' . esc_html($log->cohort_name ? $log->cohort_name : '') . '</td>';
+            echo '<td>' . esc_html($log->track_name ? $log->track_name : '') . '</td>';
             echo '<td>' . esc_html($details) . '</td>';
             echo '</tr>';
         }
@@ -189,8 +189,8 @@ class HL_Admin_Audit {
         if ($total_pages > 1) {
             echo '<div class="tablenav bottom"><div class="tablenav-pages">';
             $base_url = admin_url('admin.php?page=hl-audit');
-            if ($filter_cohort) {
-                $base_url = add_query_arg('cohort_id', $filter_cohort, $base_url);
+            if ($filter_track) {
+                $base_url = add_query_arg('track_id', $filter_track, $base_url);
             }
             if (!empty($filter_action_type)) {
                 $base_url = add_query_arg('action_type', $filter_action_type, $base_url);

@@ -34,7 +34,7 @@ class HL_Instrument_Renderer {
     /** @var array Existing answers keyed by child_id, each containing decoded answers_json. */
     private $existing_answers;
 
-    /** @var array Full instance data (display_name, school_name, classroom_name, phase, cohort_name, etc.). */
+    /** @var array Full instance data (display_name, school_name, classroom_name, phase, track_name, etc.). */
     private $instance;
 
     /**

@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) exit;
  * Renderer for the [hl_my_programs] shortcode.
  *
  * Shows a logged-in participant a grid of program cards — one per
- * enrolled pathway — with featured image, cohort name, completion %,
+ * enrolled pathway — with featured image, track name, completion %,
  * status badge, and "Continue" link to the Program Page.
  *
  * @package HL_Core
@@ -15,8 +15,8 @@ class HL_Frontend_My_Programs {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Cohort_Repository */
-    private $cohort_repo;
+    /** @var HL_Track_Repository */
+    private $track_repo;
 
     /** @var HL_Pathway_Repository */
     private $pathway_repo;
@@ -35,7 +35,7 @@ class HL_Frontend_My_Programs {
 
     public function __construct() {
         $this->enrollment_repo = new HL_Enrollment_Repository();
-        $this->cohort_repo     = new HL_Cohort_Repository();
+        $this->track_repo     = new HL_Track_Repository();
         $this->pathway_repo    = new HL_Pathway_Repository();
         $this->activity_repo   = new HL_Activity_Repository();
         $this->rules_engine    = new HL_Rules_Engine_Service();
@@ -83,8 +83,8 @@ class HL_Frontend_My_Programs {
                 continue;
             }
 
-            $cohort = $this->cohort_repo->get_by_id($enrollment->cohort_id);
-            if (!$cohort) {
+            $track = $this->track_repo->get_by_id($enrollment->track_id);
+            if (!$track) {
                 continue;
             }
 
@@ -144,7 +144,7 @@ class HL_Frontend_My_Programs {
             $cards[] = array(
                 'enrollment' => $enrollment,
                 'pathway'    => $pathway,
-                'cohort'     => $cohort,
+                'track'      => $track,
                 'percent'    => $overall_percent,
             );
             } // end foreach assigned_pathways
@@ -153,7 +153,7 @@ class HL_Frontend_My_Programs {
         // Check if all enrollments are control group — if so, skip coach widget.
         $all_control = !empty($cards);
         foreach ($cards as $card) {
-            if (empty($card['cohort']->is_control_group)) {
+            if (empty($card['track']->is_control_group)) {
                 $all_control = false;
                 break;
             }
@@ -164,7 +164,7 @@ class HL_Frontend_My_Programs {
         if (!$all_control && !empty($enrollments)) {
             $coach_service = new HL_Coach_Assignment_Service();
             foreach ($enrollments as $e) {
-                $coach = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->cohort_id);
+                $coach = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->track_id);
                 if ($coach) break;
             }
         }
@@ -203,7 +203,7 @@ class HL_Frontend_My_Programs {
      */
     private function render_program_card($card) {
         $pathway    = $card['pathway'];
-        $cohort     = $card['cohort'];
+        $track      = $card['track'];
         $enrollment = $card['enrollment'];
         $percent    = (int) $card['percent'];
 
@@ -252,7 +252,7 @@ class HL_Frontend_My_Programs {
             </div>
             <div class="hl-program-card-body">
                 <h3 class="hl-program-card-title"><?php echo esc_html($pathway->pathway_name); ?></h3>
-                <p class="hl-program-card-cohort"><?php echo esc_html($cohort->cohort_name); ?></p>
+                <p class="hl-program-card-track"><?php echo esc_html($track->track_name); ?></p>
                 <div class="hl-program-card-progress">
                     <div class="hl-progress-bar-container">
                         <div class="hl-progress-bar <?php echo esc_attr($bar_class); ?>" style="width: <?php echo esc_attr($percent); ?>%"></div>

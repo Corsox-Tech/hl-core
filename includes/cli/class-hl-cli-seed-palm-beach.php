@@ -14,8 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class HL_CLI_Seed_Palm_Beach {
 
-	/** Cohort code used to identify Palm Beach seeded data. */
-	const COHORT_CODE = 'ELC-PB-2026';
+	/** Track code used to identify Palm Beach seeded data. */
+	const TRACK_CODE = 'ELC-PB-2026';
 
 	/** User meta key to tag Palm Beach demo users. */
 	const DEMO_META_KEY = '_hl_palm_beach_seed';
@@ -64,8 +64,8 @@ class HL_CLI_Seed_Palm_Beach {
 		// Step 1: Org Structure.
 		$orgunits = $this->seed_orgunits();
 
-		// Step 2: Cohort.
-		$cohort_id = $this->seed_cohort( $orgunits );
+		// Step 2: Track.
+		$track_id = $this->seed_track( $orgunits );
 
 		// Step 3: Classrooms.
 		$classrooms = $this->seed_classrooms( $orgunits );
@@ -77,10 +77,10 @@ class HL_CLI_Seed_Palm_Beach {
 		$users = $this->seed_users();
 
 		// Step 6: Enrollments.
-		$enrollments = $this->seed_enrollments( $users, $cohort_id, $orgunits );
+		$enrollments = $this->seed_enrollments( $users, $track_id, $orgunits );
 
 		// Step 7: Teams.
-		$teams = $this->seed_teams( $cohort_id, $orgunits, $enrollments );
+		$teams = $this->seed_teams( $track_id, $orgunits, $enrollments );
 
 		// Step 8: Teaching Assignments.
 		$this->seed_teaching_assignments( $enrollments, $classrooms );
@@ -89,7 +89,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$this->seed_children( $classrooms, $orgunits );
 
 		// Step 10: Pathways & Activities.
-		$pathways = $this->seed_pathways( $cohort_id, $instruments );
+		$pathways = $this->seed_pathways( $track_id, $instruments );
 
 		// Step 11: Assign Pathways.
 		$this->assign_pathways( $enrollments, $pathways );
@@ -107,28 +107,28 @@ class HL_CLI_Seed_Palm_Beach {
 		$this->seed_rollups( $enrollments );
 
 		// Step 16: Coach Assignments.
-		$this->seed_coach_assignments( $cohort_id, $orgunits, $teams, $users );
+		$this->seed_coach_assignments( $track_id, $orgunits, $teams, $users );
 
 		// Step 17: Coaching Sessions.
-		$this->seed_coaching_sessions( $cohort_id, $enrollments, $users );
+		$this->seed_coaching_sessions( $track_id, $enrollments, $users );
 
 		// Step 18-20: Lutheran Control Group.
-		$control_data = $this->seed_control_group( $cohort_id, $instruments );
+		$control_data = $this->seed_control_group( $track_id, $instruments );
 
 		WP_CLI::line( '' );
 		WP_CLI::success( 'Palm Beach demo data seeded successfully!' );
 		WP_CLI::line( '' );
 		WP_CLI::line( 'Summary:' );
-		WP_CLI::line( "  Cohort:       {$cohort_id} (code: " . self::COHORT_CODE . ')' );
+		WP_CLI::line( "  Track:        {$track_id} (code: " . self::TRACK_CODE . ')' );
 		WP_CLI::line( '  Schools:      ' . count( $orgunits['schools'] ) );
 		WP_CLI::line( '  Classrooms:   ' . count( $classrooms ) );
 		WP_CLI::line( '  Instruments:  ' . count( $instruments ) );
 		WP_CLI::line( '  Users:        ' . count( $users['all_ids'] ) );
 		WP_CLI::line( '  Enrollments:  ' . count( $enrollments['all'] ) );
 		if ( $control_data ) {
-			WP_CLI::line( "  Control cohort: {$control_data['cohort_id']} (code: LSF-CTRL-2026)" );
+			WP_CLI::line( "  Control track: {$control_data['track_id']} (code: LSF-CTRL-2026)" );
 			WP_CLI::line( "  Control participants: {$control_data['participant_count']}" );
-			WP_CLI::line( "  Cohort group: {$control_data['group_id']} (B2E Program Evaluation)" );
+			WP_CLI::line( "  Cohort (container): {$control_data['cohort_id']} (B2E Program Evaluation)" );
 		}
 		WP_CLI::line( '' );
 	}
@@ -604,8 +604,8 @@ class HL_CLI_Seed_Palm_Beach {
 		global $wpdb;
 		$row = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT cohort_id FROM {$wpdb->prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
-				self::COHORT_CODE
+				"SELECT track_id FROM {$wpdb->prefix}hl_track WHERE track_code = %s LIMIT 1",
+				self::TRACK_CODE
 			)
 		);
 		return ! empty( $row );
@@ -619,18 +619,18 @@ class HL_CLI_Seed_Palm_Beach {
 
 		WP_CLI::line( 'Cleaning Palm Beach demo data...' );
 
-		$cohort_id = $wpdb->get_var(
+		$track_id = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT cohort_id FROM {$wpdb->prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
-				self::COHORT_CODE
+				"SELECT track_id FROM {$wpdb->prefix}hl_track WHERE track_code = %s LIMIT 1",
+				self::TRACK_CODE
 			)
 		);
 
-		if ( $cohort_id ) {
+		if ( $track_id ) {
 			$enrollment_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE cohort_id = %d",
-					$cohort_id
+					"SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE track_id = %d",
+					$track_id
 				)
 			);
 
@@ -651,13 +651,13 @@ class HL_CLI_Seed_Palm_Beach {
 				}
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
-				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE cohort_id = {$cohort_id}" );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE track_id = {$track_id}" );
 			}
 
 			$activity_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT activity_id FROM {$wpdb->prefix}hl_activity WHERE cohort_id = %d",
-					$cohort_id
+					"SELECT activity_id FROM {$wpdb->prefix}hl_activity WHERE track_id = %d",
+					$track_id
 				)
 			);
 			if ( ! empty( $activity_ids ) ) {
@@ -672,38 +672,38 @@ class HL_CLI_Seed_Palm_Beach {
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id IN ({$in_act})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_drip_rule WHERE activity_id IN ({$in_act})" );
 			}
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE cohort_id = %d", $cohort_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE cohort_id = %d", $cohort_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE track_id = %d", $track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE track_id = %d", $track_id ) );
 
 			$team_ids = $wpdb->get_col(
-				$wpdb->prepare( "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE cohort_id = %d", $cohort_id )
+				$wpdb->prepare( "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE track_id = %d", $track_id )
 			);
 			if ( ! empty( $team_ids ) ) {
 				$in_teams = implode( ',', array_map( 'intval', $team_ids ) );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_team_membership WHERE team_id IN ({$in_teams})" );
 			}
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_team WHERE cohort_id = %d", $cohort_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE cohort_id = %d", $cohort_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort_school WHERE cohort_id = %d", $cohort_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE cohort_id = %d", $cohort_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE cohort_id = %d", $cohort_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d", $cohort_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_team WHERE track_id = %d", $track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE track_id = %d", $track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track_school WHERE track_id = %d", $track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE track_id = %d", $track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE track_id = %d", $track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $track_id ) );
 
-			WP_CLI::log( "  Deleted cohort {$cohort_id} and all related records." );
+			WP_CLI::log( "  Deleted track {$track_id} and all related records." );
 		}
 
-		// Delete Lutheran control cohort.
-		$control_cohort_id = $wpdb->get_var(
+		// Delete Lutheran control track.
+		$control_track_id = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT cohort_id FROM {$wpdb->prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
+				"SELECT track_id FROM {$wpdb->prefix}hl_track WHERE track_code = %s LIMIT 1",
 				'LSF-CTRL-2026'
 			)
 		);
-		if ( $control_cohort_id ) {
+		if ( $control_track_id ) {
 			$ctrl_enrollment_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE cohort_id = %d",
-					$control_cohort_id
+					"SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE track_id = %d",
+					$control_track_id
 				)
 			);
 			if ( ! empty( $ctrl_enrollment_ids ) ) {
@@ -712,22 +712,22 @@ class HL_CLI_Seed_Palm_Beach {
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_state WHERE enrollment_id IN ({$in_ctrl})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ctrl})" );
 			}
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE cohort_id = %d", $control_cohort_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE cohort_id = %d", $control_cohort_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE cohort_id = %d", $control_cohort_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d", $control_cohort_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE cohort_id = %d", $control_cohort_id ) );
-			WP_CLI::log( "  Deleted control cohort {$control_cohort_id} and related records." );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE track_id = %d", $control_track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE track_id = %d", $control_track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE track_id = %d", $control_track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $control_track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE track_id = %d", $control_track_id ) );
+			WP_CLI::log( "  Deleted control track {$control_track_id} and related records." );
 		}
 
-		// Delete B2E Program Evaluation cohort group.
+		// Delete B2E Program Evaluation cohort (container).
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$wpdb->prefix}hl_cohort_group WHERE group_code = %s",
+				"DELETE FROM {$wpdb->prefix}hl_cohort WHERE cohort_code = %s",
 				'B2E-EVAL'
 			)
 		);
-		WP_CLI::log( '  Deleted cohort group (B2E-EVAL).' );
+		WP_CLI::log( '  Deleted cohort (B2E-EVAL).' );
 
 		// Delete demo users.
 		$demo_user_ids = $wpdb->get_col(
@@ -744,8 +744,8 @@ class HL_CLI_Seed_Palm_Beach {
 		// Delete Palm Beach instruments.
 		$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_instrument WHERE name LIKE 'Palm Beach %'" );
 		// Only delete B2E instrument if demo seed isn't active (shared instrument).
-		$demo_cohort = $wpdb->get_var( "SELECT cohort_id FROM {$wpdb->prefix}hl_cohort WHERE cohort_code = 'DEMO-2026' LIMIT 1" );
-		if ( ! $demo_cohort ) {
+		$demo_track = $wpdb->get_var( "SELECT track_id FROM {$wpdb->prefix}hl_track WHERE track_code = 'DEMO-2026' LIMIT 1" );
+		if ( ! $demo_track ) {
 			$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = 'b2e_self_assessment'" );
 		}
 		WP_CLI::log( '  Deleted Palm Beach instruments.' );
@@ -779,8 +779,8 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 		WP_CLI::log( '  Deleted Palm Beach org units.' );
 
-		if ( $cohort_id ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE cohort_id = %d", $cohort_id ) );
+		if ( $track_id ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE track_id = %d", $track_id ) );
 			WP_CLI::log( '  Deleted Palm Beach audit log entries.' );
 		}
 	}
@@ -820,16 +820,16 @@ class HL_CLI_Seed_Palm_Beach {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 2: Cohort
+	// Step 2: Track
 	// ------------------------------------------------------------------
 
-	private function seed_cohort( $orgunits ) {
+	private function seed_track( $orgunits ) {
 		global $wpdb;
-		$repo = new HL_Cohort_Repository();
+		$repo = new HL_Track_Repository();
 
-		$cohort_id = $repo->create( array(
-			'cohort_name' => 'ELC Palm Beach 2026',
-			'cohort_code' => self::COHORT_CODE,
+		$track_id = $repo->create( array(
+			'track_name'  => 'ELC Palm Beach 2026',
+			'track_code'  => self::TRACK_CODE,
 			'district_id' => $orgunits['district_id'],
 			'status'      => 'active',
 			'start_date'  => '2026-01-01',
@@ -837,14 +837,14 @@ class HL_CLI_Seed_Palm_Beach {
 		) );
 
 		foreach ( $orgunits['schools'] as $school_id ) {
-			$wpdb->insert( $wpdb->prefix . 'hl_cohort_school', array(
-				'cohort_id' => $cohort_id,
+			$wpdb->insert( $wpdb->prefix . 'hl_track_school', array(
+				'track_id' => $track_id,
 				'school_id' => $school_id,
 			) );
 		}
 
-		WP_CLI::log( "  [2/17] Cohort created: id={$cohort_id}, code=" . self::COHORT_CODE );
-		return $cohort_id;
+		WP_CLI::log( "  [2/17] Track created: id={$track_id}, code=" . self::TRACK_CODE );
+		return $track_id;
 	}
 
 	// ------------------------------------------------------------------
@@ -1058,7 +1058,7 @@ class HL_CLI_Seed_Palm_Beach {
 	// Step 6: Enrollments
 	// ------------------------------------------------------------------
 
-	private function seed_enrollments( $users, $cohort_id, $orgunits ) {
+	private function seed_enrollments( $users, $track_id, $orgunits ) {
 		$repo = new HL_Enrollment_Repository();
 		$c    = $orgunits['schools'];
 		$did  = $orgunits['district_id'];
@@ -1078,7 +1078,7 @@ class HL_CLI_Seed_Palm_Beach {
 			}
 			$eid = $repo->create( array(
 				'user_id'     => $t['user_id'],
-				'cohort_id'   => $cohort_id,
+				'track_id'   => $track_id,
 				'roles'       => $roles,
 				'status'      => 'active',
 				'school_id'   => $school_id,
@@ -1099,7 +1099,7 @@ class HL_CLI_Seed_Palm_Beach {
 			$school_id = $c[ $cl['school_key'] ];
 			$eid = $repo->create( array(
 				'user_id'     => $cl['user_id'],
-				'cohort_id'   => $cohort_id,
+				'track_id'   => $track_id,
 				'roles'       => array( 'school_leader' ),
 				'status'      => 'active',
 				'school_id'   => $school_id,
@@ -1113,7 +1113,7 @@ class HL_CLI_Seed_Palm_Beach {
 			$school_id = $c[ $m['school_key'] ];
 			$eid = $repo->create( array(
 				'user_id'     => $m['user_id'],
-				'cohort_id'   => $cohort_id,
+				'track_id'   => $track_id,
 				'roles'       => array( 'mentor' ),
 				'status'      => 'active',
 				'school_id'   => $school_id,
@@ -1127,7 +1127,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$uid = $users['district_leader'];
 		$eid = $repo->create( array(
 			'user_id'     => $uid,
-			'cohort_id'   => $cohort_id,
+			'track_id'   => $track_id,
 			'roles'       => array( 'district_leader' ),
 			'status'      => 'active',
 			'district_id' => $did,
@@ -1142,14 +1142,14 @@ class HL_CLI_Seed_Palm_Beach {
 	// Step 7: Teams
 	// ------------------------------------------------------------------
 
-	private function seed_teams( $cohort_id, $orgunits, $enrollments ) {
+	private function seed_teams( $track_id, $orgunits, $enrollments ) {
 		$svc       = new HL_Team_Service();
 		$c         = $orgunits['schools'];
 		$team_ids  = array();
 		$mem_count = 0;
 
 		// WPB Team Alpha: mentor 1, first 13 WPB teachers (indices 0-12).
-		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Alpha', 'cohort_id' => $cohort_id, 'school_id' => $c['wpb'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Alpha', 'track_id' => $track_id, 'school_id' => $c['wpb'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['wpb_alpha'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][0]['enrollment_id'], 'mentor' );
@@ -1163,7 +1163,7 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 
 		// WPB Team Beta: mentor 2, remaining WPB teachers (indices 13-24).
-		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Beta', 'cohort_id' => $cohort_id, 'school_id' => $c['wpb'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Beta', 'track_id' => $track_id, 'school_id' => $c['wpb'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['wpb_beta'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][1]['enrollment_id'], 'mentor' );
@@ -1177,7 +1177,7 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 
 		// Jupiter Team: mentor 3, all Jupiter teachers (indices 25-31).
-		$team_id = $svc->create_team( array( 'team_name' => 'Jupiter Team', 'cohort_id' => $cohort_id, 'school_id' => $c['jupiter'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'Jupiter Team', 'track_id' => $track_id, 'school_id' => $c['jupiter'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['jupiter'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][2]['enrollment_id'], 'mentor' );
@@ -1191,7 +1191,7 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 
 		// South Bay Team: mentor 4, all South Bay teachers (indices 32-37).
-		$team_id = $svc->create_team( array( 'team_name' => 'South Bay Team', 'cohort_id' => $cohort_id, 'school_id' => $c['south_bay'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'South Bay Team', 'track_id' => $track_id, 'school_id' => $c['south_bay'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['south_bay'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][3]['enrollment_id'], 'mentor' );
@@ -1279,35 +1279,35 @@ class HL_CLI_Seed_Palm_Beach {
 	// Step 10: Pathways & Activities
 	// ------------------------------------------------------------------
 
-	private function seed_pathways( $cohort_id, $instruments ) {
+	private function seed_pathways( $track_id, $instruments ) {
 		$svc = new HL_Pathway_Service();
 
 		// --- Teacher Pathway ---
 		$tp_id = $svc->create_pathway( array(
 			'pathway_name'  => 'Teacher Pathway',
-			'cohort_id'     => $cohort_id,
+			'track_id'     => $track_id,
 			'target_roles'  => array( 'teacher' ),
 			'active_status' => 1,
 		) );
 
 		$ta = array();
-		$ta['ld_course'] = $svc->create_activity( array( 'title' => 'Foundations of Early Learning', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99901 ) ) ) );
-		$ta['pre_self']  = $svc->create_activity( array( 'title' => 'Pre Self-Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e'], 'phase' => 'pre' ) ) ) );
-		$ta['post_self'] = $svc->create_activity( array( 'title' => 'Post Self-Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 3, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e'], 'phase' => 'post' ) ) ) );
-		$ta['children']  = $svc->create_activity( array( 'title' => 'Child Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'child_assessment', 'weight' => 2.0, 'ordering_hint' => 4, 'external_ref' => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ) ) );
-		$ta['coaching']  = $svc->create_activity( array( 'title' => 'Coaching Attendance', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'coaching_session_attendance', 'weight' => 1.0, 'ordering_hint' => 5, 'external_ref' => wp_json_encode( (object) array() ) ) );
+		$ta['ld_course'] = $svc->create_activity( array( 'title' => 'Foundations of Early Learning', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99901 ) ) ) );
+		$ta['pre_self']  = $svc->create_activity( array( 'title' => 'Pre Self-Assessment', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e'], 'phase' => 'pre' ) ) ) );
+		$ta['post_self'] = $svc->create_activity( array( 'title' => 'Post Self-Assessment', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 3, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e'], 'phase' => 'post' ) ) ) );
+		$ta['children']  = $svc->create_activity( array( 'title' => 'Child Assessment', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'child_assessment', 'weight' => 2.0, 'ordering_hint' => 4, 'external_ref' => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ) ) );
+		$ta['coaching']  = $svc->create_activity( array( 'title' => 'Coaching Attendance', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'coaching_session_attendance', 'weight' => 1.0, 'ordering_hint' => 5, 'external_ref' => wp_json_encode( (object) array() ) ) );
 
 		// --- Mentor Pathway ---
 		$mp_id = $svc->create_pathway( array(
 			'pathway_name'  => 'Mentor Pathway',
-			'cohort_id'     => $cohort_id,
+			'track_id'     => $track_id,
 			'target_roles'  => array( 'mentor' ),
 			'active_status' => 1,
 		) );
 
 		$ma = array();
-		$ma['ld_course']    = $svc->create_activity( array( 'title' => 'Mentor Training Course', 'pathway_id' => $mp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99902 ) ) ) );
-		$ma['observation']  = $svc->create_activity( array( 'title' => 'Teacher Observations', 'pathway_id' => $mp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'observation', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'form_plugin' => 'jetformbuilder', 'form_id' => 99903, 'required_count' => 2 ) ) ) );
+		$ma['ld_course']    = $svc->create_activity( array( 'title' => 'Mentor Training Course', 'pathway_id' => $mp_id, 'track_id' => $track_id, 'activity_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99902 ) ) ) );
+		$ma['observation']  = $svc->create_activity( array( 'title' => 'Teacher Observations', 'pathway_id' => $mp_id, 'track_id' => $track_id, 'activity_type' => 'observation', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'form_plugin' => 'jetformbuilder', 'form_id' => 99903, 'required_count' => 2 ) ) ) );
 
 		WP_CLI::log( '  [10/17] Pathways created: 2 (teacher=' . count( $ta ) . ' activities, mentor=' . count( $ma ) . ' activities)' );
 
@@ -1456,7 +1456,7 @@ class HL_CLI_Seed_Palm_Beach {
 	// Step 16: Coach Assignments
 	// ------------------------------------------------------------------
 
-	private function seed_coach_assignments( $cohort_id, $orgunits, $teams, $users ) {
+	private function seed_coach_assignments( $track_id, $orgunits, $teams, $users ) {
 		$service       = new HL_Coach_Assignment_Service();
 		$c             = $orgunits['schools'];
 		$coach_user_id = $users['coach'];
@@ -1473,7 +1473,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'coach_user_id'  => $coach_user_id,
 				'scope_type'     => 'school',
 				'scope_id'       => $c[ $ck ],
-				'cohort_id'      => $cohort_id,
+				'track_id'      => $track_id,
 				'effective_from' => '2026-01-01',
 			) );
 			if ( ! is_wp_error( $result ) ) {
@@ -1487,7 +1487,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'coach_user_id'  => $coach_user_id,
 				'scope_type'     => 'team',
 				'scope_id'       => $teams['wpb_alpha'],
-				'cohort_id'      => $cohort_id,
+				'track_id'      => $track_id,
 				'effective_from' => '2026-01-15',
 			) );
 			if ( ! is_wp_error( $result ) ) {
@@ -1502,7 +1502,7 @@ class HL_CLI_Seed_Palm_Beach {
 	// Step 17: Coaching Sessions
 	// ------------------------------------------------------------------
 
-	private function seed_coaching_sessions( $cohort_id, $enrollments, $users ) {
+	private function seed_coaching_sessions( $track_id, $enrollments, $users ) {
 		$service       = new HL_Coaching_Service();
 		$coach_user_id = $users['coach'];
 		$count         = 0;
@@ -1515,7 +1515,7 @@ class HL_CLI_Seed_Palm_Beach {
 		// WPB teacher 1 (index 0): attended session (past).
 		if ( isset( $enrollments['teachers'][0] ) ) {
 			$result = $service->create_session( array(
-				'cohort_id'            => $cohort_id,
+				'track_id'            => $track_id,
 				'mentor_enrollment_id' => $enrollments['teachers'][0]['enrollment_id'],
 				'coach_user_id'        => $coach_user_id,
 				'session_title'        => 'Coaching Session 1',
@@ -1531,7 +1531,7 @@ class HL_CLI_Seed_Palm_Beach {
 		// WPB teacher 2 (index 1): scheduled session (upcoming).
 		if ( isset( $enrollments['teachers'][1] ) ) {
 			$result = $service->create_session( array(
-				'cohort_id'            => $cohort_id,
+				'track_id'            => $track_id,
 				'mentor_enrollment_id' => $enrollments['teachers'][1]['enrollment_id'],
 				'coach_user_id'        => $coach_user_id,
 				'session_title'        => 'Coaching Session 1',
@@ -1546,7 +1546,7 @@ class HL_CLI_Seed_Palm_Beach {
 		// WPB teacher 3 (index 2): missed session (past).
 		if ( isset( $enrollments['teachers'][2] ) ) {
 			$result = $service->create_session( array(
-				'cohort_id'            => $cohort_id,
+				'track_id'            => $track_id,
 				'mentor_enrollment_id' => $enrollments['teachers'][2]['enrollment_id'],
 				'coach_user_id'        => $coach_user_id,
 				'session_title'        => 'Coaching Session 1',
@@ -1561,7 +1561,7 @@ class HL_CLI_Seed_Palm_Beach {
 		// Jupiter teacher 1 (index 25): scheduled session (upcoming).
 		if ( isset( $enrollments['teachers'][25] ) ) {
 			$result = $service->create_session( array(
-				'cohort_id'            => $cohort_id,
+				'track_id'            => $track_id,
 				'mentor_enrollment_id' => $enrollments['teachers'][25]['enrollment_id'],
 				'coach_user_id'        => $coach_user_id,
 				'session_title'        => 'Coaching Session 1',
@@ -1576,7 +1576,7 @@ class HL_CLI_Seed_Palm_Beach {
 		// South Bay teacher 1 (index 32): attended session (past).
 		if ( isset( $enrollments['teachers'][32] ) ) {
 			$result = $service->create_session( array(
-				'cohort_id'            => $cohort_id,
+				'track_id'            => $track_id,
 				'mentor_enrollment_id' => $enrollments['teachers'][32]['enrollment_id'],
 				'coach_user_id'        => $coach_user_id,
 				'session_title'        => 'Coaching Session 1',
@@ -1599,21 +1599,21 @@ class HL_CLI_Seed_Palm_Beach {
 	/**
 	 * Seed the Lutheran Services Florida control group.
 	 *
-	 * Creates a cohort group, a control cohort, assessment-only pathway,
+	 * Creates a cohort (container), a control track, assessment-only pathway,
 	 * control participants, and submitted PRE assessments.
 	 *
-	 * @param int   $program_cohort_id The Palm Beach program cohort ID.
+	 * @param int   $program_track_id The Palm Beach program track ID.
 	 * @param array $instruments       Instrument IDs keyed by type.
 	 * @return array|null Control group data or null on failure.
 	 */
-	private function seed_control_group( $program_cohort_id, $instruments ) {
+	private function seed_control_group( $program_track_id, $instruments ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
-		// Ensure is_control_group column exists.
+		// Ensure is_control_group column exists on hl_track.
 		$col_check = $wpdb->get_var( $wpdb->prepare(
 			"SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
-			$prefix . 'hl_cohort',
+			$prefix . 'hl_track',
 			'is_control_group'
 		) );
 		if ( ! $col_check ) {
@@ -1621,66 +1621,66 @@ class HL_CLI_Seed_Palm_Beach {
 			HL_Installer::create_tables();
 		}
 
-		// Step 18: Create cohort group.
-		$group_id = $wpdb->get_var( $wpdb->prepare(
-			"SELECT group_id FROM {$prefix}hl_cohort_group WHERE group_code = %s LIMIT 1",
+		// Step 18: Create cohort (container).
+		$cohort_id = $wpdb->get_var( $wpdb->prepare(
+			"SELECT cohort_id FROM {$prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
 			'B2E-EVAL'
 		) );
 
-		if ( ! $group_id ) {
-			$wpdb->insert( $prefix . 'hl_cohort_group', array(
-				'group_uuid' => wp_generate_uuid4(),
-				'group_name' => 'B2E Program Evaluation',
-				'group_code' => 'B2E-EVAL',
-				'status'     => 'active',
+		if ( ! $cohort_id ) {
+			$wpdb->insert( $prefix . 'hl_cohort', array(
+				'cohort_uuid' => wp_generate_uuid4(),
+				'cohort_name' => 'B2E Program Evaluation',
+				'cohort_code' => 'B2E-EVAL',
+				'status'      => 'active',
 			) );
-			$group_id = $wpdb->insert_id;
+			$cohort_id = $wpdb->insert_id;
 		}
 
-		if ( ! $group_id ) {
-			WP_CLI::log( '  [18/20] ERROR: Could not create cohort group. DB error: ' . $wpdb->last_error );
+		if ( ! $cohort_id ) {
+			WP_CLI::log( '  [18/20] ERROR: Could not create cohort (container). DB error: ' . $wpdb->last_error );
 			return null;
 		}
 
-		// Assign the ELC Palm Beach cohort to this group.
+		// Assign the ELC Palm Beach track to this cohort.
 		$wpdb->update(
-			$prefix . 'hl_cohort',
-			array( 'cohort_group_id' => $group_id ),
-			array( 'cohort_id' => $program_cohort_id )
+			$prefix . 'hl_track',
+			array( 'cohort_id' => $cohort_id ),
+			array( 'track_id' => $program_track_id )
 		);
 
-		// Step 19: Create the Lutheran control cohort.
-		$control_cohort_id = $wpdb->get_var( $wpdb->prepare(
-			"SELECT cohort_id FROM {$prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
+		// Step 19: Create the Lutheran control track.
+		$control_track_id = $wpdb->get_var( $wpdb->prepare(
+			"SELECT track_id FROM {$prefix}hl_track WHERE track_code = %s LIMIT 1",
 			'LSF-CTRL-2026'
 		) );
 
-		if ( ! $control_cohort_id ) {
-			$repo = new HL_Cohort_Repository();
-			$control_cohort_id = $repo->create( array(
-				'cohort_name'      => 'Lutheran Services Florida — Control Group',
-				'cohort_code'      => 'LSF-CTRL-2026',
+		if ( ! $control_track_id ) {
+			$repo = new HL_Track_Repository();
+			$control_track_id = $repo->create( array(
+				'track_name'       => 'Lutheran Services Florida — Control Group',
+				'track_code'       => 'LSF-CTRL-2026',
 				'is_control_group' => 1,
-				'cohort_group_id'  => $group_id,
+				'cohort_id'        => $cohort_id,
 				'status'           => 'active',
 				'start_date'       => '2026-01-01',
 				'end_date'         => '2026-12-31',
 			) );
 		}
 
-		if ( ! $control_cohort_id ) {
-			WP_CLI::log( '  [19/20] ERROR: Could not create control cohort. DB error: ' . $wpdb->last_error );
+		if ( ! $control_track_id ) {
+			WP_CLI::log( '  [19/20] ERROR: Could not create control track. DB error: ' . $wpdb->last_error );
 			return null;
 		}
 
-		WP_CLI::log( "  [18/20] Cohort group id={$group_id} (B2E-EVAL), control cohort id={$control_cohort_id} (LSF-CTRL-2026)" );
+		WP_CLI::log( "  [18/20] Cohort id={$cohort_id} (B2E-EVAL), control track id={$control_track_id} (LSF-CTRL-2026)" );
 
 		// Create assessment-only pathway.
 		$svc = new HL_Pathway_Service();
 
 		$ctrl_pathway_id = $svc->create_pathway( array(
 			'pathway_name'  => 'Control Assessment Pathway',
-			'cohort_id'     => $control_cohort_id,
+			'track_id'     => $control_track_id,
 			'target_roles'  => array( 'teacher' ),
 			'active_status' => 1,
 		) );
@@ -1690,7 +1690,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$pre_activity_id = $svc->create_activity( array(
 			'title'         => 'Pre Self-Assessment',
 			'pathway_id'    => $ctrl_pathway_id,
-			'cohort_id'     => $control_cohort_id,
+			'track_id'     => $control_track_id,
 			'activity_type' => 'teacher_self_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 1,
@@ -1703,7 +1703,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$svc->create_activity( array(
 			'title'         => 'Post Self-Assessment',
 			'pathway_id'    => $ctrl_pathway_id,
-			'cohort_id'     => $control_cohort_id,
+			'track_id'     => $control_track_id,
 			'activity_type' => 'teacher_self_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 2,
@@ -1738,7 +1738,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 			$eid = $enrollment_repo->create( array(
 				'user_id'             => $uid,
-				'cohort_id'           => $control_cohort_id,
+				'track_id'           => $control_track_id,
 				'roles'               => array( 'teacher' ),
 				'status'              => 'active',
 				'assigned_pathway_id' => $ctrl_pathway_id,
@@ -1769,7 +1769,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 			$wpdb->insert( $prefix . 'hl_teacher_assessment_instance', array(
 				'instance_uuid'      => wp_generate_uuid4(),
-				'cohort_id'          => $control_cohort_id,
+				'track_id'          => $control_track_id,
 				'enrollment_id'      => $eid,
 				'phase'              => 'pre',
 				'instrument_id'      => $teacher_instrument_id,
@@ -1791,11 +1791,11 @@ class HL_CLI_Seed_Palm_Beach {
 			$pre_submitted++;
 		}
 
-		// Also submit PRE assessments for the ELC program cohort teachers.
+		// Also submit PRE assessments for the ELC program track teachers.
 		$program_teacher_enrollments = $wpdb->get_results( $wpdb->prepare(
 			"SELECT enrollment_id FROM {$prefix}hl_enrollment
-			 WHERE cohort_id = %d AND status = 'active' AND roles LIKE %s",
-			$program_cohort_id,
+			 WHERE track_id = %d AND status = 'active' AND roles LIKE %s",
+			$program_track_id,
 			'%"teacher"%'
 		), ARRAY_A );
 
@@ -1805,8 +1805,8 @@ class HL_CLI_Seed_Palm_Beach {
 
 			$existing = $wpdb->get_var( $wpdb->prepare(
 				"SELECT instance_id FROM {$prefix}hl_teacher_assessment_instance
-				 WHERE enrollment_id = %d AND cohort_id = %d AND phase = 'pre'",
-				$eid, $program_cohort_id
+				 WHERE enrollment_id = %d AND track_id = %d AND phase = 'pre'",
+				$eid, $program_track_id
 			) );
 
 			if ( $existing ) {
@@ -1833,7 +1833,7 @@ class HL_CLI_Seed_Palm_Beach {
 			$responses = $this->generate_program_responses( $instrument_sections );
 			$wpdb->insert( $prefix . 'hl_teacher_assessment_instance', array(
 				'instance_uuid'      => wp_generate_uuid4(),
-				'cohort_id'          => $program_cohort_id,
+				'track_id'          => $program_track_id,
 				'enrollment_id'      => $eid,
 				'phase'              => 'pre',
 				'instrument_id'      => $teacher_instrument_id,
@@ -1856,8 +1856,8 @@ class HL_CLI_Seed_Palm_Beach {
 			. ", program PRE submitted: {$program_pre_count}" );
 
 		return array(
-			'group_id'          => $group_id,
-			'cohort_id'         => $control_cohort_id,
+			'cohort_id'         => $cohort_id,
+			'track_id'          => $control_track_id,
 			'participant_count' => count( $ctrl_enrollment_ids ),
 		);
 	}

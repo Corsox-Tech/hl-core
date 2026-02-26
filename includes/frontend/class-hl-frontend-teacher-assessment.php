@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) exit;
  * Renderer for the [hl_teacher_assessment] shortcode.
  *
  * Shows a logged-in teacher their self-assessment instances across
- * all cohorts. When an instance_id is provided, renders the assessment
+ * all tracks. When an instance_id is provided, renders the assessment
  * form (via HL_Teacher_Assessment_Renderer) or a read-only summary if
  * already submitted.
  *
@@ -87,7 +87,7 @@ class HL_Frontend_Teacher_Assessment {
     /**
      * Resolve an activity_id to an existing (or newly created) instance_id.
      *
-     * Finds the current user's enrollment for the activity's cohort, determines
+     * Finds the current user's enrollment for the activity's track, determines
      * phase and instrument from the activity's external_ref, and gets or creates
      * the teacher_assessment_instance.
      *
@@ -99,9 +99,9 @@ class HL_Frontend_Teacher_Assessment {
 
         $user_id = get_current_user_id();
 
-        // Get the activity with pathway/cohort context
+        // Get the activity with pathway/track context
         $activity = $wpdb->get_row( $wpdb->prepare(
-            "SELECT a.*, p.cohort_id
+            "SELECT a.*, p.track_id
              FROM {$wpdb->prefix}hl_activity a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
              WHERE a.activity_id = %d",
@@ -112,12 +112,12 @@ class HL_Frontend_Teacher_Assessment {
             return 0;
         }
 
-        // Get user's enrollment in this cohort
+        // Get user's enrollment in this track
         $enrollment = $wpdb->get_row( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_enrollment
-             WHERE cohort_id = %d AND user_id = %d AND status = 'active'
+             WHERE track_id = %d AND user_id = %d AND status = 'active'
              LIMIT 1",
-            $activity->cohort_id, $user_id
+            $activity->track_id, $user_id
         ) );
 
         if ( ! $enrollment ) {
@@ -141,12 +141,12 @@ class HL_Frontend_Teacher_Assessment {
             return absint( $instance_id );
         }
 
-        // Also check by enrollment + cohort + phase (legacy instances without activity_id)
+        // Also check by enrollment + track + phase (legacy instances without activity_id)
         $instance_id = $wpdb->get_var( $wpdb->prepare(
             "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
-             WHERE enrollment_id = %d AND cohort_id = %d AND phase = %s
+             WHERE enrollment_id = %d AND track_id = %d AND phase = %s
              LIMIT 1",
-            $enrollment->enrollment_id, $activity->cohort_id, $phase
+            $enrollment->enrollment_id, $activity->track_id, $phase
         ) );
 
         if ( $instance_id ) {
@@ -161,7 +161,7 @@ class HL_Frontend_Teacher_Assessment {
 
         // Create new instance
         $result = $this->assessment_service->create_teacher_assessment_instance( array(
-            'cohort_id'     => $activity->cohort_id,
+            'track_id'     => $activity->track_id,
             'enrollment_id' => $enrollment->enrollment_id,
             'phase'         => $phase,
             'instrument_id' => $instrument_id,
@@ -182,13 +182,13 @@ class HL_Frontend_Teacher_Assessment {
 
         // Get all teacher assessment instances for this user that use custom instruments
         $instances = $wpdb->get_results( $wpdb->prepare(
-            "SELECT tai.*, c.cohort_name, e.user_id
+            "SELECT tai.*, t.track_name, e.user_id
              FROM {$wpdb->prefix}hl_teacher_assessment_instance tai
              JOIN {$wpdb->prefix}hl_enrollment e ON tai.enrollment_id = e.enrollment_id
-             JOIN {$wpdb->prefix}hl_cohort c ON tai.cohort_id = c.cohort_id
+             JOIN {$wpdb->prefix}hl_track t ON tai.track_id = t.track_id
              WHERE e.user_id = %d
                AND tai.instrument_id IS NOT NULL
-             ORDER BY c.cohort_name, tai.phase ASC",
+             ORDER BY t.track_name, tai.phase ASC",
             $user_id
         ), ARRAY_A );
 
@@ -198,7 +198,7 @@ class HL_Frontend_Teacher_Assessment {
 
             <?php if ( empty( $instances ) ) : ?>
                 <div class="hl-empty-state">
-                    <p><?php esc_html_e( 'You do not have any self-assessment instances assigned. If you believe this is an error, please contact your cohort administrator.', 'hl-core' ); ?></p>
+                    <p><?php esc_html_e( 'You do not have any self-assessment instances assigned. If you believe this is an error, please contact your track administrator.', 'hl-core' ); ?></p>
                 </div>
             <?php else : ?>
                 <table class="hl-table widefat striped">
@@ -214,7 +214,7 @@ class HL_Frontend_Teacher_Assessment {
                     <tbody>
                         <?php foreach ( $instances as $row ) : ?>
                             <tr>
-                                <td><?php echo esc_html( $row['cohort_name'] ); ?></td>
+                                <td><?php echo esc_html( $row['track_name'] ); ?></td>
                                 <td>
                                     <span class="hl-badge hl-badge-<?php echo $row['phase'] === 'pre' ? 'blue' : 'green'; ?>">
                                         <?php echo esc_html( $row['phase'] === 'pre' ? __( 'Pre-Program', 'hl-core' ) : __( 'Post-Program', 'hl-core' ) ); ?>
@@ -284,7 +284,7 @@ class HL_Frontend_Teacher_Assessment {
         if ( empty( $instance['instrument_id'] ) ) {
             ?>
             <div class="hl-notice hl-notice-error">
-                <?php esc_html_e( 'No instrument assigned to this assessment. Please contact your cohort administrator.', 'hl-core' ); ?>
+                <?php esc_html_e( 'No instrument assigned to this assessment. Please contact your track administrator.', 'hl-core' ); ?>
             </div>
             <?php
             return;
@@ -296,7 +296,7 @@ class HL_Frontend_Teacher_Assessment {
         if ( ! $instrument ) {
             ?>
             <div class="hl-notice hl-notice-error">
-                <?php esc_html_e( 'The assessment instrument could not be loaded. Please contact your cohort administrator.', 'hl-core' ); ?>
+                <?php esc_html_e( 'The assessment instrument could not be loaded. Please contact your track administrator.', 'hl-core' ); ?>
             </div>
             <?php
             return;
@@ -316,7 +316,7 @@ class HL_Frontend_Teacher_Assessment {
         if ( $phase === 'post' ) {
             $pre_responses = $this->assessment_service->get_pre_responses_for_post(
                 absint( $instance['enrollment_id'] ),
-                absint( $instance['cohort_id'] )
+                absint( $instance['track_id'] )
             );
         }
 
@@ -371,7 +371,7 @@ class HL_Frontend_Teacher_Assessment {
                 <div class="hl-assessment-meta">
                     <span class="hl-meta-item">
                         <strong><?php esc_html_e( 'Program:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( $instance['cohort_name'] ); ?>
+                        <?php echo esc_html( $instance['track_name'] ); ?>
                     </span>
                     <span class="hl-meta-item">
                         <?php $this->render_status_badge( $instance['status'] ); ?>
@@ -427,7 +427,7 @@ class HL_Frontend_Teacher_Assessment {
                 </span>
                 <span class="hl-meta-item">
                     <strong><?php esc_html_e( 'Program:', 'hl-core' ); ?></strong>
-                    <?php echo esc_html( $instance['cohort_name'] ); ?>
+                    <?php echo esc_html( $instance['track_name'] ); ?>
                 </span>
                 <span class="hl-meta-item">
                     <strong><?php esc_html_e( 'Submitted:', 'hl-core' ); ?></strong>

@@ -2,19 +2,19 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Cohort Dashboard shortcode renderer.
+ * Track Dashboard shortcode renderer.
  *
- * Renders the [hl_cohort_dashboard] shortcode for School Leaders,
- * District Leaders, and Staff to view cohort-level participant overview.
+ * Renders the [hl_track_dashboard] shortcode for School Leaders,
+ * District Leaders, and Staff to view track-level participant overview.
  *
  * @package HL_Core
  */
-class HL_Frontend_Cohort_Dashboard {
+class HL_Frontend_Track_Dashboard {
 
     /**
-     * @var HL_Cohort_Repository
+     * @var HL_Track_Repository
      */
-    private $cohort_repo;
+    private $track_repo;
 
     /**
      * @var HL_Enrollment_Repository
@@ -27,7 +27,7 @@ class HL_Frontend_Cohort_Dashboard {
     private $orgunit_repo;
 
     public function __construct() {
-        $this->cohort_repo     = new HL_Cohort_Repository();
+        $this->track_repo     = new HL_Track_Repository();
         $this->enrollment_repo = new HL_Enrollment_Repository();
         $this->orgunit_repo    = new HL_OrgUnit_Repository();
     }
@@ -35,30 +35,30 @@ class HL_Frontend_Cohort_Dashboard {
     public function render($atts) {
         $user_id  = get_current_user_id();
         $is_staff = HL_Security::is_staff();
-        $accessible_cohorts = $this->get_accessible_cohorts($user_id, $is_staff);
-        if (empty($accessible_cohorts)) {
+        $accessible_tracks = $this->get_accessible_tracks($user_id, $is_staff);
+        if (empty($accessible_tracks)) {
             return $this->render_access_denied();
         }
-        $selected_cohort_id = $this->resolve_cohort_id($atts, $accessible_cohorts);
-        if (!$selected_cohort_id) {
+        $selected_track_id = $this->resolve_track_id($atts, $accessible_tracks);
+        if (!$selected_track_id) {
             return $this->render_access_denied();
         }
-        $cohort = $this->cohort_repo->get_by_id($selected_cohort_id);
-        if (!$cohort) {
-            return $this->render_notice('The selected cohort could not be found.', 'warning');
+        $track = $this->track_repo->get_by_id($selected_track_id);
+        if (!$track) {
+            return $this->render_notice('The selected track could not be found.', 'warning');
         }
-        $scope = $this->determine_scope($user_id, $cohort, $is_staff);
+        $scope = $this->determine_scope($user_id, $track, $is_staff);
         if ($scope === false) {
             return $this->render_access_denied();
         }
-        $participants  = $this->get_participants($cohort, $scope);
+        $participants  = $this->get_participants($track, $scope);
         $metrics       = $this->calculate_metrics($participants);
         $school_map    = $this->build_school_map($participants);
         $scope_schools = $this->get_scope_schools($scope);
         ob_start();
         ?>
-        <div class="hl-dashboard hl-cohort-dashboard">
-            <?php $this->render_header($accessible_cohorts, $selected_cohort_id); ?>
+        <div class="hl-dashboard hl-track-dashboard">
+            <?php $this->render_header($accessible_tracks, $selected_track_id); ?>
             <?php $this->render_metrics_row($metrics); ?>
             <?php $this->render_participant_table($participants, $scope_schools, $school_map); ?>
         </div>
@@ -66,67 +66,67 @@ class HL_Frontend_Cohort_Dashboard {
         return ob_get_clean();
     }
 
-    private function get_accessible_cohorts($user_id, $is_staff) {
-        $all_cohorts = $this->cohort_repo->get_all();
+    private function get_accessible_tracks($user_id, $is_staff) {
+        $all_tracks = $this->track_repo->get_all();
         if ($is_staff) {
             $map = array();
-            foreach ($all_cohorts as $p) {
-                $map[(int) $p->cohort_id] = $p;
+            foreach ($all_tracks as $p) {
+                $map[(int) $p->track_id] = $p;
             }
             return $map;
         }
         $enrollments = $this->enrollment_repo->get_all(array('status' => 'active'));
-        $cohort_ids = array();
+        $track_ids = array();
         foreach ($enrollments as $enrollment) {
             if ((int) $enrollment->user_id !== $user_id) {
                 continue;
             }
             $roles = $enrollment->get_roles_array();
             if (in_array('School Leader', $roles, true) || in_array('District Leader', $roles, true)) {
-                $cohort_ids[] = (int) $enrollment->cohort_id;
+                $track_ids[] = (int) $enrollment->track_id;
             }
         }
-        if (empty($cohort_ids)) {
+        if (empty($track_ids)) {
             return array();
         }
         $map = array();
-        foreach ($all_cohorts as $p) {
-            if (in_array((int) $p->cohort_id, $cohort_ids, true)) {
-                $map[(int) $p->cohort_id] = $p;
+        foreach ($all_tracks as $p) {
+            if (in_array((int) $p->track_id, $track_ids, true)) {
+                $map[(int) $p->track_id] = $p;
             }
         }
         return $map;
     }
 
-    private function resolve_cohort_id($atts, $accessible_cohorts) {
-        if (!empty($atts['cohort_id'])) {
-            $id = (int) $atts['cohort_id'];
-            if (isset($accessible_cohorts[$id])) {
+    private function resolve_track_id($atts, $accessible_tracks) {
+        if (!empty($atts['track_id'])) {
+            $id = (int) $atts['track_id'];
+            if (isset($accessible_tracks[$id])) {
                 return $id;
             }
             return null;
         }
-        if (!empty($_GET['hl_cohort_id'])) {
-            $id = (int) $_GET['hl_cohort_id'];
-            if (isset($accessible_cohorts[$id])) {
+        if (!empty($_GET['hl_track_id'])) {
+            $id = (int) $_GET['hl_track_id'];
+            if (isset($accessible_tracks[$id])) {
                 return $id;
             }
         }
-        reset($accessible_cohorts);
-        return key($accessible_cohorts);
+        reset($accessible_tracks);
+        return key($accessible_tracks);
     }
 
-    private function determine_scope($user_id, $cohort, $is_staff) {
+    private function determine_scope($user_id, $track, $is_staff) {
         if ($is_staff) {
             return array('type' => 'staff', 'school_ids' => array(), 'district_id' => null);
         }
-        $enrollment = $this->enrollment_repo->get_by_cohort_and_user($cohort->cohort_id, $user_id);
+        $enrollment = $this->enrollment_repo->get_by_track_and_user($track->track_id, $user_id);
         if (!$enrollment) {
             return false;
         }
         $roles = $enrollment->get_roles_array();
         if (in_array('District Leader', $roles, true)) {
-            $district_id = !empty($enrollment->district_id) ? (int) $enrollment->district_id : (!empty($cohort->district_id) ? (int) $cohort->district_id : null);
+            $district_id = !empty($enrollment->district_id) ? (int) $enrollment->district_id : (!empty($track->district_id) ? (int) $track->district_id : null);
             $school_ids = array();
             if ($district_id) {
                 $schools = $this->orgunit_repo->get_schools($district_id);
@@ -143,17 +143,17 @@ class HL_Frontend_Cohort_Dashboard {
         return false;
     }
 
-    private function get_participants($cohort, $scope) {
+    private function get_participants($track, $scope) {
         global $wpdb;
         $prefix = $wpdb->prefix;
         $sql = $wpdb->prepare(
-            "SELECT cr.cohort_completion_percent, e.enrollment_id, e.user_id, e.roles, e.school_id, u.display_name, u.user_email
+            "SELECT cr.track_completion_percent, e.enrollment_id, e.user_id, e.roles, e.school_id, u.display_name, u.user_email
              FROM {$prefix}hl_enrollment e
              LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.cohort_id = %d AND e.status = 'active'
+             WHERE e.track_id = %d AND e.status = 'active'
              ORDER BY u.display_name ASC",
-            $cohort->cohort_id
+            $track->track_id
         );
         $rows = $wpdb->get_results($sql, ARRAY_A);
         if (!$rows) { $rows = array(); }
@@ -169,7 +169,7 @@ class HL_Frontend_Cohort_Dashboard {
         foreach ($rows as &$row) {
             $row['roles_array'] = is_array($row['roles']) ? $row['roles'] : (array) json_decode($row['roles'], true);
             if (!is_array($row['roles_array'])) { $row['roles_array'] = array(); }
-            $row['completion'] = $row['cohort_completion_percent'] !== null ? round((float) $row['cohort_completion_percent']) : 0;
+            $row['completion'] = $row['track_completion_percent'] !== null ? round((float) $row['track_completion_percent']) : 0;
         }
         unset($row);
         return $rows;
@@ -216,18 +216,18 @@ class HL_Frontend_Cohort_Dashboard {
         return array();
     }
 
-    private function render_header($cohorts, $selected_cohort_id) {
-        $show_selector = count($cohorts) > 1;
+    private function render_header($tracks, $selected_track_id) {
+        $show_selector = count($tracks) > 1;
         ?>
         <div class="hl-dashboard-header">
-            <h2 class="hl-dashboard-title"><?php echo esc_html__('Cohort Dashboard', 'hl-core'); ?></h2>
+            <h2 class="hl-dashboard-title"><?php echo esc_html__('Track Dashboard', 'hl-core'); ?></h2>
             <?php if ($show_selector) : ?>
-                <div class="hl-cohort-selector">
-                    <label for="hl-cohort-select"><?php echo esc_html__('Cohort:', 'hl-core'); ?></label>
-                    <select id="hl-cohort-select" class="hl-select" onchange="if(this.value){var u=new URL(window.location.href);u.searchParams.set('hl_cohort_id',this.value);window.location.href=u.toString();}">
-                        <?php foreach ($cohorts as $pid => $prog) : ?>
-                            <option value="<?php echo esc_attr($pid); ?>"<?php selected($pid, $selected_cohort_id); ?>>
-                                <?php echo esc_html($prog->cohort_name); ?>
+                <div class="hl-track-selector">
+                    <label for="hl-track-select"><?php echo esc_html__('Track:', 'hl-core'); ?></label>
+                    <select id="hl-track-select" class="hl-select" onchange="if(this.value){var u=new URL(window.location.href);u.searchParams.set('hl_track_id',this.value);window.location.href=u.toString();}">
+                        <?php foreach ($tracks as $pid => $prog) : ?>
+                            <option value="<?php echo esc_attr($pid); ?>"<?php selected($pid, $selected_track_id); ?>>
+                                <?php echo esc_html($prog->track_name); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -279,7 +279,7 @@ class HL_Frontend_Cohort_Dashboard {
             </div>
             <?php if (empty($participants)) : ?>
                 <div class="hl-notice hl-notice-info">
-                    <?php echo esc_html__('No active participants found for this cohort.', 'hl-core'); ?>
+                    <?php echo esc_html__('No active participants found for this track.', 'hl-core'); ?>
                 </div>
             <?php else : ?>
                 <table class="hl-table">
@@ -322,7 +322,7 @@ class HL_Frontend_Cohort_Dashboard {
                 <?php if ($show_school_filter) : ?>
                     <script>
                     function hlFilterSchool(schoolId) {
-                        var rows = document.querySelectorAll('.hl-cohort-dashboard .hl-table tbody tr');
+                        var rows = document.querySelectorAll('.hl-track-dashboard .hl-table tbody tr');
                         for (var i = 0; i < rows.length; i++) {
                             if (!schoolId || rows[i].getAttribute('data-school-id') === schoolId) {
                                 rows[i].style.display = '';
@@ -339,14 +339,14 @@ class HL_Frontend_Cohort_Dashboard {
     }
 
     private function render_access_denied() {
-        return '<div class="hl-dashboard hl-cohort-dashboard">'
+        return '<div class="hl-dashboard hl-track-dashboard">'
             . '<div class="hl-notice hl-notice-error">'
-            . esc_html__('You do not have permission to view the cohort dashboard. This view is available to School Leaders, District Leaders, and Staff.', 'hl-core')
+            . esc_html__('You do not have permission to view the track dashboard. This view is available to School Leaders, District Leaders, and Staff.', 'hl-core')
             . '</div></div>';
     }
 
     private function render_notice($message, $type = 'info') {
-        return '<div class="hl-dashboard hl-cohort-dashboard">'
+        return '<div class="hl-dashboard hl-track-dashboard">'
             . '<div class="hl-notice hl-notice-' . esc_attr($type) . '">'
             . esc_html($message)
             . '</div></div>';

@@ -33,8 +33,8 @@ class HL_Admin {
         $page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
 
         switch ($page) {
-            case 'hl-core':
-                HL_Admin_Cohorts::instance()->handle_early_actions();
+            case 'hl-tracks':
+                HL_Admin_Tracks::instance()->handle_early_actions();
                 break;
             case 'hl-orgunits':
                 HL_Admin_OrgUnits::instance()->handle_early_actions();
@@ -66,28 +66,28 @@ class HL_Admin {
             case 'hl-reporting':
                 HL_Admin_Reporting::instance()->handle_early_actions();
                 break;
-            case 'hl-cohort-groups':
-                HL_Admin_Cohort_Groups::instance()->handle_early_actions();
+            case 'hl-cohorts':
+                HL_Admin_Cohorts::instance()->handle_early_actions();
                 break;
         }
     }
 
     public function create_menu() {
-        add_menu_page('HL Core', 'HL Core', 'manage_hl_core', 'hl-core', array(HL_Admin_Cohorts::instance(), 'render_page'), 'dashicons-welcome-learn-more', 30);
-        add_submenu_page('hl-core', 'Cohorts', 'Cohorts', 'manage_hl_core', 'hl-core', array(HL_Admin_Cohorts::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Org Units', 'Org Units', 'manage_hl_core', 'hl-orgunits', array(HL_Admin_OrgUnits::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Enrollments', 'Enrollments', 'manage_hl_core', 'hl-enrollments', array(HL_Admin_Enrollments::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Pathways', 'Pathways & Activities', 'manage_hl_core', 'hl-pathways', array(HL_Admin_Pathways::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Teams', 'Teams', 'manage_hl_core', 'hl-teams', array(HL_Admin_Teams::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Classrooms', 'Classrooms', 'manage_hl_core', 'hl-classrooms', array(HL_Admin_Classrooms::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Imports', 'Imports', 'manage_hl_core', 'hl-imports', array(HL_Admin_Imports::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Assessments', 'Assessments', 'manage_hl_core', 'hl-assessments', array(HL_Admin_Assessments::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Instruments', 'Instruments', 'manage_hl_core', 'hl-instruments', array(HL_Admin_Instruments::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Coaching', 'Coaching Sessions', 'manage_hl_core', 'hl-coaching', array(HL_Admin_Coaching::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Coach Assignments', 'Coach Assignments', 'manage_hl_core', 'hl-coach-assignments', array(HL_Admin_Coach_Assignments::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Cohort Groups', 'Cohort Groups', 'manage_hl_core', 'hl-cohort-groups', array(HL_Admin_Cohort_Groups::instance(), 'render_page'));
-        add_submenu_page('hl-core', 'Audit Log', 'Audit Log', 'manage_hl_core', 'hl-audit', array(HL_Admin_Audit::instance(), 'render_page'));
+        add_menu_page('HL Core', 'HL Core', 'manage_hl_core', 'hl-tracks', array(HL_Admin_Tracks::instance(), 'render_page'), 'dashicons-welcome-learn-more', 30);
+        add_submenu_page('hl-tracks', 'Tracks', 'Tracks', 'manage_hl_core', 'hl-tracks', array(HL_Admin_Tracks::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Org Units', 'Org Units', 'manage_hl_core', 'hl-orgunits', array(HL_Admin_OrgUnits::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Enrollments', 'Enrollments', 'manage_hl_core', 'hl-enrollments', array(HL_Admin_Enrollments::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Pathways', 'Pathways & Activities', 'manage_hl_core', 'hl-pathways', array(HL_Admin_Pathways::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Teams', 'Teams', 'manage_hl_core', 'hl-teams', array(HL_Admin_Teams::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Classrooms', 'Classrooms', 'manage_hl_core', 'hl-classrooms', array(HL_Admin_Classrooms::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Imports', 'Imports', 'manage_hl_core', 'hl-imports', array(HL_Admin_Imports::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Assessments', 'Assessments', 'manage_hl_core', 'hl-assessments', array(HL_Admin_Assessments::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Instruments', 'Instruments', 'manage_hl_core', 'hl-instruments', array(HL_Admin_Instruments::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Coaching', 'Coaching Sessions', 'manage_hl_core', 'hl-coaching', array(HL_Admin_Coaching::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Coach Assignments', 'Coach Assignments', 'manage_hl_core', 'hl-coach-assignments', array(HL_Admin_Coach_Assignments::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Cohorts', 'Cohorts', 'manage_hl_core', 'hl-cohorts', array(HL_Admin_Cohorts::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Audit Log', 'Audit Log', 'manage_hl_core', 'hl-audit', array(HL_Admin_Audit::instance(), 'render_page'));
     }
 
     public function enqueue_assets($hook) {
@@ -110,7 +110,7 @@ class HL_Admin {
                 'nonce_upload'       => wp_create_nonce('hl_import_upload'),
                 'nonce_commit'       => wp_create_nonce('hl_import_commit'),
                 'nonce_error_report' => wp_create_nonce('hl_import_error_report'),
-                'select_cohort'      => __('Please select a cohort.', 'hl-core'),
+                'select_track'       => __('Please select a track.', 'hl-core'),
                 'select_file'        => __('Please select a CSV file.', 'hl-core'),
                 'uploading'          => __('Uploading and validating...', 'hl-core'),
                 'committing'         => __('Committing import...', 'hl-core'),

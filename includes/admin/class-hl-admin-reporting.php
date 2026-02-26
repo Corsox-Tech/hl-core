@@ -3,7 +3,7 @@
 /**
  * Admin Reporting Dashboard
  *
- * Full reporting dashboard with scope-based filtering (cohort, school, district, team),
+ * Full reporting dashboard with scope-based filtering (track, school, district, team),
  * summary metrics, participant completion table, activity drill-down, and CSV export.
  *
  * @package HL_Core
@@ -95,12 +95,12 @@ class HL_Admin_Reporting {
      */
     private function get_filters() {
         return array(
-            'cohort_id'   => isset($_GET['cohort_id'])   ? absint($_GET['cohort_id'])   : 0,
+            'track_id'    => isset($_GET['track_id'])    ? absint($_GET['track_id'])    : 0,
             'school_id'   => isset($_GET['school_id'])   ? absint($_GET['school_id'])   : 0,
             'district_id' => isset($_GET['district_id']) ? absint($_GET['district_id']) : 0,
             'team_id'     => isset($_GET['team_id'])     ? absint($_GET['team_id'])     : 0,
             'role'        => isset($_GET['role'])         ? sanitize_text_field($_GET['role']) : '',
-            'group_id'    => isset($_GET['group_id'])    ? absint($_GET['group_id'])    : 0,
+            'cohort_id'   => isset($_GET['cohort_id'])   ? absint($_GET['cohort_id'])   : 0,
         );
     }
 
@@ -132,15 +132,15 @@ class HL_Admin_Reporting {
             wp_die(esc_html__('You do not have permission to export data.', 'hl-core'));
         }
 
-        $cohort_id = $filters['cohort_id'];
+        $track_id = $filters['track_id'];
 
-        // Group summary export uses group_id, not cohort_id.
+        // Group summary export uses cohort_id (container), not track_id.
         if ($export_type === 'group_summary_csv') {
-            $group_id = isset($_GET['group_id']) ? absint($_GET['group_id']) : 0;
-            if ($group_id) {
+            $cohort_id = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
+            if ($cohort_id) {
                 $reporting = HL_Reporting_Service::instance();
-                $csv      = $reporting->export_group_summary_csv($group_id);
-                $filename = 'group-summary-' . $group_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $reporting->export_group_summary_csv($cohort_id);
+                $filename = 'group-summary-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
                 if (!empty($csv)) {
                     header('Content-Type: text/csv; charset=utf-8');
                     header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -154,13 +154,13 @@ class HL_Admin_Reporting {
             return;
         }
 
-        // Comparison CSV export uses group_id, not cohort_id.
+        // Comparison CSV export uses cohort_id (container), not track_id.
         if ($export_type === 'comparison_csv') {
-            $group_id = isset($_GET['group_id']) ? absint($_GET['group_id']) : 0;
-            if ($group_id) {
+            $cohort_id = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
+            if ($cohort_id) {
                 $reporting = HL_Reporting_Service::instance();
-                $csv      = $reporting->export_group_comparison_csv($group_id);
-                $filename = 'program-vs-control-comparison-' . $group_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $reporting->export_group_comparison_csv($cohort_id);
+                $filename = 'program-vs-control-comparison-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
                 if (!empty($csv)) {
                     header('Content-Type: text/csv; charset=utf-8');
                     header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -174,8 +174,8 @@ class HL_Admin_Reporting {
             return;
         }
 
-        if (!$cohort_id && in_array($export_type, array('completion_csv', 'school_summary_csv', 'team_summary_csv', 'teacher_assessment_csv', 'child_assessment_csv'), true)) {
-            // Cohort is required for all exports; fall through to render page with error
+        if (!$track_id && in_array($export_type, array('completion_csv', 'school_summary_csv', 'team_summary_csv', 'teacher_assessment_csv', 'child_assessment_csv'), true)) {
+            // Track is required for all exports; fall through to render page with error
             return;
         }
 
@@ -186,29 +186,29 @@ class HL_Admin_Reporting {
         switch ($export_type) {
             case 'completion_csv':
                 $csv      = $reporting->export_completion_csv($filters, true);
-                $filename = 'completion-report-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
+                $filename = 'completion-report-track-' . $track_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             case 'school_summary_csv':
-                $csv      = $reporting->export_school_summary_csv($cohort_id, $filters['district_id']);
-                $filename = 'school-summary-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $reporting->export_school_summary_csv($track_id, $filters['district_id']);
+                $filename = 'school-summary-track-' . $track_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             case 'team_summary_csv':
-                $csv      = $reporting->export_team_summary_csv($cohort_id, $filters['school_id']);
-                $filename = 'team-summary-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $reporting->export_team_summary_csv($track_id, $filters['school_id']);
+                $filename = 'team-summary-track-' . $track_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             case 'teacher_assessment_csv':
                 $assessment_service = new HL_Assessment_Service();
-                $csv      = $assessment_service->export_teacher_assessments_csv($cohort_id);
-                $filename = 'teacher-assessments-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $assessment_service->export_teacher_assessments_csv($track_id);
+                $filename = 'teacher-assessments-track-' . $track_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             case 'child_assessment_csv':
                 $assessment_service = new HL_Assessment_Service();
-                $csv      = $assessment_service->export_child_assessments_csv($cohort_id);
-                $filename = 'child-assessments-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $assessment_service->export_child_assessments_csv($track_id);
+                $filename = 'child-assessments-track-' . $track_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             default:
@@ -238,21 +238,21 @@ class HL_Admin_Reporting {
      * @param array $filters Current filters
      */
     private function handle_recompute($filters) {
-        $cohort_id = $filters['cohort_id'];
+        $track_id = $filters['track_id'];
 
-        if (!$cohort_id) {
-            wp_die(esc_html__('Cohort is required for recomputing rollups.', 'hl-core'));
+        if (!$track_id) {
+            wp_die(esc_html__('Track is required for recomputing rollups.', 'hl-core'));
         }
 
-        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_recompute_rollups_' . $cohort_id)) {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_recompute_rollups_' . $track_id)) {
             wp_die(esc_html__('Security check failed.', 'hl-core'));
         }
 
         $reporting = HL_Reporting_Service::instance();
-        $result    = $reporting->recompute_cohort_rollups($cohort_id);
+        $result    = $reporting->recompute_track_rollups($track_id);
 
         $redirect_url = $this->page_url(array(
-            'cohort_id' => $cohort_id,
+            'track_id' => $track_id,
             'message'   => 'recomputed',
             'updated'   => $result['updated'],
             'errors'    => $result['errors'],
@@ -281,11 +281,11 @@ class HL_Admin_Reporting {
         // Filters bar
         $this->render_filters_bar($filters);
 
-        $cohort_id = $filters['cohort_id'];
+        $track_id = $filters['track_id'];
 
-        if (!$cohort_id) {
+        if (!$track_id) {
             echo '<div class="hl-empty-state">';
-            echo '<p>' . esc_html__('Please select a cohort to view the reporting dashboard.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('Please select a track to view the reporting dashboard.', 'hl-core') . '</p>';
             echo '</div>';
             return;
         }
@@ -304,7 +304,7 @@ class HL_Admin_Reporting {
         // Assessment exports (staff only)
         $this->render_assessment_exports($filters);
 
-        // Group comparison (when group_id filter is active)
+        // Group comparison (when cohort_id filter is active)
         $this->render_group_comparison($reporting, $filters);
     }
 
@@ -342,17 +342,17 @@ class HL_Admin_Reporting {
      * @param array $filters
      */
     private function render_filters_bar($filters) {
-        $cohort_repo  = new HL_Cohort_Repository();
+        $track_item_repo  = new HL_Track_Repository();
         $orgunit_repo = new HL_OrgUnit_Repository();
         $team_service = new HL_Team_Service();
 
-        $cohorts   = $cohort_repo->get_all();
+        $track_items   = $track_item_repo->get_all();
         $districts = $orgunit_repo->get_districts();
         $schools   = $orgunit_repo->get_schools();
 
         $teams = array();
-        if ($filters['cohort_id']) {
-            $team_filters = array('cohort_id' => $filters['cohort_id']);
+        if ($filters['track_id']) {
+            $team_filters = array('track_id' => $filters['track_id']);
             if ($filters['school_id']) {
                 $team_filters['school_id'] = $filters['school_id'];
             }
@@ -361,10 +361,10 @@ class HL_Admin_Reporting {
 
         $roles = array('Teacher', 'Mentor', 'School Leader', 'District Leader');
 
-        // Fetch cohort groups for the group filter.
+        // Fetch cohorts (containers) for the cohort filter.
         global $wpdb;
         $cohort_groups = $wpdb->get_results(
-            "SELECT group_id, group_name FROM {$wpdb->prefix}hl_cohort_group WHERE status = 'active' ORDER BY group_name ASC",
+            "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort WHERE status = 'active' ORDER BY cohort_name ASC",
             ARRAY_A
         ) ?: array();
 
@@ -372,27 +372,27 @@ class HL_Admin_Reporting {
         echo '<form method="get" action="' . esc_url(admin_url('admin.php')) . '" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">';
         echo '<input type="hidden" name="page" value="hl-reporting" />';
 
-        // Cohort Group dropdown (for comparison reporting)
+        // Cohort (container) dropdown (for comparison reporting)
         echo '<div style="flex: 1; min-width: 160px;">';
-        echo '<label for="group_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Cohort Group', 'hl-core') . '</label>';
-        echo '<select name="group_id" id="group_id" style="width: 100%;">';
-        echo '<option value="">' . esc_html__('-- No Group --', 'hl-core') . '</option>';
+        echo '<label for="cohort_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Cohort', 'hl-core') . '</label>';
+        echo '<select name="cohort_id" id="cohort_id" style="width: 100%;">';
+        echo '<option value="">' . esc_html__('-- No Cohort --', 'hl-core') . '</option>';
         foreach ($cohort_groups as $cg) {
-            echo '<option value="' . esc_attr($cg['group_id']) . '"' . selected($filters['group_id'], $cg['group_id'], false) . '>' . esc_html($cg['group_name']) . '</option>';
+            echo '<option value="' . esc_attr($cg['cohort_id']) . '"' . selected($filters['cohort_id'], $cg['cohort_id'], false) . '>' . esc_html($cg['cohort_name']) . '</option>';
         }
         echo '</select>';
         echo '</div>';
 
-        // Cohort dropdown (required)
+        // Track dropdown (required)
         echo '<div style="flex: 1; min-width: 160px;">';
-        echo '<label for="cohort_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Cohort', 'hl-core') . ' <span style="color: #d63638;">*</span></label>';
-        echo '<select name="cohort_id" id="cohort_id" style="width: 100%;">';
-        echo '<option value="">' . esc_html__('-- Select Cohort --', 'hl-core') . '</option>';
-        foreach ($cohorts as $cohort) {
-            echo '<option value="' . esc_attr($cohort->cohort_id) . '"' . selected($filters['cohort_id'], $cohort->cohort_id, false) . '>';
-            echo esc_html($cohort->cohort_name);
-            if ($cohort->cohort_code) {
-                echo ' (' . esc_html($cohort->cohort_code) . ')';
+        echo '<label for="track_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Track', 'hl-core') . ' <span style="color: #d63638;">*</span></label>';
+        echo '<select name="track_id" id="track_id" style="width: 100%;">';
+        echo '<option value="">' . esc_html__('-- Select Track --', 'hl-core') . '</option>';
+        foreach ($track_items as $track) {
+            echo '<option value="' . esc_attr($track->track_id) . '"' . selected($filters['track_id'], $track->track_id, false) . '>';
+            echo esc_html($track->track_name);
+            if ($track->track_code) {
+                echo ' (' . esc_html($track->track_code) . ')';
             }
             echo '</option>';
         }
@@ -421,7 +421,7 @@ class HL_Admin_Reporting {
         echo '</select>';
         echo '</div>';
 
-        // Team dropdown (optional, only when cohort selected)
+        // Team dropdown (optional, only when track selected)
         echo '<div style="flex: 1; min-width: 140px;">';
         echo '<label for="team_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Team', 'hl-core') . '</label>';
         echo '<select name="team_id" id="team_id" style="width: 100%;">';
@@ -453,7 +453,7 @@ class HL_Admin_Reporting {
         echo '</form>';
 
         // Action buttons (separate from filter form)
-        if ($filters['cohort_id']) {
+        if ($filters['track_id']) {
             echo '<div style="display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">';
 
             // Export CSV button
@@ -466,12 +466,12 @@ class HL_Admin_Reporting {
             if (current_user_can('manage_options')) {
                 $recompute_url = wp_nonce_url(
                     $this->page_url(array(
-                        'cohort_id' => $filters['cohort_id'],
+                        'track_id' => $filters['track_id'],
                         'action'    => 'recompute',
                     )),
-                    'hl_recompute_rollups_' . $filters['cohort_id']
+                    'hl_recompute_rollups_' . $filters['track_id']
                 );
-                echo '<a href="' . esc_url($recompute_url) . '" class="button" onclick="return confirm(\'' . esc_js(__('Recompute all rollups for this cohort? This may take a moment.', 'hl-core')) . '\');">';
+                echo '<a href="' . esc_url($recompute_url) . '" class="button" onclick="return confirm(\'' . esc_js(__('Recompute all rollups for this track? This may take a moment.', 'hl-core')) . '\');">';
                 echo esc_html__('Recompute Rollups', 'hl-core');
                 echo '</a>';
             }
@@ -493,8 +493,8 @@ class HL_Admin_Reporting {
      * @param array                $filters
      */
     private function render_summary_cards($reporting, $filters) {
-        $cohort_id = $filters['cohort_id'];
-        $summary   = $reporting->get_cohort_summary($cohort_id);
+        $track_id = $filters['track_id'];
+        $summary   = $reporting->get_track_summary($track_id);
 
         // Get school count from filtered data
         $school_count = $this->get_school_count($filters);
@@ -542,12 +542,12 @@ class HL_Admin_Reporting {
             return 1;
         }
 
-        // Count schools linked to this cohort
+        // Count schools linked to this track
         $sql = "SELECT COUNT(DISTINCT cc.school_id)
-                FROM {$wpdb->prefix}hl_cohort_school cc";
+                FROM {$wpdb->prefix}hl_track_school cc";
 
-        $where  = array('cc.cohort_id = %d');
-        $values = array($filters['cohort_id']);
+        $where  = array('ct.track_id = %d');
+        $values = array($filters['track_id']);
 
         if ($filters['district_id']) {
             $sql .= " JOIN {$wpdb->prefix}hl_orgunit o ON cc.school_id = o.orgunit_id";
@@ -570,8 +570,8 @@ class HL_Admin_Reporting {
         global $wpdb;
 
         $sql    = "SELECT COUNT(*) FROM {$wpdb->prefix}hl_team";
-        $where  = array('cohort_id = %d');
-        $values = array($filters['cohort_id']);
+        $where  = array('track_id = %d');
+        $values = array($filters['track_id']);
 
         if ($filters['school_id']) {
             $where[]  = 'school_id = %d';
@@ -603,7 +603,7 @@ class HL_Admin_Reporting {
      * @param array                $filters
      */
     private function render_summary_tables($reporting, $filters) {
-        $cohort_id = $filters['cohort_id'];
+        $track_id = $filters['track_id'];
 
         if (!$filters['school_id'] && !$filters['team_id']) {
             // Show school summary
@@ -621,8 +621,8 @@ class HL_Admin_Reporting {
      * @param array                $filters
      */
     private function render_school_summary_table($reporting, $filters) {
-        $cohort_id = $filters['cohort_id'];
-        $schools   = $reporting->get_school_summary($cohort_id, $filters['district_id']);
+        $track_id = $filters['track_id'];
+        $schools   = $reporting->get_school_summary($track_id, $filters['district_id']);
 
         echo '<div style="margin-bottom: 20px;">';
         echo '<h2 style="display: inline-block; margin-right: 10px;">' . esc_html__('School Summary', 'hl-core') . '</h2>';
@@ -633,7 +633,7 @@ class HL_Admin_Reporting {
         echo '</div>';
 
         if (empty($schools)) {
-            echo '<p>' . esc_html__('No school data available for this cohort.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No school data available for this track.', 'hl-core') . '</p>';
             return;
         }
 
@@ -652,7 +652,7 @@ class HL_Admin_Reporting {
 
             // Link to filter by this school
             $school_url = $this->page_url(array(
-                'cohort_id' => $filters['cohort_id'],
+                'track_id' => $filters['track_id'],
                 'school_id' => isset($school['school_id']) ? $school['school_id'] : 0,
             ));
 
@@ -673,9 +673,9 @@ class HL_Admin_Reporting {
      * @param array                $filters
      */
     private function render_team_summary_table($reporting, $filters) {
-        $cohort_id = $filters['cohort_id'];
+        $track_id = $filters['track_id'];
         $school_id = $filters['school_id'];
-        $teams     = $reporting->get_team_summary($cohort_id, $school_id);
+        $teams     = $reporting->get_team_summary($track_id, $school_id);
 
         echo '<div style="margin-bottom: 20px;">';
         echo '<h2 style="display: inline-block; margin-right: 10px;">' . esc_html__('Team Summary', 'hl-core') . '</h2>';
@@ -709,7 +709,7 @@ class HL_Admin_Reporting {
 
             // Link to filter by this team
             $team_url = $this->page_url(array(
-                'cohort_id' => $filters['cohort_id'],
+                'track_id' => $filters['track_id'],
                 'school_id' => $filters['school_id'],
                 'team_id'   => isset($team['team_id']) ? $team['team_id'] : 0,
             ));
@@ -765,7 +765,7 @@ class HL_Admin_Reporting {
             $roles_raw    = isset($p['roles'])         ? $p['roles']        : '';
             $school_name  = isset($p['school_name'])   ? $p['school_name'] : '';
             $team_name    = isset($p['team_name'])     ? $p['team_name']   : '';
-            $completion   = isset($p['cohort_completion_percent']) ? floatval($p['cohort_completion_percent']) : 0;
+            $completion   = isset($p['track_completion_percent']) ? floatval($p['track_completion_percent']) : 0;
             $enrollment_id = isset($p['enrollment_id']) ? absint($p['enrollment_id']) : 0;
 
             // Decode roles (stored as JSON array)
@@ -803,10 +803,10 @@ class HL_Admin_Reporting {
 
         // Get enrollment info
         $enrollment = $wpdb->get_row($wpdb->prepare(
-            "SELECT e.*, u.display_name, u.user_email, c.cohort_name, c.cohort_code
+            "SELECT e.*, u.display_name, u.user_email, t.track_name, t.track_code
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             LEFT JOIN {$wpdb->prefix}hl_cohort c ON e.cohort_id = c.cohort_id
+             LEFT JOIN {$wpdb->prefix}hl_track t ON e.track_id = t.track_id
              WHERE e.enrollment_id = %d",
             $enrollment_id
         ), ARRAY_A);
@@ -836,10 +836,10 @@ class HL_Admin_Reporting {
         echo '<tr><th>' . esc_html__('Email', 'hl-core') . '</th>';
         echo '<td>' . esc_html($enrollment['user_email']) . '</td></tr>';
 
-        echo '<tr><th>' . esc_html__('Cohort', 'hl-core') . '</th>';
-        echo '<td>' . esc_html($enrollment['cohort_name']);
-        if (!empty($enrollment['cohort_code'])) {
-            echo ' <code>' . esc_html($enrollment['cohort_code']) . '</code>';
+        echo '<tr><th>' . esc_html__('Track', 'hl-core') . '</th>';
+        echo '<td>' . esc_html($enrollment['track_name']);
+        if (!empty($enrollment['track_code'])) {
+            echo ' <code>' . esc_html($enrollment['track_code']) . '</code>';
         }
         echo '</td></tr>';
 
@@ -910,7 +910,7 @@ class HL_Admin_Reporting {
      * @param array $filters
      */
     private function render_assessment_exports($filters) {
-        if (!$filters['cohort_id']) {
+        if (!$filters['track_id']) {
             return;
         }
 
@@ -948,44 +948,44 @@ class HL_Admin_Reporting {
     /**
      * Render the program vs control group comparison section.
      *
-     * Only appears when a cohort group is selected that contains both
-     * program (is_control_group=0) and control (is_control_group=1) cohorts.
+     * Only appears when a cohort (container) is selected that contains both
+     * program (is_control_group=0) and control (is_control_group=1) tracks.
      *
      * @param HL_Reporting_Service $reporting
      * @param array                $filters
      */
     private function render_group_comparison($reporting, $filters) {
-        $group_id = isset($filters['group_id']) ? absint($filters['group_id']) : 0;
-        if (!$group_id) {
+        $cohort_id = isset($filters['cohort_id']) ? absint($filters['cohort_id']) : 0;
+        if (!$cohort_id) {
             return;
         }
 
-        $comparison = $reporting->get_group_assessment_comparison($group_id);
+        $comparison = $reporting->get_cohort_assessment_comparison($cohort_id);
         if (!$comparison) {
             return;
         }
 
-        // Get group name.
+        // Get cohort (container) name.
         global $wpdb;
-        $group_name = $wpdb->get_var($wpdb->prepare(
-            "SELECT group_name FROM {$wpdb->prefix}hl_cohort_group WHERE group_id = %d",
-            $group_id
+        $cohort_name = $wpdb->get_var($wpdb->prepare(
+            "SELECT cohort_name FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d",
+            $cohort_id
         ));
 
         echo '<div style="margin-top: 30px; border-top: 2px solid #9b59b6; padding-top: 20px;">';
         echo '<h2 style="color: #9b59b6;">' . esc_html(sprintf(
             __('Program vs Control Comparison — %s', 'hl-core'),
-            $group_name ?: __('Group', 'hl-core')
+            $cohort_name ?: __('Cohort', 'hl-core')
         )) . '</h2>';
 
         // Info cards.
         echo '<div class="hl-metrics-row" style="margin-bottom: 20px;">';
 
-        // Program cohorts.
+        // Program tracks.
         echo '<div class="hl-metric-card">';
-        echo '<div class="metric-value">' . esc_html(count($comparison['program']['cohort_names'])) . '</div>';
-        echo '<div class="metric-label">' . esc_html__('Program Cohorts', 'hl-core') . '</div>';
-        echo '<div style="font-size:11px;color:#666;margin-top:4px;">' . esc_html(implode(', ', $comparison['program']['cohort_names'])) . '</div>';
+        echo '<div class="metric-value">' . esc_html(count($comparison['program']['track_names'])) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Program Tracks', 'hl-core') . '</div>';
+        echo '<div style="font-size:11px;color:#666;margin-top:4px;">' . esc_html(implode(', ', $comparison['program']['track_names'])) . '</div>';
         echo '</div>';
 
         echo '<div class="hl-metric-card">';
@@ -993,11 +993,11 @@ class HL_Admin_Reporting {
         echo '<div class="metric-label">' . esc_html__('Program Participants', 'hl-core') . '</div>';
         echo '</div>';
 
-        // Control cohorts.
+        // Control tracks.
         echo '<div class="hl-metric-card" style="border-left: 3px solid #9b59b6;">';
-        echo '<div class="metric-value">' . esc_html(count($comparison['control']['cohort_names'])) . '</div>';
-        echo '<div class="metric-label">' . esc_html__('Control Cohorts', 'hl-core') . '</div>';
-        echo '<div style="font-size:11px;color:#666;margin-top:4px;">' . esc_html(implode(', ', $comparison['control']['cohort_names'])) . '</div>';
+        echo '<div class="metric-value">' . esc_html(count($comparison['control']['track_names'])) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Control Tracks', 'hl-core') . '</div>';
+        echo '<div style="font-size:11px;color:#666;margin-top:4px;">' . esc_html(implode(', ', $comparison['control']['track_names'])) . '</div>';
         echo '</div>';
 
         echo '<div class="hl-metric-card" style="border-left: 3px solid #9b59b6;">';
@@ -1058,7 +1058,7 @@ class HL_Admin_Reporting {
         }
 
         // Export button.
-        $export_url = $this->page_url(array('export' => 'comparison_csv', 'group_id' => $group_id));
+        $export_url = $this->page_url(array('export' => 'comparison_csv', 'cohort_id' => $cohort_id));
         echo '<a href="' . esc_url($export_url) . '" class="button">';
         echo esc_html__('Export Comparison CSV', 'hl-core');
         echo '</a>';

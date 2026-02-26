@@ -32,9 +32,9 @@ class HL_Admin_Imports {
     public function render_page() {
         global $wpdb;
 
-        // Get non-archived cohorts for dropdown
-        $cohorts = $wpdb->get_results(
-            "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort WHERE status != 'archived' ORDER BY cohort_name ASC"
+        // Get non-archived tracks for dropdown
+        $tracks = $wpdb->get_results(
+            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track WHERE status != 'archived' ORDER BY track_name ASC"
         );
 
         $import_service = new HL_Import_Service();
@@ -78,12 +78,12 @@ class HL_Admin_Imports {
                 <h2><?php esc_html_e('Upload CSV', 'hl-core'); ?></h2>
                 <table class="form-table">
                     <tr>
-                        <th scope="row"><label for="hl-import-cohort"><?php esc_html_e('Cohort', 'hl-core'); ?></label></th>
+                        <th scope="row"><label for="hl-import-track"><?php esc_html_e('Track', 'hl-core'); ?></label></th>
                         <td>
-                            <select id="hl-import-cohort" required>
-                                <option value=""><?php esc_html_e('-- Select Cohort --', 'hl-core'); ?></option>
-                                <?php if ($cohorts) : foreach ($cohorts as $coh) : ?>
-                                    <option value="<?php echo esc_attr($coh->cohort_id); ?>"><?php echo esc_html($coh->cohort_name); ?></option>
+                            <select id="hl-import-track" required>
+                                <option value=""><?php esc_html_e('-- Select Track --', 'hl-core'); ?></option>
+                                <?php if ($tracks) : foreach ($tracks as $coh) : ?>
+                                    <option value="<?php echo esc_attr($coh->track_id); ?>"><?php echo esc_html($coh->track_name); ?></option>
                                 <?php endforeach; endif; ?>
                             </select>
                         </td>
@@ -114,7 +114,7 @@ class HL_Admin_Imports {
                 </p>
                 <div id="hl-import-column-hints">
                     <p class="description" data-type="participants">
-                        <?php esc_html_e('Required columns: email, cohort_roles, school_name (or school_code). Optional: first_name, last_name, district_name, district_code.', 'hl-core'); ?>
+                        <?php esc_html_e('Required columns: email, track_roles, school_name (or school_code). Optional: first_name, last_name, district_name, district_code.', 'hl-core'); ?>
                     </p>
                     <p class="description" data-type="children" style="display:none;">
                         <?php esc_html_e('Required columns: first_name (and/or last_name), school_name (or school_code). Optional: date_of_birth, child_identifier, classroom_name.', 'hl-core'); ?>
@@ -193,7 +193,7 @@ class HL_Admin_Imports {
         echo '<thead><tr>';
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Date', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Cohort', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Track', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('File', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Type', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
@@ -226,7 +226,7 @@ class HL_Admin_Imports {
             echo '<tr>';
             echo '<td>' . esc_html($run['run_id']) . '</td>';
             echo '<td>' . esc_html($run['created_at']) . '</td>';
-            echo '<td>' . esc_html($run['cohort_name'] ? $run['cohort_name'] : '-') . '</td>';
+            echo '<td>' . esc_html($run['track_name'] ? $run['track_name'] : '-') . '</td>';
             echo '<td>' . esc_html($run['file_name']) . '</td>';
             echo '<td>' . esc_html($run['import_type']) . '</td>';
             echo '<td><span class="hl-status-badge ' . esc_attr($status_class) . '">' . esc_html($run['status']) . '</span></td>';
@@ -252,9 +252,9 @@ class HL_Admin_Imports {
             wp_send_json_error(array('message' => __('Permission denied.', 'hl-core')));
         }
 
-        $cohort_id = isset($_POST['cohort_id']) ? absint($_POST['cohort_id']) : 0;
-        if (!$cohort_id) {
-            wp_send_json_error(array('message' => __('Please select a cohort.', 'hl-core')));
+        $track_id = isset($_POST['track_id']) ? absint($_POST['track_id']) : 0;
+        if (!$track_id) {
+            wp_send_json_error(array('message' => __('Please select a track.', 'hl-core')));
         }
 
         $import_type = isset($_POST['import_type']) ? sanitize_text_field($_POST['import_type']) : 'participants';
@@ -263,17 +263,17 @@ class HL_Admin_Imports {
             wp_send_json_error(array('message' => __('Invalid import type.', 'hl-core')));
         }
 
-        // Verify cohort is not archived
+        // Verify track is not archived
         global $wpdb;
-        $cohort_status = $wpdb->get_var($wpdb->prepare(
-            "SELECT status FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d",
-            $cohort_id
+        $track_status = $wpdb->get_var($wpdb->prepare(
+            "SELECT status FROM {$wpdb->prefix}hl_track WHERE track_id = %d",
+            $track_id
         ));
-        if ($cohort_status === 'archived') {
-            wp_send_json_error(array('message' => __('Cannot import into an archived cohort.', 'hl-core')));
+        if ($track_status === 'archived') {
+            wp_send_json_error(array('message' => __('Cannot import into an archived track.', 'hl-core')));
         }
-        if (!$cohort_status) {
-            wp_send_json_error(array('message' => __('Cohort not found.', 'hl-core')));
+        if (!$track_status) {
+            wp_send_json_error(array('message' => __('Track not found.', 'hl-core')));
         }
 
         // Validate file upload
@@ -311,22 +311,22 @@ class HL_Admin_Imports {
         // Validate rows based on import type
         switch ($import_type) {
             case 'children':
-                $preview_rows = $import_service->validate_children_rows($parsed['rows'], $cohort_id);
+                $preview_rows = $import_service->validate_children_rows($parsed['rows'], $track_id);
                 break;
             case 'classrooms':
-                $preview_rows = $import_service->validate_classroom_rows($parsed['rows'], $cohort_id);
+                $preview_rows = $import_service->validate_classroom_rows($parsed['rows'], $track_id);
                 break;
             case 'teaching_assignments':
-                $preview_rows = $import_service->validate_teaching_assignment_rows($parsed['rows'], $cohort_id);
+                $preview_rows = $import_service->validate_teaching_assignment_rows($parsed['rows'], $track_id);
                 break;
             case 'participants':
             default:
-                $preview_rows = $import_service->validate_participant_rows($parsed['rows'], $cohort_id);
+                $preview_rows = $import_service->validate_participant_rows($parsed['rows'], $track_id);
                 break;
         }
 
         // Create import run
-        $run_id = $import_service->create_run($cohort_id, $import_type, $file['name']);
+        $run_id = $import_service->create_run($track_id, $import_type, $file['name']);
         if (!$run_id) {
             wp_send_json_error(array('message' => __('Failed to create import run record.', 'hl-core')));
         }

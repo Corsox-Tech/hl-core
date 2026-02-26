@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) exit;
  * Renderer for the [hl_districts_listing] shortcode.
  *
  * CRM-style directory — card grid of all school districts.
- * Each card shows: district name, # schools, # active cohorts.
+ * Each card shows: district name, # schools, # active tracks.
  *
  * Access: Housman Admin, Coach (manage_hl_core).
  *
@@ -41,7 +41,7 @@ class HL_Frontend_Districts_Listing {
 
         // Pre-compute counts.
         $school_counts = $this->get_school_counts();
-        $cohort_counts = $this->get_active_cohort_counts();
+        $track_counts = $this->get_active_track_counts();
 
         $district_page_url = $this->find_shortcode_page_url( 'hl_district_page' );
 
@@ -59,7 +59,7 @@ class HL_Frontend_Districts_Listing {
                     <?php foreach ( $districts as $district ) :
                         $did          = $district->orgunit_id;
                         $num_schools  = isset( $school_counts[ $did ] ) ? $school_counts[ $did ] : 0;
-                        $num_cohorts  = isset( $cohort_counts[ $did ] ) ? $cohort_counts[ $did ] : 0;
+                        $num_tracks  = isset( $track_counts[ $did ] ) ? $track_counts[ $did ] : 0;
                         $detail_url   = $district_page_url
                             ? add_query_arg( 'id', $did, $district_page_url )
                             : '';
@@ -79,8 +79,8 @@ class HL_Frontend_Districts_Listing {
                                         <?php echo esc_html( _n( 'School', 'Schools', $num_schools, 'hl-core' ) ); ?>
                                     </span>
                                     <span class="hl-crm-card-stat">
-                                        <strong><?php echo esc_html( $num_cohorts ); ?></strong>
-                                        <?php echo esc_html( _n( 'Active Cohort', 'Active Cohorts', $num_cohorts, 'hl-core' ) ); ?>
+                                        <strong><?php echo esc_html( $num_tracks ); ?></strong>
+                                        <?php echo esc_html( _n( 'Active Track', 'Active Tracks', $num_tracks, 'hl-core' ) ); ?>
                                     </span>
                                 </div>
                             </div>
@@ -129,25 +129,25 @@ class HL_Frontend_Districts_Listing {
     }
 
     /**
-     * Count active cohorts per district.
+     * Count active tracks per district.
      *
-     * A cohort is linked to a district when it has schools (via hl_cohort_school)
+     * A track is linked to a district when it has schools (via hl_track_school)
      * whose parent_orgunit_id is the district.
      *
      * @return array [ district_orgunit_id => count ]
      */
-    private function get_active_cohort_counts() {
+    private function get_active_track_counts() {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
         $results = $wpdb->get_results(
             "SELECT ou.parent_orgunit_id AS district_id,
-                    COUNT(DISTINCT cs.cohort_id) AS cnt
-             FROM {$prefix}hl_cohort_school cs
+                    COUNT(DISTINCT cs.track_id) AS cnt
+             FROM {$prefix}hl_track_school cs
              INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
-             INNER JOIN {$prefix}hl_cohort c ON cs.cohort_id = c.cohort_id
+             INNER JOIN {$prefix}hl_track t ON cs.track_id = t.track_id
              WHERE ou.parent_orgunit_id IS NOT NULL
-               AND c.status = 'active'
+               AND t.status = 'active'
              GROUP BY ou.parent_orgunit_id",
             ARRAY_A
         );

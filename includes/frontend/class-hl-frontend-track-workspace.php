@@ -2,22 +2,22 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Renderer for the [hl_cohort_workspace] shortcode.
+ * Renderer for the [hl_track_workspace] shortcode.
  *
- * The operational "command center" for one cohort. Staff/admin sees everything;
+ * The operational "command center" for one track. Staff/admin sees everything;
  * when accessed from a District/School page, auto-filters to that org unit.
  *
  * Tabs: Dashboard, Teams, Staff, Reports, Classrooms.
  *
  * Access: Housman Admin, Coach, plus leaders scoped to their org unit.
- * URL: ?id={cohort_id}&orgunit={orgunit_id}
+ * URL: ?id={track_id}&orgunit={orgunit_id}
  *
  * @package HL_Core
  */
-class HL_Frontend_Cohort_Workspace {
+class HL_Frontend_Track_Workspace {
 
-    /** @var HL_Cohort_Repository */
-    private $cohort_repo;
+    /** @var HL_Track_Repository */
+    private $track_repo;
 
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
@@ -35,7 +35,7 @@ class HL_Frontend_Cohort_Workspace {
     private $orgunit_repo;
 
     public function __construct() {
-        $this->cohort_repo       = new HL_Cohort_Repository();
+        $this->track_repo       = new HL_Track_Repository();
         $this->enrollment_repo   = new HL_Enrollment_Repository();
         $this->team_repo         = new HL_Team_Repository();
         $this->classroom_service = new HL_Classroom_Service();
@@ -58,23 +58,23 @@ class HL_Frontend_Cohort_Workspace {
             wp_die( __( 'Invalid security token.', 'hl-core' ) );
         }
 
-        $cohort_id = absint( $_GET['cohort_id'] ?? 0 );
-        if ( ! $cohort_id ) {
-            wp_die( __( 'Missing cohort ID.', 'hl-core' ) );
+        $track_id = absint( $_GET['track_id'] ?? 0 );
+        if ( ! $track_id ) {
+            wp_die( __( 'Missing track ID.', 'hl-core' ) );
         }
 
         // Verify access.
         if ( ! HL_Security::can_manage() ) {
-            // Check if user has leader enrollment for this cohort.
+            // Check if user has leader enrollment for this track.
             $user_id         = get_current_user_id();
             $enrollment_repo = new HL_Enrollment_Repository();
-            $enrollment      = $enrollment_repo->get_by_cohort_and_user( $cohort_id, $user_id );
+            $enrollment      = $enrollment_repo->get_by_track_and_user( $track_id, $user_id );
             if ( ! $enrollment ) {
                 wp_die( __( 'Access denied.', 'hl-core' ) );
             }
         }
 
-        $filters = array( 'cohort_id' => $cohort_id );
+        $filters = array( 'track_id' => $track_id );
 
         // Optional org unit scope.
         $orgunit_id = absint( $_GET['orgunit'] ?? 0 );
@@ -93,10 +93,10 @@ class HL_Frontend_Cohort_Workspace {
         $reporting = HL_Reporting_Service::instance();
         $csv       = $reporting->export_completion_csv( $filters, true );
 
-        $cohort_repo = new HL_Cohort_Repository();
-        $cohort      = $cohort_repo->get_by_id( $cohort_id );
-        $filename    = $cohort
-            ? sanitize_file_name( $cohort->cohort_name ) . '-workspace-report'
+        $track_repo = new HL_Track_Repository();
+        $track      = $track_repo->get_by_id( $track_id );
+        $filename    = $track
+            ? sanitize_file_name( $track->track_name ) . '-workspace-report'
             : 'workspace-report';
 
         header( 'Content-Type: text/csv; charset=utf-8' );
@@ -115,30 +115,30 @@ class HL_Frontend_Cohort_Workspace {
         ob_start();
 
         $user_id   = get_current_user_id();
-        $cohort_id = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
+        $track_id = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
 
-        if ( ! $cohort_id ) {
-            echo '<div class="hl-dashboard hl-cohort-workspace hl-frontend-wrap">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'Invalid cohort link.', 'hl-core' ) . '</div>';
+        if ( ! $track_id ) {
+            echo '<div class="hl-dashboard hl-track-workspace hl-frontend-wrap">';
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'Invalid track link.', 'hl-core' ) . '</div>';
             echo '</div>';
             return ob_get_clean();
         }
 
-        $cohort = $this->cohort_repo->get_by_id( $cohort_id );
-        if ( ! $cohort ) {
-            echo '<div class="hl-dashboard hl-cohort-workspace hl-frontend-wrap">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'Cohort not found.', 'hl-core' ) . '</div>';
+        $track = $this->track_repo->get_by_id( $track_id );
+        if ( ! $track ) {
+            echo '<div class="hl-dashboard hl-track-workspace hl-frontend-wrap">';
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'Track not found.', 'hl-core' ) . '</div>';
             echo '</div>';
             return ob_get_clean();
         }
 
         // Access check.
         $is_staff   = HL_Security::can_manage();
-        $enrollment = $this->enrollment_repo->get_by_cohort_and_user( $cohort_id, $user_id );
+        $enrollment = $this->enrollment_repo->get_by_track_and_user( $track_id, $user_id );
 
         if ( ! $is_staff && ! $enrollment ) {
-            echo '<div class="hl-dashboard hl-cohort-workspace hl-frontend-wrap">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'You do not have access to this cohort.', 'hl-core' ) . '</div>';
+            echo '<div class="hl-dashboard hl-track-workspace hl-frontend-wrap">';
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'You do not have access to this track.', 'hl-core' ) . '</div>';
             echo '</div>';
             return ob_get_clean();
         }
@@ -153,7 +153,7 @@ class HL_Frontend_Cohort_Workspace {
         // Build orgunit filter options for staff.
         $orgunit_options = array();
         if ( $is_staff ) {
-            $orgunit_options = $this->get_cohort_orgunit_options( $cohort_id );
+            $orgunit_options = $this->get_track_orgunit_options( $track_id );
         }
 
         // Active tab.
@@ -171,8 +171,8 @@ class HL_Frontend_Cohort_Workspace {
             'classrooms' => __( 'Classrooms', 'hl-core' ),
         );
 
-        // Control group cohorts don't have teams.
-        if ( $cohort->is_control_group ) {
+        // Control group tracks don't have teams.
+        if ( $track->is_control_group ) {
             unset( $tabs['teams'] );
         }
 
@@ -180,7 +180,7 @@ class HL_Frontend_Cohort_Workspace {
         $back_url = $this->build_back_url( $scope_orgunit );
 
         ?>
-        <div class="hl-dashboard hl-cohort-workspace hl-frontend-wrap">
+        <div class="hl-dashboard hl-track-workspace hl-frontend-wrap">
 
             <?php if ( ! empty( $back_url ) ) : ?>
                 <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr;
@@ -194,11 +194,11 @@ class HL_Frontend_Cohort_Workspace {
                 </a>
             <?php endif; ?>
 
-            <?php $this->render_header( $cohort, $scope, $scope_orgunit, $orgunit_options, $orgunit_id ); ?>
+            <?php $this->render_header( $track, $scope, $scope_orgunit, $orgunit_options, $orgunit_id ); ?>
 
-            <div class="hl-cohort-tabs">
+            <div class="hl-track-tabs">
                 <?php foreach ( $tabs as $key => $label ) : ?>
-                    <button class="hl-tab hl-cohort-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
+                    <button class="hl-tab hl-track-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
                             data-target="hl-tab-<?php echo esc_attr( $key ); ?>">
                         <?php echo esc_html( $label ); ?>
                     </button>
@@ -207,23 +207,23 @@ class HL_Frontend_Cohort_Workspace {
 
             <?php foreach ( $tabs as $key => $label ) : ?>
                 <div id="hl-tab-<?php echo esc_attr( $key ); ?>"
-                     class="hl-cohort-content <?php echo $active_tab === $key ? 'active' : ''; ?>">
+                     class="hl-track-content <?php echo $active_tab === $key ? 'active' : ''; ?>">
                     <?php
                     switch ( $key ) {
                         case 'dashboard':
-                            $this->render_dashboard_tab( $cohort, $scope );
+                            $this->render_dashboard_tab( $track, $scope );
                             break;
                         case 'teams':
-                            $this->render_teams_tab( $cohort, $scope );
+                            $this->render_teams_tab( $track, $scope );
                             break;
                         case 'staff':
-                            $this->render_staff_tab( $cohort, $scope );
+                            $this->render_staff_tab( $track, $scope );
                             break;
                         case 'reports':
-                            $this->render_reports_tab( $cohort, $scope, $orgunit_id );
+                            $this->render_reports_tab( $track, $scope, $orgunit_id );
                             break;
                         case 'classrooms':
-                            $this->render_classrooms_tab( $cohort, $scope );
+                            $this->render_classrooms_tab( $track, $scope );
                             break;
                     }
                     ?>
@@ -257,7 +257,7 @@ class HL_Frontend_Cohort_Workspace {
             }
         }
 
-        // Staff with no filter — full cohort.
+        // Staff with no filter — full track.
         if ( $is_staff ) {
             return array( 'type' => 'all', 'orgunit_id' => 0 );
         }
@@ -277,8 +277,8 @@ class HL_Frontend_Cohort_Workspace {
         return array( 'type' => 'all', 'orgunit_id' => 0 );
     }
 
-    private function get_scope_filters( $cohort_id, $scope ) {
-        $filters = array( 'cohort_id' => $cohort_id );
+    private function get_scope_filters( $track_id, $scope ) {
+        $filters = array( 'track_id' => $track_id );
         if ( $scope['type'] === 'school' && $scope['orgunit_id'] ) {
             $filters['school_id'] = $scope['orgunit_id'];
         } elseif ( $scope['type'] === 'district' && $scope['orgunit_id'] ) {
@@ -305,8 +305,8 @@ class HL_Frontend_Cohort_Workspace {
     // Header
     // ========================================================================
 
-    private function render_header( $cohort, $scope, $scope_orgunit, $orgunit_options, $current_orgunit_id ) {
-        $status       = $cohort->status ?: 'active';
+    private function render_header( $track, $scope, $scope_orgunit, $orgunit_options, $current_orgunit_id ) {
+        $status       = $track->status ?: 'active';
         $status_class = 'hl-badge-' . sanitize_html_class( $status );
 
         $scope_label = '';
@@ -316,26 +316,26 @@ class HL_Frontend_Cohort_Workspace {
                 $scope_orgunit->name
             );
         } elseif ( $scope['type'] === 'all' ) {
-            $scope_label = __( 'Showing all cohort data', 'hl-core' );
+            $scope_label = __( 'Showing all track data', 'hl-core' );
         }
 
         ?>
-        <div class="hl-my-cohort-header">
-            <div class="hl-my-cohort-header-info">
-                <h2 class="hl-cohort-title"><?php echo esc_html( $cohort->cohort_name ); ?></h2>
+        <div class="hl-my-track-header">
+            <div class="hl-my-track-header-info">
+                <h2 class="hl-track-title"><?php echo esc_html( $track->track_name ); ?></h2>
                 <?php if ( $scope_label ) : ?>
                     <p class="hl-scope-indicator"><?php echo esc_html( $scope_label ); ?></p>
                 <?php endif; ?>
-                <div class="hl-cohort-meta">
+                <div class="hl-track-meta">
                     <span class="hl-badge <?php echo esc_attr( $status_class ); ?>">
                         <?php echo esc_html( ucfirst( $status ) ); ?>
                     </span>
-                    <?php if ( $cohort->start_date || $cohort->end_date ) : ?>
+                    <?php if ( $track->start_date || $track->end_date ) : ?>
                         <span class="hl-meta-item">
                             <?php
                             $dates = array();
-                            if ( $cohort->start_date ) $dates[] = date_i18n( 'M j, Y', strtotime( $cohort->start_date ) );
-                            if ( $cohort->end_date )   $dates[] = date_i18n( 'M j, Y', strtotime( $cohort->end_date ) );
+                            if ( $track->start_date ) $dates[] = date_i18n( 'M j, Y', strtotime( $track->start_date ) );
+                            if ( $track->end_date )   $dates[] = date_i18n( 'M j, Y', strtotime( $track->end_date ) );
                             echo esc_html( implode( ' — ', $dates ) );
                             ?>
                         </span>
@@ -344,7 +344,7 @@ class HL_Frontend_Cohort_Workspace {
             </div>
 
             <?php if ( ! empty( $orgunit_options ) ) : ?>
-                <div class="hl-cohort-selector">
+                <div class="hl-track-selector">
                     <label for="hl-orgunit-filter"><?php esc_html_e( 'Filter:', 'hl-core' ); ?></label>
                     <select id="hl-orgunit-filter" class="hl-select"
                             onchange="var u=new URL(window.location);if(this.value){u.searchParams.set('orgunit',this.value)}else{u.searchParams.delete('orgunit')};window.location=u;">
@@ -366,8 +366,8 @@ class HL_Frontend_Cohort_Workspace {
     // Tab: Dashboard
     // ========================================================================
 
-    private function render_dashboard_tab( $cohort, $scope ) {
-        $filters      = $this->get_scope_filters( $cohort->cohort_id, $scope );
+    private function render_dashboard_tab( $track, $scope ) {
+        $filters      = $this->get_scope_filters( $track->track_id, $scope );
         $participants = $this->reporting_service->get_participant_report( $filters );
 
         // Compute stats.
@@ -378,7 +378,7 @@ class HL_Frontend_Cohort_Workspace {
         $not_started = 0;
 
         foreach ( $participants as $p ) {
-            $pct = floatval( $p['cohort_completion_percent'] );
+            $pct = floatval( $p['track_completion_percent'] );
             $sum_pct += $pct;
 
             if ( $pct >= 100 ) {
@@ -458,8 +458,8 @@ class HL_Frontend_Cohort_Workspace {
     // Tab: Teams
     // ========================================================================
 
-    private function render_teams_tab( $cohort, $scope ) {
-        $all_teams  = $this->team_repo->get_all( array( 'cohort_id' => $cohort->cohort_id ) );
+    private function render_teams_tab( $track, $scope ) {
+        $all_teams  = $this->team_repo->get_all( array( 'track_id' => $track->track_id ) );
         $school_ids = $this->get_scoped_school_ids( $scope );
 
         if ( ! empty( $school_ids ) ) {
@@ -564,8 +564,8 @@ class HL_Frontend_Cohort_Workspace {
     // Tab: Staff
     // ========================================================================
 
-    private function render_staff_tab( $cohort, $scope ) {
-        $filters      = $this->get_scope_filters( $cohort->cohort_id, $scope );
+    private function render_staff_tab( $track, $scope ) {
+        $filters      = $this->get_scope_filters( $track->track_id, $scope );
         $participants = $this->reporting_service->get_participant_report( $filters );
 
         if ( empty( $participants ) ) {
@@ -603,7 +603,7 @@ class HL_Frontend_Cohort_Workspace {
                                 return ucwords( str_replace( '_', ' ', $r ) );
                             }, $roles_raw ) )
                             : '';
-                        $completion = round( floatval( $p['cohort_completion_percent'] ) );
+                        $completion = round( floatval( $p['track_completion_percent'] ) );
                         $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
                     ?>
                         <tr data-name="<?php echo esc_attr( strtolower( $p['display_name'] ) ); ?>">
@@ -634,8 +634,8 @@ class HL_Frontend_Cohort_Workspace {
     // Tab: Reports
     // ========================================================================
 
-    private function render_reports_tab( $cohort, $scope, $orgunit_id ) {
-        $filters      = $this->get_scope_filters( $cohort->cohort_id, $scope );
+    private function render_reports_tab( $track, $scope, $orgunit_id ) {
+        $filters      = $this->get_scope_filters( $track->track_id, $scope );
         $participants = $this->reporting_service->get_participant_report( $filters );
 
         // Activity detail for expandable rows.
@@ -644,11 +644,11 @@ class HL_Frontend_Cohort_Workspace {
         $activities      = array();
 
         if ( ! empty( $enrollment_ids ) ) {
-            $activity_detail = $this->reporting_service->get_cohort_activity_detail(
-                $cohort->cohort_id,
+            $activity_detail = $this->reporting_service->get_track_activity_detail(
+                $track->track_id,
                 $enrollment_ids
             );
-            $activities = $this->reporting_service->get_cohort_activities( $cohort->cohort_id );
+            $activities = $this->reporting_service->get_track_activities( $track->track_id );
         }
 
         // Filter options.
@@ -669,7 +669,7 @@ class HL_Frontend_Cohort_Workspace {
         // CSV export URL.
         $export_args = array(
             'hl_export_action' => 'workspace_csv',
-            'cohort_id'        => $cohort->cohort_id,
+            'track_id'         => $track->track_id,
             '_wpnonce'         => wp_create_nonce( 'hl_workspace_export' ),
         );
         if ( $orgunit_id ) {
@@ -736,7 +736,7 @@ class HL_Frontend_Cohort_Workspace {
                                     return ucwords( str_replace( '_', ' ', $r ) );
                                 }, $roles_raw ) )
                                 : '';
-                            $completion = round( floatval( $p['cohort_completion_percent'] ) );
+                            $completion = round( floatval( $p['track_completion_percent'] ) );
                             $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
                         ?>
                             <tr class="hl-report-row"
@@ -816,10 +816,10 @@ class HL_Frontend_Cohort_Workspace {
     // Tab: Classrooms
     // ========================================================================
 
-    private function render_classrooms_tab( $cohort, $scope ) {
+    private function render_classrooms_tab( $track, $scope ) {
         $school_ids = $this->get_scoped_school_ids( $scope );
 
-        $classrooms = $this->get_cohort_classrooms( $cohort->cohort_id );
+        $classrooms = $this->get_track_classrooms( $track->track_id );
 
         if ( ! empty( $school_ids ) ) {
             $classrooms = array_filter( $classrooms, function ( $c ) use ( $school_ids ) {
@@ -842,7 +842,7 @@ class HL_Frontend_Cohort_Workspace {
         }, $classrooms );
 
         $child_counts  = $this->get_classroom_child_counts( $classroom_ids );
-        $teacher_names = $this->get_classroom_teacher_names( $classroom_ids, $cohort->cohort_id );
+        $teacher_names = $this->get_classroom_teacher_names( $classroom_ids, $track->track_id );
 
         $school_cache       = array();
         $classroom_page_url = $this->find_shortcode_page_url( 'hl_classroom_page' );
@@ -904,22 +904,22 @@ class HL_Frontend_Cohort_Workspace {
     // ========================================================================
 
     /**
-     * Get org unit filter options for staff: all districts and schools linked to this cohort.
+     * Get org unit filter options for staff: all districts and schools linked to this track.
      */
-    private function get_cohort_orgunit_options( $cohort_id ) {
+    private function get_track_orgunit_options( $track_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        // Get districts and schools linked via cohort_school.
+        // Get districts and schools linked via track_school.
         $results = $wpdb->get_results( $wpdb->prepare(
             "SELECT DISTINCT ou.orgunit_id, ou.name, ou.orgunit_type,
                     COALESCE(parent.name, '') AS parent_name
-             FROM {$prefix}hl_cohort_school cs
+             FROM {$prefix}hl_track_school cs
              INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
              LEFT JOIN {$prefix}hl_orgunit parent ON ou.parent_orgunit_id = parent.orgunit_id
-             WHERE cs.cohort_id = %d
+             WHERE cs.track_id = %d
              ORDER BY parent.name ASC, ou.name ASC",
-            $cohort_id
+            $track_id
         ), ARRAY_A );
 
         $options   = array();
@@ -950,7 +950,7 @@ class HL_Frontend_Cohort_Workspace {
         return $options;
     }
 
-    private function get_cohort_classrooms( $cohort_id ) {
+    private function get_track_classrooms( $track_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -959,9 +959,9 @@ class HL_Frontend_Cohort_Workspace {
              FROM {$prefix}hl_classroom cr
              INNER JOIN {$prefix}hl_teaching_assignment ta ON cr.classroom_id = ta.classroom_id
              INNER JOIN {$prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
-             WHERE e.cohort_id = %d
+             WHERE e.track_id = %d
              ORDER BY cr.classroom_name ASC",
-            $cohort_id
+            $track_id
         ) ) ?: array();
     }
 
@@ -991,7 +991,7 @@ class HL_Frontend_Cohort_Workspace {
         return $map;
     }
 
-    private function get_classroom_teacher_names( $classroom_ids, $cohort_id ) {
+    private function get_classroom_teacher_names( $classroom_ids, $track_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -1010,9 +1010,9 @@ class HL_Frontend_Cohort_Workspace {
              JOIN {$prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
              JOIN {$wpdb->users} u ON e.user_id = u.ID
              WHERE ta.classroom_id IN ({$placeholders})
-               AND e.cohort_id = %d
+               AND e.track_id = %d
              GROUP BY ta.classroom_id",
-            array_merge( $classroom_ids, array( $cohort_id ) )
+            array_merge( $classroom_ids, array( $track_id ) )
         ), ARRAY_A );
 
         $map = array();

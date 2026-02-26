@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * Renderer for the [hl_observations] shortcode.
  *
- * Shows a logged-in mentor their observations across all cohorts.
+ * Shows a logged-in mentor their observations across all tracks.
  * Supports three views:
  *   1. List view (default) -- table of all observations with status badges
  *   2. New observation flow (?action=new) -- select teacher, create record
@@ -81,7 +81,7 @@ class HL_Frontend_Observations {
 
     /**
      * Render the observation list view showing all observations for the
-     * current mentor across all their cohorts.
+     * current mentor across all their tracks.
      *
      * @param int $user_id Current user ID.
      */
@@ -94,7 +94,7 @@ class HL_Frontend_Observations {
             <div class="hl-dashboard hl-observations">
                 <div class="hl-empty-state">
                     <h3><?php esc_html_e( 'No Mentor Assignments', 'hl-core' ); ?></h3>
-                    <p><?php esc_html_e( 'You do not have any active Mentor enrollments. Observations can only be created by mentors. If you believe this is an error, please contact your cohort administrator.', 'hl-core' ); ?></p>
+                    <p><?php esc_html_e( 'You do not have any active Mentor enrollments. Observations can only be created by mentors. If you believe this is an error, please contact your track administrator.', 'hl-core' ); ?></p>
                 </div>
             </div>
             <?php
@@ -124,7 +124,7 @@ class HL_Frontend_Observations {
                             <th><?php esc_html_e( 'Date', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Teacher', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Classroom', 'hl-core' ); ?></th>
-                            <th><?php esc_html_e( 'Cohort', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Track', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Action', 'hl-core' ); ?></th>
                         </tr>
@@ -135,7 +135,7 @@ class HL_Frontend_Observations {
                                 <td><?php echo esc_html( $this->format_date( $obs['created_at'] ) ); ?></td>
                                 <td><?php echo esc_html( ! empty( $obs['teacher_name'] ) ? $obs['teacher_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
                                 <td><?php echo esc_html( ! empty( $obs['classroom_name'] ) ? $obs['classroom_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
-                                <td><?php echo esc_html( ! empty( $obs['cohort_name'] ) ? $obs['cohort_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
+                                <td><?php echo esc_html( ! empty( $obs['track_name'] ) ? $obs['track_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
                                 <td><?php $this->render_status_badge( $obs['status'] ); ?></td>
                                 <td>
                                     <?php
@@ -255,19 +255,19 @@ class HL_Frontend_Observations {
                     <?php if ( count( $mentor_enrollments ) > 1 ) : ?>
                         <tr>
                             <th scope="row">
-                                <label for="mentor_enrollment_id"><?php esc_html_e( 'Cohort', 'hl-core' ); ?></label>
+                                <label for="mentor_enrollment_id"><?php esc_html_e( 'Track', 'hl-core' ); ?></label>
                             </th>
                             <td>
                                 <select name="mentor_enrollment_id" id="mentor_enrollment_id" required class="hl-select">
-                                    <option value=""><?php esc_html_e( '-- Select Cohort --', 'hl-core' ); ?></option>
+                                    <option value=""><?php esc_html_e( '-- Select Track --', 'hl-core' ); ?></option>
                                     <?php foreach ( $mentor_enrollments as $me ) : ?>
                                         <option value="<?php echo esc_attr( $me['enrollment_id'] ); ?>"
                                             <?php selected( $selected_enrollment_id, absint( $me['enrollment_id'] ) ); ?>>
-                                            <?php echo esc_html( $me['cohort_name'] ); ?>
+                                            <?php echo esc_html( $me['track_name'] ); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
-                                <p class="description"><?php esc_html_e( 'Select the cohort this observation is for.', 'hl-core' ); ?></p>
+                                <p class="description"><?php esc_html_e( 'Select the track this observation is for.', 'hl-core' ); ?></p>
                             </td>
                         </tr>
                     <?php else : ?>
@@ -409,7 +409,7 @@ class HL_Frontend_Observations {
     /**
      * Handle the POST request to create a new observation record.
      *
-     * Validates nonce and input, determines the cohort from the mentor
+     * Validates nonce and input, determines the track from the mentor
      * enrollment, and delegates to the observation service.
      *
      * @param int $user_id Current user ID.
@@ -427,7 +427,7 @@ class HL_Frontend_Observations {
         $classroom_id          = ! empty( $_POST['classroom_id'] ) ? absint( $_POST['classroom_id'] ) : 0;
 
         if ( ! $mentor_enrollment_id ) {
-            return new WP_Error( 'missing_enrollment', __( 'Please select a cohort.', 'hl-core' ) );
+            return new WP_Error( 'missing_enrollment', __( 'Please select a track.', 'hl-core' ) );
         }
 
         if ( ! $teacher_enrollment_id ) {
@@ -439,10 +439,10 @@ class HL_Frontend_Observations {
             return new WP_Error( 'not_authorized', __( 'You are not authorized to create observations for this enrollment.', 'hl-core' ) );
         }
 
-        // Get the cohort_id and school_id from the mentor enrollment
+        // Get the track_id and school_id from the mentor enrollment
         global $wpdb;
         $enrollment = $wpdb->get_row( $wpdb->prepare(
-            "SELECT cohort_id, school_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+            "SELECT track_id, school_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
             $mentor_enrollment_id
         ), ARRAY_A );
 
@@ -451,7 +451,7 @@ class HL_Frontend_Observations {
         }
 
         return $this->observation_service->create_observation( array(
-            'cohort_id'             => $enrollment['cohort_id'],
+            'track_id'             => $enrollment['track_id'],
             'mentor_enrollment_id'  => $mentor_enrollment_id,
             'teacher_enrollment_id' => $teacher_enrollment_id,
             'classroom_id'          => $classroom_id ?: null,
@@ -539,8 +539,8 @@ class HL_Frontend_Observations {
                         <?php echo esc_html( ! empty( $observation['classroom_name'] ) ? $observation['classroom_name'] : __( 'N/A', 'hl-core' ) ); ?>
                     </span>
                     <span class="hl-meta-item">
-                        <strong><?php esc_html_e( 'Cohort:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( ! empty( $observation['cohort_name'] ) ? $observation['cohort_name'] : __( 'N/A', 'hl-core' ) ); ?>
+                        <strong><?php esc_html_e( 'Track:', 'hl-core' ); ?></strong>
+                        <?php echo esc_html( ! empty( $observation['track_name'] ) ? $observation['track_name'] : __( 'N/A', 'hl-core' ) ); ?>
                     </span>
                     <span class="hl-meta-item">
                         <strong><?php esc_html_e( 'Created:', 'hl-core' ); ?></strong>
@@ -572,7 +572,7 @@ class HL_Frontend_Observations {
     /**
      * Render the JFB form for a draft observation.
      *
-     * Finds the observation activity in the cohort, extracts the JFB form
+     * Finds the observation activity in the track, extracts the JFB form
      * ID from external_ref, and renders the form with hidden fields
      * pre-populated for the JFB hook listener.
      *
@@ -591,17 +591,17 @@ class HL_Frontend_Observations {
             return;
         }
 
-        $cohort_id = absint( $observation['cohort_id'] );
+        $track_id = absint( $observation['track_id'] );
 
-        // Find the observation activity and form ID for this cohort
-        $form_id     = $this->observation_service->get_observation_form_id( $cohort_id );
-        $activity    = $this->observation_service->get_observation_activity( $cohort_id );
+        // Find the observation activity and form ID for this track
+        $form_id     = $this->observation_service->get_observation_form_id( $track_id );
+        $activity    = $this->observation_service->get_observation_activity( $track_id );
         $activity_id = $activity ? absint( $activity['activity_id'] ) : 0;
 
         if ( ! $form_id ) {
             ?>
             <div class="hl-notice hl-notice-warning">
-                <?php esc_html_e( 'No observation form has been configured for this cohort. Please contact your cohort administrator.', 'hl-core' ); ?>
+                <?php esc_html_e( 'No observation form has been configured for this track. Please contact your track administrator.', 'hl-core' ); ?>
             </div>
             <?php
             return;
@@ -611,7 +611,7 @@ class HL_Frontend_Observations {
         $hidden_fields = array(
             'hl_observation_id' => absint( $observation['observation_id'] ),
             'hl_enrollment_id'  => absint( $observation['mentor_enrollment_id'] ),
-            'hl_cohort_id'      => $cohort_id,
+            'hl_track_id'      => $track_id,
             'hl_activity_id'    => $activity_id,
         );
 
@@ -658,8 +658,8 @@ class HL_Frontend_Observations {
                         <td><?php echo esc_html( ! empty( $observation['classroom_name'] ) ? $observation['classroom_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
                     </tr>
                     <tr>
-                        <th scope="row"><?php esc_html_e( 'Cohort', 'hl-core' ); ?></th>
-                        <td><?php echo esc_html( ! empty( $observation['cohort_name'] ) ? $observation['cohort_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
+                        <th scope="row"><?php esc_html_e( 'Track', 'hl-core' ); ?></th>
+                        <td><?php echo esc_html( ! empty( $observation['track_name'] ) ? $observation['track_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
                     </tr>
                     <tr>
                         <th scope="row"><?php esc_html_e( 'Created', 'hl-core' ); ?></th>

@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) exit;
  * Renderer for the [hl_my_progress] shortcode.
  *
  * Shows a logged-in participant their learning progress across
- * one or more cohort enrollments, including per-activity status,
+ * one or more track enrollments, including per-activity status,
  * LearnDash course progress, and overall pathway completion.
  *
  * @package HL_Core
@@ -15,8 +15,8 @@ class HL_Frontend_My_Progress {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Cohort_Repository */
-    private $cohort_repo;
+    /** @var HL_Track_Repository */
+    private $track_repo;
 
     /** @var HL_Pathway_Repository */
     private $pathway_repo;
@@ -46,7 +46,7 @@ class HL_Frontend_My_Progress {
 
     public function __construct() {
         $this->enrollment_repo = new HL_Enrollment_Repository();
-        $this->cohort_repo   = new HL_Cohort_Repository();
+        $this->track_repo   = new HL_Track_Repository();
         $this->pathway_repo   = new HL_Pathway_Repository();
         $this->activity_repo  = new HL_Activity_Repository();
         $this->rules_engine   = new HL_Rules_Engine_Service();
@@ -57,7 +57,7 @@ class HL_Frontend_My_Progress {
     /**
      * Render the My Progress shortcode.
      *
-     * @param array $atts Shortcode attributes. Optional key: cohort_id.
+     * @param array $atts Shortcode attributes. Optional key: track_id.
      * @return string HTML output.
      */
     public function render($atts) {
@@ -82,8 +82,8 @@ class HL_Frontend_My_Progress {
             'user_id' => $user_id,
             'status'  => 'active',
         );
-        if (!empty($atts['cohort_id'])) {
-            $filters['cohort_id'] = absint($atts['cohort_id']);
+        if (!empty($atts['track_id'])) {
+            $filters['track_id'] = absint($atts['track_id']);
         }
 
         $all_enrollments = $this->enrollment_repo->get_all(array('status' => 'active'));
@@ -94,7 +94,7 @@ class HL_Frontend_My_Progress {
             if ((int) $enrollment->user_id !== $user_id) {
                 return false;
             }
-            if (!empty($atts['cohort_id']) && (int) $enrollment->cohort_id !== absint($atts['cohort_id'])) {
+            if (!empty($atts['track_id']) && (int) $enrollment->track_id !== absint($atts['track_id'])) {
                 return false;
             }
             return true;
@@ -108,10 +108,10 @@ class HL_Frontend_My_Progress {
         }
 
         // ── Build per-enrollment data ───────────────────────────────────
-        $cohort_blocks = array();
+        $track_blocks = array();
         foreach ($enrollments as $enrollment) {
-            $cohort = $this->cohort_repo->get_by_id($enrollment->cohort_id);
-            if (!$cohort) {
+            $track = $this->track_repo->get_by_id($enrollment->track_id);
+            if (!$track) {
                 continue;
             }
 
@@ -199,9 +199,9 @@ class HL_Frontend_My_Progress {
                 ? implode(', ', array_map('ucfirst', $roles_array))
                 : __('Participant', 'hl-core');
 
-            $cohort_blocks[] = array(
+            $track_blocks[] = array(
                 'enrollment'      => $enrollment,
-                'cohort'          => $cohort,
+                'track'           => $track,
                 'pathway'         => $pathway,
                 'activities'      => $activity_data,
                 'overall_percent' => $overall_percent,
@@ -209,7 +209,7 @@ class HL_Frontend_My_Progress {
             );
         }
 
-        if (empty($cohort_blocks)) {
+        if (empty($track_blocks)) {
             $this->render_empty_state();
             return ob_get_clean();
         }
@@ -217,29 +217,29 @@ class HL_Frontend_My_Progress {
         // ── Render HTML ─────────────────────────────────────────────────
         ?>
         <div class="hl-dashboard hl-my-progress">
-        <?php if (count($cohort_blocks) > 1) : ?>
-            <div class="hl-cohort-tabs">
-            <?php foreach ($cohort_blocks as $idx => $block) : ?>
+        <?php if (count($track_blocks) > 1) : ?>
+            <div class="hl-track-tabs">
+            <?php foreach ($track_blocks as $idx => $block) : ?>
                 <button class="hl-tab<?php echo $idx === 0 ? ' active' : ''; ?>"
-                        data-cohort="<?php echo esc_attr($block['cohort']->cohort_id); ?>">
-                    <?php echo esc_html($block['cohort']->cohort_code . ' - ' . $this->format_year($block['cohort']->start_date)); ?>
+                        data-track="<?php echo esc_attr($block['track']->track_id); ?>">
+                    <?php echo esc_html($block['track']->track_code . ' - ' . $this->format_year($block['track']->start_date)); ?>
                 </button>
             <?php endforeach; ?>
             </div>
         <?php endif; ?>
 
-        <?php foreach ($cohort_blocks as $block) :
-            $cohort     = $block['cohort'];
+        <?php foreach ($track_blocks as $block) :
+            $track      = $block['track'];
             $pathway    = $block['pathway'];
             $enrollment = $block['enrollment'];
             $percent    = $block['overall_percent'];
         ?>
-            <div class="hl-cohort-block" data-cohort-id="<?php echo esc_attr($cohort->cohort_id); ?>">
+            <div class="hl-track-block" data-track-id="<?php echo esc_attr($track->track_id); ?>">
                 <?php // ── Header ──────────────────────────────────────── ?>
                 <div class="hl-progress-header">
                     <div class="hl-progress-header-info">
-                        <h2 class="hl-cohort-title"><?php echo esc_html($cohort->cohort_code . ' - ' . $this->format_year($cohort->start_date)); ?></h2>
-                        <div class="hl-cohort-meta">
+                        <h2 class="hl-track-title"><?php echo esc_html($track->track_code . ' - ' . $this->format_year($track->start_date)); ?></h2>
+                        <div class="hl-track-meta">
                             <span class="hl-meta-item"><strong><?php esc_html_e('Role:', 'hl-core'); ?></strong> <?php echo esc_html($block['role_label']); ?></span>
                             <span class="hl-meta-item"><strong><?php esc_html_e('Pathway:', 'hl-core'); ?></strong> <?php echo $pathway ? esc_html($pathway->pathway_name) : esc_html__('Unassigned', 'hl-core'); ?></span>
                             <span class="hl-meta-item"><strong><?php esc_html_e('Status:', 'hl-core'); ?></strong> <span class="hl-badge hl-badge-<?php echo esc_attr($enrollment->status); ?>"><?php echo esc_html(ucfirst($enrollment->status)); ?></span></span>
@@ -433,9 +433,9 @@ class HL_Frontend_My_Progress {
                     $phase = isset($external_ref['phase']) ? $external_ref['phase'] : 'pre';
                     $instance_id = $wpdb->get_var($wpdb->prepare(
                         "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
-                         WHERE enrollment_id = %d AND cohort_id = %d AND phase = %s",
+                         WHERE enrollment_id = %d AND track_id = %d AND phase = %s",
                         $ad['enrollment_id'],
-                        $activity->cohort_id ?? 0,
+                        $activity->track_id ?? 0,
                         $phase
                     ));
 
@@ -535,7 +535,7 @@ class HL_Frontend_My_Progress {
      *
      * @param int   $activity_id The activity to open.
      * @param int   $user_id     Current user ID.
-     * @param array $atts        Shortcode attributes (for cohort_id filtering).
+     * @param array $atts        Shortcode attributes (for track_id filtering).
      */
     private function maybe_render_inline_form($activity_id, $user_id, $atts) {
         // Load the activity.
@@ -566,17 +566,17 @@ class HL_Frontend_My_Progress {
             if ((int) $e->user_id !== $user_id) {
                 continue;
             }
-            if (!empty($atts['cohort_id']) && (int) $e->cohort_id !== absint($atts['cohort_id'])) {
+            if (!empty($atts['track_id']) && (int) $e->track_id !== absint($atts['track_id'])) {
                 continue;
             }
-            if ((int) $e->cohort_id === (int) $activity->cohort_id) {
+            if ((int) $e->track_id === (int) $activity->track_id) {
                 $enrollment = $e;
                 break;
             }
         }
 
         if (!$enrollment) {
-            return; // User is not enrolled in the cohort for this activity.
+            return; // User is not enrolled in the track for this activity.
         }
 
         // Verify the activity is available (not locked, not completed).
@@ -610,7 +610,7 @@ class HL_Frontend_My_Progress {
         $hidden_fields = array(
             'hl_enrollment_id' => $enrollment->enrollment_id,
             'hl_activity_id'   => $activity->activity_id,
-            'hl_cohort_id'     => $enrollment->cohort_id,
+                  'hl_track_id'     => $enrollment->track_id,
         );
 
         // Render the inline form view.
@@ -646,7 +646,7 @@ class HL_Frontend_My_Progress {
         <div class="hl-dashboard hl-my-progress">
             <div class="hl-empty-state">
                 <h3><?php esc_html_e('No Active Enrollments', 'hl-core'); ?></h3>
-                <p><?php esc_html_e('You are not currently enrolled in any active cohorts. If you believe this is an error, please contact your cohort administrator.', 'hl-core'); ?></p>
+                <p><?php esc_html_e('You are not currently enrolled in any active tracks. If you believe this is an error, please contact your track administrator.', 'hl-core'); ?></p>
             </div>
         </div>
         <?php

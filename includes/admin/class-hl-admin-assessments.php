@@ -75,9 +75,9 @@ class HL_Admin_Assessments {
                 wp_die(__('You do not have permission to perform this action.', 'hl-core'));
             }
 
-            $cohort_id = absint($_POST['cohort_id']);
+            $track_id = absint($_POST['track_id']);
             $service = new HL_Assessment_Service();
-            $result = $service->generate_child_assessment_instances($cohort_id);
+            $result = $service->generate_child_assessment_instances($track_id);
 
             $msg = 'generated';
             if (!empty($result['errors'])) {
@@ -86,7 +86,7 @@ class HL_Admin_Assessments {
                 $msg = 'generate_none';
             }
 
-            wp_redirect(admin_url('admin.php?page=hl-assessments&cohort_id=' . $cohort_id . '&tab=children&message=' . $msg . '&created=' . $result['created'] . '&existing=' . $result['existing']));
+            wp_redirect(admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&tab=children&message=' . $msg . '&created=' . $result['created'] . '&existing=' . $result['existing']));
             exit;
         }
     }
@@ -106,30 +106,30 @@ class HL_Admin_Assessments {
         }
 
         $export_type = sanitize_text_field($_GET['export']);
-        $cohort_id   = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
+        $track_id   = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
 
-        if (!$cohort_id) {
+        if (!$track_id) {
             return;
         }
 
-        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_export_' . $export_type . '_' . $cohort_id)) {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_export_' . $export_type . '_' . $track_id)) {
             return;
         }
 
         $service = new HL_Assessment_Service();
 
         global $wpdb;
-        $cohort_name = $wpdb->get_var($wpdb->prepare(
-            "SELECT cohort_name FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d",
-            $cohort_id
+        $track_name = $wpdb->get_var($wpdb->prepare(
+            "SELECT track_name FROM {$wpdb->prefix}hl_track WHERE track_id = %d",
+            $track_id
         ));
-        $safe_name = sanitize_file_name($cohort_name ?: 'cohort-' . $cohort_id);
+        $safe_name = sanitize_file_name($track_name ?: 'track-' . $track_id);
 
         if ($export_type === 'teacher') {
-            $csv = $service->export_teacher_assessments_csv($cohort_id);
+            $csv = $service->export_teacher_assessments_csv($track_id);
             $filename = 'teacher-assessments-' . $safe_name . '-' . date('Y-m-d') . '.csv';
         } elseif ($export_type === 'children') {
-            $csv = $service->export_child_assessments_csv($cohort_id);
+            $csv = $service->export_child_assessments_csv($track_id);
             $filename = 'child-assessments-' . $safe_name . '-' . date('Y-m-d') . '.csv';
         } else {
             return;
@@ -137,7 +137,7 @@ class HL_Admin_Assessments {
 
         HL_Audit_Service::log('assessment.exported', array(
             'entity_type' => $export_type . '_assessment',
-            'cohort_id'   => $cohort_id,
+            'track_id'    => $track_id,
             'after_data'  => array('export_type' => $export_type),
         ));
 
@@ -156,12 +156,12 @@ class HL_Admin_Assessments {
     private function render_list() {
         $service = new HL_Assessment_Service();
 
-        // Cohort filter
+        // Track filter
         global $wpdb;
-        $cohorts = $wpdb->get_results(
-            "SELECT cohort_id, cohort_name, status FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
+        $tracks = $wpdb->get_results(
+            "SELECT track_id, track_name, status FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
         );
-        $selected_cohort = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
+        $selected_track = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
         $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'teacher';
 
         // Messages
@@ -169,34 +169,34 @@ class HL_Admin_Assessments {
 
         echo '<h1>' . esc_html__('Assessments', 'hl-core') . '</h1>';
 
-        // Cohort selector
+        // Track selector
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-assessments" />';
         echo '<input type="hidden" name="tab" value="' . esc_attr($active_tab) . '" />';
-        echo '<label><strong>' . esc_html__('Cohort:', 'hl-core') . '</strong> </label>';
-        echo '<select name="cohort_id">';
-        echo '<option value="">' . esc_html__('-- Select Cohort --', 'hl-core') . '</option>';
-        if ($cohorts) {
-            foreach ($cohorts as $cohort) {
-                $label = $cohort->cohort_name;
-                if ($cohort->status !== 'active') {
-                    $label .= ' (' . ucfirst($cohort->status) . ')';
+        echo '<label><strong>' . esc_html__('Track:', 'hl-core') . '</strong> </label>';
+        echo '<select name="track_id">';
+        echo '<option value="">' . esc_html__('-- Select Track --', 'hl-core') . '</option>';
+        if ($tracks) {
+            foreach ($tracks as $track_obj) {
+                $label = $track->track_name;
+                if ($track_obj->status !== 'active') {
+                    $label .= ' (' . ucfirst($track_obj->status) . ')';
                 }
-                echo '<option value="' . esc_attr($cohort->cohort_id) . '"' . selected($selected_cohort, $cohort->cohort_id, false) . '>' . esc_html($label) . '</option>';
+                echo '<option value="' . esc_attr($track_obj->track_id) . '"' . selected($selected_track, $track_obj->track_id, false) . '>' . esc_html($label) . '</option>';
             }
         }
         echo '</select> ';
         submit_button(__('View', 'hl-core'), 'secondary', 'submit', false);
         echo '</form>';
 
-        if (!$selected_cohort) {
-            echo '<p>' . esc_html__('Select a cohort to view assessments.', 'hl-core') . '</p>';
+        if (!$selected_track) {
+            echo '<p>' . esc_html__('Select a track to view assessments.', 'hl-core') . '</p>';
             return;
         }
 
         // Tab navigation
-        $teacher_url  = admin_url('admin.php?page=hl-assessments&cohort_id=' . $selected_cohort . '&tab=teacher');
-        $children_url = admin_url('admin.php?page=hl-assessments&cohort_id=' . $selected_cohort . '&tab=children');
+        $teacher_url  = admin_url('admin.php?page=hl-assessments&track_id=' . $selected_track . '&tab=teacher');
+        $children_url = admin_url('admin.php?page=hl-assessments&track_id=' . $selected_track . '&tab=children');
 
         echo '<h2 class="nav-tab-wrapper">';
         echo '<a href="' . esc_url($teacher_url) . '" class="nav-tab' . ($active_tab === 'teacher' ? ' nav-tab-active' : '') . '">' . esc_html__('Teacher Self-Assessments', 'hl-core') . '</a>';
@@ -204,9 +204,9 @@ class HL_Admin_Assessments {
         echo '</h2>';
 
         if ($active_tab === 'children') {
-            $this->render_children_tab($selected_cohort, $service);
+            $this->render_children_tab($selected_track, $service);
         } else {
-            $this->render_teacher_tab($selected_cohort, $service);
+            $this->render_teacher_tab($selected_track, $service);
         }
     }
 
@@ -214,18 +214,18 @@ class HL_Admin_Assessments {
     // Teacher Self-Assessment Tab
     // =========================================================================
 
-    private function render_teacher_tab($cohort_id, $service) {
-        $instances = $service->get_teacher_assessments_by_cohort($cohort_id);
+    private function render_teacher_tab($track_id, $service) {
+        $instances = $service->get_teacher_assessments_by_track($track_id);
 
         // Export button
         $export_url = wp_nonce_url(
-            admin_url('admin.php?page=hl-assessments&cohort_id=' . $cohort_id . '&export=teacher'),
-            'hl_export_teacher_' . $cohort_id
+            admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&export=teacher'),
+            'hl_export_teacher_' . $track_id
         );
         echo '<p><a href="' . esc_url($export_url) . '" class="button">' . esc_html__('Export Teacher Assessments CSV', 'hl-core') . '</a></p>';
 
         if (empty($instances)) {
-            echo '<p>' . esc_html__('No teacher assessment instances found for this cohort.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No teacher assessment instances found for this track.', 'hl-core') . '</p>';
             return;
         }
 
@@ -259,7 +259,7 @@ class HL_Admin_Assessments {
         echo '</tr></thead><tbody>';
 
         foreach ($instances as $inst) {
-            $view_url = admin_url('admin.php?page=hl-assessments&action=view_teacher&instance_id=' . $inst['instance_id'] . '&cohort_id=' . $cohort_id);
+            $view_url = admin_url('admin.php?page=hl-assessments&action=view_teacher&instance_id=' . $inst['instance_id'] . '&track_id=' . $track_id);
 
             echo '<tr>';
             echo '<td>' . esc_html($inst['instance_id']) . '</td>';
@@ -279,36 +279,36 @@ class HL_Admin_Assessments {
     // Child Assessment Tab
     // =========================================================================
 
-    private function render_children_tab($cohort_id, $service) {
-        $instances = $service->get_child_assessments_by_cohort($cohort_id);
+    private function render_children_tab($track_id, $service) {
+        $instances = $service->get_child_assessments_by_track($track_id);
 
         // Action buttons row
         echo '<div style="display:flex;gap:10px;margin-bottom:15px;align-items:center;">';
 
         // Generate instances button
-        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-assessments&cohort_id=' . $cohort_id . '&tab=children')) . '" style="display:inline;">';
+        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&tab=children')) . '" style="display:inline;">';
         wp_nonce_field('hl_generate_children_instances', 'hl_generate_children_nonce');
-        echo '<input type="hidden" name="cohort_id" value="' . esc_attr($cohort_id) . '" />';
+        echo '<input type="hidden" name="track_id" value="' . esc_attr($track_id) . '" />';
         submit_button(
             __('Generate Instances from Teaching Assignments', 'hl-core'),
             'secondary',
             'submit',
             false,
-            array('onclick' => 'return confirm("' . esc_js(__('This will create child assessment instances for all teaching assignments in this cohort. Continue?', 'hl-core')) . '");')
+            array('onclick' => 'return confirm("' . esc_js(__('This will create child assessment instances for all teaching assignments in this track. Continue?', 'hl-core')) . '");')
         );
         echo '</form>';
 
         // Export button
         $export_url = wp_nonce_url(
-            admin_url('admin.php?page=hl-assessments&cohort_id=' . $cohort_id . '&export=children'),
-            'hl_export_children_' . $cohort_id
+            admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&export=children'),
+            'hl_export_children_' . $track_id
         );
         echo '<a href="' . esc_url($export_url) . '" class="button">' . esc_html__('Export Child Assessments CSV', 'hl-core') . '</a>';
 
         echo '</div>';
 
         if (empty($instances)) {
-            echo '<p>' . esc_html__('No child assessment instances found for this cohort. Use "Generate Instances" to create them from teaching assignments.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No child assessment instances found for this track. Use "Generate Instances" to create them from teaching assignments.', 'hl-core') . '</p>';
             return;
         }
 
@@ -348,7 +348,7 @@ class HL_Admin_Assessments {
         echo '</tr></thead><tbody>';
 
         foreach ($instances as $inst) {
-            $view_url = admin_url('admin.php?page=hl-assessments&action=view_children&instance_id=' . $inst['instance_id'] . '&cohort_id=' . $cohort_id);
+            $view_url = admin_url('admin.php?page=hl-assessments&action=view_children&instance_id=' . $inst['instance_id'] . '&track_id=' . $track_id);
 
             $age_band_display = $inst['instrument_age_band'] ? ucfirst($inst['instrument_age_band']) : '<em style="color:#b32d2e;">' . esc_html__('Needs Review', 'hl-core') . '</em>';
             $instrument_display = $inst['instrument_id'] ? esc_html($inst['instrument_id'] . ' (v' . $inst['instrument_version'] . ')') : '-';
@@ -382,8 +382,8 @@ class HL_Admin_Assessments {
             return;
         }
 
-        $cohort_id = $instance['cohort_id'];
-        $back_url  = admin_url('admin.php?page=hl-assessments&cohort_id=' . $cohort_id . '&tab=teacher');
+        $track_id = $instance['track_id'];
+        $back_url  = admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&tab=teacher');
 
         echo '<h1>' . esc_html__('Teacher Self-Assessment Detail', 'hl-core') . '</h1>';
         echo '<a href="' . esc_url($back_url) . '">&larr; ' . esc_html__('Back to Assessments', 'hl-core') . '</a>';
@@ -391,7 +391,7 @@ class HL_Admin_Assessments {
         // Instance info
         echo '<table class="form-table">';
         echo '<tr><th>' . esc_html__('Instance ID', 'hl-core') . '</th><td>' . esc_html($instance['instance_id']) . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Cohort', 'hl-core') . '</th><td>' . esc_html($instance['cohort_name']) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('Track', 'hl-core') . '</th><td>' . esc_html($instance['track_name']) . '</td></tr>';
         echo '<tr><th>' . esc_html__('Teacher', 'hl-core') . '</th><td>' . esc_html($instance['display_name']) . ' (' . esc_html($instance['user_email']) . ')</td></tr>';
         echo '<tr><th>' . esc_html__('Phase', 'hl-core') . '</th><td><strong>' . esc_html(strtoupper($instance['phase'])) . '</strong></td></tr>';
         echo '<tr><th>' . esc_html__('Status', 'hl-core') . '</th><td>' . $this->render_status_badge($instance['status']) . '</td></tr>';
@@ -449,8 +449,8 @@ class HL_Admin_Assessments {
             return;
         }
 
-        $cohort_id = $instance['cohort_id'];
-        $back_url  = admin_url('admin.php?page=hl-assessments&cohort_id=' . $cohort_id . '&tab=children');
+        $track_id = $instance['track_id'];
+        $back_url  = admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&tab=children');
 
         echo '<h1>' . esc_html__('Child Assessment Detail', 'hl-core') . '</h1>';
         echo '<a href="' . esc_url($back_url) . '">&larr; ' . esc_html__('Back to Assessments', 'hl-core') . '</a>';
@@ -458,7 +458,7 @@ class HL_Admin_Assessments {
         // Instance info
         echo '<table class="form-table">';
         echo '<tr><th>' . esc_html__('Instance ID', 'hl-core') . '</th><td>' . esc_html($instance['instance_id']) . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Cohort', 'hl-core') . '</th><td>' . esc_html($instance['cohort_name']) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('Track', 'hl-core') . '</th><td>' . esc_html($instance['track_name']) . '</td></tr>';
         echo '<tr><th>' . esc_html__('Teacher', 'hl-core') . '</th><td>' . esc_html($instance['display_name']) . ' (' . esc_html($instance['user_email']) . ')</td></tr>';
         echo '<tr><th>' . esc_html__('Classroom', 'hl-core') . '</th><td>' . esc_html($instance['classroom_name']) . '</td></tr>';
         echo '<tr><th>' . esc_html__('School', 'hl-core') . '</th><td>' . esc_html($instance['school_name']) . '</td></tr>';

@@ -76,14 +76,14 @@ class HL_Frontend_Classroom_Page {
         // Children.
         $children = $this->classroom_service->get_children_in_classroom( $classroom_id );
 
-        // Breadcrumb URL — control group teachers go to My Programs instead of My Cohort.
+        // Breadcrumb URL — control group teachers go to My Programs instead of My Track.
         $is_control = $this->is_control_group_classroom( $user_id, $classroom_id );
         if ( $is_control ) {
             $back_url   = $this->find_shortcode_page_url( 'hl_my_programs' );
             $back_label = __( 'Back to My Programs', 'hl-core' );
         } else {
             $back_url   = $this->build_back_url();
-            $back_label = __( 'Back to My Cohort', 'hl-core' );
+            $back_label = __( 'Back to My Track', 'hl-core' );
         }
 
         ?>
@@ -168,7 +168,7 @@ class HL_Frontend_Classroom_Page {
             return true;
         }
 
-        // Check if user is a teacher assigned to this classroom (any cohort).
+        // Check if user is a teacher assigned to this classroom (any track).
         $assignments = $this->classroom_service->get_teaching_assignments( $classroom->classroom_id );
         foreach ( $assignments as $ta ) {
             if ( isset( $ta->user_id ) && (int) $ta->user_id === $user_id ) {
@@ -177,7 +177,7 @@ class HL_Frontend_Classroom_Page {
         }
 
         // Check if user is a leader whose scope includes this classroom's school.
-        // We need to check across all cohorts the user is enrolled in.
+        // We need to check across all tracks the user is enrolled in.
         global $wpdb;
         $enrollments = $wpdb->get_results( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_enrollment
@@ -217,11 +217,11 @@ class HL_Frontend_Classroom_Page {
         ?>
         <div class="hl-classroom-page-header">
             <div class="hl-classroom-page-header-info">
-                <h2 class="hl-cohort-title"><?php echo esc_html( $classroom->classroom_name ); ?></h2>
+                <h2 class="hl-track-title"><?php echo esc_html( $classroom->classroom_name ); ?></h2>
                 <?php if ( $school ) : ?>
                     <p class="hl-scope-indicator"><?php echo esc_html( $school->name ); ?></p>
                 <?php endif; ?>
-                <div class="hl-cohort-meta">
+                <div class="hl-track-meta">
                     <?php if ( ! empty( $classroom->age_band ) ) : ?>
                         <span class="hl-meta-item">
                             <strong><?php esc_html_e( 'Age Band:', 'hl-core' ); ?></strong>
@@ -297,12 +297,12 @@ class HL_Frontend_Classroom_Page {
     private function is_control_group_classroom( $user_id, $classroom_id ) {
         global $wpdb;
 
-        // Check if the user's teaching assignment for this classroom belongs to a control group cohort.
+        // Check if the user's teaching assignment for this classroom belongs to a control group track.
         $is_control = $wpdb->get_var( $wpdb->prepare(
-            "SELECT c.is_control_group
+            "SELECT t.is_control_group
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
-             JOIN {$wpdb->prefix}hl_cohort c ON e.cohort_id = c.cohort_id
+             JOIN {$wpdb->prefix}hl_track t ON e.track_id = t.track_id
              WHERE ta.classroom_id = %d AND e.user_id = %d AND e.status = 'active'
              LIMIT 1",
             $classroom_id,
@@ -313,9 +313,9 @@ class HL_Frontend_Classroom_Page {
     }
 
     private function build_back_url() {
-        $base = apply_filters( 'hl_core_my_cohort_page_url', '' );
+        $base = apply_filters( 'hl_core_my_track_page_url', '' );
         if ( empty( $base ) ) {
-            $base = $this->find_shortcode_page_url( 'hl_my_cohort' );
+            $base = $this->find_shortcode_page_url( 'hl_my_track' );
         }
         if ( ! empty( $base ) ) {
             return add_query_arg( 'tab', 'classrooms', $base );

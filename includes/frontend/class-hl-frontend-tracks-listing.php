@@ -2,14 +2,14 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Renderer for the [hl_cohorts_listing] shortcode.
+ * Renderer for the [hl_tracks_listing] shortcode.
  *
- * Card grid of cohorts with search and status filter.
- * Scope: admin sees all, coach sees assigned cohorts, leaders see enrolled cohorts.
+ * Card grid of tracks with search and status filter.
+ * Scope: admin sees all, coach sees assigned tracks, leaders see enrolled tracks.
  *
  * @package HL_Core
  */
-class HL_Frontend_Cohorts_Listing {
+class HL_Frontend_Tracks_Listing {
 
     public function render( $atts ) {
         ob_start();
@@ -31,14 +31,14 @@ class HL_Frontend_Cohorts_Listing {
             return ob_get_clean();
         }
 
-        $cohort_repo = new HL_Cohort_Repository();
-        $all_cohorts = $cohort_repo->get_all();
+        $track_repo = new HL_Track_Repository();
+        $all_tracks = $track_repo->get_all();
 
         // Scope filter.
-        $cohorts = HL_Scope_Service::filter_by_ids(
-            $all_cohorts,
-            'cohort_id',
-            $scope['cohort_ids'],
+        $tracks = HL_Scope_Service::filter_by_ids(
+            $all_tracks,
+            'track_id',
+            $scope['track_ids'],
             $scope['is_admin']
         );
 
@@ -46,26 +46,26 @@ class HL_Frontend_Cohorts_Listing {
         $participant_counts = $this->get_participant_counts();
         $school_counts      = $this->get_school_counts();
 
-        // Cohort groups for filter.
-        $cohort_groups = $this->get_cohort_groups();
+        // Cohort container options for filter.
+        $cohort_options = $this->get_cohorts();
 
-        $workspace_url = $this->find_shortcode_page_url( 'hl_cohort_workspace' );
+        $workspace_url = $this->find_shortcode_page_url( 'hl_track_workspace' );
 
         ?>
-        <div class="hl-dashboard hl-cohorts-listing hl-frontend-wrap">
+        <div class="hl-dashboard hl-tracks-listing hl-frontend-wrap">
 
             <div class="hl-crm-page-header">
-                <h2 class="hl-crm-page-title"><?php esc_html_e( 'Cohorts', 'hl-core' ); ?></h2>
+                <h2 class="hl-crm-page-title"><?php esc_html_e( 'Tracks', 'hl-core' ); ?></h2>
             </div>
 
             <!-- Search + Status + Group Filters -->
             <div class="hl-filters-bar">
-                <input type="text" class="hl-search-input" id="hl-cohort-search"
-                       placeholder="<?php esc_attr_e( 'Search cohorts...', 'hl-core' ); ?>">
-                <?php if ( ! empty( $cohort_groups ) ) : ?>
-                    <select id="hl-cohort-group-filter" class="hl-select">
-                        <option value=""><?php esc_html_e( 'All Groups', 'hl-core' ); ?></option>
-                        <?php foreach ( $cohort_groups as $gid => $gname ) : ?>
+                <input type="text" class="hl-search-input" id="hl-track-search"
+                       placeholder="<?php esc_attr_e( 'Search tracks...', 'hl-core' ); ?>">
+                <?php if ( ! empty( $cohort_options ) ) : ?>
+                    <select id="hl-cohort-filter" class="hl-select">
+                        <option value=""><?php esc_html_e( 'All Cohorts', 'hl-core' ); ?></option>
+                        <?php foreach ( $cohort_options as $gid => $gname ) : ?>
                             <option value="<?php echo esc_attr( $gid ); ?>"><?php echo esc_html( $gname ); ?></option>
                         <?php endforeach; ?>
                     </select>
@@ -84,42 +84,42 @@ class HL_Frontend_Cohorts_Listing {
                 </label>
             </div>
 
-            <?php if ( empty( $cohorts ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No cohorts found.', 'hl-core' ); ?></p></div>
+            <?php if ( empty( $tracks ) ) : ?>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No tracks found.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <div class="hl-crm-card-grid">
-                    <?php foreach ( $cohorts as $cohort ) :
-                        $cid           = (int) $cohort->cohort_id;
-                        $status        = $cohort->status ?: 'active';
+                    <?php foreach ( $tracks as $track ) :
+                        $cid           = (int) $track->track_id;
+                        $status        = $track->status ?: 'active';
                         $num_participants = isset( $participant_counts[ $cid ] ) ? $participant_counts[ $cid ] : 0;
                         $num_schools   = isset( $school_counts[ $cid ] ) ? $school_counts[ $cid ] : 0;
                         $detail_url    = $workspace_url
                             ? add_query_arg( 'id', $cid, $workspace_url )
                             : '';
 
-                        $start = $cohort->start_date ? date_i18n( 'M j, Y', strtotime( $cohort->start_date ) ) : '—';
-                        $end   = $cohort->end_date   ? date_i18n( 'M j, Y', strtotime( $cohort->end_date ) )   : '—';
+                        $start = $track->start_date ? date_i18n( 'M j, Y', strtotime( $track->start_date ) ) : '—';
+                        $end   = $track->end_date   ? date_i18n( 'M j, Y', strtotime( $track->end_date ) )   : '—';
                     ?>
-                        <div class="hl-crm-card hl-cohort-card"
+                        <div class="hl-crm-card hl-track-card"
                              data-status="<?php echo esc_attr( $status ); ?>"
-                             data-name="<?php echo esc_attr( strtolower( $cohort->cohort_name . ' ' . $cohort->cohort_code ) ); ?>"
-                             data-group="<?php echo esc_attr( $cohort->cohort_group_id ?: '' ); ?>">
+                             data-name="<?php echo esc_attr( strtolower( $track->track_name . ' ' . $track->track_code ) ); ?>"
+                             data-group="<?php echo esc_attr( $track->cohort_id ?: '' ); ?>">
                             <div class="hl-crm-card-body">
                                 <div class="hl-crm-card-header">
                                     <h3 class="hl-crm-card-title">
                                         <?php if ( $detail_url ) : ?>
-                                            <a href="<?php echo esc_url( $detail_url ); ?>"><?php echo esc_html( $cohort->cohort_name ); ?></a>
+                                            <a href="<?php echo esc_url( $detail_url ); ?>"><?php echo esc_html( $track->track_name ); ?></a>
                                         <?php else : ?>
-                                            <?php echo esc_html( $cohort->cohort_name ); ?>
+                                            <?php echo esc_html( $track->track_name ); ?>
                                         <?php endif; ?>
                                     </h3>
                                     <span class="hl-badge hl-badge-<?php echo esc_attr( $status ); ?>">
                                         <?php echo esc_html( ucfirst( $status ) ); ?>
                                     </span>
                                 </div>
-                                <?php if ( $cohort->cohort_code ) : ?>
+                                <?php if ( $track->track_code ) : ?>
                                     <div class="hl-crm-card-code">
-                                        <?php echo esc_html( $cohort->cohort_code ); ?>
+                                        <?php echo esc_html( $track->track_code ); ?>
                                     </div>
                                 <?php endif; ?>
                                 <div class="hl-crm-card-dates">
@@ -139,7 +139,7 @@ class HL_Frontend_Cohorts_Listing {
                             <?php if ( $detail_url ) : ?>
                                 <div class="hl-crm-card-action">
                                     <a href="<?php echo esc_url( $detail_url ); ?>" class="hl-btn hl-btn-sm hl-btn-secondary">
-                                        <?php esc_html_e( 'Open Cohort', 'hl-core' ); ?>
+                                        <?php esc_html_e( 'Open Track', 'hl-core' ); ?>
                                     </a>
                                 </div>
                             <?php endif; ?>
@@ -148,7 +148,7 @@ class HL_Frontend_Cohorts_Listing {
                 </div>
 
                 <div class="hl-empty-state hl-no-results">
-                    <p><?php esc_html_e( 'No cohorts match your search or filters.', 'hl-core' ); ?></p>
+                    <p><?php esc_html_e( 'No tracks match your search or filters.', 'hl-core' ); ?></p>
                 </div>
             <?php endif; ?>
 
@@ -156,12 +156,12 @@ class HL_Frontend_Cohorts_Listing {
 
         <script>
         (function($){
-            var $cards = $('.hl-cohort-card');
-            var $noResults = $('.hl-cohorts-listing .hl-no-results');
+            var $cards = $('.hl-track-card');
+            var $noResults = $('.hl-tracks-listing .hl-no-results');
 
             function filterCards() {
-                var query = $('#hl-cohort-search').val().toLowerCase();
-                var groupFilter = $('#hl-cohort-group-filter').val() || '';
+                var query = $('#hl-track-search').val().toLowerCase();
+                var groupFilter = $('#hl-cohort-filter').val() || '';
                 var statuses = [];
                 $('.hl-status-filter:checked').each(function(){ statuses.push($(this).val()); });
 
@@ -178,9 +178,9 @@ class HL_Frontend_Cohorts_Listing {
                 $noResults.toggle(visible === 0 && $cards.length > 0);
             }
 
-            $('#hl-cohort-search').on('input', filterCards);
+            $('#hl-track-search').on('input', filterCards);
             $('.hl-status-filter').on('change', filterCards);
-            $('#hl-cohort-group-filter').on('change', filterCards);
+            $('#hl-cohort-filter').on('change', filterCards);
             filterCards();
         })(jQuery);
         </script>
@@ -196,15 +196,15 @@ class HL_Frontend_Cohorts_Listing {
     private function get_participant_counts() {
         global $wpdb;
         $results = $wpdb->get_results(
-            "SELECT cohort_id, COUNT(*) AS cnt
+            "SELECT track_id, COUNT(*) AS cnt
              FROM {$wpdb->prefix}hl_enrollment
              WHERE status = 'active'
-             GROUP BY cohort_id",
+             GROUP BY track_id",
             ARRAY_A
         );
         $map = array();
         foreach ( $results ?: array() as $row ) {
-            $map[ (int) $row['cohort_id'] ] = (int) $row['cnt'];
+            $map[ (int) $row['track_id'] ] = (int) $row['cnt'];
         }
         return $map;
     }
@@ -212,27 +212,27 @@ class HL_Frontend_Cohorts_Listing {
     private function get_school_counts() {
         global $wpdb;
         $results = $wpdb->get_results(
-            "SELECT cohort_id, COUNT(DISTINCT school_id) AS cnt
-             FROM {$wpdb->prefix}hl_cohort_school
-             GROUP BY cohort_id",
+            "SELECT track_id, COUNT(DISTINCT school_id) AS cnt
+             FROM {$wpdb->prefix}hl_track_school
+             GROUP BY track_id",
             ARRAY_A
         );
         $map = array();
         foreach ( $results ?: array() as $row ) {
-            $map[ (int) $row['cohort_id'] ] = (int) $row['cnt'];
+            $map[ (int) $row['track_id'] ] = (int) $row['cnt'];
         }
         return $map;
     }
 
-    private function get_cohort_groups() {
+    private function get_cohorts() {
         global $wpdb;
         $results = $wpdb->get_results(
-            "SELECT group_id, group_name FROM {$wpdb->prefix}hl_cohort_group WHERE status = 'active' ORDER BY group_name ASC",
+            "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort WHERE status = 'active' ORDER BY cohort_name ASC",
             ARRAY_A
         );
         $map = array();
         foreach ( $results ?: array() as $row ) {
-            $map[ (int) $row['group_id'] ] = $row['group_name'];
+            $map[ (int) $row['cohort_id'] ] = $row['cohort_name'];
         }
         return $map;
     }

@@ -24,7 +24,7 @@ class HL_Frontend_Pathways_Listing {
         }
 
         $pathways = $this->get_pathways( $scope );
-        $cohorts  = $this->get_cohort_options( $scope );
+        $tracks  = $this->get_track_options( $scope );
 
         $program_page_url = $this->find_shortcode_page_url( 'hl_program_page' );
 
@@ -38,12 +38,12 @@ class HL_Frontend_Pathways_Listing {
             <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-pathway-search"
                        placeholder="<?php esc_attr_e( 'Search pathways...', 'hl-core' ); ?>">
-                <?php if ( count( $cohorts ) > 1 ) : ?>
-                    <select class="hl-select" id="hl-pathway-cohort-filter">
-                        <option value=""><?php esc_html_e( 'All Cohorts', 'hl-core' ); ?></option>
-                        <?php foreach ( $cohorts as $c ) : ?>
-                            <option value="<?php echo esc_attr( $c['cohort_id'] ); ?>">
-                                <?php echo esc_html( $c['cohort_name'] ); ?>
+                <?php if ( count( $tracks ) > 1 ) : ?>
+                    <select class="hl-select" id="hl-pathway-track-filter">
+                        <option value=""><?php esc_html_e( 'All Tracks', 'hl-core' ); ?></option>
+                        <?php foreach ( $tracks as $c ) : ?>
+                            <option value="<?php echo esc_attr( $c['track_id'] ); ?>">
+                                <?php echo esc_html( $c['track_name'] ); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -66,8 +66,8 @@ class HL_Frontend_Pathways_Listing {
                             : __( 'All Roles', 'hl-core' );
                     ?>
                         <div class="hl-crm-card hl-pathway-card"
-                             data-name="<?php echo esc_attr( strtolower( $pw['pathway_name'] . ' ' . $pw['cohort_name'] ) ); ?>"
-                             data-cohort="<?php echo esc_attr( $pw['cohort_id'] ); ?>">
+                             data-name="<?php echo esc_attr( strtolower( $pw['pathway_name'] . ' ' . $pw['track_name'] ) ); ?>"
+                             data-track="<?php echo esc_attr( $pw['track_id'] ); ?>">
                             <?php if ( $image_url ) : ?>
                                 <div class="hl-crm-card-image">
                                     <img src="<?php echo esc_url( $image_url ); ?>" alt="">
@@ -76,7 +76,7 @@ class HL_Frontend_Pathways_Listing {
                             <div class="hl-crm-card-body">
                                 <h3 class="hl-crm-card-title"><?php echo esc_html( $pw['pathway_name'] ); ?></h3>
                                 <div class="hl-crm-card-subtitle">
-                                    <?php echo esc_html( $pw['cohort_name'] ); ?>
+                                    <?php echo esc_html( $pw['track_name'] ); ?>
                                 </div>
                                 <div class="hl-crm-card-meta">
                                     <span class="hl-crm-card-stat">
@@ -116,14 +116,14 @@ class HL_Frontend_Pathways_Listing {
 
             function filterCards() {
                 var query  = $('#hl-pathway-search').val().toLowerCase();
-                var cohort = $('#hl-pathway-cohort-filter').val();
+                var track = $('#hl-pathway-track-filter').val();
                 var visible = 0;
 
                 $cards.each(function(){
                     var $c = $(this);
                     var matchSearch = !query || $c.data('name').indexOf(query) !== -1;
-                    var matchCohort = !cohort || String($c.data('cohort')) === cohort;
-                    var show = matchSearch && matchCohort;
+                    var matchTrack = !track || String($c.data('track')) === track;
+                    var show = matchSearch && matchTrack;
                     $c.toggle(show);
                     if (show) visible++;
                 });
@@ -131,7 +131,7 @@ class HL_Frontend_Pathways_Listing {
             }
 
             $('#hl-pathway-search').on('input', filterCards);
-            $('#hl-pathway-cohort-filter').on('change', filterCards);
+            $('#hl-pathway-track-filter').on('change', filterCards);
         })(jQuery);
         </script>
         <?php
@@ -147,12 +147,12 @@ class HL_Frontend_Pathways_Listing {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $sql = "SELECT p.pathway_id, p.pathway_name, p.cohort_id, p.target_roles,
+        $sql = "SELECT p.pathway_id, p.pathway_name, p.track_id, p.target_roles,
                        p.featured_image_id, p.avg_completion_time,
-                       co.cohort_name,
+                       tr.track_name,
                        COALESCE(ac.activity_count, 0) AS activity_count
                 FROM {$prefix}hl_pathway p
-                LEFT JOIN {$prefix}hl_cohort co ON p.cohort_id = co.cohort_id
+                LEFT JOIN {$prefix}hl_track tr ON p.track_id = tr.track_id
                 LEFT JOIN (
                     SELECT pathway_id, COUNT(*) AS activity_count
                     FROM {$prefix}hl_activity
@@ -162,16 +162,16 @@ class HL_Frontend_Pathways_Listing {
         $where  = array();
         $values = array();
 
-        if ( ! $scope['is_admin'] && ! empty( $scope['cohort_ids'] ) ) {
-            $placeholders = implode( ',', array_fill( 0, count( $scope['cohort_ids'] ), '%d' ) );
-            $where[]      = "p.cohort_id IN ({$placeholders})";
-            $values       = array_merge( $values, $scope['cohort_ids'] );
+        if ( ! $scope['is_admin'] && ! empty( $scope['track_ids'] ) ) {
+            $placeholders = implode( ',', array_fill( 0, count( $scope['track_ids'] ), '%d' ) );
+            $where[]      = "p.track_id IN ({$placeholders})";
+            $values       = array_merge( $values, $scope['track_ids'] );
         }
 
         if ( ! empty( $where ) ) {
             $sql .= ' WHERE ' . implode( ' AND ', $where );
         }
-        $sql .= ' ORDER BY co.cohort_name ASC, p.pathway_name ASC';
+        $sql .= ' ORDER BY tr.track_name ASC, p.pathway_name ASC';
 
         if ( ! empty( $values ) ) {
             $sql = $wpdb->prepare( $sql, $values );
@@ -180,19 +180,19 @@ class HL_Frontend_Pathways_Listing {
         return $wpdb->get_results( $sql, ARRAY_A ) ?: array();
     }
 
-    private function get_cohort_options( $scope ) {
+    private function get_track_options( $scope ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
         if ( $scope['is_admin'] ) {
             return $wpdb->get_results(
-                "SELECT cohort_id, cohort_name FROM {$prefix}hl_cohort ORDER BY cohort_name ASC",
+                "SELECT track_id, track_name FROM {$prefix}hl_track ORDER BY track_name ASC",
                 ARRAY_A
             ) ?: array();
         }
-        if ( empty( $scope['cohort_ids'] ) ) return array();
-        $in = implode( ',', $scope['cohort_ids'] );
+        if ( empty( $scope['track_ids'] ) ) return array();
+        $in = implode( ',', $scope['track_ids'] );
         return $wpdb->get_results(
-            "SELECT cohort_id, cohort_name FROM {$prefix}hl_cohort WHERE cohort_id IN ({$in}) ORDER BY cohort_name ASC",
+            "SELECT track_id, track_name FROM {$prefix}hl_track WHERE track_id IN ({$in}) ORDER BY track_name ASC",
             ARRAY_A
         ) ?: array();
     }

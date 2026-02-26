@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) exit;
  * Renderer for the [hl_child_assessment] shortcode.
  *
  * Shows a logged-in teacher their child assessment instances across
- * all cohorts. When an instance_id is provided, renders the assessment
+ * all tracks. When an instance_id is provided, renders the assessment
  * form (via HL_Instrument_Renderer) or a read-only summary if already
  * submitted.
  *
@@ -107,7 +107,7 @@ class HL_Frontend_Child_Assessment {
         $user_id = get_current_user_id();
 
         $activity = $wpdb->get_row( $wpdb->prepare(
-            "SELECT a.*, p.cohort_id
+            "SELECT a.*, p.track_id
              FROM {$wpdb->prefix}hl_activity a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
              WHERE a.activity_id = %d",
@@ -120,9 +120,9 @@ class HL_Frontend_Child_Assessment {
 
         $enrollment = $wpdb->get_row( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_enrollment
-             WHERE cohort_id = %d AND user_id = %d AND status = 'active'
+             WHERE track_id = %d AND user_id = %d AND status = 'active'
              LIMIT 1",
-            $activity->cohort_id, $user_id
+            $activity->track_id, $user_id
         ) );
 
         if ( ! $enrollment ) {
@@ -145,12 +145,12 @@ class HL_Frontend_Child_Assessment {
             return absint( $instance_id );
         }
 
-        // Look for existing instance by enrollment + cohort + phase
+        // Look for existing instance by enrollment + track + phase
         $instance_id = $wpdb->get_var( $wpdb->prepare(
             "SELECT instance_id FROM {$wpdb->prefix}hl_child_assessment_instance
-             WHERE enrollment_id = %d AND cohort_id = %d AND phase = %s
+             WHERE enrollment_id = %d AND track_id = %d AND phase = %s
              LIMIT 1",
-            $enrollment->enrollment_id, $activity->cohort_id, $phase
+            $enrollment->enrollment_id, $activity->track_id, $phase
         ) );
 
         if ( $instance_id ) {
@@ -199,7 +199,7 @@ class HL_Frontend_Child_Assessment {
         // Create new instance for this activity
         $wpdb->insert( $wpdb->prefix . 'hl_child_assessment_instance', array(
             'instance_uuid'       => HL_DB_Utils::generate_uuid(),
-            'cohort_id'           => absint( $activity->cohort_id ),
+            'track_id'           => absint( $activity->track_id ),
             'enrollment_id'       => absint( $enrollment->enrollment_id ),
             'activity_id'         => absint( $activity_id ),
             'classroom_id'        => $classroom_id,
@@ -228,13 +228,13 @@ class HL_Frontend_Child_Assessment {
         $user_id = get_current_user_id();
 
         $instances = $wpdb->get_results( $wpdb->prepare(
-            "SELECT cai.*, c.cohort_name, cr.classroom_name, e.user_id
+            "SELECT cai.*, t.track_name, cr.classroom_name, e.user_id
              FROM {$wpdb->prefix}hl_child_assessment_instance cai
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
-             JOIN {$wpdb->prefix}hl_cohort c ON cai.cohort_id = c.cohort_id
+             JOIN {$wpdb->prefix}hl_track t ON cai.track_id = t.track_id
              JOIN {$wpdb->prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
              WHERE e.user_id = %d
-             ORDER BY c.cohort_name, cr.classroom_name",
+             ORDER BY t.track_name, cr.classroom_name",
             $user_id
         ), ARRAY_A );
 
@@ -244,13 +244,13 @@ class HL_Frontend_Child_Assessment {
 
             <?php if ( empty( $instances ) ) : ?>
                 <div class="hl-empty-state">
-                    <p><?php esc_html_e( 'You do not have any child assessment instances assigned. If you believe this is an error, please contact your cohort administrator.', 'hl-core' ); ?></p>
+                    <p><?php esc_html_e( 'You do not have any child assessment instances assigned. If you believe this is an error, please contact your track administrator.', 'hl-core' ); ?></p>
                 </div>
             <?php else : ?>
                 <table class="hl-table widefat striped">
                     <thead>
                         <tr>
-                            <th><?php esc_html_e( 'Cohort', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Track', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Classroom', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Age Band', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
@@ -261,7 +261,7 @@ class HL_Frontend_Child_Assessment {
                     <tbody>
                         <?php foreach ( $instances as $row ) : ?>
                             <tr>
-                                <td><?php echo esc_html( $row['cohort_name'] ); ?></td>
+                                <td><?php echo esc_html( $row['track_name'] ); ?></td>
                                 <td><?php echo esc_html( $row['classroom_name'] ); ?></td>
                                 <td><?php echo esc_html( $row['instrument_age_band'] ? ucfirst( $row['instrument_age_band'] ) : __( 'N/A', 'hl-core' ) ); ?></td>
                                 <td>
@@ -336,7 +336,7 @@ class HL_Frontend_Child_Assessment {
         if ( empty( $instance['instrument_id'] ) ) {
             ?>
             <div class="hl-notice hl-notice-error">
-                <?php esc_html_e( 'No instrument assigned to this assessment. Please contact your cohort administrator.', 'hl-core' ); ?>
+                <?php esc_html_e( 'No instrument assigned to this assessment. Please contact your track administrator.', 'hl-core' ); ?>
             </div>
             <?php
             return;
@@ -348,7 +348,7 @@ class HL_Frontend_Child_Assessment {
         if ( ! $instrument ) {
             ?>
             <div class="hl-notice hl-notice-error">
-                <?php esc_html_e( 'The assessment instrument could not be loaded. Please contact your cohort administrator.', 'hl-core' ); ?>
+                <?php esc_html_e( 'The assessment instrument could not be loaded. Please contact your track administrator.', 'hl-core' ); ?>
             </div>
             <?php
             return;
@@ -360,7 +360,7 @@ class HL_Frontend_Child_Assessment {
         if ( empty( $children ) ) {
             ?>
             <div class="hl-notice hl-notice-warning">
-                <?php esc_html_e( 'No children are currently assigned to this classroom. Please contact your cohort administrator.', 'hl-core' ); ?>
+                <?php esc_html_e( 'No children are currently assigned to this classroom. Please contact your track administrator.', 'hl-core' ); ?>
             </div>
             <?php
             return;

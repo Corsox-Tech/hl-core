@@ -41,7 +41,7 @@ class HL_Frontend_My_Coaching {
         // Allow filtering by enrollment via query param, default to first.
         $selected_enrollment_id = isset($_GET['enrollment']) ? absint($_GET['enrollment']) : 0;
         $enrollment = null;
-        $cohort_id  = 0;
+        $track_id  = 0;
 
         if ($selected_enrollment_id) {
             foreach ($enrollments as $e) {
@@ -56,20 +56,20 @@ class HL_Frontend_My_Coaching {
             $enrollment = $enrollments[0];
         }
 
-        $cohort_id     = (int) $enrollment->cohort_id;
+        $track_id     = (int) $enrollment->track_id;
         $enrollment_id = (int) $enrollment->enrollment_id;
 
         // Resolve coach.
         $coach_service = new HL_Coach_Assignment_Service();
-        $coach = $coach_service->get_coach_for_enrollment($enrollment_id, $cohort_id);
+        $coach = $coach_service->get_coach_for_enrollment($enrollment_id, $track_id);
 
         // Get sessions.
         $coaching_service = new HL_Coaching_Service();
-        $upcoming = $coaching_service->get_upcoming_sessions($enrollment_id, $cohort_id);
-        $past     = $coaching_service->get_past_sessions($enrollment_id, $cohort_id);
+        $upcoming = $coaching_service->get_upcoming_sessions($enrollment_id, $track_id);
+        $past     = $coaching_service->get_past_sessions($enrollment_id, $track_id);
 
         // Cancellation allowed?
-        $can_cancel = $coaching_service->is_cancellation_allowed($cohort_id);
+        $can_cancel = $coaching_service->is_cancellation_allowed($track_id);
 
         ?>
         <div class="hl-dashboard hl-my-coaching">
@@ -84,13 +84,13 @@ class HL_Frontend_My_Coaching {
             <?php $this->render_coach_card($coach); ?>
 
             <h3><?php esc_html_e('Upcoming Sessions', 'hl-core'); ?></h3>
-            <?php $this->render_upcoming_sessions($upcoming, $can_cancel, $enrollment_id, $cohort_id); ?>
+            <?php $this->render_upcoming_sessions($upcoming, $can_cancel, $enrollment_id, $track_id); ?>
 
             <h3><?php esc_html_e('Past Sessions', 'hl-core'); ?></h3>
             <?php $this->render_past_sessions($past); ?>
 
             <h3><?php esc_html_e('Schedule New Session', 'hl-core'); ?></h3>
-            <?php $this->render_schedule_form($enrollment_id, $cohort_id, $coach); ?>
+            <?php $this->render_schedule_form($enrollment_id, $track_id, $coach); ?>
         </div>
         <?php
 
@@ -126,7 +126,7 @@ class HL_Frontend_My_Coaching {
         }
 
         $enrollment_id = absint($_POST['enrollment_id']);
-        $cohort_id     = absint($_POST['cohort_id']);
+        $track_id     = absint($_POST['track_id']);
         $user_id       = get_current_user_id();
 
         // Verify ownership.
@@ -138,12 +138,12 @@ class HL_Frontend_My_Coaching {
 
         // Resolve coach.
         $coach_service = new HL_Coach_Assignment_Service();
-        $coach = $coach_service->get_coach_for_enrollment($enrollment_id, $cohort_id);
+        $coach = $coach_service->get_coach_for_enrollment($enrollment_id, $track_id);
         $coach_user_id = $coach ? absint($coach['coach_user_id']) : 0;
 
         $coaching_service = new HL_Coaching_Service();
         $result = $coaching_service->create_session(array(
-            'cohort_id'            => $cohort_id,
+            'track_id'             => $track_id,
             'mentor_enrollment_id' => $enrollment_id,
             'coach_user_id'        => $coach_user_id,
             'session_title'        => sanitize_text_field($_POST['session_title'] ?? ''),
@@ -182,7 +182,7 @@ class HL_Frontend_My_Coaching {
         }
 
         // Check cancellation allowed.
-        if (!$coaching_service->is_cancellation_allowed($session['cohort_id'])) {
+        if (!$coaching_service->is_cancellation_allowed($session['track_id'])) {
             return;
         }
 
@@ -260,17 +260,17 @@ class HL_Frontend_My_Coaching {
     }
 
     private function render_enrollment_switcher($enrollments, $current_enrollment_id) {
-        $cohort_repo = new HL_Cohort_Repository();
+        $track_repo = new HL_Track_Repository();
         $pathway_repo = new HL_Pathway_Repository();
 
         echo '<div class="hl-enrollment-switcher">';
         echo '<label>' . esc_html__('Program:', 'hl-core') . ' </label>';
         echo '<select class="hl-select" onchange="if(this.value){window.location.search=\'enrollment=\'+this.value;}">';
         foreach ($enrollments as $e) {
-            $cohort = $cohort_repo->get_by_id($e->cohort_id);
+            $track = $track_repo->get_by_id($e->track_id);
             $pathway = !empty($e->assigned_pathway_id) ? $pathway_repo->get_by_id($e->assigned_pathway_id) : null;
             $label = ($pathway ? $pathway->pathway_name : __('Program', 'hl-core'))
-                   . ' — ' . ($cohort ? $cohort->cohort_name : '');
+                   . ' — ' . ($track ? $track->track_name : '');
             $selected = ((int) $e->enrollment_id === $current_enrollment_id) ? ' selected' : '';
             echo '<option value="' . esc_attr($e->enrollment_id) . '"' . $selected . '>'
                 . esc_html($label)
@@ -302,7 +302,7 @@ class HL_Frontend_My_Coaching {
         echo '</div>';
     }
 
-    private function render_upcoming_sessions($sessions, $can_cancel, $enrollment_id, $cohort_id) {
+    private function render_upcoming_sessions($sessions, $can_cancel, $enrollment_id, $track_id) {
         if (empty($sessions)) {
             echo '<p class="hl-session-no-items">' . esc_html__('No upcoming sessions.', 'hl-core') . '</p>';
             return;
@@ -411,15 +411,15 @@ class HL_Frontend_My_Coaching {
         echo '</div>';
     }
 
-    private function render_schedule_form($enrollment_id, $cohort_id, $coach) {
+    private function render_schedule_form($enrollment_id, $track_id, $coach) {
         // Auto-suggest session title from next coaching activity.
-        $suggested_title = $this->get_suggested_session_title($enrollment_id, $cohort_id);
+        $suggested_title = $this->get_suggested_session_title($enrollment_id, $track_id);
 
         echo '<div class="hl-schedule-form">';
         echo '<form method="post">';
         wp_nonce_field('hl_schedule_session', 'hl_schedule_session_nonce');
         echo '<input type="hidden" name="enrollment_id" value="' . esc_attr($enrollment_id) . '" />';
-        echo '<input type="hidden" name="cohort_id" value="' . esc_attr($cohort_id) . '" />';
+        echo '<input type="hidden" name="track_id" value="' . esc_attr($track_id) . '" />';
 
         // Session title.
         echo '<div class="hl-form-group">';
@@ -451,21 +451,21 @@ class HL_Frontend_My_Coaching {
      * Try to auto-suggest a session title from the next coaching activity.
      *
      * @param int $enrollment_id
-     * @param int $cohort_id
+     * @param int $track_id
      * @return string
      */
-    private function get_suggested_session_title($enrollment_id, $cohort_id) {
+    private function get_suggested_session_title($enrollment_id, $track_id) {
         global $wpdb;
 
-        // Find coaching activities in this cohort's pathways.
+        // Find coaching activities in this track's pathways.
         $coaching_activities = $wpdb->get_results($wpdb->prepare(
             "SELECT a.activity_id, a.activity_name FROM {$wpdb->prefix}hl_activity a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
-             WHERE p.cohort_id = %d
+             WHERE p.track_id = %d
                AND a.activity_type = 'coaching_session_attendance'
                AND a.status = 'active'
              ORDER BY a.sort_order ASC",
-            $cohort_id
+            $track_id
         ), ARRAY_A);
 
         if (empty($coaching_activities)) {

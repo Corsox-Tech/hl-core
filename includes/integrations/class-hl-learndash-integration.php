@@ -84,7 +84,7 @@ class HL_LearnDash_Integration {
 
         // Find all active enrollments for this user
         $enrollments = $wpdb->get_results($wpdb->prepare(
-            "SELECT enrollment_id, cohort_id, assigned_pathway_id
+            "SELECT enrollment_id, track_id, assigned_pathway_id
              FROM {$wpdb->prefix}hl_enrollment
              WHERE user_id = %d AND status = 'active'",
             $user_id
@@ -96,17 +96,17 @@ class HL_LearnDash_Integration {
 
         $enrollment_ids = wp_list_pluck($enrollments, 'enrollment_id');
 
-        // Find all learndash_course activities across all cohorts these enrollments belong to
-        $cohort_ids = array_unique(wp_list_pluck($enrollments, 'cohort_id'));
-        $cohort_placeholders = implode(',', array_fill(0, count($cohort_ids), '%d'));
+        // Find all learndash_course activities across all tracks these enrollments belong to
+        $track_ids = array_unique(wp_list_pluck($enrollments, 'track_id'));
+        $track_placeholders = implode(',', array_fill(0, count($track_ids), '%d'));
 
         $activities = $wpdb->get_results($wpdb->prepare(
-            "SELECT activity_id, cohort_id, pathway_id, external_ref
+            "SELECT activity_id, track_id, pathway_id, external_ref
              FROM {$wpdb->prefix}hl_activity
              WHERE activity_type = 'learndash_course'
-               AND cohort_id IN ($cohort_placeholders)
+               AND track_id IN ($track_placeholders)
                AND status = 'active'",
-            $cohort_ids
+            $track_ids
         ));
 
         if (empty($activities)) {
@@ -129,17 +129,17 @@ class HL_LearnDash_Integration {
             return;
         }
 
-        // Build a lookup: cohort_id => enrollment_id
-        $cohort_enrollment_map = array();
+        // Build a lookup: track_id => enrollment_id
+        $track_enrollment_map = array();
         foreach ($enrollments as $enrollment) {
-            $cohort_enrollment_map[$enrollment->cohort_id] = $enrollment->enrollment_id;
+            $track_enrollment_map[$enrollment->track_id] = $enrollment->enrollment_id;
         }
 
         // For each matching activity, mark the corresponding enrollment's activity_state as complete
         $updated_enrollment_ids = array();
         foreach ($matching_activities as $activity) {
-            $enrollment_id = isset($cohort_enrollment_map[$activity->cohort_id])
-                ? $cohort_enrollment_map[$activity->cohort_id]
+            $enrollment_id = isset($track_enrollment_map[$activity->track_id])
+                ? $track_enrollment_map[$activity->track_id]
                 : 0;
 
             if (!$enrollment_id) {
@@ -177,7 +177,7 @@ class HL_LearnDash_Integration {
             HL_Audit_Service::log('learndash_course.completed', array(
                 'entity_type' => 'activity',
                 'entity_id'   => $activity->activity_id,
-                'cohort_id'   => $activity->cohort_id,
+                'track_id'    => $activity->track_id,
                 'after_data'  => array(
                     'user_id'       => $user_id,
                     'course_id'     => $course_id,

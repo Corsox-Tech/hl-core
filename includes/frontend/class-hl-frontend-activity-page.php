@@ -147,7 +147,7 @@ class HL_Frontend_Activity_Page {
                 ?></a>
             <?php endif; ?>
 
-            <h1 class="hl-cohort-title"><?php echo esc_html($activity->title); ?></h1>
+            <h1 class="hl-track-title"><?php echo esc_html($activity->title); ?></h1>
             <p class="hl-activity-type-badge"><?php echo esc_html($type_label); ?></p>
 
             <?php if (!empty($activity->description)) : ?>
@@ -274,7 +274,7 @@ class HL_Frontend_Activity_Page {
         $hidden_fields = array(
             'hl_enrollment_id' => $enrollment->enrollment_id,
             'hl_activity_id'   => $activity->activity_id,
-            'hl_cohort_id'     => $enrollment->cohort_id,
+                  'hl_track_id'     => $enrollment->track_id,
         );
 
         ?>
@@ -303,16 +303,16 @@ class HL_Frontend_Activity_Page {
         global $wpdb;
         $instance_id = $wpdb->get_var($wpdb->prepare(
             "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
-             WHERE enrollment_id = %d AND cohort_id = %d AND phase = %s",
+             WHERE enrollment_id = %d AND track_id = %d AND phase = %s",
             $enrollment->enrollment_id,
-            $enrollment->cohort_id,
+            $enrollment->track_id,
             $phase
         ));
 
         if (!$instance_id) {
             $instrument = $assessment_service->get_teacher_instrument($instrument_id);
             $result = $assessment_service->create_teacher_assessment_instance(array(
-                'cohort_id'          => $enrollment->cohort_id,
+                'track_id'           => $enrollment->track_id,
                 'enrollment_id'      => $enrollment->enrollment_id,
                 'phase'              => $phase,
                 'instrument_id'      => $instrument_id,
@@ -352,7 +352,7 @@ class HL_Frontend_Activity_Page {
         if ($phase === 'post') {
             $pre_responses = $assessment_service->get_pre_responses_for_post(
                 absint($instance['enrollment_id']),
-                absint($instance['cohort_id'])
+                absint($instance['track_id'])
             );
         }
 

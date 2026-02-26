@@ -15,8 +15,8 @@ class HL_Frontend_Team_Progress {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Cohort_Repository */
-    private $cohort_repo;
+    /** @var HL_Track_Repository */
+    private $track_repo;
 
     /** @var HL_Team_Repository */
     private $team_repo;
@@ -32,7 +32,7 @@ class HL_Frontend_Team_Progress {
 
     public function __construct() {
         $this->enrollment_repo = new HL_Enrollment_Repository();
-        $this->cohort_repo    = new HL_Cohort_Repository();
+        $this->track_repo    = new HL_Track_Repository();
         $this->team_repo      = new HL_Team_Repository();
         $this->pathway_repo   = new HL_Pathway_Repository();
         $this->activity_repo  = new HL_Activity_Repository();
@@ -42,7 +42,7 @@ class HL_Frontend_Team_Progress {
     /**
      * Render the Team Progress shortcode.
      *
-     * @param array $atts Shortcode attributes. Optional key: cohort_id.
+     * @param array $atts Shortcode attributes. Optional key: track_id.
      * @return string HTML output.
      */
     public function render($atts) {
@@ -61,7 +61,7 @@ class HL_Frontend_Team_Progress {
             if (!$enrollment->has_role('Mentor')) {
                 return false;
             }
-            if (!empty($atts['cohort_id']) && (int) $enrollment->cohort_id !== absint($atts['cohort_id'])) {
+            if (!empty($atts['track_id']) && (int) $enrollment->track_id !== absint($atts['track_id'])) {
                 return false;
             }
             return true;
@@ -74,17 +74,17 @@ class HL_Frontend_Team_Progress {
             return ob_get_clean();
         }
 
-        // -- Build per-cohort team blocks --
-        $cohort_blocks = array();
+        // -- Build per-track team blocks --
+        $track_blocks = array();
 
         foreach ($mentor_enrollments as $mentor_enrollment) {
-            $block = $this->build_cohort_block($mentor_enrollment);
+            $block = $this->build_track_block($mentor_enrollment);
             if ($block !== null) {
-                $cohort_blocks[] = $block;
+                $track_blocks[] = $block;
             }
         }
 
-        if (empty($cohort_blocks)) {
+        if (empty($track_blocks)) {
             $this->render_empty_state();
             return ob_get_clean();
         }
@@ -92,19 +92,19 @@ class HL_Frontend_Team_Progress {
         // -- Render HTML --
         ?>
         <div class="hl-dashboard hl-team-progress">
-        <?php if (count($cohort_blocks) > 1) : ?>
-            <div class="hl-cohort-tabs">
-            <?php foreach ($cohort_blocks as $idx => $block) : ?>
+        <?php if (count($track_blocks) > 1) : ?>
+            <div class="hl-track-tabs">
+            <?php foreach ($track_blocks as $idx => $block) : ?>
                 <button class="hl-tab<?php echo $idx === 0 ? ' active' : ''; ?>"
-                        data-cohort="<?php echo esc_attr($block['cohort']->cohort_id); ?>">
-                    <?php echo esc_html($block['cohort']->cohort_code . ' - ' . $this->format_year($block['cohort']->start_date)); ?>
+                        data-track="<?php echo esc_attr($block[  'track']->track_id); ?>">
+                    <?php echo esc_html($block[  'track']->track_code . ' - ' . $this->format_year($block[  'track']->start_date)); ?>
                 </button>
             <?php endforeach; ?>
             </div>
         <?php endif; ?>
 
-        <?php foreach ($cohort_blocks as $block) :
-            $this->render_cohort_block($block);
+        <?php foreach ($track_blocks as $block) :
+            $this->render_track_block($block);
         endforeach; ?>
         </div>
         <?php
@@ -115,16 +115,16 @@ class HL_Frontend_Team_Progress {
     // --- Data helpers --------------------------------------------------------
 
     /**
-     * Build data for a single cohort block from a mentor enrollment.
+     * Build data for a single track block from a mentor enrollment.
      *
      * @param HL_Enrollment $mentor_enrollment
-     * @return array|null Null if the mentor is not on a team in this cohort.
+     * @return array|null Null if the mentor is not on a team in this track.
      */
-    private function build_cohort_block($mentor_enrollment) {
+    private function build_track_block($mentor_enrollment) {
         global $wpdb;
 
-        $cohort = $this->cohort_repo->get_by_id($mentor_enrollment->cohort_id);
-        if (!$cohort) {
+        $track = $this->track_repo->get_by_id($mentor_enrollment->track_id);
+        if (!$track) {
             return null;
         }
 
@@ -138,7 +138,7 @@ class HL_Frontend_Team_Progress {
             // Mentor is not assigned to a team; we still return a block so we
             // can show an informational message.
             return array(
-                'cohort'       => $cohort,
+                  'track'       => $track,
                 'team'          => null,
                 'school_name'   => '',
                 'members'       => array(),
@@ -184,7 +184,7 @@ class HL_Frontend_Team_Progress {
         $team_avg = ($member_count > 0) ? round($completion_sum / $member_count) : 0;
 
         return array(
-            'cohort'      => $cohort,
+              'track'      => $track,
             'team'        => $team,
             'school_name' => $school_name,
             'members'     => $members,
@@ -285,7 +285,7 @@ class HL_Frontend_Team_Progress {
 
         // Try the pre-computed rollup first.
         $rollup = $wpdb->get_var($wpdb->prepare(
-            "SELECT cohort_completion_percent FROM {$wpdb->prefix}hl_completion_rollup WHERE enrollment_id = %d",
+            "SELECT track_completion_percent FROM {$wpdb->prefix}hl_completion_rollup WHERE enrollment_id = %d",
             $enrollment_id
         ));
 
@@ -330,29 +330,29 @@ class HL_Frontend_Team_Progress {
     // --- Rendering helpers ---------------------------------------------------
 
     /**
-     * Render a single cohort block (team header + member cards).
+     * Render a single track block (team header + member cards).
      *
      * @param array $block
      */
-    private function render_cohort_block($block) {
-        $cohort     = $block['cohort'];
+    private function render_track_block($block) {
+        $track      = $block['track'];
         $team        = $block['team'];
         $school_name = $block['school_name'];
         $members     = $block['members'];
         $team_avg    = $block['team_avg'];
         ?>
-        <div class="hl-cohort-block" data-cohort-id="<?php echo esc_attr($cohort->cohort_id); ?>">
+        <div class="hl-track-block" data-track-id="<?php echo esc_attr($track->track_id); ?>">
         <?php if (!$team) : ?>
             <div class="hl-notice hl-notice-info">
-                <?php esc_html_e('You are not assigned to a team in this cohort.', 'hl-core'); ?>
+                <?php esc_html_e('You are not assigned to a team in this track.', 'hl-core'); ?>
             </div>
         <?php else : ?>
             <?php // -- Team header -- ?>
             <div class="hl-team-header">
                 <div class="hl-team-header-info">
                     <h2 class="hl-team-title"><?php echo esc_html($team->team_name); ?></h2>
-                    <div class="hl-cohort-meta">
-                        <span class="hl-meta-item"><strong><?php esc_html_e('Cohort:', 'hl-core'); ?></strong> <?php echo esc_html($cohort->cohort_code . ' - ' . $this->format_year($cohort->start_date)); ?></span>
+                    <div class="hl-track-meta">
+                        <span class="hl-meta-item"><strong><?php esc_html_e('Track:', 'hl-core'); ?></strong> <?php echo esc_html($track->track_code . ' - ' . $this->format_year($track->start_date)); ?></span>
                         <?php if (!empty($school_name)) : ?>
                         <span class="hl-meta-item"><strong><?php esc_html_e('School:', 'hl-core'); ?></strong> <?php echo esc_html($school_name); ?></span>
                         <?php endif; ?>
@@ -503,7 +503,7 @@ class HL_Frontend_Team_Progress {
         <div class="hl-dashboard hl-team-progress">
             <div class="hl-empty-state">
                 <h3><?php esc_html_e('No Team Assignments', 'hl-core'); ?></h3>
-                <p><?php esc_html_e('You do not have any active Mentor enrollments. If you believe this is an error, please contact your cohort administrator.', 'hl-core'); ?></p>
+                <p><?php esc_html_e('You do not have any active Mentor enrollments. If you believe this is an error, please contact your track administrator.', 'hl-core'); ?></p>
             </div>
         </div>
         <?php

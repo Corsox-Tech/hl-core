@@ -516,10 +516,10 @@ class HL_BuddyBoss_Integration {
      * see only management/directory pages:
      *   My Programs, My Coaching: any active enrollment
      *   My Team: mentor role in enrollment
-     *   My Cohort: district_leader, school_leader, or mentor role
+     *   My Track: district_leader, school_leader, or mentor role
      *
      * Directory/management pages:
-     *   Cohorts, Institutions: staff OR district_leader OR school_leader
+     *   Tracks, Institutions: staff OR district_leader OR school_leader
      *   Classrooms: staff OR district_leader OR school_leader OR teacher
      *   Learners: staff OR district_leader OR school_leader OR mentor
      *   Pathways: staff only
@@ -546,9 +546,9 @@ class HL_BuddyBoss_Integration {
             array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment),
             array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $has_enrollment && !$is_control_only),
             array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor),
-            array('my-cohort',      'hl_my_cohort',            __('My Cohort', 'hl-core'),      'dashicons-networking',           $is_leader || $is_mentor),
+            array('my-track',       'hl_my_track',             __('My Track', 'hl-core'),       'dashicons-networking',           $is_leader || $is_mentor),
             // --- Directories / Management ---
-            array('cohorts',        'hl_cohorts_listing',      __('Cohorts', 'hl-core'),        'dashicons-groups',               $is_staff || $is_leader),
+            array('tracks',         'hl_tracks_listing',       __('Tracks', 'hl-core'),         'dashicons-groups',               $is_staff || $is_leader),
             array('institutions',   'hl_institutions_listing', __('Institutions', 'hl-core'),   'dashicons-building',             $is_staff || $is_leader),
             array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'dashicons-welcome-learn-more',   $is_staff || $is_leader || $is_teacher),
             array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'dashicons-id-alt',               $is_staff || $is_leader || $is_mentor),
@@ -634,7 +634,7 @@ class HL_BuddyBoss_Integration {
     // =========================================================================
 
     /**
-     * Check if all of a user's active enrollments belong to control group cohorts.
+     * Check if all of a user's active enrollments belong to control group tracks.
      *
      * @param int $user_id
      * @return bool True if the user has enrollments AND all are control group.
@@ -643,9 +643,9 @@ class HL_BuddyBoss_Integration {
         global $wpdb;
 
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT c.is_control_group
+            "SELECT t.is_control_group
              FROM {$wpdb->prefix}hl_enrollment e
-             JOIN {$wpdb->prefix}hl_cohort c ON e.cohort_id = c.cohort_id
+             JOIN {$wpdb->prefix}hl_track t ON e.track_id = t.track_id
              WHERE e.user_id = %d AND e.status = 'active'",
             $user_id
         ), ARRAY_A);

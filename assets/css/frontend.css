@@ -181,7 +181,7 @@ body:has(.hl-dashboard) h1.entry-title {
    5. TABS — PILL / SEGMENT CONTROL
    ===================================================== */
 
-.hl-cohort-tabs {
+.hl-track-tabs {
     display: flex;
     gap: 6px;
     margin-bottom: 28px;
@@ -217,19 +217,19 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 /* Tab content show/hide */
-.hl-frontend-wrap .hl-cohort-content {
+.hl-frontend-wrap .hl-track-content {
     display: none !important;
 }
 
-.hl-frontend-wrap .hl-cohort-content.active {
+.hl-frontend-wrap .hl-track-content.active {
     display: block !important;
 }
 
 /* =====================================================
-   6. COHORT BLOCK
+   6. TRACK BLOCK
    ===================================================== */
 
-.hl-cohort-block {
+.hl-track-block {
     margin-bottom: 36px;
 }
 
@@ -294,7 +294,7 @@ body:has(.hl-dashboard) h1.entry-title {
    9. META ITEMS
    ===================================================== */
 
-.hl-cohort-meta {
+.hl-track-meta {
     display: flex;
     gap: 18px;
     flex-wrap: wrap;
@@ -499,7 +499,7 @@ button.hl-btn-danger:hover,
 
 .hl-progress-header,
 .hl-team-header,
-.hl-my-cohort-header {
+.hl-my-track-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -515,75 +515,75 @@ button.hl-btn-danger:hover,
 
 .hl-progress-header-info,
 .hl-team-header-info,
-.hl-my-cohort-header-info {
+.hl-my-track-header-info {
     flex: 1;
     min-width: 200px;
 }
 
-.hl-progress-header .hl-cohort-title,
+.hl-progress-header .hl-track-title,
 .hl-team-header .hl-team-title,
-.hl-my-cohort-header .hl-cohort-title {
+.hl-my-track-header .hl-track-title {
     font-size: 22px;
     font-weight: 700;
     color: var(--hl-surface);
     margin: 0 0 6px;
 }
 
-.hl-progress-header .hl-cohort-meta,
-.hl-my-cohort-header .hl-cohort-meta {
+.hl-progress-header .hl-track-meta,
+.hl-my-track-header .hl-track-meta {
     color: rgba(255, 255, 255, 0.75);
 }
 
 .hl-progress-header .hl-meta-item strong,
-.hl-my-cohort-header .hl-meta-item strong {
+.hl-my-track-header .hl-meta-item strong {
     color: rgba(255, 255, 255, 0.9);
 }
 
 .hl-progress-header .hl-badge,
-.hl-my-cohort-header .hl-badge {
+.hl-my-track-header .hl-badge {
     background: rgba(255, 255, 255, 0.15);
     color: var(--hl-surface);
 }
 
 .hl-progress-header .hl-ring-percent,
-.hl-my-cohort-header .hl-ring-percent {
+.hl-my-track-header .hl-ring-percent {
     color: var(--hl-surface);
 }
 
 .hl-progress-header .hl-ring-label,
-.hl-my-cohort-header .hl-ring-label {
+.hl-my-track-header .hl-ring-label {
     color: rgba(255, 255, 255, 0.6);
 }
 
 .hl-progress-header .hl-ring-bg,
-.hl-my-cohort-header .hl-ring-bg {
+.hl-my-track-header .hl-ring-bg {
     stroke: rgba(255, 255, 255, 0.15);
 }
 
 .hl-progress-header .hl-ring-fill,
-.hl-my-cohort-header .hl-ring-fill {
+.hl-my-track-header .hl-ring-fill {
     stroke: var(--hl-accent);
 }
 
-.hl-my-cohort-header .hl-scope-indicator {
+.hl-my-track-header .hl-scope-indicator {
     font-size: 14px;
     color: rgba(255, 255, 255, 0.7);
     margin: 0 0 8px;
     font-style: italic;
 }
 
-.hl-my-cohort-header .hl-cohort-selector label {
+.hl-my-track-header .hl-track-selector label {
     color: rgba(255, 255, 255, 0.8);
 }
 
-.hl-my-cohort-header .hl-cohort-selector .hl-select {
+.hl-my-track-header .hl-track-selector .hl-select {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.25);
     color: var(--hl-surface);
 }
 
 /* =====================================================
-   14. DASHBOARD HEADER (Cohort Dashboard)
+   14. DASHBOARD HEADER (Track Dashboard)
    ===================================================== */
 
 .hl-dashboard-header {
@@ -603,16 +603,16 @@ button.hl-btn-danger:hover,
 }
 
 /* =====================================================
-   15. COHORT SELECTOR
+   15. TRACK SELECTOR
    ===================================================== */
 
-.hl-cohort-selector {
+.hl-track-selector {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.hl-cohort-selector label {
+.hl-track-selector label {
     font-size: 14px;
     font-weight: 600;
     color: var(--hl-text-secondary);
@@ -1293,7 +1293,7 @@ button.hl-btn-danger:hover,
     color: var(--hl-text-heading);
 }
 
-.hl-program-card-cohort {
+.hl-program-card-track {
     font-size: 13px;
     color: var(--hl-text-muted);
     margin: 0 0 14px;
@@ -1594,7 +1594,7 @@ button.hl-btn-danger:hover,
 }
 
 /* =====================================================
-   31. TEAMS GRID (My Cohort / Workspace)
+   31. TEAMS GRID (My Track / Workspace)
    ===================================================== */
 
 .hl-teams-grid {
@@ -1759,7 +1759,7 @@ button.hl-btn-danger:hover,
     min-width: 200px;
 }
 
-.hl-team-page-header .hl-cohort-title {
+.hl-team-page-header .hl-track-title {
     font-size: 22px;
     font-weight: 700;
     color: var(--hl-surface);
@@ -1773,7 +1773,7 @@ button.hl-btn-danger:hover,
     font-style: italic;
 }
 
-.hl-team-page-header .hl-cohort-meta {
+.hl-team-page-header .hl-track-meta {
     color: rgba(255, 255, 255, 0.75);
 }
 
@@ -1824,7 +1824,7 @@ button.hl-btn-danger:hover,
     min-width: 200px;
 }
 
-.hl-classroom-page-header .hl-cohort-title {
+.hl-classroom-page-header .hl-track-title {
     font-size: 22px;
     font-weight: 700;
     color: var(--hl-surface);
@@ -1838,7 +1838,7 @@ button.hl-btn-danger:hover,
     font-style: italic;
 }
 
-.hl-classroom-page-header .hl-cohort-meta {
+.hl-classroom-page-header .hl-track-meta {
     color: rgba(255, 255, 255, 0.75);
 }
 
@@ -1866,7 +1866,7 @@ button.hl-btn-danger:hover,
     margin: 0;
 }
 
-/* Card grid for districts, schools, cohorts */
+/* Card grid for districts, schools, tracks */
 .hl-crm-card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -2065,7 +2065,7 @@ button.hl-btn-danger:hover,
     min-width: 200px;
 }
 
-.hl-crm-detail-header .hl-cohort-title {
+.hl-crm-detail-header .hl-track-title {
     font-size: 22px;
     font-weight: 700;
     color: var(--hl-surface);
@@ -2127,14 +2127,14 @@ button.hl-btn-danger:hover,
     border-bottom: 2px solid var(--hl-crm-border);
 }
 
-/* Cohort list rows */
-.hl-crm-cohort-list {
+/* Track list rows */
+.hl-crm-track-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-.hl-crm-cohort-row {
+.hl-crm-track-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2146,7 +2146,7 @@ button.hl-btn-danger:hover,
     flex-wrap: wrap;
 }
 
-.hl-crm-cohort-info {
+.hl-crm-track-info {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -2154,17 +2154,17 @@ button.hl-btn-danger:hover,
     flex: 1;
 }
 
-.hl-crm-cohort-info strong {
+.hl-crm-track-info strong {
     font-size: 15px;
     color: var(--hl-text-heading);
 }
 
-.hl-crm-cohort-dates {
+.hl-crm-track-dates {
     font-size: 13px;
     color: var(--hl-crm-text);
 }
 
-.hl-crm-cohort-count {
+.hl-crm-track-count {
     font-size: 13px;
     color: var(--hl-crm-text);
 }
@@ -2177,7 +2177,7 @@ button.hl-btn-danger:hover,
 }
 
 /* =====================================================
-   40. COHORT WORKSPACE — DASHBOARD TAB
+   40. TRACK WORKSPACE — DASHBOARD TAB
    ===================================================== */
 
 .hl-workspace-dashboard .hl-metrics-row {
@@ -2309,7 +2309,7 @@ button.hl-btn-danger:hover,
 @media (max-width: 768px) {
     .hl-progress-header,
     .hl-team-header,
-    .hl-my-cohort-header {
+    .hl-my-track-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 16px;
@@ -2324,7 +2324,7 @@ button.hl-btn-danger:hover,
         min-width: 0;
     }
 
-    .hl-cohort-tabs {
+    .hl-track-tabs {
         gap: 4px;
     }
 
@@ -2353,7 +2353,7 @@ button.hl-btn-danger:hover,
         padding: 10px 12px;
     }
 
-    .hl-cohort-meta {
+    .hl-track-meta {
         flex-direction: column;
         gap: 4px;
     }
@@ -2424,12 +2424,12 @@ button.hl-btn-danger:hover,
         flex-wrap: wrap;
     }
 
-    .hl-crm-cohort-row {
+    .hl-crm-track-row {
         flex-direction: column;
         align-items: flex-start;
     }
 
-    .hl-crm-cohort-info {
+    .hl-crm-track-info {
         flex-direction: column;
         align-items: flex-start;
         gap: 6px;
@@ -2464,7 +2464,7 @@ button.hl-btn-danger:hover,
         align-items: flex-start;
     }
 
-    .hl-cohort-selector {
+    .hl-track-selector {
         width: 100%;
     }
 
@@ -2476,7 +2476,7 @@ button.hl-btn-danger:hover,
         grid-template-columns: 1fr;
     }
 
-    .hl-cohort-tabs {
+    .hl-track-tabs {
         flex-direction: column;
     }
 

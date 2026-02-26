@@ -46,7 +46,7 @@ class HL_Frontend_Institutions_Listing {
 
         // Pre-compute stats.
         $school_counts = $this->get_school_counts_by_district();
-        $cohort_counts = $this->get_active_cohort_counts_by_district();
+        $track_counts = $this->get_active_track_counts_by_district();
         $leaders       = $this->get_school_leaders();
         $district_map  = $this->build_district_map( $districts );
 
@@ -85,7 +85,7 @@ class HL_Frontend_Institutions_Listing {
                             <?php foreach ( $districts as $district ) :
                                 $did         = (int) $district->orgunit_id;
                                 $num_schools = isset( $school_counts[ $did ] ) ? $school_counts[ $did ] : 0;
-                                $num_cohorts = isset( $cohort_counts[ $did ] ) ? $cohort_counts[ $did ] : 0;
+                                $num_tracks = isset( $track_counts[ $did ] ) ? $track_counts[ $did ] : 0;
                                 $detail_url  = $district_page_url ? add_query_arg( 'id', $did, $district_page_url ) : '';
                             ?>
                                 <div class="hl-crm-card hl-inst-card"
@@ -105,8 +105,8 @@ class HL_Frontend_Institutions_Listing {
                                                 <?php echo esc_html( _n( 'School', 'Schools', $num_schools, 'hl-core' ) ); ?>
                                             </span>
                                             <span class="hl-crm-card-stat">
-                                                <strong><?php echo esc_html( $num_cohorts ); ?></strong>
-                                                <?php echo esc_html( _n( 'Active Cohort', 'Active Cohorts', $num_cohorts, 'hl-core' ) ); ?>
+                                                <strong><?php echo esc_html( $num_tracks ); ?></strong>
+                                                <?php echo esc_html( _n( 'Active Track', 'Active Tracks', $num_tracks, 'hl-core' ) ); ?>
                                             </span>
                                         </div>
                                     </div>
@@ -250,16 +250,16 @@ class HL_Frontend_Institutions_Listing {
         return $map;
     }
 
-    private function get_active_cohort_counts_by_district() {
+    private function get_active_track_counts_by_district() {
         global $wpdb;
         $prefix = $wpdb->prefix;
         $results = $wpdb->get_results(
             "SELECT ou.parent_orgunit_id AS district_id,
-                    COUNT(DISTINCT cs.cohort_id) AS cnt
-             FROM {$prefix}hl_cohort_school cs
+                    COUNT(DISTINCT cs.track_id) AS cnt
+             FROM {$prefix}hl_track_school cs
              INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
-             INNER JOIN {$prefix}hl_cohort c ON cs.cohort_id = c.cohort_id
-             WHERE ou.parent_orgunit_id IS NOT NULL AND c.status = 'active'
+             INNER JOIN {$prefix}hl_track t ON cs.track_id = t.track_id
+             WHERE ou.parent_orgunit_id IS NOT NULL AND t.status = 'active'
              GROUP BY ou.parent_orgunit_id",
             ARRAY_A
         );

@@ -153,7 +153,7 @@ class HL_Admin_Coaching {
         } else {
             // Create new session
             $data = array(
-                'cohort_id'            => absint($_POST['cohort_id']),
+                'track_id'             => absint($_POST['track_id']),
                 'mentor_enrollment_id' => absint($_POST['mentor_enrollment_id']),
                 'coach_user_id'        => absint($_POST['coach_user_id']),
                 'session_title'        => sanitize_text_field($_POST['session_title'] ?? ''),
@@ -312,23 +312,23 @@ class HL_Admin_Coaching {
     private function render_list() {
         global $wpdb;
 
-        $filter_cohort = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
+        $filter_track = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
 
-        // Get all cohorts for the filter dropdown
-        $cohorts = $wpdb->get_results(
-            "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
+        // Get all tracks for the filter dropdown
+        $tracks = $wpdb->get_results(
+            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
         );
 
         // Show success/error messages
         $this->render_messages();
 
-        // Cohort breadcrumb.
-        if ($filter_cohort) {
-            $cohort_name = $wpdb->get_var($wpdb->prepare(
-                "SELECT cohort_name FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d", $filter_cohort
+        // Track breadcrumb.
+        if ($filter_track) {
+            $track_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT track_name FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $filter_track
             ));
-            if ($cohort_name) {
-                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-core&action=edit&id=' . $filter_cohort . '&tab=coaching')) . '">&larr; ' . sprintf(esc_html__('Cohort: %s', 'hl-core'), esc_html($cohort_name)) . '</a></p>';
+            if ($track_name) {
+                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-tracks&action=edit&id=' . $filter_track . '&tab=coaching')) . '">&larr; ' . sprintf(esc_html__('Track: %s', 'hl-core'), esc_html($track_name)) . '</a></p>';
             }
         }
 
@@ -336,15 +336,15 @@ class HL_Admin_Coaching {
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-coaching&action=new')) . '" class="page-title-action">' . esc_html__('Add New Session', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
-        // Cohort filter
+        // Track filter
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-coaching" />';
-        echo '<label><strong>' . esc_html__('Cohort:', 'hl-core') . '</strong> </label>';
-        echo '<select name="cohort_id">';
-        echo '<option value="">' . esc_html__('All Cohorts', 'hl-core') . '</option>';
-        if ($cohorts) {
-            foreach ($cohorts as $cohort) {
-                echo '<option value="' . esc_attr($cohort->cohort_id) . '"' . selected($filter_cohort, $cohort->cohort_id, false) . '>' . esc_html($cohort->cohort_name) . '</option>';
+        echo '<label><strong>' . esc_html__('Track:', 'hl-core') . '</strong> </label>';
+        echo '<select name="track_id">';
+        echo '<option value="">' . esc_html__('All Tracks', 'hl-core') . '</option>';
+        if ($tracks) {
+            foreach ($tracks as $track) {
+                echo '<option value="' . esc_attr($track->track_id) . '"' . selected($filter_track, $track->track_id, false) . '>' . esc_html($track->track_name) . '</option>';
             }
         }
         echo '</select> ';
@@ -352,18 +352,18 @@ class HL_Admin_Coaching {
         echo '</form>';
 
         // Get sessions
-        if ($filter_cohort) {
+        if ($filter_track) {
             $service  = new HL_Coaching_Service();
-            $sessions = $service->get_by_cohort($filter_cohort);
+            $sessions = $service->get_by_track($filter_track);
         } else {
-            // Get all sessions across cohorts
+            // Get all sessions across tracks
             $sessions = $wpdb->get_results(
-                "SELECT cs.*, u_coach.display_name as coach_name, u_mentor.display_name as mentor_name, c.cohort_name
+                "SELECT cs.*, u_coach.display_name as coach_name, u_mentor.display_name as mentor_name, t.track_name
                  FROM {$wpdb->prefix}hl_coaching_session cs
                  LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
                  JOIN {$wpdb->prefix}hl_enrollment e ON cs.mentor_enrollment_id = e.enrollment_id
                  LEFT JOIN {$wpdb->users} u_mentor ON e.user_id = u_mentor.ID
-                 LEFT JOIN {$wpdb->prefix}hl_cohort c ON cs.cohort_id = c.cohort_id
+                 LEFT JOIN {$wpdb->prefix}hl_track t ON cs.track_id = t.track_id
                  ORDER BY cs.created_at DESC",
                 ARRAY_A
             ) ?: array();
@@ -379,8 +379,8 @@ class HL_Admin_Coaching {
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Title', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Date/Time', 'hl-core') . '</th>';
-        if (!$filter_cohort) {
-            echo '<th>' . esc_html__('Cohort', 'hl-core') . '</th>';
+        if (!$filter_track) {
+            echo '<th>' . esc_html__('Track', 'hl-core') . '</th>';
         }
         echo '<th>' . esc_html__('Participant', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Coach', 'hl-core') . '</th>';
@@ -414,8 +414,8 @@ class HL_Admin_Coaching {
             echo '<td>' . esc_html($session['session_id']) . '</td>';
             echo '<td>' . esc_html($session['session_title'] ?? '') . '</td>';
             echo '<td>' . $session_date_display . '</td>';
-            if (!$filter_cohort) {
-                echo '<td>' . esc_html(isset($session['cohort_name']) ? $session['cohort_name'] : '-') . '</td>';
+            if (!$filter_track) {
+                echo '<td>' . esc_html(isset($session['track_name']) ? $session['track_name'] : '-') . '</td>';
             }
             echo '<td>' . esc_html($session['mentor_name'] ?: '-') . '</td>';
             echo '<td>' . esc_html($session['coach_name'] ?: '-') . '</td>';
@@ -466,30 +466,30 @@ class HL_Admin_Coaching {
 
         echo '<table class="form-table">';
 
-        // ---- Cohort ----
+        // ---- Track ----
         if ($is_edit) {
-            // Cohort is read-only on edit
+            // Track is read-only on edit
             echo '<tr>';
-            echo '<th scope="row">' . esc_html__('Cohort', 'hl-core') . '</th>';
-            echo '<td><strong>' . esc_html($session['cohort_name']) . '</strong>';
-            echo '<input type="hidden" name="cohort_id" value="' . esc_attr($session['cohort_id']) . '" />';
+            echo '<th scope="row">' . esc_html__('Track', 'hl-core') . '</th>';
+            echo '<td><strong>' . esc_html($session['track_name']) . '</strong>';
+            echo '<input type="hidden" name="track_id" value="' . esc_attr($session['track_id']) . '" />';
             echo '</td>';
             echo '</tr>';
         } else {
-            $cohorts = $wpdb->get_results(
-                "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC"
+            $tracks = $wpdb->get_results(
+                "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
             );
             echo '<tr>';
-            echo '<th scope="row"><label for="cohort_id">' . esc_html__('Cohort', 'hl-core') . '</label></th>';
-            echo '<td><select id="cohort_id" name="cohort_id" required>';
-            echo '<option value="">' . esc_html__('-- Select Cohort --', 'hl-core') . '</option>';
-            if ($cohorts) {
-                foreach ($cohorts as $cohort) {
-                    echo '<option value="' . esc_attr($cohort->cohort_id) . '">' . esc_html($cohort->cohort_name) . '</option>';
+            echo '<th scope="row"><label for="track_id">' . esc_html__('Track', 'hl-core') . '</label></th>';
+            echo '<td><select id="track_id" name="track_id" required>';
+            echo '<option value="">' . esc_html__('-- Select Track --', 'hl-core') . '</option>';
+            if ($tracks) {
+                foreach ($tracks as $track) {
+                    echo '<option value="' . esc_attr($track->track_id) . '">' . esc_html($track->track_name) . '</option>';
                 }
             }
             echo '</select>';
-            echo '<p class="description">' . esc_html__('Select a cohort first, then choose a mentor from that cohort.', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('Select a track first, then choose a mentor from that track.', 'hl-core') . '</p>';
             echo '</td>';
             echo '</tr>';
         }
@@ -504,11 +504,11 @@ class HL_Admin_Coaching {
             echo '</td>';
             echo '</tr>';
         } else {
-            // Will be populated by JavaScript when cohort is selected
+            // Will be populated by JavaScript when track is selected
             echo '<tr>';
             echo '<th scope="row"><label for="mentor_enrollment_id">' . esc_html__('Mentor', 'hl-core') . '</label></th>';
             echo '<td><select id="mentor_enrollment_id" name="mentor_enrollment_id" required>';
-            echo '<option value="">' . esc_html__('-- Select Cohort First --', 'hl-core') . '</option>';
+            echo '<option value="">' . esc_html__('-- Select Track First --', 'hl-core') . '</option>';
             echo '</select></td>';
             echo '</tr>';
         }
@@ -615,7 +615,7 @@ class HL_Admin_Coaching {
             $this->render_attachments_section($session);
         }
 
-        // Render JavaScript for cohort-dependent mentor dropdown (create only)
+        // Render JavaScript for track-dependent mentor dropdown (create only)
         if (!$is_edit) {
             $this->render_mentor_dropdown_js();
         }
@@ -687,7 +687,7 @@ class HL_Admin_Coaching {
         // Link observation form
         $available = $service->get_available_observations(
             $session['session_id'],
-            $session['cohort_id'],
+            $session['track_id'],
             $session['mentor_enrollment_id']
         );
 
@@ -714,7 +714,7 @@ class HL_Admin_Coaching {
             echo '<button type="submit" class="button">' . esc_html__('Link Observation', 'hl-core') . '</button>';
             echo '</form>';
         } else {
-            echo '<p class="description">' . esc_html__('No additional submitted observations available for this mentor in this cohort.', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('No additional submitted observations available for this mentor in this track.', 'hl-core') . '</p>';
         }
     }
 
@@ -860,61 +860,61 @@ class HL_Admin_Coaching {
     // =========================================================================
 
     /**
-     * Render JavaScript for cohort-dependent mentor dropdown on the create form
+     * Render JavaScript for track-dependent mentor dropdown on the create form
      *
-     * When the cohort is changed, fetches enrolled mentors via an inline data
-     * approach (pre-loads all cohort enrollment data as JSON) to avoid AJAX dependencies.
+     * When the track is changed, fetches enrolled mentors via an inline data
+     * approach (pre-loads all track enrollment data as JSON) to avoid AJAX dependencies.
      */
     private function render_mentor_dropdown_js() {
         global $wpdb;
 
-        // Pre-load all cohort enrollments grouped by cohort_id
+        // Pre-load all track enrollments grouped by track_id
         // Only load users with Mentor role (roles JSON contains "Mentor")
         $all_enrollments = $wpdb->get_results(
-            "SELECT e.enrollment_id, e.cohort_id, e.roles, u.display_name, u.user_email
+            "SELECT e.enrollment_id, e.track_id, e.roles, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              WHERE e.status = 'active'
              ORDER BY u.display_name ASC"
         );
 
-        $cohort_mentors = array();
+        $track_mentors = array();
         foreach ($all_enrollments as $e) {
             $roles = json_decode($e->roles, true);
             if (!is_array($roles) || !in_array('Mentor', $roles)) {
                 continue;
             }
-            if (!isset($cohort_mentors[$e->cohort_id])) {
-                $cohort_mentors[$e->cohort_id] = array();
+            if (!isset($track_mentors[$e->track_id])) {
+                $track_mentors[$e->track_id] = array();
             }
-            $cohort_mentors[$e->cohort_id][] = array(
+            $track_mentors[$e->track_id][] = array(
                 'enrollment_id' => $e->enrollment_id,
                 'display_name'  => $e->display_name,
                 'user_email'    => $e->user_email,
             );
         }
 
-        $json_data = wp_json_encode($cohort_mentors);
+        $json_data = wp_json_encode($track_mentors);
 
         ?>
         <script type="text/javascript">
         (function() {
-            var cohortMentors = <?php echo $json_data; ?>;
-            var cohortSelect  = document.getElementById('cohort_id');
+            var trackMentors = <?php echo $json_data; ?>;
+            var trackSelect  = document.getElementById('track_id');
             var mentorSelect  = document.getElementById('mentor_enrollment_id');
 
-            if (!cohortSelect || !mentorSelect) return;
+            if (!trackSelect || !mentorSelect) return;
 
-            cohortSelect.addEventListener('change', function() {
-                var cohortId = this.value;
+            trackSelect.addEventListener('change', function() {
+                var trackId = this.value;
                 mentorSelect.innerHTML = '';
 
-                if (!cohortId || !cohortMentors[cohortId]) {
+                if (!trackId || !trackMentors[trackId]) {
                     var opt = document.createElement('option');
                     opt.value = '';
-                    opt.textContent = cohortId
-                        ? '<?php echo esc_js(__('No mentors found in this cohort', 'hl-core')); ?>'
-                        : '<?php echo esc_js(__('-- Select Cohort First --', 'hl-core')); ?>';
+                    opt.textContent = trackId
+                        ? '<?php echo esc_js(__('No mentors found in this track', 'hl-core')); ?>'
+                        : '<?php echo esc_js(__('-- Select Track First --', 'hl-core')); ?>';
                     mentorSelect.appendChild(opt);
                     return;
                 }
@@ -924,7 +924,7 @@ class HL_Admin_Coaching {
                 defaultOpt.textContent = '<?php echo esc_js(__('-- Select Mentor --', 'hl-core')); ?>';
                 mentorSelect.appendChild(defaultOpt);
 
-                var mentors = cohortMentors[cohortId];
+                var mentors = trackMentors[trackId];
                 for (var i = 0; i < mentors.length; i++) {
                     var opt = document.createElement('option');
                     opt.value = mentors[i].enrollment_id;

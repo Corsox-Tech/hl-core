@@ -33,7 +33,7 @@ class HL_Frontend_Learners {
         $page = max( 1, absint( $_GET['paged'] ?? 1 ) );
         $data = $this->get_learners( $scope, $mentor_only, $page );
 
-        $cohorts = $this->get_cohort_options( $scope );
+        $tracks = $this->get_track_options( $scope );
         $schools = $this->get_school_options( $scope );
 
         ?>
@@ -46,12 +46,12 @@ class HL_Frontend_Learners {
             <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-learner-search"
                        placeholder="<?php esc_attr_e( 'Search by name or email...', 'hl-core' ); ?>">
-                <?php if ( count( $cohorts ) > 1 ) : ?>
-                    <select class="hl-select" id="hl-learner-cohort-filter">
-                        <option value=""><?php esc_html_e( 'All Cohorts', 'hl-core' ); ?></option>
-                        <?php foreach ( $cohorts as $c ) : ?>
-                            <option value="<?php echo esc_attr( $c['cohort_id'] ); ?>">
-                                <?php echo esc_html( $c['cohort_name'] ); ?>
+                <?php if ( count( $tracks ) > 1 ) : ?>
+                    <select class="hl-select" id="hl-learner-track-filter">
+                        <option value=""><?php esc_html_e( 'All Tracks', 'hl-core' ); ?></option>
+                        <?php foreach ( $tracks as $c ) : ?>
+                            <option value="<?php echo esc_attr( $c['track_id'] ); ?>">
+                                <?php echo esc_html( $c['track_name'] ); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -86,7 +86,7 @@ class HL_Frontend_Learners {
                                 <th><?php esc_html_e( 'Email', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Role(s)', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'School', 'hl-core' ); ?></th>
-                                <th><?php esc_html_e( 'Cohort', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'Track', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Completion', 'hl-core' ); ?></th>
                             </tr>
                         </thead>
@@ -101,7 +101,7 @@ class HL_Frontend_Learners {
                             ?>
                                 <tr class="hl-learner-row"
                                     data-search="<?php echo esc_attr( strtolower( $r['display_name'] . ' ' . $r['user_email'] ) ); ?>"
-                                    data-cohort="<?php echo esc_attr( $r['cohort_id'] ); ?>"
+                                    data-track="<?php echo esc_attr( $r['track_id'] ); ?>"
                                     data-school="<?php echo esc_attr( $r['school_id'] ); ?>"
                                     data-roles="<?php echo esc_attr( strtolower( implode( ',', $roles_arr ) ) ); ?>">
                                     <td>
@@ -118,7 +118,7 @@ class HL_Frontend_Learners {
                                     <td><?php echo esc_html( $r['user_email'] ); ?></td>
                                     <td><?php echo esc_html( $roles_str ?: '—' ); ?></td>
                                     <td><?php echo esc_html( $r['school_name'] ?: '—' ); ?></td>
-                                    <td><?php echo esc_html( $r['cohort_name'] ?: '—' ); ?></td>
+                                    <td><?php echo esc_html( $r['track_name'] ?: '—' ); ?></td>
                                     <td>
                                         <div class="hl-inline-progress" style="width:110px;">
                                             <div class="hl-progress-inline">
@@ -151,7 +151,7 @@ class HL_Frontend_Learners {
 
             function filterRows() {
                 var query  = $('#hl-learner-search').val().toLowerCase();
-                var cohort = $('#hl-learner-cohort-filter').val();
+                var track = $('#hl-learner-track-filter').val();
                 var school = $('#hl-learner-school-filter').val();
                 var role   = $('#hl-learner-role-filter').val();
                 var visible = 0;
@@ -159,10 +159,10 @@ class HL_Frontend_Learners {
                 $rows.each(function(){
                     var $r = $(this);
                     var matchSearch = !query || $r.data('search').indexOf(query) !== -1;
-                    var matchCohort = !cohort || String($r.data('cohort')) === cohort;
+                    var matchTrack = !track || String($r.data('track')) === track;
                     var matchSchool = !school || String($r.data('school')) === school;
                     var matchRole   = !role || ($r.data('roles') && $r.data('roles').indexOf(role) !== -1);
-                    var show = matchSearch && matchCohort && matchSchool && matchRole;
+                    var show = matchSearch && matchTrack && matchSchool && matchRole;
                     $r.toggle(show);
                     if (show) visible++;
                 });
@@ -170,7 +170,7 @@ class HL_Frontend_Learners {
             }
 
             $('#hl-learner-search').on('input', filterRows);
-            $('#hl-learner-cohort-filter, #hl-learner-school-filter, #hl-learner-role-filter').on('change', filterRows);
+            $('#hl-learner-track-filter, #hl-learner-school-filter, #hl-learner-role-filter').on('change', filterRows);
         })(jQuery);
         </script>
         <?php
@@ -207,7 +207,7 @@ class HL_Frontend_Learners {
         $base_sql = "FROM {$prefix}hl_enrollment e
                      LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
                      LEFT JOIN {$prefix}hl_orgunit ou ON e.school_id = ou.orgunit_id
-                     LEFT JOIN {$prefix}hl_cohort co ON e.cohort_id = co.cohort_id
+                     LEFT JOIN {$prefix}hl_track tr ON e.track_id = tr.track_id
                      LEFT JOIN {$prefix}hl_completion_rollup cr
                          ON cr.enrollment_id = e.enrollment_id AND cr.pathway_id IS NULL";
 
@@ -222,10 +222,10 @@ class HL_Frontend_Learners {
                     WHERE tm.team_id IN ({$placeholders})
                 )";
                 $values = array_merge( $values, $scope['team_ids'] );
-            } elseif ( ! empty( $scope['cohort_ids'] ) ) {
-                $placeholders = implode( ',', array_fill( 0, count( $scope['cohort_ids'] ), '%d' ) );
-                $where[]      = "e.cohort_id IN ({$placeholders})";
-                $values       = array_merge( $values, $scope['cohort_ids'] );
+            } elseif ( ! empty( $scope['track_ids'] ) ) {
+                $placeholders = implode( ',', array_fill( 0, count( $scope['track_ids'] ), '%d' ) );
+                $where[]      = "e.track_id IN ({$placeholders})";
+                $values       = array_merge( $values, $scope['track_ids'] );
             } else {
                 return array( 'rows' => array(), 'total' => 0, 'per_page' => self::PER_PAGE );
             }
@@ -241,9 +241,9 @@ class HL_Frontend_Learners {
         $total = (int) $wpdb->get_var( $count_sql );
 
         // Data page.
-        $data_sql = "SELECT e.enrollment_id, e.cohort_id, e.school_id, e.roles,
+        $data_sql = "SELECT e.enrollment_id, e.track_id, e.school_id, e.roles,
                             e.user_id, u.display_name, u.user_email,
-                            ou.name AS school_name, co.cohort_name,
+                            ou.name AS school_name, tr.track_name,
                             cr.overall_percent
                      {$base_sql}{$where_clause}
                      ORDER BY u.display_name ASC
@@ -254,19 +254,19 @@ class HL_Frontend_Learners {
         return array( 'rows' => $rows, 'total' => $total, 'per_page' => self::PER_PAGE );
     }
 
-    private function get_cohort_options( $scope ) {
+    private function get_track_options( $scope ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
         if ( $scope['is_admin'] ) {
             return $wpdb->get_results(
-                "SELECT cohort_id, cohort_name FROM {$prefix}hl_cohort ORDER BY cohort_name ASC",
+                "SELECT track_id, track_name FROM {$prefix}hl_track ORDER BY track_name ASC",
                 ARRAY_A
             ) ?: array();
         }
-        if ( empty( $scope['cohort_ids'] ) ) return array();
-        $in = implode( ',', $scope['cohort_ids'] );
+        if ( empty( $scope['track_ids'] ) ) return array();
+        $in = implode( ',', $scope['track_ids'] );
         return $wpdb->get_results(
-            "SELECT cohort_id, cohort_name FROM {$prefix}hl_cohort WHERE cohort_id IN ({$in}) ORDER BY cohort_name ASC",
+            "SELECT track_id, track_name FROM {$prefix}hl_track WHERE track_id IN ({$in}) ORDER BY track_name ASC",
             ARRAY_A
         ) ?: array();
     }
