@@ -11,8 +11,8 @@ class HL_Pathway_Service {
         $this->activity_repo = new HL_Activity_Repository();
     }
 
-    public function get_pathways($cohort_id = null) {
-        return $this->pathway_repo->get_all($cohort_id);
+    public function get_pathways($track_id = null) {
+        return $this->pathway_repo->get_all($track_id);
     }
 
     public function get_pathway($pathway_id) {
@@ -20,8 +20,8 @@ class HL_Pathway_Service {
     }
 
     public function create_pathway($data) {
-        if (empty($data['pathway_name']) || empty($data['cohort_id'])) {
-            return new WP_Error('missing_fields', __('Pathway name and cohort are required.', 'hl-core'));
+        if (empty($data['pathway_name']) || empty($data['track_id'])) {
+            return new WP_Error('missing_fields', __('Pathway name and track are required.', 'hl-core'));
         }
         return $this->pathway_repo->create($data);
     }
@@ -81,14 +81,14 @@ class HL_Pathway_Service {
     }
 
     /**
-     * Clone a pathway (with activities, prereq groups/items, drip rules) into a target cohort.
+     * Clone a pathway (with activities, prereq groups/items, drip rules) into a target track.
      *
      * @param int      $source_pathway_id Source pathway to clone from.
-     * @param int      $target_cohort_id  Target cohort for the new pathway.
+     * @param int      $target_track_id  Target track for the new pathway.
      * @param string   $name_suffix       Suffix appended to the cloned pathway name.
      * @return int|WP_Error New pathway ID on success.
      */
-    public function clone_pathway($source_pathway_id, $target_cohort_id, $name_suffix = ' (Copy)') {
+    public function clone_pathway($source_pathway_id, $target_track_id, $name_suffix = ' (Copy)') {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -105,7 +105,7 @@ class HL_Pathway_Service {
         // 2. Create new pathway.
         $new_pathway_data = array(
             'pathway_uuid'        => HL_DB_Utils::generate_uuid(),
-            'cohort_id'           => absint($target_cohort_id),
+            'track_id'           => absint($target_track_id),
             'pathway_name'        => $source['pathway_name'] . $name_suffix,
             'pathway_code'        => HL_Normalization::generate_code($source['pathway_name'] . $name_suffix),
             'description'         => $source['description'],
@@ -138,7 +138,7 @@ class HL_Pathway_Service {
 
             $new_act = array(
                 'activity_uuid' => HL_DB_Utils::generate_uuid(),
-                'cohort_id'     => absint($target_cohort_id),
+                'track_id'     => absint($target_track_id),
                 'pathway_id'    => $new_pathway_id,
                 'activity_type' => $act['activity_type'],
                 'title'         => $act['title'],
@@ -219,10 +219,10 @@ class HL_Pathway_Service {
             HL_Audit_Service::log(
                 'pathway_cloned',
                 get_current_user_id(),
-                absint($target_cohort_id),
+                absint($target_track_id),
                 null,
                 $new_pathway_id,
-                sprintf('Pathway cloned from #%d to cohort #%d', $source_pathway_id, $target_cohort_id)
+                sprintf('Pathway cloned from #%d to track #%d', $source_pathway_id, $target_track_id)
             );
         }
 

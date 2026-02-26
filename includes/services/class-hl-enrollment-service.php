@@ -17,19 +17,19 @@ class HL_Enrollment_Service {
         return $this->repository->get_by_id($enrollment_id);
     }
 
-    public function get_by_cohort($cohort_id, $role = null) {
-        return $this->repository->get_by_cohort($cohort_id, $role);
+    public function get_by_track($track_id, $role = null) {
+        return $this->repository->get_by_track($track_id, $role);
     }
 
     public function create_enrollment($data) {
-        if (empty($data['cohort_id']) || empty($data['user_id'])) {
-            return new WP_Error('missing_fields', __('Cohort and User are required.', 'hl-core'));
+        if (empty($data['track_id']) || empty($data['user_id'])) {
+            return new WP_Error('missing_fields', __('Track and User are required.', 'hl-core'));
         }
 
         // Check uniqueness
-        $existing = $this->repository->get_by_cohort_and_user($data['cohort_id'], $data['user_id']);
+        $existing = $this->repository->get_by_track_and_user($data['track_id'], $data['user_id']);
         if ($existing) {
-            return new WP_Error('duplicate', __('User is already enrolled in this Cohort.', 'hl-core'));
+            return new WP_Error('duplicate', __('User is already enrolled in this Track.', 'hl-core'));
         }
 
         $enrollment_id = $this->repository->create($data);

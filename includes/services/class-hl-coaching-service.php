@@ -19,9 +19,9 @@ class HL_Coaching_Service {
     const TERMINAL_STATUSES = array('attended', 'missed', 'cancelled', 'rescheduled');
 
     /**
-     * Get coaching sessions by cohort
+     * Get coaching sessions by track
      */
-    public function get_by_cohort($cohort_id) {
+    public function get_by_track($track_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
             "SELECT cs.*, u_coach.display_name as coach_name, u_mentor.display_name as mentor_name
@@ -29,8 +29,8 @@ class HL_Coaching_Service {
              LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
              JOIN {$wpdb->prefix}hl_enrollment e ON cs.mentor_enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u_mentor ON e.user_id = u_mentor.ID
-             WHERE cs.cohort_id = %d ORDER BY cs.session_datetime DESC, cs.created_at DESC",
-            $cohort_id
+             WHERE cs.track_id = %d ORDER BY cs.session_datetime DESC, cs.created_at DESC",
+            $track_id
         ), ARRAY_A) ?: array();
     }
 
@@ -38,19 +38,19 @@ class HL_Coaching_Service {
      * Get sessions for a participant enrollment.
      *
      * @param int $enrollment_id
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array
      */
-    public function get_sessions_for_participant($enrollment_id, $cohort_id) {
+    public function get_sessions_for_participant($enrollment_id, $track_id) {
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
             "SELECT cs.*, u_coach.display_name AS coach_name
              FROM {$wpdb->prefix}hl_coaching_session cs
              LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
-             WHERE cs.mentor_enrollment_id = %d AND cs.cohort_id = %d
+             WHERE cs.mentor_enrollment_id = %d AND cs.track_id = %d
              ORDER BY cs.session_datetime ASC",
-            $enrollment_id, $cohort_id
+            $enrollment_id, $track_id
         ), ARRAY_A) ?: array();
     }
 
@@ -58,10 +58,10 @@ class HL_Coaching_Service {
      * Get upcoming sessions (scheduled, session_datetime >= now) for a participant.
      *
      * @param int $enrollment_id
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array
      */
-    public function get_upcoming_sessions($enrollment_id, $cohort_id) {
+    public function get_upcoming_sessions($enrollment_id, $track_id) {
         global $wpdb;
         $now = current_time('mysql');
 
@@ -70,11 +70,11 @@ class HL_Coaching_Service {
              FROM {$wpdb->prefix}hl_coaching_session cs
              LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
              WHERE cs.mentor_enrollment_id = %d
-               AND cs.cohort_id = %d
+               AND cs.track_id = %d
                AND cs.session_status = 'scheduled'
                AND cs.session_datetime >= %s
              ORDER BY cs.session_datetime ASC",
-            $enrollment_id, $cohort_id, $now
+            $enrollment_id, $track_id, $now
         ), ARRAY_A) ?: array();
     }
 
@@ -82,10 +82,10 @@ class HL_Coaching_Service {
      * Get past sessions (datetime < now OR terminal status) for a participant.
      *
      * @param int $enrollment_id
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array
      */
-    public function get_past_sessions($enrollment_id, $cohort_id) {
+    public function get_past_sessions($enrollment_id, $track_id) {
         global $wpdb;
         $now = current_time('mysql');
 
@@ -94,11 +94,11 @@ class HL_Coaching_Service {
              FROM {$wpdb->prefix}hl_coaching_session cs
              LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
              WHERE cs.mentor_enrollment_id = %d
-               AND cs.cohort_id = %d
+               AND cs.track_id = %d
                AND (cs.session_status IN ('attended','missed','cancelled','rescheduled')
                     OR (cs.session_datetime < %s AND cs.session_status = 'scheduled'))
              ORDER BY cs.session_datetime DESC",
-            $enrollment_id, $cohort_id, $now
+            $enrollment_id, $track_id, $now
         ), ARRAY_A) ?: array();
     }
 
@@ -168,14 +168,14 @@ class HL_Coaching_Service {
         if ($new_status === 'attended') {
             $this->update_coaching_activity_state(
                 $session['mentor_enrollment_id'],
-                $session['cohort_id']
+                $session['track_id']
             );
         }
 
         HL_Audit_Service::log('coaching_session.status_changed', array(
             'entity_type' => 'coaching_session',
             'entity_id'   => $session_id,
-            'cohort_id'   => $session['cohort_id'],
+            'track_id'   => $session['track_id'],
             'before_data' => array('session_status' => $current),
             'after_data'  => array('session_status' => $new_status),
         ));
@@ -220,7 +220,7 @@ class HL_Coaching_Service {
 
         // Create new session linked to old one.
         $new_data = array(
-            'cohort_id'                    => $session['cohort_id'],
+            'track_id'                    => $session['track_id'],
             'coach_user_id'                => $session['coach_user_id'],
             'mentor_enrollment_id'         => $session['mentor_enrollment_id'],
             'session_title'                => $session['session_title'],
@@ -233,17 +233,17 @@ class HL_Coaching_Service {
     }
 
     /**
-     * Check if cancellation is allowed for a cohort.
+     * Check if cancellation is allowed for a track.
      *
-     * @param int $cohort_id
+     * @param int $track_id
      * @return bool
      */
-    public function is_cancellation_allowed($cohort_id) {
+    public function is_cancellation_allowed($track_id) {
         global $wpdb;
 
         $settings_json = $wpdb->get_var($wpdb->prepare(
-            "SELECT settings FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d",
-            $cohort_id
+            "SELECT settings FROM {$wpdb->prefix}hl_track WHERE track_id = %d",
+            $track_id
         ));
 
         if (empty($settings_json)) {
@@ -300,12 +300,12 @@ class HL_Coaching_Service {
 
         if ($status === 'attended') {
             $session = $wpdb->get_row($wpdb->prepare(
-                "SELECT cohort_id, mentor_enrollment_id FROM {$wpdb->prefix}hl_coaching_session WHERE session_id = %d",
+                "SELECT track_id, mentor_enrollment_id FROM {$wpdb->prefix}hl_coaching_session WHERE session_id = %d",
                 $session_id
             ));
 
             if ($session) {
-                $this->update_coaching_activity_state($session->mentor_enrollment_id, $session->cohort_id);
+                $this->update_coaching_activity_state($session->mentor_enrollment_id, $session->track_id);
             }
         }
 
@@ -322,18 +322,18 @@ class HL_Coaching_Service {
      * Update coaching_session_attendance activity state for a participant enrollment.
      *
      * @param int $enrollment_id
-     * @param int $cohort_id
+     * @param int $track_id
      */
-    private function update_coaching_activity_state($enrollment_id, $cohort_id) {
+    private function update_coaching_activity_state($enrollment_id, $track_id) {
         global $wpdb;
 
         $activities = $wpdb->get_results($wpdb->prepare(
             "SELECT a.activity_id FROM {$wpdb->prefix}hl_activity a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
-             WHERE p.cohort_id = %d
+             WHERE p.track_id = %d
                AND a.activity_type = 'coaching_session_attendance'
                AND a.status = 'active'",
-            $cohort_id
+            $track_id
         ));
 
         if (empty($activities)) {
@@ -343,9 +343,9 @@ class HL_Coaching_Service {
         // Count attended sessions (using both columns for safety).
         $attended_count = (int) $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}hl_coaching_session
-             WHERE mentor_enrollment_id = %d AND cohort_id = %d
+             WHERE mentor_enrollment_id = %d AND track_id = %d
                AND (session_status = 'attended' OR attendance_status = 'attended')",
-            $enrollment_id, $cohort_id
+            $enrollment_id, $track_id
         ));
 
         $now = current_time('mysql');
@@ -401,12 +401,12 @@ class HL_Coaching_Service {
                     u_coach.display_name AS coach_name,
                     u_coach.user_email AS coach_email,
                     u_mentor.display_name AS mentor_name,
-                    c.cohort_name
+                    t.track_name
              FROM {$wpdb->prefix}hl_coaching_session cs
              LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
              LEFT JOIN {$wpdb->prefix}hl_enrollment e ON cs.mentor_enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u_mentor ON e.user_id = u_mentor.ID
-             LEFT JOIN {$wpdb->prefix}hl_cohort c ON cs.cohort_id = c.cohort_id
+             LEFT JOIN {$wpdb->prefix}hl_track t ON cs.track_id = t.track_id
              WHERE cs.session_id = %d",
             $session_id
         ), ARRAY_A);
@@ -417,7 +417,7 @@ class HL_Coaching_Service {
     /**
      * Create a coaching session.
      *
-     * @param array $data Keys: cohort_id, coach_user_id, mentor_enrollment_id,
+     * @param array $data Keys: track_id, coach_user_id, mentor_enrollment_id,
      *                     session_datetime, session_title, meeting_url, notes_richtext,
      *                     rescheduled_from_session_id.
      * @return int|WP_Error session_id on success.
@@ -425,8 +425,8 @@ class HL_Coaching_Service {
     public function create_session($data) {
         global $wpdb;
 
-        if (empty($data['cohort_id'])) {
-            return new WP_Error('missing_cohort', __('Cohort is required.', 'hl-core'));
+        if (empty($data['track_id'])) {
+            return new WP_Error('missing_track', __('Track is required.', 'hl-core'));
         }
         if (empty($data['mentor_enrollment_id'])) {
             return new WP_Error('missing_mentor', __('Participant is required.', 'hl-core'));
@@ -436,7 +436,7 @@ class HL_Coaching_Service {
 
         $insert_data = array(
             'session_uuid'                => HL_DB_Utils::generate_uuid(),
-            'cohort_id'                   => absint($data['cohort_id']),
+            'track_id'                   => absint($data['track_id']),
             'coach_user_id'               => $coach_user_id,
             'mentor_enrollment_id'        => absint($data['mentor_enrollment_id']),
             'session_title'               => !empty($data['session_title']) ? sanitize_text_field($data['session_title']) : null,
@@ -461,9 +461,9 @@ class HL_Coaching_Service {
         HL_Audit_Service::log('coaching_session.created', array(
             'entity_type' => 'coaching_session',
             'entity_id'   => $session_id,
-            'cohort_id'   => $insert_data['cohort_id'],
+            'track_id'   => $insert_data['track_id'],
             'after_data'  => array(
-                'cohort_id'            => $insert_data['cohort_id'],
+                'track_id'            => $insert_data['track_id'],
                 'coach_user_id'        => $insert_data['coach_user_id'],
                 'mentor_enrollment_id' => $insert_data['mentor_enrollment_id'],
                 'session_title'        => $insert_data['session_title'],
@@ -571,13 +571,13 @@ class HL_Coaching_Service {
                         || ($attendance_changed && ($update_data['attendance_status'] ?? '') === 'attended');
 
         if ($became_attended) {
-            $this->update_coaching_activity_state($before['mentor_enrollment_id'], $before['cohort_id']);
+            $this->update_coaching_activity_state($before['mentor_enrollment_id'], $before['track_id']);
         }
 
         HL_Audit_Service::log('coaching_session.updated', array(
             'entity_type' => 'coaching_session',
             'entity_id'   => $session_id,
-            'cohort_id'   => $before['cohort_id'],
+            'track_id'   => $before['track_id'],
             'before_data' => array(
                 'session_datetime' => $before['session_datetime'],
                 'session_status'   => $before['session_status'] ?? 'scheduled',
@@ -615,9 +615,9 @@ class HL_Coaching_Service {
         HL_Audit_Service::log('coaching_session.deleted', array(
             'entity_type' => 'coaching_session',
             'entity_id'   => $session_id,
-            'cohort_id'   => $before['cohort_id'],
+            'track_id'   => $before['track_id'],
             'before_data' => array(
-                'cohort_id'            => $before['cohort_id'],
+                'track_id'            => $before['track_id'],
                 'coach_user_id'        => $before['coach_user_id'],
                 'mentor_enrollment_id' => $before['mentor_enrollment_id'],
                 'session_status'       => $before['session_status'] ?? 'scheduled',
@@ -736,11 +736,11 @@ class HL_Coaching_Service {
      * Get available observations for linking.
      *
      * @param int $session_id
-     * @param int $cohort_id
+     * @param int $track_id
      * @param int $mentor_enrollment_id
      * @return array
      */
-    public function get_available_observations($session_id, $cohort_id, $mentor_enrollment_id) {
+    public function get_available_observations($session_id, $track_id, $mentor_enrollment_id) {
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
@@ -749,7 +749,7 @@ class HL_Coaching_Service {
              FROM {$wpdb->prefix}hl_observation o
              LEFT JOIN {$wpdb->prefix}hl_enrollment e_teacher ON o.teacher_enrollment_id = e_teacher.enrollment_id
              LEFT JOIN {$wpdb->users} u_teacher ON e_teacher.user_id = u_teacher.ID
-             WHERE o.cohort_id = %d
+             WHERE o.track_id = %d
                AND o.mentor_enrollment_id = %d
                AND o.status = 'submitted'
                AND o.observation_id NOT IN (
@@ -758,7 +758,7 @@ class HL_Coaching_Service {
                    WHERE cso.session_id = %d
                )
              ORDER BY o.submitted_at DESC",
-            $cohort_id, $mentor_enrollment_id, $session_id
+            $track_id, $mentor_enrollment_id, $session_id
         ), ARRAY_A) ?: array();
     }
 

@@ -18,8 +18,8 @@ class HL_Team_Service {
     }
 
     public function create_team($data) {
-        if (empty($data['team_name']) || empty($data['cohort_id']) || empty($data['school_id'])) {
-            return new WP_Error('missing_fields', __('Team name, cohort, and school are required.', 'hl-core'));
+        if (empty($data['team_name']) || empty($data['track_id']) || empty($data['school_id'])) {
+            return new WP_Error('missing_fields', __('Team name, track, and school are required.', 'hl-core'));
         }
         $team_id = $this->repository->create($data);
         do_action('hl_team_created', $team_id, $data);
@@ -38,7 +38,7 @@ class HL_Team_Service {
      * Add a member to a team.
      *
      * Enforces:
-     * - Hard constraint: 1 team per enrollment per cohort
+     * - Hard constraint: 1 team per enrollment per track
      * - Soft constraint: max 2 mentors per team (returns WP_Error unless $force_override = true)
      *
      * @param int    $team_id
@@ -50,25 +50,25 @@ class HL_Team_Service {
     public function add_member($team_id, $enrollment_id, $membership_type = 'member', $force_override = false) {
         global $wpdb;
 
-        // Get the team's cohort_id
+        // Get the team's track_id
         $team = $this->repository->get_by_id($team_id);
         if (!$team) {
             return new WP_Error('team_not_found', __('Team not found.', 'hl-core'));
         }
 
-        // Hard constraint: 1 team per enrollment per cohort
+        // Hard constraint: 1 team per enrollment per track
         $existing_team_id = $wpdb->get_var($wpdb->prepare(
             "SELECT tm.team_id FROM {$wpdb->prefix}hl_team_membership tm
              JOIN {$wpdb->prefix}hl_team t ON tm.team_id = t.team_id
-             WHERE tm.enrollment_id = %d AND t.cohort_id = %d",
-            $enrollment_id, $team->cohort_id
+             WHERE tm.enrollment_id = %d AND t.track_id = %d",
+            $enrollment_id, $team->track_id
         ));
 
         if ($existing_team_id) {
             if ((int) $existing_team_id === (int) $team_id) {
                 return new WP_Error('already_member', __('This participant is already a member of this team.', 'hl-core'));
             }
-            return new WP_Error('one_team_per_cohort', __('This participant is already assigned to another team in this cohort. Remove them from the other team first.', 'hl-core'));
+            return new WP_Error('one_team_per_track', __('This participant is already assigned to another team in this track. Remove them from the other team first.', 'hl-core'));
         }
 
         // Soft constraint: max 2 mentors per team

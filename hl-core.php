@@ -92,6 +92,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'security/class-hl-security.php';
         
         // Services
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-track-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-cohort-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-enrollment-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-team-service.php';

@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) exit;
  * retrieving observable teachers from team memberships.
  *
  * Observations are JFB-powered: HL Core handles the context/orchestration
- * (who observed whom, in which classroom/cohort) while JetFormBuilder
+ * (who observed whom, in which classroom/track) while JetFormBuilder
  * handles the form design, rendering, and response storage.
  *
  * @package HL_Core
@@ -22,8 +22,8 @@ class HL_Observation_Service {
     /**
      * Get a single observation by ID with joined data.
      *
-     * Joins enrollments, users, classrooms, and cohorts to provide
-     * mentor_name, teacher_name, classroom_name, and cohort_name.
+     * Joins enrollments, users, classrooms, and tracks to provide
+     * mentor_name, teacher_name, classroom_name, and track_name.
      *
      * @param int $observation_id
      * @return array|null Observation row with joined fields, or null if not found.
@@ -33,12 +33,12 @@ class HL_Observation_Service {
 
         $row = $wpdb->get_row( $wpdb->prepare(
             "SELECT o.*,
-                    c.cohort_name,
+                    t.track_name,
                     cr.classroom_name,
                     mentor_u.display_name AS mentor_name,
                     mentor_u.user_email   AS mentor_email,
                     mentor_e.user_id      AS mentor_user_id,
-                    mentor_e.cohort_id    AS mentor_cohort_id,
+                    mentor_e.track_id    AS mentor_track_id,
                     teacher_u.display_name AS teacher_name,
                     teacher_u.user_email   AS teacher_email,
                     teacher_e.user_id      AS teacher_user_id
@@ -47,7 +47,7 @@ class HL_Observation_Service {
              LEFT JOIN {$wpdb->users} mentor_u ON mentor_e.user_id = mentor_u.ID
              LEFT JOIN {$wpdb->prefix}hl_enrollment teacher_e ON o.teacher_enrollment_id = teacher_e.enrollment_id
              LEFT JOIN {$wpdb->users} teacher_u ON teacher_e.user_id = teacher_u.ID
-             LEFT JOIN {$wpdb->prefix}hl_cohort c ON o.cohort_id = c.cohort_id
+             LEFT JOIN {$wpdb->prefix}hl_track t ON o.track_id = t.track_id
              LEFT JOIN {$wpdb->prefix}hl_classroom cr ON o.classroom_id = cr.classroom_id
              WHERE o.observation_id = %d",
             $observation_id
@@ -61,15 +61,15 @@ class HL_Observation_Service {
     // =========================================================================
 
     /**
-     * Get observations by cohort with full joined data.
+     * Get observations by track with full joined data.
      *
      * Enhanced version that includes teacher name, mentor name, and
      * classroom name for display in list views.
      *
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array Array of observation rows (ARRAY_A).
      */
-    public function get_by_cohort( $cohort_id ) {
+    public function get_by_track( $track_id ) {
         global $wpdb;
 
         return $wpdb->get_results( $wpdb->prepare(
@@ -77,17 +77,17 @@ class HL_Observation_Service {
                     mentor_u.display_name AS mentor_name,
                     teacher_u.display_name AS teacher_name,
                     cr.classroom_name,
-                    c.cohort_name
+                    t.track_name
              FROM {$wpdb->prefix}hl_observation o
              JOIN {$wpdb->prefix}hl_enrollment mentor_e ON o.mentor_enrollment_id = mentor_e.enrollment_id
              LEFT JOIN {$wpdb->users} mentor_u ON mentor_e.user_id = mentor_u.ID
              LEFT JOIN {$wpdb->prefix}hl_enrollment teacher_e ON o.teacher_enrollment_id = teacher_e.enrollment_id
              LEFT JOIN {$wpdb->users} teacher_u ON teacher_e.user_id = teacher_u.ID
-             LEFT JOIN {$wpdb->prefix}hl_cohort c ON o.cohort_id = c.cohort_id
+             LEFT JOIN {$wpdb->prefix}hl_track t ON o.track_id = t.track_id
              LEFT JOIN {$wpdb->prefix}hl_classroom cr ON o.classroom_id = cr.classroom_id
-             WHERE o.cohort_id = %d
+             WHERE o.track_id = %d
              ORDER BY o.created_at DESC",
-            $cohort_id
+            $track_id
         ), ARRAY_A ) ?: array();
     }
 
@@ -95,7 +95,7 @@ class HL_Observation_Service {
      * Get observations by mentor enrollment with joined data.
      *
      * Returns observations created by a specific mentor, enriched with
-     * teacher name, classroom name, and cohort name.
+     * teacher name, classroom name, and track name.
      *
      * @param int $mentor_enrollment_id
      * @return array Array of observation rows (ARRAY_A).
@@ -107,11 +107,11 @@ class HL_Observation_Service {
             "SELECT o.*,
                     teacher_u.display_name AS teacher_name,
                     cr.classroom_name,
-                    c.cohort_name
+                    t.track_name
              FROM {$wpdb->prefix}hl_observation o
              LEFT JOIN {$wpdb->prefix}hl_enrollment teacher_e ON o.teacher_enrollment_id = teacher_e.enrollment_id
              LEFT JOIN {$wpdb->users} teacher_u ON teacher_e.user_id = teacher_u.ID
-             LEFT JOIN {$wpdb->prefix}hl_cohort c ON o.cohort_id = c.cohort_id
+             LEFT JOIN {$wpdb->prefix}hl_track t ON o.track_id = t.track_id
              LEFT JOIN {$wpdb->prefix}hl_classroom cr ON o.classroom_id = cr.classroom_id
              WHERE o.mentor_enrollment_id = %d
              ORDER BY o.created_at DESC",
@@ -120,7 +120,7 @@ class HL_Observation_Service {
     }
 
     /**
-     * Get all observations for a given mentor user across all cohorts.
+     * Get all observations for a given mentor user across all tracks.
      *
      * Finds all mentor enrollments for the user and returns observations
      * from all of them, ordered by most recent first.
@@ -135,13 +135,13 @@ class HL_Observation_Service {
             "SELECT o.*,
                     teacher_u.display_name AS teacher_name,
                     cr.classroom_name,
-                    c.cohort_name,
+                    t.track_name,
                     mentor_e.enrollment_id AS mentor_enrollment_id
              FROM {$wpdb->prefix}hl_observation o
              JOIN {$wpdb->prefix}hl_enrollment mentor_e ON o.mentor_enrollment_id = mentor_e.enrollment_id
              LEFT JOIN {$wpdb->prefix}hl_enrollment teacher_e ON o.teacher_enrollment_id = teacher_e.enrollment_id
              LEFT JOIN {$wpdb->users} teacher_u ON teacher_e.user_id = teacher_u.ID
-             LEFT JOIN {$wpdb->prefix}hl_cohort c ON o.cohort_id = c.cohort_id
+             LEFT JOIN {$wpdb->prefix}hl_track t ON o.track_id = t.track_id
              LEFT JOIN {$wpdb->prefix}hl_classroom cr ON o.classroom_id = cr.classroom_id
              WHERE mentor_e.user_id = %d AND mentor_e.status = 'active'
              ORDER BY o.created_at DESC",
@@ -160,7 +160,7 @@ class HL_Observation_Service {
      * fields, generates a UUID, inserts with status='draft', and logs
      * the action to the audit trail.
      *
-     * @param array $data Keys: cohort_id (required), mentor_enrollment_id (required),
+     * @param array $data Keys: track_id (required), mentor_enrollment_id (required),
      *                     teacher_enrollment_id (required), classroom_id (optional),
      *                     school_id (optional).
      * @return int|WP_Error observation_id on success, WP_Error on failure.
@@ -169,8 +169,8 @@ class HL_Observation_Service {
         global $wpdb;
 
         // Validate required fields
-        if ( empty( $data['cohort_id'] ) ) {
-            return new WP_Error( 'missing_cohort', __( 'Cohort is required.', 'hl-core' ) );
+        if ( empty( $data['track_id'] ) ) {
+            return new WP_Error( 'missing_track', __( 'Track is required.', 'hl-core' ) );
         }
         if ( empty( $data['mentor_enrollment_id'] ) ) {
             return new WP_Error( 'missing_mentor', __( 'Mentor enrollment is required.', 'hl-core' ) );
@@ -179,7 +179,7 @@ class HL_Observation_Service {
             return new WP_Error( 'missing_teacher', __( 'Teacher selection is required.', 'hl-core' ) );
         }
 
-        // Verify the mentor enrollment exists and belongs to the cohort
+        // Verify the mentor enrollment exists and belongs to the track
         $mentor_enrollment = $wpdb->get_row( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d AND status = 'active'",
             absint( $data['mentor_enrollment_id'] )
@@ -189,8 +189,8 @@ class HL_Observation_Service {
             return new WP_Error( 'invalid_mentor', __( 'Invalid mentor enrollment.', 'hl-core' ) );
         }
 
-        if ( (int) $mentor_enrollment->cohort_id !== absint( $data['cohort_id'] ) ) {
-            return new WP_Error( 'cohort_mismatch', __( 'Mentor enrollment does not belong to the specified cohort.', 'hl-core' ) );
+        if ( (int) $mentor_enrollment->track_id !== absint( $data['track_id'] ) ) {
+            return new WP_Error( 'track_mismatch', __( 'Mentor enrollment does not belong to the specified track.', 'hl-core' ) );
         }
 
         // Verify the teacher enrollment exists
@@ -206,7 +206,7 @@ class HL_Observation_Service {
         // Build the insert data
         $insert_data = array(
             'observation_uuid'      => HL_DB_Utils::generate_uuid(),
-            'cohort_id'             => absint( $data['cohort_id'] ),
+            'track_id'             => absint( $data['track_id'] ),
             'mentor_enrollment_id'  => absint( $data['mentor_enrollment_id'] ),
             'teacher_enrollment_id' => absint( $data['teacher_enrollment_id'] ),
             'classroom_id'          => ! empty( $data['classroom_id'] ) ? absint( $data['classroom_id'] ) : null,
@@ -226,7 +226,7 @@ class HL_Observation_Service {
         HL_Audit_Service::log( 'observation.created', array(
             'entity_type' => 'observation',
             'entity_id'   => $observation_id,
-            'cohort_id'   => absint( $data['cohort_id'] ),
+            'track_id'   => absint( $data['track_id'] ),
             'after_data'  => $insert_data,
         ) );
 
@@ -274,7 +274,7 @@ class HL_Observation_Service {
     }
 
     /**
-     * Get the classrooms a teacher is assigned to within a specific cohort.
+     * Get the classrooms a teacher is assigned to within a specific track.
      *
      * This is used when creating an observation so the mentor can optionally
      * select which classroom the observation takes place in.
@@ -303,20 +303,20 @@ class HL_Observation_Service {
      * Get all active mentor enrollments for a user.
      *
      * Returns enrollment rows where the user has a 'Mentor' role and
-     * the enrollment is active, with cohort name included.
+     * the enrollment is active, with track name included.
      *
      * @param int $user_id WordPress user ID.
-     * @return array Array of enrollment rows (ARRAY_A) with cohort_name.
+     * @return array Array of enrollment rows (ARRAY_A) with track_name.
      */
     public function get_mentor_enrollments( $user_id ) {
         global $wpdb;
 
         $rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT e.*, c.cohort_name
+            "SELECT e.*, t.track_name
              FROM {$wpdb->prefix}hl_enrollment e
-             JOIN {$wpdb->prefix}hl_cohort c ON e.cohort_id = c.cohort_id
+             JOIN {$wpdb->prefix}hl_track t ON e.track_id = t.track_id
              WHERE e.user_id = %d AND e.status = 'active'
-             ORDER BY c.cohort_name ASC",
+             ORDER BY t.track_name ASC",
             $user_id
         ), ARRAY_A ) ?: array();
 
@@ -350,36 +350,36 @@ class HL_Observation_Service {
     // =========================================================================
 
     /**
-     * Find the observation activity for a given cohort.
+     * Find the observation activity for a given track.
      *
-     * Queries for an active observation-type activity in the cohort's
+     * Queries for an active observation-type activity in the track's
      * pathway. Used to pre-populate the hl_activity_id hidden field
      * when rendering the JFB form.
      *
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array|null Activity row or null if none found.
      */
-    public function get_observation_activity( $cohort_id ) {
+    public function get_observation_activity( $track_id ) {
         global $wpdb;
 
         return $wpdb->get_row( $wpdb->prepare(
             "SELECT a.*
              FROM {$wpdb->prefix}hl_activity a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
-             WHERE p.cohort_id = %d AND a.activity_type = 'observation' AND a.status = 'active'
+             WHERE p.track_id = %d AND a.activity_type = 'observation' AND a.status = 'active'
              LIMIT 1",
-            $cohort_id
+            $track_id
         ), ARRAY_A );
     }
 
     /**
      * Get the JFB form ID from the observation activity's external_ref.
      *
-     * @param int $cohort_id
+     * @param int $track_id
      * @return int|null JFB form ID, or null if not configured.
      */
-    public function get_observation_form_id( $cohort_id ) {
-        $activity = $this->get_observation_activity( $cohort_id );
+    public function get_observation_form_id( $track_id ) {
+        $activity = $this->get_observation_activity( $track_id );
 
         if ( ! $activity || empty( $activity['external_ref'] ) ) {
             return null;

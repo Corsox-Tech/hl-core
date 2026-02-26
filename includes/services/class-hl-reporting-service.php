@@ -41,7 +41,7 @@ class HL_Reporting_Service {
 
         // Get enrollment details
         $enrollment = $wpdb->get_row($wpdb->prepare(
-            "SELECT enrollment_id, cohort_id, assigned_pathway_id, user_id
+            "SELECT enrollment_id, track_id, assigned_pathway_id, user_id
              FROM {$wpdb->prefix}hl_enrollment
              WHERE enrollment_id = %d",
             $enrollment_id
@@ -55,9 +55,9 @@ class HL_Reporting_Service {
             // No pathway assigned — nothing to compute
             return array(
                 'enrollment_id'             => $enrollment_id,
-                'cohort_id'                 => $enrollment->cohort_id,
+                'track_id'                 => $enrollment->track_id,
                 'pathway_completion_percent' => 0.0,
-                'cohort_completion_percent'  => 0.0,
+                'track_completion_percent'  => 0.0,
             );
         }
 
@@ -70,12 +70,12 @@ class HL_Reporting_Service {
         ));
 
         if (empty($activities)) {
-            $this->upsert_rollup($enrollment_id, $enrollment->cohort_id, 0.0, 0.0);
+            $this->upsert_rollup($enrollment_id, $enrollment->track_id, 0.0, 0.0);
             return array(
                 'enrollment_id'             => $enrollment_id,
-                'cohort_id'                 => $enrollment->cohort_id,
+                'track_id'                 => $enrollment->track_id,
                 'pathway_completion_percent' => 0.0,
-                'cohort_completion_percent'  => 0.0,
+                'track_completion_percent'  => 0.0,
             );
         }
 
@@ -119,17 +119,17 @@ class HL_Reporting_Service {
 
         $pathway_percent = ($total_weight > 0) ? round($weighted_sum / $total_weight, 2) : 0.0;
 
-        // v1: cohort_completion_percent = pathway_completion_percent (single pathway)
-        $cohort_percent = $pathway_percent;
+        // v1: track_completion_percent = pathway_completion_percent (single pathway)
+        $track_percent = $pathway_percent;
 
         // Upsert rollup
-        $this->upsert_rollup($enrollment_id, $enrollment->cohort_id, $pathway_percent, $cohort_percent);
+        $this->upsert_rollup($enrollment_id, $enrollment->track_id, $pathway_percent, $track_percent);
 
         return array(
             'enrollment_id'             => $enrollment_id,
-            'cohort_id'                 => $enrollment->cohort_id,
+            'track_id'                 => $enrollment->track_id,
             'pathway_completion_percent' => $pathway_percent,
-            'cohort_completion_percent'  => $cohort_percent,
+            'track_completion_percent'  => $track_percent,
         );
     }
 
@@ -161,11 +161,11 @@ class HL_Reporting_Service {
      * Upsert a completion rollup record
      *
      * @param int   $enrollment_id
-     * @param int   $cohort_id
+     * @param int   $track_id
      * @param float $pathway_percent
-     * @param float $cohort_percent
+     * @param float $track_percent
      */
-    private function upsert_rollup($enrollment_id, $cohort_id, $pathway_percent, $cohort_percent) {
+    private function upsert_rollup($enrollment_id, $track_id, $pathway_percent, $track_percent) {
         global $wpdb;
 
         $now = current_time('mysql');
@@ -176,9 +176,9 @@ class HL_Reporting_Service {
         ));
 
         $data = array(
-            'cohort_id'                  => absint($cohort_id),
+            'track_id'                  => absint($track_id),
             'pathway_completion_percent' => $pathway_percent,
-            'cohort_completion_percent'  => $cohort_percent,
+            'track_completion_percent'  => $track_percent,
             'last_computed_at'           => $now,
         );
 
@@ -195,18 +195,18 @@ class HL_Reporting_Service {
     }
 
     /**
-     * Recompute rollups for all active enrollments in a cohort
+     * Recompute rollups for all active enrollments in a track
      *
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array Summary ['updated' => int, 'errors' => int]
      */
-    public function recompute_cohort_rollups($cohort_id) {
+    public function recompute_track_rollups($track_id) {
         global $wpdb;
 
         $enrollments = $wpdb->get_col($wpdb->prepare(
             "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment
-             WHERE cohort_id = %d AND status = 'active'",
-            $cohort_id
+             WHERE track_id = %d AND status = 'active'",
+            $track_id
         ));
 
         $updated = 0;
@@ -242,7 +242,7 @@ class HL_Reporting_Service {
         ), ARRAY_A);
 
         if ($rollup) {
-            return floatval($rollup['cohort_completion_percent']);
+            return floatval($rollup['track_completion_percent']);
         }
 
         // Compute on-the-fly if no cached rollup exists
@@ -251,29 +251,29 @@ class HL_Reporting_Service {
             return 0.0;
         }
 
-        return floatval($result['cohort_completion_percent']);
+        return floatval($result['track_completion_percent']);
     }
 
     /**
-     * Get cohort summary metrics
+     * Get track summary metrics
      *
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array
      */
-    public function get_cohort_summary($cohort_id) {
+    public function get_track_summary($track_id) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
         $total_enrollments = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$prefix}hl_enrollment WHERE cohort_id = %d AND status = 'active'",
-            $cohort_id
+            "SELECT COUNT(*) FROM {$prefix}hl_enrollment WHERE track_id = %d AND status = 'active'",
+            $track_id
         ));
 
         $avg_completion = (float) $wpdb->get_var($wpdb->prepare(
-            "SELECT AVG(cr.cohort_completion_percent) FROM {$prefix}hl_completion_rollup cr
+            "SELECT AVG(cr.track_completion_percent) FROM {$prefix}hl_completion_rollup cr
              JOIN {$prefix}hl_enrollment e ON cr.enrollment_id = e.enrollment_id
-             WHERE e.cohort_id = %d AND e.status = 'active'",
-            $cohort_id
+             WHERE e.track_id = %d AND e.status = 'active'",
+            $track_id
         ));
 
         return array(
@@ -309,23 +309,23 @@ class HL_Reporting_Service {
      * Get participant completion data with scope-based filtering
      *
      * Returns an array of enrollment rows with user info and completion data.
-     * Filters by scope: cohort, school, district, team.
+     * Filters by scope: track, school, district, team.
      *
-     * @param array $filters Keys: cohort_id (required), school_id, district_id, team_id, role, status
+     * @param array $filters Keys: track_id (required), school_id, district_id, team_id, role, status
      * @return array Array of rows with: enrollment_id, user_id, display_name, user_email, roles,
-     *               school_name, team_name, cohort_completion_percent, pathway_completion_percent
+     *               school_name, team_name, track_completion_percent, pathway_completion_percent
      */
     public function get_participant_report( $filters ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $cohort_id = isset( $filters['cohort_id'] ) ? absint( $filters['cohort_id'] ) : 0;
-        if ( ! $cohort_id ) {
+        $track_id = isset( $filters['track_id'] ) ? absint( $filters['track_id'] ) : 0;
+        if ( ! $track_id ) {
             return array();
         }
 
-        $where   = array( 'e.cohort_id = %d' );
-        $params  = array( $cohort_id );
+        $where   = array( 'e.track_id = %d' );
+        $params  = array( $track_id );
 
         // Status filter — default to active
         $status = isset( $filters['status'] ) ? sanitize_text_field( $filters['status'] ) : 'active';
@@ -372,13 +372,13 @@ class HL_Reporting_Service {
                     e.roles,
                     COALESCE( school_ou.name, '' ) AS school_name,
                     COALESCE( t.team_name, '' ) AS team_name,
-                    COALESCE( cr.cohort_completion_percent, 0 ) AS cohort_completion_percent,
+                    COALESCE( cr.track_completion_percent, 0 ) AS track_completion_percent,
                     COALESCE( cr.pathway_completion_percent, 0 ) AS pathway_completion_percent
                 FROM {$prefix}hl_enrollment e
                 LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
                 LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
                 LEFT JOIN {$prefix}hl_team_membership tm ON e.enrollment_id = tm.enrollment_id
-                LEFT JOIN {$prefix}hl_team t ON tm.team_id = t.team_id AND t.cohort_id = e.cohort_id
+                LEFT JOIN {$prefix}hl_team t ON tm.team_id = t.team_id AND t.track_id = e.track_id
                 LEFT JOIN {$prefix}hl_orgunit school_ou ON t.school_id = school_ou.orgunit_id
                 WHERE {$where_sql}
                 GROUP BY e.enrollment_id
@@ -391,25 +391,25 @@ class HL_Reporting_Service {
     /**
      * Get activity completion detail for multiple enrollments
      *
-     * Returns per-enrollment, per-activity completion data for a cohort.
+     * Returns per-enrollment, per-activity completion data for a track.
      *
-     * @param int   $cohort_id
+     * @param int   $track_id
      * @param array $enrollment_ids Optional; if empty, gets all active enrollments
      * @return array Keyed by enrollment_id => array of activity states
      */
-    public function get_cohort_activity_detail( $cohort_id, $enrollment_ids = array() ) {
+    public function get_track_activity_detail( $track_id, $enrollment_ids = array() ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $cohort_id = absint( $cohort_id );
-        if ( ! $cohort_id ) {
+        $track_id = absint( $track_id );
+        if ( ! $track_id ) {
             return array();
         }
 
-        // Get pathway(s) for this cohort
+        // Get pathway(s) for this track
         $pathway_ids = $wpdb->get_col( $wpdb->prepare(
-            "SELECT pathway_id FROM {$prefix}hl_pathway WHERE cohort_id = %d AND active_status = 1",
-            $cohort_id
+            "SELECT pathway_id FROM {$prefix}hl_pathway WHERE track_id = %d AND active_status = 1",
+            $track_id
         ) );
 
         if ( empty( $pathway_ids ) ) {
@@ -435,8 +435,8 @@ class HL_Reporting_Service {
         if ( empty( $enrollment_ids ) ) {
             $enrollment_ids = $wpdb->get_col( $wpdb->prepare(
                 "SELECT enrollment_id FROM {$prefix}hl_enrollment
-                 WHERE cohort_id = %d AND status = 'active'",
-                $cohort_id
+                 WHERE track_id = %d AND status = 'active'",
+                $track_id
             ) );
         }
 
@@ -492,23 +492,23 @@ class HL_Reporting_Service {
     }
 
     /**
-     * Get completion summary grouped by school for a cohort
+     * Get completion summary grouped by school for a track
      *
-     * @param int      $cohort_id
+     * @param int      $track_id
      * @param int|null $district_id Optional district filter
      * @return array Array of: school_id, school_name, participant_count, avg_completion_percent
      */
-    public function get_school_summary( $cohort_id, $district_id = null ) {
+    public function get_school_summary( $track_id, $district_id = null ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $cohort_id = absint( $cohort_id );
-        if ( ! $cohort_id ) {
+        $track_id = absint( $track_id );
+        if ( ! $track_id ) {
             return array();
         }
 
-        $where   = array( 'e.cohort_id = %d', "e.status = 'active'" );
-        $params  = array( $cohort_id );
+        $where   = array( 'e.track_id = %d', "e.status = 'active'" );
+        $params  = array( $track_id );
 
         if ( $district_id ) {
             $district_id = absint( $district_id );
@@ -522,10 +522,10 @@ class HL_Reporting_Service {
                     t.school_id,
                     school_ou.name AS school_name,
                     COUNT( DISTINCT e.enrollment_id ) AS participant_count,
-                    ROUND( AVG( COALESCE( cr.cohort_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
+                    ROUND( AVG( COALESCE( cr.track_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
                 FROM {$prefix}hl_enrollment e
                 INNER JOIN {$prefix}hl_team_membership tm ON e.enrollment_id = tm.enrollment_id
-                INNER JOIN {$prefix}hl_team t ON tm.team_id = t.team_id AND t.cohort_id = e.cohort_id
+                INNER JOIN {$prefix}hl_team t ON tm.team_id = t.team_id AND t.track_id = e.track_id
                 INNER JOIN {$prefix}hl_orgunit school_ou ON t.school_id = school_ou.orgunit_id
                 LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
                 WHERE {$where_sql}
@@ -537,23 +537,23 @@ class HL_Reporting_Service {
     }
 
     /**
-     * Get completion summary grouped by team for a cohort
+     * Get completion summary grouped by team for a track
      *
-     * @param int      $cohort_id
+     * @param int      $track_id
      * @param int|null $school_id Optional school filter
      * @return array Array of: team_id, team_name, school_name, member_count, avg_completion_percent
      */
-    public function get_team_summary( $cohort_id, $school_id = null ) {
+    public function get_team_summary( $track_id, $school_id = null ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $cohort_id = absint( $cohort_id );
-        if ( ! $cohort_id ) {
+        $track_id = absint( $track_id );
+        if ( ! $track_id ) {
             return array();
         }
 
-        $where   = array( 'e.cohort_id = %d', "e.status = 'active'" );
-        $params  = array( $cohort_id );
+        $where   = array( 'e.track_id = %d', "e.status = 'active'" );
+        $params  = array( $track_id );
 
         if ( $school_id ) {
             $school_id = absint( $school_id );
@@ -568,10 +568,10 @@ class HL_Reporting_Service {
                     t.team_name,
                     COALESCE( school_ou.name, '' ) AS school_name,
                     COUNT( DISTINCT e.enrollment_id ) AS member_count,
-                    ROUND( AVG( COALESCE( cr.cohort_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
+                    ROUND( AVG( COALESCE( cr.track_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
                 FROM {$prefix}hl_enrollment e
                 INNER JOIN {$prefix}hl_team_membership tm ON e.enrollment_id = tm.enrollment_id
-                INNER JOIN {$prefix}hl_team t ON tm.team_id = t.team_id AND t.cohort_id = e.cohort_id
+                INNER JOIN {$prefix}hl_team t ON tm.team_id = t.team_id AND t.track_id = e.track_id
                 LEFT JOIN {$prefix}hl_orgunit school_ou ON t.school_id = school_ou.orgunit_id
                 LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
                 WHERE {$where_sql}
@@ -583,14 +583,43 @@ class HL_Reporting_Service {
     }
 
     /**
-     * Get ordered activity definitions for a cohort's active pathway(s)
+     * Get ordered activity definitions for a track's active pathway(s)
      *
      * Helper used by CSV export to build per-activity columns.
      *
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array Array of activity rows with: activity_id, title, activity_type, weight, ordering_hint
      */
-    public function get_cohort_activities( $cohort_id ) {
+    public function get_track_activities( $track_id ) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        $track_id = absint( $track_id );
+        if ( ! $track_id ) {
+            return array();
+        }
+
+        return $wpdb->get_results( $wpdb->prepare(
+            "SELECT a.activity_id, a.title, a.activity_type, a.weight, a.ordering_hint
+             FROM {$prefix}hl_activity a
+             INNER JOIN {$prefix}hl_pathway p ON a.pathway_id = p.pathway_id
+             WHERE p.track_id = %d AND p.active_status = 1 AND a.status = 'active'
+             ORDER BY a.ordering_hint ASC, a.activity_id ASC",
+            $track_id
+        ), ARRAY_A ) ?: array();
+    }
+
+    // =========================================================================
+    // Cohort-Level (Cross-Track) Queries
+    // =========================================================================
+
+    /**
+     * Get group-level summary: one row per track in the group.
+     *
+     * @param int $cohort_id Cohort (container) ID.
+     * @return array Array of: track_id, track_name, track_code, status, participant_count, avg_completion_percent
+     */
+    public function get_cohort_summary( $cohort_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -600,102 +629,73 @@ class HL_Reporting_Service {
         }
 
         return $wpdb->get_results( $wpdb->prepare(
-            "SELECT a.activity_id, a.title, a.activity_type, a.weight, a.ordering_hint
-             FROM {$prefix}hl_activity a
-             INNER JOIN {$prefix}hl_pathway p ON a.pathway_id = p.pathway_id
-             WHERE p.cohort_id = %d AND p.active_status = 1 AND a.status = 'active'
-             ORDER BY a.ordering_hint ASC, a.activity_id ASC",
+            "SELECT
+                t.track_id,
+                t.track_name,
+                t.track_code,
+                t.status,
+                COUNT( DISTINCT e.enrollment_id ) AS participant_count,
+                ROUND( AVG( COALESCE( cr.track_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
+             FROM {$prefix}hl_track t
+             LEFT JOIN {$prefix}hl_enrollment e ON t.track_id = e.track_id AND e.status = 'active'
+             LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
+             WHERE t.cohort_id = %d
+             GROUP BY t.track_id, t.track_name, t.track_code, t.status
+             ORDER BY t.track_name ASC",
             $cohort_id
         ), ARRAY_A ) ?: array();
     }
 
-    // =========================================================================
-    // Cohort Group (Cross-Cohort) Queries
-    // =========================================================================
-
     /**
-     * Get group-level summary: one row per cohort in the group.
+     * Get aggregate metrics across all tracks in a cohort (container).
      *
-     * @param int $group_id Cohort group ID.
-     * @return array Array of: cohort_id, cohort_name, cohort_code, status, participant_count, avg_completion_percent
+     * @param int $cohort_id Cohort (container) ID.
+     * @return array Keys: total_tracks, total_participants, avg_completion_percent
      */
-    public function get_group_summary( $group_id ) {
+    public function get_cohort_aggregate( $cohort_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $group_id = absint( $group_id );
-        if ( ! $group_id ) {
-            return array();
-        }
-
-        return $wpdb->get_results( $wpdb->prepare(
-            "SELECT
-                c.cohort_id,
-                c.cohort_name,
-                c.cohort_code,
-                c.status,
-                COUNT( DISTINCT e.enrollment_id ) AS participant_count,
-                ROUND( AVG( COALESCE( cr.cohort_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
-             FROM {$prefix}hl_cohort c
-             LEFT JOIN {$prefix}hl_enrollment e ON c.cohort_id = e.cohort_id AND e.status = 'active'
-             LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
-             WHERE c.cohort_group_id = %d
-             GROUP BY c.cohort_id, c.cohort_name, c.cohort_code, c.status
-             ORDER BY c.cohort_name ASC",
-            $group_id
-        ), ARRAY_A ) ?: array();
-    }
-
-    /**
-     * Get aggregate metrics across all cohorts in a group.
-     *
-     * @param int $group_id
-     * @return array Keys: total_cohorts, total_participants, avg_completion_percent
-     */
-    public function get_group_aggregate( $group_id ) {
-        global $wpdb;
-        $prefix = $wpdb->prefix;
-
-        $group_id = absint( $group_id );
-        if ( ! $group_id ) {
-            return array( 'total_cohorts' => 0, 'total_participants' => 0, 'avg_completion_percent' => 0 );
+        $cohort_id = absint( $cohort_id );
+        if ( ! $cohort_id ) {
+            return array( 'total_tracks' => 0, 'total_participants' => 0, 'avg_completion_percent' => 0 );
         }
 
         $row = $wpdb->get_row( $wpdb->prepare(
             "SELECT
-                COUNT( DISTINCT c.cohort_id ) AS total_cohorts,
+                COUNT( DISTINCT t.track_id ) AS total_tracks,
                 COUNT( DISTINCT e.enrollment_id ) AS total_participants,
-                ROUND( AVG( COALESCE( cr.cohort_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
-             FROM {$prefix}hl_cohort c
-             LEFT JOIN {$prefix}hl_enrollment e ON c.cohort_id = e.cohort_id AND e.status = 'active'
+                ROUND( AVG( COALESCE( cr.track_completion_percent, 0 ) ), 2 ) AS avg_completion_percent
+             FROM {$prefix}hl_track t
+             LEFT JOIN {$prefix}hl_enrollment e ON t.track_id = e.track_id AND e.status = 'active'
              LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
-             WHERE c.cohort_group_id = %d",
-            $group_id
+             WHERE t.cohort_id = %d",
+            $cohort_id
         ), ARRAY_A );
 
-        return $row ?: array( 'total_cohorts' => 0, 'total_participants' => 0, 'avg_completion_percent' => 0 );
+        return $row ?: array( 'total_tracks' => 0, 'total_participants' => 0, 'avg_completion_percent' => 0 );
     }
 
     /**
-     * Export group summary as CSV.
+     * Export cohort summary as CSV.
      *
-     * @param int $group_id
+     * @param int $cohort_id Cohort (container) ID.
      * @return string CSV content
      */
-    public function export_group_summary_csv( $group_id ) {
-        $rows = $this->get_group_summary( $group_id );
+    public function export_cohort_summary_csv( $cohort_id ) {
+        $rows = $this->get_cohort_summary( $cohort_id );
 
         $handle = fopen( 'php://temp', 'r+' );
         if ( $handle === false ) {
             return '';
         }
 
-        fputcsv( $handle, array( 'Cohort Name', 'Code', 'Status', 'Participants', 'Avg Completion %' ) );
+        fputcsv( $handle, array( 'Track Name', 'Code', 'Status', 'Participants', 'Avg Completion %' ) );
 
         foreach ( $rows as $row ) {
             fputcsv( $handle, array(
-                $row['cohort_name'],
-                $row['cohort_code'],
+                $row['track_name'],
+                $row['track_code'],
                 $row['status'],
                 $row['participant_count'],
                 $row['avg_completion_percent'],
@@ -722,18 +722,18 @@ class HL_Reporting_Service {
      */
     public function export_completion_csv( $filters, $include_activities = true ) {
         $participants = $this->get_participant_report( $filters );
-        $cohort_id   = isset( $filters['cohort_id'] ) ? absint( $filters['cohort_id'] ) : 0;
+        $track_id   = isset( $filters['track_id'] ) ? absint( $filters['track_id'] ) : 0;
 
-        // Resolve cohort name and code for the export header context
+        // Resolve track name and code for the export header context
         $activities     = array();
         $activity_detail = array();
 
-        if ( $include_activities && $cohort_id ) {
-            $activities = $this->get_cohort_activities( $cohort_id );
+        if ( $include_activities && $track_id ) {
+            $activities = $this->get_track_activities( $track_id );
 
             if ( ! empty( $participants ) && ! empty( $activities ) ) {
                 $enrollment_ids = wp_list_pluck( $participants, 'enrollment_id' );
-                $activity_detail = $this->get_cohort_activity_detail( $cohort_id, $enrollment_ids );
+                $activity_detail = $this->get_track_activity_detail( $track_id, $enrollment_ids );
             }
         }
 
@@ -744,7 +744,7 @@ class HL_Reporting_Service {
         }
 
         // Header row
-        $header = array( 'Name', 'Email', 'Roles', 'School', 'Team', 'Cohort Completion %', 'Pathway Completion %' );
+        $header = array( 'Name', 'Email', 'Roles', 'School', 'Team', 'Track Completion %', 'Pathway Completion %' );
         if ( $include_activities ) {
             foreach ( $activities as $activity ) {
                 $header[] = $activity['title'] . ' (%)';
@@ -763,7 +763,7 @@ class HL_Reporting_Service {
                 $roles_str,
                 $row['school_name'],
                 $row['team_name'],
-                $row['cohort_completion_percent'],
+                $row['track_completion_percent'],
                 $row['pathway_completion_percent'],
             );
 
@@ -792,12 +792,12 @@ class HL_Reporting_Service {
     /**
      * Export school summary as CSV
      *
-     * @param int      $cohort_id
+     * @param int      $track_id
      * @param int|null $district_id
      * @return string CSV content
      */
-    public function export_school_summary_csv( $cohort_id, $district_id = null ) {
-        $rows = $this->get_school_summary( $cohort_id, $district_id );
+    public function export_school_summary_csv( $track_id, $district_id = null ) {
+        $rows = $this->get_school_summary( $track_id, $district_id );
 
         $handle = fopen( 'php://temp', 'r+' );
         if ( $handle === false ) {
@@ -824,12 +824,12 @@ class HL_Reporting_Service {
     /**
      * Export team summary as CSV
      *
-     * @param int      $cohort_id
+     * @param int      $track_id
      * @param int|null $school_id
      * @return string CSV content
      */
-    public function export_team_summary_csv( $cohort_id, $school_id = null ) {
-        $rows = $this->get_team_summary( $cohort_id, $school_id );
+    public function export_team_summary_csv( $track_id, $school_id = null ) {
+        $rows = $this->get_team_summary( $track_id, $school_id );
 
         $handle = fopen( 'php://temp', 'r+' );
         if ( $handle === false ) {
@@ -859,52 +859,52 @@ class HL_Reporting_Service {
     // =========================================================================
 
     /**
-     * Get assessment comparison data for program vs control cohorts in a group.
+     * Get assessment comparison data for program vs control tracks in a cohort.
      *
-     * Returns per-section, per-item average scores for program cohorts (is_control_group=0)
-     * vs control cohorts (is_control_group=1) within the same cohort group.
+     * Returns per-section, per-item average scores for program tracks (is_control_group=0)
+     * vs control tracks (is_control_group=1) within the same cohort (container).
      *
-     * @param int $group_id Cohort group ID.
-     * @return array|null Comparison data or null if group has no control cohorts.
+     * @param int $cohort_id Cohort (container) ID.
+     * @return array|null Comparison data or null if cohort has no control tracks.
      */
-    public function get_group_assessment_comparison( $group_id ) {
+    public function get_cohort_assessment_comparison( $cohort_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $group_id = absint( $group_id );
-        if ( ! $group_id ) {
+        $cohort_id = absint( $cohort_id );
+        if ( ! $cohort_id ) {
             return null;
         }
 
-        // Get all cohorts in the group.
-        $cohorts = $wpdb->get_results( $wpdb->prepare(
-            "SELECT cohort_id, cohort_name, is_control_group
-             FROM {$prefix}hl_cohort
-             WHERE cohort_group_id = %d",
-            $group_id
+        // Get all tracks in the cohort.
+        $tracks = $wpdb->get_results( $wpdb->prepare(
+            "SELECT track_id, track_name, is_control_group
+             FROM {$prefix}hl_track
+             WHERE cohort_id = %d",
+            $cohort_id
         ), ARRAY_A );
 
-        if ( empty( $cohorts ) ) {
+        if ( empty( $tracks ) ) {
             return null;
         }
 
-        $program_cohort_ids = array();
-        $control_cohort_ids = array();
+        $program_track_ids = array();
+        $control_track_ids = array();
         $program_names      = array();
         $control_names      = array();
 
-        foreach ( $cohorts as $c ) {
+        foreach ( $tracks as $c ) {
             if ( (int) $c['is_control_group'] === 1 ) {
-                $control_cohort_ids[] = (int) $c['cohort_id'];
-                $control_names[]      = $c['cohort_name'];
+                $control_track_ids[] = (int) $c['track_id'];
+                $control_names[]      = $c['track_name'];
             } else {
-                $program_cohort_ids[] = (int) $c['cohort_id'];
-                $program_names[]      = $c['cohort_name'];
+                $program_track_ids[] = (int) $c['track_id'];
+                $program_names[]      = $c['track_name'];
             }
         }
 
-        // Need both program and control cohorts for comparison.
-        if ( empty( $program_cohort_ids ) || empty( $control_cohort_ids ) ) {
+        // Need both program and control tracks for comparison.
+        if ( empty( $program_track_ids ) || empty( $control_track_ids ) ) {
             return null;
         }
 
@@ -922,18 +922,18 @@ class HL_Reporting_Service {
             }
         }
 
-        // Aggregate data for each group of cohorts.
-        $program_data = $this->aggregate_assessment_responses( $program_cohort_ids, $sections_def );
-        $control_data = $this->aggregate_assessment_responses( $control_cohort_ids, $sections_def );
+        // Aggregate data for each group of tracks.
+        $program_data = $this->aggregate_assessment_responses( $program_track_ids, $sections_def );
+        $control_data = $this->aggregate_assessment_responses( $control_track_ids, $sections_def );
 
         return array(
             'program' => array(
-                'cohort_names'      => $program_names,
+                'track_names'      => $program_names,
                 'participant_count' => $program_data['participant_count'],
                 'sections'          => $program_data['sections'],
             ),
             'control' => array(
-                'cohort_names'      => $control_names,
+                'track_names'      => $control_names,
                 'participant_count' => $control_data['participant_count'],
                 'sections'          => $control_data['sections'],
             ),
@@ -942,31 +942,31 @@ class HL_Reporting_Service {
     }
 
     /**
-     * Aggregate teacher assessment responses across multiple cohorts.
+     * Aggregate teacher assessment responses across multiple tracks.
      *
-     * @param array $cohort_ids   Array of cohort IDs to aggregate.
+     * @param array $track_ids   Array of track IDs to aggregate.
      * @param array $sections_def Instrument section definitions.
      * @return array Keys: participant_count, sections.
      */
-    private function aggregate_assessment_responses( $cohort_ids, $sections_def ) {
+    private function aggregate_assessment_responses( $track_ids, $sections_def ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        if ( empty( $cohort_ids ) ) {
+        if ( empty( $track_ids ) ) {
             return array( 'participant_count' => 0, 'sections' => array() );
         }
 
-        $placeholders = implode( ',', array_fill( 0, count( $cohort_ids ), '%d' ) );
+        $placeholders = implode( ',', array_fill( 0, count( $track_ids ), '%d' ) );
 
         // Get all submitted teacher assessment instances with responses_json.
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $instances = $wpdb->get_results( $wpdb->prepare(
             "SELECT tai.instance_id, tai.phase, tai.responses_json, tai.instrument_id, tai.enrollment_id
              FROM {$prefix}hl_teacher_assessment_instance tai
-             WHERE tai.cohort_id IN ({$placeholders})
+             WHERE tai.track_id IN ({$placeholders})
              AND tai.status = 'submitted'
              AND tai.responses_json IS NOT NULL",
-            $cohort_ids
+            $track_ids
         ), ARRAY_A );
 
         // Count unique enrollments (participants).
@@ -1087,11 +1087,11 @@ class HL_Reporting_Service {
      * Flattens comparison data into one row per item per section with
      * program and control pre/post means, change values, and Cohen's d effect size.
      *
-     * @param int $group_id Cohort group ID.
+     * @param int $cohort_id Cohort (container) ID.
      * @return string CSV content or empty string.
      */
-    public function export_group_comparison_csv( $group_id ) {
-        $comparison = $this->get_group_assessment_comparison( $group_id );
+    public function export_cohort_comparison_csv( $cohort_id ) {
+        $comparison = $this->get_cohort_assessment_comparison( $cohort_id );
         if ( ! $comparison ) {
             return '';
         }

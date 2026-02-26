@@ -41,11 +41,11 @@ class HL_Classroom_Service {
     public function get_teaching_assignments($classroom_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT ta.*, e.user_id, e.roles, e.cohort_id, u.display_name, u.user_email, c.cohort_name
+            "SELECT ta.*, e.user_id, e.roles, e.track_id, u.display_name, u.user_email, t.track_name
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              LEFT JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             LEFT JOIN {$wpdb->prefix}hl_cohort c ON e.cohort_id = c.cohort_id
+             LEFT JOIN {$wpdb->prefix}hl_track t ON e.track_id = t.track_id
              WHERE ta.classroom_id = %d
              ORDER BY u.display_name ASC",
             $classroom_id
@@ -106,12 +106,12 @@ class HL_Classroom_Service {
         ));
 
         // Trigger child assessment instance auto-generation
-        $cohort_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT cohort_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+        $track_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT track_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
             $data['enrollment_id']
         ));
-        if ($cohort_id) {
-            do_action('hl_core_teaching_assignment_changed', (int) $cohort_id);
+        if ($track_id) {
+            do_action('hl_core_teaching_assignment_changed', (int) $track_id);
         }
 
         return $assignment_id;
@@ -158,9 +158,9 @@ class HL_Classroom_Service {
     public function delete_teaching_assignment($assignment_id) {
         global $wpdb;
 
-        // Get before data for audit and cohort_id for hook
+        // Get before data for audit and track_id for hook
         $before = $wpdb->get_row($wpdb->prepare(
-            "SELECT ta.*, e.cohort_id FROM {$wpdb->prefix}hl_teaching_assignment ta
+            "SELECT ta.*, e.track_id FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
              WHERE ta.assignment_id = %d",
             $assignment_id
@@ -179,8 +179,8 @@ class HL_Classroom_Service {
             ));
 
             // Trigger child assessment instance auto-generation
-            if (!empty($before['cohort_id'])) {
-                do_action('hl_core_teaching_assignment_changed', (int) $before['cohort_id']);
+            if (!empty($before['track_id'])) {
+                do_action('hl_core_teaching_assignment_changed', (int) $before['track_id']);
             }
         }
 

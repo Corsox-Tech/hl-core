@@ -10,11 +10,11 @@ class HL_Import_Service {
         'e_mail'         => 'email',
         'correo'         => 'email',
 
-        'cohort_roles'   => 'cohort_roles',
-        'cohort_role'    => 'cohort_roles',
-        'role'           => 'cohort_roles',
-        'roles'          => 'cohort_roles',
-        'rol'            => 'cohort_roles',
+        'track_roles'   => 'track_roles',
+        'track_role'    => 'track_roles',
+        'role'           => 'track_roles',
+        'roles'          => 'track_roles',
+        'rol'            => 'track_roles',
 
         'school_name'    => 'school_name',
         'school'         => 'school_name',
@@ -71,7 +71,7 @@ class HL_Import_Service {
         'district_leader' => 'District Leader',
     );
 
-    /** @var string[] Valid cohort roles */
+    /** @var string[] Valid track roles */
     private static $valid_roles = array('Teacher', 'Mentor', 'School Leader', 'District Leader');
 
     /** @var int Maximum rows per import */
@@ -81,16 +81,16 @@ class HL_Import_Service {
     const MAX_FILE_SIZE = 2097152;
 
     /**
-     * Get import runs for a cohort
+     * Get import runs for a track
      */
-    public function get_runs($cohort_id = null) {
+    public function get_runs($track_id = null) {
         global $wpdb;
-        $sql = "SELECT ir.*, u.display_name AS actor_name, c.cohort_name
+        $sql = "SELECT ir.*, u.display_name AS actor_name, t.track_name
                 FROM {$wpdb->prefix}hl_import_run ir
                 LEFT JOIN {$wpdb->users} u ON ir.actor_user_id = u.ID
-                LEFT JOIN {$wpdb->prefix}hl_cohort c ON ir.cohort_id = c.cohort_id";
-        if ($cohort_id) {
-            $sql = $wpdb->prepare($sql . " WHERE ir.cohort_id = %d", $cohort_id);
+                LEFT JOIN {$wpdb->prefix}hl_track t ON ir.track_id = t.track_id";
+        if ($track_id) {
+            $sql = $wpdb->prepare($sql . " WHERE ir.track_id = %d", $track_id);
         }
         $sql .= " ORDER BY ir.created_at DESC LIMIT 50";
         return $wpdb->get_results($sql, ARRAY_A) ?: array();
@@ -99,17 +99,17 @@ class HL_Import_Service {
     /**
      * Create a new import run record
      *
-     * @param int    $cohort_id
+     * @param int    $track_id
      * @param string $import_type
      * @param string $file_name
      * @return int run_id
      */
-    public function create_run($cohort_id, $import_type, $file_name) {
+    public function create_run($track_id, $import_type, $file_name) {
         global $wpdb;
         $wpdb->insert($wpdb->prefix . 'hl_import_run', array(
             'run_uuid'      => HL_DB_Utils::generate_uuid(),
             'actor_user_id' => get_current_user_id(),
-            'cohort_id'     => $cohort_id,
+            'track_id'     => $track_id,
             'import_type'   => $import_type,
             'file_name'     => $file_name,
             'status'        => 'preview',
@@ -236,10 +236,10 @@ class HL_Import_Service {
      * Validate and match participant rows against database
      *
      * @param array $parsed_rows Array of associative arrays
-     * @param int   $cohort_id
+     * @param int   $track_id
      * @return array Preview rows
      */
-    public function validate_participant_rows($parsed_rows, $cohort_id) {
+    public function validate_participant_rows($parsed_rows, $track_id) {
         $enrollment_repo = new HL_Enrollment_Repository();
         $preview_rows = array();
         $seen_emails = array();
@@ -296,9 +296,9 @@ class HL_Import_Service {
             $seen_emails[$email] = $index;
 
             // Parse and validate roles
-            $raw_roles = isset($row['cohort_roles']) ? $row['cohort_roles'] : '';
+            $raw_roles = isset($row['track_roles']) ? $row['track_roles'] : '';
             if (empty($raw_roles)) {
-                $preview['validation_messages'][] = __('Missing required field: cohort_roles', 'hl-core');
+                $preview['validation_messages'][] = __('Missing required field: track_roles', 'hl-core');
                 $preview_rows[] = $preview;
                 continue;
             }
@@ -383,7 +383,7 @@ class HL_Import_Service {
                 $preview['matched_user_id'] = $wp_user->ID;
 
                 // Check existing enrollment
-                $existing = $enrollment_repo->get_by_cohort_and_user($cohort_id, $wp_user->ID);
+                $existing = $enrollment_repo->get_by_track_and_user($track_id, $wp_user->ID);
 
                 if ($existing) {
                     $preview['existing_enrollment_id'] = $existing->enrollment_id;
@@ -421,7 +421,7 @@ class HL_Import_Service {
                     // User exists but not enrolled
                     $preview['status'] = 'CREATE';
                     $preview['proposed_actions'][] = sprintf(
-                        __('Enroll existing user (%s) into cohort', 'hl-core'),
+                        __('Enroll existing user (%s) into track', 'hl-core'),
                         $wp_user->display_name
                     );
                     $preview['selected'] = true;
@@ -433,7 +433,7 @@ class HL_Import_Service {
                     __('Create WP user (%s)', 'hl-core'),
                     $email
                 );
-                $preview['proposed_actions'][] = __('Enroll into cohort', 'hl-core');
+                $preview['proposed_actions'][] = __('Enroll into track', 'hl-core');
                 $preview['selected'] = true;
             }
 
@@ -459,10 +459,10 @@ class HL_Import_Service {
      * Validate and match children rows against database
      *
      * @param array $parsed_rows Array of associative arrays
-     * @param int   $cohort_id   (used for context; children belong to schools, not cohorts directly)
+     * @param int   $track_id   (used for context; children belong to schools, not tracks directly)
      * @return array Preview rows
      */
-    public function validate_children_rows($parsed_rows, $cohort_id) {
+    public function validate_children_rows($parsed_rows, $track_id) {
         $child_repo = new HL_Child_Repository();
         $preview_rows = array();
 
@@ -637,7 +637,7 @@ class HL_Import_Service {
         }
 
         $preview_rows = $run['preview_data'];
-        $cohort_id = (int) $run['cohort_id'];
+        $track_id = (int) $run['track_id'];
         $child_repo = new HL_Child_Repository();
         $classroom_service = new HL_Classroom_Service();
 
@@ -680,7 +680,7 @@ class HL_Import_Service {
                 }
 
                 HL_Audit_Service::log('import.child_created', array(
-                    'cohort_id'   => $cohort_id,
+                    'track_id'   => $track_id,
                     'entity_type' => 'child',
                     'entity_id'   => $child_id,
                     'after_data'  => $child_data,
@@ -721,7 +721,7 @@ class HL_Import_Service {
                 $child_repo->update($child_id, $update_data);
 
                 HL_Audit_Service::log('import.child_updated', array(
-                    'cohort_id'   => $cohort_id,
+                    'track_id'   => $track_id,
                     'entity_type' => 'child',
                     'entity_id'   => $child_id,
                     'after_data'  => $update_data,
@@ -765,7 +765,7 @@ class HL_Import_Service {
         );
 
         HL_Audit_Service::log('import.committed', array(
-            'cohort_id'   => $cohort_id,
+            'track_id'   => $track_id,
             'entity_type' => 'import_run',
             'entity_id'   => $run_id,
             'after_data'  => $results_summary,
@@ -782,10 +782,10 @@ class HL_Import_Service {
      * Validate classroom rows against database
      *
      * @param array $parsed_rows Array of associative arrays
-     * @param int   $cohort_id   (for context/audit)
+     * @param int   $track_id   (for context/audit)
      * @return array Preview rows
      */
-    public function validate_classroom_rows($parsed_rows, $cohort_id) {
+    public function validate_classroom_rows($parsed_rows, $track_id) {
         global $wpdb;
         $preview_rows = array();
 
@@ -905,7 +905,7 @@ class HL_Import_Service {
         }
 
         $preview_rows = $run['preview_data'];
-        $cohort_id = (int) $run['cohort_id'];
+        $track_id = (int) $run['track_id'];
         $classroom_service = new HL_Classroom_Service();
 
         $selected_set = array_flip($selected_row_indices);
@@ -957,7 +957,7 @@ class HL_Import_Service {
             }
 
             HL_Audit_Service::log('import.classroom_created', array(
-                'cohort_id'   => $cohort_id,
+                'track_id'   => $track_id,
                 'entity_type' => 'classroom',
                 'entity_id'   => $result,
                 'after_data'  => $data,
@@ -991,7 +991,7 @@ class HL_Import_Service {
         );
 
         HL_Audit_Service::log('import.committed', array(
-            'cohort_id'   => $cohort_id,
+            'track_id'   => $track_id,
             'entity_type' => 'import_run',
             'entity_id'   => $run_id,
             'after_data'  => $results_summary,
@@ -1008,10 +1008,10 @@ class HL_Import_Service {
      * Validate teaching assignment rows against database
      *
      * @param array $parsed_rows Array of associative arrays
-     * @param int   $cohort_id
+     * @param int   $track_id
      * @return array Preview rows
      */
-    public function validate_teaching_assignment_rows($parsed_rows, $cohort_id) {
+    public function validate_teaching_assignment_rows($parsed_rows, $track_id) {
         global $wpdb;
         $enrollment_repo = new HL_Enrollment_Repository();
         $preview_rows = array();
@@ -1020,13 +1020,13 @@ class HL_Import_Service {
         $schools = $this->load_schools_lookup();
         $classrooms_by_school = $this->load_classrooms_by_school();
 
-        // Pre-load existing teaching assignments for this cohort for duplicate detection
+        // Pre-load existing teaching assignments for this track for duplicate detection
         $existing_assignments = $wpdb->get_results($wpdb->prepare(
             "SELECT ta.enrollment_id, ta.classroom_id, ta.assignment_id
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
-             WHERE e.cohort_id = %d",
-            $cohort_id
+             WHERE e.track_id = %d",
+            $track_id
         ));
         $assignment_lookup = array();
         foreach ($existing_assignments as $ta) {
@@ -1125,7 +1125,7 @@ class HL_Import_Service {
                 continue;
             }
 
-            // Match teacher: WP user by email, then enrollment in cohort
+            // Match teacher: WP user by email, then enrollment in track
             $wp_user = get_user_by('email', $email);
             if (!$wp_user) {
                 $preview['validation_messages'][] = sprintf(
@@ -1137,10 +1137,10 @@ class HL_Import_Service {
             }
             $preview['matched_user_id'] = $wp_user->ID;
 
-            $enrollment = $enrollment_repo->get_by_cohort_and_user($cohort_id, $wp_user->ID);
+            $enrollment = $enrollment_repo->get_by_track_and_user($track_id, $wp_user->ID);
             if (!$enrollment) {
                 $preview['validation_messages'][] = sprintf(
-                    __('User %s is not enrolled in this cohort', 'hl-core'),
+                    __('User %s is not enrolled in this track', 'hl-core'),
                     $email
                 );
                 $preview_rows[] = $preview;
@@ -1192,7 +1192,7 @@ class HL_Import_Service {
         }
 
         $preview_rows = $run['preview_data'];
-        $cohort_id = (int) $run['cohort_id'];
+        $track_id = (int) $run['track_id'];
         $classroom_service = new HL_Classroom_Service();
 
         $selected_set = array_flip($selected_row_indices);
@@ -1231,7 +1231,7 @@ class HL_Import_Service {
             }
 
             HL_Audit_Service::log('import.teaching_assignment_created', array(
-                'cohort_id'   => $cohort_id,
+                'track_id'   => $track_id,
                 'entity_type' => 'teaching_assignment',
                 'entity_id'   => $result,
                 'after_data'  => $assignment_data,
@@ -1265,7 +1265,7 @@ class HL_Import_Service {
         );
 
         HL_Audit_Service::log('import.committed', array(
-            'cohort_id'   => $cohort_id,
+            'track_id'   => $track_id,
             'entity_type' => 'import_run',
             'entity_id'   => $run_id,
             'after_data'  => $results_summary,
@@ -1332,7 +1332,7 @@ class HL_Import_Service {
         }
 
         $preview_rows = $run['preview_data'];
-        $cohort_id = (int) $run['cohort_id'];
+        $track_id = (int) $run['track_id'];
         $enrollment_repo = new HL_Enrollment_Repository();
 
         $selected_set = array_flip($selected_row_indices);
@@ -1392,7 +1392,7 @@ class HL_Import_Service {
                     }
 
                     HL_Audit_Service::log('import.user_created', array(
-                        'cohort_id'   => $cohort_id,
+                        'track_id'   => $track_id,
                         'entity_type' => 'user',
                         'entity_id'   => $user_id,
                         'after_data'  => array('email' => $email, 'roles' => $roles),
@@ -1402,7 +1402,7 @@ class HL_Import_Service {
 
                 // Create enrollment
                 $enrollment_id = $enrollment_repo->create(array(
-                    'cohort_id'   => $cohort_id,
+                    'track_id'   => $track_id,
                     'user_id'     => $user_id,
                     'roles'       => $roles,
                     'school_id'   => $school_id,
@@ -1423,7 +1423,7 @@ class HL_Import_Service {
                 }
 
                 HL_Audit_Service::log('import.enrollment_created', array(
-                    'cohort_id'   => $cohort_id,
+                    'track_id'   => $track_id,
                     'entity_type' => 'enrollment',
                     'entity_id'   => $enrollment_id,
                     'after_data'  => array('user_id' => $user_id, 'roles' => $roles, 'school_id' => $school_id),
@@ -1460,7 +1460,7 @@ class HL_Import_Service {
                 $enrollment_repo->update($enrollment_id, $update_data);
 
                 HL_Audit_Service::log('import.enrollment_updated', array(
-                    'cohort_id'   => $cohort_id,
+                    'track_id'   => $track_id,
                     'entity_type' => 'enrollment',
                     'entity_id'   => $enrollment_id,
                     'before_data' => $before_data,
@@ -1498,7 +1498,7 @@ class HL_Import_Service {
 
         // Log run-level audit
         HL_Audit_Service::log('import.committed', array(
-            'cohort_id'   => $cohort_id,
+            'track_id'   => $track_id,
             'entity_type' => 'import_run',
             'entity_id'   => $run_id,
             'after_data'  => $results_summary,
@@ -1544,7 +1544,7 @@ class HL_Import_Service {
         fputcsv($handle, array(
             'Row Number',
             'Email',
-            'Cohort Roles',
+            'Track Roles',
             'School',
             'District',
             'Status',
@@ -1575,7 +1575,7 @@ class HL_Import_Service {
             fputcsv($handle, array(
                 $row['row_index'] + 1,
                 isset($raw['email']) ? $raw['email'] : '',
-                isset($raw['cohort_roles']) ? $raw['cohort_roles'] : '',
+                isset($raw['track_roles']) ? $raw['track_roles'] : '',
                 isset($raw['school_name']) ? $raw['school_name'] : (isset($raw['school_code']) ? $raw['school_code'] : ''),
                 isset($raw['district_name']) ? $raw['district_name'] : (isset($raw['district_code']) ? $raw['district_code'] : ''),
                 $row['status'],
@@ -1772,7 +1772,7 @@ class HL_Import_Service {
         if (stripos($messages, 'Invalid email') !== false) {
             $suggestions[] = 'Check that the email address is correctly formatted.';
         }
-        if (stripos($messages, 'Missing required field: cohort_roles') !== false) {
+        if (stripos($messages, 'Missing required field: track_roles') !== false) {
             $suggestions[] = 'Add a role (Teacher, Mentor, School Leader, or District Leader).';
         }
         if (stripos($messages, 'Unrecognized role') !== false) {
@@ -1814,8 +1814,8 @@ class HL_Import_Service {
         if (stripos($messages, 'No WordPress user found') !== false) {
             $suggestions[] = 'Import the participant first, then re-run this teaching assignment import.';
         }
-        if (stripos($messages, 'not enrolled in this cohort') !== false) {
-            $suggestions[] = 'Enroll the user in the cohort first, then re-run this import.';
+        if (stripos($messages, 'not enrolled in this track') !== false) {
+            $suggestions[] = 'Enroll the user in the track first, then re-run this import.';
         }
 
         return implode(' ', $suggestions);

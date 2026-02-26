@@ -18,13 +18,13 @@ class HL_Coach_Assignment_Service {
     /**
      * Create a coach assignment.
      *
-     * @param array $data Keys: coach_user_id, scope_type, scope_id, cohort_id, effective_from (optional).
+     * @param array $data Keys: coach_user_id, scope_type, scope_id, track_id, effective_from (optional).
      * @return int|WP_Error coach_assignment_id on success.
      */
     public function assign_coach($data) {
         global $wpdb;
 
-        $required = array('coach_user_id', 'scope_type', 'scope_id', 'cohort_id');
+        $required = array('coach_user_id', 'scope_type', 'scope_id', 'track_id');
         foreach ($required as $key) {
             if (empty($data[$key])) {
                 return new WP_Error('missing_field', sprintf(__('Missing required field: %s', 'hl-core'), $key));
@@ -45,7 +45,7 @@ class HL_Coach_Assignment_Service {
             'coach_user_id'  => absint($data['coach_user_id']),
             'scope_type'     => $scope_type,
             'scope_id'       => absint($data['scope_id']),
-            'cohort_id'      => absint($data['cohort_id']),
+            'track_id'      => absint($data['track_id']),
             'effective_from' => $effective_from,
             'effective_to'   => null,
         );
@@ -61,7 +61,7 @@ class HL_Coach_Assignment_Service {
         HL_Audit_Service::log('coach_assignment.created', array(
             'entity_type' => 'coach_assignment',
             'entity_id'   => $id,
-            'cohort_id'   => $insert['cohort_id'],
+            'track_id'   => $insert['track_id'],
             'after_data'  => $insert,
         ));
 
@@ -95,7 +95,7 @@ class HL_Coach_Assignment_Service {
         HL_Audit_Service::log('coach_assignment.closed', array(
             'entity_type' => 'coach_assignment',
             'entity_id'   => $old_assignment_id,
-            'cohort_id'   => $old['cohort_id'],
+            'track_id'   => $old['track_id'],
             'before_data' => array('coach_user_id' => $old['coach_user_id']),
             'after_data'  => array('effective_to' => $today),
         ));
@@ -105,7 +105,7 @@ class HL_Coach_Assignment_Service {
             'coach_user_id'  => absint($new_coach_user_id),
             'scope_type'     => $old['scope_type'],
             'scope_id'       => $old['scope_id'],
-            'cohort_id'      => $old['cohort_id'],
+            'track_id'      => $old['track_id'],
             'effective_from' => $today,
         ));
     }
@@ -154,7 +154,7 @@ class HL_Coach_Assignment_Service {
         HL_Audit_Service::log('coach_assignment.deleted', array(
             'entity_type' => 'coach_assignment',
             'entity_id'   => $assignment_id,
-            'cohort_id'   => $before['cohort_id'],
+            'track_id'   => $before['track_id'],
             'before_data' => $before,
         ));
 
@@ -166,7 +166,7 @@ class HL_Coach_Assignment_Service {
     // =========================================================================
 
     /**
-     * Resolve the coach for a given enrollment in a cohort.
+     * Resolve the coach for a given enrollment in a track.
      *
      * Resolution order (most specific wins):
      *   1. enrollment-level → scope_id = enrollment_id
@@ -176,10 +176,10 @@ class HL_Coach_Assignment_Service {
      * "Active" = effective_from <= today AND (effective_to IS NULL OR effective_to >= today).
      *
      * @param int $enrollment_id
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array|null Coach data (user_id, display_name, email, scope_type, assignment_id) or null.
      */
-    public function get_coach_for_enrollment($enrollment_id, $cohort_id) {
+    public function get_coach_for_enrollment($enrollment_id, $track_id) {
         global $wpdb;
 
         $today = current_time('Y-m-d');
@@ -190,14 +190,14 @@ class HL_Coach_Assignment_Service {
                     u.display_name AS coach_name, u.user_email AS coach_email
              FROM {$wpdb->prefix}hl_coach_assignment ca
              LEFT JOIN {$wpdb->users} u ON ca.coach_user_id = u.ID
-             WHERE ca.cohort_id = %d
+             WHERE ca.track_id = %d
                AND ca.scope_type = 'enrollment'
                AND ca.scope_id = %d
                AND ca.effective_from <= %s
                AND (ca.effective_to IS NULL OR ca.effective_to >= %s)
              ORDER BY ca.coach_assignment_id DESC
              LIMIT 1",
-            $cohort_id, $enrollment_id, $today, $today
+            $track_id, $enrollment_id, $today, $today
         ), ARRAY_A);
 
         if ($coach) {
@@ -208,9 +208,9 @@ class HL_Coach_Assignment_Service {
         $team_id = $wpdb->get_var($wpdb->prepare(
             "SELECT tm.team_id FROM {$wpdb->prefix}hl_team_membership tm
              JOIN {$wpdb->prefix}hl_team t ON tm.team_id = t.team_id
-             WHERE tm.enrollment_id = %d AND t.cohort_id = %d
+             WHERE tm.enrollment_id = %d AND t.track_id = %d
              LIMIT 1",
-            $enrollment_id, $cohort_id
+            $enrollment_id, $track_id
         ));
 
         if ($team_id) {
@@ -219,14 +219,14 @@ class HL_Coach_Assignment_Service {
                         u.display_name AS coach_name, u.user_email AS coach_email
                  FROM {$wpdb->prefix}hl_coach_assignment ca
                  LEFT JOIN {$wpdb->users} u ON ca.coach_user_id = u.ID
-                 WHERE ca.cohort_id = %d
+                 WHERE ca.track_id = %d
                    AND ca.scope_type = 'team'
                    AND ca.scope_id = %d
                    AND ca.effective_from <= %s
                    AND (ca.effective_to IS NULL OR ca.effective_to >= %s)
                  ORDER BY ca.coach_assignment_id DESC
                  LIMIT 1",
-                $cohort_id, $team_id, $today, $today
+                $track_id, $team_id, $today, $today
             ), ARRAY_A);
 
             if ($coach) {
@@ -246,14 +246,14 @@ class HL_Coach_Assignment_Service {
                         u.display_name AS coach_name, u.user_email AS coach_email
                  FROM {$wpdb->prefix}hl_coach_assignment ca
                  LEFT JOIN {$wpdb->users} u ON ca.coach_user_id = u.ID
-                 WHERE ca.cohort_id = %d
+                 WHERE ca.track_id = %d
                    AND ca.scope_type = 'school'
                    AND ca.scope_id = %d
                    AND ca.effective_from <= %s
                    AND (ca.effective_to IS NULL OR ca.effective_to >= %s)
                  ORDER BY ca.coach_assignment_id DESC
                  LIMIT 1",
-                $cohort_id, $school_id, $today, $today
+                $track_id, $school_id, $today, $today
             ), ARRAY_A);
 
             if ($coach) {
@@ -269,12 +269,12 @@ class HL_Coach_Assignment_Service {
     // =========================================================================
 
     /**
-     * Get all current assignments for a cohort.
+     * Get all current assignments for a track.
      *
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array
      */
-    public function get_assignments_by_cohort($cohort_id) {
+    public function get_assignments_by_track($track_id) {
         global $wpdb;
 
         $today = current_time('Y-m-d');
@@ -283,54 +283,54 @@ class HL_Coach_Assignment_Service {
             "SELECT ca.*, u.display_name AS coach_name, u.user_email AS coach_email
              FROM {$wpdb->prefix}hl_coach_assignment ca
              LEFT JOIN {$wpdb->users} u ON ca.coach_user_id = u.ID
-             WHERE ca.cohort_id = %d
+             WHERE ca.track_id = %d
                AND ca.effective_from <= %s
                AND (ca.effective_to IS NULL OR ca.effective_to >= %s)
              ORDER BY ca.scope_type ASC, ca.scope_id ASC",
-            $cohort_id, $today, $today
+            $track_id, $today, $today
         ), ARRAY_A) ?: array();
     }
 
     /**
-     * Get all assignments (including historical) for a cohort.
+     * Get all assignments (including historical) for a track.
      *
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array
      */
-    public function get_all_assignments_by_cohort($cohort_id) {
+    public function get_all_assignments_by_track($track_id) {
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
             "SELECT ca.*, u.display_name AS coach_name, u.user_email AS coach_email
              FROM {$wpdb->prefix}hl_coach_assignment ca
              LEFT JOIN {$wpdb->users} u ON ca.coach_user_id = u.ID
-             WHERE ca.cohort_id = %d
+             WHERE ca.track_id = %d
              ORDER BY ca.scope_type ASC, ca.effective_from DESC",
-            $cohort_id
+            $track_id
         ), ARRAY_A) ?: array();
     }
 
     /**
-     * Get the coach's roster — all participants assigned to a coach in a cohort.
+     * Get the coach's roster — all participants assigned to a coach in a track.
      *
      * Finds enrollments where the coach is the resolved coach via any scope.
      *
      * @param int $coach_user_id
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array Enrollment data with user info.
      */
-    public function get_coach_roster($coach_user_id, $cohort_id) {
+    public function get_coach_roster($coach_user_id, $track_id) {
         global $wpdb;
 
         $today = current_time('Y-m-d');
 
-        // Get all active assignments for this coach in this cohort.
+        // Get all active assignments for this coach in this track.
         $assignments = $wpdb->get_results($wpdb->prepare(
             "SELECT scope_type, scope_id FROM {$wpdb->prefix}hl_coach_assignment
-             WHERE coach_user_id = %d AND cohort_id = %d
+             WHERE coach_user_id = %d AND track_id = %d
                AND effective_from <= %s
                AND (effective_to IS NULL OR effective_to >= %s)",
-            $coach_user_id, $cohort_id, $today, $today
+            $coach_user_id, $track_id, $today, $today
         ), ARRAY_A);
 
         if (empty($assignments)) {
@@ -357,8 +357,8 @@ class HL_Coach_Assignment_Service {
                 case 'school':
                     $school_enrollments = $wpdb->get_col($wpdb->prepare(
                         "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment
-                         WHERE cohort_id = %d AND school_id = %d AND status = 'active'",
-                        $cohort_id, $a['scope_id']
+                         WHERE track_id = %d AND school_id = %d AND status = 'active'",
+                        $track_id, $a['scope_id']
                     ));
                     $enrollment_ids = array_merge($enrollment_ids, array_map('absint', $school_enrollments));
                     break;
@@ -374,7 +374,7 @@ class HL_Coach_Assignment_Service {
         $in_ids = implode(',', $enrollment_ids);
 
         return $wpdb->get_results(
-            "SELECT e.enrollment_id, e.cohort_id, e.roles, e.school_id,
+            "SELECT e.enrollment_id, e.track_id, e.roles, e.school_id,
                     u.ID AS user_id, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
@@ -388,19 +388,19 @@ class HL_Coach_Assignment_Service {
      * Get coaching sessions for a specific participant enrollment.
      *
      * @param int $enrollment_id
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array
      */
-    public function get_sessions_for_enrollment($enrollment_id, $cohort_id) {
+    public function get_sessions_for_enrollment($enrollment_id, $track_id) {
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
             "SELECT cs.*, u.display_name AS coach_name
              FROM {$wpdb->prefix}hl_coaching_session cs
              LEFT JOIN {$wpdb->users} u ON cs.coach_user_id = u.ID
-             WHERE cs.mentor_enrollment_id = %d AND cs.cohort_id = %d
+             WHERE cs.mentor_enrollment_id = %d AND cs.track_id = %d
              ORDER BY cs.session_datetime DESC",
-            $enrollment_id, $cohort_id
+            $enrollment_id, $track_id
         ), ARRAY_A) ?: array();
     }
 }

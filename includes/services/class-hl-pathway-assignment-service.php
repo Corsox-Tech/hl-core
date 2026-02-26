@@ -57,12 +57,12 @@ class HL_Pathway_Assignment_Service {
 
         if (class_exists('HL_Audit_Service')) {
             $enrollment = $wpdb->get_row($wpdb->prepare(
-                "SELECT cohort_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d", $enrollment_id
+                "SELECT track_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d", $enrollment_id
             ));
             HL_Audit_Service::log(
                 'pathway_assigned',
                 get_current_user_id(),
-                $enrollment ? $enrollment->cohort_id : null,
+                $enrollment ? $enrollment->track_id : null,
                 null,
                 $assignment_id,
                 sprintf('Pathway #%d assigned to enrollment #%d (%s)', $pathway_id, $enrollment_id, $type)
@@ -96,12 +96,12 @@ class HL_Pathway_Assignment_Service {
 
         if (class_exists('HL_Audit_Service')) {
             $enrollment = $wpdb->get_row($wpdb->prepare(
-                "SELECT cohort_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d", absint($enrollment_id)
+                "SELECT track_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d", absint($enrollment_id)
             ));
             HL_Audit_Service::log(
                 'pathway_unassigned',
                 get_current_user_id(),
-                $enrollment ? $enrollment->cohort_id : null,
+                $enrollment ? $enrollment->track_id : null,
                 null,
                 absint($enrollment_id),
                 sprintf('Pathway #%d unassigned from enrollment #%d', $pathway_id, $enrollment_id)
@@ -188,7 +188,7 @@ class HL_Pathway_Assignment_Service {
 
         // Fallback: role-based matching.
         $enrollment = $wpdb->get_row($wpdb->prepare(
-            "SELECT cohort_id, roles FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+            "SELECT track_id, roles FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
             $enrollment_id
         ));
 
@@ -201,10 +201,10 @@ class HL_Pathway_Assignment_Service {
             return array();
         }
 
-        // Get all active pathways for this cohort.
+        // Get all active pathways for this track.
         $pathways = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_pathway WHERE cohort_id = %d AND active_status = 1 ORDER BY pathway_name ASC",
-            $enrollment->cohort_id
+            "SELECT * FROM {$wpdb->prefix}hl_pathway WHERE track_id = %d AND active_status = 1 ORDER BY pathway_name ASC",
+            $enrollment->track_id
         ), ARRAY_A);
 
         $matched = array();
@@ -257,58 +257,58 @@ class HL_Pathway_Assignment_Service {
     }
 
     /**
-     * Get enrollments in a cohort NOT assigned to a specific pathway.
+     * Get enrollments in a track NOT assigned to a specific pathway.
      *
      * @param int $pathway_id
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array
      */
-    public function get_unassigned_enrollments($pathway_id, $cohort_id) {
+    public function get_unassigned_enrollments($pathway_id, $track_id) {
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
             "SELECT e.enrollment_id, e.user_id, e.roles, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.cohort_id = %d AND e.status = 'active'
+             WHERE e.track_id = %d AND e.status = 'active'
                AND e.enrollment_id NOT IN (
                    SELECT enrollment_id FROM {$wpdb->prefix}hl_pathway_assignment WHERE pathway_id = %d
                )
              ORDER BY u.display_name ASC",
-            absint($cohort_id), absint($pathway_id)
+            absint($track_id), absint($pathway_id)
         ), ARRAY_A) ?: array();
     }
 
     /**
-     * Sync role-based default assignments for a cohort.
+     * Sync role-based default assignments for a track.
      *
      * Creates role_default assignments for enrollments that have no explicit
      * assignments, based on pathway target_roles matching enrollment roles.
      *
-     * @param int $cohort_id
+     * @param int $track_id
      * @return array Results with 'created' count.
      */
-    public function sync_role_defaults($cohort_id) {
+    public function sync_role_defaults($track_id) {
         global $wpdb;
 
-        $cohort_id = absint($cohort_id);
+        $track_id = absint($track_id);
         $created = 0;
 
         // Get all active enrollments without any pathway assignments.
         $enrollments = $wpdb->get_results($wpdb->prepare(
             "SELECT e.enrollment_id, e.roles
              FROM {$wpdb->prefix}hl_enrollment e
-             WHERE e.cohort_id = %d AND e.status = 'active'
+             WHERE e.track_id = %d AND e.status = 'active'
                AND e.enrollment_id NOT IN (
                    SELECT enrollment_id FROM {$wpdb->prefix}hl_pathway_assignment
                )",
-            $cohort_id
+            $track_id
         ), ARRAY_A);
 
-        // Get all active pathways for this cohort.
+        // Get all active pathways for this track.
         $pathways = $wpdb->get_results($wpdb->prepare(
-            "SELECT pathway_id, target_roles FROM {$wpdb->prefix}hl_pathway WHERE cohort_id = %d AND active_status = 1",
-            $cohort_id
+            "SELECT pathway_id, target_roles FROM {$wpdb->prefix}hl_pathway WHERE track_id = %d AND active_status = 1",
+            $track_id
         ), ARRAY_A);
 
         $role_map = array(

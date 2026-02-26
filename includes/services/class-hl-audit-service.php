@@ -7,7 +7,7 @@ class HL_Audit_Service {
      * Log an action to the audit log
      *
      * @param string $action_type e.g. 'enrollment.created', 'override.applied', 'import.committed'
-     * @param array  $data        Optional: cohort_id, entity_type, entity_id, before_data, after_data, reason
+     * @param array  $data        Optional: track_id, entity_type, entity_id, before_data, after_data, reason
      */
     public static function log($action_type, $data = array()) {
         global $wpdb;
@@ -15,7 +15,7 @@ class HL_Audit_Service {
         $wpdb->insert($wpdb->prefix . 'hl_audit_log', array(
             'log_uuid'       => HL_DB_Utils::generate_uuid(),
             'actor_user_id'  => get_current_user_id(),
-            'cohort_id'     => isset($data['cohort_id']) ? $data['cohort_id'] : null,
+            'track_id'     => isset($data['track_id']) ? $data['track_id'] : null,
             'action_type'    => $action_type,
             'entity_type'    => isset($data['entity_type']) ? $data['entity_type'] : null,
             'entity_id'      => isset($data['entity_id']) ? $data['entity_id'] : null,
@@ -38,9 +38,9 @@ class HL_Audit_Service {
         $where = array();
         $values = array();
 
-        if (!empty($filters['cohort_id'])) {
-            $where[] = 'l.cohort_id = %d';
-            $values[] = $filters['cohort_id'];
+        if (!empty($filters['track_id'])) {
+            $where[] = 'l.track_id = %d';
+            $values[] = $filters['track_id'];
         }
         if (!empty($filters['action_type'])) {
             $where[] = 'l.action_type = %s';
