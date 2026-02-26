@@ -24,11 +24,11 @@ class HL_Assessment_Service {
     public function get_teacher_assessments_by_track($track_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT tai.*, u.display_name, u.user_email
+            "SELECT tai.*, e.user_id, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_teacher_assessment_instance tai
              JOIN {$wpdb->prefix}hl_enrollment e ON tai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE tai.track_id = %d ORDER BY u.display_name ASC, tai.phase ASC",
+             WHERE tai.track_id = %d ORDER BY tai.phase ASC, u.display_name ASC",
             $track_id
         ), ARRAY_A) ?: array();
     }
@@ -413,14 +413,14 @@ class HL_Assessment_Service {
     public function get_child_assessments_by_track($track_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT cai.*, u.display_name, u.user_email, cr.classroom_name, o.name AS school_name
+            "SELECT cai.*, e.user_id, u.display_name, u.user_email, cr.classroom_name, o.name AS school_name
              FROM {$wpdb->prefix}hl_child_assessment_instance cai
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$wpdb->prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
              LEFT JOIN {$wpdb->prefix}hl_orgunit o ON cai.school_id = o.orgunit_id
              WHERE cai.track_id = %d
-             ORDER BY u.display_name ASC, cr.classroom_name ASC",
+             ORDER BY cai.phase ASC, u.display_name ASC, cr.classroom_name ASC",
             $track_id
         ), ARRAY_A) ?: array();
     }

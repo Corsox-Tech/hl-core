@@ -63,9 +63,20 @@ class HL_Admin_Assessments {
     // =========================================================================
 
     /**
-     * Handle POST actions (generate instances)
+     * Handle POST actions (generate instances) and dev tools
      */
     private function handle_actions() {
+        // Dev tools: switch to user (add define('HL_DEV_TOOLS', true) in wp-config.php to enable)
+        if (defined('HL_DEV_TOOLS') && HL_DEV_TOOLS && isset($_GET['hl_switch_user'])) {
+            $target_user_id = absint($_GET['hl_switch_user']);
+            if ($target_user_id && current_user_can('manage_hl_core')) {
+                check_admin_referer('hl_switch_user_' . $target_user_id);
+                wp_set_auth_cookie($target_user_id);
+                wp_redirect(home_url());
+                exit;
+            }
+        }
+
         // Generate child assessment instances
         if (isset($_POST['hl_generate_children_nonce'])) {
             if (!wp_verify_nonce($_POST['hl_generate_children_nonce'], 'hl_generate_children_instances')) {
@@ -247,6 +258,15 @@ class HL_Admin_Assessments {
         echo '</div>';
 
         // Table
+        $dev_tools = defined('HL_DEV_TOOLS') && HL_DEV_TOOLS;
+        $col_count = $dev_tools ? 8 : 7;
+
+        $phase_counts = array();
+        foreach ($instances as $inst) {
+            $p = $inst['phase'];
+            $phase_counts[$p] = isset($phase_counts[$p]) ? $phase_counts[$p] + 1 : 1;
+        }
+
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
@@ -256,19 +276,40 @@ class HL_Admin_Assessments {
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Submitted At', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
+        if ($dev_tools) {
+            echo '<th>' . esc_html__('Dev', 'hl-core') . '</th>';
+        }
         echo '</tr></thead><tbody>';
 
+        $current_phase = '';
         foreach ($instances as $inst) {
+            // Phase section header
+            if ($inst['phase'] !== $current_phase) {
+                $current_phase = $inst['phase'];
+                $phase_label = strtoupper($current_phase) === 'POST' ? __('POST-Assessment', 'hl-core') : __('PRE-Assessment', 'hl-core');
+                $phase_cnt = isset($phase_counts[$current_phase]) ? $phase_counts[$current_phase] : 0;
+                echo '<tr><td colspan="' . $col_count . '" style="background:#f0f6fc;font-weight:700;padding:10px 12px;font-size:13px;border-left:4px solid #2271b1;">'
+                    . esc_html($phase_label) . ' <span style="color:#646970;font-weight:400;">(' . $phase_cnt . ')</span></td></tr>';
+            }
+
             $view_url = admin_url('admin.php?page=hl-assessments&action=view_teacher&instance_id=' . $inst['instance_id'] . '&track_id=' . $track_id);
+            $user_edit_url = admin_url('user-edit.php?user_id=' . $inst['user_id']);
 
             echo '<tr>';
             echo '<td>' . esc_html($inst['instance_id']) . '</td>';
-            echo '<td>' . esc_html($inst['display_name']) . '</td>';
+            echo '<td><a href="' . esc_url($user_edit_url) . '">' . esc_html($inst['display_name']) . '</a></td>';
             echo '<td>' . esc_html($inst['user_email']) . '</td>';
             echo '<td><span style="text-transform:uppercase;font-weight:600;">' . esc_html($inst['phase']) . '</span></td>';
             echo '<td>' . $this->render_status_badge($inst['status']) . '</td>';
             echo '<td>' . esc_html($inst['submitted_at'] ?: '-') . '</td>';
             echo '<td><a href="' . esc_url($view_url) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a></td>';
+            if ($dev_tools) {
+                $switch_url = wp_nonce_url(
+                    admin_url('admin.php?page=hl-assessments&hl_switch_user=' . $inst['user_id']),
+                    'hl_switch_user_' . $inst['user_id']
+                );
+                echo '<td><a href="' . esc_url($switch_url) . '" title="' . esc_attr__('Switch to this user', 'hl-core') . '" style="text-decoration:none;font-size:16px;">&#x21C4;</a></td>';
+            }
             echo '</tr>';
         }
 
@@ -334,10 +375,20 @@ class HL_Admin_Assessments {
         echo '</div>';
 
         // Table
+        $dev_tools = defined('HL_DEV_TOOLS') && HL_DEV_TOOLS;
+        $col_count = $dev_tools ? 11 : 10;
+
+        $phase_counts = array();
+        foreach ($instances as $inst) {
+            $p = isset($inst['phase']) ? $inst['phase'] : '';
+            $phase_counts[$p] = isset($phase_counts[$p]) ? $phase_counts[$p] + 1 : 1;
+        }
+
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Teacher', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Phase', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Classroom', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Age Band', 'hl-core') . '</th>';
@@ -345,17 +396,34 @@ class HL_Admin_Assessments {
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Submitted At', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
+        if ($dev_tools) {
+            echo '<th>' . esc_html__('Dev', 'hl-core') . '</th>';
+        }
         echo '</tr></thead><tbody>';
 
+        $current_phase = null;
         foreach ($instances as $inst) {
+            $inst_phase = isset($inst['phase']) ? $inst['phase'] : '';
+
+            // Phase section header
+            if ($inst_phase !== $current_phase) {
+                $current_phase = $inst_phase;
+                $phase_label = strtoupper($current_phase) === 'POST' ? __('POST-Assessment', 'hl-core') : __('PRE-Assessment', 'hl-core');
+                $phase_cnt = isset($phase_counts[$current_phase]) ? $phase_counts[$current_phase] : 0;
+                echo '<tr><td colspan="' . $col_count . '" style="background:#f0f6fc;font-weight:700;padding:10px 12px;font-size:13px;border-left:4px solid #2271b1;">'
+                    . esc_html($phase_label) . ' <span style="color:#646970;font-weight:400;">(' . $phase_cnt . ')</span></td></tr>';
+            }
+
             $view_url = admin_url('admin.php?page=hl-assessments&action=view_children&instance_id=' . $inst['instance_id'] . '&track_id=' . $track_id);
+            $user_edit_url = admin_url('user-edit.php?user_id=' . $inst['user_id']);
 
             $age_band_display = $inst['instrument_age_band'] ? ucfirst($inst['instrument_age_band']) : '<em style="color:#b32d2e;">' . esc_html__('Needs Review', 'hl-core') . '</em>';
             $instrument_display = $inst['instrument_id'] ? esc_html($inst['instrument_id'] . ' (v' . $inst['instrument_version'] . ')') : '-';
 
             echo '<tr>';
             echo '<td>' . esc_html($inst['instance_id']) . '</td>';
-            echo '<td>' . esc_html($inst['display_name']) . '</td>';
+            echo '<td><a href="' . esc_url($user_edit_url) . '">' . esc_html($inst['display_name']) . '</a></td>';
+            echo '<td><span style="text-transform:uppercase;font-weight:600;">' . esc_html($inst_phase) . '</span></td>';
             echo '<td>' . esc_html($inst['classroom_name']) . '</td>';
             echo '<td>' . esc_html($inst['school_name']) . '</td>';
             echo '<td>' . $age_band_display . '</td>';
@@ -363,6 +431,13 @@ class HL_Admin_Assessments {
             echo '<td>' . $this->render_status_badge($inst['status']) . '</td>';
             echo '<td>' . esc_html($inst['submitted_at'] ?: '-') . '</td>';
             echo '<td><a href="' . esc_url($view_url) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a></td>';
+            if ($dev_tools) {
+                $switch_url = wp_nonce_url(
+                    admin_url('admin.php?page=hl-assessments&hl_switch_user=' . $inst['user_id']),
+                    'hl_switch_user_' . $inst['user_id']
+                );
+                echo '<td><a href="' . esc_url($switch_url) . '" title="' . esc_attr__('Switch to this user', 'hl-core') . '" style="text-decoration:none;font-size:16px;">&#x21C4;</a></td>';
+            }
             echo '</tr>';
         }
 
