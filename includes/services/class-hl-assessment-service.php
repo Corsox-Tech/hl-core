@@ -955,10 +955,30 @@ class HL_Assessment_Service {
         }
         sort($all_question_ids);
 
+        // Build instrument name lookup for childrow instrument_ids
+        $instrument_names = array();
+        $instrument_ids_seen = array();
+        foreach ($instance_childrows as $crs) {
+            foreach ($crs as $cr) {
+                if (!empty($cr['instrument_id']) && !in_array((int) $cr['instrument_id'], $instrument_ids_seen)) {
+                    $instrument_ids_seen[] = (int) $cr['instrument_id'];
+                }
+            }
+        }
+        if (!empty($instrument_ids_seen)) {
+            $ids_in = implode(',', $instrument_ids_seen);
+            $instr_rows = $wpdb->get_results(
+                "SELECT instrument_id, title FROM {$wpdb->prefix}hl_instrument WHERE instrument_id IN ({$ids_in})"
+            );
+            foreach ($instr_rows as $ir) {
+                $instrument_names[(int) $ir->instrument_id] = $ir->title;
+            }
+        }
+
         $output = fopen('php://temp', 'r+');
 
         // Header
-        $header = array('Instance ID', 'Teacher Name', 'Classroom', 'School', 'Age Band', 'Status', 'Child Name', 'Child Code', 'DOB');
+        $header = array('Instance ID', 'Teacher Name', 'Classroom', 'School', 'Age Band', 'Instance Status', 'Child Name', 'Child Code', 'DOB', 'Frozen Age Group', 'Child Status', 'Instrument');
         foreach ($all_question_ids as $qid) {
             $header[] = $qid;
         }
@@ -977,7 +997,7 @@ class HL_Assessment_Service {
                     $inst['school_name'],
                     $inst['instrument_age_band'] ?: 'N/A',
                     $inst['status'],
-                    '', '', '',
+                    '', '', '', '', '', '',
                 );
                 foreach ($all_question_ids as $qid) {
                     $row[] = '';
@@ -988,6 +1008,10 @@ class HL_Assessment_Service {
 
             foreach ($childrows as $cr) {
                 $answers = json_decode($cr['answers_json'], true) ?: array();
+                $cr_frozen   = isset($cr['frozen_age_group']) ? $cr['frozen_age_group'] : '';
+                $cr_status   = isset($cr['status']) ? $cr['status'] : 'active';
+                $cr_instr_id = isset($cr['instrument_id']) ? (int) $cr['instrument_id'] : 0;
+                $cr_instr_name = $cr_instr_id && isset($instrument_names[$cr_instr_id]) ? $instrument_names[$cr_instr_id] : '';
 
                 $row = array(
                     $inst['instance_id'],
@@ -999,6 +1023,9 @@ class HL_Assessment_Service {
                     trim($cr['first_name'] . ' ' . $cr['last_name']),
                     $cr['child_display_code'] ?: '',
                     $cr['dob'] ?: '',
+                    $cr_frozen,
+                    $cr_status,
+                    $cr_instr_name,
                 );
 
                 foreach ($all_question_ids as $qid) {

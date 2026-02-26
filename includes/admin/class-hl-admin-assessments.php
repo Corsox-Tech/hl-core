@@ -503,58 +503,130 @@ class HL_Admin_Assessments {
             return;
         }
 
-        // Collect all question IDs from answers
-        $all_question_ids = array();
+        // Group childrows by frozen_age_group
+        $groups = array();
+        $ungrouped = array();
         foreach ($childrows as $cr) {
-            $answers = json_decode($cr['answers_json'], true);
-            if (is_array($answers)) {
-                foreach (array_keys($answers) as $qid) {
-                    if (!in_array($qid, $all_question_ids)) {
-                        $all_question_ids[] = $qid;
+            $ag = isset($cr['frozen_age_group']) && $cr['frozen_age_group'] ? $cr['frozen_age_group'] : '';
+            if ($ag) {
+                $groups[$ag][] = $cr;
+            } else {
+                $ungrouped[] = $cr;
+            }
+        }
+
+        // Render each age group section
+        $age_group_order = array('infant', 'toddler', 'preschool', 'k2');
+        $rendered_groups = array();
+        foreach ($age_group_order as $ag) {
+            if (isset($groups[$ag])) {
+                $rendered_groups[$ag] = $groups[$ag];
+            }
+        }
+        // Add any unknown groups
+        foreach ($groups as $ag => $rows) {
+            if (!isset($rendered_groups[$ag])) {
+                $rendered_groups[$ag] = $rows;
+            }
+        }
+        // Add ungrouped at end
+        if (!empty($ungrouped)) {
+            $rendered_groups['_ungrouped'] = $ungrouped;
+        }
+
+        foreach ($rendered_groups as $ag => $group_rows) {
+            if ($ag === '_ungrouped') {
+                $group_label = __('Ungrouped', 'hl-core');
+            } else {
+                $group_label = class_exists('HL_Age_Group_Helper') ? HL_Age_Group_Helper::get_label($ag) : ucfirst($ag);
+            }
+
+            echo '<h3 style="margin-top:20px;padding:8px 12px;background:#f0f0f1;border-left:4px solid #2271b1;border-radius:2px;">'
+                . esc_html($group_label) . ' <span style="color:#646970;font-weight:400;">(' . count($group_rows) . ')</span></h3>';
+
+            // Collect question IDs for this group
+            $group_question_ids = array();
+            foreach ($group_rows as $cr) {
+                $answers = json_decode($cr['answers_json'], true);
+                if (is_array($answers)) {
+                    foreach (array_keys($answers) as $qid) {
+                        if (!in_array($qid, $group_question_ids)) {
+                            $group_question_ids[] = $qid;
+                        }
                     }
                 }
             }
-        }
-        sort($all_question_ids);
+            sort($group_question_ids);
 
-        // Render response matrix
-        echo '<div style="overflow-x:auto;">';
-        echo '<table class="widefat striped">';
-        echo '<thead><tr>';
-        echo '<th>' . esc_html__('Child', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Code', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('DOB', 'hl-core') . '</th>';
-        foreach ($all_question_ids as $qid) {
-            echo '<th><code>' . esc_html($qid) . '</code></th>';
-        }
-        echo '</tr></thead><tbody>';
+            echo '<div style="overflow-x:auto;">';
+            echo '<table class="widefat striped">';
+            echo '<thead><tr>';
+            echo '<th>' . esc_html__('Child', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Code', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('DOB', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
+            foreach ($group_question_ids as $qid) {
+                echo '<th><code>' . esc_html($qid) . '</code></th>';
+            }
+            echo '</tr></thead><tbody>';
 
-        foreach ($childrows as $cr) {
-            $answers = json_decode($cr['answers_json'], true) ?: array();
+            foreach ($group_rows as $cr) {
+                $answers = json_decode($cr['answers_json'], true) ?: array();
+                $cr_status = isset($cr['status']) ? $cr['status'] : 'active';
 
-            echo '<tr>';
-            echo '<td>' . esc_html(trim($cr['first_name'] . ' ' . $cr['last_name'])) . '</td>';
-            echo '<td>' . esc_html($cr['child_display_code'] ?: '-') . '</td>';
-            echo '<td>' . esc_html($cr['dob'] ?: '-') . '</td>';
+                echo '<tr>';
 
-            foreach ($all_question_ids as $qid) {
-                $val = isset($answers[$qid]) ? $answers[$qid] : '';
-                if (is_array($val)) {
-                    $val = implode(', ', $val);
+                // Name with age group badge
+                $name_html = esc_html(trim($cr['first_name'] . ' ' . $cr['last_name']));
+                if (!empty($cr['frozen_age_group'])) {
+                    $ag_label = class_exists('HL_Age_Group_Helper') ? HL_Age_Group_Helper::get_label($cr['frozen_age_group']) : ucfirst($cr['frozen_age_group']);
+                    $name_html .= ' <span style="display:inline-block;background:#e7f5ff;color:#1971c2;padding:1px 5px;border-radius:3px;font-size:10px;">'
+                        . esc_html($ag_label) . '</span>';
                 }
-                echo '<td>' . esc_html($val) . '</td>';
+                echo '<td>' . $name_html . '</td>';
+                echo '<td>' . esc_html($cr['child_display_code'] ?: '-') . '</td>';
+                echo '<td>' . esc_html($cr['dob'] ?: '-') . '</td>';
+
+                // Status badge
+                echo '<td>' . $this->render_childrow_status_badge($cr_status) . '</td>';
+
+                foreach ($group_question_ids as $qid) {
+                    $val = isset($answers[$qid]) ? $answers[$qid] : '';
+                    if (is_array($val)) {
+                        $val = implode(', ', $val);
+                    }
+                    echo '<td>' . esc_html($val) . '</td>';
+                }
+
+                echo '</tr>';
             }
 
-            echo '</tr>';
+            echo '</tbody></table>';
+            echo '</div>';
         }
-
-        echo '</tbody></table>';
-        echo '</div>';
     }
 
     // =========================================================================
     // Helpers
     // =========================================================================
+
+    /**
+     * Render childrow status badge HTML
+     */
+    private function render_childrow_status_badge($status) {
+        $config = array(
+            'active'           => array('background:#e6ffed;color:#00a32a;', __('Active', 'hl-core')),
+            'skipped'          => array('background:#f0f0f1;color:#646970;', __('Skipped', 'hl-core')),
+            'stale_at_submit'  => array('background:#fff3cd;color:#856404;', __('Stale at Submit', 'hl-core')),
+            'not_in_classroom' => array('background:#fde8e8;color:#b32d2e;', __('Not in Classroom', 'hl-core')),
+        );
+
+        $style = isset($config[$status]) ? $config[$status][0] : 'background:#f0f0f1;color:#646970;';
+        $label = isset($config[$status]) ? $config[$status][1] : ucfirst(str_replace('_', ' ', $status));
+
+        return '<span style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600;' . esc_attr($style) . '">'
+            . esc_html($label) . '</span>';
+    }
 
     /**
      * Render status badge HTML

@@ -657,8 +657,31 @@ class HL_Admin_Classrooms {
         echo '<hr />';
         echo '<h2>' . esc_html__('Children Roster', 'hl-core') . '</h2>';
 
-        // Current children in this classroom
+        // Current active children in this classroom
         $children = $service->get_children_in_classroom($classroom->classroom_id);
+
+        // Resolve "Added by" names for teacher-added children
+        $added_by_names = array();
+        if (!empty($children)) {
+            $added_enrollment_ids = array();
+            foreach ($children as $child) {
+                if (!empty($child->added_by_enrollment_id)) {
+                    $added_enrollment_ids[] = (int) $child->added_by_enrollment_id;
+                }
+            }
+            if (!empty($added_enrollment_ids)) {
+                $ids_in = implode(',', array_map('intval', array_unique($added_enrollment_ids)));
+                $rows = $wpdb->get_results(
+                    "SELECT e.enrollment_id, u.display_name
+                     FROM {$wpdb->prefix}hl_enrollment e
+                     JOIN {$wpdb->users} u ON e.user_id = u.ID
+                     WHERE e.enrollment_id IN ({$ids_in})"
+                );
+                foreach ($rows as $r) {
+                    $added_by_names[(int) $r->enrollment_id] = $r->display_name;
+                }
+            }
+        }
 
         if (!empty($children)) {
             echo '<table class="widefat striped">';
@@ -677,9 +700,19 @@ class HL_Admin_Classrooms {
                     'hl_unassign_child_' . $child->child_id
                 );
 
+                $name_html = esc_html(trim($child->first_name . ' ' . $child->last_name));
+                if (!empty($child->added_by_enrollment_id)) {
+                    $added_name = isset($added_by_names[(int) $child->added_by_enrollment_id])
+                        ? $added_by_names[(int) $child->added_by_enrollment_id]
+                        : __('Teacher', 'hl-core');
+                    $name_html .= ' <span style="display:inline-block;background:#e7f5ff;color:#1971c2;padding:1px 6px;border-radius:3px;font-size:11px;margin-left:4px;">'
+                        . esc_html(sprintf(__('Added by %s', 'hl-core'), $added_name))
+                        . '</span>';
+                }
+
                 echo '<tr>';
                 echo '<td>' . esc_html($child->child_display_code ?: '-') . '</td>';
-                echo '<td>' . esc_html(trim($child->first_name . ' ' . $child->last_name)) . '</td>';
+                echo '<td>' . $name_html . '</td>';
                 echo '<td>' . esc_html($child->dob ?: '-') . '</td>';
                 echo '<td>' . esc_html($child->assigned_at) . '</td>';
                 echo '<td><a href="' . esc_url($unassign_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Remove this child from the classroom?', 'hl-core')) . '\');">' . esc_html__('Remove', 'hl-core') . '</a></td>';
@@ -689,6 +722,41 @@ class HL_Admin_Classrooms {
             echo '</tbody></table>';
         } else {
             echo '<p>' . esc_html__('No children assigned to this classroom.', 'hl-core') . '</p>';
+        }
+
+        // Removed children section
+        $removed_children = $service->get_removed_children_in_classroom($classroom->classroom_id);
+        if (!empty($removed_children)) {
+            $count = count($removed_children);
+            echo '<div style="margin-top:15px;">';
+            echo '<h3 style="cursor:pointer;user-select:none;" onclick="var el=document.getElementById(\'hl-removed-children\');el.style.display=el.style.display===\'none\'?\'block\':\'none\';">';
+            echo '&#9654; ' . esc_html(sprintf(__('Removed Children (%d)', 'hl-core'), $count));
+            echo '</h3>';
+            echo '<div id="hl-removed-children" style="display:none;">';
+            echo '<table class="widefat striped">';
+            echo '<thead><tr>';
+            echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('DOB', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Removed By', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Removed At', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Reason', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Note', 'hl-core') . '</th>';
+            echo '</tr></thead><tbody>';
+
+            foreach ($removed_children as $child) {
+                $reason_label = $child->removal_reason ? ucwords(str_replace('_', ' ', $child->removal_reason)) : '-';
+                echo '<tr>';
+                echo '<td>' . esc_html(trim($child->first_name . ' ' . $child->last_name)) . '</td>';
+                echo '<td>' . esc_html($child->dob ?: '-') . '</td>';
+                echo '<td>' . esc_html($child->removed_by_name ?: '-') . '</td>';
+                echo '<td>' . esc_html($child->removed_at ? date('Y-m-d', strtotime($child->removed_at)) : '-') . '</td>';
+                echo '<td>' . esc_html($reason_label) . '</td>';
+                echo '<td>' . esc_html($child->removal_note ?: '-') . '</td>';
+                echo '</tr>';
+            }
+
+            echo '</tbody></table>';
+            echo '</div></div>';
         }
 
         // Assign child form — children from same school
