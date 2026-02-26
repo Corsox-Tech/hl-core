@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 07_IMPORTS_ROSTERS_IDENTITIES_MATCHING.md
-Version: 1.0
-Last Updated: 2026-02-13
+Version: 2.0
+Last Updated: 2026-02-25
 Timezone: America/Bogota
 
 ---
@@ -12,7 +12,7 @@ This document specifies HL Core import requirements:
 - Supported file types: CSV, XLS, XLSX
 - Import flows: preview → validate → row selection → commit → results/errors
 - Identity matching rules (Users, Children, OrgUnits, Classrooms)
-- Relationship imports (Cohort enrollment, classroom assignments, teams)
+- Relationship imports (Track enrollment, classroom assignments, teams)
 - Handling ambiguous/weak identifiers with "Needs Review"
 
 Rules:
@@ -26,8 +26,8 @@ Rules:
 
 HL Core must support at minimum:
 
-## 1.1 Participants Import (Users + Cohort Enrollments)
-Imports people into a Cohort and assigns Cohort Roles + scope bindings.
+## 1.1 Participants Import (Users + Track Enrollments)
+Imports people into a Track and assigns Track Roles + scope bindings.
 
 Primary identity:
 - Users matched by email (unique).
@@ -48,14 +48,14 @@ Primary identity:
 Imports teacher assignments to classrooms (many-to-many), including lead teacher flag.
 
 Primary identity:
-- teacher email + classroom name + school scope (+ cohort scope for enrollment linkage)
+- teacher email + classroom name + school scope (+ track scope for enrollment linkage)
 
 ## 1.5 Team Setup Import (Optional v1)
 If implemented:
-- Create teams and assign mentors/members within a Cohort + School.
+- Create teams and assign mentors/members within a Track + School.
 
 Primary identity:
-- team name + school + cohort, and participant emails.
+- team name + school + track, and participant emails.
 
 Note:
 - If too complex, v1 may skip team import and provide UI-based team builder.
@@ -82,7 +82,7 @@ Imports must support:
 
 ## 3.1 Step 1: Upload
 User selects:
-- Cohort (required for participant-related imports)
+- Track (required for participant-related imports)
 - School (required for classroom/child imports; optional if can be inferred)
 - Import type (participants, children, classrooms, teaching assignments, teams)
 
@@ -154,11 +154,11 @@ Primary key:
 Rules:
 - If user exists by email:
   - DO NOT modify WP user profile unless staff explicitly allows it
-  - Enroll user into Cohort (if not enrolled)
-  - Apply Cohort Role(s) and scope bindings from the import row
+  - Enroll user into Track (if not enrolled)
+  - Apply Track Role(s) and scope bindings from the import row
 - If user does not exist:
   - Create WP user (minimum: email, first name, last name)
-  - Enroll user into Cohort
+  - Enroll user into Track
 
 Special case:
 - If a District/School Leader (client role) is allowed to create users via UI, that is separate from imports.
@@ -167,7 +167,7 @@ Special case:
 ---
 
 ## 4.2 OrgUnits (District / School)
-v1 matching (when importing cohort participants):
+v1 matching (when importing track participants):
 - If District name is provided:
   - match District OrgUnit by exact normalized name OR orgunit_code if present
 - Schools:
@@ -244,12 +244,12 @@ This is for UI and exports, not matching.
 
 # 5) Relationship Imports
 
-## 5.1 Participant Enrollment in Cohort
+## 5.1 Participant Enrollment in Track
 Participants import must support columns:
 - email (required)
 - first_name (optional but recommended)
 - last_name (optional but recommended)
-- cohort_roles (required; one or multiple)
+- track_roles (required; one or multiple)
 - district_name or district_code (optional)
 - school_name or school_code (required unless staff selects school at import run-time)
 
@@ -267,7 +267,7 @@ Teaching assignment rows must include:
 - is_lead_teacher (optional; default false)
 
 Rules:
-- Ensure teacher is enrolled in the Cohort (if import is cohort-scoped)
+- Ensure teacher is enrolled in the Track (if import is track-scoped)
 - Create or update TeachingAssignment
 - Multiple classrooms per teacher supported
 
@@ -297,7 +297,7 @@ Rules:
 
 ## 5.4 Team Setup Import (if enabled)
 Columns:
-- cohort_code or cohort selection (required)
+- track_code or track selection (required)
 - school_name/school_code
 - team_name
 - mentor_email_1
@@ -305,8 +305,8 @@ Columns:
 - member_emails (comma-separated) OR multiple member_email columns
 
 Rules:
-- Ensure all emails exist and are enrolled in the Cohort
-- Enforce 1 team per enrollment per Cohort
+- Ensure all emails exist and are enrolled in the Track
+- Enforce 1 team per enrollment per Track
 - Flag conflicts as NEEDS_REVIEW
 
 ---
@@ -318,7 +318,7 @@ NEEDS_REVIEW must occur when:
 - missing required fields but might be resolvable
 - classroom name is unknown and auto-create is disabled
 - teacher email exists but enrollment scope conflicts
-- team membership violates "one team per cohort" constraint
+- team membership violates "one team per track" constraint
 
 NEEDS_REVIEW rows must not commit unless:
 - user resolves ambiguity OR
@@ -326,15 +326,15 @@ NEEDS_REVIEW rows must not commit unless:
 
 ---
 
-# 7) Importing When Cohorts Are Draft/Paused
+# 7) Importing When Tracks Are Draft/Paused
 
-Cohorts have status:
+Tracks have status:
 - draft / active / paused / archived
 
 Rules:
-- Imports into draft/paused Cohorts are allowed for staff.
+- Imports into draft/paused Tracks are allowed for staff.
 - For non-staff (if ever allowed), restrict to active only.
-- Imports into archived Cohorts are disallowed (read-only).
+- Imports into archived Tracks are disallowed (read-only).
 
 ---
 
@@ -343,7 +343,7 @@ Rules:
 For each import run, record:
 - import_run_id
 - actor_user_id
-- cohort_id (if applicable)
+- track_id (if applicable)
 - import_type
 - file_name
 - timestamp
@@ -361,7 +361,7 @@ For each committed entity action, log:
 ## 9.1 Participants Import Template (minimum)
 Required:
 - email
-- cohort_role(s)
+- track_role(s)
 - school_name (or school_code)
 
 Optional:

@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md
-Version: 2.0
-Last Updated: 2026-02-24
+Version: 3.0
+Last Updated: 2026-02-25
 Timezone: America/Bogota
 
 ---
@@ -120,7 +120,7 @@ Stores the instrument definition as structured JSON:
 
 ### hl_teacher_assessment_instance
 - instance_id (PK)
-- cohort_id
+- track_id
 - enrollment_id (teacher enrollment)
 - activity_id (FK to hl_activity) — links to the pathway activity
 - instrument_id (FK to hl_teacher_assessment_instrument; NULL for legacy JFB)
@@ -134,7 +134,7 @@ Stores the instrument definition as structured JSON:
 - created_at, updated_at
 
 Constraints:
-- unique(cohort_id, enrollment_id, phase) — or unique(enrollment_id, activity_id)
+- unique(track_id, enrollment_id, phase) — or unique(enrollment_id, activity_id)
 
 ### Response JSON format:
 ```json
@@ -235,7 +235,7 @@ Each variant includes example behaviors per scale point (from the B2E Child Asse
 The `hl_instrument` table stores child assessment instrument definitions:
 - instrument_id
 - name
-- instrument_type in { "children_infant", "children_toddler", "children_preschool" }
+- instrument_type in { "child_infant", "child_toddler", "child_preschool" }
 - version
 - questions (JSON array)
 - effective_from / effective_to (optional)
@@ -278,8 +278,8 @@ The child assessment form:
 - Read-only mode for submitted assessments
 
 ## 3.6 Admin: Generate Child Assessment Instances
-Admin can generate assessment instances for all teachers in a cohort with one click:
-- For each teacher enrollment in the cohort
+Admin can generate assessment instances for all teachers in a track with one click:
+- For each teacher enrollment in the track
 - Find their classrooms (via hl_classroom_teacher / hl_teaching_assignment)
 - If classrooms have children, create pre and post child_assessment instances
 - Create corresponding hl_activity_state records
@@ -309,7 +309,7 @@ Observations are used by Coaches to prepare for Coaching Sessions.
 
 ### Form setup (done once by admin in JetFormBuilder):
 1. Create the form in JFB with desired fields, layout, and conditional logic
-2. Add hidden fields: `hl_enrollment_id`, `hl_activity_id`, `hl_cohort_id`, `hl_observation_id`
+2. Add hidden fields: `hl_enrollment_id`, `hl_activity_id`, `hl_track_id`, `hl_observation_id`
 3. Add "Call Hook" post-submit action with hook name: `hl_core_form_submitted`
 
 ### Submission handling (automatic):
@@ -321,7 +321,7 @@ Observations are used by Coaches to prepare for Coaching Sessions.
 
 ### hl_observation
 - observation_id
-- cohort_id
+- track_id
 - mentor_enrollment_id
 - teacher_enrollment_id (optional)
 - school_id (optional)
@@ -356,7 +356,7 @@ This is an admin-side CRUD workflow, not a user-facing questionnaire.
 
 ### hl_coaching_session
 - session_id
-- cohort_id
+- track_id
 - coach_user_id (WP User; staff)
 - mentor_enrollment_id
 - session_title
@@ -390,7 +390,7 @@ This is an admin-side CRUD workflow, not a user-facing questionnaire.
 # 6) Control Group Assessment Workflow
 
 ## 6.1 Purpose
-Control group cohorts use an assessment-only pathway. Teachers in the control group complete:
+Control group tracks use an assessment-only pathway. Teachers in the control group complete:
 1. Teacher Self-Assessment (Pre) — available immediately
 2. Child Assessment (Pre) — available immediately
 3. Teacher Self-Assessment (Post) — locked until end-of-program date via drip rule
@@ -406,7 +406,7 @@ The control group pathway contains exactly 4 activities:
 - Activity 4: child_assessment, phase=post, sort_order=4, drip: fixed_date
 
 ## 6.3 Comparison Reporting
-When a Cohort Group contains both program and control cohorts:
+When a Cohort contains both program and control tracks:
 - ReportingService aggregates `responses_json` from teacher assessment instances
 - Per-section, per-item mean/n/sd for both PRE and POST phases
 - Cohen's d effect size = (program_change - control_change) / pooled_sd
@@ -423,7 +423,7 @@ HL Core provides staff workflows for:
 - Reviewing observations: staff can view observation records and access JFB Form Records
 - Creating coaching sessions linked to observations
 - Marking coaching attendance + notes
-- Program vs Control comparison reporting (when Cohort Group contains both types)
+- Program vs Control comparison reporting (when Cohort contains both program and control tracks)
 
 Non-staff workflows:
 - Teachers submit their self-assessment (custom form at `[hl_teacher_assessment]`)
@@ -435,7 +435,7 @@ Non-staff workflows:
 # 8) Audit Log Requirements (Assessment-related)
 
 Log:
-- assessment instance submitted (who, when, which cohort/classroom)
+- assessment instance submitted (who, when, which track/classroom)
 - staff view of assessment responses (who accessed, when)
 - exports generated (who exported, filters used)
 - observation submitted (who, when, JFB record ID)

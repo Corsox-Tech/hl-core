@@ -8,17 +8,17 @@ Timezone: America/Bogota
 
 # 1) Purpose (What to build)
 
-Build a **single WordPress plugin** ("HL Core") that becomes the system-of-record for Housman Learning Academy Cohort management.
+Build a **single WordPress plugin** ("HL Core") that becomes the system-of-record for Housman Learning Academy Track and Cohort management.
 
 The plugin must manage:
 - Organizations: optional Districts, Schools, Classrooms
-- People and cohort participation: Users enrolled into a Cohort with Cohort Roles
+- People and track participation: Users enrolled into a Track with Track Roles
 - Teams within Schools for mentorship structure
-- Cohort learning configuration: Pathways and Activities with prerequisite + drip rules
+- Track learning configuration: Pathways and Activities with prerequisite + drip rules
 - Assessments: Teacher Self-Assessment (via JetFormBuilder) and Child Assessment (custom PHP)
 - Mentorship workflow: Observations (via JetFormBuilder, submitted by Mentors) and Coaching Sessions (custom admin CRUD, logged by Coaches)
 - Imports: roster + children + classroom relationships (CSV/XLS/XLSX) with preview + validation
-- Reporting: progress/completion by scope (Cohort / District / School / Team / User), export to CSV
+- Reporting: progress/completion by scope (Track / District / School / Team / User), export to CSV
 - Audit logs: key state changes and overrides
 
 The system is **B2B only**. There is **no WooCommerce**, no checkout logic, and no "buyer" tracking.
@@ -28,27 +28,31 @@ The system is **B2B only**. There is **no WooCommerce**, no checkout logic, and 
 # 2) Critical Definitions (Canonical Meaning)
 
 **Cohort**
-A Cohort is a time-bounded run/implementation for a client (District and/or one or more Schools).
+A Cohort is the contract/container entity — the biggest organizational entity. It groups one or more Tracks together for a client or program wave.
+Example: "B2E Mastery - Lutheran Services Florida".
+
+**Track**
+A Track is a time-bounded run/implementation within a Cohort.
 Example: "ELCPB - 2026".
 
-A Cohort contains:
+A Track contains:
 - participants (users) via Enrollment
 - pathways + activities configuration
 - teams, classrooms, children rosters
 - progress, assessments, observation/coaching artifacts
 - reports and exports for allowed roles
 
-**Enrollment**  
-Enrollment is the join between (User ↔ Cohort). Cohort roles MUST be stored on Enrollment, NOT on the WP user.
-This preserves history (a user can be Teacher in one Cohort and Mentor in another).
+**Enrollment**
+Enrollment is the join between (User ↔ Track). Track roles MUST be stored on Enrollment, NOT on the WP user.
+This preserves history (a user can be Teacher in one Track and Mentor in another).
 
-**Cohort Roles** (assigned per Enrollment)  
+**Track Roles** (assigned per Enrollment)
 - Teacher
 - Mentor
 - School Leader
 - District Leader
 
-A user may have different roles across different Cohorts.
+A user may have different roles across different Tracks.
 
 ---
 
@@ -79,7 +83,7 @@ HL Core uses JetFormBuilder for static questionnaire forms that Housman LMS Admi
 - **Observations** — Admin builds the observation form in JFB; HL Core manages the observation record (who observed whom) and tracks completion
 
 Integration mechanism:
-- JFB forms include hidden fields for HL Core context (enrollment_id, activity_id, cohort_id)
+- JFB forms include hidden fields for HL Core context (enrollment_id, activity_id, track_id)
 - JFB fires a "Call Hook" post-submit action (`hl_core_form_submitted`)
 - HL Core's hook listener updates instance status and activity completion
 - Responses are stored in JFB Form Records (not in HL Core tables)
@@ -100,9 +104,9 @@ HL Core may optionally add cohort-related navigation links or dashboards, but it
 - Housman Admin (WordPress admin): full permissions
 - Coach (Housman staff): can create users; can view assessment responses; can mark coaching sessions; can exempt activities
 
-## 5.2 Client roles (cohort-level via Enrollment)
-- District Leader: can view/download district scope progress reports; can create new users ONLY within their Cohort and District scope; cannot edit/delete existing users; cannot reset passwords
-- School Leader: can view/download school scope progress reports; can create new users ONLY within their Cohort and School scope; cannot edit/delete existing users; cannot reset passwords
+## 5.2 Client roles (track-level via Enrollment)
+- District Leader: can view/download district scope progress reports; can create new users ONLY within their Track and District scope; cannot edit/delete existing users; cannot reset passwords
+- School Leader: can view/download school scope progress reports; can create new users ONLY within their Track and School scope; cannot edit/delete existing users; cannot reset passwords
 - Mentor: can view/download team scope progress reports; cannot manage users
 - Teacher: can view own progress only; cannot manage users
 
@@ -115,7 +119,7 @@ are visible ONLY to Housman Admins and Coaches.
 Non-staff roles may see completion status only.
 
 ## 5.4 Capability Checks
-Every write action must check server-side capabilities and cohort scope.
+Every write action must check server-side capabilities and track scope.
 Never rely on front-end hiding alone.
 
 ---
@@ -124,7 +128,7 @@ Never rely on front-end hiding alone.
 
 ## 6.1 Prefer custom tables for core domain data
 HL Core should not rely on scattered post_meta/user_meta as the primary database for:
-- Cohorts, enrollments, team membership, classroom assignments
+- Cohorts, tracks, enrollments, team membership, classroom assignments
 - Pathway graph + activity states
 - Child assessment responses
 - Imports + audit logs
@@ -134,10 +138,10 @@ Use WP Users as the identity layer only.
 ## 6.2 Use JetFormBuilder for form response storage where applicable
 For teacher self-assessments and observations, form responses are stored in JFB Form Records. HL Core stores only orchestration data (instance status, submission timestamps, JFB record references).
 
-## 6.3 Keep "Org Structure" independent from "Cohort Runs"
+## 6.3 Keep "Org Structure" independent from "Track Runs"
 Districts and Schools persist over time.
-Cohorts can repeat yearly.
-One District/School can have multiple Cohorts.
+Tracks can repeat yearly within Cohorts.
+One District/School can participate in multiple Tracks.
 
 ---
 
@@ -170,7 +174,7 @@ Must support:
 
 User identity:
 - Users matched by email (unique).
-- If user exists, associate them to the Cohort and apply provided enrollment data.
+- If user exists, associate them to the Track and apply provided enrollment data.
 
 Children identity:
 - Some institutions do not provide stable child IDs.
@@ -182,7 +186,7 @@ Children identity:
 
 All report viewers need:
 - Activity-level completion: LearnDash course %; others are 0% or 100%
-- Cohort-level completion %: weighted average across assigned activities (default weight=1)
+- Track-level completion %: weighted average across assigned activities (default weight=1)
 
 Scope-based visibility:
 - District Leader: district scope

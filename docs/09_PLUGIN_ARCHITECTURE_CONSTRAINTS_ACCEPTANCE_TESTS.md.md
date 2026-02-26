@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 09_PLUGIN_ARCHITECTURE_CONSTRAINTS_ACCEPTANCE_TESTS.md
-Version: 1.1
-Last Updated: 2026-02-17
+Version: 2.0
+Last Updated: 2026-02-25
 Timezone: America/Bogota
 
 ---
@@ -44,7 +44,8 @@ The plugin should be organized into modules/services. Suggested folder map:
   hl-core.php           (plugin bootstrap)
 
 Core services to implement:
-- CohortService
+- CohortService (container management)
+- TrackService (run management)
 - OrgService (OrgUnit, District/School hierarchy)
 - EnrollmentService (roles, scope binding, status)
 - TeamService (teams + teammembership enforcement)
@@ -73,10 +74,11 @@ Using post_meta/user_meta would become brittle and slow.
 ## 2.2 Minimum tables (conceptual)
 This is the minimum set required by the domain model:
 
-Org + Cohort:
+Org + Cohort + Track:
 - hl_orgunit
-- hl_cohort
-- hl_cohort_school (cohort ↔ school)
+- hl_cohort (container)
+- hl_track (run)
+- hl_track_school (track ↔ school)
 
 Participation:
 - hl_enrollment
@@ -141,7 +143,7 @@ Notes:
 
 ## 3.1 Users
 - Use WP users for identity.
-- Do NOT store cohort roles as WP roles.
+- Do NOT store track roles as WP roles.
 - Staff roles:
   - Housman Admin = WP admin (existing)
   - Coach = WP role or capability set (recommended: custom WP role "coach")
@@ -174,53 +176,58 @@ Notes:
 
 Minimum WP Admin pages:
 
-1) Cohorts
-- list/create/edit Cohort (status, start date, end date)
-- attach schools/district (if applicable)
-- cohort settings (timezone)
+1) Cohorts (Container)
+- list/create/edit Cohort (status, description)
+- view tracks within the cohort
 
-2) Org Units
+2) Tracks (Run)
+- list/create/edit Track (status, start date, end date)
+- attach schools/district (if applicable)
+- track settings (timezone)
+- assign to a Cohort (container)
+
+3) Org Units
 - manage districts/schools hierarchy
 - manage classrooms per school (optional; can be imports-driven)
 
-3) Enrollments
-- view participants in a cohort
-- assign cohort roles
+4) Enrollments
+- view participants in a track
+- assign track roles
 - manual pathway assignment overrides (esp leaders)
 
-4) Pathways & Activities
-- create/edit pathways per cohort
+5) Pathways & Activities
+- create/edit pathways per track
 - create/edit activities per pathway (type, ref, weight)
 - for JFB-powered types: dropdown to select a JetFormBuilder form
 - for child assessment type: dropdown to select an hl_instrument
 - for LearnDash course type: dropdown/field to select a LearnDash course
 - configure prereqs and drip rules
 
-5) Teams
-- create teams per school within cohort
+6) Teams
+- create teams per school within track
 - assign mentors and members
-- enforce 1 team per enrollment per cohort
+- enforce 1 team per enrollment per track
 
-6) Imports
+7) Imports
 - run import wizard (participants, classrooms, children, teaching assignments)
 - preview table with CREATE/UPDATE/SKIP/NEEDS_REVIEW/ERROR
 - commit and download error report
 
-7) Instruments (Child Assessment only)
+8) Instruments (Child Assessment only)
 - create/edit child assessment instruments (infant/toddler/preschool)
 - manage questions (question_id, type, prompt, allowed values)
 - version management
 
-8) Assessments (Staff-only viewers)
+9) Assessments (Staff-only viewers)
 - child assessment viewer: list instances, view per-child answers, export CSV
 - teacher self-assessment: link to JFB Form Records for response viewing (or embed JFB's viewer)
 
-9) Reporting
-- staff cohort dashboards + filters
+10) Reporting
+- staff track dashboards + filters
 - scoped views for district/school/team if accessed by those roles
 
-10) Audit Logs
-- searchable audit log by cohort/user/action
+11) Audit Logs
+- searchable audit log by track/user/action
 
 ---
 
@@ -247,7 +254,7 @@ All controllers (admin and REST) must call a security layer:
 Security::assert_can($capability, $context)
 
 Context includes:
-- cohort_id
+- track_id
 - enrollment_id (if relevant)
 - requested scope (district/school/team/self)
 
@@ -257,7 +264,7 @@ For JFB-powered forms: responses are in JFB Form Records (WP admin only). HL Cor
 Non-staff can only see completion status (binary + timestamps).
 
 ## 6.3 Client leader create-only enforcement
-District/School leaders can create users only within scope and only within their Cohort.
+District/School leaders can create users only within scope and only within their Track.
 They cannot edit existing users or reset passwords.
 
 ## 6.4 Audit sensitive access
@@ -288,7 +295,7 @@ Log:
   - percent 0..100
   - status
   - completed_at
-- Compute pathway/cohort completion % using weights.
+- Compute pathway/track completion % using weights.
 - Prefer precomputing rollups (hl_completion_rollup) and updating on events:
   - LearnDash course completion update hooks (if available)
   - JFB form submissions (via hl_core_form_submitted hook)
@@ -304,15 +311,15 @@ Log:
 These are the required behaviors. The implementation must pass them.
 
 ## 9.1 Enrollment & Roles
-1) If a user is enrolled in Cohort A as Teacher and in Cohort B as Mentor, reports for Cohort A show Teacher, and reports for Cohort B show Mentor.
-2) A non-enrolled user cannot view any Cohort data (unless staff).
+1) If a user is enrolled in Track A as Teacher and in Track B as Mentor, reports for Track A show Teacher, and reports for Track B show Mentor.
+2) A non-enrolled user cannot view any Track data (unless staff).
 
 ## 9.2 Team Constraints
-3) In a Cohort, a participant cannot be assigned to two different Teams. Attempt must be blocked with an error.
+3) In a Track, a participant cannot be assigned to two different Teams. Attempt must be blocked with an error.
 4) A Team can have up to 2 mentors; adding a 3rd mentor must be blocked or require explicit override.
 
 ## 9.3 Teaching Assignments & Child Assessments
-5) If a teacher is assigned to two classrooms in the same Cohort, two separate child assessment instances are required.
+5) If a teacher is assigned to two classrooms in the same Track, two separate child assessment instances are required.
 6) Child assessment completion for a teacher is 100% only when all required classroom instances are submitted.
 
 ## 9.4 Unlocking Logic
@@ -361,7 +368,7 @@ These are the required behaviors. The implementation must pass them.
 - Do not assume SCORM standalone.
 - Do not expose assessment responses to non-staff.
 - Do not implement messaging (BuddyBoss provides it).
-- Do not treat WP user roles as cohort roles.
+- Do not treat WP user roles as track roles.
 - Do not build custom form rendering for teacher self-assessments or observations (JetFormBuilder handles those).
 - Do not store teacher self-assessment or observation responses in HL Core tables (JFB Form Records handles that).
 - DO build custom form rendering for child assessments (JFB cannot handle the dynamic per-child matrix).

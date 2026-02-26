@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 08_REPORTING_METRICS_VIEWS_EXPORTS.md
-Version: 1.1
-Last Updated: 2026-02-24
+Version: 2.0
+Last Updated: 2026-02-25
 Timezone: America/Bogota
 
 ---
@@ -12,12 +12,12 @@ This document specifies:
 - What reports exist
 - Who can view what (scope)
 - How completion is calculated for every activity type
-- How cohort-level completion % is computed
+- How track-level completion % is computed
 - Export requirements (CSV minimum)
 - Rules for hiding assessment responses (staff-only)
 
 Rules:
-- Reporting must be based on Enrollment (User ↔ Cohort).
+- Reporting must be based on Enrollment (User ↔ Track).
 - Non-staff roles must never see assessment responses for Teacher/Child assessments.
 - LearnDash course completion % is read from LearnDash; other activities are binary 0/100.
 
@@ -27,13 +27,13 @@ Rules:
 
 HL Core must provide at minimum:
 
-1) **Cohort Dashboard (Staff)**
+1) **Track Dashboard (Staff)**
 2) **District Report (District Leader + Staff)**
 3) **School Report (School Leader + Staff)**
 4) **Team Report (Mentor + Staff)**
 5) **Participant Report (Teacher/Mentor self + Staff)**
-6) **Cohort Group Summary (Staff + District Leader)** — Cross-cohort aggregation within a Cohort Group
-7) **Program vs Control Comparison (Staff)** — Side-by-side assessment outcome comparison when a Cohort Group contains both program and control cohorts
+6) **Cohort Summary (Staff + District Leader)** — Cross-track aggregation within a Cohort (container)
+7) **Program vs Control Comparison (Staff)** — Side-by-side assessment outcome comparison when a Cohort contains both program and control tracks
 
 Each report must support:
 - On-screen table view
@@ -45,12 +45,12 @@ Each report must support:
 
 Reference: 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md
 
-- Housman Admin: all cohorts, all scopes
-- Coach: all cohorts, all scopes (as staff)
-- District Leader: district scope within enrolled cohort(s)
-- School Leader: school scope within enrolled cohort(s)
-- Mentor: team scope within enrolled cohort(s)
-- Teacher: self scope within enrolled cohort(s)
+- Housman Admin: all tracks, all scopes
+- Coach: all tracks, all scopes (as staff)
+- District Leader: district scope within enrolled track(s)
+- School Leader: school scope within enrolled track(s)
+- Mentor: team scope within enrolled track(s)
+- Teacher: self scope within enrolled track(s)
 
 Non-negotiable:
 - Teacher Self-Assessment responses and Child Assessment responses visible ONLY to staff.
@@ -106,10 +106,10 @@ Display for staff:
 ---
 
 ### 3.2.3 Child Assessment Activity
-Child assessments are required per (Cohort, Classroom, Teacher).
+Child assessments are required per (Track, Classroom, Teacher).
 
 For a given teacher Enrollment:
-- Determine required instances = all ChildrenAssessmentInstances for that teacher in the Cohort
+- Determine required instances = all ChildAssessmentInstances for that teacher in the Track
   (computed from TeachingAssignments)
 
 Completion:
@@ -137,7 +137,7 @@ If the activity represents a required count of sessions:
 - else 0
 
 Default v1:
-- required_count configurable per Cohort / Pathway
+- required_count configurable per Track / Pathway
 - attendance is marked by Coach or Admin only
 
 Non-staff visibility:
@@ -162,10 +162,10 @@ In either case:
 
 ---
 
-# 4) Cohort Completion Percentage
+# 4) Track Completion Percentage
 
 ## 4.1 Definition
-For an Enrollment’s assigned Pathway:
+For an Enrollment's assigned Pathway:
 - pathway_completion_percent = weighted average across all activities in that pathway
 
 Formula:
@@ -178,24 +178,24 @@ Rules:
 - If no activities assigned, completion_percent = 0 by default (or N/A if preferred)
 - Binary activities still participate (0 or 100)
 
-## 4.2 Cohort Completion % (Overall)
+## 4.2 Track Completion % (Overall)
 Default v1:
-- cohort_completion_percent = pathway_completion_percent (primary assigned pathway)
+- track_completion_percent = pathway_completion_percent (primary assigned pathway)
 
 If future version supports multiple pathways per enrollment:
-- cohort_completion_percent = weighted average across all assigned pathways.
+- track_completion_percent = weighted average across all assigned pathways.
 
 ---
 
 # 5) Report Views (Minimum Tables)
 
-## 5.1 Cohort Dashboard (Staff)
+## 5.1 Track Dashboard (Staff)
 Audience:
 - Housman Admin, Coach
 
 Must include:
 - filters:
-  - Cohort
+  - Track
   - District (if present)
   - School
   - Team
@@ -203,7 +203,7 @@ Must include:
   - Status (active/inactive enrollments)
 - metrics:
   - participant count
-  - average cohort completion %
+  - average track completion %
   - activity completion distribution (optional)
 - table:
   - participant name
@@ -211,7 +211,7 @@ Must include:
   - role(s)
   - school
   - team
-  - cohort completion %
+  - track completion %
   - key activity columns (configurable)
 
 Exports:
@@ -228,7 +228,7 @@ Audience:
 - District Leader, Staff
 
 Scope:
-- All schools in the district for the Cohort
+- All schools in the district for the Track
 
 Must include:
 - school list with:
@@ -265,7 +265,7 @@ Audience:
 - Mentor, Staff
 
 Scope:
-- team members only (mentees), plus optionally mentor’s own enrollment row
+- team members only (mentees), plus optionally mentor's own enrollment row
 
 Must include:
 - mentee table:
@@ -297,21 +297,21 @@ Must include:
 
 ---
 
-## 5.6 Cohort Group Summary (Staff + District Leader)
+## 5.6 Cohort Summary (Staff + District Leader)
 Audience:
-- Housman Admin, Coach, District Leader (for groups in their scope)
+- Housman Admin, Coach, District Leader (for cohorts in their scope)
 
 Scope:
-- All cohorts within the selected Cohort Group
+- All tracks within the selected Cohort (container)
 
 Must include:
-- Group filter dropdown in reporting UI
-- Summary metrics: total participants across cohorts, average completion per cohort
-- Per-cohort row: name, code, status, participant count, avg completion %
+- Cohort filter dropdown in reporting UI
+- Summary metrics: total participants across tracks, average completion per track
+- Per-track row: name, code, status, participant count, avg completion %
 - Aggregate metrics: overall participant count, weighted avg completion
 
 Exports:
-- CSV with per-cohort summary rows
+- CSV with per-track summary rows
 
 ---
 
@@ -320,13 +320,13 @@ Audience:
 - Housman Admin, Coach only
 
 Availability:
-- Only appears when a selected Cohort Group contains BOTH program cohorts (is_control_group=false) AND control cohorts (is_control_group=true)
+- Only appears when a selected Cohort contains BOTH program tracks (is_control_group=false) AND control tracks (is_control_group=true)
 
 Purpose:
 - Measures program effectiveness by comparing pre-to-post assessment change between program and control groups
 
 Must include:
-- Info cards: program cohort name + participant count, control cohort name + participant count
+- Info cards: program track name + participant count, control track name + participant count
 - Per-section comparison table (for teacher self-assessment):
   - Section name
   - Program: PRE mean, POST mean, change
@@ -341,7 +341,7 @@ Must include:
 
 Data source:
 - Aggregates `responses_json` from `hl_teacher_assessment_instance` for all submitted instances
-- Groups by cohort.is_control_group and phase (pre/post)
+- Groups by track.is_control_group and phase (pre/post)
 - Computes mean, standard deviation, and pooled SD per section and per item
 
 Cohen's d calculation:
@@ -369,12 +369,12 @@ Mentors and teachers benefit from knowing why something is locked.
 CSV.
 
 Exports must include:
-- cohort_code
-- cohort_name
+- track_code
+- track_name
 - district/school/team identifiers (where applicable)
 - user name + email
 - role(s)
-- cohort completion %
+- track completion %
 - activity completion columns:
   - LearnDash courses as percent
   - other activities as 0 or 100
@@ -383,7 +383,7 @@ Exports must include:
 Separate export endpoints for:
 - Teacher Self-Assessments (pre/post)
 - Child Assessments (infant/toddler/preschool)
-- Program vs Control Comparison (when Cohort Group filter active; includes Cohen's d)
+- Program vs Control Comparison (when Cohort filter active; includes Cohen's d)
 
 These exports may include:
 - question-level responses

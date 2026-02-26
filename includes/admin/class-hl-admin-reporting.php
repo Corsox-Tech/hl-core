@@ -363,7 +363,7 @@ class HL_Admin_Reporting {
 
         // Fetch cohorts (containers) for the cohort filter.
         global $wpdb;
-        $cohort_groups = $wpdb->get_results(
+        $cohorts = $wpdb->get_results(
             "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort WHERE status = 'active' ORDER BY cohort_name ASC",
             ARRAY_A
         ) ?: array();
@@ -377,7 +377,7 @@ class HL_Admin_Reporting {
         echo '<label for="cohort_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Cohort', 'hl-core') . '</label>';
         echo '<select name="cohort_id" id="cohort_id" style="width: 100%;">';
         echo '<option value="">' . esc_html__('-- No Cohort --', 'hl-core') . '</option>';
-        foreach ($cohort_groups as $cg) {
+        foreach ($cohorts as $cg) {
             echo '<option value="' . esc_attr($cg['cohort_id']) . '"' . selected($filters['cohort_id'], $cg['cohort_id'], false) . '>' . esc_html($cg['cohort_name']) . '</option>';
         }
         echo '</select>';
