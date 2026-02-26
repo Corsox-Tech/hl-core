@@ -460,20 +460,33 @@ class HL_Assessment_Service {
     }
 
     /**
-     * Check if all child assessments are complete for an enrollment
+     * Check if all child assessments are complete for an enrollment.
+     *
+     * @param int         $enrollment_id
+     * @param int         $track_id
+     * @param string|null $phase Optional phase filter ('pre' or 'post').
      */
-    public function is_child_assessment_complete($enrollment_id, $track_id) {
+    public function is_child_assessment_complete( $enrollment_id, $track_id, $phase = null ) {
         global $wpdb;
-        $total = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_child_assessment_instance WHERE enrollment_id = %d AND track_id = %d",
-            $enrollment_id, $track_id
-        ));
-        if ($total === 0) return true;
 
-        $submitted = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_child_assessment_instance WHERE enrollment_id = %d AND track_id = %d AND status = 'submitted'",
+        $where = $wpdb->prepare(
+            "enrollment_id = %d AND track_id = %d",
             $enrollment_id, $track_id
-        ));
+        );
+        if ( $phase ) {
+            $where .= $wpdb->prepare( " AND phase = %s", $phase );
+        }
+
+        $total = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_child_assessment_instance WHERE {$where}"
+        );
+        if ( $total === 0 ) {
+            return true;
+        }
+
+        $submitted = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_child_assessment_instance WHERE {$where} AND status = 'submitted'"
+        );
 
         return $submitted >= $total;
     }
@@ -573,54 +586,64 @@ class HL_Assessment_Service {
                 'track_id'   => $instance['track_id'],
             ));
 
-            // Update activity state if all classroom instances are now submitted
-            $this->update_child_assessment_activity_state(
-                $instance['enrollment_id'],
-                $instance['track_id']
-            );
+            // Update activity state for this phase
+            $this->update_child_assessment_activity_state( $instance );
         }
 
         return true;
     }
 
     /**
-     * Update the child_assessment activity state for an enrollment
+     * Update the child_assessment activity state for an enrollment.
      *
-     * Checks if all required child assessment instances are submitted.
-     * If so, marks the activity as complete (100%). Otherwise, not_started (0%).
+     * Phase-aware: matches activities by external_ref.phase so that Pre and
+     * Post child assessments complete independently.
      *
-     * @param int $enrollment_id
-     * @param int $track_id
+     * @param array $instance Instance row as associative array.
      */
-    private function update_child_assessment_activity_state($enrollment_id, $track_id) {
+    private function update_child_assessment_activity_state( $instance ) {
         global $wpdb;
 
-        $is_complete = $this->is_child_assessment_complete($enrollment_id, $track_id);
+        $enrollment_id = absint( $instance['enrollment_id'] );
+        $track_id      = absint( $instance['track_id'] );
+        $phase         = $instance['phase'];
 
         // Find child_assessment activities in this track
-        $activities = $wpdb->get_results($wpdb->prepare(
-            "SELECT a.activity_id FROM {$wpdb->prefix}hl_activity a
+        $activities = $wpdb->get_results( $wpdb->prepare(
+            "SELECT a.activity_id, a.external_ref FROM {$wpdb->prefix}hl_activity a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
              WHERE p.track_id = %d
                AND a.activity_type = 'child_assessment'
                AND a.status = 'active'",
             $track_id
-        ));
+        ) );
 
-        if (empty($activities)) {
+        if ( empty( $activities ) ) {
             return;
         }
 
-        $now     = current_time('mysql');
-        $percent = $is_complete ? 100 : 0;
-        $status  = $is_complete ? 'complete' : 'not_started';
+        $now = current_time( 'mysql' );
 
-        foreach ($activities as $activity) {
-            $existing = $wpdb->get_var($wpdb->prepare(
+        foreach ( $activities as $activity ) {
+            $ref = json_decode( $activity->external_ref, true );
+            if ( ! is_array( $ref ) ) {
+                continue;
+            }
+
+            // Only update the activity whose phase matches this instance
+            if ( isset( $ref['phase'] ) && $ref['phase'] !== $phase ) {
+                continue;
+            }
+
+            $is_complete = $this->is_child_assessment_complete( $enrollment_id, $track_id, $phase );
+            $percent     = $is_complete ? 100 : 0;
+            $status      = $is_complete ? 'complete' : 'not_started';
+
+            $existing = $wpdb->get_var( $wpdb->prepare(
                 "SELECT state_id FROM {$wpdb->prefix}hl_activity_state
                  WHERE enrollment_id = %d AND activity_id = %d",
                 $enrollment_id, $activity->activity_id
-            ));
+            ) );
 
             $state_data = array(
                 'completion_percent' => $percent,
@@ -629,21 +652,21 @@ class HL_Assessment_Service {
                 'last_computed_at'   => $now,
             );
 
-            if ($existing) {
+            if ( $existing ) {
                 $wpdb->update(
                     $wpdb->prefix . 'hl_activity_state',
                     $state_data,
-                    array('state_id' => $existing)
+                    array( 'state_id' => $existing )
                 );
             } else {
                 $state_data['enrollment_id'] = $enrollment_id;
                 $state_data['activity_id']   = $activity->activity_id;
-                $wpdb->insert($wpdb->prefix . 'hl_activity_state', $state_data);
+                $wpdb->insert( $wpdb->prefix . 'hl_activity_state', $state_data );
             }
         }
 
         // Trigger rollup recomputation
-        do_action('hl_core_recompute_rollups', $enrollment_id);
+        do_action( 'hl_core_recompute_rollups', $enrollment_id );
     }
 
     /**
@@ -697,10 +720,7 @@ class HL_Assessment_Service {
         ) );
 
         if ( ! $is_draft ) {
-            $this->update_child_assessment_activity_state(
-                $instance['enrollment_id'],
-                $instance['track_id']
-            );
+            $this->update_child_assessment_activity_state( $instance );
         }
 
         return true;
