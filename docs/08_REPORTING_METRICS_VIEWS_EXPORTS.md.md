@@ -29,7 +29,7 @@ HL Core must provide at minimum:
 
 1) **Cohort Dashboard (Staff)**
 2) **District Report (District Leader + Staff)**
-3) **Center Report (Center Leader + Staff)**
+3) **School Report (School Leader + Staff)**
 4) **Team Report (Mentor + Staff)**
 5) **Participant Report (Teacher/Mentor self + Staff)**
 6) **Cohort Group Summary (Staff + District Leader)** — Cross-cohort aggregation within a Cohort Group
@@ -48,7 +48,7 @@ Reference: 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md
 - Housman Admin: all cohorts, all scopes
 - Coach: all cohorts, all scopes (as staff)
 - District Leader: district scope within enrolled cohort(s)
-- Center Leader: center scope within enrolled cohort(s)
+- School Leader: school scope within enrolled cohort(s)
 - Mentor: team scope within enrolled cohort(s)
 - Teacher: self scope within enrolled cohort(s)
 
@@ -197,7 +197,7 @@ Must include:
 - filters:
   - Cohort
   - District (if present)
-  - Center
+  - School
   - Team
   - Role (Teacher/Mentor/Leader)
   - Status (active/inactive enrollments)
@@ -209,7 +209,7 @@ Must include:
   - participant name
   - email
   - role(s)
-  - center
+  - school
   - team
   - cohort completion %
   - key activity columns (configurable)
@@ -228,10 +228,10 @@ Audience:
 - District Leader, Staff
 
 Scope:
-- All centers in the district for the Cohort
+- All schools in the district for the Cohort
 
 Must include:
-- center list with:
+- school list with:
   - number of participants
   - average completion %
   - key activity completion rates (optional)
@@ -239,16 +239,16 @@ Must include:
   - same columns as staff but limited to district scope
 
 Exports:
-- CSV of participant table and/or center summary
+- CSV of participant table and/or school summary
 
 ---
 
-## 5.3 Center Report (Center Leader + Staff)
+## 5.3 School Report (School Leader + Staff)
 Audience:
-- Center Leader, Staff
+- School Leader, Staff
 
 Scope:
-- center only
+- school only
 
 Must include:
 - team summary (if teams exist)
@@ -371,7 +371,7 @@ CSV.
 Exports must include:
 - cohort_code
 - cohort_name
-- district/center/team identifiers (where applicable)
+- district/school/team identifiers (where applicable)
 - user name + email
 - role(s)
 - cohort completion %
@@ -396,8 +396,8 @@ Non-staff must not access these exports.
 # 8) Performance Considerations (Non-functional)
 
 Reporting must be performant for typical B2B sizes:
-- district with multiple centers
-- centers with multiple teams
+- district with multiple schools
+- schools with multiple teams
 - teachers with multiple classrooms
 - children assessments with many children per classroom
 

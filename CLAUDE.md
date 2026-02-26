@@ -22,7 +22,7 @@ This is the Housman Learning Academy (HLA) WordPress site. The primary developme
 - **LearnDash plugin:** `wp-content/plugins/sfwd-lms/` — Reference for hooks, functions, and integration points.
 - **Private data files:** `wp-content/plugins/hl-core/data/` — Contains real program Excel files and assessment documents. Gitignored — never commit to repo.
   - `data/Assessments/` — B2E Teacher Self-Assessment (Pre/Post) and Children Assessment source documents
-  - `data/Lutheran - Control Group/` — Center info, teacher roster, child roster spreadsheets for Lutheran seeder
+  - `data/Lutheran - Control Group/` — School info, teacher roster, child roster spreadsheets for Lutheran seeder
 
 ## Documentation Files (in docs/)
 | File | Covers |
@@ -87,7 +87,7 @@ The project uses "Cohort" (not "Program") internally. The front-end shows "Progr
 
 HL Core creates ONE custom WP role: **Coach** (with `read`, `manage_hl_core`, `hl_view_cohorts`, `hl_view_enrollments`). Administrators get `manage_hl_core` capability added.
 
-**ALL cohort-specific roles** (teacher, mentor, center_leader, district_leader) are stored in the `hl_enrollment.roles` JSON column — NOT as WordPress roles. This is by design:
+**ALL cohort-specific roles** (teacher, mentor, school_leader, district_leader) are stored in the `hl_enrollment.roles` JSON column — NOT as WordPress roles. This is by design:
 
 | Who | WP Role | HL Core Identification |
 |---|---|---|
@@ -103,8 +103,8 @@ Some legacy WP roles exist (`school_district`, `teacher`, `mentor`, `school_lead
 
 Coaches are assigned at three scope levels with "most specific wins" resolution:
 
-1. **Center level** — coach is default for all enrollments at that center
-2. **Team level** — overrides center assignment for team members
+1. **School level** — coach is default for all enrollments at that school
+2. **Team level** — overrides school assignment for team members
 3. **Enrollment level** — overrides everything for a specific participant
 
 Stored in `hl_coach_assignment` table with `effective_from`/`effective_to` dates. Reassignment closes the old record and creates a new one — full history preserved. Coaching sessions retain the original `coach_user_id` (frozen at time of session).
@@ -116,12 +116,12 @@ See doc 10 §13-14 for full spec.
 Shared static helper used by ALL listing pages for role-based data filtering:
 - Admin → sees all (no restriction)
 - Coach → filtered by `hl_coach_assignment` cohort_ids + own enrollments
-- District Leader → expands to all centers in their district
-- Center Leader → filtered to their center(s)
+- District Leader → expands to all schools in their district
+- School Leader → filtered to their school(s)
 - Mentor → filtered to their team(s)
 - Teacher → filtered to their own enrollment/assignments
 
-Static cache per user_id per request. Convenience helpers: `can_view_cohort()`, `can_view_center()`, `has_role()`, `filter_by_ids()`.
+Static cache per user_id per request. Convenience helpers: `can_view_cohort()`, `can_view_school()`, `has_role()`, `filter_by_ids()`.
 
 ## BuddyBoss Sidebar Navigation
 
@@ -290,9 +290,9 @@ node_modules/
 ```
 
 ## WP-CLI Commands
-- `wp hl-core seed-demo [--clean]` — Generic demo data (2 centers, 15 enrollments, code: DEMO-2026)
-- `wp hl-core seed-lutheran [--clean]` — Lutheran Services Florida control group data (12 centers, 47 teachers, 286 children, assessment-only pathway, code: LUTHERAN_CONTROL_2026)
-- `wp hl-core seed-palm-beach [--clean]` — ELC Palm Beach program data (12 centers, 47 teachers, 286 children, code: ELC-PB-2026)
+- `wp hl-core seed-demo [--clean]` — Generic demo data (2 schools, 15 enrollments, code: DEMO-2026)
+- `wp hl-core seed-lutheran [--clean]` — Lutheran Services Florida control group data (12 schools, 47 teachers, 286 children, assessment-only pathway, code: LUTHERAN_CONTROL_2026)
+- `wp hl-core seed-palm-beach [--clean]` — ELC Palm Beach program data (12 schools, 47 teachers, 286 children, code: ELC-PB-2026)
 - `wp hl-core nuke --confirm="DELETE ALL DATA"` — **DESTRUCTIVE: Deletes ALL HL Core data** (all hl_* tables truncated, seeded users removed, auto-increment reset). Safety gate: only runs if site URL contains `staging.academy.housmanlearning.com` or `.local`.
 - `wp hl-core create-pages [--force] [--status=draft]` — Creates all shortcode WordPress pages
 

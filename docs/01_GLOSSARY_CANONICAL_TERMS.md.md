@@ -23,7 +23,7 @@ Rules:
 **Definition**: A Cohort is a time-bounded run/implementation for a client, containing participants, configuration, learning requirements, and reporting.
 Examples:
 - "ELCPB - 2026"
-- "Sunrise Center - Spring 2026"
+- "Sunrise School - Spring 2026"
 - "Lutheran Control Group 2026"
 
 **Cohort contains**:
@@ -48,11 +48,11 @@ Examples:
 ---
 
 ## 1.2 District
-**Definition**: Optional organizational parent grouping one or more Centers.
+**Definition**: Optional organizational parent grouping one or more Schools.
 A District can exist independently of Cohorts and persists across years.
 
 Notes:
-- Some Cohorts have no District (single-center clients).
+- Some Cohorts have no District (single-school clients).
 - District Leaders are participants in a Cohort and gain district-scope report access for that Cohort.
 
 **DO NOT USE**:
@@ -60,19 +60,19 @@ Notes:
 
 ---
 
-## 1.3 Center
-**Definition**: A site (center/school) where Classrooms exist and Teachers work.
-A Center can optionally belong to a District.
+## 1.3 School
+**Definition**: A site (school) where Classrooms exist and Teachers work.
+A School can optionally belong to a District.
 
 Notes:
-- Center persists across years.
-- Centers can participate in multiple Cohorts.
+- School persists across years.
+- Schools can participate in multiple Cohorts.
 
 **Synonyms (UI labels allowed)**:
-- "School" (allowed as a UI label only; canonical term remains Center)
+- "School" (canonical term)
 
 **DO NOT USE**:
-- "Institution" (deprecated; replaced by Center)
+- "Institution" (deprecated; replaced by School)
 
 ---
 
@@ -147,7 +147,7 @@ Enrollment conceptually stores:
 - user_id
 - cohort_roles (one or more roles; see below)
 - pathway_assignment (Teacher/Mentor/Leader pathway selection; may be manual for leaders)
-- scope bindings (center_id and/or district_id where applicable)
+- scope bindings (school_id and/or district_id where applicable)
 - status (active/inactive) within the Cohort
 
 ---
@@ -158,7 +158,7 @@ Enrollment conceptually stores:
 Allowed values (canonical):
 - Teacher
 - Mentor
-- Center Leader
+- School Leader
 - District Leader
 
 Notes:
@@ -168,7 +168,7 @@ Notes:
 
 **DO NOT USE**:
 - "Standard Teacher" (use Teacher)
-- "Streamlined user" (use District Leader or Center Leader role + a pathway assignment if needed)
+- "Streamlined user" (use District Leader or School Leader role + a pathway assignment if needed)
 
 ---
 
@@ -194,11 +194,11 @@ A Participant is a User in the context of a specific Cohort.
 # 3) Mentorship Structure
 
 ## 3.1 Team
-**Definition**: A mentorship group inside a Center for a specific Cohort.
+**Definition**: A mentorship group inside a School for a specific Cohort.
 
 Team characteristics:
 - Belongs to exactly one Cohort
-- Belongs to exactly one Center
+- Belongs to exactly one School
 - Contains:
   - 1-2 Mentors (selected from Participants with Cohort Role Mentor OR manually permitted)
   - multiple Teachers (selected from Participants with Cohort Role Teacher and/or Mentor if allowed)
@@ -215,7 +215,7 @@ Notes:
 # 4) Classrooms and Teaching Assignments
 
 ## 4.1 Classroom
-**Definition**: A classroom belonging to a Center.
+**Definition**: A classroom belonging to a School.
 Classrooms exist independently of Cohorts, but Cohorts can reference the current roster.
 
 ---
@@ -239,7 +239,7 @@ Rules:
 # 5) Children and Classroom Membership
 
 ## 5.1 Child
-**Definition**: A child record belonging to a Center, assigned to a Classroom.
+**Definition**: A child record belonging to a School, assigned to a Classroom.
 
 Important constraints:
 - Child data may have weak identifiers from clients.
@@ -264,7 +264,7 @@ Notes:
 Properties:
 - Defined per Cohort
 - Usually defined per Cohort Role (Teacher, Mentor, Leaders)
-- Can differ between Cohorts and between centers within a Cohort if manually configured
+- Can differ between Cohorts and between schools within a Cohort if manually configured
 - Control group cohorts typically have a single assessment-only pathway
 
 ---

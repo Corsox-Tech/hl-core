@@ -10,7 +10,7 @@ Timezone: America/Bogota
 
 This document defines the **authorization model** for HL Core:
 - Roles (system-level and cohort-level)
-- Scopes (district / center / team / self)
+- Scopes (district / school / team / self)
 - Exactly what each role can read/write
 - Report visibility rules
 - Assessment privacy rules
@@ -43,7 +43,7 @@ These are roles assigned per Enrollment within a Cohort.
 Allowed Cohort Roles:
 - Teacher
 - Mentor
-- Center Leader
+- School Leader
 - District Leader
 
 Notes:
@@ -64,12 +64,12 @@ Scopes are evaluated relative to a specific Cohort.
 - Data for Enrollments belonging to the same Team in the Cohort.
 - Mentor visibility is based on TeamMembership.
 
-## 2.3 Center Scope
-- Data for Enrollments assigned to a specific Center in the Cohort.
-- Center Leaders see Center scope reports.
+## 2.3 School Scope
+- Data for Enrollments assigned to a specific School in the Cohort.
+- School Leaders see School scope reports.
 
 ## 2.4 District Scope
-- Data for all Centers under a District (OrgUnit hierarchy) within the Cohort.
+- Data for all Schools under a District (OrgUnit hierarchy) within the Cohort.
 - District Leaders see District scope reports.
 
 ## 2.5 Staff Scope
@@ -97,7 +97,7 @@ Non-staff roles may see only:
 ## 3.3 User management restrictions for client roles
 Client leaders have limited user creation abilities:
 - District Leaders can create users within their Cohort + District scope only
-- Center Leaders can create users within their Cohort + Center scope only
+- School Leaders can create users within their Cohort + School scope only
 Client leaders cannot:
 - edit existing users
 - delete or deactivate users
@@ -120,7 +120,7 @@ Use these canonical capability names in code and docs.
 - unlock_rules.manage
 - overrides.apply
 
-## 4.2 Org Structure (District/Center/Classroom)
+## 4.2 Org Structure (District/School/Classroom)
 - orgunit.view
 - orgunit.create
 - orgunit.edit
@@ -238,20 +238,20 @@ Scope:
 
 ---
 
-### Center Leader
+### School Leader
 ✅ Allowed:
 - cohort.view (enrolled cohorts only)
-- reports.view (center scope)
-- reports.export (center scope)
-- users.create ⚠️ (create-only; within cohort + center scope)
-- enrollment.create ⚠️ (enroll newly created users into same cohort + center)
+- reports.view (school scope)
+- reports.export (school scope)
+- users.create ⚠️ (create-only; within cohort + school scope)
+- enrollment.create ⚠️ (enroll newly created users into same cohort + school)
 ❌ Not allowed:
 - users.edit / deactivate / reset_password
 - assessment.view_responses
 - cohort/pathway configuration
 
 Scope:
-- Center.
+- School.
 
 ---
 
@@ -261,7 +261,7 @@ Scope:
 - reports.view (district scope)
 - reports.export (district scope)
 - users.create ⚠️ (create-only; within cohort + district scope)
-- enrollment.create ⚠️ (enroll newly created users into same cohort + district/center mapping)
+- enrollment.create ⚠️ (enroll newly created users into same cohort + district/school mapping)
 ❌ Not allowed:
 - users.edit / deactivate / reset_password
 - assessment.view_responses
@@ -280,13 +280,13 @@ Non-staff users can only access a Cohort if they have an Enrollment for that Coh
 ## 6.2 District scope resolution
 District Leader can view/report enrollments where:
 - enrollment.cohort_id matches AND
-- enrollment.center_id is a child center of the leader's district OR
+- enrollment.school_id is a child school of the leader's district OR
 - enrollment has district_id matching (implementation dependent)
 
-## 6.3 Center scope resolution
-Center Leader can view/report enrollments where:
+## 6.3 School scope resolution
+School Leader can view/report enrollments where:
 - enrollment.cohort_id matches AND
-- enrollment.center_id matches their center(s)
+- enrollment.school_id matches their school(s)
 
 ## 6.4 Team scope resolution
 Mentor can view/report enrollments where:
@@ -321,7 +321,7 @@ Client leader user creation is restricted.
 District Leaders may:
 - create a WP user with email + name (minimum)
 - immediately enroll that user in the same Cohort
-- assign that enrollment to an allowed center within their district
+- assign that enrollment to an allowed school within their district
 
 District Leaders may NOT:
 - edit existing users
@@ -329,17 +329,17 @@ District Leaders may NOT:
 - reset passwords
 - create users outside their Cohort or outside their district scope
 
-## 8.2 Center Leader create-only
-Center Leaders may:
+## 8.2 School Leader create-only
+School Leaders may:
 - create a WP user with email + name (minimum)
 - immediately enroll that user in the same Cohort
-- assign that enrollment to their center
+- assign that enrollment to their school
 
-Center Leaders may NOT:
+School Leaders may NOT:
 - edit existing users
 - deactivate users
 - reset passwords
-- create users outside their Cohort or outside their center scope
+- create users outside their Cohort or outside their school scope
 
 Implementation note:
 - If a user email already exists, leaders should not modify the existing user.

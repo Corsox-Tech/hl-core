@@ -219,7 +219,7 @@ If multiple pathways are ever assigned in the future:
 
 # 5) Leader Handling (Manual by Design)
 
-Leaders (District Leader, Center Leader) are few and can be configured manually.
+Leaders (District Leader, School Leader) are few and can be configured manually.
 
 Leader learning requirements:
 - Leaders may be assigned a Leader Pathway (streamlined) OR no pathway.

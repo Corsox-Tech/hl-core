@@ -1,7 +1,7 @@
 # HL Core — Grand Rename Plan
 
 ## Three Renames (execute in order)
-1. **Phase A: Center → School** — All code, DB, docs, UI
+1. **Phase A: Center → School** — All code, DB, docs, UI ✅ COMPLETE (A1-A7)
 2. **Phase B: Children Assessment → Child Assessment** — All code, DB, docs, UI
 3. **Phase C: Cohort → Track + CohortGroup → Cohort** — Hierarchy restructure
 

@@ -324,7 +324,7 @@ Observations are used by Coaches to prepare for Coaching Sessions.
 - cohort_id
 - mentor_enrollment_id
 - teacher_enrollment_id (optional)
-- center_id (optional)
+- school_id (optional)
 - classroom_id (optional)
 - jfb_form_id
 - jfb_record_id (nullable, set on submission)

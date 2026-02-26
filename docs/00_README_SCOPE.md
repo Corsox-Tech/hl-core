@@ -11,14 +11,14 @@ Timezone: America/Bogota
 Build a **single WordPress plugin** ("HL Core") that becomes the system-of-record for Housman Learning Academy Cohort management.
 
 The plugin must manage:
-- Organizations: optional Districts, Centers, Classrooms
+- Organizations: optional Districts, Schools, Classrooms
 - People and cohort participation: Users enrolled into a Cohort with Cohort Roles
-- Teams within Centers for mentorship structure
+- Teams within Schools for mentorship structure
 - Cohort learning configuration: Pathways and Activities with prerequisite + drip rules
 - Assessments: Teacher Self-Assessment (via JetFormBuilder) and Children Assessment (custom PHP)
 - Mentorship workflow: Observations (via JetFormBuilder, submitted by Mentors) and Coaching Sessions (custom admin CRUD, logged by Coaches)
 - Imports: roster + children + classroom relationships (CSV/XLS/XLSX) with preview + validation
-- Reporting: progress/completion by scope (Cohort / District / Center / Team / User), export to CSV
+- Reporting: progress/completion by scope (Cohort / District / School / Team / User), export to CSV
 - Audit logs: key state changes and overrides
 
 The system is **B2B only**. There is **no WooCommerce**, no checkout logic, and no "buyer" tracking.
@@ -28,7 +28,7 @@ The system is **B2B only**. There is **no WooCommerce**, no checkout logic, and 
 # 2) Critical Definitions (Canonical Meaning)
 
 **Cohort**
-A Cohort is a time-bounded run/implementation for a client (District and/or one or more Centers).
+A Cohort is a time-bounded run/implementation for a client (District and/or one or more Schools).
 Example: "ELCPB - 2026".
 
 A Cohort contains:
@@ -45,7 +45,7 @@ This preserves history (a user can be Teacher in one Cohort and Mentor in anothe
 **Cohort Roles** (assigned per Enrollment)  
 - Teacher
 - Mentor
-- Center Leader
+- School Leader
 - District Leader
 
 A user may have different roles across different Cohorts.
@@ -102,7 +102,7 @@ HL Core may optionally add cohort-related navigation links or dashboards, but it
 
 ## 5.2 Client roles (cohort-level via Enrollment)
 - District Leader: can view/download district scope progress reports; can create new users ONLY within their Cohort and District scope; cannot edit/delete existing users; cannot reset passwords
-- Center Leader: can view/download center scope progress reports; can create new users ONLY within their Cohort and Center scope; cannot edit/delete existing users; cannot reset passwords
+- School Leader: can view/download school scope progress reports; can create new users ONLY within their Cohort and School scope; cannot edit/delete existing users; cannot reset passwords
 - Mentor: can view/download team scope progress reports; cannot manage users
 - Teacher: can view own progress only; cannot manage users
 
@@ -135,9 +135,9 @@ Use WP Users as the identity layer only.
 For teacher self-assessments and observations, form responses are stored in JFB Form Records. HL Core stores only orchestration data (instance status, submission timestamps, JFB record references).
 
 ## 6.3 Keep "Org Structure" independent from "Cohort Runs"
-Districts and Centers persist over time.
+Districts and Schools persist over time.
 Cohorts can repeat yearly.
-One District/Center can have multiple Cohorts.
+One District/School can have multiple Cohorts.
 
 ---
 
@@ -186,7 +186,7 @@ All report viewers need:
 
 Scope-based visibility:
 - District Leader: district scope
-- Center Leader: center scope
+- School Leader: school scope
 - Mentor: team scope
 - Teacher: self scope
 - Staff: all scopes

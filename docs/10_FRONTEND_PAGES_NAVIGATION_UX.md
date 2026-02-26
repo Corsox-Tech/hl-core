@@ -15,7 +15,7 @@ Admin management pages (Cohorts CRUD, Org Units CRUD, Pathway configuration, Imp
 **Key design principle:** The front-end has TWO separate concerns:
 
 1. **Cohort Workspace (operational, time-bound):** Where daily work happens — pathways, progress, reports, teams. Everything scoped to ONE cohort. This is what teachers, mentors, and leaders use.
-2. **Organizational Directory (CRM-like, permanent):** Districts and Centers exist across cohorts. This is the admin/coach view for managing the organization and navigating between cohorts.
+2. **Organizational Directory (CRM-like, permanent):** Districts and Schools exist across cohorts. This is the admin/coach view for managing the organization and navigating between cohorts.
 
 ---
 
@@ -29,7 +29,7 @@ The internal data model uses technical terms. The front-end uses participant-fri
 | Activity | Activity or Step | Contextual — "Activity" in reports, "Step" acceptable in pathway view |
 | Cohort | Cohort | Kept as-is (admin/leader term) |
 | OrgUnit (district) | School District | |
-| OrgUnit (center) | Institution / Center | Use whichever the client prefers; currently "Institution" in production |
+| OrgUnit (school) | Institution / School | Use whichever the client prefers; currently "Institution" in production |
 | Enrollment | (not shown) | Internal concept, never surfaced to participants |
 
 ---
@@ -44,7 +44,7 @@ My Programs (list of assigned pathways)
        └─ Activity Page (JFB form, children assessment, or redirect to LearnDash course)
 ```
 
-## 2.2 Leader Pages (Center Leaders, District Leaders)
+## 2.2 Leader Pages (School Leaders, District Leaders)
 
 ```
 My Cohort (auto-scoped cohort workspace)
@@ -54,19 +54,19 @@ My Cohort (auto-scoped cohort workspace)
   └─ Tab: Classrooms
 ```
 
-Leaders land directly in their scoped view — a Center Leader sees their center's data, a District Leader sees their district's data. No need to "navigate to" their org unit.
+Leaders land directly in their scoped view — a School Leader sees their school's data, a District Leader sees their district's data. No need to "navigate to" their org unit.
 
 ## 2.3 Staff/Admin/Coach Pages (CRM Directory)
 
 ```
 Districts Listing
-  └─ District Page (info, cohorts in this district, centers)
+  └─ District Page (info, cohorts in this district, schools)
        └─ Cohort Workspace (full operational view for one cohort)
 
-Centers Listing
-  └─ Center Page (info, cohorts, classrooms, staff)
+Schools Listing
+  └─ School Page (info, cohorts, classrooms, staff)
 
-Cohort Workspace (the "command center" for one cohort)
+Cohort Workspace (the "command school" for one cohort)
   ├─ Tab: Teams
   ├─ Tab: Staff
   ├─ Tab: Reports
@@ -96,14 +96,14 @@ All front-end pages require the user to be logged in.
 | My Programs | Any enrolled participant (sees only their own pathways) |
 | Program Page | The enrolled participant viewing their own pathway |
 | Activity Page | The enrolled participant (if activity is unlocked) |
-| My Cohort | Center Leader (scoped to their center), District Leader (scoped to their district) |
+| My Cohort | School Leader (scoped to their school), District Leader (scoped to their district) |
 | Districts Listing | Housman Admin, Coach |
-| Centers Listing | Housman Admin, Coach |
+| Schools Listing | Housman Admin, Coach |
 | District Page | Housman Admin, Coach, District Leader(s) enrolled in that District |
-| Center Page | Housman Admin, Coach, Center Leader(s) of that Center, District Leader(s) of parent District |
+| School Page | Housman Admin, Coach, School Leader(s) of that School, District Leader(s) of parent District |
 | Cohort Workspace | Housman Admin, Coach, plus leaders scoped to their org unit within that cohort |
-| Classroom Page | Housman Admin, Coach, Center Leader(s), District Leader(s), Teacher(s) assigned to that Classroom |
-| Team Page | Housman Admin, Coach, Center Leader(s), District Leader(s), Mentor(s) of that Team |
+| Classroom Page | Housman Admin, Coach, School Leader(s), District Leader(s), Teacher(s) assigned to that Classroom |
+| Team Page | Housman Admin, Coach, School Leader(s), District Leader(s), Mentor(s) of that Team |
 | My Coaching | Any enrolled participant (sees only their own sessions) |
 
 If a user does not have permission, show a "You do not have access to this page" message. Never expose data outside the user's scope.
@@ -225,16 +225,16 @@ This page's content depends entirely on the activity type:
 
 ## 5.1 My Cohort Page
 **Shortcode:** `[hl_my_cohort]`
-**Purpose:** Auto-scoped cohort workspace for Center Leaders and District Leaders.
+**Purpose:** Auto-scoped cohort workspace for School Leaders and District Leaders.
 
 This page automatically detects the logged-in user's enrollment and scopes the view:
-- Center Leader → sees data for their center within the cohort
+- School Leader → sees data for their school within the cohort
 - District Leader → sees data for their entire district within the cohort
 - If user is enrolled in multiple cohorts, show a cohort switcher dropdown at the top
 
 ### Header
 - Cohort name
-- Org unit scope indicator: "Showing data for [Center/District Name]"
+- Org unit scope indicator: "Showing data for [School/District Name]"
 - Cohort status: Active / Completed / Upcoming
 
 ### Tab: Teams
@@ -260,7 +260,7 @@ This page automatically detects the logged-in user's enrollment and scopes the v
 
 ### Tab: Classrooms
 - Table of classrooms within scope
-- Columns: Classroom name, Center, Age Band, # Children, Teacher(s) assigned
+- Columns: Classroom name, School, Age Band, # Children, Teacher(s) assigned
 - Click → navigates to Classroom Page
 
 ---
@@ -273,67 +273,67 @@ This page automatically detects the logged-in user's enrollment and scopes the v
 
 Content:
 - Grid of District cards
-- Each card shows: District name, # of Centers, # of active Cohorts
+- Each card shows: District name, # of Schools, # of active Cohorts
 - Click → navigates to District Page
 
-## 6.2 Centers Listing Page
-**Shortcode:** `[hl_centers_listing]`
-**Purpose:** Flat list of all centers for quick staff navigation.
+## 6.2 Schools Listing Page
+**Shortcode:** `[hl_schools_listing]`
+**Purpose:** Flat list of all schools for quick staff navigation.
 
 Content:
-- Grid of Center cards
-- Each card shows: Center name, Parent District, Center Leader name(s), # of Teams (across cohorts)
-- Click → navigates to Center Page
+- Grid of School cards
+- Each card shows: School name, Parent District, School Leader name(s), # of Teams (across cohorts)
+- Click → navigates to School Page
 
 ## 6.3 District Page
 **Shortcode:** `[hl_district_page]` with URL parameter `id`
-**Purpose:** District-level CRM view showing all cohorts and centers in a district.
+**Purpose:** District`school`-level CRM view showing all cohorts and schools in a district.
 
 ### Header
 - District name
 - District logo/image (if available via meta, otherwise placeholder)
 
 ### Section: Active Cohorts
-- List of cohorts that include this district (via `hl_cohort_center` → parent district)
+- List of cohorts that include this district (via `hl_cohort_school` → parent district)
 - Each shows: Cohort name, status (active/completed/upcoming), date range, participant count
 - "Open Cohort" button → navigates to Cohort Workspace filtered to this district
 
-### Section: Centers
-- Grid of Center cards within this District
-- Each card: Center name, Center Leader name(s)
-- Click → navigates to Center Page
+### Section: Schools
+- Grid of School cards within this District
+- Each card: School name, School Leader name(s)
+- Click → navigates to School Page
 
 ### Section: Overview Stats (simple v1)
 - Total participants across all active cohorts
-- Total centers
+- Total schools
 
-## 6.4 Center Page
-**Shortcode:** `[hl_center_page]` with URL parameter `id`
-**Purpose:** Center-level CRM view.
+## 6.4 School Page
+**Shortcode:** `[hl_school_page]` with URL parameter `id`
+**Purpose:** School`school`-level CRM view.
 
 ### Header
-- Center name
-- Center logo/image (if available, otherwise placeholder)
+- School name
+- School logo/image (if available, otherwise placeholder)
 - Parent District name (linked to District Page)
 
 ### Section: Active Cohorts
-- List of cohorts this center participates in
-- Each shows: Cohort name, status, participant count at this center
-- "Open Cohort" button → navigates to Cohort Workspace filtered to this center
+- List of cohorts this school participates in
+- Each shows: Cohort name, status, participant count at this school
+- "Open Cohort" button → navigates to Cohort Workspace filtered to this school
 
 ### Section: Classrooms
-- Table of classrooms at this center (across all cohorts, or filtered by selected cohort)
+- Table of classrooms at this school (across all cohorts, or filtered by selected cohort)
 - Columns: Classroom name, Age Band, # Children, Teacher(s) assigned
 - Click → navigates to Classroom Page
 
 ### Section: Staff
-- Table of all users associated with this center (across cohorts)
+- Table of all users associated with this school (across cohorts)
 - Columns: Name, Email, Role, Cohort
 - Click → BuddyBoss profile (future) or inline detail
 
 ## 6.5 Cohort Workspace
 **Shortcode:** `[hl_cohort_workspace]` with URL parameter `cohort_id` and optional `orgunit_id`
-**Purpose:** The operational "command center" for one cohort. Staff/admin sees everything; when accessed from a District/Center page, auto-filters to that org unit.
+**Purpose:** The operational "command hub" for one cohort. Staff/admin sees everything; when accessed from a District/School page, auto-filters to that org unit.
 
 ### Header
 - Cohort name, status, date range
@@ -346,7 +346,7 @@ Content:
   - **On Track:** Has completed all activities that are currently unlocked
   - **Behind:** Has unlocked activities that are not yet complete
   - **Not Started:** 0% completion on all activities
-- Staff counts: # Teachers, # Mentors, # Centers (in scope)
+- Staff counts: # Teachers, # Mentors, # Schools (in scope)
 - Simple bar or progress indicators (no complex charts for v1)
 
 ### Tab: Teams
@@ -357,7 +357,7 @@ Content:
 
 ### Tab: Reports
 - Same as My Cohort → Reports tab (section 5.1) but with broader scope
-- Additional filter: Center/Institution dropdown (when viewing full cohort)
+- Additional filter: School/Institution dropdown (when viewing full cohort)
 
 ### Tab: Classrooms
 - Same as My Cohort → Classrooms tab (section 5.1) but with broader scope
@@ -372,7 +372,7 @@ Content:
 
 ### Header
 - Team name
-- Center name (linked to Center Page)
+- School name (linked to School Page)
 - Breadcrumb: "← Back to [Cohort Name]" or "← Back to My Cohort"
 
 ### Tab: Team Members
@@ -392,7 +392,7 @@ Content:
 
 ### Header
 - Classroom name
-- Center name (linked)
+- School name (linked)
 - Age Band
 - Teacher(s) assigned (names)
 - Breadcrumb: "← Back to [source page]"
@@ -413,8 +413,8 @@ Every detail page includes a breadcrumb link back to its parent:
 - Activity Page → "← Back to [Program Name]"
 - Team Page → "← Back to [Cohort/source]"
 - Classroom Page → "← Back to [source]"
-- Center Page → "← Back to [District Name]" (for staff)
-- Cohort Workspace → "← Back to [District/Center Name]" (when accessed from CRM)
+- School Page → "← Back to [District Name]" (for staff)
+- Cohort Workspace → "← Back to [District/School Name]" (when accessed from CRM)
 
 ## 8.2 Sidebar Menu Integration
 The following items should appear in the BuddyBoss sidebar menu under "HOUSMAN LEARNING" (or similar section), conditional on user role:
@@ -422,7 +422,7 @@ The following items should appear in the BuddyBoss sidebar menu under "HOUSMAN L
 **All enrolled participants:**
 - My Programs
 
-**Center Leaders, District Leaders:**
+**School Leaders, District Leaders:**
 - My Programs
 - My Cohort
 
@@ -430,7 +430,7 @@ The following items should appear in the BuddyBoss sidebar menu under "HOUSMAN L
 - My Programs (if enrolled)
 - School Districts
 - Institutions
-- (Individual cohort workspaces accessed via Districts/Centers, not from sidebar)
+- (Individual cohort workspaces accessed via Districts/Schools, not from sidebar)
 
 ---
 
@@ -446,8 +446,8 @@ Use WordPress pages with URL parameters. Recommended slugs:
 | My Cohort | `/my-cohort/` | optional `?cohort_id=X` for switcher |
 | Districts Listing | `/districts/` | none |
 | District Page | `/district/` | `?id=X` |
-| Centers Listing | `/institutions/` | none |
-| Center Page | `/institution/` | `?id=X` |
+| Schools Listing | `/institutions/` | none |
+| School Page | `/institution/` | `?id=X` |
 | Cohort Workspace | `/cohort/` | `?id=X` and optional `&orgunit=Y` |
 | Team Page | `/team/` | `?id=X` |
 | Classroom Page | `/classroom/` | `?id=X` |
@@ -474,8 +474,8 @@ For v1, URL parameters are simplest. Pretty permalinks (e.g., `/program/begin-to
 # 11) Data Sources
 
 All data comes from HL Core custom tables and services:
-- Districts/Centers: `hl_orgunit` via OrgService
-- Cohorts: `hl_cohort` + `hl_cohort_center` via CohortService
+- Districts/Schools: `hl_orgunit` via OrgService
+- Cohorts: `hl_cohort` + `hl_cohort_school` via CohortService
 - Teams: `hl_team` + `hl_team_membership` via TeamService
 - Staff/Participants: `hl_enrollment` via EnrollmentService
 - Pathways & Activities: `hl_pathway` + `hl_activity` via PathwayService
@@ -484,7 +484,7 @@ All data comes from HL Core custom tables and services:
 - Classrooms: `hl_classroom` + `hl_child_classroom_current` via ClassroomService
 - Children: `hl_child` via ClassroomService
 - Unlock logic: RulesEngineService (prereqs, drip, overrides)
-- Coach assignments: `hl_coach_assignment` via CoachAssignmentService (resolution: enrollment → team → center)
+- Coach assignments: `hl_coach_assignment` via CoachAssignmentService (resolution: enrollment → team → school)
 - Coaching sessions: `hl_coaching_session` via CoachingService
 
 Scope filtering must use `HL_Security::assert_can()` and enrollment-based scope resolution.
@@ -513,8 +513,8 @@ Coaches are Housman staff assigned to work with participants. Assignment can hap
 ```
 coach_assignment_id  bigint PK AUTO_INCREMENT
 coach_user_id        bigint NOT NULL (FK → wp_users)
-scope_type           enum('center', 'team', 'enrollment') NOT NULL
-scope_id             bigint NOT NULL — center_id, team_id, or enrollment_id
+scope_type           enum('school', 'team', 'enrollment') NOT NULL
+scope_id             bigint NOT NULL — school_id, team_id, or enrollment_id
 cohort_id            bigint NOT NULL (FK → hl_cohort)
 effective_from       date NOT NULL
 effective_to         date NULL — NULL = currently active
@@ -527,9 +527,9 @@ Indexes: `(cohort_id, scope_type, scope_id)`, `(coach_user_id)`, `(cohort_id, co
 ## 13.2 Resolution Logic (Most Specific Wins)
 
 To determine "who is User X's coach in Cohort Y":
-1. Check for active `enrollment`-level assignment where `scope_id` = user's enrollment_id → if found, return that coach
-2. Check for active `team`-level assignment where `scope_id` = user's team_id → if found, return that coach
-3. Check for active `center`-level assignment where `scope_id` = user's center_id → if found, return that coach
+1. Check for active `enrollment``school`-level assignment where `scope_id` = user's enrollment_id → if found, return that coach
+2. Check for active `team``school`-level assignment where `scope_id` = user's team_id → if found, return that coach
+3. Check for active `school`-level assignment where `scope_id` = user's school_id → if found, return that coach
 4. No coach assigned → return null
 
 "Active" means: `effective_from <= today` AND (`effective_to IS NULL` OR `effective_to >= today`)
@@ -545,9 +545,9 @@ When a coach is replaced:
 ## 13.4 Admin UI for Coach Assignment
 
 Coach assignment is managed in these existing admin/front-end pages:
-- **Center Page (admin or CRM):** "Default Coach" dropdown — creates/updates center-level assignment
-- **Team Page (admin):** "Coach" dropdown — creates/updates team-level assignment (overrides center default)
-- **Enrollment detail / BuddyBoss profile (future):** "Coach Override" — creates enrollment-level assignment
+- **School Page (admin or CRM):** "Default Coach" dropdown — creates/updates school-level assignment
+- **Team Page (admin):** "Coach" dropdown — creates/updates team`school`-level assignment (overrides school default)
+- **Enrollment detail / BuddyBoss profile (future):** "Coach Override" — creates enrollment`school`-level assignment
 
 Alternatively, a dedicated "Coach Assignments" admin page under HL Core menu showing all current assignments with filter by cohort.
 
@@ -668,7 +668,7 @@ The BuddyBoss sidebar menu must be fully role-aware. Menu items shown depend on 
 | Menu Item | Target Shortcode | Notes |
 |---|---|---|
 | Cohorts | `[hl_cohorts_listing]` | All cohorts, searchable. Default: active + future |
-| Institutions | `[hl_institutions_listing]` | Combined districts + centers, searchable |
+| Institutions | `[hl_institutions_listing]` | Combined districts + schools, searchable |
 | Coaching | `[hl_coaching_hub]` | All coaching sessions, searchable/filterable |
 | Classrooms | `[hl_classrooms_listing]` | All classrooms in active/future cohorts |
 | Learners | `[hl_learners]` | All participants, searchable, name links to profile |
@@ -680,7 +680,7 @@ Same as Admin but scoped to cohorts where they are assigned as coach:
 | Menu Item | Target Shortcode | Scope |
 |---|---|---|
 | Cohorts | `[hl_cohorts_listing]` | Cohorts where user is assigned coach |
-| Institutions | `[hl_institutions_listing]` | Districts/centers where user is assigned coach |
+| Institutions | `[hl_institutions_listing]` | Districts/schools where user is assigned coach |
 | Coaching | `[hl_coaching_hub]` | Own coaching sessions across all cohorts |
 | Classrooms | `[hl_classrooms_listing]` | Classrooms in cohorts where coach |
 | Learners | `[hl_learners]` | Participants in cohorts where coach |
@@ -691,22 +691,22 @@ Same as Admin but scoped to cohorts where they are assigned as coach:
 | Menu Item | Target Shortcode | Scope |
 |---|---|---|
 | My Cohort | `[hl_my_cohort]` | Auto-navigates to active cohort |
-| My Institutions | `[hl_institutions_listing]` | Districts/centers in their scope |
+| My Institutions | `[hl_institutions_listing]` | Districts/schools in their scope |
 | Coaching | `[hl_coaching_hub]` | Sessions in cohorts where district leader |
 | Classrooms | `[hl_classrooms_listing]` | Classrooms in their scope |
 | Learners | `[hl_learners]` | Participants in their scope |
 | My Programs | `[hl_my_programs]` | Own pathways. Future pathways shown as inactive with countdown |
 | Reports | `[hl_reports_hub]` | Scoped to district |
 
-### Center Leader (enrollment role 'center_leader')
+### School Leader (enrollment role 'school_leader')
 | Menu Item | Target Shortcode | Scope |
 |---|---|---|
-| My Institution | `[hl_institutions_listing]` | Own center(s) |
-| Coaching | `[hl_coaching_hub]` | Sessions in cohorts where center leader |
-| Classrooms | `[hl_classrooms_listing]` | Classrooms in their center(s) |
-| Learners | `[hl_learners]` | Participants in their center(s) |
+| My Institution | `[hl_institutions_listing]` | Own school(s) |
+| Coaching | `[hl_coaching_hub]` | Sessions in cohorts where school leader |
+| Classrooms | `[hl_classrooms_listing]` | Classrooms in their school(s) |
+| Learners | `[hl_learners]` | Participants in their school(s) |
 | My Programs | `[hl_my_programs]` | Own pathways. Future pathways inactive with countdown |
-| Reports | `[hl_reports_hub]` | Scoped to center |
+| Reports | `[hl_reports_hub]` | Scoped to school |
 
 ### Mentor (enrollment role 'mentor')
 | Menu Item | Target Shortcode | Scope |
@@ -743,29 +743,29 @@ These pages serve both the sidebar navigation and provide comprehensive browseab
 **Layout:**
 - Search bar (filters by cohort name or code)
 - Status filter: Active (default checked), Future (default checked), Paused, Archived
-- Card grid or table: cohort name, code, status badge, start/end dates, participant count, center count
+- Card grid or table: cohort name, code, status badge, start/end dates, participant count, school count
 - Click → Cohort Workspace (`[hl_cohort_workspace]?id=X`)
 
 **Scope:**
 - Admin: all cohorts
 - Coach: cohorts where assigned as coach (via `hl_coach_assignment`)
 - District Leader: cohorts where enrolled as district_leader
-- Center Leader: cohorts where enrolled as center_leader
+- School Leader: cohorts where enrolled as school_leader
 
 ## 17.2 Institutions Listing — `[hl_institutions_listing]`
-**Purpose:** Combined view of districts and centers. Replaces the separate `[hl_districts_listing]` and `[hl_centers_listing]` for the sidebar.
+**Purpose:** Combined view of districts and schools. Replaces the separate `[hl_districts_listing]` and `[hl_schools_listing]` for the sidebar.
 
 **Layout:**
 - Search bar
-- Toggle: "Districts" / "Centers" / "All" (default: All)
-- **Districts section:** Card grid — district name, # centers, # active cohorts → click to District Page
-- **Centers section:** Card grid — center name, parent district, center leader names → click to Center Page
+- Toggle: "Districts" / "Schools" / "All" (default: All)
+- **Districts section:** Card grid — district name, # schools, # active cohorts → click to District Page
+- **Schools section:** Card grid — school name, parent district, school leader names → click to School Page
 
 **Scope:**
-- Admin: all districts and centers
-- Coach: districts/centers where assigned as coach
-- District Leader: own district + its centers
-- Center Leader: own center(s) + parent district
+- Admin: all districts and schools
+- Coach: districts/schools where assigned as coach
+- District Leader: own district + its schools
+- School Leader: own school(s) + parent district
 
 ## 17.3 Coaching Hub — `[hl_coaching_hub]`
 **Purpose:** Front-end coaching session management and visibility.
@@ -780,23 +780,23 @@ These pages serve both the sidebar navigation and provide comprehensive browseab
 - Admin: all sessions across all cohorts
 - Coach: own sessions (where coach_user_id = current user)
 - District Leader: sessions in cohorts where enrolled, scoped to district
-- Center Leader: sessions in cohorts where enrolled, scoped to center
+- School Leader: sessions in cohorts where enrolled, scoped to school
 - Mentor: own sessions only (where mentor_enrollment_id matches)
 
 ## 17.4 Classrooms Listing — `[hl_classrooms_listing]`
 **Purpose:** Browse classrooms across active/future cohorts.
 
 **Layout:**
-- Search bar (by classroom name, center name, teacher name)
-- Filter: Center, Age Band, Cohort
-- Table: Classroom name, Center, Age band, # children, Teacher names, Cohort(s)
+- Search bar (by classroom name, school name, teacher name)
+- Filter: School, Age Band, Cohort
+- Table: Classroom name, School, Age band, # children, Teacher names, Cohort(s)
 - Click → Classroom Page (`[hl_classroom_page]?id=X`)
 
 **Scope:**
 - Admin: all classrooms
 - Coach: classrooms in cohorts where assigned as coach
-- District Leader: classrooms in centers under their district
-- Center Leader: classrooms in their center(s)
+- District Leader: classrooms in schools under their district
+- School Leader: classrooms in their school(s)
 - Teacher: classrooms where they have teaching assignments
 
 ## 17.5 Learners — `[hl_learners]`
@@ -804,15 +804,15 @@ These pages serve both the sidebar navigation and provide comprehensive browseab
 
 **Layout:**
 - Search bar (by name, email)
-- Filters: Cohort, Center, Team, Role (teacher/mentor/center_leader/district_leader), Status
-- Table: Name (link to BuddyBoss profile or user page), Email, Role(s), Center, Team, Cohort, Completion %
+- Filters: Cohort, School, Team, Role (teacher/mentor/school_leader/district_leader), Status
+- Table: Name (link to BuddyBoss profile or user page), Email, Role(s), School, Team, Cohort, Completion %
 - Pagination (25 per page)
 
 **Scope:**
 - Admin: all participants
 - Coach: participants in cohorts where assigned as coach
 - District Leader: participants in their district scope
-- Center Leader: participants in their center scope
+- School Leader: participants in their school scope
 - Mentor: team members only
 
 ## 17.6 Pathways Listing — `[hl_pathways_listing]`
@@ -860,7 +860,7 @@ Original Phases A-C are complete (Phases 7-9 in README build queue).
 **Phase D: Coach Assignment + Coaching Enhancement**
 1. `hl_coach_assignment` table — DB migration + CoachAssignmentService (CRUD, resolution logic, reassignment with history)
 2. Schema changes to `hl_coaching_session` — add session_title, meeting_url, session_status, cancelled_at, rescheduled_from_session_id. Migrate attendance_status → session_status.
-3. Admin UI updates — Coach assignment management (center/team/enrollment level). Coaching session form updates (status, meeting_url, title, reschedule/cancel actions).
+3. Admin UI updates — Coach assignment management (school/team/enrollment level). Coaching session form updates (status, meeting_url, title, reschedule/cancel actions).
 4. `[hl_my_coaching]` — Participant coaching page with session history, upcoming sessions, schedule/reschedule/cancel buttons (functional with date-time pickers)
 5. My Coach widget — on My Programs page
 6. Program Page coaching activity enhancement — show session status and scheduling link

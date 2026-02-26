@@ -45,7 +45,7 @@ The plugin should be organized into modules/services. Suggested folder map:
 
 Core services to implement:
 - CohortService
-- OrgService (OrgUnit, District/Center hierarchy)
+- OrgService (OrgUnit, District/School hierarchy)
 - EnrollmentService (roles, scope binding, status)
 - TeamService (teams + teammembership enforcement)
 - ClassroomService (classrooms, teaching assignments, children)
@@ -76,7 +76,7 @@ This is the minimum set required by the domain model:
 Org + Cohort:
 - hl_orgunit
 - hl_cohort
-- hl_cohort_center (cohort ↔ center)
+- hl_cohort_school (cohort ↔ school)
 
 Participation:
 - hl_enrollment
@@ -176,12 +176,12 @@ Minimum WP Admin pages:
 
 1) Cohorts
 - list/create/edit Cohort (status, start date, end date)
-- attach centers/district (if applicable)
+- attach schools/district (if applicable)
 - cohort settings (timezone)
 
 2) Org Units
-- manage districts/centers hierarchy
-- manage classrooms per center (optional; can be imports-driven)
+- manage districts/schools hierarchy
+- manage classrooms per school (optional; can be imports-driven)
 
 3) Enrollments
 - view participants in a cohort
@@ -197,7 +197,7 @@ Minimum WP Admin pages:
 - configure prereqs and drip rules
 
 5) Teams
-- create teams per center within cohort
+- create teams per school within cohort
 - assign mentors and members
 - enforce 1 team per enrollment per cohort
 
@@ -217,7 +217,7 @@ Minimum WP Admin pages:
 
 9) Reporting
 - staff cohort dashboards + filters
-- scoped views for district/center/team if accessed by those roles
+- scoped views for district/school/team if accessed by those roles
 
 10) Audit Logs
 - searchable audit log by cohort/user/action
@@ -230,7 +230,7 @@ HL Core should provide at least:
 - Participant Progress page (self) — shows pathway with activities, click to open JFB forms or custom forms
 - Mentor Team Progress page (team scope) — includes "New Observation" flow (select teacher → JFB form)
 - Children Assessment form page — custom PHP form with per-child matrix
-- Center/District leader report pages (scoped)
+- School/District leader report pages (scoped)
 
 Implementation options:
 - WP shortcodes OR BuddyBoss profile tabs OR custom pages with routing.
@@ -249,7 +249,7 @@ Security::assert_can($capability, $context)
 Context includes:
 - cohort_id
 - enrollment_id (if relevant)
-- requested scope (district/center/team/self)
+- requested scope (district/school/team/self)
 
 ## 6.2 Assessment privacy enforcement
 For children assessments: any endpoint that returns answers_json content must require staff role.
@@ -257,7 +257,7 @@ For JFB-powered forms: responses are in JFB Form Records (WP admin only). HL Cor
 Non-staff can only see completion status (binary + timestamps).
 
 ## 6.3 Client leader create-only enforcement
-District/Center leaders can create users only within scope and only within their Cohort.
+District/School leaders can create users only within scope and only within their Cohort.
 They cannot edit existing users or reset passwords.
 
 ## 6.4 Audit sensitive access
@@ -328,7 +328,7 @@ These are the required behaviors. The implementation must pass them.
 ## 9.6 Reporting Visibility
 13) Teacher can only view their own progress.
 14) Mentor can view only their Team's participants.
-15) Center Leader can view only their Center's participants.
+15) School Leader can view only their School's participants.
 16) District Leader can view only their District's participants.
 17) Staff can view all.
 

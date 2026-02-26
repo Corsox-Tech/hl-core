@@ -33,29 +33,29 @@ Primary identity:
 - Users matched by email (unique).
 
 ## 1.2 Children Import (Children + Classroom placement)
-Imports children for a Center and assigns each child to a Classroom (current placement).
+Imports children for a School and assigns each child to a Classroom (current placement).
 
 Primary identity:
 - Children may not have reliable external IDs. HL Core must generate child_uuid and match using fingerprint + review.
 
-## 1.3 Classroom Import (Classrooms within a Center)
-Imports classroom names for a Center.
+## 1.3 Classroom Import (Classrooms within a School)
+Imports classroom names for a School.
 
 Primary identity:
-- Name + Center scope.
+- Name + School scope.
 
 ## 1.4 Teaching Assignments Import (Teacher ↔ Classroom)
 Imports teacher assignments to classrooms (many-to-many), including lead teacher flag.
 
 Primary identity:
-- teacher email + classroom name + center scope (+ cohort scope for enrollment linkage)
+- teacher email + classroom name + school scope (+ cohort scope for enrollment linkage)
 
 ## 1.5 Team Setup Import (Optional v1)
 If implemented:
-- Create teams and assign mentors/members within a Cohort + Center.
+- Create teams and assign mentors/members within a Cohort + School.
 
 Primary identity:
-- team name + center + cohort, and participant emails.
+- team name + school + cohort, and participant emails.
 
 Note:
 - If too complex, v1 may skip team import and provide UI-based team builder.
@@ -83,7 +83,7 @@ Imports must support:
 ## 3.1 Step 1: Upload
 User selects:
 - Cohort (required for participant-related imports)
-- Center (required for classroom/child imports; optional if can be inferred)
+- School (required for classroom/child imports; optional if can be inferred)
 - Import type (participants, children, classrooms, teaching assignments, teams)
 
 ## 3.2 Step 2: Parse
@@ -161,18 +161,18 @@ Rules:
   - Enroll user into Cohort
 
 Special case:
-- If a District/Center Leader (client role) is allowed to create users via UI, that is separate from imports.
+- If a District/School Leader (client role) is allowed to create users via UI, that is separate from imports.
 - v1 assumes imports are staff-run (recommended).
 
 ---
 
-## 4.2 OrgUnits (District / Center)
+## 4.2 OrgUnits (District / School)
 v1 matching (when importing cohort participants):
 - If District name is provided:
   - match District OrgUnit by exact normalized name OR orgunit_code if present
-- Centers:
-  - match Center OrgUnit by exact normalized name within District scope (if District exists)
-  - if no District, match globally by name OR require staff to pick the center explicitly
+- Schools:
+  - match School OrgUnit by exact normalized name within District scope (if District exists)
+  - if no District, match globally by name OR require staff to pick the school explicitly
 
 Recommendation:
 - Use orgunit_code when available; name matching is fragile.
@@ -181,17 +181,17 @@ Recommendation:
 
 ## 4.3 Classrooms
 Primary match:
-- classroom_name within center_id
+- classroom_name within school_id
 
 Rules:
-- If classroom exists under center:
+- If classroom exists under school:
   - UPDATE (if allowed) or just link
 - If not:
-  - CREATE classroom under center (optional in certain imports)
+  - CREATE classroom under school (optional in certain imports)
   - recommend: allow classroom auto-create during children or teaching assignment import
 
 Uniqueness recommendation:
-- unique(center_id, normalized_classroom_name)
+- unique(school_id, normalized_classroom_name)
 
 ---
 
@@ -213,11 +213,11 @@ Preferred fingerprint inputs (in order):
 1) DOB (required if no stable ID exists)
 2) Provided internal ID (if present, but not fully trusted)
 3) Optional: initials or name fields (if present)
-4) Center scope (always include center_id)
+4) School scope (always include school_id)
 
 Example canonical fingerprint formula (conceptual):
 fingerprint = hash(
-  center_id +
+  school_id +
   dob_yyyy_mm_dd +
   normalize(internal_child_id_if_present) +
   normalize(first_name_if_present) +
@@ -237,7 +237,7 @@ For each imported child row:
 
 ### 4.4.3 Human-Readable Child Identifier
 Because clients may not supply names, HL Core must generate a readable identifier:
-- child_display_code (e.g., "C-{CENTER_CODE}-{SHORT_UUID}")
+- child_display_code (e.g., "C-{SCHOOL_CODE}-{SHORT_UUID}")
 This is for UI and exports, not matching.
 
 ---
@@ -251,7 +251,7 @@ Participants import must support columns:
 - last_name (optional but recommended)
 - cohort_roles (required; one or multiple)
 - district_name or district_code (optional)
-- center_name or center_code (required unless staff selects center at import run-time)
+- school_name or school_code (required unless staff selects school at import run-time)
 
 Enrollment rules:
 - Create Enrollment if missing
@@ -262,7 +262,7 @@ Enrollment rules:
 ## 5.2 Teaching Assignments (Teacher ↔ Classroom)
 Teaching assignment rows must include:
 - teacher_email (required)
-- center_name or center_code (required unless selected at import run-time)
+- school_name or school_code (required unless selected at import run-time)
 - classroom_name (required)
 - is_lead_teacher (optional; default false)
 
@@ -278,7 +278,7 @@ Important:
 
 ## 5.3 Child Classroom Placement
 Children import must include:
-- center_name/center_code (required unless selected at import run-time)
+- school_name/school_code (required unless selected at import run-time)
 - classroom_name (required)
 - DOB (required unless stable child id exists)
 - internal_child_id (optional)
@@ -298,7 +298,7 @@ Rules:
 ## 5.4 Team Setup Import (if enabled)
 Columns:
 - cohort_code or cohort selection (required)
-- center_name/center_code
+- school_name/school_code
 - team_name
 - mentor_email_1
 - mentor_email_2 (optional)
@@ -362,7 +362,7 @@ For each committed entity action, log:
 Required:
 - email
 - cohort_role(s)
-- center_name (or center_code)
+- school_name (or school_code)
 
 Optional:
 - first_name
@@ -373,7 +373,7 @@ Optional:
 
 ## 9.2 Children Import Template (minimum)
 Required:
-- center_name (or center_code)
+- school_name (or school_code)
 - classroom_name
 - dob (YYYY-MM-DD)
 
@@ -384,13 +384,13 @@ Optional:
 
 ## 9.3 Classrooms Import Template (minimum)
 Required:
-- center_name (or center_code)
+- school_name (or school_code)
 - classroom_name
 
 ## 9.4 Teaching Assignments Import Template (minimum)
 Required:
 - teacher_email
-- center_name (or center_code)
+- school_name (or school_code)
 - classroom_name
 
 Optional:

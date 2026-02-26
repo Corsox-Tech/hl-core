@@ -22,14 +22,14 @@ Rules:
 HL Core manages the following entities:
 
 ## 1.1 OrgUnit
-Represents either a District or a Center.
+Represents either a District or a School.
 
-- OrgUnit.type ∈ { "district", "center" }
+- OrgUnit.type ∈ { "district", "school" }
 - OrgUnit is persistent (not tied to a Cohort).
 
 OrgUnit relationships:
-- A Center OrgUnit may have a parent District OrgUnit (optional).
-- A District OrgUnit may have many child Center OrgUnits.
+- A School OrgUnit may have a parent District OrgUnit (optional).
+- A District OrgUnit may have many child School OrgUnits.
 
 Rationale:
 - A single "OrgUnit" object with a type enables hierarchy without duplicating schemas.
@@ -42,14 +42,14 @@ A time-bounded implementation/run (formerly "cohort/cohort instance").
 Cohort relationships:
 - Cohort may be associated to:
   - one District OrgUnit (optional)
-  - one or more Center OrgUnits (required at least 1)
+  - one or more School OrgUnits (required at least 1)
   - one Cohort Group (optional; see §1.13)
 
 Cohort flags:
 - is_control_group (boolean, default false) — When true, indicates this cohort is a research control group. Control cohorts receive assessment-only pathways (no courses, coaching, observations). Admin UI hides Coaching and Teams tabs for control cohorts. See doc 06 §6 for control group assessment workflow.
 
 Important:
-- District is optional. A single-center Cohort has no District association.
+- District is optional. A single-school Cohort has no District association.
 
 ---
 
@@ -63,7 +63,7 @@ Enrollment relationships:
 Enrollment holds:
 - cohort_roles (set)
 - pathway assignments (see 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md)
-- scope bindings (center/district as applicable)
+- scope bindings (school/district as applicable)
 - status (active/inactive)
 
 Key rule:
@@ -72,11 +72,11 @@ Key rule:
 ---
 
 ## 1.4 Team
-Mentorship group inside a Center for a specific Cohort.
+Mentorship group inside a School for a specific Cohort.
 
 Team relationships:
 - Team.cohort_id → Cohort
-- Team.center_id → OrgUnit(type=center)
+- Team.school_id → OrgUnit(type=school)
 
 Team membership is represented by TeamMembership (below).
 
@@ -105,10 +105,10 @@ Notes:
 ---
 
 ## 1.6 Classroom
-A classroom belonging to a Center (persistent across Cohorts).
+A classroom belonging to a School (persistent across Cohorts).
 
 Classroom relationships:
-- Classroom.center_id → OrgUnit(type=center)
+- Classroom.school_id → OrgUnit(type=school)
 
 Classrooms exist independently of Cohorts, but Cohorts reference "current" classroom rosters and assignments.
 
@@ -135,10 +135,10 @@ Constraints:
 ---
 
 ## 1.8 Child
-Child record belonging to a Center.
+Child record belonging to a School.
 
 Child relationships:
-- Child.center_id → OrgUnit(type=center)
+- Child.school_id → OrgUnit(type=school)
 
 Identity:
 - HL Core generates immutable child_uuid.
@@ -179,7 +179,7 @@ Relationships (recommended):
 - Observation.cohort_id → Cohort
 - Observation.mentor_enrollment_id → Enrollment
 - Observation.teacher_enrollment_id → Enrollment (optional but recommended)
-- Observation.center_id → OrgUnit(type=center) (optional)
+- Observation.school_id → OrgUnit(type=school) (optional)
 - Observation.classroom_id → Classroom (optional)
 
 Observation supports:
@@ -237,9 +237,9 @@ CohortGroup (optional)
   └── Cohort [1..n]
 
 OrgUnit(district)
-  └── OrgUnit(center) [0..n]
+  └── OrgUnit(school) [0..n]
 
-OrgUnit(center)
+OrgUnit(school)
   ├── Classroom [0..n]
   │     └── ChildClassroomAssignment (current)
   │           └── Child [0..n]
@@ -262,9 +262,9 @@ Cohort (optionally in a CohortGroup; optionally is_control_group=true)
 ## 3.1 Hard Constraints (Must enforce at DB or service layer)
 - Enrollment is unique per (cohort_id, user_id)
 - TeamMembership uniqueness: each enrollment_id can be in at most one team per cohort
-- Classroom belongs to exactly one Center
-- Team belongs to exactly one Cohort and one Center
-- Child belongs to exactly one Center
+- Classroom belongs to exactly one School
+- Team belongs to exactly one Cohort and one School
+- Child belongs to exactly one School
 - Child has exactly one current classroom assignment
 
 ## 3.2 Soft Constraints (Enforce in UI/logic; allow override if needed)
@@ -279,16 +279,16 @@ Cohort (optionally in a CohortGroup; optionally is_control_group=true)
 Cohort roles are stored on Enrollment as a set:
 - Teacher
 - Mentor
-- Center Leader
+- School Leader
 - District Leader
 
 Notes:
-- A user can be both Center Leader and Mentor in the same Cohort (allowed).
+- A user can be both School Leader and Mentor in the same Cohort (allowed).
 - Leaders are few; manual assignment is acceptable.
 
 Role-driven filtering requirements:
 - When selecting District Leaders for a District, UI must filter to enrollments in that Cohort with role District Leader.
-- When selecting Center Leaders for a Center, UI must filter to enrollments in that Cohort with role Center Leader.
+- When selecting School Leaders for a School, UI must filter to enrollments in that Cohort with role School Leader.
 - When selecting Team Mentors, UI must filter to enrollments in that Cohort with role Mentor (and optionally allow leaders with Mentor role).
 
 ---
@@ -318,7 +318,7 @@ Role-driven filtering requirements:
 ## 5.4 Classroom
 - classroom_uuid (primary internal)
 - classroom_name
-- unique(center_id, classroom_name) recommended for matching
+- unique(school_id, classroom_name) recommended for matching
 
 ## 5.5 Child
 - child_uuid (primary internal)
@@ -333,11 +333,11 @@ HL Core must support efficient queries for:
 1) Cohort roster:
 - list all enrollments in a Cohort
 - filter by role (Teacher/Mentor/Leader)
-- filter by center
+- filter by school
 
-2) District/Center reporting:
+2) District/School reporting:
 - list all participants under a District for a Cohort
-- list all participants under a Center for a Cohort
+- list all participants under a School for a Cohort
 
 3) Mentor visibility:
 - mentor enrollment → team → member enrollments (mentees) → progress summaries
