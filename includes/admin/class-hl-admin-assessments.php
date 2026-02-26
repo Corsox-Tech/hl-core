@@ -63,20 +63,9 @@ class HL_Admin_Assessments {
     // =========================================================================
 
     /**
-     * Handle POST actions (generate instances) and dev tools
+     * Handle POST actions (generate instances)
      */
     private function handle_actions() {
-        // Dev tools: switch to user (add define('HL_DEV_TOOLS', true) in wp-config.php to enable)
-        if (defined('HL_DEV_TOOLS') && HL_DEV_TOOLS && isset($_GET['hl_switch_user'])) {
-            $target_user_id = absint($_GET['hl_switch_user']);
-            if ($target_user_id && current_user_can('manage_hl_core')) {
-                check_admin_referer('hl_switch_user_' . $target_user_id);
-                wp_set_auth_cookie($target_user_id);
-                wp_redirect(home_url());
-                exit;
-            }
-        }
-
         // Generate child assessment instances
         if (isset($_POST['hl_generate_children_nonce'])) {
             if (!wp_verify_nonce($_POST['hl_generate_children_nonce'], 'hl_generate_children_instances')) {
@@ -258,8 +247,8 @@ class HL_Admin_Assessments {
         echo '</div>';
 
         // Table
-        $dev_tools = defined('HL_DEV_TOOLS') && HL_DEV_TOOLS;
-        $col_count = $dev_tools ? 8 : 7;
+        $can_switch = class_exists('BP_Core_Members_Switching') && current_user_can('switch_users');
+        $col_count = $can_switch ? 8 : 7;
 
         $phase_counts = array();
         foreach ($instances as $inst) {
@@ -276,8 +265,8 @@ class HL_Admin_Assessments {
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Submitted At', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
-        if ($dev_tools) {
-            echo '<th>' . esc_html__('Dev', 'hl-core') . '</th>';
+        if ($can_switch) {
+            echo '<th></th>';
         }
         echo '</tr></thead><tbody>';
 
@@ -303,12 +292,10 @@ class HL_Admin_Assessments {
             echo '<td>' . $this->render_status_badge($inst['status']) . '</td>';
             echo '<td>' . esc_html($inst['submitted_at'] ?: '-') . '</td>';
             echo '<td><a href="' . esc_url($view_url) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a></td>';
-            if ($dev_tools) {
-                $switch_url = wp_nonce_url(
-                    admin_url('admin.php?page=hl-assessments&hl_switch_user=' . $inst['user_id']),
-                    'hl_switch_user_' . $inst['user_id']
-                );
-                echo '<td><a href="' . esc_url($switch_url) . '" title="' . esc_attr__('Switch to this user', 'hl-core') . '" style="text-decoration:none;font-size:16px;">&#x21C4;</a></td>';
+            if ($can_switch) {
+                $target_user = new WP_User($inst['user_id']);
+                $switch_url = BP_Core_Members_Switching::switch_to_url($target_user);
+                echo '<td><a href="' . esc_url($switch_url) . '" title="' . esc_attr__('View as this user', 'hl-core') . '" class="button button-small">&#x21C4; ' . esc_html__('View As', 'hl-core') . '</a></td>';
             }
             echo '</tr>';
         }
@@ -375,8 +362,8 @@ class HL_Admin_Assessments {
         echo '</div>';
 
         // Table
-        $dev_tools = defined('HL_DEV_TOOLS') && HL_DEV_TOOLS;
-        $col_count = $dev_tools ? 11 : 10;
+        $can_switch = class_exists('BP_Core_Members_Switching') && current_user_can('switch_users');
+        $col_count = $can_switch ? 11 : 10;
 
         $phase_counts = array();
         foreach ($instances as $inst) {
@@ -396,8 +383,8 @@ class HL_Admin_Assessments {
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Submitted At', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
-        if ($dev_tools) {
-            echo '<th>' . esc_html__('Dev', 'hl-core') . '</th>';
+        if ($can_switch) {
+            echo '<th></th>';
         }
         echo '</tr></thead><tbody>';
 
@@ -431,12 +418,10 @@ class HL_Admin_Assessments {
             echo '<td>' . $this->render_status_badge($inst['status']) . '</td>';
             echo '<td>' . esc_html($inst['submitted_at'] ?: '-') . '</td>';
             echo '<td><a href="' . esc_url($view_url) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a></td>';
-            if ($dev_tools) {
-                $switch_url = wp_nonce_url(
-                    admin_url('admin.php?page=hl-assessments&hl_switch_user=' . $inst['user_id']),
-                    'hl_switch_user_' . $inst['user_id']
-                );
-                echo '<td><a href="' . esc_url($switch_url) . '" title="' . esc_attr__('Switch to this user', 'hl-core') . '" style="text-decoration:none;font-size:16px;">&#x21C4;</a></td>';
+            if ($can_switch) {
+                $target_user = new WP_User($inst['user_id']);
+                $switch_url = BP_Core_Members_Switching::switch_to_url($target_user);
+                echo '<td><a href="' . esc_url($switch_url) . '" title="' . esc_attr__('View as this user', 'hl-core') . '" class="button button-small">&#x21C4; ' . esc_html__('View As', 'hl-core') . '</a></td>';
             }
             echo '</tr>';
         }
