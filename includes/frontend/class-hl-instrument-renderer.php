@@ -37,6 +37,18 @@ class HL_Instrument_Renderer {
     /** @var array Full instance data (display_name, school_name, classroom_name, phase, track_name, etc.). */
     private $instance;
 
+    /** @var bool Whether this renderer is in multi-age-group mode. */
+    private $multi_age_group = false;
+
+    /** @var array Children grouped by age group. Keyed by age_group slug. */
+    private $children_by_age_group = array();
+
+    /** @var array Instrument objects keyed by age group slug. */
+    private $instruments_by_age_group = array();
+
+    /** @var array Parsed questions arrays keyed by age group slug. */
+    private $questions_by_age_group = array();
+
     /**
      * Constructor.
      *
@@ -63,6 +75,115 @@ class HL_Instrument_Renderer {
         } else {
             $this->questions = array();
         }
+    }
+
+    /**
+     * Factory: create a renderer configured for multi-age-group sections.
+     *
+     * Assembles data: gets active children, gets frozen snapshots, groups by
+     * age group, loads per-age-group instruments.
+     *
+     * @param int   $classroom_id     Classroom ID.
+     * @param int   $track_id         Track ID.
+     * @param int   $instance_id      Instance ID.
+     * @param array $existing_answers Existing answer rows keyed by child_id.
+     * @param array $instance         Full instance data.
+     * @param array $children         Pre-fetched active children (optional).
+     * @return self Configured renderer.
+     */
+    public static function create_multi_age_group( $classroom_id, $track_id, $instance_id, $existing_answers = array(), $instance = array(), $children = null ) {
+        global $wpdb;
+
+        // 1. Get active children for classroom.
+        if ( $children === null ) {
+            $classroom_service = new HL_Classroom_Service();
+            $children = $classroom_service->get_children_in_classroom( $classroom_id );
+        }
+
+        // 2. Get frozen age groups from snapshots.
+        $snapshots = HL_Child_Snapshot_Service::get_snapshots_for_classroom( $classroom_id, $track_id );
+
+        // 3. Ensure snapshots exist for any children missing them.
+        foreach ( $children as $child ) {
+            $child = (object) $child;
+            if ( ! isset( $snapshots[ $child->child_id ] ) && ! empty( $child->dob ) ) {
+                HL_Child_Snapshot_Service::ensure_snapshot( $child->child_id, $track_id, $child->dob );
+                $snapshots[ $child->child_id ] = (object) array(
+                    'child_id'         => $child->child_id,
+                    'frozen_age_group' => HL_Age_Group_Helper::calculate_age_group( $child->dob ),
+                );
+            }
+        }
+
+        // 3. Group children by age group.
+        $children_by_group = array();
+        foreach ( $children as $child ) {
+            $child    = (object) $child;
+            $snapshot = isset( $snapshots[ $child->child_id ] ) ? $snapshots[ $child->child_id ] : null;
+            $group    = $snapshot ? $snapshot->frozen_age_group : 'preschool'; // fallback
+            if ( ! isset( $children_by_group[ $group ] ) ) {
+                $children_by_group[ $group ] = array();
+            }
+            $children_by_group[ $group ][] = $child;
+        }
+
+        // 4. Load correct instrument for each age group.
+        $instruments_by_group = array();
+        foreach ( array_keys( $children_by_group ) as $group ) {
+            $instrument_type = HL_Age_Group_Helper::get_instrument_type_for_age_group( $group );
+            if ( $instrument_type ) {
+                $instrument = $wpdb->get_row( $wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}hl_instrument
+                     WHERE instrument_type = %s
+                     AND (effective_to IS NULL OR effective_to >= CURDATE())
+                     ORDER BY effective_from DESC LIMIT 1",
+                    $instrument_type
+                ) );
+                if ( $instrument ) {
+                    $instruments_by_group[ $group ] = $instrument;
+                }
+            }
+
+            // Fallback: try children_mixed or any children_* instrument.
+            if ( ! isset( $instruments_by_group[ $group ] ) ) {
+                $instrument = $wpdb->get_row(
+                    "SELECT * FROM {$wpdb->prefix}hl_instrument
+                     WHERE instrument_type LIKE 'children_%'
+                     AND (effective_to IS NULL OR effective_to >= CURDATE())
+                     ORDER BY effective_from DESC LIMIT 1"
+                );
+                if ( $instrument ) {
+                    $instruments_by_group[ $group ] = $instrument;
+                }
+            }
+        }
+
+        // 5. Create renderer with first available instrument for backward compat.
+        $first_instrument = ! empty( $instruments_by_group ) ? reset( $instruments_by_group ) : (object) array( 'questions' => '[]' );
+        $all_children     = array();
+        foreach ( $children_by_group as $group_children ) {
+            $all_children = array_merge( $all_children, $group_children );
+        }
+
+        $renderer = new self( $first_instrument, $all_children, $instance_id, $existing_answers, $instance );
+
+        // Set multi-age-group mode.
+        $renderer->multi_age_group          = true;
+        $renderer->children_by_age_group    = $children_by_group;
+        $renderer->instruments_by_age_group = $instruments_by_group;
+
+        // Parse questions per age group.
+        foreach ( $instruments_by_group as $group => $instr ) {
+            $raw = isset( $instr->questions ) ? $instr->questions : '[]';
+            if ( is_string( $raw ) ) {
+                $decoded = json_decode( $raw, true );
+                $renderer->questions_by_age_group[ $group ] = is_array( $decoded ) ? $decoded : array();
+            } else {
+                $renderer->questions_by_age_group[ $group ] = is_array( $raw ) ? $raw : array();
+            }
+        }
+
+        return $renderer;
     }
 
     /**
@@ -104,45 +225,73 @@ class HL_Instrument_Renderer {
 
             <?php $this->render_teacher_info(); ?>
 
-            <?php if ( $is_single_likert ) : ?>
+            <?php if ( $this->multi_age_group ) : ?>
+                <?php // Multi-age-group mode: instructions first, then per-section content inside the form. ?>
                 <?php $this->render_instructions(); ?>
-                <?php $this->render_behavior_key(); ?>
-                <?php $this->render_question_section(); ?>
+
+                <form method="post" action="" class="hl-ca-matrix-form" id="hl-ca-form-<?php echo esc_attr( $this->instance_id ); ?>">
+                    <?php wp_nonce_field( 'hl_child_assessment_' . $this->instance_id, '_hl_assessment_nonce' ); ?>
+                    <input type="hidden" name="hl_instrument_instance_id" value="<?php echo esc_attr( $this->instance_id ); ?>" />
+                    <input type="hidden" name="hl_requires_validation" id="hl-ca-requires-validation-<?php echo esc_attr( $this->instance_id ); ?>" value="0" />
+
+                    <?php $this->render_age_group_sections(); ?>
+
+                    <?php $this->render_missing_child_link(); ?>
+
+                    <div class="hl-ca-actions">
+                        <button type="submit" name="hl_assessment_action" value="draft"
+                                class="hl-btn hl-btn-secondary hl-ca-btn-draft"
+                                id="hl-ca-btn-draft-<?php echo esc_attr( $this->instance_id ); ?>">
+                            <?php esc_html_e( 'Save Draft', 'hl-core' ); ?>
+                        </button>
+                        <button type="submit" name="hl_assessment_action" value="submit"
+                                class="hl-btn hl-btn-primary hl-ca-btn-submit"
+                                id="hl-ca-btn-submit-<?php echo esc_attr( $this->instance_id ); ?>">
+                            <?php esc_html_e( 'Submit Assessment', 'hl-core' ); ?>
+                        </button>
+                    </div>
+                </form>
+
+            <?php else : ?>
+                <?php // Legacy single-instrument mode. ?>
+                <?php if ( $is_single_likert ) : ?>
+                    <?php $this->render_instructions(); ?>
+                    <?php $this->render_behavior_key(); ?>
+                    <?php $this->render_question_section(); ?>
+                <?php endif; ?>
+
+                <form method="post" action="" class="hl-ca-matrix-form" id="hl-ca-form-<?php echo esc_attr( $this->instance_id ); ?>">
+                    <?php wp_nonce_field( 'hl_child_assessment_' . $this->instance_id, '_hl_assessment_nonce' ); ?>
+                    <input type="hidden" name="hl_instrument_instance_id" value="<?php echo esc_attr( $this->instance_id ); ?>" />
+                    <input type="hidden" name="hl_requires_validation" id="hl-ca-requires-validation-<?php echo esc_attr( $this->instance_id ); ?>" value="0" />
+
+                    <div class="hl-ca-matrix-wrap">
+                        <?php
+                        if ( $is_single_likert ) {
+                            $this->render_transposed_likert_matrix();
+                        } else {
+                            $this->render_multi_question_matrix();
+                        }
+                        ?>
+                    </div>
+
+                    <?php $this->render_missing_child_link(); ?>
+
+                    <div class="hl-ca-actions">
+                        <button type="submit" name="hl_assessment_action" value="draft"
+                                class="hl-btn hl-btn-secondary hl-ca-btn-draft"
+                                id="hl-ca-btn-draft-<?php echo esc_attr( $this->instance_id ); ?>">
+                            <?php esc_html_e( 'Save Draft', 'hl-core' ); ?>
+                        </button>
+                        <button type="submit" name="hl_assessment_action" value="submit"
+                                class="hl-btn hl-btn-primary hl-ca-btn-submit"
+                                id="hl-ca-btn-submit-<?php echo esc_attr( $this->instance_id ); ?>">
+                            <?php esc_html_e( 'Submit Assessment', 'hl-core' ); ?>
+                        </button>
+                    </div>
+                </form>
+
             <?php endif; ?>
-
-            <?php // ── Matrix form ──────────────────────────────────────── ?>
-            <form method="post" action="" class="hl-ca-matrix-form" id="hl-ca-form-<?php echo esc_attr( $this->instance_id ); ?>">
-                <?php wp_nonce_field( 'hl_child_assessment_' . $this->instance_id, '_hl_assessment_nonce' ); ?>
-                <input type="hidden" name="hl_instrument_instance_id" value="<?php echo esc_attr( $this->instance_id ); ?>" />
-                <input type="hidden" name="hl_requires_validation" id="hl-ca-requires-validation-<?php echo esc_attr( $this->instance_id ); ?>" value="0" />
-
-                <div class="hl-ca-matrix-wrap">
-                    <?php
-                    if ( $is_single_likert ) {
-                        $this->render_transposed_likert_matrix();
-                    } else {
-                        $this->render_multi_question_matrix();
-                    }
-                    ?>
-                </div>
-
-                <div class="hl-ca-actions">
-                    <button type="submit"
-                            name="hl_assessment_action"
-                            value="draft"
-                            class="hl-btn hl-btn-secondary hl-ca-btn-draft"
-                            id="hl-ca-btn-draft-<?php echo esc_attr( $this->instance_id ); ?>">
-                        <?php esc_html_e( 'Save Draft', 'hl-core' ); ?>
-                    </button>
-                    <button type="submit"
-                            name="hl_assessment_action"
-                            value="submit"
-                            class="hl-btn hl-btn-primary hl-ca-btn-submit"
-                            id="hl-ca-btn-submit-<?php echo esc_attr( $this->instance_id ); ?>">
-                        <?php esc_html_e( 'Submit Assessment', 'hl-core' ); ?>
-                    </button>
-                </div>
-            </form>
 
         </div>
         <?php
@@ -279,6 +428,177 @@ class HL_Instrument_Renderer {
             <h3><?php esc_html_e( 'Question', 'hl-core' ); ?></h3>
             <p class="hl-ca-question-text">
                 <?php echo esc_html( $question['prompt_text'] ); ?>
+            </p>
+        </div>
+        <?php
+    }
+
+    // ─── Multi-Age-Group Sections ────────────────────────────────────────
+
+    /**
+     * Render all age group sections (multi-age-group mode).
+     *
+     * Each section has its own header, behavior key, question, and Likert matrix.
+     */
+    private function render_age_group_sections() {
+        // Sort age groups in canonical order.
+        $order = array( 'infant', 'toddler', 'preschool', 'k2' );
+        $groups = array_intersect( $order, array_keys( $this->children_by_age_group ) );
+
+        foreach ( $groups as $group ) {
+            $group_children = $this->children_by_age_group[ $group ];
+            $group_instrument = isset( $this->instruments_by_age_group[ $group ] ) ? $this->instruments_by_age_group[ $group ] : null;
+            $group_questions  = isset( $this->questions_by_age_group[ $group ] ) ? $this->questions_by_age_group[ $group ] : array();
+
+            if ( empty( $group_children ) ) {
+                continue;
+            }
+
+            $label = HL_Age_Group_Helper::get_label( $group );
+            $count = count( $group_children );
+            ?>
+            <div class="hl-ca-age-group-section" data-age-group="<?php echo esc_attr( $group ); ?>">
+                <h3 class="hl-ca-age-group-header">
+                    <?php
+                    printf(
+                        esc_html__( '%1$s (%2$d %3$s)', 'hl-core' ),
+                        esc_html( $label ),
+                        $count,
+                        _n( 'child', 'children', $count, 'hl-core' )
+                    );
+                    ?>
+                </h3>
+
+                <?php
+                // Render behavior key for this age group.
+                $saved_instance = $this->instance;
+                $this->instance['instrument_age_band'] = $group;
+                $this->render_behavior_key();
+                $this->instance = $saved_instance;
+
+                // Render question section for this age group.
+                if ( ! empty( $group_questions ) ) {
+                    $q = $group_questions[0];
+                    ?>
+                    <div class="hl-ca-question-section">
+                        <h3><?php esc_html_e( 'Question', 'hl-core' ); ?></h3>
+                        <p class="hl-ca-question-text"><?php echo esc_html( $q['prompt_text'] ); ?></p>
+                    </div>
+                    <?php
+                }
+
+                // Render Likert matrix for this age group's children.
+                if ( ! empty( $group_questions ) ) {
+                    $q            = $group_questions[0];
+                    $qid          = $q['question_id'];
+                    $is_required  = ! empty( $q['required'] );
+                    $allowed_vals = $this->parse_allowed_values( $q );
+                    if ( empty( $allowed_vals ) ) {
+                        $allowed_vals = array( '0', '1', '2', '3', '4' );
+                    }
+                    $use_labels = $this->is_numeric_likert( $allowed_vals );
+                    $instrument_id = $group_instrument ? $group_instrument->instrument_id : '';
+                    ?>
+                    <div class="hl-ca-matrix-wrap">
+                        <table class="hl-ca-matrix">
+                            <thead>
+                                <tr>
+                                    <th class="hl-ca-child-header">&nbsp;</th>
+                                    <?php foreach ( $allowed_vals as $val ) : ?>
+                                        <th class="hl-ca-scale-header">
+                                            <?php echo esc_html( $use_labels ? $this->get_likert_label( $val ) : $val ); ?>
+                                        </th>
+                                    <?php endforeach; ?>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $row_index = 0;
+                                foreach ( $group_children as $child ) :
+                                    $child    = (object) $child;
+                                    $child_id = absint( $child->child_id );
+
+                                    $child_answers = $this->get_child_answers( $child_id );
+                                    $existing_val  = isset( $child_answers[ $qid ] ) ? $child_answers[ $qid ] : null;
+                                    $field_name    = 'answers[' . $child_id . '][' . esc_attr( $qid ) . ']';
+
+                                    $row_class = ( $row_index % 2 === 0 ) ? 'hl-ca-row-even' : 'hl-ca-row-odd';
+                                    $row_index++;
+                                ?>
+                                <tr class="<?php echo esc_attr( $row_class ); ?>">
+                                    <td class="hl-ca-child-cell">
+                                        <?php echo esc_html( $this->format_child_label( $child ) ); ?>
+                                        <?php $dob = $this->format_child_dob( $child ); ?>
+                                        <?php if ( $dob ) : ?>
+                                            <span class="hl-ca-child-dob">DOB: <?php echo esc_html( $dob ); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <?php foreach ( $allowed_vals as $val ) :
+                                        $checked  = ( (string) $existing_val === (string) $val ) ? ' checked' : '';
+                                        $input_id = 'hl_' . $child_id . '_' . esc_attr( $qid ) . '_' . sanitize_key( $val );
+                                    ?>
+                                        <td class="hl-ca-radio-cell">
+                                            <input type="radio"
+                                                   id="<?php echo esc_attr( $input_id ); ?>"
+                                                   name="<?php echo esc_attr( $field_name ); ?>"
+                                                   value="<?php echo esc_attr( $val ); ?>"
+                                                   class="hl-ca-radio"
+                                                   <?php if ( $is_required ) : ?>data-hl-required="1"<?php endif; ?>
+                                                   <?php echo $checked; ?> />
+                                        </td>
+                                    <?php endforeach; ?>
+                                </tr>
+                                <input type="hidden" name="answers[<?php echo absint( $child_id ); ?>][_age_group]" value="<?php echo esc_attr( $group ); ?>" />
+                                <input type="hidden" name="answers[<?php echo absint( $child_id ); ?>][_instrument_id]" value="<?php echo esc_attr( $instrument_id ); ?>" />
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php
+                }
+                ?>
+            </div>
+            <?php
+        }
+    }
+
+    /**
+     * Render "Missing a child?" link at the bottom of the form.
+     */
+    private function render_missing_child_link() {
+        $classroom_id = isset( $this->instance['classroom_id'] ) ? absint( $this->instance['classroom_id'] ) : 0;
+        if ( ! $classroom_id ) {
+            return;
+        }
+
+        // Build classroom page URL with return param.
+        global $wpdb;
+        $page_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT ID FROM {$wpdb->posts}
+             WHERE post_type = 'page' AND post_status = 'publish'
+             AND post_content LIKE %s LIMIT 1",
+            '%[' . $wpdb->esc_like( 'hl_classroom_page' ) . '%'
+        ) );
+
+        if ( ! $page_id ) {
+            return;
+        }
+
+        $classroom_url = add_query_arg( array(
+            'id'                    => $classroom_id,
+            'return_to_assessment'  => $this->instance_id,
+        ), get_permalink( $page_id ) );
+
+        ?>
+        <div class="hl-ca-missing-child" style="margin:16px 0; padding:12px 16px; background:var(--hl-bg-secondary, #F9FAFB); border-radius:8px; border:1px dashed var(--hl-border, #E5E7EB);">
+            <a href="<?php echo esc_url( $classroom_url ); ?>"
+               class="hl-ca-missing-child-link"
+               data-instance-id="<?php echo absint( $this->instance_id ); ?>"
+               style="font-weight:600; color:var(--hl-secondary, #2C7BE5); text-decoration:none;">
+                <?php esc_html_e( 'Missing a child from your classroom?', 'hl-core' ); ?>
+            </a>
+            <p style="margin:4px 0 0; font-size:13px; color:#6B7280;">
+                <?php esc_html_e( 'You can add children to your classroom roster.', 'hl-core' ); ?>
             </p>
         </div>
         <?php
@@ -890,6 +1210,27 @@ class HL_Instrument_Renderer {
                 font-weight: 600;
             }
 
+            /* ── Age Group Section ───────────────────────────────── */
+            .hl-ca-age-group-section {
+                margin-bottom: 32px;
+                padding-bottom: 16px;
+                border-bottom: 2px solid var(--hl-border-light, #F3F4F6);
+            }
+            .hl-ca-age-group-section:last-of-type {
+                border-bottom: none;
+                margin-bottom: 0;
+            }
+            .hl-ca-age-group-header {
+                font-size: 18px;
+                font-weight: 700;
+                color: var(--hl-primary, #1A2B47);
+                margin: 24px 0 12px;
+                padding: 8px 12px;
+                background: var(--hl-bg-alt, #FAFBFC);
+                border-radius: var(--hl-radius-sm, 8px);
+                border-left: 4px solid var(--hl-secondary, #2C7BE5);
+            }
+
             /* ── Matrix Table ────────────────────────────────────── */
             .hl-ca-matrix-wrap {
                 overflow-x: auto;
@@ -1255,6 +1596,35 @@ class HL_Instrument_Renderer {
                     checkboxes[0].setAttribute('required', 'required');
                 }
             });
+
+            // "Missing a child?" link — auto-save draft via AJAX before navigating.
+            var missingLink = form ? form.closest('.hl-ca-form-wrap') : null;
+            missingLink = missingLink ? missingLink.querySelector('.hl-ca-missing-child-link') : null;
+
+            if (missingLink && form) {
+                missingLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var targetUrl = missingLink.href;
+
+                    // Collect form data for AJAX draft save.
+                    var formData = new FormData(form);
+                    formData.set('action', 'hl_save_assessment_draft');
+                    formData.set('hl_assessment_action', 'draft');
+
+                    fetch(
+                        (typeof hlCore !== 'undefined' && hlCore.ajaxUrl) ? hlCore.ajaxUrl : '/wp-admin/admin-ajax.php',
+                        { method: 'POST', body: formData, credentials: 'same-origin' }
+                    )
+                    .then(function() {
+                        window.location.href = targetUrl;
+                    })
+                    .catch(function() {
+                        if (confirm('<?php echo esc_js( __( 'Draft could not be saved. Continue anyway?', 'hl-core' ) ); ?>')) {
+                            window.location.href = targetUrl;
+                        }
+                    });
+                });
+            }
 
         })();
         </script>
