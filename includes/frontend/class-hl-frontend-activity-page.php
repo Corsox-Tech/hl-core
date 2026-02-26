@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) exit;
  * Renders a single activity for the logged-in participant.
  * Depending on activity type:
  * - JFB-powered (teacher_self_assessment, observation): embeds JFB form
- * - children_assessment: links to [hl_children_assessment] page
+ * - child_assessment: links to [hl_child_assessment] page
  * - learndash_course: redirects to the LD course permalink
  * - coaching_session_attendance: shows managed-by-coach notice
  *
@@ -40,7 +40,7 @@ class HL_Frontend_Activity_Page {
     private static $type_labels = array(
         'learndash_course'             => 'Course',
         'teacher_self_assessment'      => 'Self-Assessment',
-        'children_assessment'          => 'Children Assessment',
+        'child_assessment'          => 'Child Assessment',
         'coaching_session_attendance'  => 'Coaching Session',
         'observation'                  => 'Observation',
     );
@@ -230,21 +230,21 @@ class HL_Frontend_Activity_Page {
             return;
         }
 
-        // Children Assessment: link to dedicated page with activity_id for instance resolution.
-        if ($type === 'children_assessment') {
-            $assessment_url = apply_filters('hl_core_children_assessment_page_url', '');
+        // Child Assessment: link to dedicated page with activity_id for instance resolution.
+        if ($type === 'child_assessment') {
+            $assessment_url = apply_filters('hl_core_child_assessment_page_url', '');
             if (empty($assessment_url)) {
-                $assessment_url = $this->find_shortcode_page_url('hl_children_assessment');
+                $assessment_url = $this->find_shortcode_page_url('hl_child_assessment');
             }
 
             if (!empty($assessment_url)) {
                 $assessment_url = add_query_arg('activity_id', $activity->activity_id, $assessment_url);
                 echo '<div class="hl-empty-state">';
-                echo '<p>' . esc_html__('This activity uses the Children Assessment form.', 'hl-core') . '</p>';
-                echo '<a href="' . esc_url($assessment_url) . '" class="hl-btn hl-btn-primary">' . esc_html__('Go to Children Assessment', 'hl-core') . '</a>';
+                echo '<p>' . esc_html__('This activity uses the Child Assessment form.', 'hl-core') . '</p>';
+                echo '<a href="' . esc_url($assessment_url) . '" class="hl-btn hl-btn-primary">' . esc_html__('Go to Child Assessment', 'hl-core') . '</a>';
                 echo '</div>';
             } else {
-                echo '<div class="hl-notice hl-notice-info">' . esc_html__('Please visit the Children Assessment page to complete this activity.', 'hl-core') . '</div>';
+                echo '<div class="hl-notice hl-notice-info">' . esc_html__('Please visit the Child Assessment page to complete this activity.', 'hl-core') . '</div>';
             }
             return;
         }

@@ -187,15 +187,15 @@ class HL_CLI_Seed_Demo {
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_team_membership WHERE enrollment_id IN ({$in_ids})" );
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teaching_assignment WHERE enrollment_id IN ({$in_ids})" );
 
-                // Children assessment instances.
+                // child assessment instances.
                 $ca_ids = $wpdb->get_col(
-                    "SELECT instance_id FROM {$wpdb->prefix}hl_children_assessment_instance WHERE enrollment_id IN ({$in_ids})"
+                    "SELECT instance_id FROM {$wpdb->prefix}hl_child_assessment_instance WHERE enrollment_id IN ({$in_ids})"
                 );
                 if ( ! empty( $ca_ids ) ) {
                     $in_ca = implode( ',', array_map( 'intval', $ca_ids ) );
-                    $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_children_assessment_childrow WHERE instance_id IN ({$in_ca})" );
+                    $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child_assessment_childrow WHERE instance_id IN ({$in_ca})" );
                 }
-                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_children_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
+                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
 
                 // Teacher assessment instances.
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
@@ -428,7 +428,7 @@ class HL_CLI_Seed_Demo {
     // ------------------------------------------------------------------
 
     /**
-     * Seed children assessment instruments.
+     * Seed child assessment instruments.
      *
      * @return array Keyed by age band: 'infant' => id, etc.
      */
@@ -761,7 +761,7 @@ class HL_CLI_Seed_Demo {
      * @param array $classrooms  Classroom data.
      */
     private function seed_teaching_assignments( $enrollments, $classrooms ) {
-        // Suppress auto-generation of children assessment instances during seeding.
+        // Suppress auto-generation of child assessment instances during seeding.
         remove_all_actions( 'hl_core_teaching_assignment_changed' );
 
         $svc   = new HL_Classroom_Service();
@@ -929,12 +929,12 @@ class HL_CLI_Seed_Demo {
         ) );
         $teacher_activities['post_self'] = $a_id;
 
-        // 4. Children Assessment — use the infant instrument as the primary link.
+        // 4. Child Assessment — use the infant instrument as the primary link.
         $a_id = $svc->create_activity( array(
-            'title'         => 'Children Assessment',
+            'title'         => 'Child Assessment',
             'pathway_id'    => $tp_id,
             'cohort_id'     => $cohort_id,
-            'activity_type' => 'children_assessment',
+            'activity_type' => 'child_assessment',
             'weight'        => 2.0,
             'ordering_hint' => 4,
             'external_ref'  => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ),
@@ -1067,7 +1067,7 @@ class HL_CLI_Seed_Demo {
             'prerequisite_activity_id' => $pre_self,
         ) );
 
-        // 2. ANY_OF: Children Assessment requires either LD course OR Pre Self-Assessment.
+        // 2. ANY_OF: Child Assessment requires either LD course OR Pre Self-Assessment.
         $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_group', array(
             'activity_id' => $children,
             'prereq_type' => 'any_of',
@@ -1497,16 +1497,16 @@ class HL_CLI_Seed_Demo {
     }
 
     // ==========================================================================
-    // Children Assessment Question Definitions (from 2026 B2E Child Assessment.docx)
+    // Child Assessment Question Definitions (from 2026 B2E Child Assessment.docx)
     // ==========================================================================
 
     /**
-     * Get the children assessment scale labels (shared across all age bands).
+     * Get the child assessment scale labels (shared across all age bands).
      * Values: Never(0), Rarely(1), Sometimes(2), Usually(3), Almost Always(4)
      *
      * @return array
      */
-    public static function get_children_assessment_scale() {
+    public static function get_child_assessment_scale() {
         return array(
             0 => 'Never',
             1 => 'Rarely',
@@ -1517,13 +1517,13 @@ class HL_CLI_Seed_Demo {
     }
 
     /**
-     * Get the children assessment question and example behaviors per age band.
+     * Get the child assessment question and example behaviors per age band.
      *
      * Each age band has ONE question and example behaviors per scale point.
      *
      * @return array Keyed by age band.
      */
-    public static function get_children_assessment_questions() {
+    public static function get_child_assessment_questions() {
         return array(
             'infant' => array(
                 'question' => 'In the last month, how often did the infant notice and respond to their own feelings and those of others through things like facial expressions, body language, and social interactions?',

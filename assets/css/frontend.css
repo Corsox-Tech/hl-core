@@ -2255,12 +2255,12 @@ button.hl-btn-danger:hover,
 }
 
 /* =====================================================
-   43. CHILDREN ASSESSMENT (Branded Form)
+   43. child assessment (Branded Form)
    ===================================================== */
 
-/* Base layout for the children assessment pages */
-.hl-children-assessment.hl-assessment-form,
-.hl-children-assessment.hl-assessment-summary {
+/* Base layout for the child assessment pages */
+.hl-child-assessment.hl-assessment-form,
+.hl-child-assessment.hl-assessment-summary {
     padding: 0;
 }
 
@@ -2271,7 +2271,7 @@ button.hl-btn-danger:hover,
 }
 
 /* Ensure the back-to-assessments link sits outside the card */
-.hl-children-assessment > p > .hl-btn {
+.hl-child-assessment > p > .hl-btn {
     display: inline-flex;
     align-items: center;
     gap: 4px;

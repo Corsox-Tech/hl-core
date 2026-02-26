@@ -146,7 +146,7 @@ class HL_CLI_Seed_Lutheran {
 		// Update activity external_ref with instrument_id.
 		$this->update_activity_instrument_refs( $pathway_data, $instrument_id );
 
-		// Step 12b: Children Assessment Instruments.
+		// Step 12b: Child Assessment Instruments.
 		$children_instruments = $this->seed_children_instruments();
 
 		// Step 13: Assessment Instances.
@@ -235,15 +235,15 @@ class HL_CLI_Seed_Lutheran {
 				// Delete pathway assignments.
 				$wpdb->query( "DELETE FROM {$prefix}hl_pathway_assignment WHERE enrollment_id IN ({$in_ids})" );
 
-				// Delete children assessment instances and child rows.
+				// Delete child assessment instances and child rows.
 				$ca_ids = $wpdb->get_col(
-					"SELECT instance_id FROM {$prefix}hl_children_assessment_instance WHERE enrollment_id IN ({$in_ids})"
+					"SELECT instance_id FROM {$prefix}hl_child_assessment_instance WHERE enrollment_id IN ({$in_ids})"
 				);
 				if ( ! empty( $ca_ids ) ) {
 					$in_ca = implode( ',', array_map( 'intval', $ca_ids ) );
-					$wpdb->query( "DELETE FROM {$prefix}hl_children_assessment_childrow WHERE instance_id IN ({$in_ca})" );
+					$wpdb->query( "DELETE FROM {$prefix}hl_child_assessment_childrow WHERE instance_id IN ({$in_ca})" );
 				}
-				$wpdb->query( "DELETE FROM {$prefix}hl_children_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
+				$wpdb->query( "DELETE FROM {$prefix}hl_child_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
 
 				// Delete teacher assessment instances.
 				$wpdb->query( "DELETE FROM {$prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
@@ -344,7 +344,7 @@ class HL_CLI_Seed_Lutheran {
 
 			// Also delete children instruments seeded by this command.
 			$wpdb->query( "DELETE FROM {$prefix}hl_instrument WHERE name LIKE 'Lutheran %'" );
-			WP_CLI::log( '  Deleted Lutheran children assessment instruments.' );
+			WP_CLI::log( '  Deleted Lutheran child assessment instruments.' );
 		}
 
 		// Delete WP users tagged with the Lutheran seed meta key.
@@ -906,7 +906,7 @@ class HL_CLI_Seed_Lutheran {
 	 * @param array $school_map          Keyed by school name => orgunit_id.
 	 */
 	private function seed_teaching_assignments( $teacher_roster_data, $enrollments, $classrooms, $school_map ) {
-		// Suppress auto-generation of children assessment instances during seeding.
+		// Suppress auto-generation of child assessment instances during seeding.
 		// The seeder creates instances explicitly in step 13 with proper activity_id,
 		// phase, and instrument_id values. Without this, the hook fires before
 		// instruments and pathway exist, creating instances with NULL values.
@@ -1052,12 +1052,12 @@ class HL_CLI_Seed_Lutheran {
 			'external_ref'  => wp_json_encode( array( 'phase' => 'pre' ) ),
 		) );
 
-		// Activity 2: Children Assessment (Pre).
+		// Activity 2: Child Assessment (Pre).
 		$ca_pre_id = $svc->create_activity( array(
-			'title'         => 'Children Assessment (Pre)',
+			'title'         => 'Child Assessment (Pre)',
 			'pathway_id'    => $pathway_id,
 			'cohort_id'     => $cohort_id,
-			'activity_type' => 'children_assessment',
+			'activity_type' => 'child_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 2,
 			'external_ref'  => wp_json_encode( array( 'phase' => 'pre' ) ),
@@ -1074,12 +1074,12 @@ class HL_CLI_Seed_Lutheran {
 			'external_ref'  => wp_json_encode( array( 'phase' => 'post' ) ),
 		) );
 
-		// Activity 4: Children Assessment (Post).
+		// Activity 4: Child Assessment (Post).
 		$ca_post_id = $svc->create_activity( array(
-			'title'         => 'Children Assessment (Post)',
+			'title'         => 'Child Assessment (Post)',
 			'pathway_id'    => $pathway_id,
 			'cohort_id'     => $cohort_id,
-			'activity_type' => 'children_assessment',
+			'activity_type' => 'child_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 4,
 			'external_ref'  => wp_json_encode( array( 'phase' => 'post' ) ),
@@ -1157,7 +1157,7 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	/**
-	 * Seed children assessment instruments (infant, toddler, preschool, mixed).
+	 * Seed child assessment instruments (infant, toddler, preschool, mixed).
 	 *
 	 * @return array Keyed by age band: 'infant' => instrument_id, etc.
 	 */
@@ -1173,8 +1173,8 @@ class HL_CLI_Seed_Lutheran {
 		);
 
 		// Build per-age-band questions from the B2E assessment data.
-		$b2e_data = HL_CLI_Seed_Demo::get_children_assessment_questions();
-		$scale    = HL_CLI_Seed_Demo::get_children_assessment_scale();
+		$b2e_data = HL_CLI_Seed_Demo::get_child_assessment_questions();
+		$scale    = HL_CLI_Seed_Demo::get_child_assessment_scale();
 		$allowed  = array_map( 'strval', array_keys( $scale ) );
 
 		$instruments = array();
@@ -1213,7 +1213,7 @@ class HL_CLI_Seed_Lutheran {
 			$instruments[ $band ] = $wpdb->insert_id;
 		}
 
-		WP_CLI::log( '  [12b/14] Children Assessment Instruments created: ' . implode( ', ', array_map( function( $b, $id ) {
+		WP_CLI::log( '  [12b/14] Child Assessment Instruments created: ' . implode( ', ', array_map( function( $b, $id ) {
 			return "{$b}={$id}";
 		}, array_keys( $instruments ), $instruments ) ) );
 
@@ -1249,7 +1249,7 @@ class HL_CLI_Seed_Lutheran {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Create teacher and children assessment instances plus activity states.
+	 * Create teacher and child assessment instances plus activity states.
 	 *
 	 * @param array $enrollments           Keyed by row index.
 	 * @param int   $cohort_id             Cohort ID.
@@ -1299,7 +1299,7 @@ class HL_CLI_Seed_Lutheran {
 			) );
 			$tsa_count++;
 
-			// Children Assessment Instances: look up teacher's classroom.
+			// Child Assessment Instances: look up teacher's classroom.
 			$school_name    = $enrollment['school_name'];
 			$classroom_name = $enrollment['classroom_name'];
 			$cr_key         = $school_name . '::' . $classroom_name;
@@ -1315,8 +1315,8 @@ class HL_CLI_Seed_Lutheran {
 					$ci_id = $children_instruments['mixed'];
 				}
 
-				// Children Assessment Instance: PRE.
-				$wpdb->insert( $prefix . 'hl_children_assessment_instance', array(
+				// Child Assessment Instance: PRE.
+				$wpdb->insert( $prefix . 'hl_child_assessment_instance', array(
 					'instance_uuid'       => HL_DB_Utils::generate_uuid(),
 					'cohort_id'           => $cohort_id,
 					'enrollment_id'       => $eid,
@@ -1332,8 +1332,8 @@ class HL_CLI_Seed_Lutheran {
 				) );
 				$ca_count++;
 
-				// Children Assessment Instance: POST.
-				$wpdb->insert( $prefix . 'hl_children_assessment_instance', array(
+				// Child Assessment Instance: POST.
+				$wpdb->insert( $prefix . 'hl_child_assessment_instance', array(
 					'instance_uuid'       => HL_DB_Utils::generate_uuid(),
 					'cohort_id'           => $cohort_id,
 					'enrollment_id'       => $eid,

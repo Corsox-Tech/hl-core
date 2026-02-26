@@ -39,7 +39,7 @@ class HL_Frontend_My_Progress {
     private static $type_labels = array(
         'learndash_course'             => 'LearnDash Course',
         'teacher_self_assessment'      => 'Self-Assessment',
-        'children_assessment'          => 'Children Assessment',
+        'child_assessment'          => 'Child Assessment',
         'coaching_session_attendance'  => 'Coaching Session',
         'observation'                  => 'Observation',
     );
@@ -401,7 +401,7 @@ class HL_Frontend_My_Progress {
      * Returns:
      * - teacher_self_assessment: "Open Form" link (URL-parameter-based)
      * - observation: notice to visit the Observations page
-     * - children_assessment: notice to visit the Children Assessment page
+     * - child_assessment: notice to visit the Child Assessment page
      * - coaching_session_attendance: notice that this is managed by the coach
      * - learndash_course: empty (the title is already a link to the course)
      *
@@ -492,23 +492,23 @@ class HL_Frontend_My_Progress {
                 . '</span>';
         }
 
-        // ── children_assessment: direct to the [hl_children_assessment] page ─
-        if ($type === 'children_assessment') {
+        // ── child_assessment: direct to the [hl_child_assessment] page ─
+        if ($type === 'child_assessment') {
             /**
-             * Filter the URL of the page containing the [hl_children_assessment] shortcode.
+             * Filter the URL of the page containing the [hl_child_assessment] shortcode.
              *
              * @param string $url Default empty.
              */
-            $assessment_url = apply_filters('hl_core_children_assessment_page_url', '');
+            $assessment_url = apply_filters('hl_core_child_assessment_page_url', '');
 
             if (!empty($assessment_url)) {
                 return '<a href="' . esc_url($assessment_url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
-                    . esc_html__('Go to Children Assessment', 'hl-core')
+                    . esc_html__('Go to Child Assessment', 'hl-core')
                     . '</a>';
             }
 
             return '<span class="hl-activity-notice">'
-                . esc_html__('Visit the Children Assessment page to complete assessments.', 'hl-core')
+                . esc_html__('Visit the Child Assessment page to complete assessments.', 'hl-core')
                 . '</span>';
         }
 

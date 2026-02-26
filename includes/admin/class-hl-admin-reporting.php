@@ -174,7 +174,7 @@ class HL_Admin_Reporting {
             return;
         }
 
-        if (!$cohort_id && in_array($export_type, array('completion_csv', 'school_summary_csv', 'team_summary_csv', 'teacher_assessment_csv', 'children_assessment_csv'), true)) {
+        if (!$cohort_id && in_array($export_type, array('completion_csv', 'school_summary_csv', 'team_summary_csv', 'teacher_assessment_csv', 'child_assessment_csv'), true)) {
             // Cohort is required for all exports; fall through to render page with error
             return;
         }
@@ -205,10 +205,10 @@ class HL_Admin_Reporting {
                 $filename = 'teacher-assessments-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
-            case 'children_assessment_csv':
+            case 'child_assessment_csv':
                 $assessment_service = new HL_Assessment_Service();
-                $csv      = $assessment_service->export_children_assessments_csv($cohort_id);
-                $filename = 'children-assessments-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $assessment_service->export_child_assessments_csv($cohort_id);
+                $filename = 'child-assessments-cohort-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             default:
@@ -931,10 +931,10 @@ class HL_Admin_Reporting {
         echo esc_html__('Export Teacher Self-Assessment Responses', 'hl-core');
         echo '</a>';
 
-        // Children Assessment export
-        $children_export_url = $this->page_url(array_merge($filters, array('export' => 'children_assessment_csv')));
+        // Child Assessment export
+        $children_export_url = $this->page_url(array_merge($filters, array('export' => 'child_assessment_csv')));
         echo '<a href="' . esc_url($children_export_url) . '" class="button">';
-        echo esc_html__('Export Children Assessment Responses', 'hl-core');
+        echo esc_html__('Export Child Assessment Responses', 'hl-core');
         echo '</a>';
 
         echo '</div>';
@@ -1183,7 +1183,7 @@ class HL_Admin_Reporting {
         $labels = array(
             'learndash_course'             => __('LearnDash Course', 'hl-core'),
             'teacher_self_assessment'      => __('Teacher Self-Assessment', 'hl-core'),
-            'children_assessment'          => __('Children Assessment', 'hl-core'),
+            'child_assessment'          => __('Child Assessment', 'hl-core'),
             'coaching_session_attendance'  => __('Coaching Attendance', 'hl-core'),
             'observation'                  => __('Observation', 'hl-core'),
         );

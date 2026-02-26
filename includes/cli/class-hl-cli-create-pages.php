@@ -142,7 +142,7 @@ class HL_CLI_Create_Pages {
             array( 'title' => 'School',                'shortcode' => 'hl_school_page' ),
 
             // Assessment / observation pages
-            array( 'title' => 'Children Assessment',       'shortcode' => 'hl_children_assessment' ),
+            array( 'title' => 'Child Assessment',       'shortcode' => 'hl_child_assessment' ),
             array( 'title' => 'Teacher Self-Assessment',   'shortcode' => 'hl_teacher_assessment' ),
             array( 'title' => 'Observations',              'shortcode' => 'hl_observations' ),
         );

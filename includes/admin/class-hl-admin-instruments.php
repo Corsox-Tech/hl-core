@@ -3,7 +3,7 @@
 /**
  * Admin Instruments Page
  *
- * Full CRUD admin page for managing Children Assessment Instruments.
+ * Full CRUD admin page for managing Child Assessment Instruments.
  * Supports question editor with dynamic add/remove rows (no page reload).
  *
  * Instrument types: children_infant, children_toddler, children_preschool.
@@ -84,7 +84,7 @@ class HL_Admin_Instruments {
      */
     private function render_tabs($active_tab) {
         $tabs = array(
-            'children' => __('Children Assessment Instruments', 'hl-core'),
+            'children' => __('Child Assessment Instruments', 'hl-core'),
             'teacher'  => __('Teacher Assessment Instruments', 'hl-core'),
         );
 
@@ -356,12 +356,12 @@ class HL_Admin_Instruments {
             }
         }
 
-        echo '<h1 class="wp-heading-inline">' . esc_html__('Children Assessment Instruments', 'hl-core') . '</h1>';
+        echo '<h1 class="wp-heading-inline">' . esc_html__('Child Assessment Instruments', 'hl-core') . '</h1>';
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-instruments&action=new')) . '" class="page-title-action">' . esc_html__('Add New', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
         if (empty($instruments)) {
-            echo '<p>' . esc_html__('No instruments found. Create your first children assessment instrument to get started.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No instruments found. Create your first child assessment instrument to get started.', 'hl-core') . '</p>';
             return;
         }
 
@@ -441,7 +441,7 @@ class HL_Admin_Instruments {
         if ($is_edit) {
             global $wpdb;
             $instance_count = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}hl_children_assessment_instance WHERE instrument_id = %d",
+                "SELECT COUNT(*) FROM {$wpdb->prefix}hl_child_assessment_instance WHERE instrument_id = %d",
                 $instrument->instrument_id
             ));
             $has_instances = ($instance_count > 0);
@@ -520,7 +520,7 @@ class HL_Admin_Instruments {
         // =====================================================================
 
         echo '<h2>' . esc_html__('Questions', 'hl-core') . '</h2>';
-        echo '<p class="description">' . esc_html__('Define the questions for this children assessment instrument. Each question will appear as a column in the per-child assessment matrix.', 'hl-core') . '</p>';
+        echo '<p class="description">' . esc_html__('Define the questions for this child assessment instrument. Each question will appear as a column in the per-child assessment matrix.', 'hl-core') . '</p>';
 
         echo '<table class="widefat" id="hl-questions-table">';
         echo '<thead><tr>';

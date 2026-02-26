@@ -25,7 +25,7 @@ class HL_Shortcodes {
         add_shortcode('hl_my_progress', array($this, 'render_my_progress'));
         add_shortcode('hl_team_progress', array($this, 'render_team_progress'));
         add_shortcode('hl_cohort_dashboard', array($this, 'render_cohort_dashboard'));
-        add_shortcode('hl_children_assessment', array($this, 'render_children_assessment'));
+        add_shortcode('hl_child_assessment', array($this, 'render_child_assessment'));
         add_shortcode('hl_teacher_assessment', array($this, 'render_teacher_assessment'));
         add_shortcode('hl_observations', array($this, 'render_observations'));
         add_shortcode('hl_my_programs', array($this, 'render_my_programs'));
@@ -57,7 +57,7 @@ class HL_Shortcodes {
         $has_shortcode = has_shortcode($post->post_content, 'hl_my_progress')
             || has_shortcode($post->post_content, 'hl_team_progress')
             || has_shortcode($post->post_content, 'hl_cohort_dashboard')
-            || has_shortcode($post->post_content, 'hl_children_assessment')
+            || has_shortcode($post->post_content, 'hl_child_assessment')
             || has_shortcode($post->post_content, 'hl_teacher_assessment')
             || has_shortcode($post->post_content, 'hl_observations')
             || has_shortcode($post->post_content, 'hl_my_programs')
@@ -114,15 +114,15 @@ class HL_Shortcodes {
     }
 
     /**
-     * [hl_children_assessment] - Teacher's children assessment form
+     * [hl_child_assessment] - Teacher's child assessment form
      */
-    public function render_children_assessment($atts) {
+    public function render_child_assessment($atts) {
         if (!is_user_logged_in()) {
-            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your children assessments.', 'hl-core') . '</div>';
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your child assessments.', 'hl-core') . '</div>';
         }
 
-        $atts = shortcode_atts(array('instance_id' => ''), $atts, 'hl_children_assessment');
-        $renderer = new HL_Frontend_Children_Assessment();
+        $atts = shortcode_atts(array('instance_id' => ''), $atts, 'hl_child_assessment');
+        $renderer = new HL_Frontend_Child_Assessment();
         return $renderer->render($atts);
     }
 

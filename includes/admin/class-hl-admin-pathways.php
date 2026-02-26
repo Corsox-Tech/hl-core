@@ -491,7 +491,7 @@ class HL_Admin_Pathways {
                 }
                 break;
 
-            case 'children_assessment':
+            case 'child_assessment':
                 $instrument_id = isset($_POST['instrument_id']) ? absint($_POST['instrument_id']) : 0;
                 if ($instrument_id) {
                     $ref = array('instrument_id' => $instrument_id);
@@ -1110,7 +1110,7 @@ class HL_Admin_Pathways {
             $type_labels = array(
                 'learndash_course'           => __('LearnDash Course', 'hl-core'),
                 'teacher_self_assessment'    => __('Self-Assessment (JFB)', 'hl-core'),
-                'children_assessment'        => __('Children Assessment', 'hl-core'),
+                'child_assessment'        => __('Child Assessment', 'hl-core'),
                 'coaching_session_attendance' => __('Coaching Attendance', 'hl-core'),
                 'observation'                => __('Observation (JFB)', 'hl-core'),
             );
@@ -1510,7 +1510,7 @@ class HL_Admin_Pathways {
                 }
                 return esc_html($label);
 
-            case 'children_assessment':
+            case 'child_assessment':
                 $instrument_id = isset($ref['instrument_id']) ? absint($ref['instrument_id']) : 0;
                 if ($instrument_id) {
                     global $wpdb;
@@ -1582,7 +1582,7 @@ class HL_Admin_Pathways {
         $activity_types = array(
             'learndash_course'             => __('LearnDash Course', 'hl-core'),
             'teacher_self_assessment'      => __('Teacher Self-Assessment (JFB)', 'hl-core'),
-            'children_assessment'          => __('Children Assessment', 'hl-core'),
+            'child_assessment'          => __('Child Assessment', 'hl-core'),
             'coaching_session_attendance'   => __('Coaching Session Attendance', 'hl-core'),
             'observation'                  => __('Observation (JFB)', 'hl-core'),
         );
@@ -1678,7 +1678,7 @@ class HL_Admin_Pathways {
         echo '<p class="description">' . esc_html__('Number of observations required for completion. Leave blank if not modeled as an activity.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
-        // --- Instrument dropdown (for children_assessment) ---
+        // --- Instrument dropdown (for child_assessment) ---
         global $wpdb;
         $instruments = $wpdb->get_results(
             "SELECT instrument_id, name, instrument_type, version
@@ -1689,10 +1689,10 @@ class HL_Admin_Pathways {
         $current_instrument_id = isset($ext_ref['instrument_id']) ? absint($ext_ref['instrument_id']) : 0;
 
         echo '<tr class="hl-activity-field hl-field-instrument" style="display:none;">';
-        echo '<th scope="row"><label for="instrument_id">' . esc_html__('Children Assessment Instrument', 'hl-core') . '</label></th>';
+        echo '<th scope="row"><label for="instrument_id">' . esc_html__('Child Assessment Instrument', 'hl-core') . '</label></th>';
         echo '<td>';
         if (empty($instruments)) {
-            echo '<p class="description">' . esc_html__('No children assessment instruments found. Create one in the Instruments admin page first.', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('No child assessment instruments found. Create one in the Instruments admin page first.', 'hl-core') . '</p>';
             echo '<input type="hidden" name="instrument_id" value="0" />';
         } else {
             echo '<select id="instrument_id" name="instrument_id">';
@@ -1914,7 +1914,7 @@ class HL_Admin_Pathways {
             var fieldMap = {
                 'teacher_self_assessment': ['hl-field-jfb', 'hl-field-phase'],
                 'observation':             ['hl-field-jfb', 'hl-field-obs-count'],
-                'children_assessment':     ['hl-field-instrument'],
+                'child_assessment':     ['hl-field-instrument'],
                 'learndash_course':        ['hl-field-ld'],
                 'coaching_session_attendance': []
             };

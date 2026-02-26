@@ -40,7 +40,7 @@ class HL_Frontend_Program_Page {
     private static $type_labels = array(
         'learndash_course'             => 'Course',
         'teacher_self_assessment'      => 'Self-Assessment',
-        'children_assessment'          => 'Children Assessment',
+        'child_assessment'          => 'Child Assessment',
         'coaching_session_attendance'  => 'Coaching Session',
         'observation'                  => 'Observation',
     );
@@ -299,7 +299,7 @@ class HL_Frontend_Program_Page {
         $children_counts    = isset($ad['children_counts']) ? $ad['children_counts'] : null;
         $avail_status       = $availability['availability_status'];
 
-        // For partial children assessment, compute completion percent from counts.
+        // For partial child assessment, compute completion percent from counts.
         if ($assess_status === 'partial' && $children_counts && $children_counts['total'] > 0) {
             $completion_percent = (int) round($children_counts['submitted'] / $children_counts['total'] * 100);
         }
@@ -455,11 +455,11 @@ class HL_Frontend_Program_Page {
             return '';
         }
 
-        // Children assessment: status-aware buttons with activity_id routing.
-        if ($type === 'children_assessment') {
-            $assessment_url = apply_filters('hl_core_children_assessment_page_url', '');
+        // child assessment: status-aware buttons with activity_id routing.
+        if ($type === 'child_assessment') {
+            $assessment_url = apply_filters('hl_core_child_assessment_page_url', '');
             if (empty($assessment_url)) {
-                $assessment_url = $this->find_shortcode_page_url('hl_children_assessment');
+                $assessment_url = $this->find_shortcode_page_url('hl_child_assessment');
             }
             if (!empty($assessment_url)) {
                 $assessment_url = add_query_arg('activity_id', $activity->activity_id, $assessment_url);
@@ -620,10 +620,10 @@ class HL_Frontend_Program_Page {
             }
         }
 
-        if ($type === 'children_assessment') {
-            $ca_url = apply_filters('hl_core_children_assessment_page_url', '');
+        if ($type === 'child_assessment') {
+            $ca_url = apply_filters('hl_core_child_assessment_page_url', '');
             if (empty($ca_url)) {
-                $ca_url = $this->find_shortcode_page_url('hl_children_assessment');
+                $ca_url = $this->find_shortcode_page_url('hl_child_assessment');
             }
             if (!empty($ca_url)) {
                 $ca_url = add_query_arg('activity_id', $activity->activity_id, $ca_url);
@@ -757,11 +757,11 @@ class HL_Frontend_Program_Page {
             $result['teacher'][(int) $row['activity_id']] = $row['status'];
         }
 
-        // Children assessment instances linked by activity_id.
+        // child assessment instances linked by activity_id.
         // Group by activity_id to handle multiple instances per activity.
         $children_rows = $wpdb->get_results($wpdb->prepare(
             "SELECT activity_id, status
-             FROM {$wpdb->prefix}hl_children_assessment_instance
+             FROM {$wpdb->prefix}hl_child_assessment_instance
              WHERE enrollment_id = %d AND cohort_id = %d AND activity_id IS NOT NULL",
             $enrollment->enrollment_id,
             $enrollment->cohort_id

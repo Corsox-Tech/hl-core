@@ -393,28 +393,28 @@ class HL_Assessment_Service {
     }
 
     // =========================================================================
-    // Children Assessment Queries
+    // Child Assessment Queries
     // =========================================================================
 
     /**
-     * Get children assessment instances for an enrollment
+     * Get child assessment instances for an enrollment
      */
-    public function get_children_assessments($enrollment_id) {
+    public function get_child_assessments($enrollment_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_children_assessment_instance WHERE enrollment_id = %d",
+            "SELECT * FROM {$wpdb->prefix}hl_child_assessment_instance WHERE enrollment_id = %d",
             $enrollment_id
         ), ARRAY_A) ?: array();
     }
 
     /**
-     * Get children assessment instances by cohort with joined data
+     * Get child assessment instances by cohort with joined data
      */
-    public function get_children_assessments_by_cohort($cohort_id) {
+    public function get_child_assessments_by_cohort($cohort_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
             "SELECT cai.*, u.display_name, u.user_email, cr.classroom_name, o.name AS school_name
-             FROM {$wpdb->prefix}hl_children_assessment_instance cai
+             FROM {$wpdb->prefix}hl_child_assessment_instance cai
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$wpdb->prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
@@ -426,14 +426,14 @@ class HL_Assessment_Service {
     }
 
     /**
-     * Get a single children assessment instance by ID
+     * Get a single child assessment instance by ID
      */
-    public function get_children_assessment($instance_id) {
+    public function get_child_assessment($instance_id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
             "SELECT cai.*, u.display_name, u.user_email, e.user_id, c.cohort_name,
                     cr.classroom_name, o.name AS school_name
-             FROM {$wpdb->prefix}hl_children_assessment_instance cai
+             FROM {$wpdb->prefix}hl_child_assessment_instance cai
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$wpdb->prefix}hl_cohort c ON cai.cohort_id = c.cohort_id
@@ -445,13 +445,13 @@ class HL_Assessment_Service {
     }
 
     /**
-     * Get child rows for a children assessment instance
+     * Get child rows for a child assessment instance
      */
-    public function get_children_assessment_childrows($instance_id) {
+    public function get_child_assessment_childrows($instance_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
             "SELECT cr.*, ch.first_name, ch.last_name, ch.child_display_code, ch.dob
-             FROM {$wpdb->prefix}hl_children_assessment_childrow cr
+             FROM {$wpdb->prefix}hl_child_assessment_childrow cr
              JOIN {$wpdb->prefix}hl_child ch ON cr.child_id = ch.child_id
              WHERE cr.instance_id = %d
              ORDER BY ch.last_name ASC, ch.first_name ASC",
@@ -460,18 +460,18 @@ class HL_Assessment_Service {
     }
 
     /**
-     * Check if all children assessments are complete for an enrollment
+     * Check if all child assessments are complete for an enrollment
      */
-    public function is_children_assessment_complete($enrollment_id, $cohort_id) {
+    public function is_child_assessment_complete($enrollment_id, $cohort_id) {
         global $wpdb;
         $total = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_children_assessment_instance WHERE enrollment_id = %d AND cohort_id = %d",
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_child_assessment_instance WHERE enrollment_id = %d AND cohort_id = %d",
             $enrollment_id, $cohort_id
         ));
         if ($total === 0) return true;
 
         $submitted = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_children_assessment_instance WHERE enrollment_id = %d AND cohort_id = %d AND status = 'submitted'",
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_child_assessment_instance WHERE enrollment_id = %d AND cohort_id = %d AND status = 'submitted'",
             $enrollment_id, $cohort_id
         ));
 
@@ -479,27 +479,27 @@ class HL_Assessment_Service {
     }
 
     // =========================================================================
-    // Children Assessment Submission
+    // Child Assessment Submission
     // =========================================================================
 
     /**
-     * Save children assessment child rows (draft or submit)
+     * Save child assessment child rows (draft or submit)
      *
      * @param int    $instance_id
      * @param array  $childrows  Array of ['child_id' => int, 'answers_json' => array]
      * @param string $action     'draft' or 'submit'
      * @return true|WP_Error
      */
-    public function save_children_assessment($instance_id, $childrows, $action = 'draft') {
+    public function save_child_assessment($instance_id, $childrows, $action = 'draft') {
         global $wpdb;
 
         $instance = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_children_assessment_instance WHERE instance_id = %d",
+            "SELECT * FROM {$wpdb->prefix}hl_child_assessment_instance WHERE instance_id = %d",
             $instance_id
         ), ARRAY_A);
 
         if (!$instance) {
-            return new WP_Error('not_found', __('Children assessment instance not found.', 'hl-core'));
+            return new WP_Error('not_found', __('child assessment instance not found.', 'hl-core'));
         }
 
         if ($instance['status'] === 'submitted') {
@@ -512,19 +512,19 @@ class HL_Assessment_Service {
             $answers  = is_array($row['answers_json']) ? wp_json_encode($row['answers_json']) : $row['answers_json'];
 
             $existing = $wpdb->get_var($wpdb->prepare(
-                "SELECT row_id FROM {$wpdb->prefix}hl_children_assessment_childrow
+                "SELECT row_id FROM {$wpdb->prefix}hl_child_assessment_childrow
                  WHERE instance_id = %d AND child_id = %d",
                 $instance_id, $child_id
             ));
 
             if ($existing) {
                 $wpdb->update(
-                    $wpdb->prefix . 'hl_children_assessment_childrow',
+                    $wpdb->prefix . 'hl_child_assessment_childrow',
                     array('answers_json' => $answers),
                     array('row_id' => $existing)
                 );
             } else {
-                $wpdb->insert($wpdb->prefix . 'hl_children_assessment_childrow', array(
+                $wpdb->insert($wpdb->prefix . 'hl_child_assessment_childrow', array(
                     'instance_id'  => $instance_id,
                     'child_id'     => $child_id,
                     'answers_json' => $answers,
@@ -540,20 +540,20 @@ class HL_Assessment_Service {
         }
 
         $wpdb->update(
-            $wpdb->prefix . 'hl_children_assessment_instance',
+            $wpdb->prefix . 'hl_child_assessment_instance',
             $update,
             array('instance_id' => $instance_id)
         );
 
         if ($action === 'submit') {
-            HL_Audit_Service::log('children_assessment.submitted', array(
-                'entity_type' => 'children_assessment_instance',
+            HL_Audit_Service::log('child_assessment.submitted', array(
+                'entity_type' => 'child_assessment_instance',
                 'entity_id'   => $instance_id,
                 'cohort_id'   => $instance['cohort_id'],
             ));
 
             // Update activity state if all classroom instances are now submitted
-            $this->update_children_assessment_activity_state(
+            $this->update_child_assessment_activity_state(
                 $instance['enrollment_id'],
                 $instance['cohort_id']
             );
@@ -563,25 +563,25 @@ class HL_Assessment_Service {
     }
 
     /**
-     * Update the children_assessment activity state for an enrollment
+     * Update the child_assessment activity state for an enrollment
      *
-     * Checks if all required children assessment instances are submitted.
+     * Checks if all required child assessment instances are submitted.
      * If so, marks the activity as complete (100%). Otherwise, not_started (0%).
      *
      * @param int $enrollment_id
      * @param int $cohort_id
      */
-    private function update_children_assessment_activity_state($enrollment_id, $cohort_id) {
+    private function update_child_assessment_activity_state($enrollment_id, $cohort_id) {
         global $wpdb;
 
-        $is_complete = $this->is_children_assessment_complete($enrollment_id, $cohort_id);
+        $is_complete = $this->is_child_assessment_complete($enrollment_id, $cohort_id);
 
-        // Find children_assessment activities in this cohort
+        // Find child_assessment activities in this cohort
         $activities = $wpdb->get_results($wpdb->prepare(
             "SELECT a.activity_id FROM {$wpdb->prefix}hl_activity a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
              WHERE p.cohort_id = %d
-               AND a.activity_type = 'children_assessment'
+               AND a.activity_type = 'child_assessment'
                AND a.status = 'active'",
             $cohort_id
         ));
@@ -626,27 +626,27 @@ class HL_Assessment_Service {
     }
 
     /**
-     * Save children assessment responses using the responses_json approach.
+     * Save child assessment responses using the responses_json approach.
      *
      * Used for control group assessments where one instance covers all
      * children across the teacher's classrooms. Stores per-child responses
-     * as JSON on the instance rather than in hl_children_assessment_childrow.
+     * as JSON on the instance rather than in hl_child_assessment_childrow.
      *
      * @param int   $instance_id
      * @param array $responses   Array: { "children": { child_id: { value, age_band, ... }, ... } }
      * @param bool  $is_draft    True = draft save, false = final submit.
      * @return true|WP_Error
      */
-    public function save_children_assessment_responses( $instance_id, $responses, $is_draft = true ) {
+    public function save_child_assessment_responses( $instance_id, $responses, $is_draft = true ) {
         global $wpdb;
 
         $instance = $wpdb->get_row( $wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_children_assessment_instance WHERE instance_id = %d",
+            "SELECT * FROM {$wpdb->prefix}hl_child_assessment_instance WHERE instance_id = %d",
             $instance_id
         ), ARRAY_A );
 
         if ( ! $instance ) {
-            return new WP_Error( 'not_found', __( 'Children assessment instance not found.', 'hl-core' ) );
+            return new WP_Error( 'not_found', __( 'child assessment instance not found.', 'hl-core' ) );
         }
 
         if ( $instance['status'] === 'submitted' ) {
@@ -663,20 +663,20 @@ class HL_Assessment_Service {
         }
 
         $wpdb->update(
-            $wpdb->prefix . 'hl_children_assessment_instance',
+            $wpdb->prefix . 'hl_child_assessment_instance',
             $update_data,
             array( 'instance_id' => $instance_id )
         );
 
-        $action_label = $is_draft ? 'children_assessment.draft_saved' : 'children_assessment.submitted';
+        $action_label = $is_draft ? 'child_assessment.draft_saved' : 'child_assessment.submitted';
         HL_Audit_Service::log( $action_label, array(
-            'entity_type' => 'children_assessment_instance',
+            'entity_type' => 'child_assessment_instance',
             'entity_id'   => $instance_id,
             'cohort_id'   => $instance['cohort_id'],
         ) );
 
         if ( ! $is_draft ) {
-            $this->update_children_assessment_activity_state(
+            $this->update_child_assessment_activity_state(
                 $instance['enrollment_id'],
                 $instance['cohort_id']
             );
@@ -686,17 +686,17 @@ class HL_Assessment_Service {
     }
 
     /**
-     * Get a children assessment instance by activity_id and enrollment.
+     * Get a child assessment instance by activity_id and enrollment.
      *
      * @param int $activity_id
      * @param int $enrollment_id
      * @return array|null
      */
-    public function get_children_assessment_by_activity( $activity_id, $enrollment_id ) {
+    public function get_child_assessment_by_activity( $activity_id, $enrollment_id ) {
         global $wpdb;
         return $wpdb->get_row( $wpdb->prepare(
             "SELECT cai.*, u.display_name, u.user_email, e.user_id, c.cohort_name
-             FROM {$wpdb->prefix}hl_children_assessment_instance cai
+             FROM {$wpdb->prefix}hl_child_assessment_instance cai
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$wpdb->prefix}hl_cohort c ON cai.cohort_id = c.cohort_id
@@ -707,11 +707,11 @@ class HL_Assessment_Service {
     }
 
     // =========================================================================
-    // Children Assessment Instance Generation
+    // Child Assessment Instance Generation
     // =========================================================================
 
     /**
-     * Generate children assessment instances for a cohort.
+     * Generate child assessment instances for a cohort.
      *
      * Canonical rule: For each cohort, for each classroom with a teaching assignment,
      * for each teacher enrollment assigned to that classroom, ensure one instance exists.
@@ -719,7 +719,7 @@ class HL_Assessment_Service {
      * @param int $cohort_id
      * @return array ['created' => int, 'existing' => int, 'errors' => array]
      */
-    public function generate_children_assessment_instances($cohort_id) {
+    public function generate_child_assessment_instances($cohort_id) {
         global $wpdb;
 
         $result = array('created' => 0, 'existing' => 0, 'errors' => array());
@@ -742,7 +742,7 @@ class HL_Assessment_Service {
         foreach ($assignments as $ta) {
             // Check if instance already exists
             $existing = $wpdb->get_var($wpdb->prepare(
-                "SELECT instance_id FROM {$wpdb->prefix}hl_children_assessment_instance
+                "SELECT instance_id FROM {$wpdb->prefix}hl_child_assessment_instance
                  WHERE cohort_id = %d AND enrollment_id = %d AND classroom_id = %d",
                 $cohort_id, $ta->enrollment_id, $ta->classroom_id
             ));
@@ -798,7 +798,7 @@ class HL_Assessment_Service {
                 'status'             => 'not_started',
             );
 
-            $insert_result = $wpdb->insert($wpdb->prefix . 'hl_children_assessment_instance', $insert_data);
+            $insert_result = $wpdb->insert($wpdb->prefix . 'hl_child_assessment_instance', $insert_data);
 
             if ($insert_result === false) {
                 $result['errors'][] = sprintf(
@@ -812,8 +812,8 @@ class HL_Assessment_Service {
         }
 
         if ($result['created'] > 0) {
-            HL_Audit_Service::log('children_assessment.instances_generated', array(
-                'entity_type' => 'children_assessment_instance',
+            HL_Audit_Service::log('child_assessment.instances_generated', array(
+                'entity_type' => 'child_assessment_instance',
                 'cohort_id'   => $cohort_id,
                 'after_data'  => array(
                     'created'  => $result['created'],
@@ -902,21 +902,21 @@ class HL_Assessment_Service {
     }
 
     /**
-     * Export children assessment data as CSV
+     * Export child assessment data as CSV
      *
      * @param int $cohort_id
      * @return string CSV content
      */
-    public function export_children_assessments_csv($cohort_id) {
+    public function export_child_assessments_csv($cohort_id) {
         global $wpdb;
 
-        $instances = $this->get_children_assessments_by_cohort($cohort_id);
+        $instances = $this->get_child_assessments_by_cohort($cohort_id);
 
         // Collect all unique question IDs from answers_json across all child rows
         $all_question_ids = array();
         $instance_childrows = array();
         foreach ($instances as $inst) {
-            $childrows = $this->get_children_assessment_childrows($inst['instance_id']);
+            $childrows = $this->get_child_assessment_childrows($inst['instance_id']);
             $instance_childrows[$inst['instance_id']] = $childrows;
             foreach ($childrows as $cr) {
                 $answers = json_decode($cr['answers_json'], true);

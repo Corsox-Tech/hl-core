@@ -3,7 +3,7 @@
 /**
  * Admin Assessments Page
  *
- * Staff-only viewer for Teacher Self-Assessments and Children Assessments.
+ * Staff-only viewer for Teacher Self-Assessments and Child Assessments.
  * Supports listing, detail viewing, instance generation, and CSV export.
  *
  * @package HL_Core
@@ -47,7 +47,7 @@ class HL_Admin_Assessments {
 
             case 'view_children':
                 $instance_id = isset($_GET['instance_id']) ? absint($_GET['instance_id']) : 0;
-                $this->render_children_assessment_detail($instance_id);
+                $this->render_child_assessment_detail($instance_id);
                 break;
 
             default:
@@ -66,7 +66,7 @@ class HL_Admin_Assessments {
      * Handle POST actions (generate instances)
      */
     private function handle_actions() {
-        // Generate children assessment instances
+        // Generate child assessment instances
         if (isset($_POST['hl_generate_children_nonce'])) {
             if (!wp_verify_nonce($_POST['hl_generate_children_nonce'], 'hl_generate_children_instances')) {
                 wp_die(__('Security check failed.', 'hl-core'));
@@ -77,7 +77,7 @@ class HL_Admin_Assessments {
 
             $cohort_id = absint($_POST['cohort_id']);
             $service = new HL_Assessment_Service();
-            $result = $service->generate_children_assessment_instances($cohort_id);
+            $result = $service->generate_child_assessment_instances($cohort_id);
 
             $msg = 'generated';
             if (!empty($result['errors'])) {
@@ -129,8 +129,8 @@ class HL_Admin_Assessments {
             $csv = $service->export_teacher_assessments_csv($cohort_id);
             $filename = 'teacher-assessments-' . $safe_name . '-' . date('Y-m-d') . '.csv';
         } elseif ($export_type === 'children') {
-            $csv = $service->export_children_assessments_csv($cohort_id);
-            $filename = 'children-assessments-' . $safe_name . '-' . date('Y-m-d') . '.csv';
+            $csv = $service->export_child_assessments_csv($cohort_id);
+            $filename = 'child-assessments-' . $safe_name . '-' . date('Y-m-d') . '.csv';
         } else {
             return;
         }
@@ -200,7 +200,7 @@ class HL_Admin_Assessments {
 
         echo '<h2 class="nav-tab-wrapper">';
         echo '<a href="' . esc_url($teacher_url) . '" class="nav-tab' . ($active_tab === 'teacher' ? ' nav-tab-active' : '') . '">' . esc_html__('Teacher Self-Assessments', 'hl-core') . '</a>';
-        echo '<a href="' . esc_url($children_url) . '" class="nav-tab' . ($active_tab === 'children' ? ' nav-tab-active' : '') . '">' . esc_html__('Children Assessments', 'hl-core') . '</a>';
+        echo '<a href="' . esc_url($children_url) . '" class="nav-tab' . ($active_tab === 'children' ? ' nav-tab-active' : '') . '">' . esc_html__('Child Assessments', 'hl-core') . '</a>';
         echo '</h2>';
 
         if ($active_tab === 'children') {
@@ -276,11 +276,11 @@ class HL_Admin_Assessments {
     }
 
     // =========================================================================
-    // Children Assessment Tab
+    // Child Assessment Tab
     // =========================================================================
 
     private function render_children_tab($cohort_id, $service) {
-        $instances = $service->get_children_assessments_by_cohort($cohort_id);
+        $instances = $service->get_child_assessments_by_cohort($cohort_id);
 
         // Action buttons row
         echo '<div style="display:flex;gap:10px;margin-bottom:15px;align-items:center;">';
@@ -294,7 +294,7 @@ class HL_Admin_Assessments {
             'secondary',
             'submit',
             false,
-            array('onclick' => 'return confirm("' . esc_js(__('This will create children assessment instances for all teaching assignments in this cohort. Continue?', 'hl-core')) . '");')
+            array('onclick' => 'return confirm("' . esc_js(__('This will create child assessment instances for all teaching assignments in this cohort. Continue?', 'hl-core')) . '");')
         );
         echo '</form>';
 
@@ -303,12 +303,12 @@ class HL_Admin_Assessments {
             admin_url('admin.php?page=hl-assessments&cohort_id=' . $cohort_id . '&export=children'),
             'hl_export_children_' . $cohort_id
         );
-        echo '<a href="' . esc_url($export_url) . '" class="button">' . esc_html__('Export Children Assessments CSV', 'hl-core') . '</a>';
+        echo '<a href="' . esc_url($export_url) . '" class="button">' . esc_html__('Export Child Assessments CSV', 'hl-core') . '</a>';
 
         echo '</div>';
 
         if (empty($instances)) {
-            echo '<p>' . esc_html__('No children assessment instances found for this cohort. Use "Generate Instances" to create them from teaching assignments.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No child assessment instances found for this cohort. Use "Generate Instances" to create them from teaching assignments.', 'hl-core') . '</p>';
             return;
         }
 
@@ -437,12 +437,12 @@ class HL_Admin_Assessments {
     }
 
     // =========================================================================
-    // Children Assessment Detail View
+    // Child Assessment Detail View
     // =========================================================================
 
-    private function render_children_assessment_detail($instance_id) {
+    private function render_child_assessment_detail($instance_id) {
         $service  = new HL_Assessment_Service();
-        $instance = $service->get_children_assessment($instance_id);
+        $instance = $service->get_child_assessment($instance_id);
 
         if (!$instance) {
             echo '<div class="notice notice-error"><p>' . esc_html__('Assessment instance not found.', 'hl-core') . '</p></div>';
@@ -452,7 +452,7 @@ class HL_Admin_Assessments {
         $cohort_id = $instance['cohort_id'];
         $back_url  = admin_url('admin.php?page=hl-assessments&cohort_id=' . $cohort_id . '&tab=children');
 
-        echo '<h1>' . esc_html__('Children Assessment Detail', 'hl-core') . '</h1>';
+        echo '<h1>' . esc_html__('Child Assessment Detail', 'hl-core') . '</h1>';
         echo '<a href="' . esc_url($back_url) . '">&larr; ' . esc_html__('Back to Assessments', 'hl-core') . '</a>';
 
         // Instance info
@@ -469,7 +469,7 @@ class HL_Admin_Assessments {
         echo '</table>';
 
         // Child rows
-        $childrows = $service->get_children_assessment_childrows($instance_id);
+        $childrows = $service->get_child_assessment_childrows($instance_id);
 
         echo '<hr />';
         echo '<h2>' . esc_html__('Child Responses', 'hl-core') . '</h2>';
@@ -594,7 +594,7 @@ class HL_Admin_Assessments {
             case 'generated':
                 echo '<div class="notice notice-success is-dismissible"><p>';
                 echo esc_html(sprintf(
-                    __('Children assessment instances generated: %d created, %d already existed.', 'hl-core'),
+                    __('child assessment instances generated: %d created, %d already existed.', 'hl-core'),
                     $created,
                     $existing
                 ));
@@ -604,7 +604,7 @@ class HL_Admin_Assessments {
             case 'generate_none':
                 echo '<div class="notice notice-info is-dismissible"><p>';
                 echo esc_html(sprintf(
-                    __('All %d children assessment instances already exist. No new instances created.', 'hl-core'),
+                    __('All %d child assessment instances already exist. No new instances created.', 'hl-core'),
                     $existing
                 ));
                 echo '</p></div>';

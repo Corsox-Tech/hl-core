@@ -643,13 +643,13 @@ class HL_CLI_Seed_Palm_Beach {
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teaching_assignment WHERE enrollment_id IN ({$in_ids})" );
 
 				$ca_ids = $wpdb->get_col(
-					"SELECT instance_id FROM {$wpdb->prefix}hl_children_assessment_instance WHERE enrollment_id IN ({$in_ids})"
+					"SELECT instance_id FROM {$wpdb->prefix}hl_child_assessment_instance WHERE enrollment_id IN ({$in_ids})"
 				);
 				if ( ! empty( $ca_ids ) ) {
 					$in_ca = implode( ',', array_map( 'intval', $ca_ids ) );
-					$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_children_assessment_childrow WHERE instance_id IN ({$in_ca})" );
+					$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child_assessment_childrow WHERE instance_id IN ({$in_ca})" );
 				}
-				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_children_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE cohort_id = {$cohort_id}" );
 			}
@@ -1213,7 +1213,7 @@ class HL_CLI_Seed_Palm_Beach {
 	// ------------------------------------------------------------------
 
 	private function seed_teaching_assignments( $enrollments, $classrooms ) {
-		// Suppress auto-generation of children assessment instances during seeding.
+		// Suppress auto-generation of child assessment instances during seeding.
 		// The seeder creates instances explicitly with proper activity_id, phase,
 		// and instrument_id values.
 		remove_all_actions( 'hl_core_teaching_assignment_changed' );
@@ -1294,7 +1294,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$ta['ld_course'] = $svc->create_activity( array( 'title' => 'Foundations of Early Learning', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99901 ) ) ) );
 		$ta['pre_self']  = $svc->create_activity( array( 'title' => 'Pre Self-Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e'], 'phase' => 'pre' ) ) ) );
 		$ta['post_self'] = $svc->create_activity( array( 'title' => 'Post Self-Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 3, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e'], 'phase' => 'post' ) ) ) );
-		$ta['children']  = $svc->create_activity( array( 'title' => 'Children Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'children_assessment', 'weight' => 2.0, 'ordering_hint' => 4, 'external_ref' => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ) ) );
+		$ta['children']  = $svc->create_activity( array( 'title' => 'Child Assessment', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'child_assessment', 'weight' => 2.0, 'ordering_hint' => 4, 'external_ref' => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ) ) );
 		$ta['coaching']  = $svc->create_activity( array( 'title' => 'Coaching Attendance', 'pathway_id' => $tp_id, 'cohort_id' => $cohort_id, 'activity_type' => 'coaching_session_attendance', 'weight' => 1.0, 'ordering_hint' => 5, 'external_ref' => wp_json_encode( (object) array() ) ) );
 
 		// --- Mentor Pathway ---

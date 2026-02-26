@@ -2,16 +2,16 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Renderer for the [hl_children_assessment] shortcode.
+ * Renderer for the [hl_child_assessment] shortcode.
  *
- * Shows a logged-in teacher their children assessment instances across
+ * Shows a logged-in teacher their child assessment instances across
  * all cohorts. When an instance_id is provided, renders the assessment
  * form (via HL_Instrument_Renderer) or a read-only summary if already
  * submitted.
  *
  * @package HL_Core
  */
-class HL_Frontend_Children_Assessment {
+class HL_Frontend_Child_Assessment {
 
     /** @var HL_Assessment_Service */
     private $assessment_service;
@@ -43,7 +43,7 @@ class HL_Frontend_Children_Assessment {
     }
 
     /**
-     * Render the Children Assessment shortcode.
+     * Render the Child Assessment shortcode.
      *
      * @param array $atts Shortcode attributes. Optional key: instance_id.
      * @return string HTML output.
@@ -51,7 +51,7 @@ class HL_Frontend_Children_Assessment {
     public function render( $atts ) {
         $atts = shortcode_atts( array(
             'instance_id' => '',
-        ), $atts, 'hl_children_assessment' );
+        ), $atts, 'hl_child_assessment' );
 
         ob_start();
 
@@ -59,7 +59,7 @@ class HL_Frontend_Children_Assessment {
         if ( ! is_user_logged_in() ) {
             ?>
             <div class="hl-notice hl-notice-warning">
-                <?php esc_html_e( 'Please log in to view your children assessments.', 'hl-core' ); ?>
+                <?php esc_html_e( 'Please log in to view your child assessments.', 'hl-core' ); ?>
             </div>
             <?php
             return ob_get_clean();
@@ -114,7 +114,7 @@ class HL_Frontend_Children_Assessment {
             $activity_id
         ) );
 
-        if ( ! $activity || $activity->activity_type !== 'children_assessment' ) {
+        if ( ! $activity || $activity->activity_type !== 'child_assessment' ) {
             return 0;
         }
 
@@ -134,7 +134,7 @@ class HL_Frontend_Children_Assessment {
 
         // Look for existing instance by activity_id
         $instance_id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT instance_id FROM {$wpdb->prefix}hl_children_assessment_instance
+            "SELECT instance_id FROM {$wpdb->prefix}hl_child_assessment_instance
              WHERE enrollment_id = %d AND activity_id = %d
              LIMIT 1",
             $enrollment->enrollment_id, $activity_id
@@ -147,7 +147,7 @@ class HL_Frontend_Children_Assessment {
 
         // Look for existing instance by enrollment + cohort + phase
         $instance_id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT instance_id FROM {$wpdb->prefix}hl_children_assessment_instance
+            "SELECT instance_id FROM {$wpdb->prefix}hl_child_assessment_instance
              WHERE enrollment_id = %d AND cohort_id = %d AND phase = %s
              LIMIT 1",
             $enrollment->enrollment_id, $activity->cohort_id, $phase
@@ -155,7 +155,7 @@ class HL_Frontend_Children_Assessment {
 
         if ( $instance_id ) {
             $wpdb->update(
-                $wpdb->prefix . 'hl_children_assessment_instance',
+                $wpdb->prefix . 'hl_child_assessment_instance',
                 array( 'activity_id' => $activity_id ),
                 array( 'instance_id' => $instance_id )
             );
@@ -197,7 +197,7 @@ class HL_Frontend_Children_Assessment {
         }
 
         // Create new instance for this activity
-        $wpdb->insert( $wpdb->prefix . 'hl_children_assessment_instance', array(
+        $wpdb->insert( $wpdb->prefix . 'hl_child_assessment_instance', array(
             'instance_uuid'       => HL_DB_Utils::generate_uuid(),
             'cohort_id'           => absint( $activity->cohort_id ),
             'enrollment_id'       => absint( $enrollment->enrollment_id ),
@@ -219,7 +219,7 @@ class HL_Frontend_Children_Assessment {
     // =====================================================================
 
     /**
-     * Render a table listing all children assessment instances for the
+     * Render a table listing all child assessment instances for the
      * currently logged-in teacher.
      */
     private function render_instance_list() {
@@ -229,7 +229,7 @@ class HL_Frontend_Children_Assessment {
 
         $instances = $wpdb->get_results( $wpdb->prepare(
             "SELECT cai.*, c.cohort_name, cr.classroom_name, e.user_id
-             FROM {$wpdb->prefix}hl_children_assessment_instance cai
+             FROM {$wpdb->prefix}hl_child_assessment_instance cai
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
              JOIN {$wpdb->prefix}hl_cohort c ON cai.cohort_id = c.cohort_id
              JOIN {$wpdb->prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
@@ -239,12 +239,12 @@ class HL_Frontend_Children_Assessment {
         ), ARRAY_A );
 
         ?>
-        <div class="hl-dashboard hl-children-assessment">
-            <h2 class="hl-section-title"><?php esc_html_e( 'My Children Assessments', 'hl-core' ); ?></h2>
+        <div class="hl-dashboard hl-child-assessment">
+            <h2 class="hl-section-title"><?php esc_html_e( 'My Child Assessments', 'hl-core' ); ?></h2>
 
             <?php if ( empty( $instances ) ) : ?>
                 <div class="hl-empty-state">
-                    <p><?php esc_html_e( 'You do not have any children assessment instances assigned. If you believe this is an error, please contact your cohort administrator.', 'hl-core' ); ?></p>
+                    <p><?php esc_html_e( 'You do not have any child assessment instances assigned. If you believe this is an error, please contact your cohort administrator.', 'hl-core' ); ?></p>
                 </div>
             <?php else : ?>
                 <table class="hl-table widefat striped">
@@ -296,7 +296,7 @@ class HL_Frontend_Children_Assessment {
     // =====================================================================
 
     /**
-     * Render a single children assessment instance — either the editable
+     * Render a single child assessment instance — either the editable
      * form or a read-only summary.
      *
      * @param int $instance_id
@@ -305,7 +305,7 @@ class HL_Frontend_Children_Assessment {
         $user_id = get_current_user_id();
 
         // ── Load instance with joined data ───────────────────────────
-        $instance = $this->assessment_service->get_children_assessment( $instance_id );
+        $instance = $this->assessment_service->get_child_assessment( $instance_id );
 
         if ( ! $instance ) {
             ?>
@@ -367,7 +367,7 @@ class HL_Frontend_Children_Assessment {
         }
 
         // ── Load existing answers (childrows) ────────────────────────
-        $childrows = $this->assessment_service->get_children_assessment_childrows( $instance_id );
+        $childrows = $this->assessment_service->get_child_assessment_childrows( $instance_id );
         $answers_map = $this->build_answers_map( $childrows );
 
         // ── Handle POST submission ───────────────────────────────────
@@ -379,7 +379,7 @@ class HL_Frontend_Children_Assessment {
 
             if ( $posted_instance_id === $instance_id ) {
                 // Verify nonce
-                if ( ! isset( $_POST['_hl_assessment_nonce'] ) || ! wp_verify_nonce( $_POST['_hl_assessment_nonce'], 'hl_children_assessment_' . $instance_id ) ) {
+                if ( ! isset( $_POST['_hl_assessment_nonce'] ) || ! wp_verify_nonce( $_POST['_hl_assessment_nonce'], 'hl_child_assessment_' . $instance_id ) ) {
                     $message      = __( 'Security check failed. Please try again.', 'hl-core' );
                     $message_type = 'error';
                 } else {
@@ -419,7 +419,7 @@ class HL_Frontend_Children_Assessment {
                     }
 
                     // Save via service
-                    $result = $this->assessment_service->save_children_assessment( $instance_id, $childrow_data, $action );
+                    $result = $this->assessment_service->save_child_assessment( $instance_id, $childrow_data, $action );
 
                     if ( is_wp_error( $result ) ) {
                         $message      = $result->get_error_message();
@@ -429,7 +429,7 @@ class HL_Frontend_Children_Assessment {
                         $message_type = 'success';
 
                         // Re-load instance to reflect submitted status
-                        $instance = $this->assessment_service->get_children_assessment( $instance_id );
+                        $instance = $this->assessment_service->get_child_assessment( $instance_id );
 
                         if ( $instance && $instance['status'] === 'submitted' ) {
                             // Show the submitted summary instead of the form
@@ -442,7 +442,7 @@ class HL_Frontend_Children_Assessment {
                         $message_type = 'success';
 
                         // Reload answers after saving draft
-                        $childrows   = $this->assessment_service->get_children_assessment_childrows( $instance_id );
+                        $childrows   = $this->assessment_service->get_child_assessment_childrows( $instance_id );
                         $answers_map = $this->build_answers_map( $childrows );
                     }
                 }
@@ -460,7 +460,7 @@ class HL_Frontend_Children_Assessment {
     /**
      * Render a read-only summary of a submitted assessment.
      *
-     * @param array $instance Instance data from get_children_assessment().
+     * @param array $instance Instance data from get_child_assessment().
      */
     private function render_submitted_summary( $instance ) {
         $instance_id = absint( $instance['instance_id'] );
@@ -479,7 +479,7 @@ class HL_Frontend_Children_Assessment {
         }
 
         // Load childrows with answers
-        $childrows = $this->assessment_service->get_children_assessment_childrows( $instance_id );
+        $childrows = $this->assessment_service->get_child_assessment_childrows( $instance_id );
 
         // Detect single-question Likert for transposed display
         $q_type = '';
@@ -570,7 +570,7 @@ class HL_Frontend_Children_Assessment {
             }
         </style>
 
-        <div class="hl-dashboard hl-children-assessment hl-assessment-summary">
+        <div class="hl-dashboard hl-child-assessment hl-assessment-summary">
             <div class="hl-ca-summary-wrap">
 
                 <?php // ── Branded Header ──────────────────────────────── ?>
@@ -581,7 +581,7 @@ class HL_Frontend_Children_Assessment {
                              class="hl-ca-brand-img" />
                     </div>
                     <h2 class="hl-ca-title">
-                        <?php echo esc_html( $instrument ? $instrument['name'] : __( 'Children Assessment', 'hl-core' ) ); ?>
+                        <?php echo esc_html( $instrument ? $instrument['name'] : __( 'Child Assessment', 'hl-core' ) ); ?>
                         <?php
                         $phase = isset( $instance['phase'] ) ? $instance['phase'] : '';
                         if ( $phase ) :
@@ -789,7 +789,7 @@ class HL_Frontend_Children_Assessment {
         $instance_id = absint( $instance['instance_id'] );
 
         ?>
-        <div class="hl-dashboard hl-children-assessment hl-assessment-form">
+        <div class="hl-dashboard hl-child-assessment hl-assessment-form">
 
             <?php if ( ! empty( $message ) ) : ?>
                 <div class="hl-notice hl-notice-<?php echo esc_attr( $message_type ); ?>">
@@ -834,7 +834,7 @@ class HL_Frontend_Children_Assessment {
         global $wpdb;
 
         $instance = $wpdb->get_row( $wpdb->prepare(
-            "SELECT instrument_id, classroom_id, school_id FROM {$wpdb->prefix}hl_children_assessment_instance WHERE instance_id = %d",
+            "SELECT instrument_id, classroom_id, school_id FROM {$wpdb->prefix}hl_child_assessment_instance WHERE instance_id = %d",
             $instance_id
         ), ARRAY_A );
 
@@ -904,7 +904,7 @@ class HL_Frontend_Children_Assessment {
 
         if ( ! empty( $updates ) ) {
             $wpdb->update(
-                $wpdb->prefix . 'hl_children_assessment_instance',
+                $wpdb->prefix . 'hl_child_assessment_instance',
                 $updates,
                 array( 'instance_id' => $instance_id )
             );
@@ -975,7 +975,7 @@ class HL_Frontend_Children_Assessment {
     /**
      * Build a lookup map from childrows: child_id => decoded answers.
      *
-     * @param array $childrows Result from get_children_assessment_childrows().
+     * @param array $childrows Result from get_child_assessment_childrows().
      * @return array
      */
     private function build_answers_map( $childrows ) {

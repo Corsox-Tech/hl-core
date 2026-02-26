@@ -105,7 +105,7 @@ class HL_Classroom_Service {
             'after_data'  => $insert_data,
         ));
 
-        // Trigger children assessment instance auto-generation
+        // Trigger child assessment instance auto-generation
         $cohort_id = $wpdb->get_var($wpdb->prepare(
             "SELECT cohort_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
             $data['enrollment_id']
@@ -178,7 +178,7 @@ class HL_Classroom_Service {
                 'before_data' => $before,
             ));
 
-            // Trigger children assessment instance auto-generation
+            // Trigger child assessment instance auto-generation
             if (!empty($before['cohort_id'])) {
                 do_action('hl_core_teaching_assignment_changed', (int) $before['cohort_id']);
             }

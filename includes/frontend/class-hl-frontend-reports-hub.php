@@ -126,7 +126,7 @@ class HL_Frontend_Reports_Hub {
         if ( $scope['is_staff'] ) {
             $reports[] = array(
                 'title'       => __( 'Assessment Report', 'hl-core' ),
-                'description' => __( 'View teacher self-assessment and children assessment data. Export responses.', 'hl-core' ),
+                'description' => __( 'View teacher self-assessment and child assessment data. Export responses.', 'hl-core' ),
                 'url'         => '',
             );
         }

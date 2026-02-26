@@ -2,7 +2,7 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Renders a children assessment instrument as a polished, branded HTML form.
+ * Renders a child assessment instrument as a polished, branded HTML form.
  *
  * For B2E single-question Likert instruments, produces a transposed matrix
  * with one column per scale value (Never … Almost Always) and one row per
@@ -28,7 +28,7 @@ class HL_Instrument_Renderer {
     /** @var array Array of child objects (child_id, first_name, last_name, child_display_code, dob). */
     private $children;
 
-    /** @var int Children assessment instance ID. */
+    /** @var int child assessment instance ID. */
     private $instance_id;
 
     /** @var array Existing answers keyed by child_id, each containing decoded answers_json. */
@@ -42,9 +42,9 @@ class HL_Instrument_Renderer {
      *
      * @param object|array $instrument       Instrument with instrument_id, name, questions (JSON string or array).
      * @param array        $children         Array of child objects.
-     * @param int          $instance_id      The children_assessment_instance ID.
+     * @param int          $instance_id      The child_assessment_instance ID.
      * @param array        $existing_answers Optional. Existing answer rows keyed by child_id.
-     * @param array        $instance         Optional. Full instance data from get_children_assessment().
+     * @param array        $instance         Optional. Full instance data from get_child_assessment().
      */
     public function __construct( $instrument, $children, $instance_id, $existing_answers = array(), $instance = array() ) {
         $this->instrument       = (object) $instrument;
@@ -66,7 +66,7 @@ class HL_Instrument_Renderer {
     }
 
     /**
-     * Render the full branded children assessment form.
+     * Render the full branded child assessment form.
      *
      * @return string HTML output (does not echo).
      */
@@ -112,7 +112,7 @@ class HL_Instrument_Renderer {
 
             <?php // ── Matrix form ──────────────────────────────────────── ?>
             <form method="post" action="" class="hl-ca-matrix-form" id="hl-ca-form-<?php echo esc_attr( $this->instance_id ); ?>">
-                <?php wp_nonce_field( 'hl_children_assessment_' . $this->instance_id, '_hl_assessment_nonce' ); ?>
+                <?php wp_nonce_field( 'hl_child_assessment_' . $this->instance_id, '_hl_assessment_nonce' ); ?>
                 <input type="hidden" name="hl_instrument_instance_id" value="<?php echo esc_attr( $this->instance_id ); ?>" />
                 <input type="hidden" name="hl_requires_validation" id="hl-ca-requires-validation-<?php echo esc_attr( $this->instance_id ); ?>" value="0" />
 
@@ -160,7 +160,7 @@ class HL_Instrument_Renderer {
     private function render_branded_header() {
         $phase = isset( $this->instance['phase'] ) ? $this->instance['phase'] : 'pre';
         $phase_label = ( $phase === 'post' ) ? __( 'Post', 'hl-core' ) : __( 'Pre', 'hl-core' );
-        $instrument_name = isset( $this->instrument->name ) ? $this->instrument->name : __( 'Children Assessment', 'hl-core' );
+        $instrument_name = isset( $this->instrument->name ) ? $this->instrument->name : __( 'Child Assessment', 'hl-core' );
         ?>
         <div class="hl-ca-branded-header">
             <div class="hl-ca-brand-logo">
@@ -739,7 +739,7 @@ class HL_Instrument_Renderer {
     // ─── Inline Styles ───────────────────────────────────────────────────
 
     /**
-     * Render inline CSS for the branded children assessment form.
+     * Render inline CSS for the branded child assessment form.
      */
     private function render_inline_styles() {
         ?>

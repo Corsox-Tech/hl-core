@@ -139,7 +139,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-cohort-dashboard.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-instrument-renderer.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-teacher-assessment-renderer.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-children-assessment.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-child-assessment.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-teacher-assessment.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-observations.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-programs.php';
@@ -213,10 +213,10 @@ class HL_Core {
         // Initialize reporting service (registers rollup listener)
         HL_Reporting_Service::instance();
 
-        // Auto-generate children assessment instances when teaching assignments change
+        // Auto-generate child assessment instances when teaching assignments change
         add_action('hl_core_teaching_assignment_changed', function ($cohort_id) {
             $service = new HL_Assessment_Service();
-            $service->generate_children_assessment_instances($cohort_id);
+            $service->generate_child_assessment_instances($cohort_id);
         });
 
         // Register CLI commands
