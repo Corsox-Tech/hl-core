@@ -81,6 +81,9 @@ class HL_Installer {
         // Phase 22B: Rename children_assessment → child_assessment tables + activity_type.
         self::migrate_children_to_child_assessment();
 
+        // Phase 22C: Restructure cohort hierarchy — cohort→track, cohort_group→cohort.
+        self::migrate_cohort_to_track();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -103,7 +106,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 11;
+        $current_revision = 12;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -752,12 +755,207 @@ class HL_Installer {
     }
 
     /**
+     * Phase 22C: Restructure cohort hierarchy.
+     *
+     * Old `hl_cohort` (the run) → becomes `hl_track`
+     * Old `hl_cohort_group` (the container) → becomes `hl_cohort`
+     *
+     * STEP 1: Rename hl_cohort → hl_track (run table)
+     * STEP 2: Rename hl_cohort_group → hl_cohort (container table)
+     * STEP 3: Rename hl_cohort_school → hl_track_school (join table)
+     * STEP 4: Rename cohort_id → track_id in all dependent tables
+     *
+     * All operations are idempotent — safe to run multiple times.
+     */
+    private static function migrate_cohort_to_track() {
+        global $wpdb;
+
+        $prefix = $wpdb->prefix;
+
+        // Helper: check if a table exists.
+        $table_exists = function ( $name ) use ( $wpdb ) {
+            return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $name ) ) === $name;
+        };
+
+        // Helper: check if a column exists on a table.
+        $column_exists = function ( $table, $column ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                    $table,
+                    $column
+                )
+            ) );
+        };
+
+        // Helper: check if an index exists on a table.
+        $index_exists = function ( $table, $index_name ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_var( $wpdb->prepare(
+                "SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s LIMIT 1",
+                $table,
+                $index_name
+            ) ) );
+        };
+
+        // ─── STEP 1: Rename hl_cohort → hl_track ─────────────────────────
+        $old_cohort  = "{$prefix}hl_cohort";
+        $new_track   = "{$prefix}hl_track";
+
+        if ( $table_exists( $old_cohort ) && ! $table_exists( $new_track ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_cohort}` TO `{$new_track}`" );
+        }
+
+        // Rename columns inside hl_track.
+        if ( $table_exists( $new_track ) ) {
+            if ( $column_exists( $new_track, 'cohort_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_track}` CHANGE `cohort_id` `track_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT" );
+            }
+            if ( $column_exists( $new_track, 'cohort_uuid' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_track}` CHANGE `cohort_uuid` `track_uuid` char(36) NOT NULL" );
+            }
+            if ( $column_exists( $new_track, 'cohort_code' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_track}` CHANGE `cohort_code` `track_code` varchar(100) NOT NULL" );
+            }
+            if ( $column_exists( $new_track, 'cohort_name' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_track}` CHANGE `cohort_name` `track_name` varchar(255) NOT NULL" );
+            }
+            // cohort_group_id → cohort_id (FK to the new container table)
+            if ( $column_exists( $new_track, 'cohort_group_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_track}` CHANGE `cohort_group_id` `cohort_id` bigint(20) unsigned NULL" );
+                // Drop old index — dbDelta will recreate.
+                if ( $index_exists( $new_track, 'cohort_group_id' ) ) {
+                    $wpdb->query( "ALTER TABLE `{$new_track}` DROP INDEX `cohort_group_id`" );
+                }
+            }
+            // Drop old indexes that reference cohort_* names — dbDelta recreates.
+            if ( $index_exists( $new_track, 'cohort_uuid' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_track}` DROP INDEX `cohort_uuid`" );
+            }
+            if ( $index_exists( $new_track, 'cohort_code' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_track}` DROP INDEX `cohort_code`" );
+            }
+        }
+
+        // ─── STEP 2: Rename hl_cohort_group → hl_cohort ──────────────────
+        $old_group = "{$prefix}hl_cohort_group";
+        $new_cohort = "{$prefix}hl_cohort";
+
+        if ( $table_exists( $old_group ) && ! $table_exists( $new_cohort ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_group}` TO `{$new_cohort}`" );
+        }
+
+        // Rename columns inside hl_cohort (the new container).
+        if ( $table_exists( $new_cohort ) ) {
+            if ( $column_exists( $new_cohort, 'group_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cohort}` CHANGE `group_id` `cohort_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT" );
+            }
+            if ( $column_exists( $new_cohort, 'group_uuid' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cohort}` CHANGE `group_uuid` `cohort_uuid` char(36) NOT NULL" );
+            }
+            if ( $column_exists( $new_cohort, 'group_name' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cohort}` CHANGE `group_name` `cohort_name` varchar(255) NOT NULL" );
+            }
+            if ( $column_exists( $new_cohort, 'group_code' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cohort}` CHANGE `group_code` `cohort_code` varchar(100) NOT NULL" );
+            }
+            // Drop old indexes — dbDelta will recreate.
+            if ( $index_exists( $new_cohort, 'group_uuid' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cohort}` DROP INDEX `group_uuid`" );
+            }
+            if ( $index_exists( $new_cohort, 'group_code' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cohort}` DROP INDEX `group_code`" );
+            }
+        }
+
+        // ─── STEP 3: Rename hl_cohort_school → hl_track_school ───────────
+        $old_cs = "{$prefix}hl_cohort_school";
+        $new_ts = "{$prefix}hl_track_school";
+
+        if ( $table_exists( $old_cs ) && ! $table_exists( $new_ts ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_cs}` TO `{$new_ts}`" );
+        }
+
+        // Rename cohort_id → track_id inside hl_track_school.
+        if ( $table_exists( $new_ts ) && $column_exists( $new_ts, 'cohort_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$new_ts}` CHANGE `cohort_id` `track_id` bigint(20) unsigned NOT NULL" );
+            // Drop old indexes — dbDelta will recreate.
+            if ( $index_exists( $new_ts, 'cohort_school' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_ts}` DROP INDEX `cohort_school`" );
+            }
+            if ( $index_exists( $new_ts, 'cohort_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_ts}` DROP INDEX `cohort_id`" );
+            }
+        }
+
+        // ─── STEP 4: Rename cohort_id → track_id in all dependent tables ─
+        $tables_with_cohort_id = array(
+            "{$prefix}hl_enrollment"                   => 'NOT NULL',
+            "{$prefix}hl_team"                         => 'NOT NULL',
+            "{$prefix}hl_pathway"                      => 'NOT NULL',
+            "{$prefix}hl_activity"                     => 'NOT NULL',
+            "{$prefix}hl_completion_rollup"             => 'NOT NULL',
+            "{$prefix}hl_teacher_assessment_instance"   => 'NOT NULL',
+            "{$prefix}hl_child_assessment_instance"     => 'NOT NULL',
+            "{$prefix}hl_observation"                   => 'NOT NULL',
+            "{$prefix}hl_coaching_session"              => 'NOT NULL',
+            "{$prefix}hl_coach_assignment"              => 'NOT NULL',
+            "{$prefix}hl_import_run"                    => 'NULL',
+            "{$prefix}hl_audit_log"                     => 'NULL',
+        );
+
+        foreach ( $tables_with_cohort_id as $table => $nullable ) {
+            if ( $table_exists( $table ) && $column_exists( $table, 'cohort_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$table}` CHANGE `cohort_id` `track_id` bigint(20) unsigned {$nullable}" );
+                // Drop old indexes — dbDelta will recreate.
+                if ( $index_exists( $table, 'cohort_id' ) ) {
+                    $wpdb->query( "ALTER TABLE `{$table}` DROP INDEX `cohort_id`" );
+                }
+            }
+        }
+
+        // Drop old composite unique keys that reference cohort_*.
+        $enrollment_table = "{$prefix}hl_enrollment";
+        if ( $table_exists( $enrollment_table ) && $index_exists( $enrollment_table, 'cohort_user' ) ) {
+            $wpdb->query( "ALTER TABLE `{$enrollment_table}` DROP INDEX `cohort_user`" );
+        }
+
+        $pathway_table = "{$prefix}hl_pathway";
+        if ( $table_exists( $pathway_table ) && $index_exists( $pathway_table, 'cohort_pathway_code' ) ) {
+            $wpdb->query( "ALTER TABLE `{$pathway_table}` DROP INDEX `cohort_pathway_code`" );
+        }
+
+        $tsa_table = "{$prefix}hl_teacher_assessment_instance";
+        if ( $table_exists( $tsa_table ) && $index_exists( $tsa_table, 'cohort_enrollment_phase' ) ) {
+            $wpdb->query( "ALTER TABLE `{$tsa_table}` DROP INDEX `cohort_enrollment_phase`" );
+        }
+
+        $cai_table = "{$prefix}hl_child_assessment_instance";
+        if ( $table_exists( $cai_table ) && $index_exists( $cai_table, 'cohort_enrollment_classroom_phase' ) ) {
+            $wpdb->query( "ALTER TABLE `{$cai_table}` DROP INDEX `cohort_enrollment_classroom_phase`" );
+        }
+
+        $ca_table = "{$prefix}hl_coach_assignment";
+        if ( $table_exists( $ca_table ) && $index_exists( $ca_table, 'cohort_scope' ) ) {
+            $wpdb->query( "ALTER TABLE `{$ca_table}` DROP INDEX `cohort_scope`" );
+        }
+        if ( $table_exists( $ca_table ) && $index_exists( $ca_table, 'cohort_coach' ) ) {
+            $wpdb->query( "ALTER TABLE `{$ca_table}` DROP INDEX `cohort_coach`" );
+        }
+
+        // Also rename cohort_completion_percent → track_completion_percent in completion_rollup.
+        $rollup_table = "{$prefix}hl_completion_rollup";
+        if ( $table_exists( $rollup_table ) && $column_exists( $rollup_table, 'cohort_completion_percent' ) ) {
+            $wpdb->query( "ALTER TABLE `{$rollup_table}` CHANGE `cohort_completion_percent` `track_completion_percent` decimal(5,2) NOT NULL DEFAULT 0.00" );
+        }
+    }
+
+    /**
      * Get database schema
      */
     private static function get_schema() {
         global $wpdb;
         $charset_collate = $wpdb->get_charset_collate();
-        
+
         $tables = array();
         
         // OrgUnit table
@@ -780,14 +978,14 @@ class HL_Installer {
             KEY status (status)
         ) $charset_collate;";
         
-        // Cohort table
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_cohort (
-            cohort_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            cohort_uuid char(36) NOT NULL,
-            cohort_code varchar(100) NOT NULL,
-            cohort_name varchar(255) NOT NULL,
+        // Track table (a time-bounded run within a Cohort)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_track (
+            track_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            track_uuid char(36) NOT NULL,
+            track_code varchar(100) NOT NULL,
+            track_name varchar(255) NOT NULL,
             district_id bigint(20) unsigned NULL,
-            cohort_group_id bigint(20) unsigned NULL,
+            cohort_id bigint(20) unsigned NULL,
             is_control_group tinyint(1) NOT NULL DEFAULT 0,
             status enum('draft','active','paused','archived') DEFAULT 'draft',
             start_date date NOT NULL,
@@ -796,24 +994,24 @@ class HL_Installer {
             settings longtext NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (cohort_id),
-            UNIQUE KEY cohort_uuid (cohort_uuid),
-            UNIQUE KEY cohort_code (cohort_code),
+            PRIMARY KEY (track_id),
+            UNIQUE KEY track_uuid (track_uuid),
+            UNIQUE KEY track_code (track_code),
             KEY district_id (district_id),
-            KEY cohort_group_id (cohort_group_id),
+            KEY cohort_id (cohort_id),
             KEY status (status),
             KEY start_date (start_date)
         ) $charset_collate;";
         
-        // Cohort-School association
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_cohort_school (
+        // Track-School association
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_track_school (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            cohort_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
             school_id bigint(20) unsigned NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            UNIQUE KEY cohort_school (cohort_id, school_id),
-            KEY cohort_id (cohort_id),
+            UNIQUE KEY track_school (track_id, school_id),
+            KEY track_id (track_id),
             KEY school_id (school_id)
         ) $charset_collate;";
         
@@ -821,9 +1019,9 @@ class HL_Installer {
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_enrollment (
             enrollment_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             enrollment_uuid char(36) NOT NULL,
-            cohort_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
             user_id bigint(20) unsigned NOT NULL,
-            roles text NOT NULL COMMENT 'JSON array of cohort roles',
+            roles text NOT NULL COMMENT 'JSON array of track roles',
             assigned_pathway_id bigint(20) unsigned NULL,
             school_id bigint(20) unsigned NULL,
             district_id bigint(20) unsigned NULL,
@@ -833,8 +1031,8 @@ class HL_Installer {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (enrollment_id),
             UNIQUE KEY enrollment_uuid (enrollment_uuid),
-            UNIQUE KEY cohort_user (cohort_id, user_id),
-            KEY cohort_id (cohort_id),
+            UNIQUE KEY track_user (track_id, user_id),
+            KEY track_id (track_id),
             KEY user_id (user_id),
             KEY school_id (school_id),
             KEY district_id (district_id),
@@ -845,7 +1043,7 @@ class HL_Installer {
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_team (
             team_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             team_uuid char(36) NOT NULL,
-            cohort_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
             school_id bigint(20) unsigned NOT NULL,
             team_name varchar(255) NOT NULL,
             status enum('active','inactive') DEFAULT 'active',
@@ -853,7 +1051,7 @@ class HL_Installer {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (team_id),
             UNIQUE KEY team_uuid (team_uuid),
-            KEY cohort_id (cohort_id),
+            KEY track_id (track_id),
             KEY school_id (school_id),
             KEY status (status)
         ) $charset_collate;";
@@ -880,7 +1078,7 @@ class HL_Installer {
             log_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             log_uuid char(36) NOT NULL,
             actor_user_id bigint(20) unsigned NOT NULL,
-            cohort_id bigint(20) unsigned NULL,
+            track_id bigint(20) unsigned NULL,
             action_type varchar(100) NOT NULL,
             entity_type varchar(100) NULL,
             entity_id bigint(20) unsigned NULL,
@@ -893,7 +1091,7 @@ class HL_Installer {
             PRIMARY KEY (log_id),
             UNIQUE KEY log_uuid (log_uuid),
             KEY actor_user_id (actor_user_id),
-            KEY cohort_id (cohort_id),
+            KEY track_id (track_id),
             KEY action_type (action_type),
             KEY entity_type (entity_type),
             KEY entity_id (entity_id),
@@ -980,7 +1178,7 @@ class HL_Installer {
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_pathway (
             pathway_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             pathway_uuid char(36) NOT NULL,
-            cohort_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
             pathway_name varchar(255) NOT NULL,
             pathway_code varchar(100) NOT NULL,
             description longtext NULL,
@@ -996,15 +1194,15 @@ class HL_Installer {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (pathway_id),
             UNIQUE KEY pathway_uuid (pathway_uuid),
-            UNIQUE KEY cohort_pathway_code (cohort_id, pathway_code),
-            KEY cohort_id (cohort_id)
+            UNIQUE KEY track_pathway_code (track_id, pathway_code),
+            KEY track_id (track_id)
         ) $charset_collate;";
 
         // Activity table
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_activity (
             activity_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             activity_uuid char(36) NOT NULL,
-            cohort_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
             pathway_id bigint(20) unsigned NOT NULL,
             activity_type enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','observation') NOT NULL,
             title varchar(255) NOT NULL,
@@ -1018,7 +1216,7 @@ class HL_Installer {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (activity_id),
             UNIQUE KEY activity_uuid (activity_uuid),
-            KEY cohort_id (cohort_id),
+            KEY track_id (track_id),
             KEY pathway_id (pathway_id),
             KEY activity_type (activity_type)
         ) $charset_collate;";
@@ -1097,15 +1295,15 @@ class HL_Installer {
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_completion_rollup (
             rollup_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             enrollment_id bigint(20) unsigned NOT NULL,
-            cohort_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
             pathway_completion_percent decimal(5,2) NOT NULL DEFAULT 0.00,
-            cohort_completion_percent decimal(5,2) NOT NULL DEFAULT 0.00,
+            track_completion_percent decimal(5,2) NOT NULL DEFAULT 0.00,
             last_computed_at datetime NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (rollup_id),
             UNIQUE KEY enrollment_id (enrollment_id),
-            KEY cohort_id (cohort_id)
+            KEY track_id (track_id)
         ) $charset_collate;";
 
         // Instrument table (children assessment instruments only; teacher self-assessment and observation forms are in JetFormBuilder)
@@ -1128,7 +1326,7 @@ class HL_Installer {
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_teacher_assessment_instance (
             instance_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             instance_uuid char(36) NOT NULL,
-            cohort_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
             enrollment_id bigint(20) unsigned NOT NULL,
             activity_id bigint(20) unsigned NULL,
             phase enum('pre','post') NOT NULL,
@@ -1144,8 +1342,8 @@ class HL_Installer {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (instance_id),
             UNIQUE KEY instance_uuid (instance_uuid),
-            UNIQUE KEY cohort_enrollment_phase (cohort_id, enrollment_id, phase),
-            KEY cohort_id (cohort_id),
+            UNIQUE KEY track_enrollment_phase (track_id, enrollment_id, phase),
+            KEY track_id (track_id),
             KEY enrollment_id (enrollment_id),
             KEY activity_id (activity_id),
             KEY instrument_id (instrument_id)
@@ -1171,7 +1369,7 @@ class HL_Installer {
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_child_assessment_instance (
             instance_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             instance_uuid char(36) NOT NULL,
-            cohort_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
             enrollment_id bigint(20) unsigned NOT NULL,
             activity_id bigint(20) unsigned NULL,
             classroom_id bigint(20) unsigned NULL,
@@ -1188,7 +1386,7 @@ class HL_Installer {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (instance_id),
             UNIQUE KEY instance_uuid (instance_uuid),
-            UNIQUE KEY cohort_enrollment_classroom_phase (cohort_id, enrollment_id, classroom_id, phase),
+            UNIQUE KEY track_enrollment_classroom_phase (track_id, enrollment_id, classroom_id, phase),
             KEY enrollment_id (enrollment_id),
             KEY activity_id (activity_id),
             KEY classroom_id (classroom_id),
@@ -1213,7 +1411,7 @@ class HL_Installer {
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_observation (
             observation_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             observation_uuid char(36) NOT NULL,
-            cohort_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
             mentor_enrollment_id bigint(20) unsigned NOT NULL,
             teacher_enrollment_id bigint(20) unsigned NULL,
             school_id bigint(20) unsigned NULL,
@@ -1228,7 +1426,7 @@ class HL_Installer {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (observation_id),
             UNIQUE KEY observation_uuid (observation_uuid),
-            KEY cohort_id (cohort_id),
+            KEY track_id (track_id),
             KEY mentor_enrollment_id (mentor_enrollment_id),
             KEY teacher_enrollment_id (teacher_enrollment_id),
             KEY school_id (school_id),
@@ -1267,7 +1465,7 @@ class HL_Installer {
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_coaching_session (
             session_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             session_uuid char(36) NOT NULL,
-            cohort_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
             coach_user_id bigint(20) unsigned NOT NULL,
             mentor_enrollment_id bigint(20) unsigned NOT NULL,
             session_title varchar(255) NULL,
@@ -1282,7 +1480,7 @@ class HL_Installer {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (session_id),
             UNIQUE KEY session_uuid (session_uuid),
-            KEY cohort_id (cohort_id),
+            KEY track_id (track_id),
             KEY coach_user_id (coach_user_id),
             KEY mentor_enrollment_id (mentor_enrollment_id)
         ) $charset_collate;";
@@ -1316,7 +1514,7 @@ class HL_Installer {
             run_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             run_uuid char(36) NOT NULL,
             actor_user_id bigint(20) unsigned NOT NULL,
-            cohort_id bigint(20) unsigned NULL,
+            track_id bigint(20) unsigned NULL,
             import_type varchar(50) NOT NULL,
             file_name varchar(255) NOT NULL,
             status enum('preview','committed','failed') NOT NULL DEFAULT 'preview',
@@ -1328,7 +1526,7 @@ class HL_Installer {
             PRIMARY KEY (run_id),
             UNIQUE KEY run_uuid (run_uuid),
             KEY actor_user_id (actor_user_id),
-            KEY cohort_id (cohort_id),
+            KEY track_id (track_id),
             KEY import_type (import_type),
             KEY status (status)
         ) $charset_collate;";
@@ -1339,15 +1537,15 @@ class HL_Installer {
             coach_user_id bigint(20) unsigned NOT NULL,
             scope_type enum('school','team','enrollment') NOT NULL,
             scope_id bigint(20) unsigned NOT NULL,
-            cohort_id bigint(20) unsigned NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
             effective_from date NOT NULL,
             effective_to date NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (coach_assignment_id),
-            KEY cohort_scope (cohort_id, scope_type, scope_id),
+            KEY track_scope (track_id, scope_type, scope_id),
             KEY coach_user_id (coach_user_id),
-            KEY cohort_coach (cohort_id, coach_user_id)
+            KEY track_coach (track_id, coach_user_id)
         ) $charset_collate;";
 
         // Pathway Assignment table (explicit pathway-to-enrollment assignments)
@@ -1380,19 +1578,19 @@ class HL_Installer {
             KEY idx_key_version (instrument_key, instrument_version)
         ) $charset_collate;";
 
-        // Cohort Group table (program-level grouping for cross-cohort reporting)
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_cohort_group (
-            group_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            group_uuid char(36) NOT NULL,
-            group_name varchar(255) NOT NULL,
-            group_code varchar(100) NOT NULL,
+        // Cohort table (program-level container — groups tracks for cross-track reporting)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_cohort (
+            cohort_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            cohort_uuid char(36) NOT NULL,
+            cohort_name varchar(255) NOT NULL,
+            cohort_code varchar(100) NOT NULL,
             description text NULL,
             status enum('active','archived') NOT NULL DEFAULT 'active',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (group_id),
-            UNIQUE KEY group_uuid (group_uuid),
-            UNIQUE KEY group_code (group_code),
+            PRIMARY KEY (cohort_id),
+            UNIQUE KEY cohort_uuid (cohort_uuid),
+            UNIQUE KEY cohort_code (cohort_code),
             KEY status (status)
         ) $charset_collate;";
 
