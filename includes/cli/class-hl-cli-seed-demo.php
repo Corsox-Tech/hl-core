@@ -494,6 +494,7 @@ class HL_CLI_Seed_Demo {
                 'instrument_type' => $info['type'],
                 'version'         => '1.0',
                 'questions'       => $sample_questions,
+                'behavior_key'    => wp_json_encode( self::get_behavior_key_for_band( $band ) ),
                 'effective_from'  => '2026-01-01',
             ) );
             $instruments[ $band ] = $wpdb->insert_id;
@@ -1573,5 +1574,41 @@ class HL_CLI_Seed_Demo {
                 ),
             ),
         );
+    }
+
+    /**
+     * Build behavior key array for a given age band.
+     *
+     * Returns 5 items: [{label, frequency, description}, ...] suitable
+     * for JSON-encoding into hl_instrument.behavior_key.
+     *
+     * @param string $band One of: infant, toddler, preschool, mixed, k2.
+     * @return array
+     */
+    public static function get_behavior_key_for_band( $band ) {
+        $questions   = self::get_child_assessment_questions();
+        $scale       = self::get_child_assessment_scale();
+        $frequencies = array(
+            0 => '0% of the time',
+            1 => '~ 20% of the time',
+            2 => '~ 50% of the time',
+            3 => '~ 70% of the time',
+            4 => '~ 90% of the time',
+        );
+
+        // Use the age-band-specific examples if available, otherwise preschool.
+        $source_band = isset( $questions[ $band ] ) ? $band : 'preschool';
+        $examples    = $questions[ $source_band ]['examples'];
+
+        $key = array();
+        foreach ( $scale as $value => $label ) {
+            $key[] = array(
+                'label'       => $label,
+                'frequency'   => isset( $frequencies[ $value ] ) ? $frequencies[ $value ] : '',
+                'description' => isset( $examples[ $value ] ) ? $examples[ $value ] : '',
+            );
+        }
+
+        return $key;
     }
 }

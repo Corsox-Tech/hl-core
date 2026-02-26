@@ -187,11 +187,40 @@ class HL_Admin_Instruments {
         // Build questions JSON from POST data
         $questions = $this->build_questions_from_post();
 
+        // Instructions (rich text)
+        $instructions = isset($_POST['instructions']) ? wp_kses_post(wp_unslash($_POST['instructions'])) : '';
+        $instructions = trim($instructions) !== '' ? $instructions : null;
+
+        // Behavior key (5-row table: label, frequency, description)
+        $behavior_key = null;
+        if (!empty($_POST['behavior_key']) && is_array($_POST['behavior_key'])) {
+            $bk_rows = array();
+            $all_blank = true;
+            foreach ($_POST['behavior_key'] as $row) {
+                $label       = isset($row['label']) ? sanitize_text_field($row['label']) : '';
+                $frequency   = isset($row['frequency']) ? sanitize_text_field($row['frequency']) : '';
+                $description = isset($row['description']) ? sanitize_textarea_field($row['description']) : '';
+                if ($label !== '' || $frequency !== '' || $description !== '') {
+                    $all_blank = false;
+                }
+                $bk_rows[] = array(
+                    'label'       => $label,
+                    'frequency'   => $frequency,
+                    'description' => $description,
+                );
+            }
+            if (!$all_blank) {
+                $behavior_key = wp_json_encode($bk_rows);
+            }
+        }
+
         $data = array(
             'name'            => sanitize_text_field($_POST['name']),
             'instrument_type' => $instrument_type,
             'version'         => sanitize_text_field($_POST['version'] ?: '1.0'),
             'questions'       => wp_json_encode($questions),
+            'instructions'    => $instructions,
+            'behavior_key'    => $behavior_key,
             'effective_from'  => !empty($_POST['effective_from']) ? sanitize_text_field($_POST['effective_from']) : null,
             'effective_to'    => !empty($_POST['effective_to']) ? sanitize_text_field($_POST['effective_to']) : null,
         );
@@ -513,6 +542,67 @@ class HL_Admin_Instruments {
         echo '<p class="description">' . esc_html__('Optional. When this instrument version expires.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
+        echo '</table>';
+
+        // =====================================================================
+        // Instructions (rich text editor)
+        // =====================================================================
+
+        echo '<h2>' . esc_html__('Instructions', 'hl-core') . '</h2>';
+        echo '<p class="description">' . esc_html__('Custom instructions shown to teachers above the assessment form. Leave blank to use the default instructions.', 'hl-core') . '</p>';
+
+        $instructions_content = ($is_edit && !empty($instrument->instructions)) ? $instrument->instructions : '';
+        wp_editor($instructions_content, 'child_instructions', array(
+            'textarea_name' => 'instructions',
+            'textarea_rows' => 6,
+            'media_buttons' => false,
+            'teeny'         => true,
+            'quicktags'     => false,
+            'tinymce'       => array(
+                'toolbar1' => 'bold,italic,underline,bullist,numlist,undo,redo',
+                'toolbar2' => '',
+            ),
+        ));
+
+        // =====================================================================
+        // Behavior Key (5-row fixed table)
+        // =====================================================================
+
+        echo '<h2>' . esc_html__('Behavior Key', 'hl-core') . '</h2>';
+        echo '<p class="description">' . esc_html__('Customize the Key & Example Behavior table shown on the assessment form. Leave all fields blank to use the default behavior key for this age band.', 'hl-core') . '</p>';
+
+        $bk_data = array();
+        if ($is_edit && !empty($instrument->behavior_key)) {
+            $decoded_bk = json_decode($instrument->behavior_key, true);
+            if (is_array($decoded_bk)) {
+                $bk_data = $decoded_bk;
+            }
+        }
+
+        $default_labels      = array('Never', 'Rarely', 'Sometimes', 'Usually', 'Almost Always');
+        $default_frequencies = array('0% of the time', '~ 20% of the time', '~ 50% of the time', '~ 70% of the time', '~ 90% of the time');
+
+        echo '<table class="widefat" id="hl-behavior-key-table">';
+        echo '<thead><tr>';
+        echo '<th style="width:150px;">' . esc_html__('Label', 'hl-core') . '</th>';
+        echo '<th style="width:180px;">' . esc_html__('Frequency', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Example Behavior Description', 'hl-core') . '</th>';
+        echo '</tr></thead>';
+        echo '<tbody>';
+
+        for ($i = 0; $i < 5; $i++) {
+            $label       = isset($bk_data[$i]['label']) ? $bk_data[$i]['label'] : '';
+            $frequency   = isset($bk_data[$i]['frequency']) ? $bk_data[$i]['frequency'] : '';
+            $description = isset($bk_data[$i]['description']) ? $bk_data[$i]['description'] : '';
+
+            echo '<tr>';
+            echo '<td><input type="text" name="behavior_key[' . $i . '][label]" value="' . esc_attr($label) . '" class="widefat" placeholder="' . esc_attr($default_labels[$i]) . '" /></td>';
+            echo '<td><input type="text" name="behavior_key[' . $i . '][frequency]" value="' . esc_attr($frequency) . '" class="widefat" placeholder="' . esc_attr($default_frequencies[$i]) . '" /></td>';
+            echo '<td><textarea name="behavior_key[' . $i . '][description]" class="widefat" rows="2" placeholder="' . esc_attr__('Example behavior description...', 'hl-core') . '">' . esc_textarea($description) . '</textarea></td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody>';
         echo '</table>';
 
         // =====================================================================

@@ -109,7 +109,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 13;
+        $current_revision = 14;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -1414,6 +1414,8 @@ class HL_Installer {
             instrument_type varchar(50) NOT NULL,
             version varchar(20) NOT NULL DEFAULT '1.0',
             questions longtext NOT NULL COMMENT 'JSON array of question objects',
+            instructions longtext NULL,
+            behavior_key longtext NULL COMMENT 'JSON: [{label, frequency, description}, ...]',
             effective_from date NULL,
             effective_to date NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -362,21 +362,55 @@ class HL_Instrument_Renderer {
 
     /**
      * Render the instructions section for B2E Likert instruments.
+     *
+     * Uses custom instructions from the instrument if set, otherwise
+     * falls back to the hard-coded default.
      */
     private function render_instructions() {
+        $custom = $this->get_instrument_instructions();
         ?>
         <div class="hl-ca-instructions">
             <h3><?php esc_html_e( 'Instructions:', 'hl-core' ); ?></h3>
-            <p>
-                <?php
-                echo wp_kses(
-                    __( 'This questionnaire will ask you about your students. For the question stated below, choose from the Likert Scale from &ldquo;Never&rdquo; to &ldquo;Almost Always&rdquo; that best describes each student in your classroom. An Example Behavior chart is provided to explain the scale you will use to assess your students. As you ask yourself the following question, you should <strong>collaborate with your co-teachers</strong> to choose the answer that best characterizes each of your students.', 'hl-core' ),
-                    array( 'strong' => array() )
-                );
-                ?>
-            </p>
+            <?php if ( $custom ) : ?>
+                <?php echo wp_kses_post( $custom ); ?>
+            <?php else : ?>
+                <p>
+                    <?php
+                    echo wp_kses(
+                        __( 'This questionnaire will ask you about your students. For the question stated below, choose from the Likert Scale from &ldquo;Never&rdquo; to &ldquo;Almost Always&rdquo; that best describes each student in your classroom. An Example Behavior chart is provided to explain the scale you will use to assess your students. As you ask yourself the following question, you should <strong>collaborate with your co-teachers</strong> to choose the answer that best characterizes each of your students.', 'hl-core' ),
+                        array( 'strong' => array() )
+                    );
+                    ?>
+                </p>
+            <?php endif; ?>
         </div>
         <?php
+    }
+
+    /**
+     * Get custom instructions from the instrument(s).
+     *
+     * In multi-age-group mode, uses the first non-empty instructions
+     * found across the age group instruments (instructions display once
+     * at the top, before per-group sections).
+     *
+     * @return string|null Custom instructions HTML or null for default.
+     */
+    private function get_instrument_instructions() {
+        if ( $this->multi_age_group ) {
+            foreach ( $this->instruments_by_age_group as $inst ) {
+                if ( ! empty( $inst->instructions ) ) {
+                    return $inst->instructions;
+                }
+            }
+            return null;
+        }
+
+        if ( ! empty( $this->instrument->instructions ) ) {
+            return $this->instrument->instructions;
+        }
+
+        return null;
     }
 
     /**
@@ -386,7 +420,16 @@ class HL_Instrument_Renderer {
      */
     private function render_behavior_key() {
         $age_band = isset( $this->instance['instrument_age_band'] ) ? $this->instance['instrument_age_band'] : '';
-        $scale_descriptions = $this->get_behavior_key_for_age_band( $age_band );
+
+        // Resolve the current instrument for this age band.
+        $current_instrument = null;
+        if ( $this->multi_age_group && isset( $this->instruments_by_age_group[ $age_band ] ) ) {
+            $current_instrument = $this->instruments_by_age_group[ $age_band ];
+        } elseif ( $this->instrument ) {
+            $current_instrument = $this->instrument;
+        }
+
+        $scale_descriptions = $this->get_behavior_key_for_age_band( $age_band, $current_instrument );
         ?>
         <div class="hl-ca-behavior-key">
             <table class="hl-ca-key-table">
@@ -872,7 +915,16 @@ class HL_Instrument_Renderer {
      * @param string $age_band One of: infant, toddler, preschool, mixed, k2.
      * @return array Array of scale description arrays.
      */
-    private function get_behavior_key_for_age_band( $age_band ) {
+    private function get_behavior_key_for_age_band( $age_band, $instrument = null ) {
+        // Check for custom behavior key stored on the instrument.
+        if ( $instrument && ! empty( $instrument->behavior_key ) ) {
+            $custom = json_decode( $instrument->behavior_key, true );
+            if ( is_array( $custom ) && count( $custom ) === 5 ) {
+                return $custom;
+            }
+        }
+
+        // Fall through to hard-coded defaults.
         $freq = array(
             'never'         => __( '0% of the time', 'hl-core' ),
             'rarely'        => __( '~ 20% of the time', 'hl-core' ),

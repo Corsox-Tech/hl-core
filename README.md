@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for observation forms only)
-**Status:** v1 complete — Phases 1-24 done (26 shortcode pages, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments, teacher assessment visual editor + modern frontend design)
+**Status:** v1 complete — Phases 1-25 done (26 shortcode pages, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments with admin-customizable instructions + behavior key, teacher assessment visual editor + modern frontend design)
 
 ## Overview
 
@@ -16,7 +16,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Track and Co
 - **Classrooms:** `hl_classroom`, `hl_teaching_assignment`, `hl_child`, `hl_child_classroom_current`, `hl_child_classroom_history`
 - **Learning Config:** `hl_pathway`, `hl_pathway_assignment`, `hl_activity`, `hl_activity_prereq_group`, `hl_activity_prereq_item`, `hl_activity_drip_rule`, `hl_activity_override`
 - **State/Rollups:** `hl_activity_state`, `hl_completion_rollup`
-- **Instruments:** `hl_instrument` (child assessment instruments), `hl_teacher_assessment_instrument` (custom teacher self-assessment instruments with structured sections JSON + `instructions` column for per-instrument rich text instructions)
+- **Instruments:** `hl_instrument` (child assessment instruments with `instructions` + `behavior_key` columns for admin-customizable content), `hl_teacher_assessment_instrument` (custom teacher self-assessment instruments with structured sections JSON + `instructions` column for per-instrument rich text instructions)
 - **Assessments:** `hl_teacher_assessment_instance` (completion tracking + responses_json for custom instruments, jfb_form_id/jfb_record_id for JFB fallback), `hl_teacher_assessment_response` (DEPRECATED), `hl_child_assessment_instance`, `hl_child_assessment_childrow`
 - **Observations:** `hl_observation` (+ jfb_form_id/jfb_record_id), `hl_observation_response` (DEPRECATED — retained for dbDelta safety; JFB Form Records handles response storage), `hl_observation_attachment`
 - **Coaching:** `hl_coaching_session`, `hl_coaching_session_observation`, `hl_coaching_attachment`
@@ -58,7 +58,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Imports** - AJAX-based 3-step wizard (Upload > Preview & Select > Results) for CSV import with import type selector (participants, children, classrooms, teaching assignments), dynamic column rendering per type, row-level status badges, bulk actions, commit, error report download, column hints per type, and import history table
 - **Audit Log** - Searchable audit log viewer with cohort and action type filters, pagination
 
-- **Instruments** - Full CRUD for child assessment instruments: question editor (add/edit/remove with type, prompt, allowed_values, required flag), version management with edit warnings when instances exist. Types: children_infant, children_toddler, children_preschool, children_mixed (varchar(50) column supports future types). **Teacher Assessment Visual Editor:** structured section builder with collapsible accordion panels, scale label panels (likert ordered labels or numeric low/high anchors), per-item rich text (B/I/U via contenteditable), wp_editor for instructions, dynamic add/remove for sections/items/scales/labels — replaces raw JSON textareas.
+- **Instruments** - Full CRUD for child assessment instruments: question editor (add/edit/remove with type, prompt, allowed_values, required flag), version management with edit warnings when instances exist. Types: children_infant, children_toddler, children_preschool, children_mixed (varchar(50) column supports future types). **Child instrument admin** includes wp_editor for custom instructions + fixed 5-row behavior key table (label, frequency, description) — blank fields fall back to hard-coded defaults on the frontend. **Teacher Assessment Visual Editor:** structured section builder with collapsible accordion panels, scale label panels (likert ordered labels or numeric low/high anchors), per-item rich text (B/I/U via contenteditable), wp_editor for instructions, dynamic add/remove for sections/items/scales/labels — replaces raw JSON textareas.
 - **Coaching Sessions** - Full CRUD with cohort filter, mentor/coach selectors, session title, meeting URL, date/time, session status dropdown (scheduled/attended/missed/cancelled with terminal-state lock), rich-text notes (wp_editor), observation linking from submitted observations, WP Media attachments
 - **Coach Assignments** - Full CRUD for coach-to-scope assignments (school/team/enrollment) with cohort filter, scope name resolution, active/ended status badges, effective date management
 
@@ -401,6 +401,10 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
 - [x] **24.3 — Frontend Header Dedup + Display Options** — Removed duplicate `hl-assessment-meta` div from frontend teacher assessment page. Added 7th `$display_options` constructor param to `HL_Teacher_Assessment_Renderer` (show_instrument_name, show_program_name, program_name). Phase label is now the primary `<h2>` heading. Instrument-level instructions rendered below header when non-empty. Rich text support (`wp_kses_post`) for section descriptions and item text. Submitted summary also cleaned up.
 - [x] **24.4 — Frontend Modern Design Overhaul** — Complete CSS rewrite of teacher assessment renderer: card container (max-width 900px, centered, rounded shadow), centered header with program name subtitle, instructions callout box, modern step indicator dots with scale transition, custom radio styling (round fill with inner dot), generous padding/spacing, rounded borders on tables and scale rows, larger action buttons centered with border-top separator, arrow icons on nav buttons, responsive breakpoints.
 - [x] **24.5 — Likert Font Size Increase** — Teacher assessment: label columns `0.78em` → `0.92em`, scale labels `0.82em` → `0.95em`. Child assessment: thead `13px` → `15px`.
+
+### Phase 25: Customizable Child Assessment Instructions & Behavior Key
+
+- [x] **25.1 — DB + Admin + Frontend + Seeders** — Added `instructions` (longtext) and `behavior_key` (longtext JSON) columns to `hl_instrument`. Schema revision 13→14. Admin instrument form: wp_editor for custom instructions (minimal B/I/U toolbar, "leave blank for default"), fixed 5-row behavior key table (label, frequency, description inputs with placeholder defaults). Save logic: `wp_kses_post` for instructions, JSON-encoded behavior_key array with all-blank→NULL fallback. Frontend `HL_Instrument_Renderer`: `render_instructions()` checks DB first (multi-age-group uses first non-empty), falls back to hard-coded paragraph. `get_behavior_key_for_age_band()` checks `$instrument->behavior_key` JSON (5-element array), falls back to hard-coded switch. All 3 seeders (demo, lutheran, palm-beach) updated with `HL_CLI_Seed_Demo::get_behavior_key_for_band()` static helper that builds [{label, frequency, description}] from existing B2E assessment data.
 
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.

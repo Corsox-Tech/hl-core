@@ -1215,6 +1215,7 @@ class HL_CLI_Seed_Lutheran {
 				'instrument_type' => $info['type'],
 				'version'         => '1.0',
 				'questions'       => $questions,
+				'behavior_key'    => wp_json_encode( HL_CLI_Seed_Demo::get_behavior_key_for_band( $band ) ),
 				'effective_from'  => '2026-01-01',
 			) );
 			$instruments[ $band ] = $wpdb->insert_id;
