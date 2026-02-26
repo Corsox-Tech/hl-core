@@ -28,7 +28,7 @@ This is the Housman Learning Academy (HLA) WordPress site. The primary developme
 | File | Covers |
 |------|--------|
 | 00_README_SCOPE.md | Project scope and high-level requirements |
-| 01_GLOSSARY_CANONICAL_TERMS.md.md | Terminology definitions including Control Group and Cohort Group |
+| 01_GLOSSARY_CANONICAL_TERMS.md.md | Terminology definitions including Cohort, Track, Control Group |
 | 02_DOMAIN_MODEL_ORG_STRUCTURE.md.md | Org units, cohorts, enrollments, teams |
 | 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md.md | Roles, capabilities, access control |
 | 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md.md | Pathways, activities, prerequisite rules |
@@ -81,21 +81,21 @@ Commit all code + update README.md + push BEFORE compacting. This is the surviva
 Don't build from memory or assumptions. Before implementing any feature, read the specific doc file(s) listed next to each build queue item.
 
 ### 6. Terminology
-The project uses "Cohort" (not "Program") internally. The front-end shows "Program" to participants (see doc 10 §1 label mapping). All code, table names, and documentation use "Cohort" terminology.
+The project uses a two-level hierarchy: **Cohort** (contract/container entity, `hl_cohort` table) and **Track** (time-bounded run within a Cohort, `hl_track` table). The front-end shows "Program" to participants for pathways (see doc 10 §1 label mapping). All code, table names, and documentation use this Cohort/Track terminology consistently. See doc 01 for the full glossary.
 
-## WordPress Roles vs Cohort Roles (Critical Architecture Decision)
+## WordPress Roles vs Track Roles (Critical Architecture Decision)
 
-HL Core creates ONE custom WP role: **Coach** (with `read`, `manage_hl_core`, `hl_view_cohorts`, `hl_view_enrollments`). Administrators get `manage_hl_core` capability added.
+HL Core creates ONE custom WP role: **Coach** (with `read`, `manage_hl_core`, `hl_view_tracks`, `hl_view_enrollments`). Administrators get `manage_hl_core` capability added.
 
-**ALL cohort-specific roles** (teacher, mentor, school_leader, district_leader) are stored in the `hl_enrollment.roles` JSON column — NOT as WordPress roles. This is by design:
+**ALL track-specific roles** (teacher, mentor, school_leader, district_leader) are stored in the `hl_enrollment.roles` JSON column — NOT as WordPress roles. This is by design:
 
 | Who | WP Role | HL Core Identification |
 |---|---|---|
-| Teachers, Mentors, Leaders | `subscriber` (or any basic WP role) | `hl_enrollment.roles` JSON per cohort |
+| Teachers, Mentors, Leaders | `subscriber` (or any basic WP role) | `hl_enrollment.roles` JSON per track |
 | Housman Coaches | `coach` (custom WP role) | `manage_hl_core` capability |
 | Housman Admins | `administrator` | `manage_hl_core` capability |
 
-**Why:** A user can be a teacher in one cohort and a mentor in another. WP roles are global; enrollment roles are per-cohort. The BuddyBoss sidebar, front-end pages, and scope filtering all use enrollment roles from `hl_enrollment`, not WP roles.
+**Why:** A user can be a teacher in one track and a mentor in another. WP roles are global; enrollment roles are per-track. The BuddyBoss sidebar, front-end pages, and scope filtering all use enrollment roles from `hl_enrollment`, not WP roles.
 
 Some legacy WP roles exist (`school_district`, `teacher`, `mentor`, `school_leader`) from old Elementor pages — HL Core does NOT use these.
 
@@ -115,13 +115,13 @@ See doc 10 §13-14 for full spec.
 
 Shared static helper used by ALL listing pages for role-based data filtering:
 - Admin → sees all (no restriction)
-- Coach → filtered by `hl_coach_assignment` cohort_ids + own enrollments
+- Coach → filtered by `hl_coach_assignment` track_ids + own enrollments
 - District Leader → expands to all schools in their district
 - School Leader → filtered to their school(s)
 - Mentor → filtered to their team(s)
 - Teacher → filtered to their own enrollment/assignments
 
-Static cache per user_id per request. Convenience helpers: `can_view_cohort()`, `can_view_school()`, `has_role()`, `filter_by_ids()`.
+Static cache per user_id per request. Convenience helpers: `can_view_track()`, `can_view_school()`, `has_role()`, `filter_by_ids()`.
 
 ## BuddyBoss Sidebar Navigation
 
@@ -133,16 +133,16 @@ The sidebar menu is rendered programmatically by `HL_BuddyBoss_Integration` — 
 3. `wp_footer` JS fallback — covers empty BuddyPanel or missing hooks
 
 **11 menu items with role-based visibility (doc 10 §16):**
-- Personal (require enrollment): My Programs, My Coaching, My Team (mentor), My Cohort (leader/mentor)
-- Directories: Cohorts, Institutions (staff/leader), Classrooms (staff/leader/teacher), Learners (staff/leader/mentor)
+- Personal (require enrollment): My Programs, My Coaching, My Team (mentor), My Track (leader/mentor)
+- Directories: Tracks, Institutions (staff/leader), Classrooms (staff/leader/teacher), Learners (staff/leader/mentor)
 - Staff tools: Pathways (staff only), Coaching Hub (staff/mentor), Reports (staff/leader)
 
 Staff WITHOUT enrollment see only directory/management pages. Staff WITH enrollment see both.
 
 ## Code Conventions
 - **PHP 7.4+** with WordPress coding standards
-- **Class prefix:** `HL_` (e.g., `HL_Cohort_Service`)
-- **Table prefix:** `hl_` (e.g., `hl_cohort`, `hl_enrollment`)
+- **Class prefix:** `HL_` (e.g., `HL_Track_Service`)
+- **Table prefix:** `hl_` (e.g., `hl_track`, `hl_enrollment`)
 - **Singleton pattern** for the main plugin class
 - **Repository pattern** for all database access (no direct queries in services)
 - **Service layer** for all business logic
@@ -172,7 +172,7 @@ HL Core uses a **primarily custom PHP approach** for forms and data collection:
 Teacher self-assessment activities can still reference JFB forms via `external_ref.form_id` for backward compatibility. The system checks for `teacher_instrument_id` first (custom) and falls back to `jfb_form_id` (legacy).
 
 ### How JFB observations connect to HL Core:
-1. **Admin creates a form in JetFormBuilder** with hidden fields: `hl_enrollment_id`, `hl_activity_id`, `hl_cohort_id`, `hl_observation_id`
+1. **Admin creates a form in JetFormBuilder** with hidden fields: `hl_enrollment_id`, `hl_activity_id`, `hl_track_id`, `hl_observation_id`
 2. **Admin adds "Call Hook" post-submit action** with hook name `hl_core_form_submitted`
 3. **HL Core renders the JFB form** on the observations page with hidden fields pre-populated
 4. **On submit:** JFB fires hook → HL Core updates observation status → updates activity_state → triggers rollup
@@ -181,19 +181,19 @@ Teacher self-assessment activities can still reference JFB forms via `external_r
 
 ### Purpose
 Housman measures program impact by comparing:
-- **Program cohorts**: full B2E Mastery curriculum (courses, coaching, observations + assessments)
-- **Control cohorts**: assessment-only (Teacher Self-Assessment Pre/Post + Child Assessment Pre/Post)
+- **Program tracks**: full B2E Mastery curriculum (courses, coaching, observations + assessments)
+- **Control tracks**: assessment-only (Teacher Self-Assessment Pre/Post + Child Assessment Pre/Post)
 
 ### How it works
-1. Create a **Cohort Group** (e.g., "B2E Mastery - Lutheran Services Florida")
-2. Add the **program cohort** to the group
-3. Create a **control cohort** (`is_control_group = true`) in the same group
-4. Control cohort gets an assessment-only pathway (4 activities: TSA Pre, CA Pre, TSA Post, CA Post)
+1. Create a **Cohort** (container, e.g., "B2E Mastery - Lutheran Services Florida")
+2. Add the **program track** to the cohort
+3. Create a **control track** (`is_control_group = true`) in the same cohort
+4. Control track gets an assessment-only pathway (4 activities: TSA Pre, CA Pre, TSA Post, CA Post)
 5. POST activities are time-gated via drip rules
-6. **Comparison reports** appear in Admin Reports when selecting the Group filter
+6. **Comparison reports** appear in Admin Reports when selecting the Cohort filter
 
-### UI/UX adaptations for control cohorts:
-- Purple "Control" badge in admin cohort list and editor
+### UI/UX adaptations for control tracks:
+- Purple "Control" badge in admin track list and editor
 - Coaching and Teams tabs auto-hidden in admin and frontend
 - Assessment-only pathway (no course or coaching activities)
 
@@ -314,7 +314,7 @@ node_modules/
     /services/                   # Business logic (14+ services incl. HL_Scope_Service, HL_Pathway_Assignment_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss (3 classes)
-    /admin/                      # WP admin pages (15+ controllers incl. Cohort Groups, Instruments)
+    /admin/                      # WP admin pages (15+ controllers incl. Cohorts, Tracks, Instruments)
     /frontend/                   # Shortcode renderers (26+ pages + instrument renderer + teacher assessment renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization helpers
