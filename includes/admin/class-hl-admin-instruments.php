@@ -115,6 +115,16 @@ class HL_Admin_Instruments {
                     $this->render_list();
                 }
                 break;
+            case 'preview':
+                $instrument_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+                $instrument    = $this->get_instrument($instrument_id);
+                if ($instrument) {
+                    $this->render_child_preview($instrument);
+                } else {
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Instrument not found.', 'hl-core') . '</p></div>';
+                    $this->render_list();
+                }
+                break;
             default:
                 $this->render_list();
                 break;
@@ -134,6 +144,16 @@ class HL_Admin_Instruments {
                 $instrument    = $this->get_teacher_instrument($instrument_id);
                 if ($instrument) {
                     $this->render_teacher_form($instrument);
+                } else {
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Instrument not found.', 'hl-core') . '</p></div>';
+                    $this->render_teacher_list();
+                }
+                break;
+            case 'preview':
+                $instrument_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+                $instrument    = $this->get_teacher_instrument($instrument_id);
+                if ($instrument) {
+                    $this->render_teacher_preview($instrument);
                 } else {
                     echo '<div class="notice notice-error"><p>' . esc_html__('Instrument not found.', 'hl-core') . '</p></div>';
                     $this->render_teacher_list();
@@ -441,8 +461,10 @@ class HL_Admin_Instruments {
             echo '<td>' . esc_html($question_count) . '</td>';
             echo '<td>' . esc_html($inst->effective_from ?: '-') . '</td>';
             echo '<td>' . esc_html($inst->effective_to ?: '-') . '</td>';
+            $preview_url = admin_url('admin.php?page=hl-instruments&action=preview&id=' . $inst->instrument_id);
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
+            echo '<a href="' . esc_url($preview_url) . '" class="button button-small" target="_blank">' . esc_html__('Preview', 'hl-core') . '</a> ';
             echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this instrument? This cannot be undone.', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
             echo '</td>';
             echo '</tr>';
@@ -667,7 +689,13 @@ class HL_Admin_Instruments {
             'scale_label'   => __('Scale Labels', 'hl-core'),
         ));
 
-        submit_button($is_edit ? __('Update Instrument', 'hl-core') : __('Create Instrument', 'hl-core'));
+        echo '<div style="display: flex; align-items: center; gap: 12px;">';
+        submit_button($is_edit ? __('Update Instrument', 'hl-core') : __('Create Instrument', 'hl-core'), 'primary', 'submit', false);
+        if ($is_edit) {
+            $preview_url = admin_url('admin.php?page=hl-instruments&action=preview&id=' . $instrument->instrument_id);
+            echo ' <a href="' . esc_url($preview_url) . '" class="button button-secondary" target="_blank">' . esc_html__('Preview', 'hl-core') . '</a>';
+        }
+        echo '</div>';
 
         echo '</form>';
 
@@ -1046,8 +1074,10 @@ class HL_Admin_Instruments {
             echo '<td><code>' . esc_html($inst->instrument_version) . '</code></td>';
             echo '<td>' . esc_html(sprintf('%d sections, %d items', $section_count, $item_count)) . '</td>';
             echo '<td>' . esc_html(ucfirst($inst->status)) . '</td>';
+            $preview_url = admin_url('admin.php?page=hl-instruments&tab=teacher&action=preview&id=' . $inst->instrument_id);
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
+            echo '<a href="' . esc_url($preview_url) . '" class="button button-small" target="_blank">' . esc_html__('Preview', 'hl-core') . '</a> ';
             echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this instrument?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
             echo '</td>';
             echo '</tr>';
@@ -1171,7 +1201,13 @@ class HL_Admin_Instruments {
         ));
 
         // Submit
-        submit_button($is_edit ? __('Update Instrument', 'hl-core') : __('Create Instrument', 'hl-core'));
+        echo '<div style="display: flex; align-items: center; gap: 12px;">';
+        submit_button($is_edit ? __('Update Instrument', 'hl-core') : __('Create Instrument', 'hl-core'), 'primary', 'submit', false);
+        if ($is_edit) {
+            $preview_url = admin_url('admin.php?page=hl-instruments&tab=teacher&action=preview&id=' . $instrument->instrument_id);
+            echo ' <a href="' . esc_url($preview_url) . '" class="button button-secondary" target="_blank">' . esc_html__('Preview', 'hl-core') . '</a>';
+        }
+        echo '</div>';
 
         echo '</form>';
 
@@ -1410,6 +1446,125 @@ class HL_Admin_Instruments {
         };
         </script>
         <?php
+    }
+
+    // =====================================================================
+    // Preview Renderers
+    // =====================================================================
+
+    /**
+     * Render a preview of a child assessment instrument using the frontend renderer.
+     *
+     * @param object $instrument The instrument row from DB.
+     */
+    private function render_child_preview($instrument) {
+        $back_url = admin_url('admin.php?page=hl-instruments&action=edit&id=' . $instrument->instrument_id);
+
+        echo '<div style="margin-bottom: 15px;">';
+        echo '<a href="' . esc_url($back_url) . '" class="button">&larr; ' . esc_html__('Back to Editor', 'hl-core') . '</a>';
+        echo '</div>';
+
+        echo '<h1>' . esc_html(sprintf(__('Preview: %s', 'hl-core'), $instrument->name)) . '</h1>';
+        echo '<div class="notice notice-info"><p>' . esc_html__('This is a read-only preview showing how the instrument will appear to teachers. Sample children are used for demonstration.', 'hl-core') . '</p></div>';
+
+        // Build sample children for the preview matrix.
+        $sample_children = array();
+        for ($i = 1; $i <= 5; $i++) {
+            $sample_children[] = (object) array(
+                'child_id'           => $i,
+                'first_name'         => 'Sample',
+                'last_name'          => 'Child ' . $i,
+                'child_display_code' => 'SC-' . str_pad($i, 3, '0', STR_PAD_LEFT),
+                'dob'                => '2022-01-01',
+            );
+        }
+
+        $instance_context = array(
+            'display_name'    => 'Jane Doe (Sample Teacher)',
+            'school_name'     => 'Sample School',
+            'classroom_name'  => 'Sample Classroom',
+            'phase'           => 'pre',
+            'track_name'      => 'Sample Track',
+        );
+
+        // Enqueue frontend CSS for the preview.
+        wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
+
+        $renderer = new HL_Instrument_Renderer($instrument, $sample_children, 0, array(), $instance_context);
+
+        echo '<div class="hl-instrument-preview" style="max-width: 1000px; pointer-events: none; opacity: 0.95;">';
+        echo $renderer->render();
+        echo '</div>';
+    }
+
+    /**
+     * Render a preview of a teacher assessment instrument using the frontend renderer.
+     *
+     * @param object $instrument_row The raw DB row for the teacher instrument.
+     */
+    private function render_teacher_preview($instrument_row) {
+        $back_url = admin_url('admin.php?page=hl-instruments&tab=teacher&action=edit&id=' . $instrument_row->instrument_id);
+        $phase    = isset($_GET['phase']) && $_GET['phase'] === 'post' ? 'post' : 'pre';
+
+        echo '<div style="margin-bottom: 15px; display: flex; align-items: center; gap: 12px;">';
+        echo '<a href="' . esc_url($back_url) . '" class="button">&larr; ' . esc_html__('Back to Editor', 'hl-core') . '</a>';
+
+        // Phase toggle links.
+        $pre_url  = admin_url('admin.php?page=hl-instruments&tab=teacher&action=preview&id=' . $instrument_row->instrument_id . '&phase=pre');
+        $post_url = admin_url('admin.php?page=hl-instruments&tab=teacher&action=preview&id=' . $instrument_row->instrument_id . '&phase=post');
+        echo '<span style="margin-left: 8px;">' . esc_html__('Phase:', 'hl-core') . ' ';
+        echo ($phase === 'pre')
+            ? '<strong>' . esc_html__('Pre', 'hl-core') . '</strong>'
+            : '<a href="' . esc_url($pre_url) . '">' . esc_html__('Pre', 'hl-core') . '</a>';
+        echo ' | ';
+        echo ($phase === 'post')
+            ? '<strong>' . esc_html__('Post', 'hl-core') . '</strong>'
+            : '<a href="' . esc_url($post_url) . '">' . esc_html__('Post', 'hl-core') . '</a>';
+        echo '</span>';
+        echo '</div>';
+
+        echo '<h1>' . esc_html(sprintf(__('Preview: %s (%s)', 'hl-core'), $instrument_row->instrument_name, ucfirst($phase))) . '</h1>';
+        echo '<div class="notice notice-info"><p>' . esc_html__('This is a read-only preview showing how the instrument will appear to teachers.', 'hl-core') . '</p></div>';
+
+        // Build the domain model from the DB row.
+        $instrument = new HL_Teacher_Assessment_Instrument((array) $instrument_row);
+        $fake_instance = (object) array('instance_id' => 0);
+
+        // For POST preview, generate fake PRE responses so the "Before" column is populated.
+        $pre_responses = array();
+        if ($phase === 'post') {
+            foreach ($instrument->get_sections() as $section) {
+                $section_key = isset($section['section_key']) ? $section['section_key'] : '';
+                if (!empty($section['items']) && is_array($section['items'])) {
+                    foreach ($section['items'] as $item) {
+                        $item_key = isset($item['key']) ? $item['key'] : '';
+                        if ($item_key) {
+                            $pre_responses[$section_key][$item_key] = '3';
+                        }
+                    }
+                }
+            }
+        }
+
+        // Enqueue frontend CSS for the preview.
+        wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
+
+        $renderer = new HL_Teacher_Assessment_Renderer(
+            $instrument,
+            $fake_instance,
+            $phase,
+            array(),
+            $pre_responses,
+            true,
+            array(
+                'show_instrument_name' => true,
+                'show_program_name'    => false,
+            )
+        );
+
+        echo '<div class="hl-instrument-preview" style="max-width: 900px;">';
+        echo $renderer->render();
+        echo '</div>';
     }
 
     // =====================================================================

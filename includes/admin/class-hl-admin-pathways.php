@@ -467,15 +467,8 @@ class HL_Admin_Pathways {
 
         switch ($activity_type) {
             case 'teacher_self_assessment':
-                $form_id = isset($_POST['jfb_form_id']) ? absint($_POST['jfb_form_id']) : 0;
-                $phase   = isset($_POST['assessment_phase']) ? sanitize_text_field($_POST['assessment_phase']) : 'pre';
-                if ($form_id) {
-                    $ref = array(
-                        'form_plugin' => 'jetformbuilder',
-                        'form_id'     => $form_id,
-                        'phase'       => $phase,
-                    );
-                }
+                $phase = isset($_POST['assessment_phase']) ? sanitize_text_field($_POST['assessment_phase']) : 'pre';
+                $ref = array( 'phase' => $phase );
                 break;
 
             case 'observation':
@@ -1109,10 +1102,10 @@ class HL_Admin_Pathways {
             // Format type label
             $type_labels = array(
                 'learndash_course'           => __('LearnDash Course', 'hl-core'),
-                'teacher_self_assessment'    => __('Self-Assessment (JFB)', 'hl-core'),
+                'teacher_self_assessment'    => __('Self-Assessment', 'hl-core'),
                 'child_assessment'        => __('Child Assessment', 'hl-core'),
                 'coaching_session_attendance' => __('Coaching Attendance', 'hl-core'),
-                'observation'                => __('Observation (JFB)', 'hl-core'),
+                'observation'                => __('Observation', 'hl-core'),
             );
             $type_display = isset($type_labels[$act->activity_type]) ? $type_labels[$act->activity_type] : $act->activity_type;
 
@@ -1495,6 +1488,9 @@ class HL_Admin_Pathways {
 
         switch ($activity_type) {
             case 'teacher_self_assessment':
+                $label = isset($ref['phase']) ? ucfirst($ref['phase']) : '';
+                return esc_html($label);
+
             case 'observation':
                 $form_id = isset($ref['form_id']) ? absint($ref['form_id']) : 0;
                 $label = '';
@@ -1502,10 +1498,7 @@ class HL_Admin_Pathways {
                     $form_title = get_the_title($form_id);
                     $label = $form_title ? $form_title : sprintf(__('Form #%d', 'hl-core'), $form_id);
                 }
-                if ($activity_type === 'teacher_self_assessment' && isset($ref['phase'])) {
-                    $label .= ' (' . esc_html(ucfirst($ref['phase'])) . ')';
-                }
-                if ($activity_type === 'observation' && !empty($ref['required_count'])) {
+                if (!empty($ref['required_count'])) {
                     $label .= sprintf(' (%dx)', absint($ref['required_count']));
                 }
                 return esc_html($label);
@@ -1581,10 +1574,10 @@ class HL_Admin_Pathways {
         $current_type = $is_edit ? $activity->activity_type : '';
         $activity_types = array(
             'learndash_course'             => __('LearnDash Course', 'hl-core'),
-            'teacher_self_assessment'      => __('Teacher Self-Assessment (JFB)', 'hl-core'),
+            'teacher_self_assessment'      => __('Teacher Self-Assessment', 'hl-core'),
             'child_assessment'          => __('Child Assessment', 'hl-core'),
             'coaching_session_attendance'   => __('Coaching Session Attendance', 'hl-core'),
-            'observation'                  => __('Observation (JFB)', 'hl-core'),
+            'observation'                  => __('Observation', 'hl-core'),
         );
 
         $jfb_active = HL_JFB_Integration::instance()->is_active();
@@ -1595,10 +1588,10 @@ class HL_Admin_Pathways {
         echo '<option value="">' . esc_html__('-- Select Type --', 'hl-core') . '</option>';
         foreach ($activity_types as $type_value => $type_label) {
             $disabled = '';
-            // Disable JFB types if JFB is not active
-            if (!$jfb_active && in_array($type_value, array('teacher_self_assessment', 'observation'), true)) {
+            // Disable observation type if JFB is not active (observations still use JFB forms)
+            if (!$jfb_active && $type_value === 'observation') {
                 $disabled = ' disabled="disabled"';
-                $type_label .= ' ' . __('(JFB not active)', 'hl-core');
+                $type_label .= ' ' . __('(requires JetFormBuilder)', 'hl-core');
             }
             echo '<option value="' . esc_attr($type_value) . '"' . selected($current_type, $type_value, false) . $disabled . '>' . esc_html($type_label) . '</option>';
         }
@@ -1634,12 +1627,12 @@ class HL_Admin_Pathways {
         // Conditional fields based on activity type
         // =====================================================================
 
-        // --- JFB Form Dropdown (for teacher_self_assessment and observation) ---
+        // --- JFB Form Dropdown (for observation only) ---
         $jfb_forms = HL_JFB_Integration::instance()->get_available_forms();
         $current_form_id = isset($ext_ref['form_id']) ? absint($ext_ref['form_id']) : 0;
 
         echo '<tr class="hl-activity-field hl-field-jfb" style="display:none;">';
-        echo '<th scope="row"><label for="jfb_form_id">' . esc_html__('JetFormBuilder Form', 'hl-core') . '</label></th>';
+        echo '<th scope="row"><label for="jfb_form_id">' . esc_html__('Observation Form', 'hl-core') . '</label></th>';
         echo '<td>';
         if (empty($jfb_forms)) {
             echo '<p class="description">' . esc_html__('No JetFormBuilder forms found. Create a form in JetFormBuilder first.', 'hl-core') . '</p>';
@@ -1653,7 +1646,7 @@ class HL_Admin_Pathways {
                     . '</option>';
             }
             echo '</select>';
-            echo '<p class="description">' . esc_html__('The JFB form must have hidden fields (hl_enrollment_id, hl_activity_id, hl_track_id) and a "Call Hook" post-submit action with hook name: hl_core_form_submitted', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('Select the JetFormBuilder observation form. It must include hidden fields (hl_enrollment_id, hl_activity_id, hl_track_id) and a "Call Hook" post-submit action with hook name: hl_core_form_submitted', 'hl-core') . '</p>';
         }
         echo '</td>';
         echo '</tr>';
@@ -1912,7 +1905,7 @@ class HL_Admin_Pathways {
             if (!typeSelect) return;
 
             var fieldMap = {
-                'teacher_self_assessment': ['hl-field-jfb', 'hl-field-phase'],
+                'teacher_self_assessment': ['hl-field-phase'],
                 'observation':             ['hl-field-jfb', 'hl-field-obs-count'],
                 'child_assessment':     ['hl-field-instrument'],
                 'learndash_course':        ['hl-field-ld'],

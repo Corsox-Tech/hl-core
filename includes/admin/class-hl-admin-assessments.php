@@ -488,11 +488,7 @@ class HL_Admin_Assessments {
 
             if ($instance['status'] !== 'submitted') {
                 echo '<p class="description">';
-                if ($instance['instrument_id']) {
-                    echo esc_html__('Responses will be recorded when the teacher submits the assessment.', 'hl-core');
-                } else {
-                    echo esc_html__('This instance may use JetFormBuilder for form rendering. Check JFB Form Records for responses.', 'hl-core');
-                }
+                echo esc_html__('Responses will be recorded when the teacher submits the assessment.', 'hl-core');
                 echo '</p>';
             }
             return;
