@@ -282,7 +282,7 @@ class HL_CLI_Seed_Demo {
 
         // 3. Delete demo instruments (identified by name prefix).
         $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_instrument WHERE name LIKE 'Demo %'" );
-        $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = 'b2e_self_assessment'" );
+        $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key IN ('b2e_self_assessment','b2e_self_assessment_pre','b2e_self_assessment_post')" );
         WP_CLI::log( '  Deleted demo instruments.' );
 
         // 4. Delete children for demo schools.
@@ -501,20 +501,34 @@ class HL_CLI_Seed_Demo {
             $instruments[ $band ] = $wpdb->insert_id;
         }
 
-        // B2E Teacher Self-Assessment instrument — exact items from assessment docs.
-        $b2e_sections = wp_json_encode( self::get_b2e_instrument_sections() );
+        // B2E Teacher Self-Assessment instruments — separate PRE and POST.
         $b2e_scale_labels = wp_json_encode( self::get_b2e_instrument_scale_labels() );
 
+        // PRE instrument.
         $wpdb->insert( $wpdb->prefix . 'hl_teacher_assessment_instrument', array(
-            'instrument_name'    => 'B2E Teacher Self-Assessment',
-            'instrument_key'     => 'b2e_self_assessment',
+            'instrument_name'    => 'Teacher Self-Assessment',
+            'instrument_key'     => 'b2e_self_assessment_pre',
             'instrument_version' => '1.0',
-            'sections'           => $b2e_sections,
+            'sections'           => wp_json_encode( self::get_b2e_instrument_sections_pre() ),
             'scale_labels'       => $b2e_scale_labels,
+            'instructions'       => self::get_b2e_instrument_instructions_pre(),
             'status'             => 'active',
             'created_at'         => current_time( 'mysql' ),
         ) );
-        $instruments['teacher_b2e'] = $wpdb->insert_id;
+        $instruments['teacher_b2e_pre'] = $wpdb->insert_id;
+
+        // POST instrument.
+        $wpdb->insert( $wpdb->prefix . 'hl_teacher_assessment_instrument', array(
+            'instrument_name'    => 'Teacher Self-Assessment',
+            'instrument_key'     => 'b2e_self_assessment_post',
+            'instrument_version' => '1.0',
+            'sections'           => wp_json_encode( self::get_b2e_instrument_sections_post() ),
+            'scale_labels'       => $b2e_scale_labels,
+            'instructions'       => self::get_b2e_instrument_instructions_post(),
+            'status'             => 'active',
+            'created_at'         => current_time( 'mysql' ),
+        ) );
+        $instruments['teacher_b2e_post'] = $wpdb->insert_id;
 
         WP_CLI::log( '  [4/17] Instruments created: ' . count( $instruments ) );
 
@@ -917,7 +931,7 @@ class HL_CLI_Seed_Demo {
             'weight'        => 1.0,
             'ordering_hint' => 2,
             'external_ref'  => wp_json_encode( array(
-                'teacher_instrument_id' => $instruments['teacher_b2e'],
+                'teacher_instrument_id' => $instruments['teacher_b2e_pre'],
                 'phase'                 => 'pre',
             ) ),
         ) );
@@ -932,7 +946,7 @@ class HL_CLI_Seed_Demo {
             'weight'        => 1.0,
             'ordering_hint' => 3,
             'external_ref'  => wp_json_encode( array(
-                'teacher_instrument_id' => $instruments['teacher_b2e'],
+                'teacher_instrument_id' => $instruments['teacher_b2e_post'],
                 'phase'                 => 'post',
             ) ),
         ) );
@@ -1421,73 +1435,177 @@ class HL_CLI_Seed_Demo {
      *
      * Shared by all seeders to ensure consistent instrument data.
      *
+     * @deprecated Use get_b2e_instrument_sections_pre() or get_b2e_instrument_sections_post().
      * @return array
      */
     public static function get_b2e_instrument_sections() {
+        return self::get_b2e_instrument_sections_pre();
+    }
+
+    /**
+     * Get the B2E Teacher Self-Assessment PRE instrument sections.
+     *
+     * Section 1 has 20 items (P1-P20), single-column layout.
+     *
+     * @return array
+     */
+    public static function get_b2e_instrument_sections_pre() {
         return array(
-            // Assessment 1/3 — Instructional Practices Self-Rating
-            // PRE: single column. POST: dual column (Prior Assessment Cycle + Past Two Weeks).
+            // Assessment 1 — Instructional Practices Self-Rating
+            // PRE: single column, 20 items.
             // 5-point scale: Almost Never(0), Rarely(1), Sometimes(2), Often(3), Almost Always(4)
             array(
                 'section_key' => 'practices',
-                'title'       => 'Assessment 1/3 — Instructional Practices Self-Rating',
-                'description' => 'Please think about your typical practice on hard days (e.g., when children are dysregulated, transitions are difficult, or you feel stressed or overwhelmed). For each statement, rate how you have been typically responding over the past two weeks. There are no right or wrong answers. This assessment is for reflection and growth, not evaluation.',
+                'title'       => 'Assessment 1',
+                'description' => 'Please think about your <strong>typical practice on hard days</strong> (e.g., when children are dysregulated, transitions are difficult, or you feel stressed or overwhelmed). For each statement, rate how you have been typically responding over the <strong>past two weeks</strong>. There are no right or wrong answers. This assessment is for reflection and growth, not evaluation.',
                 'type'        => 'likert',
                 'scale_key'   => 'practices_5',
-                'items'       => array(
-                    array( 'key' => 'P1',  'text' => 'When I begin to feel stressed or frustrated, I notice early signs in my body or emotions (e.g., tension, raised voice, rushing).' ),
-                    array( 'key' => 'P2',  'text' => 'When I notice myself becoming dysregulated, I use strategies (pause, breath, self-talk, stepping back) to stay calm before responding to children.' ),
-                    array( 'key' => 'P3',  'text' => 'During emotionally charged moments, I speak to children in a calm tone and use controlled body language, even when I feel upset inside.' ),
-                    array( 'key' => 'P4',  'text' => 'When a child is upset, I acknowledge or name the child\'s feelings before redirecting or problem-solving.' ),
-                    array( 'key' => 'P5',  'text' => 'I actively support children to calm their bodies and emotions (e.g., breathing together, offering sensory tools, sitting close).' ),
-                    array( 'key' => 'P6',  'text' => 'My responses to children\'s strong emotions or behaviors usually help the child calm, understand expectations, or re-engage positively.' ),
-                    array( 'key' => 'P7',  'text' => 'I model empathy, flexible thinking, and respectful communication when challenges arise (e.g., narrating my thinking, naming feelings).' ),
-                    array( 'key' => 'P8',  'text' => 'I ask developmentally appropriate questions that help children reflect on their feelings, actions, and choices.' ),
-                    array( 'key' => 'P9',  'text' => 'I treat emotional situations (big feelings, mistakes, conflict) as opportunities to teach social and emotional skills.' ),
-                    array( 'key' => 'P10', 'text' => 'When conflicts arise, I guide children to express needs, listen to others, and generate solutions instead of solving the problem for them.' ),
-                    array( 'key' => 'P11', 'text' => 'When children\'s emotions or behaviors escalate, I feel able to slow the situation down and respond intentionally rather than reactively.' ),
-                    array( 'key' => 'P12', 'text' => 'I give clear, developmentally appropriate instructions and adjust my support when children seem confused or overwhelmed.' ),
-                    array( 'key' => 'P13', 'text' => 'I adjust expectations, strategies, or the environment to meet individual and group social, emotional, behavioral, and learning needs.' ),
-                    array( 'key' => 'P14', 'text' => 'I maintain consistent routines and transitions that help children feel safe and know what to expect, even on busy or stressful days.' ),
-                    array( 'key' => 'P15', 'text' => 'I regularly create opportunities for children to notice and share how they feel (e.g., morning check-ins, emotion charts, group discussions).' ),
-                    array( 'key' => 'P16', 'text' => 'I intentionally integrate emotional intelligence skills into play, exploration, stories, and daily learning activities.' ),
-                    array( 'key' => 'P17', 'text' => 'I feel able to respectfully discuss concerns or challenges with families, coworkers, or supervisors.' ),
-                    array( 'key' => 'P18', 'text' => 'When I am unsure or struggling, I seek guidance or support from a trusted colleague or supervisor.' ),
-                    array( 'key' => 'P19', 'text' => 'After challenging moments, I reflect on what happened and consider what I might try differently next time.' ),
-                    array( 'key' => 'P20', 'text' => 'I feel confident in my abilities as an educator, generally satisfied with my work, and connected to its purpose--even when the job feels hard.' ),
-                ),
+                'items'       => self::get_b2e_practices_items_full(),
             ),
 
-            // Assessment 2/3 — Work Environment (Stress/Coping/Support/Satisfaction)
-            // 0-10 scale with per-item anchor labels.
+            self::get_b2e_wellbeing_section(),
+            self::get_b2e_self_regulation_section(),
+        );
+    }
+
+    /**
+     * Get the B2E Teacher Self-Assessment POST instrument sections.
+     *
+     * Section 1 has 15 items (P1-P15) with retrospective dual-column layout.
+     * Sections 2 and 3 are identical to PRE (single-column).
+     *
+     * @return array
+     */
+    public static function get_b2e_instrument_sections_post() {
+        return array(
+            // Assessment 1 — Instructional Practices Self-Rating
+            // POST: dual column (Prior Assessment Cycle + Past Two Weeks), 15 items.
             array(
-                'section_key' => 'wellbeing',
-                'title'       => 'Assessment 2/3 — Work Environment',
-                'description' => 'Thinking about the past two weeks, answer the following questions rating each item on a scale of 0 "not at all" to 10 "Very".',
-                'type'        => 'scale',
-                'scale_key'   => 'scale_0_10',
-                'items'       => array(
-                    array( 'key' => 'W1', 'text' => 'How stressful is your job?',                                        'left_anchor' => 'Not at all Stressful', 'right_anchor' => 'Very Stressful' ),
-                    array( 'key' => 'W2', 'text' => 'How well are you coping with the stress of your job right now?',     'left_anchor' => 'Not Coping at all',    'right_anchor' => 'Coping Very Well' ),
-                    array( 'key' => 'W3', 'text' => 'How supported do you feel in your job?',                             'left_anchor' => 'Not at all Supported', 'right_anchor' => 'Very Supported' ),
-                    array( 'key' => 'W4', 'text' => 'How satisfied are you in your job?',                                 'left_anchor' => 'Not at all Satisfied', 'right_anchor' => 'Very Satisfied' ),
-                ),
+                'section_key'   => 'practices',
+                'title'         => 'Assessment 1',
+                'description'   => 'For each statement below, you will provide <strong>two ratings</strong>. First, rate how you were typically responding during the <strong>Prior Assessment Cycle</strong>. Then, rate how you have been typically responding over the <strong>Past Two Weeks</strong>. There are no right or wrong answers. This assessment is for reflection and growth, not evaluation.',
+                'type'          => 'likert',
+                'scale_key'     => 'practices_5',
+                'retrospective' => true,
+                'items'         => self::get_b2e_practices_items_post(),
             ),
 
-            // Assessment 3/3 — Emotion Regulation (Self-Report)
-            // 7-point scale: Strongly Disagree(0) to Strongly Agree(6)
-            array(
-                'section_key' => 'self_regulation',
-                'title'       => 'Assessment 3/3 — Emotional Self-Regulation',
-                'description' => 'Mark the extent to which you agree or disagree with each of the statements.',
-                'type'        => 'likert',
-                'scale_key'   => 'likert_7',
-                'items'       => array(
-                    array( 'key' => 'SR1', 'text' => 'I am able to control my temper so that I can handle difficulties rationally.' ),
-                    array( 'key' => 'SR2', 'text' => 'I am quite capable of controlling my own emotions.' ),
-                    array( 'key' => 'SR3', 'text' => 'I can always calm down quickly when I am very angry.' ),
-                    array( 'key' => 'SR4', 'text' => 'I have good control of my emotions.' ),
-                ),
+            self::get_b2e_wellbeing_section(),
+            self::get_b2e_self_regulation_section(),
+        );
+    }
+
+    /**
+     * Get the PRE instrument-level instructions text.
+     *
+     * @return string
+     */
+    public static function get_b2e_instrument_instructions_pre() {
+        return 'This questionnaire consists of three assessments about your current instructional practices, work environment, and how you manage emotions in daily life. It will take approximately 15 minutes to complete.';
+    }
+
+    /**
+     * Get the POST instrument-level instructions text.
+     *
+     * @return string
+     */
+    public static function get_b2e_instrument_instructions_post() {
+        return 'This questionnaire consists of three assessments about your <strong>past and current</strong> instructional practices, work environment, and how you manage emotions in daily life. It will take approximately 15 minutes to complete.';
+    }
+
+    /**
+     * Full 20-item practices list (used by PRE instrument).
+     *
+     * @return array
+     */
+    private static function get_b2e_practices_items_full() {
+        return array(
+            array( 'key' => 'P1',  'text' => 'When I begin to feel stressed or frustrated, I notice early signs in my body or emotions (e.g., tension, raised voice, rushing).' ),
+            array( 'key' => 'P2',  'text' => 'When I notice myself becoming dysregulated, I use strategies (pause, breath, self-talk, stepping back) to stay calm before responding to children.' ),
+            array( 'key' => 'P3',  'text' => 'During emotionally charged moments, I speak to children in a calm tone and use controlled body language, even when I feel upset inside.' ),
+            array( 'key' => 'P4',  'text' => 'When a child is upset, I acknowledge or name the child\'s feelings before redirecting or problem-solving.' ),
+            array( 'key' => 'P5',  'text' => 'I actively support children to calm their bodies and emotions (e.g., breathing together, offering sensory tools, sitting close).' ),
+            array( 'key' => 'P6',  'text' => 'My responses to children\'s strong emotions or behaviors usually help the child calm, understand expectations, or re-engage positively.' ),
+            array( 'key' => 'P7',  'text' => 'I model empathy, flexible thinking, and respectful communication when challenges arise (e.g., narrating my thinking, naming feelings).' ),
+            array( 'key' => 'P8',  'text' => 'I ask developmentally appropriate questions that help children reflect on their feelings, actions, and choices.' ),
+            array( 'key' => 'P9',  'text' => 'I treat emotional situations (big feelings, mistakes, conflict) as opportunities to teach social and emotional skills.' ),
+            array( 'key' => 'P10', 'text' => 'When conflicts arise, I guide children to express needs, listen to others, and generate solutions instead of solving the problem for them.' ),
+            array( 'key' => 'P11', 'text' => 'When children\'s emotions or behaviors escalate, I feel able to slow the situation down and respond intentionally rather than reactively.' ),
+            array( 'key' => 'P12', 'text' => 'I give clear, developmentally appropriate instructions and adjust my support when children seem confused or overwhelmed.' ),
+            array( 'key' => 'P13', 'text' => 'I adjust expectations, strategies, or the environment to meet individual and group social, emotional, behavioral, and learning needs.' ),
+            array( 'key' => 'P14', 'text' => 'I maintain consistent routines and transitions that help children feel safe and know what to expect, even on busy or stressful days.' ),
+            array( 'key' => 'P15', 'text' => 'I regularly create opportunities for children to notice and share how they feel (e.g., morning check-ins, emotion charts, group discussions).' ),
+            array( 'key' => 'P16', 'text' => 'I intentionally integrate emotional intelligence skills into play, exploration, stories, and daily learning activities.' ),
+            array( 'key' => 'P17', 'text' => 'I feel able to respectfully discuss concerns or challenges with families, coworkers, or supervisors.' ),
+            array( 'key' => 'P18', 'text' => 'When I am unsure or struggling, I seek guidance or support from a trusted colleague or supervisor.' ),
+            array( 'key' => 'P19', 'text' => 'After challenging moments, I reflect on what happened and consider what I might try differently next time.' ),
+            array( 'key' => 'P20', 'text' => 'I feel confident in my abilities as an educator, generally satisfied with my work, and connected to its purpose--even when the job feels hard.' ),
+        );
+    }
+
+    /**
+     * POST-only 15-item practices list (P1-P15).
+     *
+     * @return array
+     */
+    private static function get_b2e_practices_items_post() {
+        return array(
+            array( 'key' => 'P1',  'text' => 'When I begin to feel stressed or frustrated, I notice early signs in my body or emotions (e.g., tension, raised voice, rushing).' ),
+            array( 'key' => 'P2',  'text' => 'When I notice myself becoming dysregulated, I use strategies (pause, breath, self-talk, stepping back) to stay calm before responding to children.' ),
+            array( 'key' => 'P3',  'text' => 'During emotionally charged moments, I speak to children in a calm tone and use controlled body language, even when I feel upset inside.' ),
+            array( 'key' => 'P4',  'text' => 'When a child is upset, I acknowledge or name the child\'s feelings before redirecting or problem-solving.' ),
+            array( 'key' => 'P5',  'text' => 'I actively support children to calm their bodies and emotions (e.g., breathing together, offering sensory tools, sitting close).' ),
+            array( 'key' => 'P6',  'text' => 'My responses to children\'s strong emotions or behaviors usually help the child calm, understand expectations, or re-engage positively.' ),
+            array( 'key' => 'P7',  'text' => 'I model empathy, flexible thinking, and respectful communication when challenges arise (e.g., narrating my thinking, naming feelings).' ),
+            array( 'key' => 'P8',  'text' => 'I ask developmentally appropriate questions that help children reflect on their feelings, actions, and choices.' ),
+            array( 'key' => 'P9',  'text' => 'I treat emotional situations (big feelings, mistakes, conflict) as opportunities to teach social and emotional skills.' ),
+            array( 'key' => 'P10', 'text' => 'When conflicts arise, I guide children to express needs, listen to others, and generate solutions instead of solving the problem for them.' ),
+            array( 'key' => 'P11', 'text' => 'When children\'s emotions or behaviors escalate, I feel able to slow the situation down and respond intentionally rather than reactively.' ),
+            array( 'key' => 'P12', 'text' => 'I give clear, developmentally appropriate instructions and adjust my support when children seem confused or overwhelmed.' ),
+            array( 'key' => 'P13', 'text' => 'I adjust expectations, strategies, or the environment to meet individual and group social, emotional, behavioral, and learning needs.' ),
+            array( 'key' => 'P14', 'text' => 'I maintain consistent routines and transitions that help children feel safe and know what to expect, even on busy or stressful days.' ),
+            array( 'key' => 'P15', 'text' => 'I regularly create opportunities for children to notice and share how they feel (e.g., morning check-ins, emotion charts, group discussions).' ),
+        );
+    }
+
+    /**
+     * Shared Assessment 2 section — Work Environment (identical in PRE and POST).
+     *
+     * @return array
+     */
+    private static function get_b2e_wellbeing_section() {
+        return array(
+            'section_key' => 'wellbeing',
+            'title'       => 'Assessment 2',
+            'description' => 'Thinking about the past two weeks, answer the following questions rating each item on a scale of 0 "not at all" to 10 "Very".',
+            'type'        => 'scale',
+            'scale_key'   => 'scale_0_10',
+            'items'       => array(
+                array( 'key' => 'W1', 'text' => 'How stressful is your job?',                                        'left_anchor' => 'Not at all Stressful', 'right_anchor' => 'Very Stressful' ),
+                array( 'key' => 'W2', 'text' => 'How well are you coping with the stress of your job right now?',     'left_anchor' => 'Not Coping at all',    'right_anchor' => 'Coping Very Well' ),
+                array( 'key' => 'W3', 'text' => 'How supported do you feel in your job?',                             'left_anchor' => 'Not at all Supported', 'right_anchor' => 'Very Supported' ),
+                array( 'key' => 'W4', 'text' => 'How satisfied are you in your job?',                                 'left_anchor' => 'Not at all Satisfied', 'right_anchor' => 'Very Satisfied' ),
+            ),
+        );
+    }
+
+    /**
+     * Shared Assessment 3 section — Emotional Self-Regulation (identical in PRE and POST).
+     *
+     * @return array
+     */
+    private static function get_b2e_self_regulation_section() {
+        return array(
+            'section_key' => 'self_regulation',
+            'title'       => 'Assessment 3',
+            'description' => 'Mark the extent to which you agree or disagree with each of the statements.',
+            'type'        => 'likert',
+            'scale_key'   => 'likert_7',
+            'items'       => array(
+                array( 'key' => 'SR1', 'text' => 'I am able to control my temper so that I can handle difficulties rationally.' ),
+                array( 'key' => 'SR2', 'text' => 'I am quite capable of controlling my own emotions.' ),
+                array( 'key' => 'SR3', 'text' => 'I can always calm down quickly when I am very angry.' ),
+                array( 'key' => 'SR4', 'text' => 'I have good control of my emotions.' ),
             ),
         );
     }

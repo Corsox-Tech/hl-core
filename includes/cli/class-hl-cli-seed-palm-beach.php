@@ -752,7 +752,7 @@ class HL_CLI_Seed_Palm_Beach {
 		// Only delete B2E instrument if demo seed isn't active (shared instrument).
 		$demo_track = $wpdb->get_var( "SELECT track_id FROM {$wpdb->prefix}hl_track WHERE track_code = 'DEMO-2026' LIMIT 1" );
 		if ( ! $demo_track ) {
-			$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = 'b2e_self_assessment'" );
+			$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key IN ('b2e_self_assessment','b2e_self_assessment_pre','b2e_self_assessment_post')" );
 		}
 		WP_CLI::log( '  Deleted Palm Beach instruments.' );
 
@@ -921,31 +921,53 @@ class HL_CLI_Seed_Palm_Beach {
 			$instruments[ $band ] = $wpdb->insert_id;
 		}
 
-		// B2E Teacher Self-Assessment instrument (shared with demo seed)
-		$existing_b2e = $wpdb->get_var(
+		// B2E Teacher Self-Assessment instruments — separate PRE and POST.
+		$b2e_scale_labels = wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_scale_labels() );
+
+		// PRE instrument.
+		$existing_pre = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT instrument_id FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s LIMIT 1",
-				'b2e_self_assessment'
+				'b2e_self_assessment_pre'
 			)
 		);
-
-		if ( $existing_b2e ) {
-			$instruments['teacher_b2e'] = (int) $existing_b2e;
+		if ( $existing_pre ) {
+			$instruments['teacher_b2e_pre'] = (int) $existing_pre;
 		} else {
-			// Use shared instrument definition from HL_CLI_Seed_Demo
-			$b2e_sections     = wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_sections() );
-			$b2e_scale_labels = wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_scale_labels() );
-
 			$wpdb->insert( $wpdb->prefix . 'hl_teacher_assessment_instrument', array(
-				'instrument_name'    => 'B2E Teacher Self-Assessment',
-				'instrument_key'     => 'b2e_self_assessment',
+				'instrument_name'    => 'Teacher Self-Assessment',
+				'instrument_key'     => 'b2e_self_assessment_pre',
 				'instrument_version' => '1.0',
-				'sections'           => $b2e_sections,
+				'sections'           => wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_sections_pre() ),
 				'scale_labels'       => $b2e_scale_labels,
+				'instructions'       => HL_CLI_Seed_Demo::get_b2e_instrument_instructions_pre(),
 				'status'             => 'active',
 				'created_at'         => current_time( 'mysql' ),
 			) );
-			$instruments['teacher_b2e'] = $wpdb->insert_id;
+			$instruments['teacher_b2e_pre'] = $wpdb->insert_id;
+		}
+
+		// POST instrument.
+		$existing_post = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT instrument_id FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s LIMIT 1",
+				'b2e_self_assessment_post'
+			)
+		);
+		if ( $existing_post ) {
+			$instruments['teacher_b2e_post'] = (int) $existing_post;
+		} else {
+			$wpdb->insert( $wpdb->prefix . 'hl_teacher_assessment_instrument', array(
+				'instrument_name'    => 'Teacher Self-Assessment',
+				'instrument_key'     => 'b2e_self_assessment_post',
+				'instrument_version' => '1.0',
+				'sections'           => wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_sections_post() ),
+				'scale_labels'       => $b2e_scale_labels,
+				'instructions'       => HL_CLI_Seed_Demo::get_b2e_instrument_instructions_post(),
+				'status'             => 'active',
+				'created_at'         => current_time( 'mysql' ),
+			) );
+			$instruments['teacher_b2e_post'] = $wpdb->insert_id;
 		}
 
 		WP_CLI::log( '  [4/17] Instruments created: ' . count( $instruments ) );
@@ -1300,8 +1322,8 @@ class HL_CLI_Seed_Palm_Beach {
 
 		$ta = array();
 		$ta['ld_course'] = $svc->create_activity( array( 'title' => 'Foundations of Early Learning', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99901 ) ) ) );
-		$ta['pre_self']  = $svc->create_activity( array( 'title' => 'Pre Self-Assessment', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e'], 'phase' => 'pre' ) ) ) );
-		$ta['post_self'] = $svc->create_activity( array( 'title' => 'Post Self-Assessment', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 3, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e'], 'phase' => 'post' ) ) ) );
+		$ta['pre_self']  = $svc->create_activity( array( 'title' => 'Pre Self-Assessment', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e_pre'], 'phase' => 'pre' ) ) ) );
+		$ta['post_self'] = $svc->create_activity( array( 'title' => 'Post Self-Assessment', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 3, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e_post'], 'phase' => 'post' ) ) ) );
 		$ta['children']  = $svc->create_activity( array( 'title' => 'Child Assessment', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'child_assessment', 'weight' => 2.0, 'ordering_hint' => 4, 'external_ref' => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ) ) );
 		$ta['coaching']  = $svc->create_activity( array( 'title' => 'Coaching Attendance', 'pathway_id' => $tp_id, 'track_id' => $track_id, 'activity_type' => 'coaching_session_attendance', 'weight' => 1.0, 'ordering_hint' => 5, 'external_ref' => wp_json_encode( (object) array() ) ) );
 
@@ -1693,7 +1715,8 @@ class HL_CLI_Seed_Palm_Beach {
 			'active_status' => 1,
 		) );
 
-		$teacher_instrument_id = isset( $instruments['teacher_b2e'] ) ? $instruments['teacher_b2e'] : 0;
+		$teacher_pre_instrument_id  = isset( $instruments['teacher_b2e_pre'] ) ? $instruments['teacher_b2e_pre'] : 0;
+		$teacher_post_instrument_id = isset( $instruments['teacher_b2e_post'] ) ? $instruments['teacher_b2e_post'] : 0;
 
 		$pre_activity_id = $svc->create_activity( array(
 			'title'         => 'Pre Self-Assessment',
@@ -1703,7 +1726,7 @@ class HL_CLI_Seed_Palm_Beach {
 			'weight'        => 1.0,
 			'ordering_hint' => 1,
 			'external_ref'  => wp_json_encode( array(
-				'teacher_instrument_id' => $teacher_instrument_id,
+				'teacher_instrument_id' => $teacher_pre_instrument_id,
 				'phase'                 => 'pre',
 			) ),
 		) );
@@ -1716,7 +1739,7 @@ class HL_CLI_Seed_Palm_Beach {
 			'weight'        => 1.0,
 			'ordering_hint' => 2,
 			'external_ref'  => wp_json_encode( array(
-				'teacher_instrument_id' => $teacher_instrument_id,
+				'teacher_instrument_id' => $teacher_post_instrument_id,
 				'phase'                 => 'post',
 			) ),
 		) );
@@ -1756,12 +1779,12 @@ class HL_CLI_Seed_Palm_Beach {
 			}
 		}
 
-		// Get instrument sections for generating plausible responses.
+		// Get PRE instrument sections for generating plausible responses.
 		$instrument_sections = array();
-		if ( $teacher_instrument_id ) {
+		if ( $teacher_pre_instrument_id ) {
 			$sections_json = $wpdb->get_var( $wpdb->prepare(
 				"SELECT sections FROM {$prefix}hl_teacher_assessment_instrument WHERE instrument_id = %d",
-				$teacher_instrument_id
+				$teacher_pre_instrument_id
 			) );
 			if ( $sections_json ) {
 				$instrument_sections = json_decode( $sections_json, true ) ?: array();
@@ -1780,7 +1803,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'track_id'          => $control_track_id,
 				'enrollment_id'      => $eid,
 				'phase'              => 'pre',
-				'instrument_id'      => $teacher_instrument_id,
+				'instrument_id'      => $teacher_pre_instrument_id,
 				'instrument_version' => '1.0',
 				'status'             => 'submitted',
 				'submitted_at'       => $now,
@@ -1844,7 +1867,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'track_id'          => $program_track_id,
 				'enrollment_id'      => $eid,
 				'phase'              => 'pre',
-				'instrument_id'      => $teacher_instrument_id,
+				'instrument_id'      => $teacher_pre_instrument_id,
 				'instrument_version' => '1.0',
 				'status'             => 'submitted',
 				'submitted_at'       => $now,

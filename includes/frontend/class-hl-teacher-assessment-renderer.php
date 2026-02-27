@@ -115,11 +115,6 @@ class HL_Teacher_Assessment_Renderer {
                 </div>
             <?php endif; ?>
 
-            <?php if ( $this->phase === 'post' ) : ?>
-                <div class="hl-tsa-post-instructions">
-                    <p><?php esc_html_e( 'For each item, the "Before Program" column shows your pre-program rating. Please rate how you feel now in the "Now" column.', 'hl-core' ); ?></p>
-                </div>
-            <?php endif; ?>
 
         <?php if ( ! $this->read_only ) : ?>
             <form method="post" action="" class="hl-tsa-form<?php echo $paginate ? ' hl-tsa-form--paginated' : ''; ?>" id="hl-tsa-form-<?php echo esc_attr( $instance_id ); ?>">
@@ -208,10 +203,11 @@ class HL_Teacher_Assessment_Renderer {
             <?php endif; ?>
 
             <?php
+            $retrospective = ! empty( $section['retrospective'] );
             if ( $type === 'scale' ) {
-                $this->render_scale_section( $section_key, $items, $labels );
+                $this->render_scale_section( $section_key, $items, $labels, $retrospective );
             } else {
-                $this->render_likert_section( $section_key, $items, $labels );
+                $this->render_likert_section( $section_key, $items, $labels, $retrospective );
             }
             ?>
 
@@ -236,7 +232,7 @@ class HL_Teacher_Assessment_Renderer {
      * PRE: single-column table with radio buttons.
      * POST: dual-column table (Before + Now).
      */
-    private function render_likert_section( $section_key, $items, $labels ) {
+    private function render_likert_section( $section_key, $items, $labels, $retrospective = false ) {
         // Labels is an indexed array like ["Strongly Disagree", ..., "Strongly Agree"]
         $num_options = count( $labels );
         if ( $num_options < 2 ) {
@@ -244,7 +240,7 @@ class HL_Teacher_Assessment_Renderer {
             $labels = array( '1', '2', '3', '4', '5' );
         }
 
-        $is_post = ( $this->phase === 'post' );
+        $is_post = $retrospective;
 
         ?>
         <div class="hl-tsa-table-wrap">
@@ -254,10 +250,10 @@ class HL_Teacher_Assessment_Renderer {
                         <th class="hl-tsa-item-col"><?php esc_html_e( 'Statement', 'hl-core' ); ?></th>
                         <?php if ( $is_post ) : ?>
                             <th class="hl-tsa-group-header" colspan="<?php echo esc_attr( $num_options ); ?>">
-                                <?php esc_html_e( 'Before Program', 'hl-core' ); ?>
+                                <?php esc_html_e( 'Prior Assessment Cycle', 'hl-core' ); ?>
                             </th>
                             <th class="hl-tsa-group-header hl-tsa-now-header" colspan="<?php echo esc_attr( $num_options ); ?>">
-                                <?php esc_html_e( 'Now', 'hl-core' ); ?>
+                                <?php esc_html_e( 'Past Two Weeks', 'hl-core' ); ?>
                             </th>
                         <?php else : ?>
                             <?php foreach ( $labels as $label ) : ?>
@@ -374,10 +370,10 @@ class HL_Teacher_Assessment_Renderer {
      * PRE: horizontal 0–10 radios per item.
      * POST: dual-column (Before disabled + Now active).
      */
-    private function render_scale_section( $section_key, $items, $labels ) {
+    private function render_scale_section( $section_key, $items, $labels, $retrospective = false ) {
         $global_low  = isset( $labels['low'] ) ? $labels['low'] : '0';
         $global_high = isset( $labels['high'] ) ? $labels['high'] : '10';
-        $is_post     = ( $this->phase === 'post' );
+        $is_post     = $retrospective;
 
         ?>
         <div class="hl-tsa-scale-section">
@@ -407,7 +403,7 @@ class HL_Teacher_Assessment_Renderer {
                 <?php if ( $is_post ) : ?>
                     <div class="hl-tsa-scale-dual">
                         <div class="hl-tsa-scale-group hl-tsa-before-group">
-                            <span class="hl-tsa-group-label"><?php esc_html_e( 'Before Program', 'hl-core' ); ?></span>
+                            <span class="hl-tsa-group-label"><?php esc_html_e( 'Prior Assessment Cycle', 'hl-core' ); ?></span>
                             <div class="hl-tsa-scale-radios">
                                 <?php for ( $v = 0; $v <= 10; $v++ ) :
                                     $checked = ( (string) $pre_val === (string) $v ) ? ' checked' : '';
@@ -420,7 +416,7 @@ class HL_Teacher_Assessment_Renderer {
                             </div>
                         </div>
                         <div class="hl-tsa-scale-group hl-tsa-now-group">
-                            <span class="hl-tsa-group-label"><?php esc_html_e( 'Now', 'hl-core' ); ?></span>
+                            <span class="hl-tsa-group-label"><?php esc_html_e( 'Past Two Weeks', 'hl-core' ); ?></span>
                             <div class="hl-tsa-scale-radios">
                                 <?php
                                 $now_val = null;
@@ -550,16 +546,6 @@ class HL_Teacher_Assessment_Renderer {
             }
             .hl-tsa-instructions p:first-child { margin-top: 0; }
             .hl-tsa-instructions p:last-child { margin-bottom: 0; }
-
-            .hl-tsa-post-instructions {
-                background: #f0f6ff;
-                border-left: 4px solid var(--hl-primary, #2271b1);
-                border-radius: 0 8px 8px 0;
-                padding: 12px 18px;
-                margin-bottom: 1.5em;
-                font-size: 0.93em;
-            }
-            .hl-tsa-post-instructions p { margin: 0; }
 
             .hl-tsa-notice {
                 padding: 14px 18px;

@@ -144,17 +144,17 @@ class HL_CLI_Seed_Lutheran {
 		// Step 11: Pathway & Activities.
 		$pathway_data = $this->seed_pathway( $track_id );
 
-		// Step 12: B2E Teacher Assessment Instrument.
-		$instrument_id = $this->seed_teacher_instrument();
+		// Step 12: B2E Teacher Assessment Instruments (PRE + POST).
+		$instrument_ids = $this->seed_teacher_instruments();
 
-		// Update activity external_ref with instrument_id.
-		$this->update_activity_instrument_refs( $pathway_data, $instrument_id );
+		// Update activity external_ref with instrument_ids.
+		$this->update_activity_instrument_refs( $pathway_data, $instrument_ids );
 
 		// Step 12b: Child Assessment Instruments.
 		$children_instruments = $this->seed_children_instruments();
 
 		// Step 13: Assessment Instances.
-		$this->seed_assessment_instances( $enrollments, $track_id, $pathway_data, $instrument_id, $classrooms, $school_map, $teacher_roster_data, $children_instruments );
+		$this->seed_assessment_instances( $enrollments, $track_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $children_instruments );
 
 		// Step 14: Pathway Assignments.
 		$this->seed_pathway_assignments( $enrollments, $pathway_data['pathway_id'] );
@@ -342,12 +342,9 @@ class HL_CLI_Seed_Lutheran {
 		);
 		if ( ! $other_track ) {
 			$wpdb->query(
-				$wpdb->prepare(
-					"DELETE FROM {$prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s",
-					'b2e_self_assessment'
-				)
+				"DELETE FROM {$prefix}hl_teacher_assessment_instrument WHERE instrument_key IN ('b2e_self_assessment','b2e_self_assessment_pre','b2e_self_assessment_post')"
 			);
-			WP_CLI::log( '  Deleted B2E teacher assessment instrument.' );
+			WP_CLI::log( '  Deleted B2E teacher assessment instruments.' );
 
 			// Also delete children instruments seeded by this command.
 			$wpdb->query( "DELETE FROM {$prefix}hl_instrument WHERE name LIKE 'Lutheran %'" );
@@ -1125,42 +1122,64 @@ class HL_CLI_Seed_Lutheran {
 	 *
 	 * Uses shared definitions from HL_CLI_Seed_Demo.
 	 *
-	 * @return int Instrument ID.
+	 * @return array ['pre' => int, 'post' => int] Instrument IDs.
 	 */
-	private function seed_teacher_instrument() {
+	private function seed_teacher_instruments() {
 		global $wpdb;
-		$prefix = $wpdb->prefix;
+		$prefix       = $wpdb->prefix;
+		$scale_labels = wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_scale_labels() );
+		$ids          = array();
 
-		// Check if already present.
-		$existing = $wpdb->get_var(
+		// PRE instrument.
+		$existing_pre = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT instrument_id FROM {$prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s LIMIT 1",
-				'b2e_self_assessment'
+				'b2e_self_assessment_pre'
 			)
 		);
 
-		if ( $existing ) {
-			WP_CLI::log( "  [12/14] B2E Teacher Assessment Instrument already exists: id={$existing}" );
-			return (int) $existing;
+		if ( $existing_pre ) {
+			$ids['pre'] = (int) $existing_pre;
+		} else {
+			$wpdb->insert( $prefix . 'hl_teacher_assessment_instrument', array(
+				'instrument_name'    => 'Teacher Self-Assessment',
+				'instrument_key'     => 'b2e_self_assessment_pre',
+				'instrument_version' => '1.0',
+				'sections'           => wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_sections_pre() ),
+				'scale_labels'       => $scale_labels,
+				'instructions'       => HL_CLI_Seed_Demo::get_b2e_instrument_instructions_pre(),
+				'status'             => 'active',
+				'created_at'         => current_time( 'mysql' ),
+			) );
+			$ids['pre'] = $wpdb->insert_id;
 		}
 
-		// Use shared instrument definition from HL_CLI_Seed_Demo.
-		$sections     = wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_sections() );
-		$scale_labels = wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_scale_labels() );
+		// POST instrument.
+		$existing_post = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT instrument_id FROM {$prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s LIMIT 1",
+				'b2e_self_assessment_post'
+			)
+		);
 
-		$wpdb->insert( $prefix . 'hl_teacher_assessment_instrument', array(
-			'instrument_name'    => 'B2E Teacher Self-Assessment',
-			'instrument_key'     => 'b2e_self_assessment',
-			'instrument_version' => '1.0',
-			'sections'           => $sections,
-			'scale_labels'       => $scale_labels,
-			'status'             => 'active',
-			'created_at'         => current_time( 'mysql' ),
-		) );
-		$instrument_id = $wpdb->insert_id;
+		if ( $existing_post ) {
+			$ids['post'] = (int) $existing_post;
+		} else {
+			$wpdb->insert( $prefix . 'hl_teacher_assessment_instrument', array(
+				'instrument_name'    => 'Teacher Self-Assessment',
+				'instrument_key'     => 'b2e_self_assessment_post',
+				'instrument_version' => '1.0',
+				'sections'           => wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_sections_post() ),
+				'scale_labels'       => $scale_labels,
+				'instructions'       => HL_CLI_Seed_Demo::get_b2e_instrument_instructions_post(),
+				'status'             => 'active',
+				'created_at'         => current_time( 'mysql' ),
+			) );
+			$ids['post'] = $wpdb->insert_id;
+		}
 
-		WP_CLI::log( "  [12/14] B2E Teacher Assessment Instrument created: id={$instrument_id}" );
-		return $instrument_id;
+		WP_CLI::log( "  [12/14] B2E Teacher Assessment Instruments: PRE id={$ids['pre']}, POST id={$ids['post']}" );
+		return $ids;
 	}
 
 	/**
@@ -1230,25 +1249,25 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	/**
-	 * Update the TSA activity external_ref to include the instrument_id.
+	 * Update the TSA activity external_ref to include the instrument_ids.
 	 *
-	 * @param array $pathway_data  Pathway and activity IDs.
-	 * @param int   $instrument_id Teacher assessment instrument ID.
+	 * @param array $pathway_data   Pathway and activity IDs.
+	 * @param array $instrument_ids ['pre' => int, 'post' => int].
 	 */
-	private function update_activity_instrument_refs( $pathway_data, $instrument_id ) {
+	private function update_activity_instrument_refs( $pathway_data, $instrument_ids ) {
 		$svc = new HL_Pathway_Service();
 
 		$svc->update_activity( $pathway_data['tsa_pre_id'], array(
 			'external_ref' => wp_json_encode( array(
 				'phase'                 => 'pre',
-				'teacher_instrument_id' => $instrument_id,
+				'teacher_instrument_id' => $instrument_ids['pre'],
 			) ),
 		) );
 
 		$svc->update_activity( $pathway_data['tsa_post_id'], array(
 			'external_ref' => wp_json_encode( array(
 				'phase'                 => 'post',
-				'teacher_instrument_id' => $instrument_id,
+				'teacher_instrument_id' => $instrument_ids['post'],
 			) ),
 		) );
 	}
@@ -1263,13 +1282,13 @@ class HL_CLI_Seed_Lutheran {
 	 * @param array $enrollments           Keyed by row index.
 	 * @param int   $track_id             Track ID.
 	 * @param array $pathway_data          Pathway and activity IDs.
-	 * @param int   $instrument_id         Teacher assessment instrument ID.
+	 * @param array $instrument_ids        ['pre' => int, 'post' => int].
 	 * @param array $classrooms            Keyed by "school_name::classroom_name".
 	 * @param array $school_map            Keyed by school name => orgunit_id.
 	 * @param array $teacher_roster_data   Teacher roster rows.
 	 * @param array $children_instruments  Keyed by age band: 'infant' => id, etc.
 	 */
-	private function seed_assessment_instances( $enrollments, $track_id, $pathway_data, $instrument_id, $classrooms, $school_map, $teacher_roster_data, $children_instruments = array() ) {
+	private function seed_assessment_instances( $enrollments, $track_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $children_instruments = array() ) {
 		global $wpdb;
 		$prefix       = $wpdb->prefix;
 		$now          = current_time( 'mysql' );
@@ -1287,7 +1306,7 @@ class HL_CLI_Seed_Lutheran {
 				'enrollment_id'      => $eid,
 				'activity_id'        => $pathway_data['tsa_pre_id'],
 				'phase'              => 'pre',
-				'instrument_id'      => $instrument_id,
+				'instrument_id'      => $instrument_ids['pre'],
 				'instrument_version' => '1.0',
 				'status'             => 'not_started',
 				'created_at'         => $now,
@@ -1301,7 +1320,7 @@ class HL_CLI_Seed_Lutheran {
 				'enrollment_id'      => $eid,
 				'activity_id'        => $pathway_data['tsa_post_id'],
 				'phase'              => 'post',
-				'instrument_id'      => $instrument_id,
+				'instrument_id'      => $instrument_ids['post'],
 				'instrument_version' => '1.0',
 				'status'             => 'not_started',
 				'created_at'         => $now,
