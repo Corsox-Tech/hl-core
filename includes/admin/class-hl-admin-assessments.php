@@ -128,9 +128,15 @@ class HL_Admin_Assessments {
         if ($export_type === 'teacher') {
             $csv = $service->export_teacher_assessments_csv($track_id);
             $filename = 'teacher-assessments-' . $safe_name . '-' . date('Y-m-d') . '.csv';
+        } elseif ($export_type === 'teacher_responses') {
+            $csv = $service->export_teacher_assessment_responses_csv($track_id);
+            $filename = 'teacher-assessment-responses-' . $safe_name . '-' . date('Y-m-d') . '.csv';
         } elseif ($export_type === 'children') {
             $csv = $service->export_child_assessments_csv($track_id);
             $filename = 'child-assessments-' . $safe_name . '-' . date('Y-m-d') . '.csv';
+        } elseif ($export_type === 'children_responses') {
+            $csv = $service->export_child_assessment_responses_csv($track_id);
+            $filename = 'child-assessment-responses-' . $safe_name . '-' . date('Y-m-d') . '.csv';
         } else {
             return;
         }
@@ -217,12 +223,19 @@ class HL_Admin_Assessments {
     private function render_teacher_tab($track_id, $service) {
         $instances = $service->get_teacher_assessments_by_track($track_id);
 
-        // Export button
-        $export_url = wp_nonce_url(
+        // Export buttons
+        $export_completion_url = wp_nonce_url(
             admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&export=teacher'),
             'hl_export_teacher_' . $track_id
         );
-        echo '<p><a href="' . esc_url($export_url) . '" class="button">' . esc_html__('Export Teacher Assessments CSV', 'hl-core') . '</a></p>';
+        $export_responses_url = wp_nonce_url(
+            admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&export=teacher_responses'),
+            'hl_export_teacher_responses_' . $track_id
+        );
+        echo '<p style="display:flex;gap:10px;">';
+        echo '<a href="' . esc_url($export_completion_url) . '" class="button">' . esc_html__('Export Completion CSV', 'hl-core') . '</a>';
+        echo '<a href="' . esc_url($export_responses_url) . '" class="button">' . esc_html__('Export Responses CSV', 'hl-core') . '</a>';
+        echo '</p>';
 
         if (empty($instances)) {
             echo '<p>' . esc_html__('No teacher assessment instances found for this track.', 'hl-core') . '</p>';
@@ -326,12 +339,17 @@ class HL_Admin_Assessments {
         );
         echo '</form>';
 
-        // Export button
-        $export_url = wp_nonce_url(
+        // Export buttons
+        $export_completion_url = wp_nonce_url(
             admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&export=children'),
             'hl_export_children_' . $track_id
         );
-        echo '<a href="' . esc_url($export_url) . '" class="button">' . esc_html__('Export Child Assessments CSV', 'hl-core') . '</a>';
+        $export_responses_url = wp_nonce_url(
+            admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&export=children_responses'),
+            'hl_export_children_responses_' . $track_id
+        );
+        echo '<a href="' . esc_url($export_completion_url) . '" class="button">' . esc_html__('Export Completion CSV', 'hl-core') . '</a>';
+        echo '<a href="' . esc_url($export_responses_url) . '" class="button">' . esc_html__('Export Responses CSV', 'hl-core') . '</a>';
 
         echo '</div>';
 

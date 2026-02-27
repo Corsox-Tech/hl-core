@@ -946,6 +946,107 @@ class HL_Assessment_Service {
     }
 
     /**
+     * Export teacher assessment response-level data as CSV.
+     *
+     * Reads responses_json from each instance and flattens into one column
+     * per instrument item (e.g., P1, P2, …, W1-W4, SR1-SR4).
+     *
+     * @param int $track_id
+     * @return string CSV content
+     */
+    public function export_teacher_assessment_responses_csv( $track_id ) {
+        $instances = $this->get_teacher_assessments_by_track( $track_id );
+
+        // Collect unique instrument_ids and load their sections.
+        $instrument_ids = array();
+        foreach ( $instances as $inst ) {
+            if ( ! empty( $inst['instrument_id'] ) && ! in_array( (int) $inst['instrument_id'], $instrument_ids, true ) ) {
+                $instrument_ids[] = (int) $inst['instrument_id'];
+            }
+        }
+
+        // Build flat column list: [ ['header' => 'Practices: P1', 'section_key' => 'practices', 'item_key' => 'P1'], … ]
+        $columns = array();
+        foreach ( $instrument_ids as $iid ) {
+            $instrument = $this->get_teacher_instrument( $iid );
+            if ( ! $instrument ) {
+                continue;
+            }
+            foreach ( $instrument->get_sections() as $section ) {
+                $section_key   = isset( $section['section_key'] ) ? $section['section_key'] : '';
+                $section_title = isset( $section['title'] ) ? $section['title'] : $section_key;
+                // Strip "Assessment N/N — " prefix if present for cleaner headers.
+                $section_title = preg_replace( '/^Assessment\s+\d+\/\d+\s*[—–-]\s*/u', '', $section_title );
+                $items = isset( $section['items'] ) ? $section['items'] : array();
+                foreach ( $items as $item ) {
+                    $item_key = isset( $item['key'] ) ? $item['key'] : '';
+                    // Avoid duplicate columns (if multiple instruments share keys).
+                    $col_id = $section_key . '::' . $item_key;
+                    $existing_ids = array_map( function ( $c ) { return $c['col_id']; }, $columns );
+                    if ( in_array( $col_id, $existing_ids, true ) ) {
+                        continue;
+                    }
+                    $columns[] = array(
+                        'col_id'      => $col_id,
+                        'header'      => $section_title . ': ' . $item_key,
+                        'section_key' => $section_key,
+                        'item_key'    => $item_key,
+                    );
+                }
+            }
+        }
+
+        $output = fopen( 'php://temp', 'r+' );
+
+        // Header row.
+        $header = array( 'Teacher Name', 'Email', 'Phase', 'Status', 'Submitted At' );
+        foreach ( $columns as $col ) {
+            $header[] = $col['header'];
+        }
+        fputcsv( $output, $header );
+
+        // Data rows.
+        foreach ( $instances as $inst ) {
+            // Skip instances with no data.
+            if ( $inst['status'] === 'not_started' && empty( $inst['responses_json'] ) ) {
+                continue;
+            }
+
+            $responses = array();
+            if ( ! empty( $inst['responses_json'] ) ) {
+                $decoded = json_decode( $inst['responses_json'], true );
+                if ( is_array( $decoded ) ) {
+                    $responses = $decoded;
+                }
+            }
+
+            $row = array(
+                $inst['display_name'],
+                $inst['user_email'],
+                $inst['phase'],
+                $inst['status'],
+                $inst['submitted_at'] ?: '',
+            );
+
+            foreach ( $columns as $col ) {
+                $val = '';
+                if ( isset( $responses[ $col['section_key'] ][ $col['item_key'] ] ) ) {
+                    $val = $responses[ $col['section_key'] ][ $col['item_key'] ];
+                }
+                $row[] = is_array( $val ) ? wp_json_encode( $val ) : $val;
+            }
+
+            fputcsv( $output, $row );
+        }
+
+        rewind( $output );
+        $csv = stream_get_contents( $output );
+        fclose( $output );
+
+        return $csv;
+    }
+
+    /**
      * Export child assessment data as CSV
      *
      * @param int $track_id
@@ -988,10 +1089,10 @@ class HL_Assessment_Service {
         if (!empty($instrument_ids_seen)) {
             $ids_in = implode(',', $instrument_ids_seen);
             $instr_rows = $wpdb->get_results(
-                "SELECT instrument_id, title FROM {$wpdb->prefix}hl_instrument WHERE instrument_id IN ({$ids_in})"
+                "SELECT instrument_id, name FROM {$wpdb->prefix}hl_instrument WHERE instrument_id IN ({$ids_in})"
             );
             foreach ($instr_rows as $ir) {
-                $instrument_names[(int) $ir->instrument_id] = $ir->title;
+                $instrument_names[(int) $ir->instrument_id] = $ir->name;
             }
         }
 
@@ -1060,6 +1161,118 @@ class HL_Assessment_Service {
         rewind($output);
         $csv = stream_get_contents($output);
         fclose($output);
+
+        return $csv;
+    }
+
+    /**
+     * Export child assessment response-level data as CSV.
+     *
+     * One row per child per instance. Skipped children are excluded.
+     * Includes teacher email and submitted_at.
+     *
+     * @param int $track_id
+     * @return string CSV content
+     */
+    public function export_child_assessment_responses_csv( $track_id ) {
+        global $wpdb;
+
+        $instances = $this->get_child_assessments_by_track( $track_id );
+
+        // Collect all unique question IDs and childrows.
+        $all_question_ids     = array();
+        $instance_childrows   = array();
+        foreach ( $instances as $inst ) {
+            $childrows = $this->get_child_assessment_childrows( $inst['instance_id'] );
+            $instance_childrows[ $inst['instance_id'] ] = $childrows;
+            foreach ( $childrows as $cr ) {
+                $answers = json_decode( $cr['answers_json'], true );
+                if ( is_array( $answers ) ) {
+                    foreach ( array_keys( $answers ) as $qid ) {
+                        if ( ! in_array( $qid, $all_question_ids, true ) ) {
+                            $all_question_ids[] = $qid;
+                        }
+                    }
+                }
+            }
+        }
+        sort( $all_question_ids );
+
+        // Build instrument name lookup.
+        $instrument_names   = array();
+        $instrument_ids_seen = array();
+        foreach ( $instance_childrows as $crs ) {
+            foreach ( $crs as $cr ) {
+                if ( ! empty( $cr['instrument_id'] ) && ! in_array( (int) $cr['instrument_id'], $instrument_ids_seen, true ) ) {
+                    $instrument_ids_seen[] = (int) $cr['instrument_id'];
+                }
+            }
+        }
+        if ( ! empty( $instrument_ids_seen ) ) {
+            $ids_in     = implode( ',', $instrument_ids_seen );
+            $instr_rows = $wpdb->get_results(
+                "SELECT instrument_id, name FROM {$wpdb->prefix}hl_instrument WHERE instrument_id IN ({$ids_in})"
+            );
+            foreach ( $instr_rows as $ir ) {
+                $instrument_names[ (int) $ir->instrument_id ] = $ir->name;
+            }
+        }
+
+        $output = fopen( 'php://temp', 'r+' );
+
+        // Header.
+        $header = array(
+            'Teacher Name', 'Email', 'Classroom', 'School', 'Phase', 'Status', 'Submitted At',
+            'Child Name', 'DOB', 'Frozen Age Group', 'Instrument',
+        );
+        foreach ( $all_question_ids as $qid ) {
+            $header[] = $qid;
+        }
+        fputcsv( $output, $header );
+
+        // Data rows — one row per active/assessed child per instance.
+        foreach ( $instances as $inst ) {
+            $childrows = isset( $instance_childrows[ $inst['instance_id'] ] ) ? $instance_childrows[ $inst['instance_id'] ] : array();
+
+            foreach ( $childrows as $cr ) {
+                $cr_status = isset( $cr['status'] ) ? $cr['status'] : 'active';
+
+                // Skip children that were skipped by the teacher.
+                if ( $cr_status === 'skipped' ) {
+                    continue;
+                }
+
+                $answers       = json_decode( $cr['answers_json'], true ) ?: array();
+                $cr_frozen     = isset( $cr['frozen_age_group'] ) ? $cr['frozen_age_group'] : '';
+                $cr_instr_id   = isset( $cr['instrument_id'] ) ? (int) $cr['instrument_id'] : 0;
+                $cr_instr_name = $cr_instr_id && isset( $instrument_names[ $cr_instr_id ] ) ? $instrument_names[ $cr_instr_id ] : '';
+
+                $row = array(
+                    $inst['display_name'],
+                    $inst['user_email'],
+                    $inst['classroom_name'],
+                    $inst['school_name'],
+                    isset( $inst['phase'] ) ? $inst['phase'] : '',
+                    $inst['status'],
+                    $inst['submitted_at'] ?: '',
+                    trim( $cr['first_name'] . ' ' . $cr['last_name'] ),
+                    $cr['dob'] ?: '',
+                    $cr_frozen,
+                    $cr_instr_name,
+                );
+
+                foreach ( $all_question_ids as $qid ) {
+                    $val = isset( $answers[ $qid ] ) ? $answers[ $qid ] : '';
+                    $row[] = is_array( $val ) ? wp_json_encode( $val ) : $val;
+                }
+
+                fputcsv( $output, $row );
+            }
+        }
+
+        rewind( $output );
+        $csv = stream_get_contents( $output );
+        fclose( $output );
 
         return $csv;
     }
