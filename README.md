@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for observation forms only)
-**Status:** v1 complete — Phases 1-29 done (27 shortcode pages incl. dashboard, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in)
+**Status:** v1 complete — Phases 1-30 done (28 shortcode pages incl. dashboard + documentation, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking)
 
 ## Overview
 
@@ -94,6 +94,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Reports Hub** `[hl_reports_hub]` - Card grid of available report types: Completion Report (links to workspace/my-cohort reports tab), Coaching Report (links to coaching hub), Team Summary (links to workspace/my-cohort teams tab), Program Group Report (cross-cohort, coming soon), Assessment Report (coming soon). Role-based card visibility.
 - **My Team** `[hl_my_team]` - Auto-detects mentor's team via team_membership. Single team: renders Team Page inline. Multiple teams: team selector card grid with name, school, member count, cohort. No teams: friendly message.
 - **Dashboard** `[hl_dashboard]` - Role-aware LMS home page replacing Elementor dashboard. Detects user roles from `HL_Scope_Service` + `hl_enrollment.roles` JSON + `hl_track.is_control_group`. Welcome banner with time-based greeting and avatar. Participant section: My Programs + My Classrooms for all enrolled; My Coaching for program tracks (hidden for control-group-only users); My Team + Coaching Hub for mentors; My Track for leaders. Staff/admin Administration section: Tracks, Institutions, Learners, Pathways, Coaching Hub, Reports. Cards silently hide if target page doesn't exist.
+- **Documentation** `[hl_docs]` + `[hl_doc_link]` - In-site documentation browser powered by `hl_doc` CPT and `hl_doc_category` taxonomy. Landing page with category card grid + search bar. Article detail view with left sidebar navigation, auto-generated TOC from h2/h3 headings, scroll spy, prev/next navigation. Glossary page with alphabetized letter nav and definition list. `[hl_doc_link slug="..." text="..."]` inline cross-reference shortcode for use inside article content. Sidebar search filtering, mobile-responsive with slide-out sidebar toggle. Admin creates/edits articles via WP Admin > HL Core > Doc Articles. BuddyBoss sidebar link visible to all enrolled users + staff. `wp hl-core seed-docs` seeds ~22 articles + ~15 glossary terms with real useful content and cross-links.
 
 ### Scope Service
 - **HL_Scope_Service** — Shared static helper for role-based scope filtering across all listing pages. Detects user role (admin/coach/leader/mentor/teacher), computes visible cohort_ids, school_ids, district_ids, team_ids, enrollment_ids. Admin sees all (empty arrays = no restriction). Coach filtered by hl_coach_assignment + own enrollments. District leader expands to all schools in district. Static cache per user_id per request. Convenience helpers: can_view_cohort(), can_view_school(), has_role(), filter_by_ids().
@@ -113,7 +114,8 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **`wp hl-core seed-lutheran`** — Seeds Lutheran Services Florida control group data: 1 district, 11 centers, 1 control cohort (LUTHERAN_CONTROL_2026) in B2E Evaluation cohort group, 29 classrooms with age band normalization, 47 WP users (teachers), 47 enrollments, 47 teaching assignments, 286 children with DOBs/gender/ethnicity metadata, assessment-only pathway (4 activities: TSA Pre, CA Pre, TSA Post, CA Post), B2E teacher instrument, 4 child assessment instruments (infant, toddler, preschool, mixed), 94 teacher + 94 child assessment instances with proper instrument/phase/activity linkage, 188 activity states, POST activities time-gated via drip rules (fixed_date 2026-05-05)
 - **`wp hl-core seed-lutheran --clean`** — Removes all Lutheran data in reverse dependency order (activity states, assessment instances, children, teaching assignments, classrooms, enrollments, users, pathways, instruments, cohort, org units) identified by cohort code `LUTHERAN_CONTROL_2026` and `_hl_lutheran_seed` user meta
 - **`wp hl-core nuke --confirm="DELETE ALL DATA" [--include-instruments]`** — **DESTRUCTIVE: Deletes ALL HL Core data.** Dynamically discovers all `hl_*` tables via `SHOW TABLES LIKE`, shows per-table row counts before truncating, removes seeded WP users (but protects user ID 1 and the current CLI user), resets auto-increment, clears HL Core transients (`_transient_hl_%`). Safety gate: only runs on sites with URL containing `staging.academy.housmanlearning.com` or `.local`. **By default, skips `hl_instrument` and `hl_teacher_assessment_instrument` tables** to preserve admin customizations (instructions, questions, styles). Pass `--include-instruments` to truncate instrument tables as well.
-- **`wp hl-core create-pages`** — Creates all 25 WordPress pages for HL Core shortcodes (personal, directory, hub, detail, assessment, and dashboard pages). Skips pages that already exist. `--force` to recreate. `--status=draft` for staging.
+- **`wp hl-core seed-docs [--clean]`** — Seeds ~22 documentation articles across 7 categories + ~15 glossary terms for the in-site documentation system. Uses `hl_doc` CPT and `hl_doc_category` taxonomy. Skip-if-exists by slug. `--clean` deletes all existing doc articles before seeding.
+- **`wp hl-core create-pages`** — Creates all 28 WordPress pages for HL Core shortcodes (personal, directory, hub, detail, assessment, dashboard, and documentation pages). Skips pages that already exist. `--force` to recreate. `--status=draft` for staging.
 
 ### REST API
 - `GET /wp-json/hl-core/v1/cohorts`
@@ -433,6 +435,13 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
 - [x] **29.4 — Admin Display Styles Panel** — Added collapsible "Display Styles" section to both child and teacher instrument edit forms in `class-hl-admin-instruments.php`. Per-element rows with font-size dropdown (12-24px + Default) and color picker with "Default" checkbox. Child form: Instructions, Behavior Key, Questions/Items, Scale Labels. Teacher form: Instructions, Section Titles, Section Descriptions, Items, Scale Labels. Save handler builds `styles_json` from POST fields.
 - [x] **29.5 — Renderer Style Overrides** — Both `HL_Teacher_Assessment_Renderer` and `HL_Instrument_Renderer` read `styles_json` from their instrument and emit CSS override rules (`!important`) at the end of their `<style>` blocks. Missing/empty keys fall back to built-in defaults.
 
+### Phase 30: Admin Documentation System
+
+- [x] **30.1 — CPT + Taxonomy + Shortcodes** — Created `class-hl-frontend-docs.php` with `hl_doc` CPT (public=false, show_ui=true under HL Core menu) and `hl_doc_category` hierarchical taxonomy. Two shortcodes: `[hl_docs]` (full documentation browser with landing/category/article/glossary views) and `[hl_doc_link slug="..." text="..."]` (inline cross-reference links). URL routing via `?doc=slug` and `?cat=slug` query parameters. Article pages include auto-generated TOC, sidebar navigation, prev/next navigation. Glossary page with alphabetized letter nav and definition list. Graceful degradation for missing article slugs.
+- [x] **30.2 — CSS + JS** — Created `frontend-docs.css` (~400 lines) using HL Core design system tokens. Responsive layout with 2-column sidebar+main for articles, category card grid for landing, mobile slide-out sidebar with FAB toggle. Created `frontend-docs.js` (~200 lines) with vanilla JS: TOC generation from h2/h3, scroll spy, sidebar accordion, landing page search filtering from JSON data, sidebar article search, mobile sidebar toggle with overlay.
+- [x] **30.3 — Plugin Integration** — Wired into `hl-core.php` (require_once + init), `class-hl-shortcodes.php` (register + has_shortcode + render method), `class-hl-cli-create-pages.php` (Documentation page entry), `class-hl-admin.php` (Documentation external link in submenu), `class-hl-buddyboss-integration.php` (Documentation sidebar item for staff + enrolled users).
+- [x] **30.4 — Seed Command** — Created `class-hl-cli-seed-docs.php` with `wp hl-core seed-docs [--clean]`. Seeds 7 categories + ~22 articles (3 Getting Started, 5 Core Concepts, 4 Assessments, 3 Coaching & Observations, 2 Import & Data Management, 3 Pathways & Activities, 2 Reports & Exports) + ~15 glossary terms. All articles contain real, useful content with `[hl_doc_link]` cross-references. Skip-if-exists by slug. `--clean` flag deletes all hl_doc posts before seeding.
+
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
 - [x] **Grace unlock override type** — `compute_availability()` now recognizes `grace_unlock` override type: bypasses prerequisite gate but NOT drip rules (mirrors `manual_unlock` which bypasses drip but NOT prereqs).
@@ -451,18 +460,18 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
     class-hl-installer.php       # DB schema + activation
     /domain/                     # Entity models (9 classes)
     /domain/repositories/        # CRUD repositories (8 classes)
-    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages) — 5 commands + lutheran-seed-data.php
+    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages, seed-docs) — 6 commands + lutheran-seed-data.php
     /services/                   # Business logic (14+ services incl. HL_Scope_Service, HL_Pathway_Assignment_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss (3 classes)
     /admin/                      # WP admin pages (15+ controllers incl. Cohorts, Tracks)
-    /frontend/                   # Shortcode renderers (27 pages incl. dashboard + instrument renderer + teacher assessment renderer)
+    /frontend/                   # Shortcode renderers (28 pages incl. dashboard + documentation + instrument renderer + teacher assessment renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization helpers
   /data/                         # Private data files (gitignored)
   /assets/
-    /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css
-    /js/                         # admin-import-wizard.js, admin-teacher-editor.js, frontend.js
+    /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css
+    /js/                         # admin-import-wizard.js, admin-teacher-editor.js, frontend.js, frontend-docs.js
   /docs/                         # AI library (11 spec documents)
 ```
 

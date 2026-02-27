@@ -166,6 +166,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-reports-hub.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-team.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-dashboard.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-docs.php';
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';
@@ -177,6 +178,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-lutheran.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-nuke.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-create-pages.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-docs.php';
         }
     }
     
@@ -206,6 +208,9 @@ class HL_Core {
         // Initialize front-end shortcodes
         HL_Shortcodes::instance();
 
+        // Initialize documentation CPT + taxonomy
+        HL_Frontend_Docs::instance();
+
         // Initialize REST API
         HL_REST_API::instance();
         
@@ -230,6 +235,7 @@ class HL_Core {
             HL_CLI_Seed_Lutheran::register();
             HL_CLI_Nuke::register();
             HL_CLI_Create_Pages::register();
+            HL_CLI_Seed_Docs::register();
         }
 
         do_action('hl_core_init');

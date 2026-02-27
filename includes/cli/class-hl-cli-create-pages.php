@@ -148,6 +148,9 @@ class HL_CLI_Create_Pages {
             array( 'title' => 'Child Assessment',       'shortcode' => 'hl_child_assessment' ),
             array( 'title' => 'Teacher Self-Assessment',   'shortcode' => 'hl_teacher_assessment' ),
             array( 'title' => 'Observations',              'shortcode' => 'hl_observations' ),
+
+            // Documentation
+            array( 'title' => 'Documentation',             'shortcode' => 'hl_docs' ),
         );
     }
 

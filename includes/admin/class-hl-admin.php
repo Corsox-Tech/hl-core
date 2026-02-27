@@ -88,6 +88,20 @@ class HL_Admin {
         add_submenu_page('hl-tracks', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Cohorts', 'Cohorts', 'manage_hl_core', 'hl-cohorts', array(HL_Admin_Cohorts::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Audit Log', 'Audit Log', 'manage_hl_core', 'hl-audit', array(HL_Admin_Audit::instance(), 'render_page'));
+
+        // Documentation — external link to front-end docs page
+        global $wpdb;
+        $docs_page_id = $wpdb->get_var(
+            "SELECT ID FROM {$wpdb->posts}
+             WHERE post_type = 'page'
+             AND post_status = 'publish'
+             AND post_content LIKE '%[hl_docs%'
+             LIMIT 1"
+        );
+        if ($docs_page_id) {
+            $docs_url = get_permalink($docs_page_id);
+            add_submenu_page('hl-tracks', 'Documentation', 'Documentation', 'manage_hl_core', $docs_url);
+        }
     }
 
     public function enqueue_assets($hook) {
