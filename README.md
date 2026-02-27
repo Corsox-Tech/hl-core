@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for observation forms only)
-**Status:** v1 complete — Phases 1-25 done (26 shortcode pages, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments with admin-customizable instructions + behavior key, teacher assessment visual editor + modern frontend design)
+**Status:** v1 complete — Phases 1-27 done (26 shortcode pages, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments with admin-customizable instructions + behavior key, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments)
 
 ## Overview
 
@@ -412,6 +412,13 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
 - [x] **26.2 — Child Responses CSV** — New `export_child_assessment_responses_csv($track_id)` method. One row per child per instance with Teacher Name, Email, Classroom, School, Phase, Status, Submitted At, Child Name, DOB, Frozen Age Group, Instrument + answer columns. Excludes skipped children. Fixed instrument `name` column bug.
 - [x] **26.3 — Bug Fix** — Fixed `title` → `name` column reference in existing `export_child_assessments_csv()` instrument lookup query (hl_instrument table uses `name`, not `title`).
 - [x] **26.4 — Admin UI** — Added dual export buttons ("Export Completion CSV" + "Export Responses CSV") to both Teacher and Children tabs. Two new handler cases (`teacher_responses`, `children_responses`) in `handle_csv_export()` with matching nonces.
+
+### Phase 27: Separate PRE/POST Teacher Assessment Instruments
+
+- [x] **27.1 — Split Instrument Definitions** — Renamed `get_b2e_instrument_sections()` → `_pre()` / `_post()` with shared helpers for Assessment 2 (wellbeing) and Assessment 3 (self-regulation). PRE instrument: 20 items in Section 1 ("Assessment 1"), single-column. POST instrument: 15 items in Section 1 with `retrospective: true` flag for dual-column. Section titles simplified from "Assessment 1/3" → "Assessment 1". Added `get_b2e_instrument_instructions_pre()` / `_post()` static helpers. Old `get_b2e_instrument_sections()` retained as deprecated alias.
+- [x] **27.2 — Seeder Updates** — All 3 seeders (demo, Lutheran, Palm Beach) now create TWO teacher instruments (`b2e_self_assessment_pre` + `b2e_self_assessment_post`) with distinct sections, instructions, and instrument keys. Activity `external_ref` and assessment instance `instrument_id` correctly reference the PRE or POST instrument. Clean methods updated to delete all three key variants.
+- [x] **27.3 — Renderer: Retrospective Flag** — `render_likert_section()` and `render_scale_section()` now gate dual-column on section-level `retrospective` flag instead of `$this->phase === 'post'`. Sections 2+3 in POST always render single-column (matching Housman's design). Column headers updated: "Before Program"→"Prior Assessment Cycle", "Now"→"Past Two Weeks". Removed hard-coded POST instruction paragraph (instrument-level instructions now handle this).
+- [x] **27.4 — Staging Deploy + Verify** — Nuke + seed-lutheran: 2 instrument rows (PRE id=1, POST id=2), 47 PRE instances → instrument 1, 47 POST instances → instrument 2, activity external_ref correctly mapped. POST Section 1: 15 items + retrospective=true. PRE Section 1: 20 items, no retrospective.
 
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
