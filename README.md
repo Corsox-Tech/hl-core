@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for observation forms only)
-**Status:** v1 complete — Phases 1-27 done (26 shortcode pages, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments with admin-customizable instructions + behavior key, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments)
+**Status:** v1 complete — Phases 1-29 done (27 shortcode pages, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection)
 
 ## Overview
 
