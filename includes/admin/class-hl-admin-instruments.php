@@ -731,7 +731,7 @@ class HL_Admin_Instruments {
         echo '<tr class="hl-question-row">';
 
         // Question ID
-        echo '<td><input type="text" name="' . esc_attr($name_prefix . '[question_id]') . '" value="' . esc_attr($question_id) . '" class="widefat" placeholder="e.g. q1, motor_skills_1" required /></td>';
+        echo '<td><input type="text" name="' . esc_attr($name_prefix . '[question_id]') . '" value="' . esc_attr($question_id) . '" class="widefat" placeholder="e.g. q1, motor_skills_1" /></td>';
 
         // Question Type
         echo '<td><select name="' . esc_attr($name_prefix . '[question_type]') . '" class="widefat">';
@@ -741,7 +741,7 @@ class HL_Admin_Instruments {
         echo '</select></td>';
 
         // Prompt Text
-        echo '<td><input type="text" name="' . esc_attr($name_prefix . '[prompt_text]') . '" value="' . esc_attr($prompt_text) . '" class="widefat" placeholder="' . esc_attr__('Question prompt text', 'hl-core') . '" required /></td>';
+        echo '<td><input type="text" name="' . esc_attr($name_prefix . '[prompt_text]') . '" value="' . esc_attr($prompt_text) . '" class="widefat" placeholder="' . esc_attr__('Question prompt text', 'hl-core') . '" /></td>';
 
         // Allowed Values
         echo '<td><textarea name="' . esc_attr($name_prefix . '[allowed_values]') . '" class="widefat" rows="2" placeholder="' . esc_attr__('1,2,3,4,5 or Never,Sometimes,Often,Always', 'hl-core') . '">' . esc_textarea($allowed_values) . '</textarea></td>';
