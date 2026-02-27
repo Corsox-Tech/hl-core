@@ -2505,4 +2505,128 @@ button.hl-btn-danger:hover,
         height: 32px;
         font-size: 13px;
     }
+
+    .hl-dash-cards {
+        grid-template-columns: 1fr !important;
+    }
+
+    .hl-dash-welcome {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+
+/* =====================================================
+   DASHBOARD HOME ([hl_dashboard])
+   ===================================================== */
+
+.hl-dashboard-home .hl-dash-welcome {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: linear-gradient(135deg, var(--hl-primary) 0%, var(--hl-primary-light) 100%);
+    color: var(--hl-surface);
+    padding: 32px;
+    border-radius: var(--hl-radius);
+    margin-bottom: 32px;
+}
+
+.hl-dashboard-home .hl-dash-welcome-avatar img {
+    border-radius: 50%;
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.hl-dashboard-home .hl-dash-welcome-text h2 {
+    color: var(--hl-surface);
+    margin: 0 0 4px;
+    font-size: 22px;
+}
+
+.hl-dashboard-home .hl-dash-welcome-text p {
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+    font-size: 15px;
+}
+
+.hl-dashboard-home .hl-dash-section {
+    margin-bottom: 32px;
+}
+
+.hl-dashboard-home .hl-dash-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--hl-text-heading);
+    margin: 0 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--hl-border);
+}
+
+.hl-dashboard-home .hl-dash-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.hl-dashboard-home .hl-dash-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-sm);
+    text-decoration: none;
+    color: inherit;
+    transition: var(--hl-transition);
+    box-shadow: var(--hl-shadow);
+}
+
+.hl-dashboard-home .hl-dash-card:hover {
+    border-color: var(--hl-secondary);
+    box-shadow: var(--hl-shadow-hover);
+    transform: translateY(-2px);
+}
+
+.hl-dashboard-home .hl-dash-card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--hl-radius-xs);
+    background: var(--hl-bg-hover);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.hl-dashboard-home .hl-dash-card-icon .dashicons {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+    color: var(--hl-secondary);
+}
+
+.hl-dashboard-home .hl-dash-card:hover .hl-dash-card-icon {
+    background: var(--hl-secondary);
+}
+
+.hl-dashboard-home .hl-dash-card:hover .hl-dash-card-icon .dashicons {
+    color: var(--hl-surface);
+}
+
+.hl-dashboard-home .hl-dash-card-body h4 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--hl-text-heading);
+}
+
+.hl-dashboard-home .hl-dash-card-body p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+    line-height: 1.4;
 }

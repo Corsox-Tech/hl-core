@@ -165,6 +165,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-pathways-listing.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-reports-hub.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-team.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-dashboard.php';
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';

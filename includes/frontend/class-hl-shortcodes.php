@@ -48,6 +48,7 @@ class HL_Shortcodes {
         add_shortcode('hl_pathways_listing', array($this, 'render_pathways_listing'));
         add_shortcode('hl_reports_hub', array($this, 'render_reports_hub'));
         add_shortcode('hl_my_team', array($this, 'render_my_team'));
+        add_shortcode('hl_dashboard', array($this, 'render_dashboard'));
     }
 
     public function enqueue_assets() {
@@ -79,7 +80,8 @@ class HL_Shortcodes {
             || has_shortcode($post->post_content, 'hl_learners')
             || has_shortcode($post->post_content, 'hl_pathways_listing')
             || has_shortcode($post->post_content, 'hl_reports_hub')
-            || has_shortcode($post->post_content, 'hl_my_team');
+            || has_shortcode($post->post_content, 'hl_my_team')
+            || has_shortcode($post->post_content, 'hl_dashboard');
 
         if ($has_shortcode) {
             wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
@@ -445,6 +447,19 @@ class HL_Shortcodes {
         $this->ensure_frontend_assets();
         $atts = shortcode_atts(array(), $atts, 'hl_my_team');
         $renderer = new HL_Frontend_My_Team();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_dashboard] - Role-aware home dashboard
+     */
+    public function render_dashboard($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your dashboard.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_dashboard');
+        $renderer = new HL_Frontend_Dashboard();
         return $renderer->render($atts);
     }
 

@@ -110,6 +110,9 @@ class HL_CLI_Create_Pages {
      */
     private function get_page_definitions() {
         return array(
+            // Dashboard (LMS Home replacement)
+            array( 'title' => 'Dashboard',             'shortcode' => 'hl_dashboard' ),
+
             // Personal pages
             array( 'title' => 'My Programs',          'shortcode' => 'hl_my_programs' ),
             array( 'title' => 'My Coaching',           'shortcode' => 'hl_my_coaching' ),
