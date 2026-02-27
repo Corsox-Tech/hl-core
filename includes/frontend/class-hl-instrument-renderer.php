@@ -1169,6 +1169,16 @@ class HL_Instrument_Renderer {
                 box-shadow: var(--hl-shadow, 0 2px 8px rgba(0,0,0,0.06));
                 padding: 32px 40px;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                color: var(--hl-text, #1A2B47);
+            }
+            /* Reset BuddyBoss/Elementor global text color overrides on generic elements */
+            .hl-ca-form-wrap p,
+            .hl-ca-form-wrap td,
+            .hl-ca-form-wrap th,
+            .hl-ca-form-wrap label,
+            .hl-ca-form-wrap span,
+            .hl-ca-form-wrap div {
+                color: inherit;
                 color: var(--hl-text, #374151);
                 line-height: 1.6;
             }
@@ -1649,15 +1659,17 @@ class HL_Instrument_Renderer {
             return;
         }
 
+        // Prefix selectors with wrapper class for high specificity (beats BuddyBoss/Elementor global styles).
+        $w = '.hl-ca-form-wrap';
         $map = array(
-            'instructions_font_size'  => array( '.hl-ca-instructions, .hl-ca-instructions p', 'font-size' ),
-            'instructions_color'      => array( '.hl-ca-instructions, .hl-ca-instructions p', 'color' ),
-            'behavior_key_font_size'  => array( '.hl-ca-key-table td', 'font-size' ),
-            'behavior_key_color'      => array( '.hl-ca-key-table td', 'color' ),
-            'item_font_size'          => array( '.hl-ca-question-text, .hl-ca-question-text p', 'font-size' ),
-            'item_color'              => array( '.hl-ca-question-text, .hl-ca-question-text p', 'color' ),
-            'scale_label_font_size'   => array( 'table.hl-ca-matrix thead th', 'font-size' ),
-            'scale_label_color'       => array( 'table.hl-ca-matrix thead th', 'color' ),
+            'instructions_font_size'  => array( "{$w} .hl-ca-instructions, {$w} .hl-ca-instructions p", 'font-size' ),
+            'instructions_color'      => array( "{$w} .hl-ca-instructions, {$w} .hl-ca-instructions p", 'color' ),
+            'behavior_key_font_size'  => array( "{$w} .hl-ca-key-table td", 'font-size' ),
+            'behavior_key_color'      => array( "{$w} .hl-ca-key-table td", 'color' ),
+            'item_font_size'          => array( "{$w} .hl-ca-question-text, {$w} .hl-ca-question-text p", 'font-size' ),
+            'item_color'              => array( "{$w} .hl-ca-question-text, {$w} .hl-ca-question-text p", 'color' ),
+            'scale_label_font_size'   => array( "{$w} table.hl-ca-matrix thead th", 'font-size' ),
+            'scale_label_color'       => array( "{$w} table.hl-ca-matrix thead th", 'color' ),
         );
 
         foreach ( $map as $key => $rule ) {

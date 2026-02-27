@@ -494,6 +494,16 @@ class HL_Teacher_Assessment_Renderer {
                 border-radius: var(--hl-radius, 12px);
                 box-shadow: var(--hl-shadow, 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04));
                 padding: 32px 40px;
+                color: var(--hl-text, #1F2937);
+            }
+            /* Reset BuddyBoss/Elementor global text color overrides on generic elements */
+            .hl-tsa-form-wrap p,
+            .hl-tsa-form-wrap td,
+            .hl-tsa-form-wrap th,
+            .hl-tsa-form-wrap label,
+            .hl-tsa-form-wrap span,
+            .hl-tsa-form-wrap div {
+                color: inherit;
             }
 
             /* ── Header ─────────────────────────────────────── */
@@ -958,17 +968,19 @@ class HL_Teacher_Assessment_Renderer {
             return;
         }
 
+        // Prefix selectors with wrapper class for high specificity (beats BuddyBoss/Elementor global styles).
+        $w = '.hl-tsa-form-wrap';
         $map = array(
-            'instructions_font_size'  => array( '.hl-tsa-instructions', 'font-size' ),
-            'instructions_color'      => array( '.hl-tsa-instructions', 'color' ),
-            'section_title_font_size' => array( '.hl-tsa-section-title', 'font-size' ),
-            'section_title_color'     => array( '.hl-tsa-section-title', 'color' ),
-            'section_desc_font_size'  => array( '.hl-tsa-section-desc', 'font-size' ),
-            'section_desc_color'      => array( '.hl-tsa-section-desc', 'color' ),
-            'item_font_size'          => array( 'table.hl-tsa-likert-table .hl-tsa-item-cell, .hl-tsa-scale-text', 'font-size' ),
-            'item_color'              => array( 'table.hl-tsa-likert-table .hl-tsa-item-cell, .hl-tsa-scale-text', 'color' ),
-            'scale_label_font_size'   => array( 'table.hl-tsa-likert-table thead th, table.hl-tsa-likert-table .hl-tsa-label-col', 'font-size' ),
-            'scale_label_color'       => array( 'table.hl-tsa-likert-table thead th, table.hl-tsa-likert-table .hl-tsa-label-col', 'color' ),
+            'instructions_font_size'  => array( "{$w} .hl-tsa-instructions, {$w} .hl-tsa-instructions p", 'font-size' ),
+            'instructions_color'      => array( "{$w} .hl-tsa-instructions, {$w} .hl-tsa-instructions p", 'color' ),
+            'section_title_font_size' => array( "{$w} .hl-tsa-section-title", 'font-size' ),
+            'section_title_color'     => array( "{$w} .hl-tsa-section-title", 'color' ),
+            'section_desc_font_size'  => array( "{$w} .hl-tsa-section-desc, {$w} .hl-tsa-section-desc p", 'font-size' ),
+            'section_desc_color'      => array( "{$w} .hl-tsa-section-desc, {$w} .hl-tsa-section-desc p", 'color' ),
+            'item_font_size'          => array( "{$w} table.hl-tsa-likert-table .hl-tsa-item-cell, {$w} .hl-tsa-scale-text", 'font-size' ),
+            'item_color'              => array( "{$w} table.hl-tsa-likert-table .hl-tsa-item-cell, {$w} .hl-tsa-scale-text", 'color' ),
+            'scale_label_font_size'   => array( "{$w} table.hl-tsa-likert-table thead th, {$w} table.hl-tsa-likert-table .hl-tsa-label-col", 'font-size' ),
+            'scale_label_color'       => array( "{$w} table.hl-tsa-likert-table thead th, {$w} table.hl-tsa-likert-table .hl-tsa-label-col", 'color' ),
         );
 
         foreach ( $map as $key => $rule ) {
