@@ -672,7 +672,8 @@ Children are grouped by age at the time of assessment (frozen at snapshot time):
 <ul>
 <li><strong>Infant</strong> (0-12 months)</li>
 <li><strong>Toddler</strong> (12-36 months)</li>
-<li><strong>Preschool</strong> (36-60 months)</li>
+<li><strong>Preschool / Pre-K</strong> (36-60 months)</li>
+<li><strong>K-2nd Grade</strong> (60+ months)</li>
 </ul>
 
 Each age group has its own instrument with age-appropriate items and scales.
@@ -694,7 +695,7 @@ The child assessment form features:
 <ul>
 <li><strong>Instructions panel</strong> — customizable per-instrument rich text</li>
 <li><strong>Behavior key table</strong> — explains the frequency labels (Never, Rarely, Sometimes, Often, Almost Always)</li>
-<li><strong>Age-group sections</strong> — children grouped by infant/toddler/preschool</li>
+<li><strong>Age-group sections</strong> — children grouped by infant/toddler/preschool/K-2</li>
 <li><strong>Transposed Likert matrix</strong> — children as columns, items as rows</li>
 <li><strong>Per-child skip toggle</strong> — mark individual children as skipped with a reason</li>
 </ul>
@@ -719,7 +720,7 @@ Used for [hl_doc_link slug="teacher-self-assessment" text="Teacher Self-Assessme
 <h3>Child Assessment Instruments</h3>
 Used for [hl_doc_link slug="child-assessment" text="Child Assessments"]. Managed in <strong>WP Admin > HL Core > Instruments</strong> (Child tab). Features:
 <ul>
-<li>Age-group-specific (infant, toddler, preschool)</li>
+<li>Age-group-specific (infant, toddler, preschool/pre-K, K-2nd grade)</li>
 <li>Question editor with type, prompt, and allowed values</li>
 <li>Custom instructions and behavior key configuration</li>
 </ul>
@@ -903,7 +904,7 @@ A <strong>classroom</strong> represents a physical classroom at a school. Classr
 <ul>
 <li>A <strong>name</strong> (e.g., "Room 101" or "Butterfly Room")</li>
 <li>A <strong>school</strong> association</li>
-<li>An <strong>age band</strong> (infant, toddler, preschool, mixed)</li>
+<li>An <strong>age band</strong> (infant, toddler, preschool, K-2, mixed)</li>
 </ul>
 
 <h3>Teaching assignments</h3>

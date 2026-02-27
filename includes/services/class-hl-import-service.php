@@ -820,10 +820,10 @@ class HL_Import_Service {
 
             // Parse age_band (optional)
             $age_band = isset($row['age_band']) ? strtolower(trim($row['age_band'])) : '';
-            $valid_age_bands = array('infant', 'toddler', 'preschool', 'mixed');
+            $valid_age_bands = array('infant', 'toddler', 'preschool', 'k2', 'mixed');
             if (!empty($age_band) && !in_array($age_band, $valid_age_bands)) {
                 $preview['validation_messages'][] = sprintf(
-                    __('Invalid age_band: %s (must be infant, toddler, preschool, or mixed)', 'hl-core'),
+                    __('Invalid age_band: %s (must be infant, toddler, preschool, k2, or mixed)', 'hl-core'),
                     $age_band
                 );
                 $age_band = '';

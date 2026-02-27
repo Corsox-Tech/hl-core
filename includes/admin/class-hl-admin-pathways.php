@@ -1676,7 +1676,7 @@ class HL_Admin_Pathways {
         $instruments = $wpdb->get_results(
             "SELECT instrument_id, name, instrument_type, version
              FROM {$wpdb->prefix}hl_instrument
-             WHERE instrument_type IN ('children_infant','children_toddler','children_preschool')
+             WHERE instrument_type LIKE 'children_%'
              ORDER BY name ASC"
         );
         $current_instrument_id = isset($ext_ref['instrument_id']) ? absint($ext_ref['instrument_id']) : 0;

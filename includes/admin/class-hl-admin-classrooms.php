@@ -311,7 +311,7 @@ class HL_Admin_Classrooms {
 
         // Age Band
         $current_age_band = $is_edit ? $classroom->age_band : '';
-        $age_bands = array('infant', 'toddler', 'preschool', 'mixed');
+        $age_bands = array('infant', 'toddler', 'preschool', 'k2', 'mixed');
         echo '<tr>';
         echo '<th scope="row"><label for="age_band">' . esc_html__('Age Band', 'hl-core') . '</label></th>';
         echo '<td><select id="age_band" name="age_band">';

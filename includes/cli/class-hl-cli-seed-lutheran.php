@@ -372,7 +372,7 @@ class HL_CLI_Seed_Lutheran {
 	 * Normalize a messy age group string to a canonical age_band value.
 	 *
 	 * @param string $raw The raw age group string from the data.
-	 * @return string One of: infant, toddler, preschool, mixed.
+	 * @return string One of: infant, toddler, preschool, k2, mixed.
 	 */
 	private function normalize_age_band( $raw ) {
 		$lower = strtolower( trim( $raw ) );
@@ -414,6 +414,21 @@ class HL_CLI_Seed_Lutheran {
 			'vpk/3 year olds',
 		), true ) ) {
 			return 'preschool';
+		}
+
+		// K-2nd Grade.
+		if ( in_array( $lower, array(
+			'k-2',
+			'k2',
+			'k-2nd',
+			'k-2nd grade',
+			'kindergarten',
+			'kindergarten-2nd',
+			'k-2nd graders',
+			'5 year olds',
+			'5-7 year olds',
+		), true ) ) {
+			return 'k2';
 		}
 
 		// Mixed.
@@ -1195,6 +1210,7 @@ class HL_CLI_Seed_Lutheran {
 			'infant'    => array( 'name' => 'Lutheran Infant Assessment',    'type' => 'children_infant' ),
 			'toddler'   => array( 'name' => 'Lutheran Toddler Assessment',   'type' => 'children_toddler' ),
 			'preschool' => array( 'name' => 'Lutheran Preschool Assessment', 'type' => 'children_preschool' ),
+			'k2'        => array( 'name' => 'Lutheran K-2 Assessment',       'type' => 'children_k2' ),
 			'mixed'     => array( 'name' => 'Lutheran Mixed-Age Assessment', 'type' => 'children_mixed' ),
 		);
 

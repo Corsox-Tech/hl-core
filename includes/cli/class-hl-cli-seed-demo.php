@@ -443,51 +443,33 @@ class HL_CLI_Seed_Demo {
         global $wpdb;
 
         $types = array(
-            'infant'    => array(
-                'name'  => 'Demo Infant Assessment',
-                'type'  => 'children_infant',
-            ),
-            'toddler'  => array(
-                'name'  => 'Demo Toddler Assessment',
-                'type'  => 'children_toddler',
-            ),
-            'preschool' => array(
-                'name'  => 'Demo Preschool Assessment',
-                'type'  => 'children_preschool',
-            ),
+            'infant'    => array( 'name' => 'Demo Infant Assessment',    'type' => 'children_infant' ),
+            'toddler'   => array( 'name' => 'Demo Toddler Assessment',   'type' => 'children_toddler' ),
+            'preschool' => array( 'name' => 'Demo Preschool Assessment', 'type' => 'children_preschool' ),
+            'k2'        => array( 'name' => 'Demo K-2 Assessment',       'type' => 'children_k2' ),
         );
 
-        $sample_questions = wp_json_encode( array(
-            array(
-                'question_id' => 'q1',
-                'type'        => 'likert',
-                'prompt_text' => 'Child demonstrates age-appropriate social skills',
-                'required'    => true,
-                'allowed_values' => array( '1', '2', '3', '4', '5' ),
-            ),
-            array(
-                'question_id' => 'q2',
-                'type'        => 'text',
-                'prompt_text' => 'Describe the child\'s language development',
-                'required'    => true,
-            ),
-            array(
-                'question_id' => 'q3',
-                'type'        => 'number',
-                'prompt_text' => 'Number of peer interactions observed (15 min sample)',
-                'required'    => false,
-            ),
-            array(
-                'question_id' => 'q4',
-                'type'        => 'single_select',
-                'prompt_text' => 'Primary learning style observed',
-                'required'    => true,
-                'allowed_values' => array( 'Visual', 'Auditory', 'Kinesthetic', 'Mixed' ),
-            ),
-        ) );
+        // Build per-age-band questions from the B2E assessment data.
+        $b2e_data = self::get_child_assessment_questions();
+        $scale    = self::get_child_assessment_scale();
+        $allowed  = array_map( 'strval', array_keys( $scale ) );
 
         $instruments = array();
         foreach ( $types as $band => $info ) {
+            // Use the age-band-specific B2E question if available, otherwise preschool.
+            $source_band = isset( $b2e_data[ $band ] ) ? $band : 'preschool';
+            $q_data      = $b2e_data[ $source_band ];
+
+            $questions = wp_json_encode( array(
+                array(
+                    'question_id'    => 'q1',
+                    'type'           => 'likert',
+                    'prompt_text'    => $q_data['question'],
+                    'required'       => true,
+                    'allowed_values' => $allowed,
+                ),
+            ) );
+
             // Skip if instrument already exists (preserves admin customizations).
             $existing_id = $wpdb->get_var( $wpdb->prepare(
                 "SELECT instrument_id FROM {$wpdb->prefix}hl_instrument WHERE name = %s LIMIT 1",
@@ -503,7 +485,7 @@ class HL_CLI_Seed_Demo {
                 'name'            => $info['name'],
                 'instrument_type' => $info['type'],
                 'version'         => '1.0',
-                'questions'       => $sample_questions,
+                'questions'       => $questions,
                 'behavior_key'    => wp_json_encode( self::get_behavior_key_for_band( $band ) ),
                 'instructions'    => self::get_default_child_assessment_instructions(),
                 'effective_from'  => '2026-01-01',

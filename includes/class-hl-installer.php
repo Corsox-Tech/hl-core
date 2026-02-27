@@ -109,10 +109,16 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 15;
+        $current_revision = 16;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
+
+            // Rev 16: Add 'k2' to hl_classroom.age_band ENUM (dbDelta can't modify ENUMs).
+            if ( (int) $stored < 16 ) {
+                self::migrate_classroom_age_band_k2();
+            }
+
             update_option( 'hl_core_schema_revision', $current_revision );
         }
     }
@@ -1139,7 +1145,7 @@ class HL_Installer {
             classroom_uuid char(36) NOT NULL,
             school_id bigint(20) unsigned NOT NULL,
             classroom_name varchar(255) NOT NULL,
-            age_band enum('infant','toddler','preschool','mixed') NULL,
+            age_band enum('infant','toddler','preschool','k2','mixed') NULL,
             status enum('active','inactive') DEFAULT 'active',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -1739,5 +1745,16 @@ class HL_Installer {
     private static function set_default_options() {
         add_option('hl_core_version', HL_CORE_VERSION);
         add_option('hl_core_installed_at', current_time('mysql'));
+    }
+
+    /**
+     * Rev 16: Add 'k2' value to hl_classroom.age_band ENUM.
+     */
+    private static function migrate_classroom_age_band_k2() {
+        global $wpdb;
+        $table = "{$wpdb->prefix}hl_classroom";
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table ) {
+            $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN `age_band` enum('infant','toddler','preschool','k2','mixed') NULL" );
+        }
     }
 }
