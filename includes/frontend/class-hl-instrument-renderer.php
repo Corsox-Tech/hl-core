@@ -1087,9 +1087,11 @@ class HL_Instrument_Renderer {
      * @return string
      */
     private function format_child_label( $child ) {
-        $name = trim( ( isset( $child->first_name ) ? $child->first_name : '' ) . ' ' . ( isset( $child->last_name ) ? $child->last_name : '' ) );
-        if ( ! empty( $name ) ) {
-            return $name;
+        $first = isset( $child->first_name ) ? trim( $child->first_name ) : '';
+        $last  = isset( $child->last_name )  ? trim( $child->last_name )  : '';
+        if ( $first !== '' ) {
+            $label = $last !== '' ? $first . ' ' . mb_strtoupper( mb_substr( $last, 0, 1 ) ) . '.' : $first;
+            return $label;
         }
         if ( ! empty( $child->child_display_code ) ) {
             return $child->child_display_code;

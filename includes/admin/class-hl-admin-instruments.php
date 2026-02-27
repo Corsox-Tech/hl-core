@@ -775,6 +775,16 @@ class HL_Admin_Instruments {
             for (var i = 0; i < existingRows.length; i++) {
                 attachRemoveHandler(existingRows[i]);
             }
+
+            // Sync TinyMCE editors (instructions) to their textareas on form submit.
+            var childForm = document.getElementById('hl-instrument-form');
+            if (childForm) {
+                childForm.addEventListener('submit', function() {
+                    if (typeof tinyMCE !== 'undefined') {
+                        tinyMCE.triggerSave();
+                    }
+                });
+            }
         })();
         </script>
         <?php

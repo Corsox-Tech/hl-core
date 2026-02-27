@@ -252,8 +252,13 @@ class HL_Frontend_Classroom_Page {
                         </thead>
                         <tbody>
                             <?php foreach ( $children as $child ) :
-                                $name   = trim( ( $child->first_name ?? '' ) . ' ' . ( $child->last_name ?? '' ) );
-                                $name   = $name ?: ( $child->child_display_code ?: __( 'Unnamed', 'hl-core' ) );
+                                $first = trim( $child->first_name ?? '' );
+                                $last  = trim( $child->last_name ?? '' );
+                                if ( $first !== '' ) {
+                                    $name = $last !== '' ? $first . ' ' . mb_strtoupper( mb_substr( $last, 0, 1 ) ) . '.' : $first;
+                                } else {
+                                    $name = $child->child_display_code ?: __( 'Unnamed', 'hl-core' );
+                                }
                                 $dob    = $this->format_date( $child->dob );
                                 $age    = $this->compute_age( $child->dob );
                                 $gender = $this->get_gender( $child );

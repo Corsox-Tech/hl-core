@@ -907,8 +907,13 @@ class HL_Frontend_Child_Assessment {
                     </thead>
                     <tbody>
                         <?php foreach ( $rows as $row ) :
-                            $child_name  = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
-                            $child_label = ! empty( $child_name ) ? $child_name : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
+                            $first = isset( $row['first_name'] ) ? trim( $row['first_name'] ) : '';
+                            $last  = isset( $row['last_name'] )  ? trim( $row['last_name'] )  : '';
+                            if ( $first !== '' ) {
+                                $child_label = $last !== '' ? $first . ' ' . mb_strtoupper( mb_substr( $last, 0, 1 ) ) . '.' : $first;
+                            } else {
+                                $child_label = ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' );
+                            }
                             $is_skipped  = ( isset( $row['status'] ) && $row['status'] === 'skipped' );
                             $answers     = json_decode( $row['answers_json'], true );
                             if ( ! is_array( $answers ) ) { $answers = array(); }
@@ -961,8 +966,13 @@ class HL_Frontend_Child_Assessment {
                     </thead>
                     <tbody>
                         <?php foreach ( $rows as $row ) :
-                            $child_name  = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
-                            $child_label = ! empty( $child_name ) ? $child_name : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
+                            $first = isset( $row['first_name'] ) ? trim( $row['first_name'] ) : '';
+                            $last  = isset( $row['last_name'] )  ? trim( $row['last_name'] )  : '';
+                            if ( $first !== '' ) {
+                                $child_label = $last !== '' ? $first . ' ' . mb_strtoupper( mb_substr( $last, 0, 1 ) ) . '.' : $first;
+                            } else {
+                                $child_label = ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' );
+                            }
                             $is_skipped  = ( isset( $row['status'] ) && $row['status'] === 'skipped' );
                             $answers     = json_decode( $row['answers_json'], true );
                             if ( ! is_array( $answers ) ) { $answers = array(); }
@@ -1005,8 +1015,13 @@ class HL_Frontend_Child_Assessment {
                     </thead>
                     <tbody>
                         <?php foreach ( $rows as $row ) :
-                            $child_name  = trim( ( isset( $row['first_name'] ) ? $row['first_name'] : '' ) . ' ' . ( isset( $row['last_name'] ) ? $row['last_name'] : '' ) );
-                            $child_label = ! empty( $child_name ) ? $child_name : ( ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' ) );
+                            $first = isset( $row['first_name'] ) ? trim( $row['first_name'] ) : '';
+                            $last  = isset( $row['last_name'] )  ? trim( $row['last_name'] )  : '';
+                            if ( $first !== '' ) {
+                                $child_label = $last !== '' ? $first . ' ' . mb_strtoupper( mb_substr( $last, 0, 1 ) ) . '.' : $first;
+                            } else {
+                                $child_label = ! empty( $row['child_display_code'] ) ? $row['child_display_code'] : __( 'Child', 'hl-core' );
+                            }
                         ?>
                             <tr>
                                 <td><?php echo esc_html( $child_label ); ?></td>
