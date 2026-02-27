@@ -41,9 +41,14 @@ class HL_CLI_Nuke {
      * --confirm=<confirmation>
      * : Must be exactly "DELETE ALL DATA" to proceed.
      *
+     * [--include-instruments]
+     * : Also truncate instrument tables (hl_instrument, hl_teacher_assessment_instrument).
+     *   By default these are preserved so admin customizations survive nuke+reseed cycles.
+     *
      * ## EXAMPLES
      *
      *     wp hl-core nuke --confirm="DELETE ALL DATA"
+     *     wp hl-core nuke --confirm="DELETE ALL DATA" --include-instruments
      *
      * @param array $args       Positional args.
      * @param array $assoc_args Named args.
@@ -74,7 +79,8 @@ class HL_CLI_Nuke {
         $this->delete_seeder_users();
 
         // Step 2: Truncate all hl_* tables and reset auto-increment.
-        $this->truncate_tables();
+        $include_instruments = isset( $assoc_args['include-instruments'] );
+        $this->truncate_tables( $include_instruments );
 
         // Step 3: Clean up HL Core user meta.
         $this->clean_user_meta();
@@ -143,8 +149,13 @@ class HL_CLI_Nuke {
     /**
      * Discover and truncate every hl_* table, with per-table row counts.
      * Uses dynamic SHOW TABLES discovery to catch any tables not in the hardcoded list.
+     *
+     * By default, instrument tables are preserved so admin customizations
+     * (instructions, behavior keys, styles) survive nuke+reseed cycles.
+     *
+     * @param bool $include_instruments Whether to also truncate instrument tables.
      */
-    private function truncate_tables() {
+    private function truncate_tables( $include_instruments = false ) {
         global $wpdb;
 
         WP_CLI::line( '--- Truncating hl_* tables ---' );
@@ -158,9 +169,29 @@ class HL_CLI_Nuke {
             return;
         }
 
+        // Instrument tables are skipped by default to preserve admin customizations.
+        $skip_tables = array();
+        if ( ! $include_instruments ) {
+            $skip_tables = array(
+                $wpdb->prefix . 'hl_instrument',
+                $wpdb->prefix . 'hl_teacher_assessment_instrument',
+            );
+        }
+
         $total_rows = 0;
+        $truncated  = 0;
+        $skipped    = 0;
 
         foreach ( $tables as $full_table ) {
+            $short_name = str_replace( $wpdb->prefix, '', $full_table );
+
+            if ( in_array( $full_table, $skip_tables, true ) ) {
+                $row_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$full_table}`" );
+                WP_CLI::line( "  {$short_name}: SKIPPED ({$row_count} rows preserved — use --include-instruments to truncate)" );
+                $skipped++;
+                continue;
+            }
+
             // Get row count before truncating.
             $row_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$full_table}`" );
             $total_rows += $row_count;
@@ -168,13 +199,12 @@ class HL_CLI_Nuke {
             // TRUNCATE resets auto-increment and is faster than DELETE.
             $wpdb->query( "TRUNCATE TABLE `{$full_table}`" );
 
-            // Strip prefix for cleaner output.
-            $short_name = str_replace( $wpdb->prefix, '', $full_table );
             WP_CLI::line( "  {$short_name}: {$row_count} rows deleted" );
+            $truncated++;
         }
 
         WP_CLI::line( "  ---" );
-        WP_CLI::line( "  Tables truncated: " . count( $tables ) . " | Total rows: {$total_rows}" );
+        WP_CLI::line( "  Tables truncated: {$truncated} | Skipped: {$skipped} | Total rows deleted: {$total_rows}" );
     }
 
     /**

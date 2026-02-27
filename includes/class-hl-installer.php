@@ -109,7 +109,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 14;
+        $current_revision = 15;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -1416,6 +1416,7 @@ class HL_Installer {
             questions longtext NOT NULL COMMENT 'JSON array of question objects',
             instructions longtext NULL,
             behavior_key longtext NULL COMMENT 'JSON: [{label, frequency, description}, ...]',
+            styles_json longtext NULL COMMENT 'JSON: admin-customizable display styles (font sizes, colors)',
             effective_from date NULL,
             effective_to date NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1678,6 +1679,7 @@ class HL_Installer {
             sections longtext NOT NULL,
             scale_labels longtext DEFAULT NULL,
             instructions longtext DEFAULT NULL,
+            styles_json longtext DEFAULT NULL COMMENT 'JSON: admin-customizable display styles (font sizes, colors)',
             status varchar(20) NOT NULL DEFAULT 'active',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,

@@ -214,6 +214,9 @@ class HL_Admin_Instruments {
             }
         }
 
+        // Display styles (font sizes and colors).
+        $styles_json = $this->build_styles_from_post();
+
         $data = array(
             'name'            => sanitize_text_field($_POST['name']),
             'instrument_type' => $instrument_type,
@@ -221,6 +224,7 @@ class HL_Admin_Instruments {
             'questions'       => wp_json_encode($questions),
             'instructions'    => $instructions,
             'behavior_key'    => $behavior_key,
+            'styles_json'     => $styles_json,
             'effective_from'  => !empty($_POST['effective_from']) ? sanitize_text_field($_POST['effective_from']) : null,
             'effective_to'    => !empty($_POST['effective_to']) ? sanitize_text_field($_POST['effective_to']) : null,
         );
@@ -649,6 +653,18 @@ class HL_Admin_Instruments {
         echo '</tbody>';
         echo '</table>';
 
+        // Display Styles panel.
+        $styles = array();
+        if ($is_edit && !empty($instrument->styles_json)) {
+            $styles = json_decode($instrument->styles_json, true) ?: array();
+        }
+        $this->render_styles_panel($styles, array(
+            'instructions'  => __('Instructions', 'hl-core'),
+            'behavior_key'  => __('Behavior Key', 'hl-core'),
+            'item'          => __('Questions / Items', 'hl-core'),
+            'scale_label'   => __('Scale Labels', 'hl-core'),
+        ));
+
         submit_button($is_edit ? __('Update Instrument', 'hl-core') : __('Create Instrument', 'hl-core'));
 
         echo '</form>';
@@ -876,6 +892,7 @@ class HL_Admin_Instruments {
 
         $data['sections']     = wp_json_encode($sections);
         $data['scale_labels'] = wp_json_encode($scale_labels);
+        $data['styles_json']  = $this->build_styles_from_post();
 
         global $wpdb;
 
@@ -1128,6 +1145,19 @@ class HL_Admin_Instruments {
         echo '</div>';
         echo '<p><button type="button" class="button" id="hl-te-add-section">' . esc_html__('+ Add Section', 'hl-core') . '</button></p>';
 
+        // Display Styles panel.
+        $styles = array();
+        if ($is_edit && !empty($instrument->styles_json)) {
+            $styles = json_decode($instrument->styles_json, true) ?: array();
+        }
+        $this->render_styles_panel($styles, array(
+            'instructions'   => __('Instructions', 'hl-core'),
+            'section_title'  => __('Section Titles', 'hl-core'),
+            'section_desc'   => __('Section Descriptions', 'hl-core'),
+            'item'           => __('Items', 'hl-core'),
+            'scale_label'    => __('Scale Labels', 'hl-core'),
+        ));
+
         // Submit
         submit_button($is_edit ? __('Update Instrument', 'hl-core') : __('Create Instrument', 'hl-core'));
 
@@ -1368,5 +1398,110 @@ class HL_Admin_Instruments {
         };
         </script>
         <?php
+    }
+
+    // =====================================================================
+    // Display Styles — shared panel + POST builder
+    // =====================================================================
+
+    /**
+     * Available font-size options for the dropdown.
+     */
+    private static $font_size_options = array(
+        ''     => 'Default',
+        '12px' => '12px',
+        '13px' => '13px',
+        '14px' => '14px',
+        '15px' => '15px',
+        '16px' => '16px',
+        '17px' => '17px',
+        '18px' => '18px',
+        '20px' => '20px',
+        '22px' => '22px',
+        '24px' => '24px',
+    );
+
+    /**
+     * Render the "Display Styles" collapsible panel.
+     *
+     * @param array $styles  Current styles_json values (or empty).
+     * @param array $elements Associative array of element_key => label for the rows to show.
+     */
+    private function render_styles_panel( $styles, $elements ) {
+        ?>
+        <div class="hl-styles-panel" style="margin-top: 2em;">
+            <h2 style="cursor: pointer; user-select: none;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? '' : 'none'; this.querySelector('span').textContent = this.nextElementSibling.style.display === 'none' ? '&#9654;' : '&#9660;';">
+                <span>&#9654;</span> <?php esc_html_e( 'Display Styles', 'hl-core' ); ?>
+            </h2>
+            <div style="display: none;">
+                <p class="description"><?php esc_html_e( 'Customize font sizes and colors for the assessment form. Leave blank to use defaults.', 'hl-core' ); ?></p>
+                <table class="form-table">
+                    <?php foreach ( $elements as $key => $label ) :
+                        $size_key  = $key . '_font_size';
+                        $color_key = $key . '_color';
+                        $cur_size  = isset( $styles[ $size_key ] ) ? $styles[ $size_key ] : '';
+                        $cur_color = isset( $styles[ $color_key ] ) ? $styles[ $color_key ] : '';
+                    ?>
+                        <tr>
+                            <th scope="row"><?php echo esc_html( $label ); ?></th>
+                            <td>
+                                <label style="margin-right: 16px;">
+                                    <?php esc_html_e( 'Font size:', 'hl-core' ); ?>
+                                    <select name="styles[<?php echo esc_attr( $size_key ); ?>]">
+                                        <?php foreach ( self::$font_size_options as $val => $text ) : ?>
+                                            <option value="<?php echo esc_attr( $val ); ?>" <?php selected( $cur_size, $val ); ?>>
+                                                <?php echo esc_html( $text ); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </label>
+                                <label>
+                                    <?php esc_html_e( 'Color:', 'hl-core' ); ?>
+                                    <input type="color" name="styles[<?php echo esc_attr( $color_key ); ?>]"
+                                           value="<?php echo esc_attr( $cur_color ?: '#000000' ); ?>"
+                                           style="vertical-align: middle; width: 40px; height: 30px; padding: 0 2px;" />
+                                    <label style="margin-left: 4px;">
+                                        <input type="checkbox" name="styles_clear[<?php echo esc_attr( $color_key ); ?>]" value="1"
+                                            <?php checked( empty( $cur_color ) ); ?> />
+                                        <?php esc_html_e( 'Default', 'hl-core' ); ?>
+                                    </label>
+                                </label>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </table>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Build styles_json value from POST data.
+     *
+     * @return string|null JSON string or null if all defaults.
+     */
+    private function build_styles_from_post() {
+        if ( empty( $_POST['styles'] ) || ! is_array( $_POST['styles'] ) ) {
+            return null;
+        }
+
+        $styles   = array();
+        $clears   = isset( $_POST['styles_clear'] ) && is_array( $_POST['styles_clear'] ) ? $_POST['styles_clear'] : array();
+
+        foreach ( $_POST['styles'] as $key => $value ) {
+            $key   = sanitize_text_field( $key );
+            $value = sanitize_text_field( $value );
+
+            // If the "Default" checkbox is checked for a color field, skip it.
+            if ( isset( $clears[ $key ] ) ) {
+                continue;
+            }
+
+            if ( $value !== '' ) {
+                $styles[ $key ] = $value;
+            }
+        }
+
+        return ! empty( $styles ) ? wp_json_encode( $styles ) : null;
     }
 }

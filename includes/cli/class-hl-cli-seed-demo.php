@@ -488,6 +488,16 @@ class HL_CLI_Seed_Demo {
 
         $instruments = array();
         foreach ( $types as $band => $info ) {
+            // Skip if instrument already exists (preserves admin customizations).
+            $existing_id = $wpdb->get_var( $wpdb->prepare(
+                "SELECT instrument_id FROM {$wpdb->prefix}hl_instrument WHERE name = %s LIMIT 1",
+                $info['name']
+            ) );
+            if ( $existing_id ) {
+                $instruments[ $band ] = (int) $existing_id;
+                continue;
+            }
+
             $wpdb->insert( $wpdb->prefix . 'hl_instrument', array(
                 'instrument_uuid' => wp_generate_uuid4(),
                 'name'            => $info['name'],
@@ -504,31 +514,47 @@ class HL_CLI_Seed_Demo {
         // B2E Teacher Self-Assessment instruments — separate PRE and POST.
         $b2e_scale_labels = wp_json_encode( self::get_b2e_instrument_scale_labels() );
 
-        // PRE instrument.
-        $wpdb->insert( $wpdb->prefix . 'hl_teacher_assessment_instrument', array(
-            'instrument_name'    => 'Teacher Self-Assessment',
-            'instrument_key'     => 'b2e_self_assessment_pre',
-            'instrument_version' => '1.0',
-            'sections'           => wp_json_encode( self::get_b2e_instrument_sections_pre() ),
-            'scale_labels'       => $b2e_scale_labels,
-            'instructions'       => self::get_b2e_instrument_instructions_pre(),
-            'status'             => 'active',
-            'created_at'         => current_time( 'mysql' ),
+        // PRE instrument — skip if exists.
+        $existing_pre = $wpdb->get_var( $wpdb->prepare(
+            "SELECT instrument_id FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s LIMIT 1",
+            'b2e_self_assessment_pre'
         ) );
-        $instruments['teacher_b2e_pre'] = $wpdb->insert_id;
+        if ( $existing_pre ) {
+            $instruments['teacher_b2e_pre'] = (int) $existing_pre;
+        } else {
+            $wpdb->insert( $wpdb->prefix . 'hl_teacher_assessment_instrument', array(
+                'instrument_name'    => 'Teacher Self-Assessment',
+                'instrument_key'     => 'b2e_self_assessment_pre',
+                'instrument_version' => '1.0',
+                'sections'           => wp_json_encode( self::get_b2e_instrument_sections_pre() ),
+                'scale_labels'       => $b2e_scale_labels,
+                'instructions'       => self::get_b2e_instrument_instructions_pre(),
+                'status'             => 'active',
+                'created_at'         => current_time( 'mysql' ),
+            ) );
+            $instruments['teacher_b2e_pre'] = $wpdb->insert_id;
+        }
 
-        // POST instrument.
-        $wpdb->insert( $wpdb->prefix . 'hl_teacher_assessment_instrument', array(
-            'instrument_name'    => 'Teacher Self-Assessment',
-            'instrument_key'     => 'b2e_self_assessment_post',
-            'instrument_version' => '1.0',
-            'sections'           => wp_json_encode( self::get_b2e_instrument_sections_post() ),
-            'scale_labels'       => $b2e_scale_labels,
-            'instructions'       => self::get_b2e_instrument_instructions_post(),
-            'status'             => 'active',
-            'created_at'         => current_time( 'mysql' ),
+        // POST instrument — skip if exists.
+        $existing_post = $wpdb->get_var( $wpdb->prepare(
+            "SELECT instrument_id FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s LIMIT 1",
+            'b2e_self_assessment_post'
         ) );
-        $instruments['teacher_b2e_post'] = $wpdb->insert_id;
+        if ( $existing_post ) {
+            $instruments['teacher_b2e_post'] = (int) $existing_post;
+        } else {
+            $wpdb->insert( $wpdb->prefix . 'hl_teacher_assessment_instrument', array(
+                'instrument_name'    => 'Teacher Self-Assessment',
+                'instrument_key'     => 'b2e_self_assessment_post',
+                'instrument_version' => '1.0',
+                'sections'           => wp_json_encode( self::get_b2e_instrument_sections_post() ),
+                'scale_labels'       => $b2e_scale_labels,
+                'instructions'       => self::get_b2e_instrument_instructions_post(),
+                'status'             => 'active',
+                'created_at'         => current_time( 'mysql' ),
+            ) );
+            $instruments['teacher_b2e_post'] = $wpdb->insert_id;
+        }
 
         WP_CLI::log( '  [4/17] Instruments created: ' . count( $instruments ) );
 

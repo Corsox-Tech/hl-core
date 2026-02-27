@@ -942,8 +942,43 @@ class HL_Teacher_Assessment_Renderer {
                     text-align: center;
                 }
             }
+
+            /* ── Admin-customizable style overrides ─────────── */
+            <?php $this->render_style_overrides(); ?>
         </style>
         <?php
+    }
+
+    /**
+     * Emit CSS overrides from the instrument's styles_json.
+     */
+    private function render_style_overrides() {
+        $styles = $this->instrument->get_styles();
+        if ( empty( $styles ) ) {
+            return;
+        }
+
+        $map = array(
+            'instructions_font_size'  => array( '.hl-tsa-instructions', 'font-size' ),
+            'instructions_color'      => array( '.hl-tsa-instructions', 'color' ),
+            'section_title_font_size' => array( '.hl-tsa-section-title', 'font-size' ),
+            'section_title_color'     => array( '.hl-tsa-section-title', 'color' ),
+            'section_desc_font_size'  => array( '.hl-tsa-section-desc', 'font-size' ),
+            'section_desc_color'      => array( '.hl-tsa-section-desc', 'color' ),
+            'item_font_size'          => array( 'table.hl-tsa-likert-table .hl-tsa-item-cell, .hl-tsa-scale-text', 'font-size' ),
+            'item_color'              => array( 'table.hl-tsa-likert-table .hl-tsa-item-cell, .hl-tsa-scale-text', 'color' ),
+            'scale_label_font_size'   => array( 'table.hl-tsa-likert-table thead th, table.hl-tsa-likert-table .hl-tsa-label-col', 'font-size' ),
+            'scale_label_color'       => array( 'table.hl-tsa-likert-table thead th, table.hl-tsa-likert-table .hl-tsa-label-col', 'color' ),
+        );
+
+        foreach ( $map as $key => $rule ) {
+            if ( ! empty( $styles[ $key ] ) ) {
+                $selector = $rule[0];
+                $property = $rule[1];
+                $value    = esc_attr( $styles[ $key ] );
+                echo "{$selector} { {$property}: {$value} !important; }\n";
+            }
+        }
     }
 
     // ─── Inline script ──────────────────────────────────────────────────

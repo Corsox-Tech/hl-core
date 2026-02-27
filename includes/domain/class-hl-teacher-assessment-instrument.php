@@ -20,6 +20,7 @@ class HL_Teacher_Assessment_Instrument {
     public $sections;
     public $scale_labels;
     public $instructions;
+    public $styles_json;
     public $status;
     public $created_at;
     public $updated_at;
@@ -63,6 +64,18 @@ class HL_Teacher_Assessment_Instrument {
      */
     public function get_instructions() {
         return is_string( $this->instructions ) ? $this->instructions : '';
+    }
+
+    /**
+     * Get decoded display styles array.
+     *
+     * @return array
+     */
+    public function get_styles() {
+        if ( is_string( $this->styles_json ) ) {
+            return json_decode( $this->styles_json, true ) ?: array();
+        }
+        return is_array( $this->styles_json ) ? $this->styles_json : array();
     }
 
     /**

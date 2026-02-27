@@ -908,6 +908,16 @@ class HL_CLI_Seed_Palm_Beach {
 
 		$instruments = array();
 		foreach ( $types as $band => $info ) {
+			// Skip if instrument already exists (preserves admin customizations).
+			$existing_id = $wpdb->get_var( $wpdb->prepare(
+				"SELECT instrument_id FROM {$wpdb->prefix}hl_instrument WHERE name = %s LIMIT 1",
+				$info['name']
+			) );
+			if ( $existing_id ) {
+				$instruments[ $band ] = (int) $existing_id;
+				continue;
+			}
+
 			$wpdb->insert( $wpdb->prefix . 'hl_instrument', array(
 				'instrument_uuid' => wp_generate_uuid4(),
 				'name'            => $info['name'],

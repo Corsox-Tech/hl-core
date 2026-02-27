@@ -1620,8 +1620,54 @@ class HL_Instrument_Renderer {
                     font-size: 13px;
                 }
             }
+
+            /* ── Admin-customizable style overrides ─────────── */
+            <?php $this->render_style_overrides(); ?>
         </style>
         <?php
+    }
+
+    /**
+     * Emit CSS overrides from the instrument's styles_json.
+     */
+    private function render_style_overrides() {
+        // Get styles from primary instrument (or first age group instrument in multi mode).
+        $styles_raw = '';
+        if ( $this->multi_age_group && ! empty( $this->instruments_by_age_group ) ) {
+            $first = reset( $this->instruments_by_age_group );
+            $styles_raw = isset( $first->styles_json ) ? $first->styles_json : '';
+        } elseif ( isset( $this->instrument->styles_json ) ) {
+            $styles_raw = $this->instrument->styles_json;
+        }
+
+        if ( empty( $styles_raw ) ) {
+            return;
+        }
+
+        $styles = json_decode( $styles_raw, true );
+        if ( empty( $styles ) || ! is_array( $styles ) ) {
+            return;
+        }
+
+        $map = array(
+            'instructions_font_size'  => array( '.hl-ca-instructions, .hl-ca-instructions p', 'font-size' ),
+            'instructions_color'      => array( '.hl-ca-instructions, .hl-ca-instructions p', 'color' ),
+            'behavior_key_font_size'  => array( '.hl-ca-key-table td', 'font-size' ),
+            'behavior_key_color'      => array( '.hl-ca-key-table td', 'color' ),
+            'item_font_size'          => array( '.hl-ca-question-text, .hl-ca-question-text p', 'font-size' ),
+            'item_color'              => array( '.hl-ca-question-text, .hl-ca-question-text p', 'color' ),
+            'scale_label_font_size'   => array( 'table.hl-ca-matrix thead th', 'font-size' ),
+            'scale_label_color'       => array( 'table.hl-ca-matrix thead th', 'color' ),
+        );
+
+        foreach ( $map as $key => $rule ) {
+            if ( ! empty( $styles[ $key ] ) ) {
+                $selector = $rule[0];
+                $property = $rule[1];
+                $value    = esc_attr( $styles[ $key ] );
+                echo "{$selector} { {$property}: {$value} !important; }\n";
+            }
+        }
     }
 
     // ─── Inline Script ───────────────────────────────────────────────────

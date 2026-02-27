@@ -1218,10 +1218,10 @@ class HL_CLI_Seed_Lutheran {
 					'allowed_values' => $allowed,
 				),
 			) );
-			// Skip if already exists.
+			// Skip if already exists (preserves admin customizations).
 			$existing = $wpdb->get_var( $wpdb->prepare(
-				"SELECT instrument_id FROM {$prefix}hl_instrument WHERE instrument_type = %s LIMIT 1",
-				$info['type']
+				"SELECT instrument_id FROM {$prefix}hl_instrument WHERE name = %s LIMIT 1",
+				$info['name']
 			) );
 			if ( $existing ) {
 				$instruments[ $band ] = (int) $existing;
