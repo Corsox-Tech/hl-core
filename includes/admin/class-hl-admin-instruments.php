@@ -1469,10 +1469,12 @@ class HL_Admin_Instruments {
                                     <?php esc_html_e( 'Color:', 'hl-core' ); ?>
                                     <input type="color" name="styles[<?php echo esc_attr( $color_key ); ?>]"
                                            value="<?php echo esc_attr( $cur_color ?: '#000000' ); ?>"
-                                           style="vertical-align: middle; width: 40px; height: 30px; padding: 0 2px;" />
+                                           style="vertical-align: middle; width: 40px; height: 30px; padding: 0 2px;"
+                                           oninput="var cb=this.parentNode.querySelector('input[type=checkbox]');if(cb)cb.checked=false;" />
                                     <label style="margin-left: 4px;">
                                         <input type="checkbox" name="styles_clear[<?php echo esc_attr( $color_key ); ?>]" value="1"
-                                            <?php checked( empty( $cur_color ) ); ?> />
+                                            <?php checked( empty( $cur_color ) ); ?>
+                                            onchange="if(this.checked){var ci=this.closest('label').previousElementSibling;if(ci&&ci.type==='color')ci.value='#000000';}" />
                                         <?php esc_html_e( 'Default', 'hl-core' ); ?>
                                     </label>
                                 </label>
