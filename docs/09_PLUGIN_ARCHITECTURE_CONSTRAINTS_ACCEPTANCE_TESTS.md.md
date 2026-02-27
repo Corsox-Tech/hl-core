@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 09_PLUGIN_ARCHITECTURE_CONSTRAINTS_ACCEPTANCE_TESTS.md
-Version: 2.0
-Last Updated: 2026-02-25
+Version: 3.0
+Last Updated: 2026-02-27
 Timezone: America/Bogota
 
 ---
@@ -108,11 +108,14 @@ State/rollups:
 - hl_activity_state (per enrollment/activity computed or cached)
 - hl_completion_rollup (per enrollment overall percent, cached)
 
-Instruments (Child Assessment only):
-- hl_instrument (stores question definitions for child assessment instruments: infant/toddler/preschool)
+Instruments:
+- hl_instrument (child assessment instrument definitions: infant/toddler/preschool/k2 with questions JSON, instructions, behavior_key, styles_json)
+- hl_teacher_assessment_instrument (teacher self-assessment instrument definitions with structured sections JSON, scale_labels, instructions, styles_json — separate PRE and POST instruments per phase)
+
+Note: Both instrument tables are **protected from the nuke command** by default (admin customizations survive nuke+reseed). Pass `--include-instruments` to the nuke command to truncate them.
 
 Assessment orchestration:
-- hl_teacher_assessment_instance (tracks pre/post status per teacher — does NOT store responses; JFB stores those)
+- hl_teacher_assessment_instance (tracks pre/post status per teacher with responses_json for custom instruments, jfb_form_id/jfb_record_id for legacy JFB fallback)
 - hl_child_assessment_instance (tracks required instances per teacher/classroom)
 - hl_child_assessment_childrow (stores per-child answers — this IS the response storage for child assessments)
 
@@ -153,8 +156,8 @@ Notes:
 - HL Core stores LearnDash activity references by course_id.
 - HL Core should avoid per-row slow calls; batch progress reads where possible.
 
-## 3.3 JetFormBuilder (NEW)
-- JetFormBuilder is used for static questionnaire forms: teacher self-assessments and observations.
+## 3.3 JetFormBuilder
+- JetFormBuilder is used for **observations only** (mentor-submitted forms about teacher classroom practice). Teacher self-assessments now use a custom PHP instrument system.
 - JFB must be installed and active for these features to work.
 - HL Core integrates via JFB's "Call Hook" post-submit action mechanism.
 - HL Core provides:
@@ -213,10 +216,12 @@ Minimum WP Admin pages:
 - preview table with CREATE/UPDATE/SKIP/NEEDS_REVIEW/ERROR
 - commit and download error report
 
-8) Instruments (Child Assessment only)
-- create/edit child assessment instruments (infant/toddler/preschool)
+8) Instruments (Child + Teacher Assessment)
+- create/edit child assessment instruments (infant/toddler/preschool/k2) with questions, instructions, behavior key
+- create/edit teacher self-assessment instruments (separate PRE/POST) with structured sections, scale labels, instructions
 - manage questions (question_id, type, prompt, allowed values)
 - version management
+- Display Styles panel: per-element font-size and color customization (stored as styles_json)
 
 9) Assessments (Staff-only viewers)
 - child assessment viewer: list instances, view per-child answers, export CSV
@@ -234,9 +239,11 @@ Minimum WP Admin pages:
 # 5) Front-End UX (Minimum)
 
 HL Core should provide at least:
-- Participant Progress page (self) — shows pathway with activities, click to open JFB forms or custom forms
+- Dashboard (role-aware LMS home page with enrollment-based card visibility)
+- Participant Progress page (self) — shows pathway with activities, click to open custom forms or JFB forms
 - Mentor Team Progress page (team scope) — includes "New Observation" flow (select teacher → JFB form)
-- Child Assessment form page — custom PHP form with per-child matrix
+- Teacher Self-Assessment form page — custom PHP renderer with PRE (single-column) and POST (dual-column retrospective) modes
+- Child Assessment form page — custom PHP form with per-child matrix grouped by frozen age group
 - School/District leader report pages (scoped)
 
 Implementation options:
@@ -369,8 +376,8 @@ These are the required behaviors. The implementation must pass them.
 - Do not expose assessment responses to non-staff.
 - Do not implement messaging (BuddyBoss provides it).
 - Do not treat WP user roles as track roles.
-- Do not build custom form rendering for teacher self-assessments or observations (JetFormBuilder handles those).
-- Do not store teacher self-assessment or observation responses in HL Core tables (JFB Form Records handles that).
+- Teacher self-assessments now use custom PHP rendering (HL_Teacher_Assessment_Renderer) with structured instrument definitions — NOT JFB. Only observations remain JFB-powered.
+- Teacher self-assessment responses are stored in `hl_teacher_assessment_instance.responses_json`. Observation responses remain in JFB Form Records.
 - DO build custom form rendering for child assessments (JFB cannot handle the dynamic per-child matrix).
 
 ---

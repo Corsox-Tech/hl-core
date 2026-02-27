@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 10_FRONTEND_PAGES_NAVIGATION_UX.md
-Version: 2.0
-Last Updated: 2026-02-18
+Version: 3.0
+Last Updated: 2026-02-27
 Timezone: America/Bogota
 
 ---
@@ -36,6 +36,17 @@ The internal data model uses technical terms. The front-end uses participant-fri
 ---
 
 # 2) Page Architecture Overview
+
+## 2.0 Dashboard (LMS Home)
+
+```
+Dashboard (role-aware home page — replaces Elementor LMS home)
+  ├─ Welcome banner (all users)
+  ├─ Participant cards: My Programs, My Classrooms, My Coaching*, My Team*, My Track*
+  └─ Staff Administration cards: Tracks, Institutions, Learners, Pathways, Coaching Hub, Reports
+```
+
+*Cards shown/hidden based on enrollment roles and control group status.
 
 ## 2.1 Participant Pages (Teachers, Mentors)
 
@@ -94,6 +105,7 @@ All front-end pages require the user to be logged in.
 
 | Page | Who Can See It |
 |------|---------------|
+| Dashboard | Any logged-in user — cards shown/hidden by role (see §2.0) |
 | My Programs | Any enrolled participant (sees only their own pathways) |
 | Program Page | The enrolled participant viewing their own pathway |
 | Activity Page | The enrolled participant (if activity is unlocked) |
@@ -108,6 +120,51 @@ All front-end pages require the user to be logged in.
 | My Coaching | Any enrolled participant (sees only their own sessions) |
 
 If a user does not have permission, show a "You do not have access to this page" message. Never expose data outside the user's scope.
+
+---
+
+# 3.1) Dashboard Page (LMS Home)
+
+## 3.1.1 Dashboard
+**Shortcode:** `[hl_dashboard]`
+**Purpose:** Role-aware LMS home page. Replaces the old Elementor-based dashboard that used Dynamic Visibility tied to WP roles. This shortcode uses HL Core enrollment data (`hl_enrollment.roles` JSON) for role-based card visibility, which is essential for control group teachers who have WP role `subscriber`.
+
+### Welcome Banner
+- Dark gradient banner (primary → primary-light)
+- Time-based greeting: "Good morning/afternoon/evening, [Display Name]"
+- User avatar (64px, rounded)
+- Subtitle: "Welcome to Housman Learning Academy"
+
+### Participant Section (shown if user has any active enrollment)
+Cards shown based on enrollment roles and control group status:
+
+| Card | Condition | Links To |
+|------|-----------|----------|
+| My Programs | Any enrollment | `[hl_my_programs]` |
+| My Classrooms | Any enrollment | `[hl_classrooms_listing]` |
+| My Coaching | Has at least one non-control-group enrollment | `[hl_my_coaching]` |
+| My Team | Has mentor role in any enrollment | `[hl_my_team]` |
+| Coaching Hub | Has mentor role in any enrollment | `[hl_coaching_hub]` |
+| My Track | Has school_leader or district_leader role | `[hl_my_cohort]` |
+
+Control group teachers (all enrollments are `is_control_group`) see only My Programs + My Classrooms — no coaching, team, or mentor cards.
+
+### Administration Section (shown if user has `manage_hl_core` capability)
+Staff/admin cards:
+
+| Card | Links To |
+|------|----------|
+| Tracks | `[hl_cohorts_listing]` |
+| Institutions | `[hl_institutions_listing]` |
+| Learners | `[hl_learners]` |
+| Pathways | `[hl_pathways_listing]` |
+| Coaching Hub | `[hl_coaching_hub]` |
+| Reports | `[hl_reports_hub]` |
+
+### Card Behavior
+- Cards silently hide if the target shortcode page doesn't exist
+- Responsive CSS grid: `repeat(auto-fill, minmax(280px, 1fr))`
+- Each card: icon (dashicon), title, description, hover effects (translateY, border color)
 
 ---
 
@@ -450,6 +507,7 @@ Use WordPress pages with URL parameters. Recommended slugs:
 
 | Page | Slug | Parameters |
 |------|------|-----------|
+| Dashboard | `/dashboard/` | none |
 | My Programs | `/my-programs/` | none |
 | Program Page | `/program/` | `?id=X` (pathway_id) |
 | Activity Page | `/activity/` | `?id=X&enrollment=Y` |

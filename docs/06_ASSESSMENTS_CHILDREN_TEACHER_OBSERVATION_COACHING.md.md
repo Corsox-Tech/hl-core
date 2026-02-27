@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md
-Version: 3.0
-Last Updated: 2026-02-25
+Version: 4.0
+Last Updated: 2026-02-27
 Timezone: America/Bogota
 
 ---
@@ -30,7 +30,8 @@ HL Core uses a **primarily custom PHP approach** for assessments:
 - The POST version requires a unique dual-column retrospective format (PRE responses shown as disabled radios alongside new "Now" ratings) that JFB cannot natively support
 - Structured response data (`responses_json`) is needed for research export, control group comparison, and Cohen's d effect size calculations
 - Pre/post logic must integrate tightly with the activity system and pathway drip rules
-- The B2E Teacher Self-Assessment instrument is standardized and does not need admin-editable questions
+- Separate PRE and POST instrument definitions allow different item counts, instructions, and section behavior per phase
+- Admin-customizable display styles (`styles_json`) allow font-size and color adjustments without developer intervention
 
 **Legacy JFB support:** Teacher self-assessment activities can still reference JFB forms via `external_ref.form_id` for backward compatibility. The system checks for `teacher_instrument_id` first (custom) and falls back to `jfb_form_id` (legacy). New deployments should use the custom instrument system exclusively.
 
@@ -86,13 +87,16 @@ The B2E Teacher Self-Assessment instrument has 3 sections:
 ## 2.2 Instrument Storage
 
 ### hl_teacher_assessment_instrument
-Stores the instrument definition as structured JSON:
+Stores the instrument definition as structured JSON. **Separate instruments are created for PRE and POST phases** (e.g., `b2e_self_assessment_pre` and `b2e_self_assessment_post`) because they can have different item counts, instructions, and section behaviors (POST Section 1 uses retrospective dual-column).
+
 - instrument_id (PK)
 - instrument_name (varchar 255)
-- instrument_key (varchar 100, unique) — e.g., "b2e_teacher_self_assessment"
+- instrument_key (varchar 100, unique) — e.g., "b2e_self_assessment_pre", "b2e_self_assessment_post"
 - instrument_version (int)
 - sections (longtext JSON) — structured section definitions with items, scales, instructions
 - scale_labels (longtext JSON) — reusable scale definitions
+- instructions (longtext NULL) — admin-editable rich text instructions displayed above the form
+- styles_json (longtext NULL) — admin-customizable display styles JSON (font sizes, colors for instructions, section titles, section descriptions, items, scale labels)
 - status (enum: active/archived)
 - created_at, updated_at
 
@@ -159,6 +163,31 @@ POST with retrospective (Section 1 only):
   }
 }
 ```
+
+## 2.3.1 Display Styles (styles_json)
+
+Both instrument tables support an optional `styles_json` column for admin-customizable display styling. The JSON structure:
+
+```json
+{
+    "instructions_font_size": "16px",
+    "instructions_color": "#4B5563",
+    "section_title_font_size": "20px",
+    "section_title_color": "#1F2937",
+    "section_desc_font_size": "15px",
+    "section_desc_color": "#6B7280",
+    "item_font_size": "15px",
+    "item_color": "#374151",
+    "scale_label_font_size": "13px",
+    "scale_label_color": "#9CA3AF",
+    "behavior_key_font_size": "14px",
+    "behavior_key_color": "#1A2B47"
+}
+```
+
+All keys are optional. Empty/missing = renderer's built-in default. Some keys only apply to one instrument type (e.g., `behavior_key_*` only for child instruments, `section_title_*` / `section_desc_*` only for teacher instruments) — unused keys are ignored.
+
+Admins configure these via a "Display Styles" panel in the instrument edit form (collapsible section with per-element font-size dropdown + color picker). Renderers read styles and emit CSS override rules at the end of their `<style>` blocks.
 
 ## 2.4 Form Rendering (HL_Teacher_Assessment_Renderer)
 
@@ -257,9 +286,15 @@ The `hl_instrument` table stores child assessment instrument definitions:
 - instrument_type in { "children_infant", "children_toddler", "children_preschool", "children_k2" }
 - version
 - questions (JSON array)
+- instructions (longtext NULL) — admin-editable rich text instructions displayed above the form; blank falls back to hard-coded default
+- behavior_key (longtext NULL) — JSON array of 5 behavior key rows [{label, frequency, description}]; blank falls back to hard-coded age-band defaults
+- styles_json (longtext NULL) — admin-customizable display styles JSON (font sizes, colors for instructions, behavior key, items, scale labels)
 - effective_from / effective_to (optional)
 
 Note: These are the ONLY instrument types in `hl_instrument`. Teacher self-assessment instruments are in a separate table (`hl_teacher_assessment_instrument`).
+
+### Instrument Nuke Protection
+The `hl_instrument` and `hl_teacher_assessment_instrument` tables are **excluded from the nuke command by default** to preserve admin customizations (instructions, questions, behavior keys, display styles). The `--include-instruments` flag must be passed explicitly to truncate these tables. All seeders use skip-if-exists logic (check by `name` for child instruments, by `instrument_key` for teacher instruments) so nuke+reseed cycles recreate enrollments and instances pointing to existing instrument IDs.
 
 ## 3.5 Object Model
 
