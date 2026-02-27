@@ -495,6 +495,7 @@ class HL_CLI_Seed_Demo {
                 'version'         => '1.0',
                 'questions'       => $sample_questions,
                 'behavior_key'    => wp_json_encode( self::get_behavior_key_for_band( $band ) ),
+                'instructions'    => self::get_default_child_assessment_instructions(),
                 'effective_from'  => '2026-01-01',
             ) );
             $instruments[ $band ] = $wpdb->insert_id;
@@ -1574,6 +1575,19 @@ class HL_CLI_Seed_Demo {
                 ),
             ),
         );
+    }
+
+    /**
+     * Get the default child assessment instructions HTML.
+     *
+     * This is the same text used as the hard-coded fallback in the
+     * HL_Instrument_Renderer. Pre-populating it into the DB lets admins
+     * edit it from WP Admin without having to retype it from scratch.
+     *
+     * @return string
+     */
+    public static function get_default_child_assessment_instructions() {
+        return '<p>This questionnaire will ask you about your students. For the question stated below, choose from the Likert Scale from &ldquo;Never&rdquo; to &ldquo;Almost Always&rdquo; that best describes each student in your classroom. An Example Behavior chart is provided to explain the scale you will use to assess your students. As you ask yourself the following question, you should <strong>collaborate with your co-teachers</strong> to choose the answer that best characterizes each of your students.</p>';
     }
 
     /**

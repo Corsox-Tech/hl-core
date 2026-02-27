@@ -915,6 +915,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'version'         => '1.0',
 				'questions'       => $sample_questions,
 				'behavior_key'    => wp_json_encode( HL_CLI_Seed_Demo::get_behavior_key_for_band( $band ) ),
+				'instructions'    => HL_CLI_Seed_Demo::get_default_child_assessment_instructions(),
 				'effective_from'  => '2026-01-01',
 			) );
 			$instruments[ $band ] = $wpdb->insert_id;
