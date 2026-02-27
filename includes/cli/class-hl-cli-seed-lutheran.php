@@ -1198,7 +1198,7 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	/**
-	 * Seed child assessment instruments (infant, toddler, preschool, mixed).
+	 * Seed child assessment instruments (infant, toddler, preschool, k2).
 	 *
 	 * @return array Keyed by age band: 'infant' => instrument_id, etc.
 	 */
@@ -1211,7 +1211,6 @@ class HL_CLI_Seed_Lutheran {
 			'toddler'   => array( 'name' => 'Lutheran Toddler Assessment',   'type' => 'children_toddler' ),
 			'preschool' => array( 'name' => 'Lutheran Preschool Assessment', 'type' => 'children_preschool' ),
 			'k2'        => array( 'name' => 'Lutheran K-2 Assessment',       'type' => 'children_k2' ),
-			'mixed'     => array( 'name' => 'Lutheran Mixed-Age Assessment', 'type' => 'children_mixed' ),
 		);
 
 		// Build per-age-band questions from the B2E assessment data.
@@ -1353,10 +1352,11 @@ class HL_CLI_Seed_Lutheran {
 				$classroom_id = $classrooms[ $cr_key ]['classroom_id'];
 				$age_band     = $classrooms[ $cr_key ]['age_band'];
 
-				// Resolve children instrument for this age band (fallback to mixed).
+				// Resolve children instrument for this age band (fallback to any available).
 				$ci_id = isset( $children_instruments[ $age_band ] ) ? $children_instruments[ $age_band ] : null;
-				if ( ! $ci_id && isset( $children_instruments['mixed'] ) ) {
-					$ci_id = $children_instruments['mixed'];
+				if ( ! $ci_id ) {
+					// For mixed classrooms, use preschool as fallback, then any available.
+					$ci_id = isset( $children_instruments['preschool'] ) ? $children_instruments['preschool'] : reset( $children_instruments );
 				}
 
 				// Child Assessment Instance: PRE.

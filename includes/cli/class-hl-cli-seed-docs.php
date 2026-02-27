@@ -676,7 +676,7 @@ Children are grouped by age at the time of assessment (frozen at snapshot time):
 <li><strong>K-2nd Grade</strong> (60+ months)</li>
 </ul>
 
-Each age group has its own instrument with age-appropriate items and scales.
+Each age group has its own instrument with age-appropriate items and scales. For <strong>mixed-age classrooms</strong>, the system automatically groups children by their individual age and renders the correct instrument per group — no separate "mixed" instrument is needed.
 
 <h2>How it works</h2>
 

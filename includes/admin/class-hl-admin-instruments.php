@@ -198,7 +198,7 @@ class HL_Admin_Instruments {
         $instrument_id = isset($_POST['instrument_id']) ? absint($_POST['instrument_id']) : 0;
 
         // Validate instrument_type
-        $valid_types = array('children_infant', 'children_toddler', 'children_preschool', 'children_k2', 'children_mixed');
+        $valid_types = array('children_infant', 'children_toddler', 'children_preschool', 'children_k2');
         $instrument_type = sanitize_text_field($_POST['instrument_type']);
         if (!in_array($instrument_type, $valid_types, true)) {
             wp_die(__('Invalid instrument type.', 'hl-core'));
@@ -438,7 +438,6 @@ class HL_Admin_Instruments {
             'children_toddler'   => __('Toddler', 'hl-core'),
             'children_preschool' => __('Preschool', 'hl-core'),
             'children_k2'        => __('K-2nd Grade', 'hl-core'),
-            'children_mixed'     => __('Mixed Age', 'hl-core'),
         );
 
         foreach ($instruments as $inst) {
@@ -538,7 +537,6 @@ class HL_Admin_Instruments {
             'children_toddler'   => __('Children - Toddler', 'hl-core'),
             'children_preschool' => __('Children - Preschool / Pre-K', 'hl-core'),
             'children_k2'        => __('Children - K-2nd Grade', 'hl-core'),
-            'children_mixed'     => __('Children - Mixed Age', 'hl-core'),
         );
 
         echo '<tr>';

@@ -1130,8 +1130,10 @@ class HL_Frontend_Child_Assessment {
     /**
      * Resolve a children instrument by age band.
      *
-     * Tries the exact type (e.g. children_mixed), then falls back to
-     * children_preschool, then any available children_* instrument.
+     * Tries the exact type (e.g. children_infant), then falls back to
+     * any available children_* instrument. Mixed classrooms skip the
+     * exact-type lookup (the renderer handles per-child instrument
+     * selection via frozen_age_group).
      *
      * @param string $age_band e.g. 'infant', 'toddler', 'preschool', 'mixed'.
      * @return array|null Array with 'instrument_id' and 'version', or null.
@@ -1139,9 +1141,9 @@ class HL_Frontend_Child_Assessment {
     private function resolve_children_instrument( $age_band ) {
         global $wpdb;
 
-        $candidates = array( 'children_' . $age_band );
-        if ( $age_band === 'mixed' ) {
-            $candidates[] = 'children_preschool';
+        $candidates = array();
+        if ( $age_band !== 'mixed' ) {
+            $candidates[] = 'children_' . $age_band;
         }
         // Final fallback: any active children instrument.
         $candidates[] = '__any__';

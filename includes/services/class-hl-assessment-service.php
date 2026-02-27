@@ -802,12 +802,13 @@ class HL_Assessment_Service {
                 $age_band = null;
             }
 
-            // Find matching instrument: try exact type, then mixed, then any children_* instrument.
+            // Find matching instrument: try exact type, then any children_* instrument.
+            // Mixed classrooms skip exact-type lookup (renderer handles per-child instruments).
             $instrument = null;
             if ($age_band) {
-                $try_types = array('children_' . $age_band);
-                if ($age_band === 'mixed') {
-                    $try_types[] = 'children_preschool';
+                $try_types = array();
+                if ($age_band !== 'mixed') {
+                    $try_types[] = 'children_' . $age_band;
                 }
                 foreach ($try_types as $instrument_type) {
                     $instrument = $wpdb->get_row($wpdb->prepare(
