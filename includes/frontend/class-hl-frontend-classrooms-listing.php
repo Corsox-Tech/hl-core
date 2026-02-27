@@ -180,7 +180,12 @@ class HL_Frontend_Classrooms_Listing {
         $values = array();
 
         if ( ! $scope['is_admin'] ) {
-            if ( ! empty( $scope['school_ids'] ) ) {
+            // Leaders, staff, coaches, mentors: see all classrooms at their schools.
+            // Teachers: only classrooms where they have a teaching assignment.
+            $broad_roles    = array( 'school_leader', 'district_leader', 'mentor' );
+            $has_broad_role = $scope['is_staff'] || array_intersect( $scope['hl_roles'], $broad_roles );
+
+            if ( $has_broad_role && ! empty( $scope['school_ids'] ) ) {
                 $placeholders = implode( ',', array_fill( 0, count( $scope['school_ids'] ), '%d' ) );
                 $where[]      = "c.school_id IN ({$placeholders})";
                 $values       = array_merge( $values, $scope['school_ids'] );
