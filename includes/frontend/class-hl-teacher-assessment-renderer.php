@@ -611,10 +611,11 @@ class HL_Teacher_Assessment_Renderer {
                 border-color: var(--hl-primary, #2271b1);
                 color: var(--hl-primary, #2271b1);
             }
-            .hl-tsa-step--active {
+            .hl-tsa-step--active,
+            .hl-tsa-step--active:hover {
                 border-color: var(--hl-primary, #2271b1);
                 background: var(--hl-primary, #2271b1);
-                color: #fff;
+                color: #fff !important;
                 transform: scale(1.1);
             }
             .hl-tsa-step--completed {
