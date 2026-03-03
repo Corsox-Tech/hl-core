@@ -57,8 +57,9 @@ class HL_CLI_Nuke {
         // --- Safety Gate: environment check ---
         $site_url = get_site_url();
         if ( strpos( $site_url, 'staging.academy.housmanlearning.com' ) === false
+            && strpos( $site_url, 'test.academy.housmanlearning.com' ) === false
             && strpos( $site_url, '.local' ) === false ) {
-            WP_CLI::error( 'REFUSED: This command only runs on staging or local environments. Current URL: ' . $site_url );
+            WP_CLI::error( 'REFUSED: This command only runs on staging, test, or local environments. Current URL: ' . $site_url );
             return;
         }
 
