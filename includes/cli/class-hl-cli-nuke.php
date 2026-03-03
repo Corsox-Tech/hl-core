@@ -94,7 +94,11 @@ class HL_CLI_Nuke {
     }
 
     /**
-     * Delete all WP users tagged by any seeder meta key.
+     * Delete WP users that were CREATED by seeders. Users that existed
+     * before seeding (tagged 'found') are preserved — only the meta tag
+     * is removed. This is critical for production-like environments where
+     * real users must not be deleted.
+     *
      * Protects user ID 1 and the current CLI user.
      */
     private function delete_seeder_users() {
@@ -111,40 +115,57 @@ class HL_CLI_Nuke {
 
         require_once ABSPATH . 'wp-admin/includes/user.php';
 
-        $total_deleted = 0;
+        $total_deleted  = 0;
+        $total_untagged = 0;
 
         foreach ( self::$seeder_meta_keys as $meta_key ) {
-            $user_ids = $wpdb->get_col( $wpdb->prepare(
-                "SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = %s",
+            $rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT user_id, meta_value FROM {$wpdb->usermeta} WHERE meta_key = %s",
                 $meta_key
             ) );
 
-            if ( empty( $user_ids ) ) {
+            if ( empty( $rows ) ) {
                 continue;
             }
 
-            $key_deleted = 0;
-            foreach ( $user_ids as $user_id ) {
-                $user_id = intval( $user_id );
+            $key_deleted  = 0;
+            $key_untagged = 0;
+
+            foreach ( $rows as $row ) {
+                $user_id    = intval( $row->user_id );
+                $meta_value = $row->meta_value;
 
                 if ( in_array( $user_id, $protected_ids, true ) ) {
                     WP_CLI::warning( "Skipping user ID {$user_id} (protected)." );
                     continue;
                 }
 
-                $result = wp_delete_user( $user_id );
-                if ( $result ) {
-                    $key_deleted++;
-                    $total_deleted++;
+                // 'found' = pre-existing user borrowed by the seeder. Do NOT delete.
+                // 'created' = user the seeder created. Safe to delete.
+                // '1' = legacy tag (pre-found/created distinction). Treat as 'created'.
+                if ( $meta_value === 'found' ) {
+                    delete_user_meta( $user_id, $meta_key );
+                    $key_untagged++;
+                    $total_untagged++;
                 } else {
-                    WP_CLI::warning( "Failed to delete user ID {$user_id}." );
+                    $result = wp_delete_user( $user_id );
+                    if ( $result ) {
+                        $key_deleted++;
+                        $total_deleted++;
+                    } else {
+                        WP_CLI::warning( "Failed to delete user ID {$user_id}." );
+                    }
                 }
             }
 
-            WP_CLI::line( "  {$meta_key}: {$key_deleted} users deleted" );
+            $msg = "  {$meta_key}: {$key_deleted} users deleted";
+            if ( $key_untagged > 0 ) {
+                $msg .= ", {$key_untagged} pre-existing users untagged (preserved)";
+            }
+            WP_CLI::line( $msg );
         }
 
-        WP_CLI::line( "  Total WP users deleted: {$total_deleted}" );
+        WP_CLI::line( "  Total WP users deleted: {$total_deleted}, preserved: {$total_untagged}" );
     }
 
     /**

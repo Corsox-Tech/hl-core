@@ -271,17 +271,25 @@ class HL_CLI_Seed_Demo {
             WP_CLI::log( "  Deleted track {$track_id} and all related records." );
         }
 
-        // 2. Find and delete demo users.
-        $demo_user_ids = $wpdb->get_col(
-            "SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = '" . self::DEMO_META_KEY . "' AND meta_value = '1'"
+        // 2. Handle demo users — only delete those we CREATED; preserve pre-existing (tagged 'found').
+        $demo_rows = $wpdb->get_results(
+            "SELECT user_id, meta_value FROM {$wpdb->usermeta} WHERE meta_key = '" . self::DEMO_META_KEY . "'"
         );
 
-        if ( ! empty( $demo_user_ids ) ) {
+        if ( ! empty( $demo_rows ) ) {
             require_once ABSPATH . 'wp-admin/includes/user.php';
-            foreach ( $demo_user_ids as $uid ) {
-                wp_delete_user( (int) $uid );
+            $deleted  = 0;
+            $untagged = 0;
+            foreach ( $demo_rows as $row ) {
+                if ( $row->meta_value === 'found' ) {
+                    delete_user_meta( (int) $row->user_id, self::DEMO_META_KEY );
+                    $untagged++;
+                } else {
+                    wp_delete_user( (int) $row->user_id );
+                    $deleted++;
+                }
             }
-            WP_CLI::log( '  Deleted ' . count( $demo_user_ids ) . ' demo users.' );
+            WP_CLI::log( "  Deleted {$deleted} seed-created users, untagged {$untagged} pre-existing users." );
         }
 
         // 3. Delete demo instruments (identified by name prefix).
@@ -633,6 +641,14 @@ class HL_CLI_Seed_Demo {
         $parts    = explode( '@', $email );
         $username = $parts[0];
 
+        // Handle duplicate emails — reuse existing user.
+        $existing_by_email = get_user_by( 'email', $email );
+        if ( $existing_by_email ) {
+            // Existing user — tag as 'found' so nuke/clean won't delete them.
+            update_user_meta( $existing_by_email->ID, self::DEMO_META_KEY, 'found' );
+            return $existing_by_email->ID;
+        }
+
         $user_id = wp_insert_user( array(
             'user_login'   => $username,
             'user_email'   => $email,
@@ -648,7 +664,8 @@ class HL_CLI_Seed_Demo {
             return 0;
         }
 
-        update_user_meta( $user_id, self::DEMO_META_KEY, '1' );
+        // New user — tag as 'created' so nuke/clean can safely delete them.
+        update_user_meta( $user_id, self::DEMO_META_KEY, 'created' );
 
         return $user_id;
     }

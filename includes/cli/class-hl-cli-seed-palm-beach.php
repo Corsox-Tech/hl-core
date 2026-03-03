@@ -738,16 +738,24 @@ class HL_CLI_Seed_Palm_Beach {
 		);
 		WP_CLI::log( '  Deleted cohort (B2E-EVAL).' );
 
-		// Delete demo users.
-		$demo_user_ids = $wpdb->get_col(
-			"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = '" . self::DEMO_META_KEY . "' AND meta_value = '1'"
+		// Handle demo users — only delete those we CREATED; preserve pre-existing (tagged 'found').
+		$demo_rows = $wpdb->get_results(
+			"SELECT user_id, meta_value FROM {$wpdb->usermeta} WHERE meta_key = '" . self::DEMO_META_KEY . "'"
 		);
-		if ( ! empty( $demo_user_ids ) ) {
+		if ( ! empty( $demo_rows ) ) {
 			require_once ABSPATH . 'wp-admin/includes/user.php';
-			foreach ( $demo_user_ids as $uid ) {
-				wp_delete_user( (int) $uid );
+			$deleted  = 0;
+			$untagged = 0;
+			foreach ( $demo_rows as $row ) {
+				if ( $row->meta_value === 'found' ) {
+					delete_user_meta( (int) $row->user_id, self::DEMO_META_KEY );
+					$untagged++;
+				} else {
+					wp_delete_user( (int) $row->user_id );
+					$deleted++;
+				}
 			}
-			WP_CLI::log( '  Deleted ' . count( $demo_user_ids ) . ' Palm Beach demo users.' );
+			WP_CLI::log( "  Deleted {$deleted} seed-created users, untagged {$untagged} pre-existing users." );
 		}
 
 		// Delete Palm Beach instruments.
@@ -1096,7 +1104,8 @@ class HL_CLI_Seed_Palm_Beach {
 		while ( username_exists( $username ) ) {
 			$existing = get_user_by( 'login', $username );
 			if ( $existing && $existing->user_email === $email ) {
-				update_user_meta( $existing->ID, self::DEMO_META_KEY, '1' );
+				// Existing user — tag as 'found' so nuke/clean won't delete them.
+				update_user_meta( $existing->ID, self::DEMO_META_KEY, 'found' );
 				return $existing->ID;
 			}
 			$username = $base_username . '-' . $suffix;
@@ -1106,7 +1115,8 @@ class HL_CLI_Seed_Palm_Beach {
 		// Handle duplicate emails.
 		$existing_by_email = get_user_by( 'email', $email );
 		if ( $existing_by_email ) {
-			update_user_meta( $existing_by_email->ID, self::DEMO_META_KEY, '1' );
+			// Existing user — tag as 'found' so nuke/clean won't delete them.
+			update_user_meta( $existing_by_email->ID, self::DEMO_META_KEY, 'found' );
 			return $existing_by_email->ID;
 		}
 
@@ -1125,7 +1135,8 @@ class HL_CLI_Seed_Palm_Beach {
 			return 0;
 		}
 
-		update_user_meta( $user_id, self::DEMO_META_KEY, '1' );
+		// New user — tag as 'created' so nuke/clean can safely delete them.
+		update_user_meta( $user_id, self::DEMO_META_KEY, 'created' );
 		return $user_id;
 	}
 

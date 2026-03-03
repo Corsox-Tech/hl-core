@@ -355,16 +355,25 @@ class HL_CLI_Seed_Lutheran {
 			WP_CLI::log( '  Deleted Lutheran child assessment instruments.' );
 		}
 
-		// Delete WP users tagged with the Lutheran seed meta key.
-		$seed_user_ids = $wpdb->get_col(
-			"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = '" . self::SEED_META_KEY . "' AND meta_value = '1'"
+		// Handle WP users tagged with the Lutheran seed meta key.
+		// Only delete users we CREATED; preserve pre-existing users (tagged 'found').
+		$seed_rows = $wpdb->get_results(
+			"SELECT user_id, meta_value FROM {$wpdb->usermeta} WHERE meta_key = '" . self::SEED_META_KEY . "'"
 		);
-		if ( ! empty( $seed_user_ids ) ) {
+		if ( ! empty( $seed_rows ) ) {
 			require_once ABSPATH . 'wp-admin/includes/user.php';
-			foreach ( $seed_user_ids as $uid ) {
-				wp_delete_user( (int) $uid );
+			$deleted  = 0;
+			$untagged = 0;
+			foreach ( $seed_rows as $row ) {
+				if ( $row->meta_value === 'found' ) {
+					delete_user_meta( (int) $row->user_id, self::SEED_META_KEY );
+					$untagged++;
+				} else {
+					wp_delete_user( (int) $row->user_id );
+					$deleted++;
+				}
 			}
-			WP_CLI::log( '  Deleted ' . count( $seed_user_ids ) . ' Lutheran seed users.' );
+			WP_CLI::log( "  Deleted {$deleted} seed-created users, untagged {$untagged} pre-existing users." );
 		}
 	}
 
@@ -853,7 +862,8 @@ class HL_CLI_Seed_Lutheran {
 		while ( username_exists( $username ) ) {
 			$existing = get_user_by( 'login', $username );
 			if ( $existing && $existing->user_email === $email ) {
-				update_user_meta( $existing->ID, self::SEED_META_KEY, '1' );
+				// Existing user — tag as 'found' so nuke/clean won't delete them.
+				update_user_meta( $existing->ID, self::SEED_META_KEY, 'found' );
 				return $existing->ID;
 			}
 			$username = $base_username . '-' . $suffix;
@@ -863,7 +873,8 @@ class HL_CLI_Seed_Lutheran {
 		// Handle duplicate emails.
 		$existing_by_email = get_user_by( 'email', $email );
 		if ( $existing_by_email ) {
-			update_user_meta( $existing_by_email->ID, self::SEED_META_KEY, '1' );
+			// Existing user — tag as 'found' so nuke/clean won't delete them.
+			update_user_meta( $existing_by_email->ID, self::SEED_META_KEY, 'found' );
 			return $existing_by_email->ID;
 		}
 
@@ -882,7 +893,8 @@ class HL_CLI_Seed_Lutheran {
 			return 0;
 		}
 
-		update_user_meta( $user_id, self::SEED_META_KEY, '1' );
+		// New user — tag as 'created' so nuke/clean can safely delete them.
+		update_user_meta( $user_id, self::SEED_META_KEY, 'created' );
 		return $user_id;
 	}
 
