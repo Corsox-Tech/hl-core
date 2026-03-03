@@ -146,8 +146,11 @@ Cards shown based on enrollment roles and control group status:
 | My Team | Has mentor role in any enrollment | `[hl_my_team]` |
 | Coaching Hub | Has mentor role in any enrollment | `[hl_coaching_hub]` |
 | My Track | Has school_leader or district_leader role | `[hl_my_cohort]` |
+| My Courses | Has active individual enrollment(s) | Individual enrollment course cards |
 
 Control group teachers (all enrollments are `is_control_group`) see only My Programs + My Classrooms — no coaching, team, or mentor cards.
+
+**My Courses section** (below the Track-based participant cards): Shows individual enrollment course cards for standalone purchases. Each card: course name, completion %, "Continue Course" button → LD course URL. Expired enrollments show "Access Expired" badge. Only shown if user has entries in `hl_individual_enrollment` with status='active'.
 
 ### Administration Section (shown if user has `manage_hl_core` capability)
 Staff/admin cards:
@@ -181,6 +184,7 @@ Content:
   - Pathway featured image (or placeholder)
   - Pathway name (front-end label: "Program name")
   - Track name (subtitle)
+  - Phase name (e.g., "Phase 1" or "Year 1") if the Track has multiple Phases
   - Overall completion % with progress bar
   - Status badge: Not Started / In Progress / Completed
   - "Continue" or "View Program" button → navigates to Program Page
@@ -319,7 +323,7 @@ This page automatically detects the logged-in user's enrollment and scopes the v
 - Columns: #, Name, Team, Role, Institution, Age Groups, Completed %, Details
 - "View Details" button expands inline accordion showing per-activity breakdown:
   - Activity/Course name, Percentage, Status (not_started / in_progress / completed)
-- Filters: Institution dropdown (for District Leaders), Team dropdown, Age Groups dropdown, Role dropdown
+- Filters: Phase dropdown (for program-type Tracks with multiple Phases), Institution dropdown (for District Leaders), Team dropdown, Age Groups dropdown, Role dropdown
 - Search box (filter by name)
 - "Download Report" button → XLSX or CSV export of the filtered view
 

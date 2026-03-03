@@ -34,6 +34,7 @@ HL Core must provide at minimum:
 5) **Participant Report (Teacher/Mentor self + Staff)**
 6) **Cohort Summary (Staff + District Leader)** — Cross-track aggregation within a Cohort (container)
 7) **Program vs Control Comparison (Staff)** — Side-by-side assessment outcome comparison when a Cohort contains both program and control tracks
+8) **Program Progress Matrix (Staff + Leaders)** — Course-by-course completion grid for all participants in a Track. Rows = participants, Columns = all B2E courses (TC0–TC8, MC1–MC4). Values: ✓ (completed), X% (in progress), empty (not started), – (not applicable for role/pathway). Filters: Phase, School, Team, Role. Export: CSV. See B2E_MASTER_REFERENCE.md §8.1.
 
 Each report must support:
 - On-screen table view
@@ -55,6 +56,17 @@ Reference: 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md
 Non-negotiable:
 - Teacher Self-Assessment responses and Child Assessment responses visible ONLY to staff.
 - Non-staff reports show completion status only.
+
+---
+
+## 2.1 Phase-Aware Reporting
+
+All reports that operate at the Track level should support a **Phase filter**:
+- "Show me Phase 2 progress" → filter to Phase 2 pathways and activities
+- "Show me full program" → aggregate across all Phases
+- Default view: currently active Phase
+
+Phase filtering applies to: Track Dashboard, District Report, School Report, Team Report, Participant Report, and the Program Progress Matrix.
 
 ---
 
@@ -350,6 +362,8 @@ Cohen's d calculation:
 
 Exports:
 - CSV with per-item rows: section, item_id, item_text, program_pre_mean, program_post_mean, program_change, control_pre_mean, control_post_mean, control_change, cohens_d
+
+**Primary analysis workflow:** The critical path for research comparison is CSV export → Stata. The in-app comparison report is a supplementary convenience view. The control Track does NOT need to be in the same Cohort as the program Track for the CSV export workflow to function — the control group exists as an independent research asset.
 
 ---
 

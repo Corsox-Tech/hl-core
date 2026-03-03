@@ -21,26 +21,31 @@ The plugin must manage:
 - Reporting: progress/completion by scope (Track / District / School / Team / User), export to CSV
 - Audit logs: key state changes and overrides
 
-The system is **B2B only**. There is **no WooCommerce**, no checkout logic, and no "buyer" tracking.
+The system is **primarily B2B**. There is **no WooCommerce**, no checkout logic, and no "buyer" tracking.
+
+**Products managed by HL Core:** The B2E Mastery Program (2-year, 25-course professional development — full Track management with Phases, Pathways, Teams, Coaching, Assessments); Short Courses (standalone 2-3 hour courses — institutional purchase uses simple course-type Track, individual purchase uses Individual Enrollment); ECSELent Adventures Curriculum online training (same model as Short Courses). See `B2E_MASTER_REFERENCE.md` §1 for the full product catalog.
 
 ---
 
 # 2) Critical Definitions (Canonical Meaning)
 
 **Cohort**
-A Cohort is the contract/container entity — the biggest organizational entity. It groups one or more Tracks together for a client or program wave.
+A Cohort is an optional container entity that groups one or more Tracks together for organizational purposes. Tracks can exist without a Cohort (`cohort_id` is nullable).
 Example: "B2E Mastery - Lutheran Services Florida".
 
 **Track**
-A Track is a time-bounded run/implementation within a Cohort.
-Example: "ELCPB - 2026".
+A Track represents the full program engagement for a district/institution. For the B2E Mastery Program, this spans the entire multi-year contract (all Phases).
+Example: "ELCPB B2E Mastery 2025-2027".
 
 A Track contains:
+- Phases (time-bounded periods, e.g., Phase 1 = Year 1, Phase 2 = Year 2)
 - participants (users) via Enrollment
-- pathways + activities configuration
+- pathways + activities configuration (via Phases)
 - teams, classrooms, children rosters
 - progress, assessments, observation/coaching artifacts
 - reports and exports for allowed roles
+
+Track has a `track_type` field: `program` (full B2E management with Phases, Pathways, Teams, etc.) or `course` (simple institutional course access with auto-generated Phase/Pathway/Activity).
 
 **Enrollment**
 Enrollment is the join between (User ↔ Track). Track roles MUST be stored on Enrollment, NOT on the WP user.
@@ -62,9 +67,8 @@ Do NOT build or assume:
 - WooCommerce or any e-commerce tracking
 - reliance on existing JetEngine CPT/meta schema or Uncanny Automator workflows
 - direct SCORM ingestion (SCORM lives inside LearnDash Lessons; HL Core only needs to read LearnDash progress)
-- individual consumer enrollment flows (future scope only)
 - a generalized social network or messaging system (BuddyBoss already provides messaging)
-- custom form rendering for teacher self-assessments or observations (JetFormBuilder handles those)
+- custom form rendering for observations (JetFormBuilder handles those; teacher self-assessments and child assessments use HL Core's custom PHP instrument system — see doc 06)
 
 ---
 
@@ -78,19 +82,19 @@ HL Core must read LearnDash course completion and (if available) completion perc
 HL Core must NOT re-implement an LMS. It configures Cohorts and reads LearnDash progress.
 
 ## 4.2 JetFormBuilder
-HL Core uses JetFormBuilder for static questionnaire forms that Housman LMS Admins need to create and edit without a developer:
-- **Teacher Self-Assessments** (pre/post) — Admin builds the form in JFB; HL Core links it to an Activity and tracks completion
-- **Observations** — Admin builds the observation form in JFB; HL Core manages the observation record (who observed whom) and tracks completion
+HL Core uses JetFormBuilder for **observations only** — mentor-submitted forms about a teacher's classroom practice. JFB provides the visual form editor so Housman admins can customize observation questions without a developer.
 
-Integration mechanism:
-- JFB forms include hidden fields for HL Core context (enrollment_id, activity_id, track_id)
+**Teacher self-assessments** now use HL Core's custom PHP instrument system (see doc 06) — NOT JetFormBuilder. Legacy JFB support is retained for backward compatibility only.
+
+Integration mechanism (observations):
+- JFB forms include hidden fields for HL Core context (enrollment_id, activity_id, track_id, observation_id)
 - JFB fires a "Call Hook" post-submit action (`hl_core_form_submitted`)
-- HL Core's hook listener updates instance status and activity completion
-- Responses are stored in JFB Form Records (not in HL Core tables)
+- HL Core's hook listener updates observation status and activity completion
+- Observation responses are stored in JFB Form Records (not in HL Core tables)
 
 HL Core does NOT create or modify JFB forms programmatically. Admins manage forms in JFB's native Gutenberg-based editor.
 
-JetFormBuilder must be installed and active for JFB-powered activities to work. HL Core should display an admin notice if JFB is not active.
+JetFormBuilder must be installed and active for observation forms to work. HL Core should display an admin notice if JFB is not active.
 
 ## 4.3 BuddyBoss
 BuddyBoss messaging is enabled globally; HL Core does not restrict messaging.
@@ -203,6 +207,7 @@ Exports:
 # 10) Priority of Truth (When files conflict)
 
 If any documents conflict, follow this priority order:
+0) B2E_MASTER_REFERENCE.md (authoritative when conflicts exist with any doc below)
 1) 01_GLOSSARY_CANONICAL_TERMS.md
 2) 02_DOMAIN_MODEL_ORG_STRUCTURE.md
 3) 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md

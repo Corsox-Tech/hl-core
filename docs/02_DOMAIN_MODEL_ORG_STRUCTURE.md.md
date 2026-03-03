@@ -37,7 +37,9 @@ Rationale:
 ---
 
 ## 1.2 Cohort
-The contract/container entity — the biggest organizational entity. Groups one or more Tracks together.
+An optional container entity that groups one or more Tracks together for organizational purposes.
+
+Cohort is optional. Tracks can exist without a Cohort (`cohort_id` is nullable). Useful for visual organization or comparison reporting, but not required for any Track to function.
 
 Cohort fields:
 - cohort_id (PK)
@@ -48,34 +50,70 @@ Cohort fields:
 - status ∈ { "active", "archived" }
 
 Cohort relationships:
-- Cohort has many Tracks (via Track.cohort_id FK)
+- Cohort has many Tracks (via Track.cohort_id FK, nullable)
 
 Purpose:
-- Groups related tracks for cross-track reporting (e.g., multiple phases of the same program)
-- Enables program-vs-control comparison reporting when the cohort contains both program tracks (is_control_group=false) and control tracks (is_control_group=true)
+- Groups related tracks for cross-track reporting (optional)
+- Can enable program-vs-control comparison reporting when the cohort contains both program tracks (is_control_group=false) and control tracks (is_control_group=true) — but this is supplementary; primary research analysis uses CSV export to Stata
 - Comparison metrics include per-section/per-item assessment means, pre-to-post change, and Cohen's d effect size
 
 Example:
 - "B2E Mastery - Lutheran Services Florida" cohort containing:
-  - "Lutheran B2E Phase 1 2026" (program track, is_control_group=false)
-  - "Lutheran Control Group 2026" (control track, is_control_group=true)
+  - "ELCPB B2E Mastery 2025-2027" (program track, is_control_group=false)
+  - "Lutheran Control Group 2025-2027" (control track, is_control_group=true)
+- A Track can also exist without any Cohort.
 
 ---
 
 ## 1.3 Track
-A time-bounded implementation/run within a Cohort (formerly "Cohort").
+The full program engagement for a district/institution. Contains one or more Phases, each containing Pathways. For the B2E Mastery Program, a Track spans the entire multi-year contract.
 
 Track relationships:
-- Track.cohort_id → Cohort (FK to container)
+- Track.cohort_id → Cohort (FK to container, **nullable** — Track can exist without a Cohort)
+- Track has many Phases (via Phase.track_id FK)
 - Track may be associated to:
   - one District OrgUnit (optional)
   - one or more School OrgUnits (required at least 1)
 
-Track flags:
+Track fields:
+- track_type ∈ { "program", "course" } (default "program")
+  - `program`: full B2E management with Phases, Pathways, Teams, Coaching, Assessments
+  - `course`: simple institutional course access — auto-creates one Phase + one Pathway + one Activity; admin UI hides Phase management, Teams, Coaching, Assessment tabs
 - is_control_group (boolean, default false) — When true, indicates this track is a research control group. Control tracks receive assessment-only pathways (no courses, coaching, observations). Admin UI hides Coaching and Teams tabs for control tracks. See doc 06 §6 for control group assessment workflow.
 
 Important:
 - District is optional. A single-school Track has no District association.
+
+---
+
+## 1.3.1 Phase
+A time-bounded period within a Track that groups Pathways. Represents a year or segment of the program.
+
+Phase relationships:
+- Phase.track_id → Track
+- Phase has many Pathways (via Pathway.phase_id FK)
+
+Phase fields:
+- phase_id (PK)
+- phase_uuid (CHAR 36)
+- track_id (FK → hl_track)
+- phase_name (VARCHAR 200)
+- phase_number (INT UNSIGNED, unique per track)
+- start_date (DATE, nullable)
+- end_date (DATE, nullable)
+- status ∈ { "upcoming", "active", "completed" } (default "upcoming")
+- created_at, updated_at
+
+**Table**: `hl_phase`
+**PK**: `phase_id`
+**FK**: `track_id` → `hl_track`
+**Unique**: `(track_id, phase_number)`
+
+Notes:
+- Program-type Tracks: admin creates Phases manually (typically Phase 1 + Phase 2 for B2E)
+- Course-type Tracks: system auto-creates one Phase (named after the course)
+- Pathways belong to Phase, not directly to Track
+- To get all pathways for a Track: join Phase → Pathway
 
 ---
 
@@ -257,9 +295,39 @@ Fields:
 
 ---
 
+## 1.15 IndividualEnrollment
+Direct user-to-LearnDash-course association for standalone individual purchases (not institutional).
+
+IndividualEnrollment relationships:
+- IndividualEnrollment.user_id → WP User
+- IndividualEnrollment.course_id → LearnDash Course (post ID)
+
+IndividualEnrollment fields:
+- id (PK)
+- user_id (BIGINT UNSIGNED)
+- course_id (BIGINT UNSIGNED)
+- enrolled_at (DATETIME)
+- expires_at (DATETIME, nullable)
+- status ∈ { "active", "expired", "revoked" } (default "active")
+- enrolled_by (BIGINT UNSIGNED, nullable — staff who created the enrollment)
+- notes (TEXT, nullable)
+- created_at, updated_at
+
+**Table**: `hl_individual_enrollment`
+**PK**: `id`
+**Unique**: `(user_id, course_id)`
+
+Notes:
+- Used for Short Courses and ECSELent Adventures individual purchases
+- Supports per-person expiration dates (unlike LearnDash's global expiration)
+- Frontend: "My Courses" section on Dashboard shows active individual enrollments
+- Not related to Tracks — this is a separate, simpler enrollment path
+
+---
+
 # 2) Relationship Diagram (Text)
 
-Cohort (container)
+Cohort (optional container)
   └── Track [1..n]
 
 OrgUnit(district)
@@ -271,15 +339,20 @@ OrgUnit(school)
   │           └── Child [0..n]
   └── Team [0..n] (per Track)
 
-Track (within a Cohort; optionally is_control_group=true)
+Track (within a Cohort or standalone; track_type: program or course)
+  ├── Phase [1..n] (time period)
+  │     └── Pathway [1..n per Phase]
+  │           └── Activity [0..n] (see doc 04/05)
   ├── Enrollment [0..n] (User ↔ Track)
+  │     ├── PathwayAssignment [1..n] → Pathway (in a Phase)
   │     ├── TeamMembership [0..1 per Track] → Team
   │     └── TeachingAssignment [0..n] → Classroom
-  ├── Pathways/Activities (see doc 04/05)
   ├── Teacher Self-Assessments (see doc 06)
   ├── Child Assessments (see doc 06)
   ├── Observation [0..n]
   └── CoachingSession [0..n]
+
+IndividualEnrollment (User ↔ LearnDash Course, standalone, no Track)
 
 ---
 
@@ -330,9 +403,10 @@ Role-driven filtering requirements:
 - cohort_code (globally unique; human-readable)
 - status
 
-## 5.3 Track (Run)
+## 5.3 Track
 - track_uuid (primary internal)
 - track_code (globally unique; human-readable)
+- track_type (enum: program, course; default program)
 - status, start_date, end_date
 - is_control_group (boolean)
 - cohort_id (FK to Cohort container, nullable)

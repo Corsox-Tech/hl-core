@@ -115,6 +115,7 @@ Use these canonical capability names in code and docs.
 - track.edit
 - track.archive
 - track.manage_settings
+- phase.manage
 - pathway.manage
 - activity.manage
 - unlock_rules.manage

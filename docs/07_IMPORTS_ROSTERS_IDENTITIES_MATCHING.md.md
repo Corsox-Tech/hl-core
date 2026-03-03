@@ -29,6 +29,8 @@ HL Core must support at minimum:
 ## 1.1 Participants Import (Users + Track Enrollments)
 Imports people into a Track and assigns Track Roles + scope bindings.
 
+When importing participants for a program-type Track, pathway assignment should specify which Phase the participant's pathway belongs to. For course-type Tracks, pathway assignment is automatic (single auto-generated pathway).
+
 Primary identity:
 - Users matched by email (unique).
 

@@ -28,29 +28,34 @@ Rules:
 HL Core configuration for learning requirements exists at the Track level:
 
 1) Track
-2) Pathways within the Track
-3) Activities within each Pathway
-4) Unlock rules (Prereqs + Drip) applied to Activities (see doc 05)
+2) **Phases within the Track** (time-bounded periods, e.g., Year 1, Year 2)
+3) Pathways within each Phase
+4) Activities within each Pathway
+5) Unlock rules (Prereqs + Drip) applied to Activities (see doc 05)
 
-A Track can have multiple Pathways. Typically:
+A Phase typically has 3 Pathways:
 - Teacher Pathway
 - Mentor Pathway
 - (Optional) Leader Pathway (Streamlined) — manual use only
+
+For course-type Tracks (`track_type = 'course'`), the Phase/Pathway/Activity are auto-generated.
 
 ---
 
 # 2) Pathway
 
 ## 2.1 Definition
-**Pathway** is a configurable set/graph of required Activities assigned to Participants in a Track.
+**Pathway** is a configurable set/graph of required Activities assigned to Participants. Pathways belong to a Phase (not directly to a Track).
 
 A Pathway is defined by:
 - pathway_id (internal)
-- track_id
+- phase_id (FK → hl_phase; Phase belongs to Track)
 - pathway_name (e.g., "Teacher Pathway - Phase 1")
 - pathway_code (unique within Track)
 - target_roles (optional convenience metadata; not a permission system)
 - active_status
+
+Note: Pathways no longer belong directly to a Track — they belong to a Phase. To get all pathways for a Track: join Phase → Pathway.
 
 ## 2.2 Pathway Assignment
 Participants receive Pathways via Enrollment.
@@ -102,32 +107,34 @@ Notes:
 
 ---
 
-### 3.2.2 Teacher Self-Assessment Activity (JetFormBuilder-powered)
+### 3.2.2 Teacher Self-Assessment Activity (Custom PHP Instrument System)
 - activity_type = "teacher_self_assessment"
-- external_ref: `{"form_plugin": "jetformbuilder", "form_id": <JFB form ID>, "phase": "pre"|"post"}`
+- external_ref: `{"teacher_instrument_id": <HL instrument ID>, "phase": "pre"|"post"}`
+- Legacy fallback: `{"form_plugin": "jetformbuilder", "form_id": <JFB form ID>, "phase": "pre"|"post"}`
 
-The form itself is created and managed in JetFormBuilder by Housman LMS Admins. HL Core links to it and tracks completion.
+Rendered by HL Core's custom `HL_Teacher_Assessment_Renderer` using structured instrument definitions from `hl_teacher_assessment_instrument`. Responses are stored as structured JSON in `hl_teacher_assessment_instance.responses_json`.
+
+- PRE mode: single-column Likert/scale ratings
+- POST mode: Section 1 has dual-column retrospective ("Prior Assessment Cycle" + "Past Two Weeks"); Sections 2-3 are single-column
 
 Admin workflow:
-1. Admin creates a self-assessment form in JetFormBuilder (any field types, layout, conditional logic)
-2. Admin adds a "Call Hook" post-submit action with hook name `hl_core_form_submitted`
-3. Admin adds hidden fields to the form: `hl_enrollment_id`, `hl_activity_id`, `hl_track_id`
-4. Admin creates an Activity in the Pathway, selects activity_type = "teacher_self_assessment", picks the JFB form from a dropdown, and selects phase (pre or post)
+1. Admin creates/edits the instrument in HL Core's Instruments admin page (visual editor for sections, items, scales, instructions, display styles)
+2. Admin creates an Activity in the Pathway, selects activity_type = "teacher_self_assessment", picks the instrument, and selects phase (pre or post)
 
 Completion:
-- 0% until the linked JFB form is submitted for this enrollment
-- 100% after submission (JFB fires hook → HL Core marks instance as submitted)
+- 0% until instance.status = submitted
+- 100% when instance.status = submitted
 
 Privacy:
-- Responses live in JFB Form Records. Only WP admin users (Housman Admin, Coach) can view them.
+- Responses stored in `hl_teacher_assessment_instance.responses_json`. Only Housman Admin and Coach can view them.
 - Non-staff participants see only completion status (0/100) and submitted timestamps.
 
 Instance tracking:
-- HL Core maintains `hl_teacher_assessment_instance` for each (track, enrollment, phase) to track status and submitted_at.
-- The instance stores a reference to the JFB submission ID for audit/export purposes.
+- HL Core maintains `hl_teacher_assessment_instance` for each (track, enrollment, phase) to track status, responses_json, and submitted_at.
 
-If both PRE and POST are separate activities:
-- each is independent 0/100.
+PRE and POST are separate activities, each independent 0/100.
+
+**Legacy JFB support:** Activities can still reference JFB forms via `external_ref.form_id` for backward compatibility. The system checks for `teacher_instrument_id` first (custom) and falls back to `jfb_form_id` (legacy).
 
 ---
 
@@ -256,7 +263,10 @@ HL Core must keep unlock logic independent of ordering_hint.
 # 8) Data Needed by the AI Implementer (No code)
 
 To implement this cleanly, the plugin must support:
-- CRUD for Pathways (per Track)
+- CRUD for Phases (per Track)
+- CRUD for Pathways (per Phase)
+- Phase → Pathway relationship management
+- Auto-Phase creation for course-type Tracks
 - CRUD for Activities (per Pathway)
 - Mapping LearnDash course_id into LearnDash Course Activities
 - Mapping JetFormBuilder form_id into JFB-powered Activities (teacher self-assessment, observations)

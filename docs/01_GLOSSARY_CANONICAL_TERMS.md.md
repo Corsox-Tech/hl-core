@@ -20,16 +20,19 @@ Rules:
 # 1) Canonical Top-Level Terms
 
 ## 1.1 Cohort
-**Definition**: A Cohort is the contract/container entity — the biggest organizational entity. It groups one or more Tracks together for a client or program wave.
+**Definition**: A Cohort is an optional container entity that groups one or more Tracks together for organizational purposes.
+
+**Clarification (March 2026):** Cohort is optional. `hl_track.cohort_id` is nullable — Tracks can exist without a Cohort. The control group research workflow does NOT require Cohort grouping; statistical comparison (Cohen's d) happens in Stata from CSV exports. Cohort remains useful for admin organization and optional in-app comparison reporting.
 
 Examples:
 - "B2E Mastery - Lutheran Services Florida"
 - "B2E Mastery - ELC Palm Beach 2026"
+- A Track can also exist without any Cohort.
 
 **Cohort contains**:
-- One or more Tracks (time-bounded runs)
-- Program-level configuration and reporting aggregation
-- Cross-track comparison reporting (program vs control)
+- One or more Tracks (optional grouping)
+- Program-level configuration and reporting aggregation (when used)
+- Cross-track comparison reporting (program vs control) — supplementary; primary analysis uses CSV export to Stata
 
 **Minimum required fields (conceptual)**:
 - cohort_name (display name)
@@ -48,16 +51,17 @@ Examples:
 ---
 
 ## 1.2 Track
-**Definition**: A Track is a time-bounded run/implementation within a Cohort, containing participants, configuration, learning requirements, and reporting.
+**Definition**: A Track represents the full program engagement for a district/institution. For the B2E Mastery Program, this spans the entire multi-year contract (all Phases). A Track contains one or more Phases, each containing Pathways. Track is the level at which participants are enrolled, teams are formed, and scope is defined.
 
 Examples:
-- "ELCPB - 2026" (a program track within its Cohort)
-- "Sunrise School - Spring 2026"
-- "Lutheran Control Group 2026" (a control track within a Cohort)
+- "ELCPB B2E Mastery 2025-2027" (a program track spanning 2 years)
+- "Sunrise School - Spring 2026" (a short course track)
+- "Lutheran Control Group 2025-2027" (a control track)
 
 **Track contains**:
+- Phases (time-bounded periods within the Track)
 - Track Participants (via Enrollment)
-- Pathways and Activities (configuration)
+- Pathways and Activities (via Phases)
 - Teams, Classrooms, Children rosters (data)
 - Progress state (LearnDash + HL Core)
 - Assessments, Observations, Coaching Sessions (artifacts)
@@ -67,15 +71,16 @@ Examples:
 - track_name (display name)
 - track_code (unique human-readable identifier)
 - track_uuid (primary internal)
+- track_type (enum: program, course; default program)
 - status (draft/active/paused/archived)
 - start_date (required; can be future)
 - end_date (optional)
 - is_control_group (boolean; see §1.5)
-- cohort_id (FK to Cohort container)
+- cohort_id (FK to Cohort container, **nullable** — Track can exist without a Cohort)
 
 **Table**: `hl_track`
 **PK**: `track_id`
-**FK**: `cohort_id` → `hl_cohort`
+**FK**: `cohort_id` → `hl_cohort` (nullable)
 
 **DO NOT USE**:
 - "Cohort" when referring to the run entity (use Track)
@@ -130,6 +135,31 @@ The difference in pre-to-post assessment change between program and control grou
 
 **DO NOT USE**:
 - "Comparison group" (use Control Group)
+
+---
+
+## 1.6 Product & Program Terms
+
+**B2E Mastery Program**
+The primary professional development product sold by Housman Learning Academy to school districts and institutions. A 2-year (minimum) program consisting of 25 LearnDash courses organized into 3 Learning Plans across 2 Phases. This is the product HL Core was primarily built for.
+
+**Phase**
+A time-bounded period within a Track that groups related Pathways. For the B2E Mastery Program, Phase 1 = Year 1 courses and Phase 2 = Year 2 courses. Tracks may have 1 or more Phases. Stored in `hl_phase`.
+
+**Learning Plan**
+Housman's client-facing term for what HL Core calls a Pathway. There are 3 Learning Plans: Teacher, Mentor, and Leader (Streamlined). The frontend may use "Learning Plan" or "Program" as labels.
+
+**Course Catalog**
+The complete set of LearnDash courses available in the B2E Mastery Program: TC0 (welcome), TC1–TC8 (full teacher), TC1(S)–TC8(S) (streamlined teacher), MC1–MC4 (full mentor), MC1(S)–MC4(S) (streamlined mentor). Total: 25 courses.
+
+**Pilot**
+A variable-scope program engagement where a district tries a subset of the B2E program before committing to the full contract. Can range from TC1–TC3 + MC1 to the entire Phase 1.
+
+**Individual Enrollment**
+A direct user-to-LearnDash-course association managed by HL Core for individual (non-institutional) course purchases. Stored in `hl_individual_enrollment`. Supports per-person expiration dates. Used for Short Courses and ECSELent Adventures online training purchases by individuals.
+
+**Track Type**
+A classification on `hl_track` distinguishing between full program Tracks (`program`) and simple single-course institutional Tracks (`course`). Course-type Tracks auto-generate a single Phase + Pathway + Activity.
 
 ---
 
@@ -293,10 +323,10 @@ Created automatically when:
 # 6) Learning Configuration
 
 ## 6.1 Pathway
-**Definition**: A configurable set/graph of required Activities assigned to Participants in a Track.
+**Definition**: A configurable set/graph of required Activities assigned to Participants. Pathways belong to a Phase (not directly to a Track). A Phase typically has 3 Pathways (Teacher, Mentor, Leader), though this is configurable. For course-type Tracks, the Pathway is auto-generated.
 
 Properties:
-- Defined per Track
+- Defined per Phase (Phase belongs to Track)
 - Usually defined per Track Role (Teacher, Mentor, Leaders)
 - Can differ between Tracks and between schools within a Track if manually configured
 - Control group tracks typically have a single assessment-only pathway

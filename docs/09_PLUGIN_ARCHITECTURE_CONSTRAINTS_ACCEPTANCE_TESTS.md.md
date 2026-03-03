@@ -20,7 +20,7 @@ Rules:
 - Enforce server-side authorization checks on all reads/writes that expose scoped data.
 - Store core domain data in custom tables (recommended).
 - Do not depend on legacy JetEngine/Automator CPT/meta setup.
-- Use JetFormBuilder for static questionnaire forms (teacher self-assessment, observations); use custom PHP for dynamic forms (child assessment) and admin CRUD (coaching sessions).
+- Use custom PHP instrument system for teacher self-assessments and child assessments; use JetFormBuilder for observations only (mentor-submitted forms); use custom PHP admin CRUD for coaching sessions.
 
 ---
 
@@ -45,7 +45,9 @@ The plugin should be organized into modules/services. Suggested folder map:
 
 Core services to implement:
 - CohortService (container management)
-- TrackService (run management)
+- TrackService (Track management, track_type handling, auto-create Phase for course-type Tracks)
+- PhaseService (Phase CRUD, get_phases_for_track, get_active_phase, auto-create for course Tracks)
+- IndividualEnrollmentService (CRUD, expiration checks, LearnDash progress queries)
 - OrgService (OrgUnit, District/School hierarchy)
 - EnrollmentService (roles, scope binding, status)
 - TeamService (teams + teammembership enforcement)
@@ -76,9 +78,10 @@ This is the minimum set required by the domain model:
 
 Org + Cohort + Track:
 - hl_orgunit
-- hl_cohort (container)
-- hl_track (run)
+- hl_cohort (optional container)
+- hl_track (full program engagement; has track_type column: program/course)
 - hl_track_school (track ↔ school)
+- hl_phase (Phase within Track — groups Pathways by time period)
 
 Participation:
 - hl_enrollment
@@ -96,8 +99,11 @@ Classrooms + children:
 - hl_child_classroom_current
 - hl_child_classroom_history (optional)
 
+Individual Enrollments:
+- hl_individual_enrollment (user ↔ LearnDash course for standalone purchases; supports per-person expiration)
+
 Learning config:
-- hl_pathway
+- hl_pathway (now has phase_id FK → hl_phase instead of direct track_id)
 - hl_activity
 - hl_activity_prereq_group
 - hl_activity_prereq_item
@@ -233,6 +239,15 @@ Minimum WP Admin pages:
 
 11) Audit Logs
 - searchable audit log by track/user/action
+
+12) Phases (within Track editor, for program-type Tracks)
+- List phases with name, number, dates, status
+- Click into Phase to see/edit its Pathways
+- Course-type Tracks skip this — Phase is auto-managed
+
+13) Individual Enrollments (2 pages)
+- Course List: shows LearnDash courses that have individual enrollments, with counts (Total, Active, Expired, Avg Completion %)
+- Course Detail: enrollment table with Add Enrollment, Edit Expiration, Revoke actions; bulk CSV import (email + optional expiration)
 
 ---
 

@@ -457,6 +457,9 @@ This is an admin-side CRUD workflow, not a user-facing questionnaire.
 # 6) Control Group Assessment Workflow
 
 ## 6.1 Purpose
+
+**Important clarification:** The control group is NOT tied to one specific client/program. It exists as an independent research asset that can be compared against ANY or MULTIPLE program Tracks. The statistical comparison (Cohen's d) happens in **Stata**, not in WordPress. HL Core's job is to store control group assessment data and export it as CSV. The Cohort-based comparison reports (§6.3) are a nice-to-have convenience, not the critical path for research.
+
 Control group tracks use an assessment-only pathway. Teachers in the control group complete:
 1. Teacher Self-Assessment (Pre) — available immediately
 2. Child Assessment (Pre) — available immediately
@@ -478,6 +481,8 @@ When a Cohort contains both program and control tracks:
 - Per-section, per-item mean/n/sd for both PRE and POST phases
 - Cohen's d effect size = (program_change - control_change) / pooled_sd
 - CSV export with per-item means, change values, and effect sizes
+
+**Primary research workflow:** Assessment data is exported as CSV from HL Core → imported into Stata for statistical analysis (Cohen's d, etc.). The in-app comparison report is supplementary. The control Track does NOT need to be in the same Cohort as the program Track for this workflow.
 
 ---
 

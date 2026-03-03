@@ -2,7 +2,8 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for observation forms only)
-**Status:** v1 complete — Phases 1-31 done (28 shortcode pages incl. dashboard + documentation, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, JFB cleanup)
+**Status:** v1 complete — Phases 1-31 done. Architecture expansion planned: Phase entity (hl_phase), Track Types (program/course), Individual Enrollments (hl_individual_enrollment), Program Progress Matrix report — see B2E_MASTER_REFERENCE.md and Build Queue Phases 32-34.
+(28 shortcode pages incl. dashboard + documentation, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, JFB cleanup)
 
 ## Overview
 
@@ -10,8 +11,10 @@ HL Core is the system-of-record plugin for Housman Learning Academy Track and Co
 
 ## What's Implemented
 
-### Database Schema (35 custom tables)
-- **Org & Track/Cohort:** `hl_orgunit`, `hl_track` (with `is_control_group` flag), `hl_track_school`, `hl_cohort` (container)
+### Database Schema (35 custom tables + 2 planned)
+- **Org & Track/Cohort:** `hl_orgunit`, `hl_track` (with `is_control_group` flag + planned `track_type` column), `hl_track_school`, `hl_cohort` (optional container)
+- **Phase (PLANNED):** `hl_phase` (track_id, phase_name, phase_number, start/end dates, status) — Pathways will move from Track-level to Phase-level
+- **Individual Enrollments (PLANNED):** `hl_individual_enrollment` (user_id, course_id, enrolled_at, expires_at, status) — for standalone course purchases
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
 - **Classrooms:** `hl_classroom`, `hl_teaching_assignment`, `hl_child`, `hl_child_classroom_current`, `hl_child_classroom_history`
 - **Learning Config:** `hl_pathway`, `hl_pathway_assignment`, `hl_activity`, `hl_activity_prereq_group`, `hl_activity_prereq_item`, `hl_activity_drip_rule`, `hl_activity_override`
@@ -450,6 +453,28 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
 - [x] **31.4 — Documentation update** — Docs seeder updated to reference all 4 age groups (Infant, Toddler, Preschool/Pre-K, K-2nd Grade) in child assessment, instruments, and classrooms articles.
 - [x] **31.5 — Bug fixes** — Fixed instrument color styles not saving (Default checkbox auto-uncheck on color pick). Fixed child instrument edit form type validation. Removed `children_mixed` instrument type — mixed-age classrooms now rely on per-child age-group instruments selected automatically by the front-end renderer.
 
+### Phase 32: Phase Entity + Track Types (Architecture — B2E Master Reference)
+- [ ] **32.1 — DB: `hl_phase` table** — Create table with phase_id, track_id, phase_name, phase_number, start/end dates, status. Migration: add phase_id FK to hl_pathway. Create default Phase per existing Track for backward compat.
+- [ ] **32.2 — DB: `track_type` column** — Add `track_type ENUM('program','course') DEFAULT 'program'` to hl_track.
+- [ ] **32.3 — Phase Service** — HL_Phase_Service: CRUD, get_phases_for_track, get_active_phase, auto-create for course-type Tracks.
+- [ ] **32.4 — Pathway migration** — Update HL_Pathway_Service to work through Phase. Pathway queries join Phase → Pathway instead of direct Track → Pathway.
+- [ ] **32.5 — Admin: Track Editor Phases tab** — New tab in track editor (program-type only): list/create/edit Phases, click into Phase to manage Pathways.
+- [ ] **32.6 — Admin: Course-type Track simplification** — When track_type='course': auto-create Phase+Pathway+Activity, hide Phase/Teams/Coaching/Assessment tabs.
+- [ ] **32.7 — Seeder updates** — Update all seeders to create Phases and assign Pathways to Phases.
+- [ ] **32.8 — Frontend Phase context** — My Programs cards show Phase name. Reports support Phase filter.
+
+### Phase 33: Individual Enrollments (B2E Master Reference)
+- [ ] **33.1 — DB: `hl_individual_enrollment` table** — Create table with user_id, course_id, enrolled_at, expires_at, status, enrolled_by, notes.
+- [ ] **33.2 — Individual Enrollment Service** — CRUD, expiration checks, LearnDash progress queries.
+- [ ] **33.3 — Admin: Individual Enrollments pages** — Course List page + Course Detail page under HL Core menu.
+- [ ] **33.4 — Frontend: My Courses on Dashboard** — Add "My Courses" section to `[hl_dashboard]` for individual enrollments.
+- [ ] **33.5 — Expiration enforcement** — Check on course access, auto-mark expired, optional LearnDash unenroll.
+
+### Phase 34: Program Progress Matrix Report (B2E Master Reference)
+- [ ] **34.1 — Report query** — Query all LearnDash Course activities across all Phases of a Track, map completion per participant.
+- [ ] **34.2 — Admin report view** — Course-by-course grid with Phase/School/Team/Role filters.
+- [ ] **34.3 — CSV export** — Export the matrix as CSV.
+
 ### Lower Priority (Future)
 - [x] **ANY_OF and N_OF_M prerequisite types** — Rules engine `check_prerequisites()` rewritten to evaluate all_of, any_of, and n_of_m group types. Admin UI prereq group editor with type selector and activity multi-select. Seed demo includes examples of all three types. Frontend lock messages show type-specific wording with blocker activity names.
 - [x] **Grace unlock override type** — `compute_availability()` now recognizes `grace_unlock` override type: bypasses prerequisite gate but NOT drip rules (mirrors `manual_unlock` which bypasses drip but NOT prereqs).
@@ -466,10 +491,10 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
   hl-core.php                    # Plugin bootstrap (singleton)
   /includes/
     class-hl-installer.php       # DB schema + activation
-    /domain/                     # Entity models (9 classes)
-    /domain/repositories/        # CRUD repositories (8 classes)
+    /domain/                     # Entity models (9 classes + planned: Phase, IndividualEnrollment)
+    /domain/repositories/        # CRUD repositories (8 classes + planned: PhaseRepository, IndividualEnrollmentRepository)
     /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages, seed-docs) — 6 commands + lutheran-seed-data.php
-    /services/                   # Business logic (14+ services incl. HL_Scope_Service, HL_Pathway_Assignment_Service)
+    /services/                   # Business logic (14+ services + planned: HL_Phase_Service, HL_Individual_Enrollment_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss (3 classes)
     /admin/                      # WP admin pages (15+ controllers incl. Cohorts, Tracks)
@@ -480,7 +505,7 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
   /assets/
     /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css
     /js/                         # admin-import-wizard.js, admin-teacher-editor.js, frontend.js, frontend-docs.js
-  /docs/                         # AI library (11 spec documents)
+  /docs/                         # AI library (11 spec documents + B2E_MASTER_REFERENCE.md + DOC_UPDATE_INSTRUCTIONS.md)
 ```
 
 ## Key Design Decisions
@@ -495,7 +520,10 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
 - Rules engine evaluates prerequisites + drip independently per enrollment
 - Child classroom assignments maintain current + history tables for audit trail
 - Import wizard uses preview/commit pattern with row-level selection
-- **Control group research design:** `is_control_group` flag on `hl_track` drives UI adaptations (hidden coaching/teams tabs) and enables program-vs-control comparison reporting at the Cohort level. Cohen's d effect size for measuring program effectiveness. Comparison uses `responses_json` from `hl_teacher_assessment_instance`.
+- **Control group research design:** `is_control_group` flag on `hl_track` drives UI adaptations (hidden coaching/teams tabs) and enables program-vs-control comparison reporting at the Cohort level. Cohen's d effect size for measuring program effectiveness. Comparison uses `responses_json` from `hl_teacher_assessment_instance`. Primary analysis happens in Stata from CSV exports — control group is an independent research asset, not tied to a specific program Track.
+- **Phase entity (PLANNED):** Pathways will belong to Phases (not directly to Tracks). This allows a single Track to span multiple years with separate pathway sets per Phase, solving the Year 2 problem where new and returning participants coexist in the same Track. See B2E_MASTER_REFERENCE.md §3-4.
+- **Track types (PLANNED):** `program` for full B2E management, `course` for simple institutional course access with auto-generated Phase/Pathway/Activity. See B2E_MASTER_REFERENCE.md §3.4.
+- **Individual Enrollments (PLANNED):** `hl_individual_enrollment` for standalone course purchases by individuals, with per-person expiration dates. See B2E_MASTER_REFERENCE.md §5.
 
 ## Plugin Dependencies
 - **WordPress 6.0+**

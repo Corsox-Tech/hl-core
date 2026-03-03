@@ -34,6 +34,8 @@ Availability is evaluated per:
 - enrollment_id
 - activity_id
 
+Note: Activities belong to Pathways, which belong to Phases, which belong to Tracks. The Phase layer does not affect unlock logic — it is a structural grouping only. Availability is still evaluated per (enrollment_id, activity_id).
+
 ## 1.2 Gates (Constraints)
 Availability is controlled by gates:
 1) Prerequisite Gate
