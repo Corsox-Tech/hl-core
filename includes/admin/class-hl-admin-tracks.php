@@ -45,6 +45,15 @@ class HL_Admin_Tracks {
         if ($action === 'unlink_school') {
             $this->handle_unlink_school();
         }
+
+        if ($action === 'delete_phase') {
+            $this->handle_delete_phase();
+        }
+
+        // Phase save (POST).
+        if (isset($_POST['hl_phase_nonce'])) {
+            $this->handle_save_phase();
+        }
     }
 
     /**
@@ -113,6 +122,7 @@ class HL_Admin_Tracks {
             'district_id'      => !empty($_POST['district_id']) ? absint($_POST['district_id']) : null,
             'cohort_id'        => !empty($_POST['cohort_id']) ? absint($_POST['cohort_id']) : null,
             'is_control_group' => !empty($_POST['is_control_group']) ? 1 : 0,
+            'track_type'       => isset($_POST['track_type']) && in_array($_POST['track_type'], array('program', 'course'), true) ? $_POST['track_type'] : 'program',
         );
 
         if (empty($data['end_date'])) {
@@ -348,6 +358,10 @@ class HL_Admin_Tracks {
             if ($track->is_control_group) {
                 echo ' <span class="hl-status-badge" style="background:#9b59b6;color:#fff;font-size:11px;">Control</span>';
             }
+            $tt = isset($track->track_type) ? $track->track_type : 'program';
+            if ($tt === 'course') {
+                echo ' <span class="hl-status-badge" style="background:#2271b1;color:#fff;font-size:11px;">Course</span>';
+            }
             echo '</td>';
             echo '<td><code>' . esc_html($track->track_code) . '</code></td>';
             echo '<td><span style="color:' . esc_attr($sc) . '; font-weight:600;">' . esc_html(ucfirst($track->status)) . '</span></td>';
@@ -420,9 +434,12 @@ class HL_Admin_Tracks {
                 'template_saved'     => __('Pathway saved as template.', 'hl-core'),
                 'template_removed'   => __('Pathway removed from templates.', 'hl-core'),
                 'clone_error'        => __('Clone failed. Please try again.', 'hl-core'),
+                'phase_saved'        => __('Phase saved successfully.', 'hl-core'),
+                'phase_deleted'      => __('Phase deleted successfully.', 'hl-core'),
+                'phase_delete_error' => __('Cannot delete phase: it still has linked pathways.', 'hl-core'),
             );
             if (isset($messages[$msg])) {
-                $notice_type = ($msg === 'clone_error') ? 'notice-error' : 'notice-success';
+                $notice_type = in_array($msg, array('clone_error', 'phase_delete_error'), true) ? 'notice-error' : 'notice-success';
                 echo '<div class="notice ' . $notice_type . ' is-dismissible"><p>' . esc_html($messages[$msg]) . '</p></div>';
             }
         }
@@ -446,6 +463,7 @@ class HL_Admin_Tracks {
         $tabs = array(
             'details'     => __('Details', 'hl-core'),
             'schools'     => __('Schools', 'hl-core'),
+            'phases'      => __('Phases', 'hl-core'),
             'pathways'    => __('Pathways', 'hl-core'),
             'teams'       => __('Teams', 'hl-core'),
             'enrollments' => __('Enrollments', 'hl-core'),
@@ -456,6 +474,12 @@ class HL_Admin_Tracks {
         // Control group tracks don't use coaching or teams.
         if ($track->is_control_group) {
             unset($tabs['coaching'], $tabs['teams']);
+        }
+
+        // Course-type tracks hide phases tab (auto-managed).
+        $track_type = isset($track->track_type) ? $track->track_type : 'program';
+        if ($track_type === 'course') {
+            unset($tabs['phases'], $tabs['teams'], $tabs['coaching']);
         }
 
         echo '<nav class="nav-tab-wrapper" style="margin-top:15px;">';
@@ -471,6 +495,9 @@ class HL_Admin_Tracks {
         switch ($current_tab) {
             case 'schools':
                 $this->render_tab_schools($track);
+                break;
+            case 'phases':
+                $this->render_tab_phases($track, $sub);
                 break;
             case 'pathways':
                 $this->render_tab_pathways($track, $sub);
@@ -642,6 +669,16 @@ class HL_Admin_Tracks {
         echo '<p class="description">' . esc_html__('Control group tracks only require assessments (no coaching, teams, or full program pathway).', 'hl-core') . '</p>';
         echo '</td></tr>';
 
+        // Track Type
+        $current_type = $is_edit && isset($track->track_type) ? $track->track_type : 'program';
+        echo '<tr><th scope="row"><label for="track_type">' . esc_html__('Track Type', 'hl-core') . '</label></th>';
+        echo '<td><select id="track_type" name="track_type">';
+        echo '<option value="program"' . selected($current_type, 'program', false) . '>' . esc_html__('Program (full: Phases, Pathways, Teams, Coaching, Assessments)', 'hl-core') . '</option>';
+        echo '<option value="course"' . selected($current_type, 'course', false) . '>' . esc_html__('Course (simple: auto-created single Phase + Pathway)', 'hl-core') . '</option>';
+        echo '</select>';
+        echo '<p class="description">' . esc_html__('Program tracks support the full B2E management workflow. Course tracks are for simple institutional short courses.', 'hl-core') . '</p>';
+        echo '</td></tr>';
+
         echo '</table>';
         submit_button($is_edit ? __('Update Track', 'hl-core') : __('Create Track', 'hl-core'));
         echo '</form>';
@@ -746,6 +783,216 @@ class HL_Admin_Tracks {
     }
 
     // =========================================================================
+    // Tab: Phases
+    // =========================================================================
+
+    /**
+     * Handle Phase save (create or update).
+     */
+    private function handle_save_phase() {
+        if (!wp_verify_nonce($_POST['hl_phase_nonce'], 'hl_save_phase')) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(__('You do not have permission to perform this action.', 'hl-core'));
+        }
+
+        $track_id = absint($_POST['track_id']);
+        $phase_id = isset($_POST['phase_id']) ? absint($_POST['phase_id']) : 0;
+
+        $data = array(
+            'phase_name'   => sanitize_text_field($_POST['phase_name']),
+            'phase_number' => absint($_POST['phase_number']),
+            'start_date'   => sanitize_text_field($_POST['start_date']) ?: null,
+            'end_date'     => sanitize_text_field($_POST['end_date']) ?: null,
+            'status'       => in_array($_POST['status'], array('draft', 'active', 'completed'), true) ? $_POST['status'] : 'draft',
+        );
+
+        $phase_svc = new HL_Phase_Service();
+
+        if ($phase_id > 0) {
+            $phase_svc->update_phase($phase_id, $data);
+        } else {
+            $data['track_id'] = $track_id;
+            $phase_svc->create_phase($data);
+        }
+
+        wp_redirect(admin_url('admin.php?page=hl-tracks&action=edit&id=' . $track_id . '&tab=phases&message=phase_saved'));
+        exit;
+    }
+
+    /**
+     * Handle Phase delete (GET action).
+     */
+    private function handle_delete_phase() {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_delete_phase')) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(__('You do not have permission to perform this action.', 'hl-core'));
+        }
+
+        $phase_id = isset($_GET['phase_id']) ? absint($_GET['phase_id']) : 0;
+        $track_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+
+        $phase_svc = new HL_Phase_Service();
+        $result = $phase_svc->delete_phase($phase_id);
+
+        if (is_wp_error($result)) {
+            wp_redirect(admin_url('admin.php?page=hl-tracks&action=edit&id=' . $track_id . '&tab=phases&message=phase_delete_error'));
+        } else {
+            wp_redirect(admin_url('admin.php?page=hl-tracks&action=edit&id=' . $track_id . '&tab=phases&message=phase_deleted'));
+        }
+        exit;
+    }
+
+    /**
+     * Render the Phases tab.
+     */
+    private function render_tab_phases($track, $sub = '') {
+        $track_id = $track->track_id;
+        $base_url = admin_url('admin.php?page=hl-tracks&action=edit&id=' . $track_id . '&tab=phases');
+
+        switch ($sub) {
+            case 'new':
+                $this->render_breadcrumb($track, 'phases', __('Phases', 'hl-core'), array(
+                    array('label' => __('New Phase', 'hl-core')),
+                ));
+                $this->render_phase_form($track, null);
+                break;
+
+            case 'edit':
+                $phase_id = isset($_GET['phase_id']) ? absint($_GET['phase_id']) : 0;
+                $phase_repo = new HL_Phase_Repository();
+                $phase = $phase_repo->get_by_id($phase_id);
+                if ($phase) {
+                    $this->render_breadcrumb($track, 'phases', __('Phases', 'hl-core'), array(
+                        array('label' => esc_html($phase->phase_name)),
+                    ));
+                    $this->render_phase_form($track, $phase);
+                } else {
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Phase not found.', 'hl-core') . '</p></div>';
+                    $this->render_phases_list($track);
+                }
+                break;
+
+            default:
+                $this->render_phases_list($track);
+                break;
+        }
+    }
+
+    /**
+     * Render the list of Phases for a track.
+     */
+    private function render_phases_list($track) {
+        $track_id = $track->track_id;
+        $base_url = admin_url('admin.php?page=hl-tracks&action=edit&id=' . $track_id . '&tab=phases');
+        $phase_repo = new HL_Phase_Repository();
+        $phases = $phase_repo->get_by_track($track_id);
+
+        echo '<a href="' . esc_url($base_url . '&sub=new') . '" class="page-title-action">' . esc_html__('Add Phase', 'hl-core') . '</a>';
+        echo '<br style="clear:both;" />';
+
+        if (empty($phases)) {
+            echo '<p>' . esc_html__('No phases defined for this track yet.', 'hl-core') . '</p>';
+            return;
+        }
+
+        $status_colors = array(
+            'draft' => '#996800', 'active' => '#00a32a', 'completed' => '#8c8f94',
+        );
+
+        echo '<table class="widefat striped" style="margin-top:10px;">';
+        echo '<thead><tr>';
+        echo '<th>' . esc_html__('#', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Start Date', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('End Date', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Pathways', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
+        echo '</tr></thead><tbody>';
+
+        foreach ($phases as $phase) {
+            $pathway_count = $phase_repo->count_pathways($phase->phase_id);
+            $sc = isset($status_colors[$phase->status]) ? $status_colors[$phase->status] : '#666';
+            $edit_url = $base_url . '&sub=edit&phase_id=' . $phase->phase_id;
+            $delete_url = wp_nonce_url(
+                admin_url('admin.php?page=hl-tracks&action=delete_phase&id=' . $track_id . '&phase_id=' . $phase->phase_id),
+                'hl_delete_phase'
+            );
+
+            echo '<tr>';
+            echo '<td>' . esc_html($phase->phase_number) . '</td>';
+            echo '<td><a href="' . esc_url($edit_url) . '"><strong>' . esc_html($phase->phase_name) . '</strong></a></td>';
+            echo '<td><span style="color:' . esc_attr($sc) . '; font-weight:600;">' . esc_html(ucfirst($phase->status)) . '</span></td>';
+            echo '<td>' . esc_html($phase->start_date ?: '—') . '</td>';
+            echo '<td>' . esc_html($phase->end_date ?: '—') . '</td>';
+            echo '<td>' . esc_html($pathway_count) . '</td>';
+            echo '<td>';
+            echo '<a href="' . esc_url($edit_url) . '">' . esc_html__('Edit', 'hl-core') . '</a>';
+            if ($pathway_count === 0) {
+                echo ' | <a href="' . esc_url($delete_url) . '" onclick="return confirm(\'' . esc_js(__('Delete this phase?', 'hl-core')) . '\');" style="color:#b32d2e;">' . esc_html__('Delete', 'hl-core') . '</a>';
+            }
+            echo '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table>';
+    }
+
+    /**
+     * Render the Phase create/edit form.
+     */
+    private function render_phase_form($track, $phase) {
+        $is_edit = ($phase !== null);
+        $track_id = $track->track_id;
+
+        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-tracks')) . '">';
+        wp_nonce_field('hl_save_phase', 'hl_phase_nonce');
+        echo '<input type="hidden" name="track_id" value="' . esc_attr($track_id) . '" />';
+        if ($is_edit) {
+            echo '<input type="hidden" name="phase_id" value="' . esc_attr($phase->phase_id) . '" />';
+        }
+
+        echo '<table class="form-table">';
+
+        // Phase Name
+        echo '<tr><th scope="row"><label for="phase_name">' . esc_html__('Phase Name', 'hl-core') . '</label></th>';
+        echo '<td><input type="text" id="phase_name" name="phase_name" value="' . esc_attr($is_edit ? $phase->phase_name : '') . '" class="regular-text" required /></td></tr>';
+
+        // Phase Number
+        echo '<tr><th scope="row"><label for="phase_number">' . esc_html__('Phase Number', 'hl-core') . '</label></th>';
+        echo '<td><input type="number" id="phase_number" name="phase_number" value="' . esc_attr($is_edit ? $phase->phase_number : '') . '" min="1" class="small-text" required />';
+        echo '<p class="description">' . esc_html__('Determines ordering. Must be unique within this track.', 'hl-core') . '</p></td></tr>';
+
+        // Status
+        $current_status = $is_edit ? $phase->status : 'draft';
+        echo '<tr><th scope="row"><label for="status">' . esc_html__('Status', 'hl-core') . '</label></th>';
+        echo '<td><select id="status" name="status">';
+        foreach (array('draft', 'active', 'completed') as $s) {
+            echo '<option value="' . esc_attr($s) . '"' . selected($current_status, $s, false) . '>' . esc_html(ucfirst($s)) . '</option>';
+        }
+        echo '</select></td></tr>';
+
+        // Start Date
+        echo '<tr><th scope="row"><label for="start_date">' . esc_html__('Start Date', 'hl-core') . '</label></th>';
+        echo '<td><input type="date" id="start_date" name="start_date" value="' . esc_attr($is_edit && $phase->start_date ? $phase->start_date : '') . '" /></td></tr>';
+
+        // End Date
+        echo '<tr><th scope="row"><label for="end_date">' . esc_html__('End Date', 'hl-core') . '</label></th>';
+        echo '<td><input type="date" id="end_date" name="end_date" value="' . esc_attr($is_edit && $phase->end_date ? $phase->end_date : '') . '" /></td></tr>';
+
+        echo '</table>';
+
+        submit_button($is_edit ? __('Update Phase', 'hl-core') : __('Create Phase', 'hl-core'));
+        echo '</form>';
+    }
+
+    // =========================================================================
     // Tab: Pathways
     // =========================================================================
 
@@ -837,10 +1084,12 @@ class HL_Admin_Tracks {
 
         $pathways = $wpdb->get_results($wpdb->prepare(
             "SELECT pw.*,
-                    (SELECT COUNT(*) FROM {$wpdb->prefix}hl_activity a WHERE a.pathway_id = pw.pathway_id) as activity_count
+                    (SELECT COUNT(*) FROM {$wpdb->prefix}hl_activity a WHERE a.pathway_id = pw.pathway_id) as activity_count,
+                    ph.phase_name
              FROM {$wpdb->prefix}hl_pathway pw
+             LEFT JOIN {$wpdb->prefix}hl_phase ph ON pw.phase_id = ph.phase_id
              WHERE pw.track_id = %d
-             ORDER BY pw.pathway_name ASC",
+             ORDER BY ph.phase_number ASC, pw.pathway_name ASC",
             $track_id
         ));
 
@@ -878,6 +1127,7 @@ class HL_Admin_Tracks {
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Phase', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Target Roles', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Activities', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Avg Time', 'hl-core') . '</th>';
@@ -901,6 +1151,7 @@ class HL_Admin_Tracks {
                 echo ' <span class="hl-status-badge active" style="font-size:10px;">' . esc_html__('Template', 'hl-core') . '</span>';
             }
             echo '</td>';
+            echo '<td>' . esc_html($pw->phase_name ?: '-') . '</td>';
             echo '<td>' . esc_html($roles_str) . '</td>';
             echo '<td>' . esc_html($pw->activity_count) . '</td>';
             echo '<td>' . esc_html($pw->avg_completion_time ?: '-') . '</td>';

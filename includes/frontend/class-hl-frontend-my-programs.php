@@ -141,11 +141,26 @@ class HL_Frontend_My_Programs {
                 ? round(($weighted_done / $total_weight) * 100)
                 : 0;
 
+            // Resolve phase name if pathway has a phase.
+            $phase_name = '';
+            if (!empty($pathway->phase_id)) {
+                $phase_repo = new HL_Phase_Repository();
+                $phase = $phase_repo->get_by_id($pathway->phase_id);
+                if ($phase) {
+                    // Only show phase name if track has multiple phases.
+                    $phases_for_track = $phase_repo->get_by_track($track->track_id);
+                    if (count($phases_for_track) > 1) {
+                        $phase_name = $phase->phase_name;
+                    }
+                }
+            }
+
             $cards[] = array(
-                'enrollment' => $enrollment,
-                'pathway'    => $pathway,
-                'track'      => $track,
-                'percent'    => $overall_percent,
+                'enrollment'  => $enrollment,
+                'pathway'     => $pathway,
+                'track'       => $track,
+                'percent'     => $overall_percent,
+                'phase_name'  => $phase_name,
             );
             } // end foreach assigned_pathways
         }
@@ -252,7 +267,12 @@ class HL_Frontend_My_Programs {
             </div>
             <div class="hl-program-card-body">
                 <h3 class="hl-program-card-title"><?php echo esc_html($pathway->pathway_name); ?></h3>
-                <p class="hl-program-card-track"><?php echo esc_html($track->track_name); ?></p>
+                <p class="hl-program-card-track">
+                    <?php echo esc_html($track->track_name); ?>
+                    <?php if (!empty($card['phase_name'])) : ?>
+                        <span class="hl-program-card-phase">&mdash; <?php echo esc_html($card['phase_name']); ?></span>
+                    <?php endif; ?>
+                </p>
                 <div class="hl-program-card-progress">
                     <div class="hl-progress-bar-container">
                         <div class="hl-progress-bar <?php echo esc_attr($bar_class); ?>" style="width: <?php echo esc_attr($percent); ?>%"></div>

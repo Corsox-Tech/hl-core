@@ -64,8 +64,9 @@ class HL_CLI_Seed_Palm_Beach {
 		// Step 1: Org Structure.
 		$orgunits = $this->seed_orgunits();
 
-		// Step 2: Track.
+		// Step 2: Track + Phase.
 		$track_id = $this->seed_track( $orgunits );
+		$this->seed_phase( $track_id );
 
 		// Step 3: Classrooms.
 		$classrooms = $this->seed_classrooms( $orgunits );
@@ -678,6 +679,7 @@ class HL_CLI_Seed_Palm_Beach {
 			}
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE track_id = %d", $track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE track_id = %d", $track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_phase WHERE track_id = %d", $track_id ) );
 
 			$team_ids = $wpdb->get_col(
 				$wpdb->prepare( "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE track_id = %d", $track_id )
@@ -719,6 +721,7 @@ class HL_CLI_Seed_Palm_Beach {
 			}
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE track_id = %d", $control_track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE track_id = %d", $control_track_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_phase WHERE track_id = %d", $control_track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE track_id = %d", $control_track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_track_snapshot WHERE track_id = %d", $control_track_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $control_track_id ) );
@@ -851,6 +854,25 @@ class HL_CLI_Seed_Palm_Beach {
 
 		WP_CLI::log( "  [2/17] Track created: id={$track_id}, code=" . self::TRACK_CODE );
 		return $track_id;
+	}
+
+	/**
+	 * Seed a default Phase for the ELC Palm Beach track.
+	 *
+	 * @param int $track_id Track ID.
+	 */
+	private function seed_phase( $track_id ) {
+		$phase_svc = new HL_Phase_Service();
+		$phase_id = $phase_svc->create_phase( array(
+			'track_id'     => $track_id,
+			'phase_name'   => 'Phase 1',
+			'phase_number' => 1,
+			'start_date'   => '2026-01-01',
+			'end_date'     => '2026-12-31',
+			'status'       => 'active',
+		) );
+
+		WP_CLI::log( "  [2b/17] Phase created: id={$phase_id}" );
 	}
 
 	// ------------------------------------------------------------------
@@ -1727,6 +1749,17 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 
 		WP_CLI::log( "  [18/20] Cohort id={$cohort_id} (B2E-EVAL), control track id={$control_track_id} (LSF-CTRL-2026)" );
+
+		// Create Phase for control track.
+		$ctrl_phase_svc = new HL_Phase_Service();
+		$ctrl_phase_svc->create_phase( array(
+			'track_id'     => $control_track_id,
+			'phase_name'   => 'Phase 1',
+			'phase_number' => 1,
+			'start_date'   => '2026-01-01',
+			'end_date'     => '2026-12-31',
+			'status'       => 'active',
+		) );
 
 		// Create assessment-only pathway.
 		$svc = new HL_Pathway_Service();

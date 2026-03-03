@@ -240,6 +240,7 @@ class HL_Admin_Pathways {
             'pathway_name'        => sanitize_text_field($_POST['pathway_name']),
             'pathway_code'        => sanitize_text_field($_POST['pathway_code']),
             'track_id'            => absint($_POST['track_id']),
+            'phase_id'            => !empty($_POST['phase_id']) ? absint($_POST['phase_id']) : null,
             'target_roles'        => wp_json_encode($target_roles),
             'description'         => $description,
             'objectives'          => $objectives,
@@ -1347,6 +1348,24 @@ class HL_Admin_Pathways {
             }
             echo '</select></td>';
         }
+        echo '</tr>';
+
+        // Phase (dropdown populated from the selected track's phases)
+        $phase_repo = new HL_Phase_Repository();
+        $current_phase = $is_edit && isset($pathway->phase_id) ? $pathway->phase_id : '';
+        $phase_options = array();
+        if ($current_track) {
+            $phase_options = $phase_repo->get_by_track(absint($current_track));
+        }
+        echo '<tr>';
+        echo '<th scope="row"><label for="phase_id">' . esc_html__('Phase', 'hl-core') . '</label></th>';
+        echo '<td><select id="phase_id" name="phase_id">';
+        echo '<option value="">' . esc_html__('-- Default Phase --', 'hl-core') . '</option>';
+        foreach ($phase_options as $ph) {
+            echo '<option value="' . esc_attr($ph->phase_id) . '"' . selected($current_phase, $ph->phase_id, false) . '>' . esc_html($ph->phase_name) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . esc_html__('Which phase this pathway belongs to. Leave as default for single-phase tracks.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
         // Target Roles

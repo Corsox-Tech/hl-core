@@ -8,9 +8,22 @@ class HL_Pathway_Repository {
         return $wpdb->prefix . 'hl_pathway';
     }
 
-    public function get_all($track_id = null) {
+    /**
+     * Get all pathways, optionally filtered by track and/or phase.
+     *
+     * @param int|null $track_id
+     * @param int|null $phase_id
+     * @return HL_Pathway[]
+     */
+    public function get_all($track_id = null, $phase_id = null) {
         global $wpdb;
-        if ($track_id) {
+
+        if ($phase_id) {
+            $rows = $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM {$this->table()} WHERE phase_id = %d ORDER BY pathway_name ASC",
+                $phase_id
+            ), ARRAY_A);
+        } elseif ($track_id) {
             $rows = $wpdb->get_results($wpdb->prepare(
                 "SELECT * FROM {$this->table()} WHERE track_id = %d ORDER BY pathway_name ASC",
                 $track_id
@@ -22,6 +35,16 @@ class HL_Pathway_Repository {
             );
         }
         return array_map(function($row) { return new HL_Pathway($row); }, $rows ?: array());
+    }
+
+    /**
+     * Get pathways for a specific phase.
+     *
+     * @param int $phase_id
+     * @return HL_Pathway[]
+     */
+    public function get_by_phase($phase_id) {
+        return $this->get_all(null, $phase_id);
     }
 
     public function get_by_id($pathway_id) {

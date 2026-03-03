@@ -11,18 +11,50 @@ class HL_Pathway_Service {
         $this->activity_repo = new HL_Activity_Repository();
     }
 
-    public function get_pathways($track_id = null) {
-        return $this->pathway_repo->get_all($track_id);
+    /**
+     * Get pathways, optionally filtered by track and/or phase.
+     *
+     * @param int|null $track_id
+     * @param int|null $phase_id
+     * @return HL_Pathway[]
+     */
+    public function get_pathways($track_id = null, $phase_id = null) {
+        return $this->pathway_repo->get_all($track_id, $phase_id);
     }
 
     public function get_pathway($pathway_id) {
         return $this->pathway_repo->get_by_id($pathway_id);
     }
 
+    /**
+     * Create a pathway. Accepts phase_id; auto-resolves track_id from phase if needed.
+     *
+     * @param array $data
+     * @return int|WP_Error
+     */
     public function create_pathway($data) {
+        // If phase_id is provided but track_id is missing, resolve track_id from the phase.
+        if (!empty($data['phase_id']) && empty($data['track_id'])) {
+            $phase_repo = new HL_Phase_Repository();
+            $phase = $phase_repo->get_by_id(absint($data['phase_id']));
+            if ($phase) {
+                $data['track_id'] = $phase->track_id;
+            }
+        }
+
         if (empty($data['pathway_name']) || empty($data['track_id'])) {
             return new WP_Error('missing_fields', __('Pathway name and track are required.', 'hl-core'));
         }
+
+        // If track_id provided but no phase_id, auto-resolve to default phase.
+        if (empty($data['phase_id']) && !empty($data['track_id'])) {
+            $phase_repo = new HL_Phase_Repository();
+            $default_phase = $phase_repo->get_default_phase(absint($data['track_id']));
+            if ($default_phase) {
+                $data['phase_id'] = $default_phase->phase_id;
+            }
+        }
+
         return $this->pathway_repo->create($data);
     }
 
@@ -42,6 +74,15 @@ class HL_Pathway_Service {
         if (empty($data['title']) || empty($data['pathway_id']) || empty($data['activity_type'])) {
             return new WP_Error('missing_fields', __('Title, pathway, and type are required.', 'hl-core'));
         }
+
+        // Auto-resolve track_id from pathway's phase if not provided.
+        if (empty($data['track_id']) && !empty($data['pathway_id'])) {
+            $pathway = $this->pathway_repo->get_by_id(absint($data['pathway_id']));
+            if ($pathway) {
+                $data['track_id'] = $pathway->track_id;
+            }
+        }
+
         return $this->activity_repo->create($data);
     }
 
@@ -81,14 +122,15 @@ class HL_Pathway_Service {
     }
 
     /**
-     * Clone a pathway (with activities, prereq groups/items, drip rules) into a target track.
+     * Clone a pathway (with activities, prereq groups/items, drip rules) into a target phase/track.
      *
      * @param int      $source_pathway_id Source pathway to clone from.
-     * @param int      $target_track_id  Target track for the new pathway.
+     * @param int      $target_track_id   Target track for the new pathway.
      * @param string   $name_suffix       Suffix appended to the cloned pathway name.
+     * @param int|null $target_phase_id   Target phase (overrides track_id resolution).
      * @return int|WP_Error New pathway ID on success.
      */
-    public function clone_pathway($source_pathway_id, $target_track_id, $name_suffix = ' (Copy)') {
+    public function clone_pathway($source_pathway_id, $target_track_id, $name_suffix = ' (Copy)', $target_phase_id = null) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -102,10 +144,19 @@ class HL_Pathway_Service {
             return new WP_Error('not_found', __('Source pathway not found.', 'hl-core'));
         }
 
+        // Resolve phase_id: explicit param > target track's default phase > source's phase.
+        $resolved_phase_id = $target_phase_id;
+        if (!$resolved_phase_id) {
+            $phase_repo = new HL_Phase_Repository();
+            $default_phase = $phase_repo->get_default_phase(absint($target_track_id));
+            $resolved_phase_id = $default_phase ? $default_phase->phase_id : $source['phase_id'];
+        }
+
         // 2. Create new pathway.
         $new_pathway_data = array(
             'pathway_uuid'        => HL_DB_Utils::generate_uuid(),
             'track_id'           => absint($target_track_id),
+            'phase_id'           => $resolved_phase_id ? absint($resolved_phase_id) : null,
             'pathway_name'        => $source['pathway_name'] . $name_suffix,
             'pathway_code'        => HL_Normalization::generate_code($source['pathway_name'] . $name_suffix),
             'description'         => $source['description'],

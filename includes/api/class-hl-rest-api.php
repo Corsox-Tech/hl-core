@@ -102,7 +102,8 @@ class HL_REST_API {
     public function get_pathways($request) {
         $repo = new HL_Pathway_Repository();
         $track_id = $request->get_param('track_id') ? intval($request->get_param('track_id')) : null;
-        $pathways = $repo->get_all($track_id);
+        $phase_id = $request->get_param('phase_id') ? intval($request->get_param('phase_id')) : null;
+        $pathways = $repo->get_all($track_id, $phase_id);
         $data = array_map(function($p) { return $p->to_array(); }, $pathways);
         return new WP_REST_Response($data, 200);
     }

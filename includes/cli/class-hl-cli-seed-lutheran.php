@@ -113,8 +113,9 @@ class HL_CLI_Seed_Lutheran {
 		// Log school alias resolutions for verification.
 		$this->log_school_resolutions( $school_map );
 
-		// Step 3: Track (run).
+		// Step 3: Track (run) + Phase.
 		$track_id = $this->seed_track( $district_id );
+		$this->seed_phase( $track_id );
 
 		// Step 4: Link schools to track.
 		$this->link_schools_to_track( $track_id, $school_map );
@@ -268,6 +269,9 @@ class HL_CLI_Seed_Lutheran {
 
 			// Delete pathway.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_pathway WHERE track_id = %d", $track_id ) );
+
+			// Delete phases.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_phase WHERE track_id = %d", $track_id ) );
 
 			// Delete enrollments.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_enrollment WHERE track_id = %d", $track_id ) );
@@ -640,6 +644,25 @@ class HL_CLI_Seed_Lutheran {
 
 		WP_CLI::log( "  [3/14] Track created: id={$track_id}, code=" . self::TRACK_CODE );
 		return $track_id;
+	}
+
+	/**
+	 * Seed a default Phase for the Lutheran control track.
+	 *
+	 * @param int $track_id Track ID.
+	 */
+	private function seed_phase( $track_id ) {
+		$phase_svc = new HL_Phase_Service();
+		$phase_id = $phase_svc->create_phase( array(
+			'track_id'     => $track_id,
+			'phase_name'   => 'Phase 1',
+			'phase_number' => 1,
+			'start_date'   => '2026-02-15',
+			'end_date'     => '2026-07-31',
+			'status'       => 'active',
+		) );
+
+		WP_CLI::log( "  [3b/14] Phase created: id={$phase_id}" );
 	}
 
 	// ------------------------------------------------------------------

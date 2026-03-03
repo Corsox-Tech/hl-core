@@ -69,8 +69,9 @@ class HL_CLI_Seed_Demo {
         // Step 1: Org Structure
         list( $district_id, $school_a_id, $school_b_id ) = $this->seed_orgunits();
 
-        // Step 2: Track
+        // Step 2: Track + Phase
         $track_id = $this->seed_track( $district_id, $school_a_id, $school_b_id );
+        $this->seed_phase( $track_id );
 
         // Step 3: Classrooms
         $classrooms = $this->seed_classrooms( $school_a_id, $school_b_id );
@@ -233,6 +234,9 @@ class HL_CLI_Seed_Demo {
             // Pathways.
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE track_id = %d", $track_id ) );
 
+            // Phases.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_phase WHERE track_id = %d", $track_id ) );
+
             // Teams.
             $team_ids = $wpdb->get_col(
                 $wpdb->prepare(
@@ -391,6 +395,25 @@ class HL_CLI_Seed_Demo {
         WP_CLI::log( "  [2/17] Track created: id={$track_id}, code=" . self::DEMO_TRACK_CODE );
 
         return $track_id;
+    }
+
+    /**
+     * Seed a default Phase for the demo track.
+     *
+     * @param int $track_id Track ID.
+     */
+    private function seed_phase( $track_id ) {
+        $phase_svc = new HL_Phase_Service();
+        $phase_id = $phase_svc->create_phase( array(
+            'track_id'     => $track_id,
+            'phase_name'   => 'Phase 1',
+            'phase_number' => 1,
+            'start_date'   => '2026-01-01',
+            'end_date'     => '2026-12-31',
+            'status'       => 'active',
+        ) );
+
+        WP_CLI::log( "  [2b/17] Phase created: id={$phase_id}" );
     }
 
     // ------------------------------------------------------------------

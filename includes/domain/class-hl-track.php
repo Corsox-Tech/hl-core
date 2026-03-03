@@ -17,6 +17,7 @@ class HL_Track {
     public $district_id;
     public $cohort_id;
     public $is_control_group;
+    public $track_type;
     public $status;
     public $start_date;
     public $end_date;
@@ -42,6 +43,7 @@ class HL_Track {
             'district_id' => $this->district_id,
             'cohort_id' => $this->cohort_id,
             'is_control_group' => $this->is_control_group,
+            'track_type' => $this->track_type,
             'status' => $this->status,
             'start_date' => $this->start_date,
             'end_date' => $this->end_date,

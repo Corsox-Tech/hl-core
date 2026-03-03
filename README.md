@@ -2,8 +2,8 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for observation forms only)
-**Status:** v1 complete — Phases 1-31 done. Architecture expansion planned: Phase entity (hl_phase), Track Types (program/course), Individual Enrollments (hl_individual_enrollment), Program Progress Matrix report — see B2E_MASTER_REFERENCE.md and Build Queue Phases 32-34.
-(28 shortcode pages incl. dashboard + documentation, 15 admin pages, 35 DB tables, tabbed track editor, paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, JFB cleanup)
+**Status:** v1 complete — Phases 1-32 done. Architecture expansion in progress: Individual Enrollments (hl_individual_enrollment), Program Progress Matrix report — see B2E_MASTER_REFERENCE.md and Build Queue Phases 33-34.
+(28 shortcode pages incl. dashboard + documentation, 15 admin pages, 37 DB tables, tabbed track editor with Phases tab, Phase entity (hl_phase), Track Types (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, JFB cleanup)
 
 ## Overview
 
@@ -11,9 +11,9 @@ HL Core is the system-of-record plugin for Housman Learning Academy Track and Co
 
 ## What's Implemented
 
-### Database Schema (35 custom tables + 2 planned)
-- **Org & Track/Cohort:** `hl_orgunit`, `hl_track` (with `is_control_group` flag + planned `track_type` column), `hl_track_school`, `hl_cohort` (optional container)
-- **Phase (PLANNED):** `hl_phase` (track_id, phase_name, phase_number, start/end dates, status) — Pathways will move from Track-level to Phase-level
+### Database Schema (37 custom tables + 1 planned)
+- **Org & Track/Cohort:** `hl_orgunit`, `hl_track` (with `is_control_group` flag + `track_type` column: program/course), `hl_track_school`, `hl_cohort` (optional container)
+- **Phase:** `hl_phase` (track_id, phase_name, phase_number, start/end dates, status) — Pathways belong to Phases. Migration auto-creates Phase 1 per existing Track.
 - **Individual Enrollments (PLANNED):** `hl_individual_enrollment` (user_id, course_id, enrolled_at, expires_at, status) — for standalone course purchases
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
 - **Classrooms:** `hl_classroom`, `hl_teaching_assignment`, `hl_child`, `hl_child_classroom_current`, `hl_child_classroom_history`
@@ -26,15 +26,16 @@ HL Core is the system-of-record plugin for Housman Learning Academy Track and Co
 - **System:** `hl_import_run`, `hl_audit_log`
 
 ### Domain Models & Repositories
-All 9 core entities have domain model classes with proper properties and repository classes with full CRUD:
-- OrgUnit, Cohort, Enrollment, Team, Classroom, Child, Pathway, Activity, Teacher_Assessment_Instrument
+All 10 core entities have domain model classes with proper properties and repository classes with full CRUD:
+- OrgUnit, Cohort, Enrollment, Team, Classroom, Child, Pathway, Activity, Teacher_Assessment_Instrument, Phase
 
 ### Services (Business Logic)
 - **CohortService** - Cohort CRUD with validation
 - **EnrollmentService** - Enrollment management with uniqueness checks
 - **TeamService** - Team + membership management with constraints: hard enforcement of 1 team per enrollment per cohort, soft max-2-mentors-per-team (override-capable)
 - **ClassroomService** - Full classroom CRUD, teaching assignment CRUD (create/update/delete with audit logging + auto-trigger child assessment instance generation), child classroom assignment/reassignment with history tracking
-- **PathwayService** - Pathway + Activity CRUD
+- **PhaseService** - Phase CRUD with track validation, auto-increment phase_number, uniqueness enforcement, delete guard (no linked pathways), audit logging
+- **PathwayService** - Pathway + Activity CRUD (phase-aware: auto-resolves phase_id from track or track_id from phase)
 - **RulesEngineService** - Full prerequisite + drip rule evaluation engine
   - ALL_OF, ANY_OF, and N_OF_M prerequisite group types
   - Fixed date and completion-delay drip rules
@@ -125,7 +126,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - `GET /wp-json/hl-core/v1/cohorts/{id}`
 - `GET /wp-json/hl-core/v1/enrollments?cohort_id=X`
 - `GET /wp-json/hl-core/v1/orgunits?type=center`
-- `GET /wp-json/hl-core/v1/pathways?cohort_id=X`
+- `GET /wp-json/hl-core/v1/pathways?track_id=X&phase_id=Y`
 - `GET /wp-json/hl-core/v1/teams?cohort_id=X`
 
 ### LearnDash Integration
@@ -454,14 +455,14 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
 - [x] **31.5 — Bug fixes** — Fixed instrument color styles not saving (Default checkbox auto-uncheck on color pick). Fixed child instrument edit form type validation. Removed `children_mixed` instrument type — mixed-age classrooms now rely on per-child age-group instruments selected automatically by the front-end renderer.
 
 ### Phase 32: Phase Entity + Track Types (Architecture — B2E Master Reference)
-- [ ] **32.1 — DB: `hl_phase` table** — Create table with phase_id, track_id, phase_name, phase_number, start/end dates, status. Migration: add phase_id FK to hl_pathway. Create default Phase per existing Track for backward compat.
-- [ ] **32.2 — DB: `track_type` column** — Add `track_type ENUM('program','course') DEFAULT 'program'` to hl_track.
-- [ ] **32.3 — Phase Service** — HL_Phase_Service: CRUD, get_phases_for_track, get_active_phase, auto-create for course-type Tracks.
-- [ ] **32.4 — Pathway migration** — Update HL_Pathway_Service to work through Phase. Pathway queries join Phase → Pathway instead of direct Track → Pathway.
-- [ ] **32.5 — Admin: Track Editor Phases tab** — New tab in track editor (program-type only): list/create/edit Phases, click into Phase to manage Pathways.
-- [ ] **32.6 — Admin: Course-type Track simplification** — When track_type='course': auto-create Phase+Pathway+Activity, hide Phase/Teams/Coaching/Assessment tabs.
-- [ ] **32.7 — Seeder updates** — Update all seeders to create Phases and assign Pathways to Phases.
-- [ ] **32.8 — Frontend Phase context** — My Programs cards show Phase name. Reports support Phase filter.
+- [x] **32.1 — DB: `hl_phase` table** — Created table with phase_id, phase_uuid, track_id, phase_name, phase_number, start/end dates, status. Migration Rev 17: adds phase_id FK to hl_pathway, auto-creates Phase 1 per existing Track, populates phase_id on existing pathways.
+- [x] **32.2 — DB: `track_type` column** — Added `track_type varchar(20) DEFAULT 'program'` to hl_track. Migration Rev 17 handles ALTER TABLE.
+- [x] **32.3 — Phase Service** — HL_Phase domain model, HL_Phase_Repository (CRUD + get_by_track + get_active_phase + get_default_phase + count_pathways), HL_Phase_Service (CRUD with validation, auto-increment phase_number, uniqueness enforcement, delete guard, audit logging, auto_create_for_course_track stub).
+- [x] **32.4 — Pathway migration** — HL_Pathway_Service phase-aware: create_pathway auto-resolves phase_id from track's default phase (or track_id from phase). get_pathways accepts phase_id filter. clone_pathway accepts target_phase_id. Dual-column strategy: track_id kept on hl_pathway for backward compat — existing queries unmodified.
+- [x] **32.5 — Admin: Track Editor Phases tab** — New Phases tab in track editor (program-type only): list/create/edit Phases with name, number, status, start/end dates. Pathway count per phase. Delete guard (no linked pathways). Phase column added to Pathways tab.
+- [x] **32.6 — Admin: Course-type Track simplification** — Track type dropdown on Details tab (Program/Course). Course-type tracks auto-hide Phases, Teams, Coaching tabs. Course badge in track list.
+- [x] **32.7 — Seeder updates** — All 3 seeders (demo, lutheran, palm-beach) create Phase 1 after track, pass phase_id to pathway creation. Clean commands delete from hl_phase.
+- [x] **32.8 — Frontend Phase context** — My Programs cards show Phase name when track has multiple phases. Pathways Listing shows phase name in card subtitle. REST API pathways endpoint accepts phase_id filter.
 
 ### Phase 33: Individual Enrollments (B2E Master Reference)
 - [ ] **33.1 — DB: `hl_individual_enrollment` table** — Create table with user_id, course_id, enrolled_at, expires_at, status, enrolled_by, notes.
@@ -491,10 +492,10 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
   hl-core.php                    # Plugin bootstrap (singleton)
   /includes/
     class-hl-installer.php       # DB schema + activation
-    /domain/                     # Entity models (9 classes + planned: Phase, IndividualEnrollment)
-    /domain/repositories/        # CRUD repositories (8 classes + planned: PhaseRepository, IndividualEnrollmentRepository)
+    /domain/                     # Entity models (10 classes incl. Phase + planned: IndividualEnrollment)
+    /domain/repositories/        # CRUD repositories (9 classes incl. PhaseRepository + planned: IndividualEnrollmentRepository)
     /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages, seed-docs) — 6 commands + lutheran-seed-data.php
-    /services/                   # Business logic (14+ services + planned: HL_Phase_Service, HL_Individual_Enrollment_Service)
+    /services/                   # Business logic (15+ services incl. HL_Phase_Service + planned: HL_Individual_Enrollment_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss (3 classes)
     /admin/                      # WP admin pages (15+ controllers incl. Cohorts, Tracks)

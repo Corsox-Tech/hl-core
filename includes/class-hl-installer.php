@@ -87,6 +87,9 @@ class HL_Installer {
         // Phase 23: Child assessment restructure — snapshot table + column additions.
         self::migrate_child_assessment_restructure();
 
+        // Phase 32: Add Phase entity (hl_phase) + track_type + pathway.phase_id.
+        self::migrate_add_phase_entity();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -109,7 +112,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 16;
+        $current_revision = 17;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -117,6 +120,11 @@ class HL_Installer {
             // Rev 16: Add 'k2' to hl_classroom.age_band ENUM (dbDelta can't modify ENUMs).
             if ( (int) $stored < 16 ) {
                 self::migrate_classroom_age_band_k2();
+            }
+
+            // Rev 17: Add track_type ENUM to hl_track (dbDelta can't add ENUMs reliably).
+            if ( (int) $stored < 17 ) {
+                self::migrate_track_type_enum();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -1070,6 +1078,7 @@ class HL_Installer {
             district_id bigint(20) unsigned NULL,
             cohort_id bigint(20) unsigned NULL,
             is_control_group tinyint(1) NOT NULL DEFAULT 0,
+            track_type varchar(20) NOT NULL DEFAULT 'program',
             status enum('draft','active','paused','archived') DEFAULT 'draft',
             start_date date NOT NULL,
             end_date date NULL,
@@ -1285,6 +1294,7 @@ class HL_Installer {
             pathway_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             pathway_uuid char(36) NOT NULL,
             track_id bigint(20) unsigned NOT NULL,
+            phase_id bigint(20) unsigned NULL,
             pathway_name varchar(255) NOT NULL,
             pathway_code varchar(100) NOT NULL,
             description longtext NULL,
@@ -1301,7 +1311,8 @@ class HL_Installer {
             PRIMARY KEY (pathway_id),
             UNIQUE KEY pathway_uuid (pathway_uuid),
             UNIQUE KEY track_pathway_code (track_id, pathway_code),
-            KEY track_id (track_id)
+            KEY track_id (track_id),
+            KEY phase_id (phase_id)
         ) $charset_collate;";
 
         // Activity table
@@ -1693,6 +1704,25 @@ class HL_Installer {
             KEY idx_key_version (instrument_key, instrument_version)
         ) $charset_collate;";
 
+        // Phase table (time-bounded period within a Track — groups Pathways)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_phase (
+            phase_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            phase_uuid char(36) NOT NULL,
+            track_id bigint(20) unsigned NOT NULL,
+            phase_name varchar(255) NOT NULL,
+            phase_number int NOT NULL DEFAULT 1,
+            start_date date NULL,
+            end_date date NULL,
+            status varchar(20) NOT NULL DEFAULT 'draft',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (phase_id),
+            UNIQUE KEY phase_uuid (phase_uuid),
+            UNIQUE KEY track_phase_number (track_id, phase_number),
+            KEY track_id (track_id),
+            KEY status (status)
+        ) $charset_collate;";
+
         // Cohort table (program-level container — groups tracks for cross-track reporting)
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_cohort (
             cohort_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -1755,6 +1785,110 @@ class HL_Installer {
         $table = "{$wpdb->prefix}hl_classroom";
         if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table ) {
             $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN `age_band` enum('infant','toddler','preschool','k2','mixed') NULL" );
+        }
+    }
+
+    /**
+     * Rev 17: Add track_type column to hl_track.
+     *
+     * dbDelta cannot reliably add ENUM/varchar with DEFAULT on existing tables,
+     * so we use a direct ALTER TABLE guarded by column-exists check.
+     */
+    private static function migrate_track_type_enum() {
+        global $wpdb;
+        $table = "{$wpdb->prefix}hl_track";
+
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return;
+        }
+
+        $col = $wpdb->get_row( $wpdb->prepare(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = 'track_type'",
+            $table
+        ) );
+
+        if ( empty( $col ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `track_type` varchar(20) NOT NULL DEFAULT 'program' AFTER `is_control_group`" );
+        }
+    }
+
+    /**
+     * Phase 32: Add Phase entity.
+     *
+     * 1. Add phase_id column to hl_pathway (if missing).
+     * 2. Auto-create a default Phase for each existing Track that has no Phases yet.
+     * 3. Populate phase_id on existing pathways.
+     *
+     * The hl_phase table itself is created by dbDelta (in get_schema).
+     * The track_type column is added by migrate_track_type_enum (Rev 17).
+     */
+    private static function migrate_add_phase_entity() {
+        global $wpdb;
+
+        $pathway_table = "{$wpdb->prefix}hl_pathway";
+        $phase_table   = "{$wpdb->prefix}hl_phase";
+        $track_table   = "{$wpdb->prefix}hl_track";
+
+        // Helper: check if a column exists.
+        $column_exists = function ( $table, $column ) use ( $wpdb ) {
+            $row = $wpdb->get_row( $wpdb->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                $table,
+                $column
+            ) );
+            return ! empty( $row );
+        };
+
+        // 1. Add phase_id to hl_pathway if missing.
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $pathway_table ) ) === $pathway_table ) {
+            if ( ! $column_exists( $pathway_table, 'phase_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$pathway_table}` ADD COLUMN `phase_id` bigint(20) unsigned NULL AFTER `track_id`" );
+                $wpdb->query( "ALTER TABLE `{$pathway_table}` ADD KEY `phase_id` (`phase_id`)" );
+            }
+        }
+
+        // 2. Auto-create default Phase per existing Track (only if hl_phase table exists).
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $phase_table ) ) !== $phase_table ) {
+            return; // Table not yet created — dbDelta will handle it, then next activation will populate.
+        }
+
+        $tracks = $wpdb->get_results(
+            "SELECT t.track_id, t.track_name, t.start_date, t.end_date, t.status
+             FROM `{$track_table}` t
+             LEFT JOIN `{$phase_table}` ph ON t.track_id = ph.track_id
+             WHERE ph.phase_id IS NULL"
+        );
+
+        if ( ! empty( $tracks ) ) {
+            foreach ( $tracks as $track ) {
+                // Map track status to phase status.
+                $phase_status = 'draft';
+                if ( in_array( $track->status, array( 'active', 'paused' ), true ) ) {
+                    $phase_status = 'active';
+                } elseif ( $track->status === 'archived' ) {
+                    $phase_status = 'completed';
+                }
+
+                $wpdb->insert( $phase_table, array(
+                    'phase_uuid'   => HL_DB_Utils::generate_uuid(),
+                    'track_id'     => $track->track_id,
+                    'phase_name'   => 'Phase 1',
+                    'phase_number' => 1,
+                    'start_date'   => $track->start_date,
+                    'end_date'     => $track->end_date,
+                    'status'       => $phase_status,
+                ) );
+            }
+        }
+
+        // 3. Populate phase_id on existing pathways that are still NULL.
+        if ( $column_exists( $pathway_table, 'phase_id' ) ) {
+            $wpdb->query(
+                "UPDATE `{$pathway_table}` p
+                 JOIN `{$phase_table}` ph ON p.track_id = ph.track_id
+                 SET p.phase_id = ph.phase_id
+                 WHERE p.phase_id IS NULL"
+            );
         }
     }
 }
