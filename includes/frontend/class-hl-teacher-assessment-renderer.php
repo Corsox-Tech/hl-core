@@ -170,6 +170,15 @@ class HL_Teacher_Assessment_Renderer {
         </div>
 
         <?php if ( ! $this->read_only ) : ?>
+            <div class="hl-tsa-skip-overlay" id="hl-tsa-skip-overlay-<?php echo esc_attr( $instance_id ); ?>" style="display: none;">
+                <div class="hl-tsa-skip-modal">
+                    <p><?php echo esc_html__( 'You have unanswered items in this page. Select "Return" to complete the missing items. Continue to "Submit" if you prefer not to answer.', 'hl-core' ); ?></p>
+                    <div class="hl-tsa-skip-buttons">
+                        <button type="button" class="button hl-tsa-skip-return"><?php esc_html_e( 'Return', 'hl-core' ); ?></button>
+                        <button type="button" class="button button-primary hl-tsa-skip-submit"><?php esc_html_e( 'Submit', 'hl-core' ); ?></button>
+                    </div>
+                </div>
+            </div>
             <?php $this->render_inline_script( $instance_id ); ?>
         <?php endif; ?>
 
@@ -930,6 +939,63 @@ class HL_Teacher_Assessment_Renderer {
                 content: '\00a0\2192';
             }
 
+            /* ── Skip-confirmation modal ───────────────────── */
+            .hl-tsa-skip-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 100000;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }
+            .hl-tsa-skip-modal {
+                background: #fff;
+                border-radius: var(--hl-radius, 12px);
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                max-width: 480px;
+                width: 100%;
+                padding: 32px;
+                text-align: center;
+            }
+            .hl-tsa-skip-modal p {
+                font-size: 1em;
+                line-height: 1.6;
+                color: var(--hl-text, #1F2937);
+                margin: 0 0 24px;
+            }
+            .hl-tsa-skip-buttons {
+                display: flex;
+                gap: 12px;
+                justify-content: center;
+            }
+            .hl-tsa-skip-buttons .button {
+                min-width: 120px;
+                padding: 10px 24px !important;
+                font-size: 0.95em !important;
+                border-radius: 6px !important;
+                cursor: pointer;
+            }
+            .hl-tsa-skip-buttons .hl-tsa-skip-return {
+                background: #fff !important;
+                border-color: var(--hl-border, #D1D5DB) !important;
+                color: var(--hl-text, #374151) !important;
+            }
+            .hl-tsa-skip-buttons .hl-tsa-skip-return:hover {
+                background: var(--hl-surface-alt, #F3F4F6) !important;
+                border-color: #9CA3AF !important;
+            }
+            .hl-tsa-skip-buttons .hl-tsa-skip-submit {
+                background: var(--hl-primary, #2271b1) !important;
+                border-color: var(--hl-primary, #2271b1) !important;
+                color: #fff !important;
+            }
+            .hl-tsa-skip-buttons .hl-tsa-skip-submit:hover {
+                background: var(--hl-primary-dark, #135e96) !important;
+                border-color: var(--hl-primary-dark, #135e96) !important;
+            }
+
             /* ── Responsive ──────────────────────────────────── */
             @media screen and (max-width: 768px) {
                 .hl-tsa-form-wrap {
@@ -1065,6 +1131,36 @@ class HL_Teacher_Assessment_Renderer {
                 return true;
             }
 
+            /**
+             * Show the skip-confirmation modal for optional sections (2+).
+             * Calls onContinue if user clicks "Submit" (skip), does nothing on "Return".
+             */
+            function showSkipModal(onContinue) {
+                var overlay = document.getElementById('hl-tsa-skip-overlay-<?php echo $esc_id; ?>');
+                if (!overlay) { if (onContinue) onContinue(); return; }
+                overlay.style.display = 'flex';
+
+                var returnBtn  = overlay.querySelector('.hl-tsa-skip-return');
+                var submitBtn2 = overlay.querySelector('.hl-tsa-skip-submit');
+
+                // Clone-replace to remove stale listeners from prior invocations
+                var newReturn = returnBtn.cloneNode(true);
+                returnBtn.parentNode.replaceChild(newReturn, returnBtn);
+                var newSubmit = submitBtn2.cloneNode(true);
+                submitBtn2.parentNode.replaceChild(newSubmit, submitBtn2);
+
+                newReturn.addEventListener('click', function() {
+                    overlay.style.display = 'none';
+                });
+                newSubmit.addEventListener('click', function() {
+                    overlay.style.display = 'none';
+                    if (onContinue) onContinue();
+                });
+            }
+
+            // Track whether optional-section skip was already confirmed for this submit attempt
+            var optionalSkipConfirmed = false;
+
             // All draft buttons (main + nav-inline) — disable validation
             form.querySelectorAll('.hl-btn-save-draft').forEach(function(btn) {
                 btn.addEventListener('click', function() {
@@ -1073,31 +1169,57 @@ class HL_Teacher_Assessment_Renderer {
             });
 
             if (submitBtn) submitBtn.addEventListener('click', function(e) {
-                if (!confirm('<?php echo esc_js( __( 'Once submitted, answers cannot be changed. Continue?', 'hl-core' ) ); ?>')) {
-                    e.preventDefault();
-                    return;
-                }
-
+                e.preventDefault();
                 hiddenField.value = '1';
 
-                // Custom validation — check all required groups including hidden sections
-                var missing = findMissingRequiredGroups();
-                if (missing.length > 0) {
-                    e.preventDefault();
+                // 1. Section 1 (step 0) is mandatory — block if incomplete
+                var section1 = form.querySelector('.hl-tsa-section[data-step="0"]');
+                if (section1) {
+                    var missingS1 = findMissingInContainer(section1);
+                    if (missingS1.length > 0) {
+                        if (typeof goToStep === 'function') goToStep(0);
+                        highlightMissing(missingS1);
+                        return;
+                    }
+                }
 
-                    // If paginated, navigate to the section containing the first missing answer
-                    var firstMissing = missing[0];
-                    var section = firstMissing.closest('.hl-tsa-section[data-step]');
-                    if (section && typeof goToStep === 'function') {
-                        var step = parseInt(section.getAttribute('data-step'), 10);
-                        goToStep(step);
+                // 2. Sections 2+ are optional — show skip confirmation if any unanswered
+                if (!optionalSkipConfirmed) {
+                    var hasOptionalMissing = false;
+                    var allSections = form.querySelectorAll('.hl-tsa-section[data-step]');
+                    for (var si = 0; si < allSections.length; si++) {
+                        var stepVal = parseInt(allSections[si].getAttribute('data-step'), 10);
+                        if (stepVal > 0 && findMissingInContainer(allSections[si]).length > 0) {
+                            hasOptionalMissing = true;
+                            break;
+                        }
                     }
 
-                    highlightMissing(missing);
+                    if (hasOptionalMissing) {
+                        showSkipModal(function() {
+                            optionalSkipConfirmed = true;
+                            submitBtn.click();
+                        });
+                        return;
+                    }
+                }
+                optionalSkipConfirmed = false;
+
+                // 3. Final confirmation
+                if (!confirm('<?php echo esc_js( __( 'Once submitted, answers cannot be changed. Continue?', 'hl-core' ) ); ?>')) {
                     return;
                 }
 
-                // All answered — submit the form
+                // 4. Submit the form (inject hidden action field since form.submit() skips button values)
+                var actionInput = form.querySelector('input[name="hl_tsa_action"]');
+                if (!actionInput) {
+                    actionInput = document.createElement('input');
+                    actionInput.type = 'hidden';
+                    actionInput.name = 'hl_tsa_action';
+                    form.appendChild(actionInput);
+                }
+                actionInput.value = 'submit';
+                form.submit();
             });
 
             // ── Pagination ──────────────────────────────────────
@@ -1141,21 +1263,32 @@ class HL_Teacher_Assessment_Renderer {
                 if (totalSteps > 1) {
                     /**
                      * Validate the current section before allowing forward navigation.
-                     * Returns false if validation fails (missing answers).
+                     * Section 0: mandatory — blocks with alert.
+                     * Sections 1+: optional — shows skip confirmation modal.
+                     * Calls onValid() if validation passes or user confirms skip.
                      */
-                    function validateCurrentSection() {
-                        if (!pSections || !pSections[currentStep]) return true;
+                    function validateCurrentSection(onValid) {
+                        if (!pSections || !pSections[currentStep]) { onValid(); return; }
                         var missing = findMissingInContainer(pSections[currentStep]);
-                        return !highlightMissing(missing);
+                        if (missing.length === 0) { onValid(); return; }
+
+                        if (currentStep === 0) {
+                            // Section 1: mandatory — block navigation
+                            highlightMissing(missing);
+                            return;
+                        }
+
+                        // Sections 2+: show skip confirmation
+                        showSkipModal(onValid);
                     }
 
                     form.addEventListener('click', function(e) {
                         var target = e.target;
                         if (target.classList.contains('hl-tsa-btn-next')) {
                             e.preventDefault();
-                            if (validateCurrentSection()) {
+                            validateCurrentSection(function() {
                                 goToStep(currentStep + 1);
-                            }
+                            });
                         } else if (target.classList.contains('hl-tsa-btn-prev')) {
                             e.preventDefault();
                             goToStep(currentStep - 1);
@@ -1167,9 +1300,12 @@ class HL_Teacher_Assessment_Renderer {
                             var targetStep = parseInt(stepEl.getAttribute('data-step'), 10);
                             // Only validate when moving forward
                             if (targetStep > currentStep) {
-                                if (!validateCurrentSection()) return;
+                                validateCurrentSection(function() {
+                                    goToStep(targetStep);
+                                });
+                            } else {
+                                goToStep(targetStep);
                             }
-                            goToStep(targetStep);
                         });
                     });
 
