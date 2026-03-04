@@ -74,10 +74,10 @@ class HL_Admin {
 
     public function create_menu() {
         add_menu_page('HL Core', 'HL Core', 'manage_hl_core', 'hl-tracks', array(HL_Admin_Tracks::instance(), 'render_page'), 'dashicons-welcome-learn-more', 30);
-        add_submenu_page('hl-tracks', 'Tracks', 'Tracks', 'manage_hl_core', 'hl-tracks', array(HL_Admin_Tracks::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Partnerships', 'Partnerships', 'manage_hl_core', 'hl-tracks', array(HL_Admin_Tracks::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Org Units', 'Org Units', 'manage_hl_core', 'hl-orgunits', array(HL_Admin_OrgUnits::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Enrollments', 'Enrollments', 'manage_hl_core', 'hl-enrollments', array(HL_Admin_Enrollments::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Pathways', 'Pathways & Activities', 'manage_hl_core', 'hl-pathways', array(HL_Admin_Pathways::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Pathways', 'Pathways & Components', 'manage_hl_core', 'hl-pathways', array(HL_Admin_Pathways::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Teams', 'Teams', 'manage_hl_core', 'hl-teams', array(HL_Admin_Teams::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Classrooms', 'Classrooms', 'manage_hl_core', 'hl-classrooms', array(HL_Admin_Classrooms::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Imports', 'Imports', 'manage_hl_core', 'hl-imports', array(HL_Admin_Imports::instance(), 'render_page'));

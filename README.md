@@ -2,8 +2,8 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for observation forms only)
-**Status:** v1 complete — Phases 1-32 done. Architecture expansion in progress: Individual Enrollments (hl_individual_enrollment), Program Progress Matrix report — see B2E_MASTER_REFERENCE.md and Build Queue Phases 33-34.
-(28 shortcode pages incl. dashboard + documentation, 15 admin pages, 37 DB tables, tabbed track editor with Phases tab, Phase entity (hl_phase), Track Types (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, JFB cleanup)
+**Status:** v1 complete — Phases 1-32 done. **Deployed to production** (March 2026). Architecture expansion in progress: Individual Enrollments (hl_individual_enrollment), Program Progress Matrix report — see B2E_MASTER_REFERENCE.md and Build Queue Phases 33-34.
+(28 shortcode pages incl. dashboard + documentation, 15 admin pages, 39 DB tables, tabbed track editor with Phases tab, Phase entity (hl_phase), Track Types (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, JFB cleanup, **UI label remapping** Track→Partnership / Activity→Component)
 
 ## Overview
 
@@ -152,6 +152,9 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - Menu items built once per request via `get_menu_items_for_current_user()` (static cache shared across all three hooks)
 - Shortcode-based page URL discovery with static caching
 - Graceful no-op when BuddyBoss is not active
+- **Login redirect** (priority 999) — HL-enrolled users and staff redirected to HL Dashboard on login
+- **BB Dashboard redirect** — `template_redirect` hook redirects enrolled users from BuddyBoss member dashboard (`/dashboard/`) to HL Dashboard (`/dashboard-3/`) since BB Dashboard is an Elementor page that doesn't render the `[hl_dashboard]` shortcode
+- **Collapsed sidebar CSS fix** — Overrides BuddyBoss theme CSS that hides all `<span>` elements in collapsed mode (`body:not(.buddypanel-open) ... opacity:0; visibility:hidden`), keeping HL dashicon icons visible. Section headers and badges hidden in collapsed mode.
 
 ### JetFormBuilder Integration
 - **HL_JFB_Integration** service (`includes/integrations/class-hl-jfb-integration.php`)
@@ -502,7 +505,7 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
     /admin/                      # WP admin pages (15+ controllers incl. Cohorts, Tracks)
     /frontend/                   # Shortcode renderers (28 pages incl. dashboard + documentation + instrument renderer + teacher assessment renderer)
     /api/                        # REST API routes
-    /utils/                      # DB, date, normalization helpers
+    /utils/                      # DB, date, normalization, label remap helpers
   /data/                         # Private data files (gitignored)
   /assets/
     /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css
@@ -526,6 +529,7 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
 - **Phase entity (PLANNED):** Pathways will belong to Phases (not directly to Tracks). This allows a single Track to span multiple years with separate pathway sets per Phase, solving the Year 2 problem where new and returning participants coexist in the same Track. See B2E_MASTER_REFERENCE.md §3-4.
 - **Track types (PLANNED):** `program` for full B2E management, `course` for simple institutional course access with auto-generated Phase/Pathway/Activity. See B2E_MASTER_REFERENCE.md §3.4.
 - **Individual Enrollments (PLANNED):** `hl_individual_enrollment` for standalone course purchases by individuals, with per-person expiration dates. See B2E_MASTER_REFERENCE.md §5.
+- **UI label remapping (HL_Label_Remap):** Client-facing display labels differ from internal code/DB terms. The `HL_Label_Remap` class uses WordPress `gettext` + `ngettext` filters to intercept i18n output in the `hl-core` text domain and swap terms at render time. **No code or DB changes needed** — all PHP variables, DB columns, shortcode tags, and class names keep their original terms. Set `HL_Label_Remap::ENABLED = false` to revert instantly. Current mappings: Track→Partnership, Tracks→Partnerships, Activity→Component, Activities→Components. Admin menu labels ("Partnerships", "Pathways & Components") are direct edits in `class-hl-admin.php`.
 
 ## Plugin Dependencies
 - **WordPress 6.0+**

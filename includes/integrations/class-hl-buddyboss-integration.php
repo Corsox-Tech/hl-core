@@ -69,7 +69,10 @@ class HL_BuddyBoss_Integration {
         }
 
         // 0. Login redirect — HL-enrolled users go to the HL Dashboard.
-        add_filter('login_redirect', array($this, 'hl_login_redirect'), 20, 3);
+        add_filter('login_redirect', array($this, 'hl_login_redirect'), 999, 3);
+
+        // 0a. Template redirect — redirect enrolled users from BB Dashboard to HL Dashboard.
+        add_action('template_redirect', array($this, 'redirect_bb_dashboard_to_hl'));
 
         // 0b. Custom CSS for dashicons sizing, spacing, and vertical padding.
         add_action('wp_head', array($this, 'render_custom_css'));
@@ -178,6 +181,22 @@ class HL_BuddyBoss_Integration {
                 vertical-align: middle !important;
             }
 
+            /* Collapsed BuddyPanel — BB hides all <span> in links.
+               Override for our dashicons so icons remain visible. */
+            body:not(.buddypanel-open) .buddypanel ul.buddypanel-menu > li.hl-core-menu-item > a > .dashicons {
+                opacity: 1 !important;
+                width: 20px !important;
+                visibility: visible !important;
+            }
+            /* Hide section header when sidebar is collapsed */
+            body:not(.buddypanel-open) .buddypanel ul.buddypanel-menu > li.hl-buddypanel-section {
+                display: none !important;
+            }
+            /* Hide badge in collapsed mode */
+            body:not(.buddypanel-open) .buddypanel ul.buddypanel-menu > li.hl-core-menu-item .hl-menu-badge {
+                display: none !important;
+            }
+
             /* Available-activity badge on menu items */
             .hl-menu-badge {
                 display: inline-flex;
@@ -232,6 +251,54 @@ class HL_BuddyBoss_Integration {
         }
 
         return $redirect_to;
+    }
+
+    // =========================================================================
+    // 0a. BB Dashboard → HL Dashboard Redirect
+    // =========================================================================
+
+    /**
+     * Redirect enrolled users (and staff) from the BuddyBoss member dashboard
+     * to the HL Dashboard shortcode page.
+     *
+     * The BB Dashboard is an Elementor page that doesn't render our [hl_dashboard]
+     * shortcode. Enrolled users should see the HL Dashboard instead.
+     */
+    public function redirect_bb_dashboard_to_hl() {
+        if (!is_user_logged_in() || !is_page()) {
+            return;
+        }
+
+        $current_page_id = get_queried_object_id();
+        $hl_dashboard_url = $this->find_shortcode_page_url('hl_dashboard');
+
+        if (empty($hl_dashboard_url)) {
+            return;
+        }
+
+        // Get the HL Dashboard page ID to avoid redirect loops.
+        $hl_dashboard_page_id = url_to_postid($hl_dashboard_url);
+        if ($current_page_id === $hl_dashboard_page_id) {
+            return; // Already on the HL Dashboard — no redirect.
+        }
+
+        // Only redirect from known "dashboard" pages (BB Dashboard, duplicates).
+        $current_slug = get_post_field('post_name', $current_page_id);
+        if (strpos($current_slug, 'dashboard') === false) {
+            return;
+        }
+
+        // Check if user has HL enrollment or staff access.
+        $user_id = get_current_user_id();
+        $roles   = $this->get_user_hl_roles($user_id);
+        $is_staff = current_user_can('manage_hl_core');
+
+        if (empty($roles) && !$is_staff) {
+            return; // Non-enrolled, non-staff users keep the default BB dashboard.
+        }
+
+        wp_redirect($hl_dashboard_url);
+        exit;
     }
 
     // =========================================================================

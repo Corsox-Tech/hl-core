@@ -63,6 +63,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-date-utils.php';
         require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-normalization.php';
         require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-age-group-helper.php';
+        require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-label-remap.php';
         
         // Database installer
         require_once HL_CORE_INCLUDES_DIR . 'class-hl-installer.php';
@@ -203,6 +204,9 @@ class HL_Core {
     public function init() {
         // Run schema migrations if needed (checks revision number, no-ops when current).
         HL_Installer::maybe_upgrade();
+
+        // UI label remapping (Track→Partnership, Activity→Component).
+        HL_Label_Remap::init();
 
         // Initialize admin
         if (is_admin()) {
