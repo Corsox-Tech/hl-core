@@ -179,6 +179,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-demo.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-palm-beach.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-lutheran.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-provision-lutheran.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-nuke.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-create-pages.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-docs.php';
@@ -236,6 +237,7 @@ class HL_Core {
             HL_CLI_Seed_Demo::register();
             HL_CLI_Seed_Palm_Beach::register();
             HL_CLI_Seed_Lutheran::register();
+            HL_CLI_Provision_Lutheran::register();
             HL_CLI_Nuke::register();
             HL_CLI_Create_Pages::register();
             HL_CLI_Seed_Docs::register();
