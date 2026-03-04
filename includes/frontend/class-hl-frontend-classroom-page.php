@@ -28,17 +28,21 @@ class HL_Frontend_Classroom_Page {
         $this->classroom_service = new HL_Classroom_Service();
         $this->orgunit_repo      = new HL_OrgUnit_Repository();
         $this->enrollment_repo   = new HL_Enrollment_Repository();
-
-        // Handle POST actions early via template_redirect.
-        add_action( 'template_redirect', array( $this, 'handle_post_actions' ) );
     }
 
     // ========================================================================
     // POST Handlers
     // ========================================================================
 
-    public function handle_post_actions() {
+    /**
+     * Handle POST actions (add child, remove child).
+     * Called from template_redirect (registered in HL_Shortcodes) so we can redirect after.
+     */
+    public static function handle_post_actions() {
         if ( $_SERVER['REQUEST_METHOD'] !== 'POST' ) {
+            return;
+        }
+        if ( ! is_user_logged_in() ) {
             return;
         }
 
@@ -49,21 +53,21 @@ class HL_Frontend_Classroom_Page {
 
         // Add child.
         if ( isset( $_POST['hl_action'] ) && $_POST['hl_action'] === 'add_child' ) {
-            $this->handle_add_child( $classroom_id );
+            self::handle_add_child_post( $classroom_id );
         }
 
         // Remove child.
         if ( isset( $_POST['hl_action'] ) && $_POST['hl_action'] === 'remove_child' ) {
-            $this->handle_remove_child( $classroom_id );
+            self::handle_remove_child_post( $classroom_id );
         }
     }
 
-    private function handle_add_child( $classroom_id ) {
+    private static function handle_add_child_post( $classroom_id ) {
         if ( ! wp_verify_nonce( $_POST['_hl_nonce'] ?? '', 'hl_add_child_' . $classroom_id ) ) {
             return;
         }
 
-        $enrollment_id = $this->get_teacher_enrollment_for_classroom( get_current_user_id(), $classroom_id );
+        $enrollment_id = self::get_teacher_enrollment_static( get_current_user_id(), $classroom_id );
         if ( ! $enrollment_id && ! HL_Security::can_manage() ) {
             return;
         }
@@ -80,9 +84,10 @@ class HL_Frontend_Classroom_Page {
             'gender'     => $_POST['gender'] ?? '',
         );
 
-        $result = $this->classroom_service->teacher_add_child( $classroom_id, $enrollment_id, $data );
+        $service = new HL_Classroom_Service();
+        $result  = $service->teacher_add_child( $classroom_id, $enrollment_id, $data );
 
-        $redirect = $this->get_classroom_page_url( $classroom_id );
+        $redirect = self::get_classroom_page_url_static( $classroom_id );
 
         if ( is_wp_error( $result ) ) {
             $redirect = add_query_arg( 'hl_error', urlencode( $result->get_error_message() ), $redirect );
@@ -98,12 +103,12 @@ class HL_Frontend_Classroom_Page {
         exit;
     }
 
-    private function handle_remove_child( $classroom_id ) {
+    private static function handle_remove_child_post( $classroom_id ) {
         if ( ! wp_verify_nonce( $_POST['_hl_nonce'] ?? '', 'hl_remove_child_' . $classroom_id ) ) {
             return;
         }
 
-        $enrollment_id = $this->get_teacher_enrollment_for_classroom( get_current_user_id(), $classroom_id );
+        $enrollment_id = self::get_teacher_enrollment_static( get_current_user_id(), $classroom_id );
         if ( ! $enrollment_id && ! HL_Security::can_manage() ) {
             return;
         }
@@ -120,8 +125,9 @@ class HL_Frontend_Classroom_Page {
             return;
         }
 
-        $result  = $this->classroom_service->teacher_remove_child( $classroom_id, $child_id, $enrollment_id, $reason, $note );
-        $redirect = $this->get_classroom_page_url( $classroom_id );
+        $service  = new HL_Classroom_Service();
+        $result   = $service->teacher_remove_child( $classroom_id, $child_id, $enrollment_id, $reason, $note );
+        $redirect = self::get_classroom_page_url_static( $classroom_id );
 
         if ( is_wp_error( $result ) ) {
             $redirect = add_query_arg( 'hl_error', urlencode( $result->get_error_message() ), $redirect );
@@ -131,6 +137,37 @@ class HL_Frontend_Classroom_Page {
 
         wp_safe_redirect( $redirect );
         exit;
+    }
+
+    /**
+     * Static helper: get teacher enrollment for a classroom.
+     */
+    private static function get_teacher_enrollment_static( $user_id, $classroom_id ) {
+        global $wpdb;
+        return $wpdb->get_var( $wpdb->prepare(
+            "SELECT ta.enrollment_id
+             FROM {$wpdb->prefix}hl_teaching_assignment ta
+             JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
+             WHERE ta.classroom_id = %d AND e.user_id = %d AND e.status = 'active'
+             LIMIT 1",
+            $classroom_id,
+            $user_id
+        ) );
+    }
+
+    /**
+     * Static helper: build classroom page URL.
+     */
+    private static function get_classroom_page_url_static( $classroom_id ) {
+        global $wpdb;
+        $page_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT ID FROM {$wpdb->posts}
+             WHERE post_type = 'page' AND post_status = 'publish'
+             AND post_content LIKE %s LIMIT 1",
+            '%[' . $wpdb->esc_like( 'hl_classroom_page' ) . '%'
+        ) );
+        $page_url = $page_id ? get_permalink( $page_id ) : home_url();
+        return add_query_arg( 'id', $classroom_id, $page_url );
     }
 
     // ========================================================================

@@ -214,17 +214,11 @@ class HL_Pathway_Assignment_Service {
                 continue;
             }
 
-            // Map enrollment roles to pathway target_roles format.
-            $role_map = array(
-                'teacher'          => 'Teacher',
-                'mentor'           => 'Mentor',
-                'school_leader'    => 'School Leader',
-                'district_leader'  => 'District Leader',
-            );
+            // Normalize target_roles to lowercase for comparison.
+            $target_lower = array_map('strtolower', $target_roles);
 
             foreach ($roles as $role) {
-                $mapped = isset($role_map[$role]) ? $role_map[$role] : ucfirst($role);
-                if (in_array($mapped, $target_roles, true)) {
+                if (in_array(strtolower($role), $target_lower, true)) {
                     $pw['assignment_type'] = 'role_default';
                     $matched[] = $pw;
                     break;

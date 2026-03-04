@@ -1767,13 +1767,63 @@ class HL_Instrument_Renderer {
                 setValidation(false);
             });
 
-            // Submit: enable validation, confirm dialog.
+            /**
+             * Find unanswered required radio groups (skipped children excluded).
+             * Returns array of first-radio elements for each unanswered group.
+             */
+            function findMissingRadioGroups() {
+                var radios = form.querySelectorAll('input[type="radio"][data-hl-required="1"]');
+                var groups = {};
+                radios.forEach(function(r) {
+                    if (r.disabled) return; // skipped child
+                    if (!groups[r.name]) groups[r.name] = [];
+                    groups[r.name].push(r);
+                });
+                var missing = [];
+                Object.keys(groups).forEach(function(name) {
+                    var answered = groups[name].some(function(r) { return r.checked; });
+                    if (!answered) missing.push(groups[name][0]);
+                });
+                return missing;
+            }
+
+            /**
+             * Highlight unanswered rows with a red outline and scroll to the first.
+             */
+            function highlightMissing(missing) {
+                if (missing.length === 0) return false;
+                var rows = [];
+                missing.forEach(function(radio) {
+                    var row = radio.closest('tr') || radio.closest('.hl-ca-child-row');
+                    if (row && rows.indexOf(row) === -1) rows.push(row);
+                });
+                rows.forEach(function(row) {
+                    row.style.outline = '2px solid #EF4444';
+                    row.style.outlineOffset = '-2px';
+                });
+                if (rows[0]) rows[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(function() {
+                    rows.forEach(function(row) {
+                        row.style.outline = '';
+                        row.style.outlineOffset = '';
+                    });
+                }, 5000);
+                return true;
+            }
+
+            // Submit: enable validation, confirm dialog, highlight missing.
             submitBtn.addEventListener('click', function(e) {
                 if (!confirm('<?php echo esc_js( __( 'Once submitted, answers cannot be changed. Continue?', 'hl-core' ) ); ?>')) {
                     e.preventDefault();
                     return;
                 }
                 setValidation(true);
+                var missing = findMissingRadioGroups();
+                if (missing.length > 0) {
+                    e.preventDefault();
+                    highlightMissing(missing);
+                    return;
+                }
             });
 
             // Handle multi_select required toggling.

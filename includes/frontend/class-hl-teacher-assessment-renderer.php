@@ -172,7 +172,8 @@ class HL_Teacher_Assessment_Renderer {
         <?php if ( ! $this->read_only ) : ?>
             <div class="hl-tsa-skip-overlay" id="hl-tsa-skip-overlay-<?php echo esc_attr( $instance_id ); ?>" style="display: none;">
                 <div class="hl-tsa-skip-modal">
-                    <p><?php echo esc_html__( 'You have unanswered items in this page. Select "Return" to complete the missing items. Continue to "Submit" if you prefer not to answer.', 'hl-core' ); ?></p>
+                    <p style="font-weight:600;"><?php esc_html_e( 'You have unanswered items in this page.', 'hl-core' ); ?></p>
+                    <p style="margin-top:8px;"><?php esc_html_e( 'Select "Return" to complete the missing items. Continue to "Submit" if you prefer not to answer.', 'hl-core' ); ?></p>
                     <div class="hl-tsa-skip-buttons">
                         <button type="button" class="button hl-tsa-skip-return"><?php esc_html_e( 'Return', 'hl-core' ); ?></button>
                         <button type="button" class="button button-primary hl-tsa-skip-submit"><?php esc_html_e( 'Submit', 'hl-core' ); ?></button>
@@ -225,7 +226,9 @@ class HL_Teacher_Assessment_Renderer {
                 <?php if ( ! $is_first ) : ?>
                     <button type="button" class="button hl-tsa-btn-prev"><?php esc_html_e( 'Previous Section', 'hl-core' ); ?></button>
                 <?php endif; ?>
-                <button type="submit" name="hl_tsa_action" value="draft" class="button hl-btn-save-draft hl-tsa-nav-draft"><?php esc_html_e( 'Save Draft', 'hl-core' ); ?></button>
+                <?php if ( ! $is_last ) : ?>
+                    <button type="submit" name="hl_tsa_action" value="draft" class="button hl-btn-save-draft hl-tsa-nav-draft"><?php esc_html_e( 'Save Draft', 'hl-core' ); ?></button>
+                <?php endif; ?>
                 <?php if ( ! $is_last ) : ?>
                     <button type="button" class="button button-primary hl-tsa-btn-next"><?php esc_html_e( 'Next Section', 'hl-core' ); ?></button>
                 <?php endif; ?>
@@ -1133,10 +1136,10 @@ class HL_Teacher_Assessment_Renderer {
             }
 
             /**
-             * Show the skip-confirmation modal for optional sections (2+).
-             * Calls onContinue if user clicks "Submit" (skip), does nothing on "Return".
+             * Show the skip-confirmation modal for unanswered optional sections.
+             * "Submit" calls onContinue. "Return" navigates to returnToStep (first missing section).
              */
-            function showSkipModal(onContinue) {
+            function showSkipModal(onContinue, returnToStep) {
                 var overlay = document.getElementById('hl-tsa-skip-overlay-<?php echo $esc_id; ?>');
                 if (!overlay) { if (onContinue) onContinue(); return; }
                 overlay.style.display = 'flex';
@@ -1152,6 +1155,9 @@ class HL_Teacher_Assessment_Renderer {
 
                 newReturn.addEventListener('click', function() {
                     overlay.style.display = 'none';
+                    if (typeof returnToStep === 'number' && typeof goToStep === 'function') {
+                        goToStep(returnToStep);
+                    }
                 });
                 newSubmit.addEventListener('click', function() {
                     overlay.style.display = 'none';
@@ -1159,6 +1165,8 @@ class HL_Teacher_Assessment_Renderer {
                 });
             }
 
+            // Track which optional sections the user already skip-confirmed during navigation
+            var skipConfirmedSteps = {};
             // Track whether optional-section skip was already confirmed for this submit attempt
             var optionalSkipConfirmed = false;
 
@@ -1186,21 +1194,22 @@ class HL_Teacher_Assessment_Renderer {
 
                 // 2. Sections 2+ are optional — show skip confirmation if any unanswered
                 if (!optionalSkipConfirmed) {
-                    var hasOptionalMissing = false;
+                    var hasUnconfirmedMissing = false;
+                    var firstMissingStep = -1;
                     var allSections = form.querySelectorAll('.hl-tsa-section[data-step]');
                     for (var si = 0; si < allSections.length; si++) {
                         var stepVal = parseInt(allSections[si].getAttribute('data-step'), 10);
-                        if (stepVal > 0 && findMissingInContainer(allSections[si]).length > 0) {
-                            hasOptionalMissing = true;
-                            break;
+                        if (stepVal > 0 && !skipConfirmedSteps[stepVal] && findMissingInContainer(allSections[si]).length > 0) {
+                            hasUnconfirmedMissing = true;
+                            if (firstMissingStep < 0) firstMissingStep = stepVal;
                         }
                     }
 
-                    if (hasOptionalMissing) {
+                    if (hasUnconfirmedMissing) {
                         showSkipModal(function() {
                             optionalSkipConfirmed = true;
                             submitBtn.click();
-                        });
+                        }, firstMissingStep);
                         return;
                     }
                 }
@@ -1266,7 +1275,6 @@ class HL_Teacher_Assessment_Renderer {
                      * Validate the current section before allowing forward navigation.
                      * Section 0: mandatory — blocks with alert.
                      * Sections 1+: optional — shows skip confirmation modal.
-                     * Calls onValid() if validation passes or user confirms skip.
                      */
                     function validateCurrentSection(onValid) {
                         if (!pSections || !pSections[currentStep]) { onValid(); return; }
@@ -1280,7 +1288,11 @@ class HL_Teacher_Assessment_Renderer {
                         }
 
                         // Sections 2+: show skip confirmation
-                        showSkipModal(onValid);
+                        var stepToConfirm = currentStep;
+                        showSkipModal(function() {
+                            skipConfirmedSteps[stepToConfirm] = true;
+                            onValid();
+                        });
                     }
 
                     form.addEventListener('click', function(e) {

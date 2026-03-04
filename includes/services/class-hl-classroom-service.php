@@ -448,15 +448,18 @@ class HL_Classroom_Service {
         global $wpdb;
 
         // Verify the enrollment has a teaching assignment for this classroom.
-        $has_assignment = $wpdb->get_var( $wpdb->prepare(
-            "SELECT assignment_id FROM {$wpdb->prefix}hl_teaching_assignment
-             WHERE enrollment_id = %d AND classroom_id = %d",
-            $enrollment_id,
-            $classroom_id
-        ) );
+        // Staff/admin callers pass enrollment_id=0 — skip the assignment gate for them.
+        if ( $enrollment_id > 0 ) {
+            $has_assignment = $wpdb->get_var( $wpdb->prepare(
+                "SELECT assignment_id FROM {$wpdb->prefix}hl_teaching_assignment
+                 WHERE enrollment_id = %d AND classroom_id = %d",
+                $enrollment_id,
+                $classroom_id
+            ) );
 
-        if ( ! $has_assignment ) {
-            return new WP_Error( 'no_assignment', __( 'You are not assigned to teach this classroom.', 'hl-core' ) );
+            if ( ! $has_assignment ) {
+                return new WP_Error( 'no_assignment', __( 'You are not assigned to teach this classroom.', 'hl-core' ) );
+            }
         }
 
         $first_name = sanitize_text_field( $data['first_name'] ?? '' );

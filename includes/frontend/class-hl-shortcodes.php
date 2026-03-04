@@ -19,6 +19,7 @@ class HL_Shortcodes {
         add_action('template_redirect', array('HL_Frontend_Team_Page', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Track_Workspace', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_My_Coaching', 'handle_post_actions'));
+        add_action('template_redirect', array('HL_Frontend_Classroom_Page', 'handle_post_actions'));
     }
 
     public function register_shortcodes() {

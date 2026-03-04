@@ -33,6 +33,23 @@ class HL_Normalization {
     }
     
     /**
+     * Generate a deterministic fingerprint for a child record.
+     *
+     * Used for duplicate detection: same (first, last, dob) → same fingerprint.
+     *
+     * @param string $first_name
+     * @param string $last_name
+     * @param string $dob Date of birth (Y-m-d).
+     * @return string SHA-256 hex hash.
+     */
+    public static function child_fingerprint( $first_name, $last_name, $dob ) {
+        $normalized = strtolower( trim( $first_name ) )
+            . '|' . strtolower( trim( $last_name ) )
+            . '|' . trim( $dob );
+        return hash( 'sha256', $normalized );
+    }
+
+    /**
      * Generate code from name
      */
     public static function generate_code($name) {

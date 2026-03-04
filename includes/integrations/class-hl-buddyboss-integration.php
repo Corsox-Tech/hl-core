@@ -61,6 +61,9 @@ class HL_BuddyBoss_Integration {
     }
 
     private function __construct() {
+        // Invalidate badge cache when any activity state changes (works even without BuddyBoss).
+        add_action('hl_core_recompute_rollups', array($this, 'invalidate_badge_cache'), 10, 1);
+
         if (!$this->is_active()) {
             return;
         }
@@ -171,6 +174,26 @@ class HL_BuddyBoss_Integration {
                 margin-right: 8px !important;
                 vertical-align: middle !important;
             }
+
+            /* Available-activity badge on menu items */
+            .hl-menu-badge {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 20px;
+                height: 20px;
+                padding: 0 6px;
+                margin-left: 6px;
+                font-size: 12px !important;
+                font-weight: 600;
+                line-height: 1;
+                color: #fff;
+                background: #EF4444;
+                border-radius: 10px;
+                vertical-align: middle;
+                position: relative;
+                top: -2px;
+            }
         </style>
         <?php
     }
@@ -209,7 +232,7 @@ class HL_BuddyBoss_Integration {
                     ?>
                         <li id="wp-admin-bar-my-account-hl-<?php echo esc_attr($item['slug']); ?>" class="<?php echo esc_attr(trim($active_class)); ?>">
                             <a class="ab-item" href="<?php echo esc_url($item['url']); ?>">
-                                <span class="dashicons <?php echo esc_attr($item['icon']); ?>"></span><?php echo esc_html($item['label']); ?>
+                                <span class="dashicons <?php echo esc_attr($item['icon']); ?>"></span><?php echo esc_html($item['label']); ?><?php if ( ! empty( $item['badge'] ) ) : ?><span class="hl-menu-badge"><?php echo (int) $item['badge']; ?></span><?php endif; ?>
                             </a>
                         </li>
                     <?php endforeach; ?>
@@ -272,6 +295,9 @@ class HL_BuddyBoss_Integration {
             $html .= '<a href="' . esc_url($item['url']) . '">';
             $html .= '<span class="dashicons ' . esc_attr($item['icon']) . '"></span>';
             $html .= '<span class="link-text">' . esc_html($item['label']) . '</span>';
+            if ( ! empty( $item['badge'] ) ) {
+                $html .= '<span class="hl-menu-badge">' . (int) $item['badge'] . '</span>';
+            }
             $html .= '</a>';
             $html .= '</li>';
         }
@@ -319,6 +345,7 @@ class HL_BuddyBoss_Integration {
                 'url'    => $item['url'],
                 'icon'   => $item['icon'],
                 'active' => ($item_path && $item_path === $current_url),
+                'badge'  => ! empty( $item['badge'] ) ? (int) $item['badge'] : 0,
             );
         }
 
@@ -371,8 +398,9 @@ class HL_BuddyBoss_Integration {
 
                     var a = document.createElement('a');
                     a.href = items[i].url;
+                    var badgeHtml = (items[i].badge > 0) ? '<span class="hl-menu-badge">' + items[i].badge + '</span>' : '';
                     a.innerHTML = '<span class="dashicons ' + items[i].icon + '"></span>'
-                        + '<span class="link-text">' + items[i].label + '</span>';
+                        + '<span class="link-text">' + items[i].label + '</span>' + badgeHtml;
                     li.appendChild(a);
                     fragment.appendChild(li);
                 }
@@ -429,7 +457,8 @@ class HL_BuddyBoss_Integration {
                     var subA = document.createElement('a');
                     subA.className = 'ab-item';
                     subA.href = items[i].url;
-                    subA.innerHTML = '<span class="dashicons ' + items[i].icon + '"></span>' + items[i].label;
+                    var subBadge = (items[i].badge > 0) ? '<span class="hl-menu-badge">' + items[i].badge + '</span>' : '';
+                    subA.innerHTML = '<span class="dashicons ' + items[i].icon + '"></span>' + items[i].label + subBadge;
                     subLi.appendChild(subA);
                     subUl.appendChild(subLi);
                 }
@@ -501,6 +530,18 @@ class HL_BuddyBoss_Integration {
 
         $is_control_only = $has_enrollment ? $this->is_control_group_only($user_id) : false;
         $cached = $this->build_menu_items($roles, $is_staff, $has_enrollment, $is_control_only);
+
+        // Inject available-activity badge count into the "my-programs" item.
+        if ( $has_enrollment ) {
+            $badge_count = $this->count_available_activities( $user_id );
+            foreach ( $cached as &$item ) {
+                $item['badge'] = ( $item['slug'] === 'my-programs' && $badge_count > 0 )
+                    ? $badge_count
+                    : 0;
+            }
+            unset( $item );
+        }
+
         return $cached;
     }
 
@@ -660,6 +701,82 @@ class HL_BuddyBoss_Integration {
         }
 
         return true;
+    }
+
+    // =========================================================================
+    // Badge Cache Invalidation
+    // =========================================================================
+
+    /**
+     * Delete the available-activity badge transient for the user who owns
+     * the given enrollment.  Hooked to hl_core_recompute_rollups.
+     *
+     * @param int $enrollment_id
+     */
+    public function invalidate_badge_cache( $enrollment_id ) {
+        global $wpdb;
+        $user_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT user_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+            absint( $enrollment_id )
+        ) );
+        if ( $user_id ) {
+            delete_transient( 'hl_avail_count_' . $user_id );
+        }
+    }
+
+    // =========================================================================
+    // Available Activity Badge
+    // =========================================================================
+
+    /**
+     * Count activities with availability_status === 'available' across all
+     * active enrollments for a user.  Result is cached in a 5-minute
+     * transient to avoid per-page-load overhead.
+     *
+     * @param int $user_id WordPress user ID.
+     * @return int Number of available (unlocked + not completed) activities.
+     */
+    private function count_available_activities( $user_id ) {
+        $user_id       = absint( $user_id );
+        $transient_key = 'hl_avail_count_' . $user_id;
+
+        $cached = get_transient( $transient_key );
+        if ( $cached !== false ) {
+            return (int) $cached;
+        }
+
+        $enrollment_repo = new HL_Enrollment_Repository();
+        $pa_service      = new HL_Pathway_Assignment_Service();
+        $activity_repo   = new HL_Activity_Repository();
+        $rules_engine    = new HL_Rules_Engine_Service();
+
+        $enrollments = $enrollment_repo->get_by_user_id( $user_id, 'active' );
+        $count       = 0;
+
+        foreach ( $enrollments as $enrollment ) {
+            $pathways = $pa_service->get_pathways_for_enrollment( $enrollment->enrollment_id );
+
+            foreach ( $pathways as $pw ) {
+                $activities = $activity_repo->get_by_pathway( $pw['pathway_id'] );
+
+                foreach ( $activities as $activity ) {
+                    if ( $activity->visibility === 'staff_only' ) {
+                        continue;
+                    }
+                    $avail = $rules_engine->compute_availability(
+                        $enrollment->enrollment_id,
+                        $activity->activity_id
+                    );
+                    if ( $avail['availability_status'] === 'available' ) {
+                        $count++;
+                    }
+                }
+            }
+        }
+
+        set_transient( $transient_key, $count, 5 * MINUTE_IN_SECONDS );
+
+        return $count;
     }
 
     // =========================================================================

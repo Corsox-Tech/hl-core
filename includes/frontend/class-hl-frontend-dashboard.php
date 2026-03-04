@@ -163,11 +163,13 @@ class HL_Frontend_Dashboard {
 
             <?php
             // My Programs — always shown to enrolled users.
+            $available_count = $this->count_available_activities( get_current_user_id() );
             $this->render_nav_card(
                 'hl_my_programs',
                 __( 'My Programs', 'hl-core' ),
                 __( 'View your assigned programs and track your progress.', 'hl-core' ),
-                'dashicons-welcome-learn-more'
+                'dashicons-welcome-learn-more',
+                $available_count
             );
 
             // My Classrooms — always shown to enrolled users.
@@ -294,8 +296,9 @@ class HL_Frontend_Dashboard {
      * @param string $title     Card title.
      * @param string $desc      Card description.
      * @param string $icon      Dashicons class name.
+     * @param int    $badge     Optional badge count (shown when > 0).
      */
-    private function render_nav_card( $shortcode, $title, $desc, $icon ) {
+    private function render_nav_card( $shortcode, $title, $desc, $icon, $badge = 0 ) {
         $url = $this->find_shortcode_page_url( $shortcode );
         if ( empty( $url ) ) {
             return; // Page not created yet — hide card silently.
@@ -307,7 +310,7 @@ class HL_Frontend_Dashboard {
                 <span class="dashicons <?php echo esc_attr( $icon ); ?>"></span>
             </div>
             <div class="hl-dash-card-body">
-                <h4><?php echo esc_html( $title ); ?></h4>
+                <h4><?php echo esc_html( $title ); ?><?php if ( $badge > 0 ) : ?><span class="hl-menu-badge"><?php echo (int) $badge; ?></span><?php endif; ?></h4>
                 <p><?php echo esc_html( $desc ); ?></p>
             </div>
         </a>
@@ -324,6 +327,52 @@ class HL_Frontend_Dashboard {
             <p><?php esc_html_e( 'You are not currently enrolled in any programs. If you believe this is an error, please contact your administrator.', 'hl-core' ); ?></p>
         </div>
         <?php
+    }
+
+    /**
+     * Count available (unlocked + not completed) activities for a user.
+     * Shares the same transient cache as HL_BuddyBoss_Integration.
+     *
+     * @param int $user_id
+     * @return int
+     */
+    private function count_available_activities( $user_id ) {
+        $user_id       = absint( $user_id );
+        $transient_key = 'hl_avail_count_' . $user_id;
+
+        $cached = get_transient( $transient_key );
+        if ( $cached !== false ) {
+            return (int) $cached;
+        }
+
+        $pa_service    = new HL_Pathway_Assignment_Service();
+        $activity_repo = new HL_Activity_Repository();
+        $rules_engine  = new HL_Rules_Engine_Service();
+
+        $enrollments = $this->enrollment_repo->get_by_user_id( $user_id, 'active' );
+        $count       = 0;
+
+        foreach ( $enrollments as $enrollment ) {
+            $pathways = $pa_service->get_pathways_for_enrollment( $enrollment->enrollment_id );
+            foreach ( $pathways as $pw ) {
+                $activities = $activity_repo->get_by_pathway( $pw['pathway_id'] );
+                foreach ( $activities as $activity ) {
+                    if ( $activity->visibility === 'staff_only' ) {
+                        continue;
+                    }
+                    $avail = $rules_engine->compute_availability(
+                        $enrollment->enrollment_id,
+                        $activity->activity_id
+                    );
+                    if ( $avail['availability_status'] === 'available' ) {
+                        $count++;
+                    }
+                }
+            }
+        }
+
+        set_transient( $transient_key, $count, 5 * MINUTE_IN_SECONDS );
+        return $count;
     }
 
     /**
