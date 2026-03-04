@@ -994,6 +994,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'sections'           => wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_sections_pre() ),
 				'scale_labels'       => $b2e_scale_labels,
 				'instructions'       => HL_CLI_Seed_Demo::get_b2e_instrument_instructions_pre(),
+				'styles_json'        => HL_CLI_Seed_Demo::get_b2e_instrument_styles_json_pre(),
 				'status'             => 'active',
 				'created_at'         => current_time( 'mysql' ),
 			) );
@@ -1017,6 +1018,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'sections'           => wp_json_encode( HL_CLI_Seed_Demo::get_b2e_instrument_sections_post() ),
 				'scale_labels'       => $b2e_scale_labels,
 				'instructions'       => HL_CLI_Seed_Demo::get_b2e_instrument_instructions_post(),
+				'styles_json'        => HL_CLI_Seed_Demo::get_b2e_instrument_styles_json_post(),
 				'status'             => 'active',
 				'created_at'         => current_time( 'mysql' ),
 			) );

@@ -68,7 +68,10 @@ class HL_BuddyBoss_Integration {
             return;
         }
 
-        // 0. Custom CSS for dashicons sizing, spacing, and vertical padding.
+        // 0. Login redirect — HL-enrolled users go to the HL Dashboard.
+        add_filter('login_redirect', array($this, 'hl_login_redirect'), 20, 3);
+
+        // 0b. Custom CSS for dashicons sizing, spacing, and vertical padding.
         add_action('wp_head', array($this, 'render_custom_css'));
 
         // 1. Profile Dropdown — last hook in header-profile-menu.php.
@@ -199,6 +202,39 @@ class HL_BuddyBoss_Integration {
     }
 
     // =========================================================================
+    // 0. Login Redirect
+    // =========================================================================
+
+    /**
+     * Redirect HL-enrolled users to the HL Dashboard after login.
+     *
+     * Non-enrolled users (e.g. Short Course subscribers) get the default
+     * WordPress/BuddyBoss redirect so their experience is unchanged.
+     *
+     * @param string           $redirect_to Default redirect URL.
+     * @param string           $requested   Requested redirect URL.
+     * @param WP_User|WP_Error $user        Logged-in user or error.
+     * @return string
+     */
+    public function hl_login_redirect($redirect_to, $requested, $user) {
+        if (!($user instanceof \WP_User)) {
+            return $redirect_to;
+        }
+
+        $roles = $this->get_user_hl_roles($user->ID);
+        if (empty($roles)) {
+            return $redirect_to;
+        }
+
+        $dashboard_url = $this->find_shortcode_page_url('hl_dashboard');
+        if ($dashboard_url) {
+            return $dashboard_url;
+        }
+
+        return $redirect_to;
+    }
+
+    // =========================================================================
     // 1. Profile Dropdown Menu (header-profile-menu.php)
     // =========================================================================
 
@@ -268,6 +304,11 @@ class HL_BuddyBoss_Integration {
             return $items;
         }
 
+        $user_id        = get_current_user_id();
+        $is_staff       = current_user_can('manage_hl_core');
+        $roles          = $this->get_user_hl_roles($user_id);
+        $has_enrollment = !empty($roles);
+
         $menu_items = $this->get_menu_items_for_current_user();
         if (empty($menu_items)) {
             return $items;
@@ -302,8 +343,57 @@ class HL_BuddyBoss_Integration {
             $html .= '</li>';
         }
 
-        // Prepend HL items BEFORE existing items so they appear above ACCOUNT.
+        // For HL-enrolled non-staff users, strip legacy BuddyPanel items
+        // (Admin, All Users, New School Leader, etc.) to avoid confusion.
+        // Staff keep all items for admin access.
+        if ($has_enrollment && !$is_staff) {
+            $items = $this->strip_legacy_buddypanel_items($items);
+        }
+
+        // Prepend HL items BEFORE remaining items.
         return $html . $items;
+    }
+
+    // =========================================================================
+    // 2b. Strip Legacy BuddyPanel Items
+    // =========================================================================
+
+    /**
+     * Strip legacy BuddyPanel menu items for HL-enrolled users.
+     *
+     * Keeps only essential items (Dashboard, Profile, Log Out) and removes
+     * everything else (Admin, All Users, New School Leader, Reports, etc.)
+     * so enrolled participants see a clean sidebar.
+     *
+     * @param string $html The default BuddyPanel <li> items HTML.
+     * @return string Filtered HTML with only whitelisted items.
+     */
+    private function strip_legacy_buddypanel_items($html) {
+        if (empty($html)) {
+            return $html;
+        }
+
+        $keep_patterns = array(
+            'action=logout',
+            '/dashboard/',
+        );
+
+        preg_match_all('/<li[^>]*>.*?<\/li>/s', $html, $matches);
+        if (empty($matches[0])) {
+            return $html;
+        }
+
+        $kept = array();
+        foreach ($matches[0] as $li) {
+            foreach ($keep_patterns as $pattern) {
+                if (strpos($li, $pattern) !== false) {
+                    $kept[] = $li;
+                    break;
+                }
+            }
+        }
+
+        return implode('', $kept);
     }
 
     // =========================================================================
@@ -328,12 +418,18 @@ class HL_BuddyBoss_Integration {
             return;
         }
 
+        $user_id        = get_current_user_id();
+        $is_staff       = current_user_can('manage_hl_core');
+        $roles          = $this->get_user_hl_roles($user_id);
+        $has_enrollment = !empty($roles);
+
         $menu_items = $this->get_menu_items_for_current_user();
         if (empty($menu_items)) {
             return;
         }
 
         $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
+        $strip_legacy = ($has_enrollment && !$is_staff);
 
         // Build the items as a JS-safe data structure.
         $js_items = array();
@@ -356,6 +452,7 @@ class HL_BuddyBoss_Integration {
             if (!items || !items.length) return;
 
             var sectionTitle = <?php echo wp_json_encode(esc_html__('Learning Hub', 'hl-core')); ?>;
+            var stripLegacy = <?php echo $strip_legacy ? 'true' : 'false'; ?>;
 
             function injectIntoBuddyPanel() {
                 // Find the BuddyPanel sidebar.
@@ -476,16 +573,34 @@ class HL_BuddyBoss_Integration {
                 return true;
             }
 
+            function stripLegacyItems() {
+                if (!stripLegacy) return;
+                var keepPatterns = ['action=logout', '/dashboard/'];
+                var ul = document.querySelector('.buddypanel .side-panel-menu-container ul.buddypanel-menu, .buddypanel .side-panel-menu-container ul.side-panel-menu');
+                if (!ul) return;
+                var allItems = ul.querySelectorAll('li:not(.hl-core-menu-item):not(.hl-buddypanel-section)');
+                for (var i = 0; i < allItems.length; i++) {
+                    var html = allItems[i].innerHTML;
+                    var keep = false;
+                    for (var j = 0; j < keepPatterns.length; j++) {
+                        if (html.indexOf(keepPatterns[j]) !== -1) { keep = true; break; }
+                    }
+                    if (!keep) allItems[i].parentNode.removeChild(allItems[i]);
+                }
+            }
+
             // Run after DOM is ready.
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function() {
                     injectIntoBuddyPanel();
+                    stripLegacyItems();
                     <?php if (!$this->profile_dropdown_rendered) : ?>
                     injectIntoProfileDropdown();
                     <?php endif; ?>
                 });
             } else {
                 injectIntoBuddyPanel();
+                stripLegacyItems();
                 <?php if (!$this->profile_dropdown_rendered) : ?>
                 injectIntoProfileDropdown();
                 <?php endif; ?>

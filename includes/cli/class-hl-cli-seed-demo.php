@@ -542,6 +542,7 @@ class HL_CLI_Seed_Demo {
                 'sections'           => wp_json_encode( self::get_b2e_instrument_sections_pre() ),
                 'scale_labels'       => $b2e_scale_labels,
                 'instructions'       => self::get_b2e_instrument_instructions_pre(),
+                'styles_json'        => self::get_b2e_instrument_styles_json_pre(),
                 'status'             => 'active',
                 'created_at'         => current_time( 'mysql' ),
             ) );
@@ -563,6 +564,7 @@ class HL_CLI_Seed_Demo {
                 'sections'           => wp_json_encode( self::get_b2e_instrument_sections_post() ),
                 'scale_labels'       => $b2e_scale_labels,
                 'instructions'       => self::get_b2e_instrument_instructions_post(),
+                'styles_json'        => self::get_b2e_instrument_styles_json_post(),
                 'status'             => 'active',
                 'created_at'         => current_time( 'mysql' ),
             ) );
@@ -1505,7 +1507,7 @@ class HL_CLI_Seed_Demo {
             array(
                 'section_key' => 'practices',
                 'title'       => 'Assessment 1',
-                'description' => 'Please think about your <strong>typical practice on hard days</strong> (e.g., when children are dysregulated, transitions are difficult, or you feel stressed or overwhelmed). For each statement, rate how you have been typically responding over the <strong>past two weeks</strong>. There are no right or wrong answers. This assessment is for reflection and growth, not evaluation.',
+                'description' => 'Please think about your <strong>typical practice on hard days</strong> (e.g., when children are dysregulated, transitions are difficult, or you feel stressed or overwhelmed). For each statement, rate how you have been typically responding over the <strong>past two weeks</strong>.',
                 'type'        => 'likert',
                 'scale_key'   => 'practices_5',
                 'items'       => self::get_b2e_practices_items_full(),
@@ -1531,7 +1533,7 @@ class HL_CLI_Seed_Demo {
             array(
                 'section_key'   => 'practices',
                 'title'         => 'Assessment 1',
-                'description'   => 'For each statement below, you will provide <strong>two ratings</strong>. First, rate how you were typically responding during the <strong>Prior Assessment Cycle</strong>. Then, rate how you have been typically responding over the <strong>Past Two Weeks</strong>. There are no right or wrong answers. This assessment is for reflection and growth, not evaluation.',
+                'description'   => 'Please think about your<b> typical practice on hard days </b>(e.g., when children are dysregulated, transitions are difficult, or you feel stressed or overwhelmed).&nbsp;<span style="font-family: inherit;font-weight: inherit">For each statement, rate yourself twice:&nbsp;</span><div><strong style="font-family: inherit">- Prior Assessment Cycle:</strong><span style="font-family: inherit;font-weight: inherit">&nbsp;At the time of your previous assessment, how did you typically respond?&nbsp;</span></div><div><span style="font-family: inherit"><b>- Now</b></span><span style="font-family: inherit;font-weight: inherit">: How have you typically been responding over the </span><span style="font-family: inherit"><b>p</b></span><strong style="font-family: inherit">ast two weeks?</strong></div>',
                 'type'          => 'likert',
                 'scale_key'     => 'practices_5',
                 'retrospective' => true,
@@ -1549,7 +1551,7 @@ class HL_CLI_Seed_Demo {
      * @return string
      */
     public static function get_b2e_instrument_instructions_pre() {
-        return 'This questionnaire consists of three assessments about your current instructional practices, work environment, and how you manage emotions in daily life. It will take approximately 15 minutes to complete.';
+        return 'This questionnaire consists of three assessments about your current instructional practices, work environment, and how you manage emotions in daily life. It will take approximately 15 minutes to complete. There are no right or wrong answers. This assessment is for reflection and growth, not evaluation. We will not use your individual answers in any report, only group results.';
     }
 
     /**
@@ -1558,7 +1560,32 @@ class HL_CLI_Seed_Demo {
      * @return string
      */
     public static function get_b2e_instrument_instructions_post() {
-        return 'This questionnaire consists of three assessments about your <strong>past and current</strong> instructional practices, work environment, and how you manage emotions in daily life. It will take approximately 15 minutes to complete.';
+        return 'This questionnaire consists of three assessments about your <strong>past and current</strong> instructional practices, work environment, and how you manage emotions in daily life. It will take approximately 15 minutes to complete. There are no right or wrong answers. This assessment is for reflection and growth, not evaluation. We will not use your individual answers in any report, only group results.';
+    }
+
+    /**
+     * Get the PRE instrument display styles JSON.
+     *
+     * @return string JSON-encoded styles.
+     */
+    public static function get_b2e_instrument_styles_json_pre() {
+        return wp_json_encode( array(
+            'instructions_font_size' => '15px',
+            'instructions_color'     => '#000000',
+            'section_desc_font_size' => '14px',
+        ) );
+    }
+
+    /**
+     * Get the POST instrument display styles JSON.
+     *
+     * @return string JSON-encoded styles.
+     */
+    public static function get_b2e_instrument_styles_json_post() {
+        return wp_json_encode( array(
+            'instructions_font_size' => '15px',
+            'section_desc_font_size' => '14px',
+        ) );
     }
 
     /**
@@ -1753,7 +1780,7 @@ class HL_CLI_Seed_Demo {
      * @return string
      */
     public static function get_default_child_assessment_instructions() {
-        return '<p>This questionnaire will ask you about your students. For the question stated below, choose from the Likert Scale from &ldquo;Never&rdquo; to &ldquo;Almost Always&rdquo; that best describes each student in your classroom. An Example Behavior chart is provided to explain the scale you will use to assess your students. As you ask yourself the following question, you should <strong>collaborate with your co-teachers</strong> to choose the answer that best characterizes each of your students.</p>';
+        return 'This questionnaire will ask you about your students. For the question stated below, choose from the Likert Scale from "Never" to "Almost Always" that best describes each student in your classroom. An Example Behavior chart is provided to explain the scale you will use to assess your students. As you ask yourself the following question, choose the answer that best characterizes each student\'s behavior <strong>over the past month</strong>.';
     }
 
     /**
