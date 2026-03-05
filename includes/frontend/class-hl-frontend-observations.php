@@ -94,7 +94,7 @@ class HL_Frontend_Observations {
             <div class="hl-dashboard hl-observations">
                 <div class="hl-empty-state">
                     <h3><?php esc_html_e( 'No Mentor Assignments', 'hl-core' ); ?></h3>
-                    <p><?php esc_html_e( 'You do not have any active Mentor enrollments. Observations can only be created by mentors. If you believe this is an error, please contact your track administrator.', 'hl-core' ); ?></p>
+                    <p><?php esc_html_e( 'You do not have any active Mentor enrollments. Observations can only be created by mentors. If you believe this is an error, please contact your Program Manager.', 'hl-core' ); ?></p>
                 </div>
             </div>
             <?php
@@ -601,7 +601,7 @@ class HL_Frontend_Observations {
         if ( ! $form_id ) {
             ?>
             <div class="hl-notice hl-notice-warning">
-                <?php esc_html_e( 'No observation form has been configured for this track. Please contact your track administrator.', 'hl-core' ); ?>
+                <?php esc_html_e( 'No observation form has been configured for this track. Please contact your Program Manager.', 'hl-core' ); ?>
             </div>
             <?php
             return;

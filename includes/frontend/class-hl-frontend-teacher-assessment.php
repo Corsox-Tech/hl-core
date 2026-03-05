@@ -198,7 +198,7 @@ class HL_Frontend_Teacher_Assessment {
 
             <?php if ( empty( $instances ) ) : ?>
                 <div class="hl-empty-state">
-                    <p><?php esc_html_e( 'You do not have any self-assessment instances assigned. If you believe this is an error, please contact your track administrator.', 'hl-core' ); ?></p>
+                    <p><?php esc_html_e( 'You do not have any self-assessment instances assigned. If you believe this is an error, please contact your Program Manager.', 'hl-core' ); ?></p>
                 </div>
             <?php else : ?>
                 <table class="hl-table widefat striped">
@@ -284,7 +284,7 @@ class HL_Frontend_Teacher_Assessment {
         if ( empty( $instance['instrument_id'] ) ) {
             ?>
             <div class="hl-notice hl-notice-error">
-                <?php esc_html_e( 'No instrument assigned to this assessment. Please contact your track administrator.', 'hl-core' ); ?>
+                <?php esc_html_e( 'No instrument assigned to this assessment. Please contact your Program Manager.', 'hl-core' ); ?>
             </div>
             <?php
             return;
@@ -296,7 +296,7 @@ class HL_Frontend_Teacher_Assessment {
         if ( ! $instrument ) {
             ?>
             <div class="hl-notice hl-notice-error">
-                <?php esc_html_e( 'The assessment instrument could not be loaded. Please contact your track administrator.', 'hl-core' ); ?>
+                <?php esc_html_e( 'The assessment instrument could not be loaded. Please contact your Program Manager.', 'hl-core' ); ?>
             </div>
             <?php
             return;

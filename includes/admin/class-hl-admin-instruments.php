@@ -903,6 +903,10 @@ class HL_Admin_Instruments {
                     'type'        => sanitize_text_field($s['type'] ?? 'likert'),
                     'scale_key'   => sanitize_text_field($s['scale_key'] ?? ''),
                 );
+                // Preserve retrospective flag (POST instruments use dual-column layout)
+                if (!empty($s['retrospective'])) {
+                    $section['retrospective'] = true;
+                }
 
                 $items = array();
                 if (!empty($s['items']) && is_array($s['items'])) {
@@ -1276,13 +1280,14 @@ class HL_Admin_Instruments {
      * Render a single section accordion panel.
      */
     private function render_teacher_section_panel($index, $section, $scale_keys) {
-        $section_key = isset($section['section_key']) ? $section['section_key'] : '';
-        $title       = isset($section['title']) ? $section['title'] : '';
-        $description = isset($section['description']) ? $section['description'] : '';
-        $type        = isset($section['type']) ? $section['type'] : 'likert';
-        $scale_key   = isset($section['scale_key']) ? $section['scale_key'] : '';
-        $items       = isset($section['items']) ? $section['items'] : array();
-        $prefix      = 'sections[' . $index . ']';
+        $section_key   = isset($section['section_key']) ? $section['section_key'] : '';
+        $title         = isset($section['title']) ? $section['title'] : '';
+        $description   = isset($section['description']) ? $section['description'] : '';
+        $type          = isset($section['type']) ? $section['type'] : 'likert';
+        $scale_key     = isset($section['scale_key']) ? $section['scale_key'] : '';
+        $items         = isset($section['items']) ? $section['items'] : array();
+        $retrospective = !empty($section['retrospective']);
+        $prefix        = 'sections[' . $index . ']';
 
         ?>
         <div class="hl-te-section-panel" data-section-index="<?php echo esc_attr($index); ?>">
@@ -1340,6 +1345,15 @@ class HL_Admin_Instruments {
                                     <option value="<?php echo esc_attr($sk); ?>" <?php selected($scale_key, $sk); ?>><?php echo esc_html($sk); ?></option>
                                 <?php endforeach; ?>
                             </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label><?php esc_html_e('Retrospective', 'hl-core'); ?></label></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="<?php echo esc_attr($prefix); ?>[retrospective]" value="1" <?php checked($retrospective); ?> />
+                                <?php esc_html_e('Dual-column layout (POST assessments only — shows "Prior Assessment Cycle" and "Past Two Weeks" columns)', 'hl-core'); ?>
+                            </label>
                         </td>
                     </tr>
                 </table>

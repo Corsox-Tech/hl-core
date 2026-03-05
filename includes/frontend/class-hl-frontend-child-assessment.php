@@ -306,7 +306,7 @@ class HL_Frontend_Child_Assessment {
 
             <?php if ( empty( $instances ) ) : ?>
                 <div class="hl-empty-state">
-                    <p><?php esc_html_e( 'You do not have any child assessment instances assigned. If you believe this is an error, please contact your track administrator.', 'hl-core' ); ?></p>
+                    <p><?php esc_html_e( 'You do not have any child assessment instances assigned. If you believe this is an error, please contact your Program Manager.', 'hl-core' ); ?></p>
                 </div>
             <?php else : ?>
                 <table class="hl-table widefat striped">
@@ -400,7 +400,7 @@ class HL_Frontend_Child_Assessment {
         if ( empty( $children ) ) {
             ?>
             <div class="hl-notice hl-notice-warning">
-                <?php esc_html_e( 'No children are currently assigned to this classroom. Please contact your track administrator.', 'hl-core' ); ?>
+                <?php esc_html_e( 'No children are currently assigned to this classroom. Please contact your Program Manager.', 'hl-core' ); ?>
             </div>
             <?php
             return;

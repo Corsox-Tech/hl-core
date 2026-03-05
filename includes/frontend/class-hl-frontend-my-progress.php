@@ -646,7 +646,7 @@ class HL_Frontend_My_Progress {
         <div class="hl-dashboard hl-my-progress">
             <div class="hl-empty-state">
                 <h3><?php esc_html_e('No Active Enrollments', 'hl-core'); ?></h3>
-                <p><?php esc_html_e('You are not currently enrolled in any active tracks. If you believe this is an error, please contact your track administrator.', 'hl-core'); ?></p>
+                <p><?php esc_html_e('You are not currently enrolled in any active tracks. If you believe this is an error, please contact your Program Manager.', 'hl-core'); ?></p>
             </div>
         </div>
         <?php

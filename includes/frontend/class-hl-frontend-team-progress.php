@@ -503,7 +503,7 @@ class HL_Frontend_Team_Progress {
         <div class="hl-dashboard hl-team-progress">
             <div class="hl-empty-state">
                 <h3><?php esc_html_e('No Team Assignments', 'hl-core'); ?></h3>
-                <p><?php esc_html_e('You do not have any active Mentor enrollments. If you believe this is an error, please contact your track administrator.', 'hl-core'); ?></p>
+                <p><?php esc_html_e('You do not have any active Mentor enrollments. If you believe this is an error, please contact your Program Manager.', 'hl-core'); ?></p>
             </div>
         </div>
         <?php
