@@ -60,6 +60,24 @@ class HL_Label_Remap {
         'Tracks'                => 'Partnerships',
         'Track'                 => 'Partnership',
 
+        // Phase → Cycle (longer phrases first)
+        'Phase saved successfully.'  => 'Cycle saved successfully.',
+        'Phase deleted successfully.' => 'Cycle deleted successfully.',
+        'Phase not found.'           => 'Cycle not found.',
+        'Phase number %d already exists for this track.' => 'Cycle number %d already exists for this partnership.',
+        'Program (full: Phases, Pathways, Teams, Coaching, Assessments)' => 'Program (full: Cycles, Pathways, Teams, Coaching, Assessments)',
+        'Course (simple: auto-created single Phase + Pathway)' => 'Course (simple: auto-created single Cycle + Pathway)',
+        'No phases defined for this track yet.' => 'No cycles defined for this partnership yet.',
+        'Add Phase'                  => 'Add Cycle',
+        'New Phase'                  => 'New Cycle',
+        'Create Phase'               => 'Create Cycle',
+        'Update Phase'               => 'Update Cycle',
+        'Phase Name'                 => 'Cycle Name',
+        'Phase Number'               => 'Cycle Number',
+        '-- Default Phase --'        => '-- Default Cycle --',
+        'Phases'                     => 'Cycles',
+        'Phase'                      => 'Cycle',
+
         // Activity → Component (longer phrases first)
         'Add New Activity'          => 'Add New Component',
         'Edit Activity'             => 'Edit Component',
@@ -86,6 +104,7 @@ class HL_Label_Remap {
     private static $plural_map = array(
         'Active Track'  => array('Active Partnership', 'Active Partnerships'),
         '%d Active Track' => array('%d Active Partnership', '%d Active Partnerships'),
+        'Phase'         => array('Cycle', 'Cycles'),
         'Activity'      => array('Component', 'Components'),
     );
 
