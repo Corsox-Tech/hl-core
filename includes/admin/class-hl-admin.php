@@ -20,7 +20,34 @@ class HL_Admin {
         add_action('admin_menu', array($this, 'create_menu'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
         add_action('admin_init', array($this, 'handle_early_actions'));
-        add_action('in_admin_header', array($this, 'render_docs_link'));
+    }
+
+    /**
+     * Render a standard page header with title and docs link.
+     *
+     * Call this from any admin page's render_page() instead of a raw <h1>.
+     * The docs link appears inline with the title, safely inside page content.
+     *
+     * @param string $title   Page title.
+     * @param string $actions Optional extra HTML for action buttons.
+     */
+    public static function render_page_header($title, $actions = '') {
+        $docs_url = home_url('/documentation/');
+        echo '<div class="hl-page-header">';
+        echo '<h1>' . esc_html($title) . '</h1>';
+        echo '<div class="hl-header-actions">';
+        if ($actions) {
+            echo $actions;
+        }
+        printf(
+            '<a href="%s" target="_blank" class="hl-docs-link">'
+            . '<span class="dashicons dashicons-media-document"></span>'
+            . '%s</a>',
+            esc_url($docs_url),
+            esc_html__('Docs', 'hl-core')
+        );
+        echo '</div>';
+        echo '</div>';
     }
 
     /**
@@ -62,6 +89,9 @@ class HL_Admin {
             case 'hl-assessments':
                 HL_Admin_Assessments::instance()->handle_early_actions();
                 break;
+            case 'hl-assessment-hub':
+                HL_Admin_Assessment_Hub::instance()->handle_early_actions();
+                break;
             case 'hl-reporting':
                 HL_Admin_Reporting::instance()->handle_early_actions();
                 break;
@@ -91,33 +121,11 @@ class HL_Admin {
 
         // ── Coaching & Assessments ──────────────────────────────────
         add_submenu_page('hl-tracks', 'Coaching Hub', 'Coaching Hub', 'manage_hl_core', 'hl-coaching', array(HL_Admin_Coaching::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Assessments', 'Assessments', 'manage_hl_core', 'hl-assessments', array(HL_Admin_Assessments::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Instruments', 'Instruments', 'manage_hl_core', 'hl-instruments', array(HL_Admin_Instruments::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Assessments', 'Assessments', 'manage_hl_core', 'hl-assessment-hub', array(HL_Admin_Assessment_Hub::instance(), 'render_page'));
 
         // ── Reporting & Admin tools ──────────────────────────────────
         add_submenu_page('hl-tracks', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Settings', 'Settings', 'manage_hl_core', 'hl-settings', array(HL_Admin_Settings::instance(), 'render_page'));
-    }
-
-    /**
-     * Render a small documentation link in the admin header bar.
-     * Only visible on HL Core admin pages.
-     */
-    public function render_docs_link() {
-        $screen = get_current_screen();
-        if (!$screen || strpos($screen->id, 'hl-') === false) {
-            return;
-        }
-
-        $docs_url = home_url('/documentation/');
-        printf(
-            '<div style="text-align:right;padding:4px 20px 0;margin-bottom:-8px;">'
-            . '<a href="%s" target="_blank" style="text-decoration:none;color:#646970;font-size:13px;">'
-            . '<span class="dashicons dashicons-media-document" style="font-size:16px;vertical-align:text-bottom;margin-right:3px;"></span>'
-            . '%s</a></div>',
-            esc_url($docs_url),
-            esc_html__('Documentation', 'hl-core')
-        );
     }
 
     public function enqueue_assets($hook) {
@@ -131,8 +139,10 @@ class HL_Admin {
             wp_enqueue_media();
         }
 
-        // Teacher instrument visual editor (only on hl-instruments page)
-        if (strpos($hook, 'hl-instruments') !== false) {
+        // Teacher instrument visual editor (on hl-instruments or assessment-hub teacher-instruments section)
+        $is_teacher_editor = strpos($hook, 'hl-instruments') !== false
+            || (strpos($hook, 'hl-assessment-hub') !== false && isset($_GET['section']) && $_GET['section'] === 'teacher-instruments');
+        if ($is_teacher_editor) {
             wp_enqueue_style('hl-admin-teacher-editor', HL_CORE_ASSETS_URL . 'css/admin-teacher-editor.css', array('hl-admin'), HL_CORE_VERSION);
             wp_enqueue_script('hl-admin-teacher-editor', HL_CORE_ASSETS_URL . 'js/admin-teacher-editor.js', array(), HL_CORE_VERSION, true);
         }

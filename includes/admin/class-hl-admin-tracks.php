@@ -62,7 +62,7 @@ class HL_Admin_Tracks {
     public function render_page() {
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
 
-        echo '<div class="wrap">';
+        echo '<div class="wrap hl-admin-wrap">';
 
         switch ($action) {
             case 'new':

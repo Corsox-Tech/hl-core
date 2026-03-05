@@ -50,7 +50,7 @@ class HL_Frontend_Docs {
             ),
             'public'       => false,
             'show_ui'      => true,
-            'show_in_menu' => 'hl-tracks',
+            'show_in_menu' => false,
             'supports'     => array('title', 'editor', 'revisions', 'custom-fields'),
             'menu_icon'    => 'dashicons-media-document',
             'hierarchical' => false,

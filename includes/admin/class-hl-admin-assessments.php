@@ -37,7 +37,7 @@ class HL_Admin_Assessments {
     public function render_page() {
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
 
-        echo '<div class="wrap">';
+        echo '<div class="wrap hl-admin-wrap">';
 
         switch ($action) {
             case 'view_teacher':
@@ -86,7 +86,13 @@ class HL_Admin_Assessments {
                 $msg = 'generate_none';
             }
 
-            wp_redirect(admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&tab=children&message=' . $msg . '&created=' . $result['created'] . '&existing=' . $result['existing']));
+            $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'hl-assessment-hub';
+            if ($current_page === 'hl-assessment-hub') {
+                $redirect = admin_url('admin.php?page=hl-assessment-hub&section=child-assessments&track_id=' . $track_id . '&message=' . $msg . '&created=' . $result['created'] . '&existing=' . $result['existing']);
+            } else {
+                $redirect = admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&tab=children&message=' . $msg . '&created=' . $result['created'] . '&existing=' . $result['existing']);
+            }
+            wp_redirect($redirect);
             exit;
         }
     }
@@ -95,7 +101,8 @@ class HL_Admin_Assessments {
      * Handle CSV export (runs on admin_init before headers sent)
      */
     public function handle_csv_export() {
-        if (!isset($_GET['page']) || $_GET['page'] !== 'hl-assessments') {
+        $page = isset($_GET['page']) ? $_GET['page'] : '';
+        if ($page !== 'hl-assessments' && $page !== 'hl-assessment-hub') {
             return;
         }
         if (!isset($_GET['export'])) {
@@ -156,10 +163,70 @@ class HL_Admin_Assessments {
     }
 
     // =========================================================================
-    // Main List View (Tabbed)
+    // Public Hub Entry Points (called by HL_Admin_Assessment_Hub)
+    // =========================================================================
+
+    /**
+     * Render teacher assessments section (for Assessment Hub sidebar).
+     */
+    public function render_teacher_section() {
+        $this->render_messages();
+        $this->render_assessment_section('teacher');
+    }
+
+    /**
+     * Render child assessments section (for Assessment Hub sidebar).
+     */
+    public function render_child_section() {
+        $this->render_messages();
+        $this->render_assessment_section('children');
+    }
+
+    /**
+     * Render teacher assessment detail view (public, for hub).
+     */
+    public function render_teacher_detail_page($instance_id) {
+        $this->render_teacher_assessment_detail($instance_id);
+    }
+
+    /**
+     * Render child assessment detail view (public, for hub).
+     */
+    public function render_child_detail_page($instance_id) {
+        $this->render_child_assessment_detail($instance_id);
+    }
+
+    // =========================================================================
+    // Main List View (Tabbed — standalone page)
     // =========================================================================
 
     private function render_list() {
+        $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'teacher';
+
+        // Messages
+        $this->render_messages();
+
+        echo '<h1>' . esc_html__('Assessments', 'hl-core') . '</h1>';
+
+        // Tab navigation (standalone only — hub uses sidebar)
+        $selected_track = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
+        $teacher_url  = admin_url('admin.php?page=hl-assessments&track_id=' . $selected_track . '&tab=teacher');
+        $children_url = admin_url('admin.php?page=hl-assessments&track_id=' . $selected_track . '&tab=children');
+
+        echo '<nav class="nav-tab-wrapper">';
+        echo '<a href="' . esc_url($teacher_url) . '" class="nav-tab' . ($active_tab === 'teacher' ? ' nav-tab-active' : '') . '">' . esc_html__('Teacher Self-Assessments', 'hl-core') . '</a>';
+        echo '<a href="' . esc_url($children_url) . '" class="nav-tab' . ($active_tab === 'children' ? ' nav-tab-active' : '') . '">' . esc_html__('Child Assessments', 'hl-core') . '</a>';
+        echo '</nav>';
+
+        $this->render_assessment_section($active_tab);
+    }
+
+    /**
+     * Render assessment section with track selector and data table.
+     *
+     * @param string $tab 'teacher' or 'children'
+     */
+    private function render_assessment_section($tab) {
         $service = new HL_Assessment_Service();
 
         // Track filter
@@ -168,17 +235,18 @@ class HL_Admin_Assessments {
             "SELECT track_id, track_name, status FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
         );
         $selected_track = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
-        $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'teacher';
-
-        // Messages
-        $this->render_messages();
-
-        echo '<h1>' . esc_html__('Assessments', 'hl-core') . '</h1>';
+        $page_param = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'hl-assessment-hub';
+        $section_param = isset($_GET['section']) ? sanitize_text_field($_GET['section']) : '';
 
         // Track selector
-        echo '<form method="get" style="margin-bottom:15px;">';
-        echo '<input type="hidden" name="page" value="hl-assessments" />';
-        echo '<input type="hidden" name="tab" value="' . esc_attr($active_tab) . '" />';
+        echo '<form method="get">';
+        echo '<input type="hidden" name="page" value="' . esc_attr($page_param) . '" />';
+        if ($section_param) {
+            echo '<input type="hidden" name="section" value="' . esc_attr($section_param) . '" />';
+        }
+        if ($page_param === 'hl-assessments') {
+            echo '<input type="hidden" name="tab" value="' . esc_attr($tab) . '" />';
+        }
         echo '<label><strong>' . esc_html__('Track:', 'hl-core') . '</strong> </label>';
         echo '<select name="track_id">';
         echo '<option value="">' . esc_html__('-- Select Track --', 'hl-core') . '</option>';
@@ -200,16 +268,7 @@ class HL_Admin_Assessments {
             return;
         }
 
-        // Tab navigation
-        $teacher_url  = admin_url('admin.php?page=hl-assessments&track_id=' . $selected_track . '&tab=teacher');
-        $children_url = admin_url('admin.php?page=hl-assessments&track_id=' . $selected_track . '&tab=children');
-
-        echo '<h2 class="nav-tab-wrapper">';
-        echo '<a href="' . esc_url($teacher_url) . '" class="nav-tab' . ($active_tab === 'teacher' ? ' nav-tab-active' : '') . '">' . esc_html__('Teacher Self-Assessments', 'hl-core') . '</a>';
-        echo '<a href="' . esc_url($children_url) . '" class="nav-tab' . ($active_tab === 'children' ? ' nav-tab-active' : '') . '">' . esc_html__('Child Assessments', 'hl-core') . '</a>';
-        echo '</h2>';
-
-        if ($active_tab === 'children') {
+        if ($tab === 'children') {
             $this->render_children_tab($selected_track, $service);
         } else {
             $this->render_teacher_tab($selected_track, $service);
@@ -232,10 +291,10 @@ class HL_Admin_Assessments {
             admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&export=teacher_responses'),
             'hl_export_teacher_responses_' . $track_id
         );
-        echo '<p style="display:flex;gap:10px;">';
+        echo '<div class="hl-top-bar">';
         echo '<a href="' . esc_url($export_completion_url) . '" class="button">' . esc_html__('Export Completion CSV', 'hl-core') . '</a>';
         echo '<a href="' . esc_url($export_responses_url) . '" class="button">' . esc_html__('Export Responses CSV', 'hl-core') . '</a>';
-        echo '</p>';
+        echo '</div>';
 
         if (empty($instances)) {
             echo '<p>' . esc_html__('No teacher assessment instances found for this track.', 'hl-core') . '</p>';
@@ -247,16 +306,16 @@ class HL_Admin_Assessments {
         $submitted = count(array_filter($instances, function($i) { return $i['status'] === 'submitted'; }));
         $pending   = $total - $submitted;
 
-        echo '<div class="hl-metric-cards" style="display:flex;gap:15px;margin-bottom:20px;">';
-        echo '<div class="hl-metric-card" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:12px 20px;min-width:120px;">';
-        echo '<div style="font-size:24px;font-weight:700;color:#2271b1;">' . esc_html($total) . '</div>';
-        echo '<div style="color:#646970;">' . esc_html__('Total Instances', 'hl-core') . '</div></div>';
-        echo '<div class="hl-metric-card" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:12px 20px;min-width:120px;">';
-        echo '<div style="font-size:24px;font-weight:700;color:#00a32a;">' . esc_html($submitted) . '</div>';
-        echo '<div style="color:#646970;">' . esc_html__('Submitted', 'hl-core') . '</div></div>';
-        echo '<div class="hl-metric-card" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:12px 20px;min-width:120px;">';
-        echo '<div style="font-size:24px;font-weight:700;color:#dba617;">' . esc_html($pending) . '</div>';
-        echo '<div style="color:#646970;">' . esc_html__('Pending', 'hl-core') . '</div></div>';
+        echo '<div class="hl-metrics-row">';
+        echo '<div class="hl-metric-card">';
+        echo '<div class="metric-value">' . esc_html($total) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Total Instances', 'hl-core') . '</div></div>';
+        echo '<div class="hl-metric-card">';
+        echo '<div class="metric-value">' . esc_html($submitted) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Submitted', 'hl-core') . '</div></div>';
+        echo '<div class="hl-metric-card">';
+        echo '<div class="metric-value">' . esc_html($pending) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Pending', 'hl-core') . '</div></div>';
         echo '</div>';
 
         // Table
@@ -324,7 +383,7 @@ class HL_Admin_Assessments {
         $instances = $service->get_child_assessments_by_track($track_id);
 
         // Action buttons row
-        echo '<div style="display:flex;gap:10px;margin-bottom:15px;align-items:center;">';
+        echo '<div class="hl-top-bar" style="justify-content:flex-start;">';
 
         // Generate instances button
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&tab=children')) . '" style="display:inline;">';
@@ -364,19 +423,19 @@ class HL_Admin_Assessments {
         $in_progress = count(array_filter($instances, function($i) { return $i['status'] === 'in_progress'; }));
         $not_started = $total - $submitted - $in_progress;
 
-        echo '<div class="hl-metric-cards" style="display:flex;gap:15px;margin-bottom:20px;">';
-        echo '<div class="hl-metric-card" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:12px 20px;min-width:120px;">';
-        echo '<div style="font-size:24px;font-weight:700;color:#2271b1;">' . esc_html($total) . '</div>';
-        echo '<div style="color:#646970;">' . esc_html__('Total Instances', 'hl-core') . '</div></div>';
-        echo '<div class="hl-metric-card" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:12px 20px;min-width:120px;">';
-        echo '<div style="font-size:24px;font-weight:700;color:#00a32a;">' . esc_html($submitted) . '</div>';
-        echo '<div style="color:#646970;">' . esc_html__('Submitted', 'hl-core') . '</div></div>';
-        echo '<div class="hl-metric-card" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:12px 20px;min-width:120px;">';
-        echo '<div style="font-size:24px;font-weight:700;color:#2271b1;">' . esc_html($in_progress) . '</div>';
-        echo '<div style="color:#646970;">' . esc_html__('In Progress', 'hl-core') . '</div></div>';
-        echo '<div class="hl-metric-card" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:12px 20px;min-width:120px;">';
-        echo '<div style="font-size:24px;font-weight:700;color:#dba617;">' . esc_html($not_started) . '</div>';
-        echo '<div style="color:#646970;">' . esc_html__('Not Started', 'hl-core') . '</div></div>';
+        echo '<div class="hl-metrics-row">';
+        echo '<div class="hl-metric-card">';
+        echo '<div class="metric-value">' . esc_html($total) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Total Instances', 'hl-core') . '</div></div>';
+        echo '<div class="hl-metric-card">';
+        echo '<div class="metric-value">' . esc_html($submitted) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Submitted', 'hl-core') . '</div></div>';
+        echo '<div class="hl-metric-card">';
+        echo '<div class="metric-value">' . esc_html($in_progress) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('In Progress', 'hl-core') . '</div></div>';
+        echo '<div class="hl-metric-card">';
+        echo '<div class="metric-value">' . esc_html($not_started) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Not Started', 'hl-core') . '</div></div>';
         echo '</div>';
 
         // Table
@@ -688,28 +747,34 @@ class HL_Admin_Assessments {
      * Render childrow status badge HTML
      */
     private function render_childrow_status_badge($status) {
-        $config = array(
-            'active'           => array('background:#e6ffed;color:#00a32a;', __('Active', 'hl-core')),
-            'skipped'          => array('background:#f0f0f1;color:#646970;', __('Skipped', 'hl-core')),
-            'stale_at_submit'  => array('background:#fff3cd;color:#856404;', __('Stale at Submit', 'hl-core')),
-            'not_in_classroom' => array('background:#fde8e8;color:#b32d2e;', __('Not in Classroom', 'hl-core')),
+        $css_map = array(
+            'active'           => 'hl-status hl-status-active',
+            'skipped'          => 'hl-status hl-status-draft',
+            'stale_at_submit'  => 'hl-status hl-status-paused',
+            'not_in_classroom' => 'hl-status hl-status-archived',
         );
 
-        $style = isset($config[$status]) ? $config[$status][0] : 'background:#f0f0f1;color:#646970;';
-        $label = isset($config[$status]) ? $config[$status][1] : ucfirst(str_replace('_', ' ', $status));
+        $labels = array(
+            'active'           => __('Active', 'hl-core'),
+            'skipped'          => __('Skipped', 'hl-core'),
+            'stale_at_submit'  => __('Stale at Submit', 'hl-core'),
+            'not_in_classroom' => __('Not in Classroom', 'hl-core'),
+        );
 
-        return '<span style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600;' . esc_attr($style) . '">'
-            . esc_html($label) . '</span>';
+        $class = isset($css_map[$status]) ? $css_map[$status] : 'hl-status hl-status-draft';
+        $label = isset($labels[$status]) ? $labels[$status] : ucfirst(str_replace('_', ' ', $status));
+
+        return '<span class="' . esc_attr($class) . '">' . esc_html($label) . '</span>';
     }
 
     /**
      * Render status badge HTML
      */
     private function render_status_badge($status) {
-        $colors = array(
-            'not_started' => 'color:#646970;',
-            'in_progress' => 'color:#2271b1;font-weight:600;',
-            'submitted'   => 'color:#00a32a;font-weight:600;',
+        $css_map = array(
+            'not_started' => 'hl-status hl-status-draft',
+            'in_progress' => 'hl-status hl-status-progress',
+            'submitted'   => 'hl-status hl-status-complete',
         );
 
         $labels = array(
@@ -718,10 +783,10 @@ class HL_Admin_Assessments {
             'submitted'   => __('Submitted', 'hl-core'),
         );
 
-        $style = isset($colors[$status]) ? $colors[$status] : '';
+        $class = isset($css_map[$status]) ? $css_map[$status] : 'hl-status hl-status-draft';
         $label = isset($labels[$status]) ? $labels[$status] : ucfirst($status);
 
-        return '<span style="' . esc_attr($style) . '">' . esc_html($label) . '</span>';
+        return '<span class="' . esc_attr($class) . '">' . esc_html($label) . '</span>';
     }
 
     /**

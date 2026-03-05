@@ -37,7 +37,7 @@ class HL_Admin_Coach_Assignments {
      * Main render entry point (standalone page — kept for backward compatibility).
      */
     public function render_page() {
-        echo '<div class="wrap">';
+        echo '<div class="wrap hl-admin-wrap">';
         $this->render_page_content();
         echo '</div>';
     }

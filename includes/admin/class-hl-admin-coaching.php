@@ -63,7 +63,7 @@ class HL_Admin_Coaching {
     public function render_page() {
         $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'sessions';
 
-        echo '<div class="wrap">';
+        echo '<div class="wrap hl-admin-wrap">';
         $this->render_hub_tabs($tab);
 
         if ($tab === 'assignments') {
@@ -87,7 +87,7 @@ class HL_Admin_Coaching {
         );
         $base_url = admin_url('admin.php?page=hl-coaching');
 
-        echo '<nav class="nav-tab-wrapper" style="margin-bottom:16px;">';
+        echo '<nav class="nav-tab-wrapper">';
         foreach ($tabs as $slug => $label) {
             $url   = add_query_arg('tab', $slug, $base_url);
             $class = ($slug === $active_tab) ? 'nav-tab nav-tab-active' : 'nav-tab';

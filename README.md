@@ -3,7 +3,7 @@
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, JetFormBuilder (for observation forms only)
 **Status:** v1 complete — Phases 1-32 done. **Deployed to production** (March 2026). Architecture expansion in progress: Individual Enrollments (hl_individual_enrollment), Program Progress Matrix report — see B2E_MASTER_REFERENCE.md and Build Queue Phases 33-34.
-(28 shortcode pages incl. dashboard + documentation, 12 admin pages, 39 DB tables, tabbed track editor with Phases tab, Phase entity (hl_phase), Track Types (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, JFB cleanup, **UI label remapping** Track→Partnership / Activity→Component / Phase→Cycle, **Coaching Hub** with Sessions+Assignments tabs, **Settings hub** with Imports+Audit Log tabs, **BuddyBoss login fix** suppressing bpnoaccess error/shake)
+(28 shortcode pages incl. dashboard + documentation, 12 admin pages, 39 DB tables, tabbed track editor with Phases tab, Phase entity (hl_phase), Track Types (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, JFB cleanup, **UI label remapping** Track→Partnership / Activity→Component / Phase→Cycle, **Coaching Hub** with Sessions+Assignments tabs, **Settings hub** with Imports+Audit Log+Doc Articles tabs, **Assessment Hub** with vertical sidebar nav (Teacher/Child Assessments + Child/Teacher Instruments), **Admin CSS design system** with modern card layout + status badges + design tokens, **BuddyBoss login fix** suppressing bpnoaccess error/shake)
 
 ## Overview
 
@@ -66,8 +66,14 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Settings** - Tabbed admin hub grouping utilities:
   - **Imports tab** — AJAX-based 3-step wizard (Upload > Preview & Select > Results) for CSV import
   - **Audit Log tab** — Searchable audit log viewer with track and action type filters, pagination
+  - **Doc Articles tab** — Links to WP native CPT editor, add new article, and category manager for the in-site documentation system
 
-- **Assessments** - Tabbed staff assessment viewer/exporter: teacher self-assessments (list/detail/CSV), child assessments (list/detail/instance generation from teaching assignments/CSV), summary metric cards. Phase section headers (PRE/POST grouping with counts), clickable teacher names (link to WP user edit), dev-only switch-to-user feature (gated by `HL_DEV_TOOLS` constant). **Dual CSV exports per type:** "Export Completion CSV" (metadata only) and "Export Responses CSV" (full scored response data). Teacher responses export reads `responses_json` from instances with instrument-derived column headers (section: item_key). Child responses export outputs one row per child with answer columns, excluding skipped children.
+- **Assessment Hub** - Unified assessment management page with vertical sidebar navigation:
+  - **Teacher Assessments** — Staff assessment viewer/exporter with list/detail/CSV, summary metric cards
+  - **Child Assessments** — List/detail/instance generation from teaching assignments/CSV, summary metric cards
+  - **Child Instruments** — Full CRUD for child assessment instruments (question editor, versions, display styles)
+  - **Teacher Instruments** — Visual section editor for teacher self-assessment instruments
+  - Phase section headers (PRE/POST grouping with counts), clickable teacher names (link to WP user edit), dev-only switch-to-user feature (gated by `HL_DEV_TOOLS` constant). **Dual CSV exports per type:** "Export Completion CSV" (metadata only) and "Export Responses CSV" (full scored response data). Teacher responses export reads `responses_json` from instances with instrument-derived column headers (section: item_key). Child responses export outputs one row per child with answer columns, excluding skipped children.
 - **Reports** - Full reporting dashboard: scope-based filtering (cohort/school/district/team/role + cohort group), summary cards, school/team summary tables, participant completion table with progress bars, enrollment detail drill-down with activity-level status, **program vs control group comparison section** (per-section/per-item tables with color-coded change values when cohort group filter contains both program and control cohorts), CSV exports (completion, school summary, team summary, teacher assessments, child assessments, comparison CSV with Cohen's d), rollup recompute action
 
 **Admin fix:** All admin pages use `admin_init` dispatcher for POST saves and GET deletes (redirect-before-output pattern), preventing blank pages after form submissions.
@@ -157,7 +163,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **BB Dashboard redirect** — `template_redirect` hook redirects enrolled users from BuddyBoss member dashboard (`/dashboard/`) to HL Dashboard (`/dashboard-3/`) since BB Dashboard is an Elementor page that doesn't render the `[hl_dashboard]` shortcode
 - **Collapsed sidebar CSS fix** — Overrides BuddyBoss theme CSS that hides all `<span>` elements in collapsed mode (`body:not(.buddypanel-open) ... opacity:0; visibility:hidden`), keeping HL dashicon icons visible. Section headers and badges hidden in collapsed mode.
 - **Login page fix** — Suppresses BuddyBoss `bpnoaccess` error message and shake animation on wp-login.php via `bp_wp_login_error`, `shake_error_codes`, and `login_message` filters. Shows friendly "Welcome to Housman Learning Academy. Please log in to continue." message instead of red error styling.
-- **Documentation link** — Admin header link to `/documentation/` page visible on all HL Core admin pages (replaces removed Documentation submenu item).
+- **Page header with docs link** — All HL Core admin pages use `HL_Admin::render_page_header()` which renders the page title with an inline "Docs" link to `/documentation/`. Replaces the old `in_admin_header` hook approach that was hidden behind the Screen Options drawer.
 
 ### JetFormBuilder Integration
 - **HL_JFB_Integration** service (`includes/integrations/class-hl-jfb-integration.php`)
@@ -471,6 +477,15 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
 - [x] **32.7 — Seeder updates** — All 3 seeders (demo, lutheran, palm-beach) create Phase 1 after track, pass phase_id to pathway creation. Clean commands delete from hl_phase.
 - [x] **32.8 — Frontend Phase context** — My Programs cards show Phase name when track has multiple phases. Pathways Listing shows phase name in card subtitle. REST API pathways endpoint accepts phase_id filter.
 
+### Phase 35: Admin UX/UI Redesign + Menu Consolidation
+
+- [x] **35.1 — Admin CSS Design System** — Full rewrite of `assets/css/admin.css` (~550 lines) with CSS custom properties design system scoped to `.hl-admin-wrap`. Design tokens: primary/accent/secondary colors, surface/background, border, radius, shadow, transition. Component styles: page headers, content cards, tab navigation (pill-style), tables (clean headers, row hover, compact cells), buttons (primary/secondary/small), forms, status badges with colored dots (`hl-status-*`), type badges, role tags, metric cards, filter bars, vertical sidebar nav, notices, empty states, pagination, detail grids. Responsive breakpoints + print styles.
+- [x] **35.2 — Docs Link Fix + Page Header Helper** — Removed `in_admin_header` hook and `render_docs_link()` method from `class-hl-admin.php`. Added static `HL_Admin::render_page_header($title, $actions)` that renders title + inline docs link inside page content (impossible to be hidden by Screen Options).
+- [x] **35.3 — hl-admin-wrap on All Pages** — Added `hl-admin-wrap` class to `<div class="wrap">` in 12 admin page files (tracks, cohorts, orgunits, enrollments, pathways, teams, classrooms, coaching, assessments, instruments, coach-assignments, audit). Settings extended to always include it. Removed inline margin styles from nav-tab-wrapper in coaching, instruments, settings.
+- [x] **35.4 — Doc Articles to Settings Hub** — Changed `show_in_menu` from `'hl-tracks'` to `false` in `class-hl-frontend-docs.php` (hides CPT from admin menu while keeping WP editor accessible). Added 'docs' tab to Settings with `render_docs_tab()` showing metric cards linking to WP CPT editor, add new article, and category manager.
+- [x] **35.5 — Assessment Hub** — Created `class-hl-admin-assessment-hub.php` with vertical sidebar navigation (4 sections in 2 groups: Assessment Data > Teacher/Child Assessments, Instruments > Child/Teacher Instruments). Sidebar renders with dashicons and active state highlighting. Detail views (view_teacher, view_children, instrument edit/new/preview) render without sidebar. Replaced separate Assessments + Instruments menu items with single "Assessments" pointing to hub. Updated early actions dispatcher, teacher editor asset enqueuing, CSV export handler, and generate instances redirect for hub context.
+- [x] **35.6 — Status Badge Polish** — Updated assessment status badges and childrow status badges from inline styles to CSS classes (`hl-status hl-status-complete`, `hl-status-draft`, etc.) with `::before` pseudo-element colored dots.
+
 ### Phase 33: Individual Enrollments (B2E Master Reference)
 - [ ] **33.1 — DB: `hl_individual_enrollment` table** — Create table with user_id, course_id, enrolled_at, expires_at, status, enrolled_by, notes.
 - [ ] **33.2 — Individual Enrollment Service** — CRUD, expiration checks, LearnDash progress queries.
@@ -505,7 +520,7 @@ _See docs/CHILD_ASSESSMENT_RESTRUCTURE.md for architecture. Prompts in docs/CHIL
     /services/                   # Business logic (15+ services incl. HL_Phase_Service + planned: HL_Individual_Enrollment_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder + BuddyBoss (3 classes)
-    /admin/                      # WP admin pages (15+ controllers incl. Cohorts, Tracks)
+    /admin/                      # WP admin pages (16+ controllers incl. Cohorts, Tracks, Assessment Hub)
     /frontend/                   # Shortcode renderers (28 pages incl. dashboard + documentation + instrument renderer + teacher assessment renderer)
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, label remap helpers

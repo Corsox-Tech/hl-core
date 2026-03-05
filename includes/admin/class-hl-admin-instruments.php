@@ -65,7 +65,7 @@ class HL_Admin_Instruments {
         $tab    = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'children';
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
 
-        echo '<div class="wrap">';
+        echo '<div class="wrap hl-admin-wrap">';
 
         // Tab navigation
         $this->render_tabs($tab);
@@ -88,7 +88,7 @@ class HL_Admin_Instruments {
             'teacher'  => __('Teacher Assessment Instruments', 'hl-core'),
         );
 
-        echo '<nav class="nav-tab-wrapper" style="margin-bottom: 15px;">';
+        echo '<nav class="nav-tab-wrapper">';
         foreach ($tabs as $tab_key => $tab_label) {
             $url   = admin_url('admin.php?page=hl-instruments&tab=' . $tab_key);
             $class = ($active_tab === $tab_key) ? 'nav-tab nav-tab-active' : 'nav-tab';
@@ -100,7 +100,7 @@ class HL_Admin_Instruments {
     /**
      * Render the children instruments tab.
      */
-    private function render_children_tab($action) {
+    public function render_children_tab($action) {
         switch ($action) {
             case 'new':
                 $this->render_form();
@@ -134,7 +134,7 @@ class HL_Admin_Instruments {
     /**
      * Render the teacher instruments tab.
      */
-    private function render_teacher_tab($action) {
+    public function render_teacher_tab($action) {
         switch ($action) {
             case 'new':
                 $this->render_teacher_form();
