@@ -68,7 +68,13 @@ class HL_BuddyBoss_Integration {
             return;
         }
 
-        // 0. Login redirect — HL-enrolled users go to the HL Dashboard.
+        // 0. Fix BuddyBoss login page: remove error styling for bpnoaccess
+        //    (the redirect is correct but it shouldn't look like an error).
+        add_filter('bp_wp_login_error', array($this, 'soften_bpnoaccess_message'), 10, 2);
+        add_filter('shake_error_codes', array($this, 'remove_bp_shake_code'));
+        add_filter('login_message', array($this, 'add_bpnoaccess_welcome_message'));
+
+        // 0a. Login redirect — HL-enrolled users go to the HL Dashboard.
         add_filter('login_redirect', array($this, 'hl_login_redirect'), 999, 3);
 
         // 0a. Template redirect — redirect enrolled users from BB Dashboard to HL Dashboard.
@@ -223,6 +229,50 @@ class HL_BuddyBoss_Integration {
     // =========================================================================
     // 0. Login Redirect
     // =========================================================================
+
+    /**
+     * Replace the BuddyBoss bpnoaccess error message with a neutral welcome.
+     *
+     * BuddyBoss redirects non-logged-in users to wp-login.php with
+     * action=bpnoaccess and adds an error via wp_login_errors. This makes
+     * the login page look like the user did something wrong. We replace
+     * the message with a friendly, non-error string and return it through
+     * WordPress's login_message filter instead so it renders as a plain
+     * message, not an error.
+     *
+     * @param string $message BP error message.
+     * @param string $redirect_to Where the user will go after login.
+     * @return string
+     */
+    public function soften_bpnoaccess_message($message, $redirect_to) {
+        return ''; // Return empty to suppress the error; we add a message via login_message instead.
+    }
+
+    /**
+     * Remove bp_no_access from the shake error codes list.
+     *
+     * @param array $codes Shake error codes.
+     * @return array
+     */
+    public function remove_bp_shake_code($codes) {
+        return array_diff($codes, array('bp_no_access'));
+    }
+
+    /**
+     * Show a friendly welcome message on the login page instead of an error
+     * when the user arrives via BuddyBoss bpnoaccess redirect.
+     *
+     * @param string $message Existing login message HTML.
+     * @return string
+     */
+    public function add_bpnoaccess_welcome_message($message) {
+        if (empty($_GET['action']) || $_GET['action'] !== 'bpnoaccess') {
+            return $message;
+        }
+
+        $message .= '<p class="message">' . esc_html__('Welcome to Housman Learning Academy. Please log in to continue.', 'hl-core') . '</p>';
+        return $message;
+    }
 
     /**
      * Redirect HL-enrolled users to the HL Dashboard after login.
