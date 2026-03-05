@@ -1525,7 +1525,7 @@ class HL_Admin_Tracks {
         ));
 
         echo '<div style="margin-bottom:15px; display:flex; gap:8px;">';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-coach-assignments&track_id=' . $track_id)) . '" class="button button-primary">' . esc_html__('Manage Coach Assignments', 'hl-core') . '</a>';
+        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-coaching&tab=assignments&track_id=' . $track_id)) . '" class="button button-primary">' . esc_html__('Manage Coach Assignments', 'hl-core') . '</a>';
         echo '<a href="' . esc_url(admin_url('admin.php?page=hl-coaching&track_id=' . $track_id)) . '" class="button">' . esc_html__('All Coaching Sessions', 'hl-core') . '</a>';
         echo '</div>';
 

@@ -34,12 +34,19 @@ class HL_Admin_Coach_Assignments {
     }
 
     /**
-     * Main render entry point.
+     * Main render entry point (standalone page — kept for backward compatibility).
      */
     public function render_page() {
-        $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
-
         echo '<div class="wrap">';
+        $this->render_page_content();
+        echo '</div>';
+    }
+
+    /**
+     * Render page content without the wrap div (for embedding inside Coaching Hub tabs).
+     */
+    public function render_page_content() {
+        $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
 
         switch ($action) {
             case 'new':
@@ -50,8 +57,6 @@ class HL_Admin_Coach_Assignments {
                 $this->render_list();
                 break;
         }
-
-        echo '</div>';
     }
 
     // =========================================================================
@@ -83,9 +88,9 @@ class HL_Admin_Coach_Assignments {
         ));
 
         if (is_wp_error($result)) {
-            wp_redirect(admin_url('admin.php?page=hl-coach-assignments&action=new&message=error'));
+            wp_redirect(admin_url('admin.php?page=hl-coaching&tab=assignments&action=new&message=error'));
         } else {
-            wp_redirect(admin_url('admin.php?page=hl-coach-assignments&message=created'));
+            wp_redirect(admin_url('admin.php?page=hl-coaching&tab=assignments&message=created'));
         }
         exit;
     }
@@ -105,9 +110,9 @@ class HL_Admin_Coach_Assignments {
         $result  = $service->delete_assignment($id);
 
         if (is_wp_error($result)) {
-            wp_redirect(admin_url('admin.php?page=hl-coach-assignments&message=error'));
+            wp_redirect(admin_url('admin.php?page=hl-coaching&tab=assignments&message=error'));
         } else {
-            wp_redirect(admin_url('admin.php?page=hl-coach-assignments&message=deleted'));
+            wp_redirect(admin_url('admin.php?page=hl-coaching&tab=assignments&message=deleted'));
         }
         exit;
     }
@@ -146,12 +151,13 @@ class HL_Admin_Coach_Assignments {
         }
 
         echo '<h1 class="wp-heading-inline">' . esc_html__('Coach Assignments', 'hl-core') . '</h1>';
-        echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-coach-assignments&action=new')) . '" class="page-title-action">' . esc_html__('Add Assignment', 'hl-core') . '</a>';
+        echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-coaching&tab=assignments&action=new')) . '" class="page-title-action">' . esc_html__('Add Assignment', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
         // Track filter
         echo '<form method="get" style="margin-bottom:15px;">';
-        echo '<input type="hidden" name="page" value="hl-coach-assignments" />';
+        echo '<input type="hidden" name="page" value="hl-coaching" />';
+        echo '<input type="hidden" name="tab" value="assignments" />';
         echo '<label><strong>' . esc_html__('Track:', 'hl-core') . '</strong> </label>';
         echo '<select name="track_id">';
         echo '<option value="">' . esc_html__('All Tracks', 'hl-core') . '</option>';
@@ -207,7 +213,7 @@ class HL_Admin_Coach_Assignments {
             $scope_name = $this->resolve_scope_name($a['scope_type'], $a['scope_id']);
 
             $delete_url = wp_nonce_url(
-                admin_url('admin.php?page=hl-coach-assignments&action=delete&assignment_id=' . $a['coach_assignment_id']),
+                admin_url('admin.php?page=hl-coaching&tab=assignments&action=delete&assignment_id=' . $a['coach_assignment_id']),
                 'hl_delete_coach_assignment_' . $a['coach_assignment_id']
             );
 
@@ -243,12 +249,12 @@ class HL_Admin_Coach_Assignments {
         global $wpdb;
 
         echo '<h1>' . esc_html__('Add Coach Assignment', 'hl-core') . '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-coach-assignments')) . '">&larr; ' . esc_html__('Back to Assignments', 'hl-core') . '</a>';
+        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-coaching&tab=assignments')) . '">&larr; ' . esc_html__('Back to Assignments', 'hl-core') . '</a>';
 
         $tracks = $wpdb->get_results("SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC");
         $staff   = $this->get_staff_users();
 
-        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-coach-assignments')) . '">';
+        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-coaching&tab=assignments')) . '">';
         wp_nonce_field('hl_save_coach_assignment', 'hl_coach_assignment_nonce');
 
         echo '<table class="form-table">';

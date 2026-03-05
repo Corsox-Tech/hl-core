@@ -137,6 +137,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-reporting.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-tracks.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-audit.php';
+            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-settings.php';
         }
         
         // Front-end (shortcodes)

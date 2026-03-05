@@ -20,6 +20,7 @@ class HL_Admin {
         add_action('admin_menu', array($this, 'create_menu'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
         add_action('admin_init', array($this, 'handle_early_actions'));
+        add_action('in_admin_header', array($this, 'render_docs_link'));
     }
 
     /**
@@ -57,9 +58,7 @@ class HL_Admin {
             case 'hl-coaching':
                 HL_Admin_Coaching::instance()->handle_early_actions();
                 break;
-            case 'hl-coach-assignments':
-                HL_Admin_Coach_Assignments::instance()->handle_early_actions();
-                break;
+            // Coach Assignments now handled via hl-coaching tab=assignments
             case 'hl-assessments':
                 HL_Admin_Assessments::instance()->handle_early_actions();
                 break;
@@ -69,39 +68,56 @@ class HL_Admin {
             case 'hl-cohorts':
                 HL_Admin_Cohorts::instance()->handle_early_actions();
                 break;
+            case 'hl-settings':
+                HL_Admin_Settings::instance()->handle_early_actions();
+                break;
         }
     }
 
     public function create_menu() {
+        // Top-level menu — "HL Core" with dashicon
         add_menu_page('HL Core', 'HL Core', 'manage_hl_core', 'hl-tracks', array(HL_Admin_Tracks::instance(), 'render_page'), 'dashicons-welcome-learn-more', 30);
+
+        // ── Primary entities (hierarchical order) ────────────────────
         add_submenu_page('hl-tracks', 'Partnerships', 'Partnerships', 'manage_hl_core', 'hl-tracks', array(HL_Admin_Tracks::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Cohorts', 'Cohorts', 'manage_hl_core', 'hl-cohorts', array(HL_Admin_Cohorts::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Org Units', 'Org Units', 'manage_hl_core', 'hl-orgunits', array(HL_Admin_OrgUnits::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Enrollments', 'Enrollments', 'manage_hl_core', 'hl-enrollments', array(HL_Admin_Enrollments::instance(), 'render_page'));
+
+        // ── Program structure ────────────────────────────────────────
         add_submenu_page('hl-tracks', 'Pathways', 'Pathways & Components', 'manage_hl_core', 'hl-pathways', array(HL_Admin_Pathways::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Teams', 'Teams', 'manage_hl_core', 'hl-teams', array(HL_Admin_Teams::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Classrooms', 'Classrooms', 'manage_hl_core', 'hl-classrooms', array(HL_Admin_Classrooms::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Imports', 'Imports', 'manage_hl_core', 'hl-imports', array(HL_Admin_Imports::instance(), 'render_page'));
+
+        // ── Coaching & Assessments ──────────────────────────────────
+        add_submenu_page('hl-tracks', 'Coaching Hub', 'Coaching Hub', 'manage_hl_core', 'hl-coaching', array(HL_Admin_Coaching::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Assessments', 'Assessments', 'manage_hl_core', 'hl-assessments', array(HL_Admin_Assessments::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Instruments', 'Instruments', 'manage_hl_core', 'hl-instruments', array(HL_Admin_Instruments::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Coaching', 'Coaching Sessions', 'manage_hl_core', 'hl-coaching', array(HL_Admin_Coaching::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Coach Assignments', 'Coach Assignments', 'manage_hl_core', 'hl-coach-assignments', array(HL_Admin_Coach_Assignments::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Cohorts', 'Cohorts', 'manage_hl_core', 'hl-cohorts', array(HL_Admin_Cohorts::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Audit Log', 'Audit Log', 'manage_hl_core', 'hl-audit', array(HL_Admin_Audit::instance(), 'render_page'));
 
-        // Documentation — external link to front-end docs page
-        global $wpdb;
-        $docs_page_id = $wpdb->get_var(
-            "SELECT ID FROM {$wpdb->posts}
-             WHERE post_type = 'page'
-             AND post_status = 'publish'
-             AND post_content LIKE '%[hl_docs%'
-             LIMIT 1"
-        );
-        if ($docs_page_id) {
-            $docs_url = get_permalink($docs_page_id);
-            add_submenu_page('hl-tracks', 'Documentation', 'Documentation', 'manage_hl_core', $docs_url);
+        // ── Reporting & Admin tools ──────────────────────────────────
+        add_submenu_page('hl-tracks', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
+        add_submenu_page('hl-tracks', 'Settings', 'Settings', 'manage_hl_core', 'hl-settings', array(HL_Admin_Settings::instance(), 'render_page'));
+    }
+
+    /**
+     * Render a small documentation link in the admin header bar.
+     * Only visible on HL Core admin pages.
+     */
+    public function render_docs_link() {
+        $screen = get_current_screen();
+        if (!$screen || strpos($screen->id, 'hl-') === false) {
+            return;
         }
+
+        $docs_url = home_url('/documentation/');
+        printf(
+            '<div style="text-align:right;padding:4px 20px 0;margin-bottom:-8px;">'
+            . '<a href="%s" target="_blank" style="text-decoration:none;color:#646970;font-size:13px;">'
+            . '<span class="dashicons dashicons-media-document" style="font-size:16px;vertical-align:text-bottom;margin-right:3px;"></span>'
+            . '%s</a></div>',
+            esc_url($docs_url),
+            esc_html__('Documentation', 'hl-core')
+        );
     }
 
     public function enqueue_assets($hook) {
@@ -121,8 +137,10 @@ class HL_Admin {
             wp_enqueue_script('hl-admin-teacher-editor', HL_CORE_ASSETS_URL . 'js/admin-teacher-editor.js', array(), HL_CORE_VERSION, true);
         }
 
-        // Import wizard assets (only on hl-imports page)
-        if (strpos($hook, 'hl-imports') !== false) {
+        // Import wizard assets (on hl-settings page, imports tab)
+        $is_imports = strpos($hook, 'hl-imports') !== false
+                   || (strpos($hook, 'hl-settings') !== false && (!isset($_GET['tab']) || $_GET['tab'] === 'imports'));
+        if ($is_imports) {
             wp_enqueue_style('hl-admin-import-wizard', HL_CORE_ASSETS_URL . 'css/admin-import-wizard.css', array('hl-admin'), HL_CORE_VERSION);
             wp_enqueue_script('hl-admin-import-wizard', HL_CORE_ASSETS_URL . 'js/admin-import-wizard.js', array('jquery'), HL_CORE_VERSION, true);
             wp_localize_script('hl-admin-import-wizard', 'hl_import_i18n', array(

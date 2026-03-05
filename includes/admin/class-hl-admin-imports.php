@@ -27,9 +27,18 @@ class HL_Admin_Imports {
     }
 
     /**
-     * Render the imports admin page
+     * Render the imports admin page (standalone).
      */
     public function render_page() {
+        echo '<div class="wrap hl-admin-wrap hl-import-wizard-wrap">';
+        $this->render_page_content();
+        echo '</div>';
+    }
+
+    /**
+     * Render page content without the wrap div (for embedding inside Settings hub).
+     */
+    public function render_page_content() {
         global $wpdb;
 
         // Get non-archived tracks for dropdown
@@ -41,7 +50,6 @@ class HL_Admin_Imports {
         $runs = $import_service->get_runs();
 
         ?>
-        <div class="wrap hl-admin-wrap hl-import-wizard-wrap">
             <h1><?php esc_html_e('Imports', 'hl-core'); ?></h1>
 
             <!-- Step Indicator -->
@@ -176,7 +184,6 @@ class HL_Admin_Imports {
             <hr />
             <h2><?php esc_html_e('Import History', 'hl-core'); ?></h2>
             <?php $this->render_history_table($runs); ?>
-        </div>
         <?php
     }
 

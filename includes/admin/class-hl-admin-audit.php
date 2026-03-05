@@ -36,20 +36,27 @@ class HL_Admin_Audit {
     }
 
     /**
-     * Main render entry point
+     * Main render entry point (standalone page — kept for backward compatibility).
      */
     public function render_page() {
+        echo '<div class="wrap">';
+        $this->render_page_content();
+        echo '</div>';
+    }
+
+    /**
+     * Render page content without the wrap div (for embedding inside Settings hub).
+     */
+    public function render_page_content() {
         global $wpdb;
 
-        $filter_track     = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
+        $filter_track       = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
         $filter_action_type = isset($_GET['action_type']) ? sanitize_text_field($_GET['action_type']) : '';
 
-        // Pagination
         $per_page     = 50;
         $current_page = isset($_GET['paged']) ? max(1, absint($_GET['paged'])) : 1;
         $offset       = ($current_page - 1) * $per_page;
 
-        // Build WHERE clauses
         $where_clauses = array();
         $prepare_args  = array();
 
@@ -65,21 +72,16 @@ class HL_Admin_Audit {
 
         $where = '';
         if (!empty($where_clauses)) {
-            $where = ' WHERE ' . implode(' AND ', $where_clauses);
+            $where = 'WHERE ' . implode(' AND ', $where_clauses);
         }
 
-        // Count total
-        $count_sql = "SELECT COUNT(*) FROM {$wpdb->prefix}hl_audit_log al{$where}";
-        if (!empty($prepare_args)) {
-            $total_items = (int) $wpdb->get_var($wpdb->prepare($count_sql, $prepare_args));
-        } else {
-            $total_items = (int) $wpdb->get_var($count_sql);
-        }
-
+        $count_sql   = "SELECT COUNT(*) FROM {$wpdb->prefix}hl_audit_log al {$where}";
+        $total_items = !empty($prepare_args)
+                     ? (int) $wpdb->get_var($wpdb->prepare($count_sql, $prepare_args))
+                     : (int) $wpdb->get_var($count_sql);
         $total_pages = ceil($total_items / $per_page);
 
-        // Fetch rows
-        $sql = "SELECT al.*, u.display_name AS actor_name, t.track_name
+        $sql = "SELECT al.*, t.track_name, u.display_name AS actor_name
                 FROM {$wpdb->prefix}hl_audit_log al
                 LEFT JOIN {$wpdb->users} u ON al.actor_user_id = u.ID
                 LEFT JOIN {$wpdb->prefix}hl_track t ON al.track_id = t.track_id
@@ -90,22 +92,20 @@ class HL_Admin_Audit {
         $limit_args = array_merge($prepare_args, array($per_page, $offset));
         $logs       = $wpdb->get_results($wpdb->prepare($sql, $limit_args));
 
-        // Get distinct action types for filter dropdown
         $action_types = $wpdb->get_col(
             "SELECT DISTINCT action_type FROM {$wpdb->prefix}hl_audit_log ORDER BY action_type ASC"
         );
 
-        // Get tracks for filter
         $tracks = $wpdb->get_results(
             "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
         );
 
-        echo '<div class="wrap">';
         echo '<h1>' . esc_html__('Audit Log', 'hl-core') . '</h1>';
 
         // Filters
         echo '<form method="get" style="margin-bottom:15px;">';
-        echo '<input type="hidden" name="page" value="hl-audit" />';
+        echo '<input type="hidden" name="page" value="hl-settings" />';
+        echo '<input type="hidden" name="tab" value="audit" />';
 
         echo '<label><strong>' . esc_html__('Track:', 'hl-core') . '</strong> </label>';
         echo '<select name="track_id">';
@@ -138,7 +138,6 @@ class HL_Admin_Audit {
 
         if (empty($logs)) {
             echo '<p>' . esc_html__('No audit log entries found.', 'hl-core') . '</p>';
-            echo '</div>';
             return;
         }
 
@@ -188,7 +187,7 @@ class HL_Admin_Audit {
         // Pagination
         if ($total_pages > 1) {
             echo '<div class="tablenav bottom"><div class="tablenav-pages">';
-            $base_url = admin_url('admin.php?page=hl-audit');
+            $base_url = admin_url('admin.php?page=hl-settings&tab=audit');
             if ($filter_track) {
                 $base_url = add_query_arg('track_id', $filter_track, $base_url);
             }
@@ -207,7 +206,5 @@ class HL_Admin_Audit {
 
             echo '</div></div>';
         }
-
-        echo '</div>';
     }
 }

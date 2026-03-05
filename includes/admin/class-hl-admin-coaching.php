@@ -43,6 +43,13 @@ class HL_Admin_Coaching {
      * Handle POST saves and GET deletes before any HTML output.
      */
     public function handle_early_actions() {
+        $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'sessions';
+
+        if ($tab === 'assignments') {
+            HL_Admin_Coach_Assignments::instance()->handle_early_actions();
+            return;
+        }
+
         $this->handle_post_actions();
 
         if (isset($_GET['action']) && $_GET['action'] === 'delete') {
@@ -51,12 +58,49 @@ class HL_Admin_Coaching {
     }
 
     /**
-     * Main render entry point
+     * Main render entry point — Coaching Hub with tabs.
      */
     public function render_page() {
-        $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
+        $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'sessions';
 
         echo '<div class="wrap">';
+        $this->render_hub_tabs($tab);
+
+        if ($tab === 'assignments') {
+            HL_Admin_Coach_Assignments::instance()->render_page_content();
+        } else {
+            $this->render_sessions_content();
+        }
+
+        echo '</div>';
+    }
+
+    /**
+     * Render the Coaching Hub tab navigation.
+     *
+     * @param string $active_tab Currently active tab slug.
+     */
+    private function render_hub_tabs($active_tab) {
+        $tabs = array(
+            'sessions'    => __('Sessions', 'hl-core'),
+            'assignments' => __('Assignments', 'hl-core'),
+        );
+        $base_url = admin_url('admin.php?page=hl-coaching');
+
+        echo '<nav class="nav-tab-wrapper" style="margin-bottom:16px;">';
+        foreach ($tabs as $slug => $label) {
+            $url   = add_query_arg('tab', $slug, $base_url);
+            $class = ($slug === $active_tab) ? 'nav-tab nav-tab-active' : 'nav-tab';
+            printf('<a href="%s" class="%s">%s</a>', esc_url($url), esc_attr($class), esc_html($label));
+        }
+        echo '</nav>';
+    }
+
+    /**
+     * Render the Sessions tab content (original render logic).
+     */
+    private function render_sessions_content() {
+        $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
 
         switch ($action) {
             case 'new':
@@ -79,8 +123,6 @@ class HL_Admin_Coaching {
                 $this->render_list();
                 break;
         }
-
-        echo '</div>';
     }
 
     // =========================================================================
