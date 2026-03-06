@@ -78,6 +78,16 @@
 }
 
 /* =====================================================
+   0. BUDDYBOSS FIXED-HEADER OFFSET
+   BuddyBoss uses a fixed/sticky header that overlaps page
+   content. scroll-padding-top ensures in-page anchors,
+   scrollIntoView, and browser scroll restoration clear it.
+   ===================================================== */
+html {
+    scroll-padding-top: 80px;
+}
+
+/* =====================================================
    1. HIDE BUDDYBOSS THEME PAGE TITLE ON HL PAGES
    ===================================================== */
 

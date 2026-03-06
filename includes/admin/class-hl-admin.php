@@ -95,9 +95,6 @@ class HL_Admin {
             case 'hl-reporting':
                 HL_Admin_Reporting::instance()->handle_early_actions();
                 break;
-            case 'hl-cohorts':
-                HL_Admin_Cohorts::instance()->handle_early_actions();
-                break;
             case 'hl-settings':
                 HL_Admin_Settings::instance()->handle_early_actions();
                 break;
@@ -110,7 +107,6 @@ class HL_Admin {
 
         // ── Primary entities (hierarchical order) ────────────────────
         add_submenu_page('hl-tracks', 'Partnerships', 'Partnerships', 'manage_hl_core', 'hl-tracks', array(HL_Admin_Tracks::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Cohorts', 'Cohorts', 'manage_hl_core', 'hl-cohorts', array(HL_Admin_Cohorts::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Org Units', 'Org Units', 'manage_hl_core', 'hl-orgunits', array(HL_Admin_OrgUnits::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Enrollments', 'Enrollments', 'manage_hl_core', 'hl-enrollments', array(HL_Admin_Enrollments::instance(), 'render_page'));
 
@@ -126,6 +122,11 @@ class HL_Admin {
         // ── Reporting & Admin tools ──────────────────────────────────
         add_submenu_page('hl-tracks', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
         add_submenu_page('hl-tracks', 'Settings', 'Settings', 'manage_hl_core', 'hl-settings', array(HL_Admin_Settings::instance(), 'render_page'));
+
+        // ── Hidden pages (no menu entry, but accessible via URL) ────
+        add_submenu_page(null, 'Instruments', '', 'manage_hl_core', 'hl-instruments', array(HL_Admin_Instruments::instance(), 'render_page'));
+        add_submenu_page(null, 'Assessments (Standalone)', '', 'manage_hl_core', 'hl-assessments', array(HL_Admin_Assessments::instance(), 'render_page'));
+        add_submenu_page(null, 'Cohorts', '', 'manage_hl_core', 'hl-cohorts', array(HL_Admin_Cohorts::instance(), 'render_page'));
     }
 
     public function enqueue_assets($hook) {

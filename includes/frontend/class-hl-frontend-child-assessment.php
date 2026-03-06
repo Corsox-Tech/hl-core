@@ -141,10 +141,11 @@ class HL_Frontend_Child_Assessment {
         if ( ! empty( $_GET['message'] ) ) {
             $msg_key = sanitize_text_field( $_GET['message'] );
             if ( $msg_key === 'submitted' ) {
-                echo '<div class="hl-notice hl-notice-success"><p>' . esc_html__( 'Assessment submitted successfully.', 'hl-core' ) . '</p></div>';
+                echo '<div class="hl-notice hl-notice-success" id="hl-flash-notice"><p>' . esc_html__( 'Assessment submitted successfully.', 'hl-core' ) . '</p></div>';
             } elseif ( $msg_key === 'saved' ) {
-                echo '<div class="hl-notice hl-notice-success"><p>' . esc_html__( 'Draft saved successfully.', 'hl-core' ) . '</p></div>';
+                echo '<div class="hl-notice hl-notice-success" id="hl-flash-notice"><p>' . esc_html__( 'Draft saved successfully.', 'hl-core' ) . '</p></div>';
             }
+            echo '<script>if("scrollRestoration" in history)history.scrollRestoration="manual";window.scrollTo(0,0);</script>';
         }
 
         // ── Route: list view vs. single instance view ────────────────
@@ -801,10 +802,10 @@ class HL_Frontend_Child_Assessment {
         $instance_id = absint( $instance['instance_id'] );
 
         ?>
-        <div class="hl-dashboard hl-child-assessment hl-assessment-form">
+        <div class="hl-dashboard hl-child-assessment hl-assessment-form" id="hl-ca-top">
 
             <?php if ( ! empty( $message ) ) : ?>
-                <div class="hl-notice hl-notice-<?php echo esc_attr( $message_type ); ?>">
+                <div class="hl-notice hl-notice-<?php echo esc_attr( $message_type ); ?>" id="hl-flash-notice">
                     <p><?php echo esc_html( $message ); ?></p>
                 </div>
             <?php endif; ?>
@@ -838,6 +839,13 @@ class HL_Frontend_Child_Assessment {
                 <?php endif; ?>
             </p>
         </div>
+        <script>
+        (function(){
+            if (window.location.hash) return;
+            if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+            window.scrollTo(0, 0);
+        })();
+        </script>
         <?php
     }
 

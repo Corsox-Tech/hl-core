@@ -235,6 +235,20 @@ class HL_Admin_Assessments {
             "SELECT track_id, track_name, status FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
         );
         $selected_track = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
+
+        // Auto-select most recent active track when no explicit selection
+        if (!$selected_track && $tracks) {
+            foreach ($tracks as $t) {
+                if ($t->status === 'active') {
+                    $selected_track = (int) $t->track_id;
+                }
+            }
+            if (!$selected_track) {
+                $last = end($tracks);
+                $selected_track = (int) $last->track_id;
+            }
+        }
+
         $page_param = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'hl-assessment-hub';
         $section_param = isset($_GET['section']) ? sanitize_text_field($_GET['section']) : '';
 
@@ -520,53 +534,121 @@ class HL_Admin_Assessments {
         }
 
         $track_id = $instance['track_id'];
-        $back_url  = admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&tab=teacher');
+        $back_url = admin_url('admin.php?page=hl-assessment-hub&section=teacher-assessments&track_id=' . $track_id);
 
-        echo '<h1>' . esc_html__('Teacher Self-Assessment Detail', 'hl-core') . '</h1>';
-        echo '<a href="' . esc_url($back_url) . '">&larr; ' . esc_html__('Back to Assessments', 'hl-core') . '</a>';
+        echo '<h2>' . esc_html__('Teacher Self-Assessment Detail', 'hl-core') . '</h2>';
+        echo '<a href="' . esc_url($back_url) . '" style="margin-bottom:16px;display:inline-block;">&larr; ' . esc_html__('Back to Assessments', 'hl-core') . '</a>';
 
-        // Instance info
-        echo '<table class="form-table">';
-        echo '<tr><th>' . esc_html__('Instance ID', 'hl-core') . '</th><td>' . esc_html($instance['instance_id']) . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Track', 'hl-core') . '</th><td>' . esc_html($instance['track_name']) . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Teacher', 'hl-core') . '</th><td>' . esc_html($instance['display_name']) . ' (' . esc_html($instance['user_email']) . ')</td></tr>';
-        echo '<tr><th>' . esc_html__('Phase', 'hl-core') . '</th><td><strong>' . esc_html(strtoupper($instance['phase'])) . '</strong></td></tr>';
-        echo '<tr><th>' . esc_html__('Status', 'hl-core') . '</th><td>' . $this->render_status_badge($instance['status']) . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Submitted At', 'hl-core') . '</th><td>' . esc_html($instance['submitted_at'] ?: 'Not yet submitted') . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Created At', 'hl-core') . '</th><td>' . esc_html($instance['created_at']) . '</td></tr>';
-        echo '</table>';
+        // Instance info card
+        echo '<div class="hl-form-section" style="margin-bottom:16px;">';
+        echo '<div class="hl-detail-grid">';
 
-        // Responses (only visible to staff)
-        $responses = $service->get_teacher_assessment_responses($instance_id);
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Instance', 'hl-core') . '</span><span class="hl-detail-value">#' . esc_html($instance['instance_id']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Partnership', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['track_name']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Teacher', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['display_name']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Email', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['user_email']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Cycle', 'hl-core') . '</span><span class="hl-detail-value"><strong>' . esc_html(strtoupper($instance['phase'])) . '</strong></span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Status', 'hl-core') . '</span><span class="hl-detail-value">' . $this->render_status_badge($instance['status']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Submitted', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['submitted_at'] ?: '-') . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Created', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['created_at']) . '</span></div>';
 
-        echo '<hr />';
-        echo '<h2>' . esc_html__('Responses', 'hl-core') . '</h2>';
+        echo '</div></div>';
 
-        if (empty($responses)) {
+        // Responses from responses_json
+        $responses_json = !empty($instance['responses_json']) ? json_decode($instance['responses_json'], true) : null;
+
+        echo '<h3>' . esc_html__('Responses', 'hl-core') . '</h3>';
+
+        if (empty($responses_json)) {
             echo '<p>' . esc_html__('No responses recorded yet.', 'hl-core') . '</p>';
-
             if ($instance['status'] !== 'submitted') {
-                echo '<p class="description">';
-                echo esc_html__('Responses will be recorded when the teacher submits the assessment.', 'hl-core');
-                echo '</p>';
+                echo '<p class="description">' . esc_html__('Responses will appear when the teacher submits.', 'hl-core') . '</p>';
             }
             return;
         }
 
-        echo '<table class="widefat striped">';
-        echo '<thead><tr>';
-        echo '<th style="width:200px;">' . esc_html__('Question ID', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Response', 'hl-core') . '</th>';
-        echo '</tr></thead><tbody>';
+        // Load instrument to get section/question labels
+        $instrument_labels = $this->get_instrument_labels($instance);
 
-        foreach ($responses as $resp) {
-            echo '<tr>';
-            echo '<td><code>' . esc_html($resp['question_id']) . '</code></td>';
-            echo '<td>' . esc_html($resp['value']) . '</td>';
-            echo '</tr>';
+        foreach ($responses_json as $section_key => $questions) {
+            if (!is_array($questions)) {
+                continue;
+            }
+
+            $section_title = isset($instrument_labels['sections'][$section_key])
+                ? $instrument_labels['sections'][$section_key]
+                : ucfirst(str_replace('_', ' ', $section_key));
+
+            echo '<div class="hl-form-section" style="margin-bottom:12px;">';
+            echo '<h3 class="hl-form-section-title">' . esc_html($section_title) . '</h3>';
+            echo '<table class="widefat striped">';
+            echo '<thead><tr>';
+            echo '<th style="width:120px;">' . esc_html__('Question', 'hl-core') . '</th>';
+            echo '<th style="width:80px;">' . esc_html__('Rating', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Label', 'hl-core') . '</th>';
+            echo '</tr></thead><tbody>';
+
+            foreach ($questions as $q_id => $value) {
+                $q_label = isset($instrument_labels['questions'][$section_key][$q_id])
+                    ? $instrument_labels['questions'][$section_key][$q_id]
+                    : '';
+
+                echo '<tr>';
+                echo '<td><code>' . esc_html($q_id) . '</code></td>';
+                echo '<td><strong>' . esc_html($value) . '</strong></td>';
+                echo '<td>' . esc_html($q_label) . '</td>';
+                echo '</tr>';
+            }
+
+            echo '</tbody></table>';
+            echo '</div>';
+        }
+    }
+
+    /**
+     * Load instrument section/question labels for a teacher assessment instance.
+     */
+    private function get_instrument_labels($instance) {
+        $labels = array('sections' => array(), 'questions' => array());
+        $instrument_id = !empty($instance['instrument_id']) ? absint($instance['instrument_id']) : 0;
+        if (!$instrument_id) {
+            return $labels;
         }
 
-        echo '</tbody></table>';
+        global $wpdb;
+        $instrument = $wpdb->get_row($wpdb->prepare(
+            "SELECT sections FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_id = %d",
+            $instrument_id
+        ));
+        if (!$instrument || empty($instrument->sections)) {
+            return $labels;
+        }
+
+        $sections = json_decode($instrument->sections, true);
+        if (!is_array($sections)) {
+            return $labels;
+        }
+
+        foreach ($sections as $sec) {
+            $key = $sec['section_key'];
+            $labels['sections'][$key] = $sec['title'];
+            $labels['questions'][$key] = array();
+
+            if (!empty($sec['questions']) && is_array($sec['questions'])) {
+                foreach ($sec['questions'] as $q) {
+                    $qid = isset($q['key']) ? $q['key'] : (isset($q['id']) ? $q['id'] : '');
+                    if ($qid) $labels['questions'][$key][$qid] = $q['text'];
+                }
+            }
+            if (!empty($sec['items']) && is_array($sec['items'])) {
+                foreach ($sec['items'] as $item) {
+                    $qid = isset($item['key']) ? $item['key'] : (isset($item['id']) ? $item['id'] : '');
+                    if ($qid) $labels['questions'][$key][$qid] = $item['text'];
+                }
+            }
+        }
+
+        return $labels;
     }
 
     // =========================================================================
@@ -583,39 +665,42 @@ class HL_Admin_Assessments {
         }
 
         $track_id = $instance['track_id'];
-        $back_url  = admin_url('admin.php?page=hl-assessments&track_id=' . $track_id . '&tab=children');
+        $back_url = admin_url('admin.php?page=hl-assessment-hub&section=child-assessments&track_id=' . $track_id);
 
-        echo '<h1>' . esc_html__('Child Assessment Detail', 'hl-core') . '</h1>';
-        echo '<a href="' . esc_url($back_url) . '">&larr; ' . esc_html__('Back to Assessments', 'hl-core') . '</a>';
+        echo '<h2>' . esc_html__('Child Assessment Detail', 'hl-core') . '</h2>';
+        echo '<a href="' . esc_url($back_url) . '" style="margin-bottom:16px;display:inline-block;">&larr; ' . esc_html__('Back to Assessments', 'hl-core') . '</a>';
 
-        // Instance info
-        echo '<table class="form-table">';
-        echo '<tr><th>' . esc_html__('Instance ID', 'hl-core') . '</th><td>' . esc_html($instance['instance_id']) . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Track', 'hl-core') . '</th><td>' . esc_html($instance['track_name']) . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Teacher', 'hl-core') . '</th><td>' . esc_html($instance['display_name']) . ' (' . esc_html($instance['user_email']) . ')</td></tr>';
-        echo '<tr><th>' . esc_html__('Classroom', 'hl-core') . '</th><td>' . esc_html($instance['classroom_name']) . '</td></tr>';
-        echo '<tr><th>' . esc_html__('School', 'hl-core') . '</th><td>' . esc_html($instance['school_name']) . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Age Band', 'hl-core') . '</th><td>' . esc_html($instance['instrument_age_band'] ? ucfirst($instance['instrument_age_band']) : 'Needs Review') . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Status', 'hl-core') . '</th><td>' . $this->render_status_badge($instance['status']) . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Submitted At', 'hl-core') . '</th><td>' . esc_html($instance['submitted_at'] ?: 'Not yet submitted') . '</td></tr>';
-        echo '<tr><th>' . esc_html__('Created At', 'hl-core') . '</th><td>' . esc_html($instance['created_at']) . '</td></tr>';
-        echo '</table>';
+        // Instance info card
+        echo '<div class="hl-form-section" style="margin-bottom:16px;">';
+        echo '<div class="hl-detail-grid">';
+
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Instance', 'hl-core') . '</span><span class="hl-detail-value">#' . esc_html($instance['instance_id']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Partnership', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['track_name']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Teacher', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['display_name']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Email', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['user_email']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Classroom', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['classroom_name']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('School', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['school_name']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Age Band', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['instrument_age_band'] ? ucfirst($instance['instrument_age_band']) : 'Needs Review') . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Status', 'hl-core') . '</span><span class="hl-detail-value">' . $this->render_status_badge($instance['status']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Submitted', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['submitted_at'] ?: '-') . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Created', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['created_at']) . '</span></div>';
+
+        echo '</div></div>';
 
         // Child rows
         $childrows = $service->get_child_assessment_childrows($instance_id);
 
-        echo '<hr />';
-        echo '<h2>' . esc_html__('Child Responses', 'hl-core') . '</h2>';
+        echo '<h3 style="margin-top:20px;">' . esc_html__('Child Responses', 'hl-core') . '</h3>';
 
         if (empty($childrows)) {
-            echo '<p>' . esc_html__('No child responses recorded yet.', 'hl-core') . '</p>';
+            echo '<div class="hl-form-section"><p>' . esc_html__('No child responses recorded yet.', 'hl-core') . '</p>';
 
             // Show current classroom roster for reference
             $classroom_service = new HL_Classroom_Service();
             $children = $classroom_service->get_children_in_classroom($instance['classroom_id']);
 
             if (!empty($children)) {
-                echo '<h3>' . esc_html__('Current Classroom Roster', 'hl-core') . '</h3>';
+                echo '<h4>' . esc_html__('Current Classroom Roster', 'hl-core') . '</h4>';
                 echo '<table class="widefat striped">';
                 echo '<thead><tr>';
                 echo '<th>' . esc_html__('Display Code', 'hl-core') . '</th>';
@@ -633,6 +718,7 @@ class HL_Admin_Assessments {
 
                 echo '</tbody></table>';
             }
+            echo '</div>';
             return;
         }
 
@@ -656,13 +742,11 @@ class HL_Admin_Assessments {
                 $rendered_groups[$ag] = $groups[$ag];
             }
         }
-        // Add any unknown groups
         foreach ($groups as $ag => $rows) {
             if (!isset($rendered_groups[$ag])) {
                 $rendered_groups[$ag] = $rows;
             }
         }
-        // Add ungrouped at end
         if (!empty($ungrouped)) {
             $rendered_groups['_ungrouped'] = $ungrouped;
         }
@@ -674,8 +758,9 @@ class HL_Admin_Assessments {
                 $group_label = class_exists('HL_Age_Group_Helper') ? HL_Age_Group_Helper::get_label($ag) : ucfirst($ag);
             }
 
-            echo '<h3 style="margin-top:20px;padding:8px 12px;background:#f0f0f1;border-left:4px solid #2271b1;border-radius:2px;">'
-                . esc_html($group_label) . ' <span style="color:#646970;font-weight:400;">(' . count($group_rows) . ')</span></h3>';
+            echo '<div class="hl-form-section" style="margin-bottom:12px;">';
+            echo '<h3 class="hl-form-section-title">'
+                . esc_html($group_label) . ' <span style="font-weight:400;">(' . count($group_rows) . ')</span></h3>';
 
             // Collect question IDs for this group
             $group_question_ids = array();
@@ -713,14 +798,11 @@ class HL_Admin_Assessments {
                 $name_html = esc_html(trim($cr['first_name'] . ' ' . $cr['last_name']));
                 if (!empty($cr['frozen_age_group'])) {
                     $ag_label = class_exists('HL_Age_Group_Helper') ? HL_Age_Group_Helper::get_label($cr['frozen_age_group']) : ucfirst($cr['frozen_age_group']);
-                    $name_html .= ' <span style="display:inline-block;background:#e7f5ff;color:#1971c2;padding:1px 5px;border-radius:3px;font-size:10px;">'
-                        . esc_html($ag_label) . '</span>';
+                    $name_html .= ' <span class="hl-type-badge">' . esc_html($ag_label) . '</span>';
                 }
                 echo '<td>' . $name_html . '</td>';
                 echo '<td>' . esc_html($cr['child_display_code'] ?: '-') . '</td>';
                 echo '<td>' . esc_html($cr['dob'] ?: '-') . '</td>';
-
-                // Status badge
                 echo '<td>' . $this->render_childrow_status_badge($cr_status) . '</td>';
 
                 foreach ($group_question_ids as $qid) {
@@ -735,6 +817,7 @@ class HL_Admin_Assessments {
             }
 
             echo '</tbody></table>';
+            echo '</div>';
             echo '</div>';
         }
     }

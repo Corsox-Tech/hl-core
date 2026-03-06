@@ -69,10 +69,12 @@ class HL_Frontend_Teacher_Assessment {
         if ( ! empty( $_GET['message'] ) ) {
             $msg_key = sanitize_text_field( $_GET['message'] );
             if ( $msg_key === 'submitted' ) {
-                echo '<div class="hl-notice hl-notice-success"><p>' . esc_html__( 'Assessment submitted successfully.', 'hl-core' ) . '</p></div>';
+                echo '<div class="hl-notice hl-notice-success" id="hl-flash-notice"><p>' . esc_html__( 'Assessment submitted successfully.', 'hl-core' ) . '</p></div>';
             } elseif ( $msg_key === 'saved' ) {
-                echo '<div class="hl-notice hl-notice-success"><p>' . esc_html__( 'Draft saved successfully.', 'hl-core' ) . '</p></div>';
+                echo '<div class="hl-notice hl-notice-success" id="hl-flash-notice"><p>' . esc_html__( 'Draft saved successfully.', 'hl-core' ) . '</p></div>';
             }
+            // Pin scroll to top instantly so the notice is visible above BuddyBoss header
+            echo '<script>if("scrollRestoration" in history)history.scrollRestoration="manual";window.scrollTo(0,0);</script>';
         }
 
         if ( $instance_id > 0 ) {
@@ -364,7 +366,7 @@ class HL_Frontend_Teacher_Assessment {
         $is_submitted = ( $instance['status'] === 'submitted' );
 
         ?>
-        <div class="hl-dashboard hl-teacher-assessment">
+        <div class="hl-dashboard hl-teacher-assessment" id="hl-tsa-top">
             <?php if ( $is_submitted ) : ?>
                 <?php $this->render_submitted_summary( $instance, $instrument, $existing_responses, $pre_responses ); ?>
             <?php else : ?>
@@ -400,6 +402,16 @@ class HL_Frontend_Teacher_Assessment {
                 <?php endif; ?>
             </p>
         </div>
+        <script>
+        // Prevent browser/BuddyBoss from scrolling past the assessment top.
+        // Uses scrollRestoration to stop the browser restoring a mid-page position,
+        // then pins scroll to 0 instantly (no visible jump).
+        (function(){
+            if (window.location.hash) return;
+            if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+            window.scrollTo(0, 0);
+        })();
+        </script>
         <?php
     }
 

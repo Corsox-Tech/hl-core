@@ -1723,6 +1723,21 @@ class HL_Installer {
             KEY status (status)
         ) $charset_collate;";
 
+        // Track email log — per-user, per-phase duplicate prevention for invitation emails
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_track_email_log (
+            log_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            track_id bigint(20) unsigned NOT NULL,
+            phase_id bigint(20) unsigned NOT NULL,
+            user_id bigint(20) unsigned NOT NULL,
+            email_type varchar(20) NOT NULL,
+            recipient_email varchar(255) NOT NULL,
+            sent_at datetime NOT NULL,
+            sent_by bigint(20) unsigned NOT NULL,
+            PRIMARY KEY (log_id),
+            UNIQUE KEY unique_send (track_id, phase_id, user_id),
+            KEY phase_id (phase_id)
+        ) $charset_collate;";
+
         // Cohort table (program-level container — groups tracks for cross-track reporting)
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_cohort (
             cohort_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

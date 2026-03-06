@@ -891,6 +891,103 @@
     margin: var(--hl-a-gap-sm) 0 8px;
 }
 
+/* ---- Compact Form Layout ---- */
+.hl-compact-form {
+    max-width: 100%;
+}
+
+.hl-compact-form .hl-form-section {
+    background: var(--hl-a-surface);
+    border: 1px solid var(--hl-a-border);
+    border-radius: var(--hl-a-radius);
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--hl-a-shadow);
+}
+
+.hl-compact-form .hl-form-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--hl-a-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--hl-a-border-light);
+}
+
+.hl-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 20px;
+}
+
+.hl-form-grid .hl-field-full {
+    grid-column: 1 / -1;
+}
+
+.hl-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--hl-a-text-secondary);
+    margin-bottom: 4px;
+}
+
+.hl-field input[type="text"],
+.hl-field input[type="date"],
+.hl-field input[type="number"],
+.hl-field input[type="email"],
+.hl-field input[type="url"],
+.hl-field select,
+.hl-field textarea {
+    width: 100%;
+}
+
+.hl-field .description {
+    font-size: 11px;
+    color: var(--hl-a-text-muted);
+    margin-top: 3px;
+}
+
+.hl-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--hl-a-text);
+    cursor: pointer;
+}
+
+.hl-checkbox-label input[type="checkbox"] {
+    margin: 0;
+}
+
+/* ---- Detail Grid (assessment detail info cards) ---- */
+.hl-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px 24px;
+}
+.hl-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.hl-detail-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--hl-a-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.hl-detail-value {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--hl-a-text-heading);
+}
+
 /* ---- Responsive ---- */
 @media screen and (max-width: 960px) {
     .hl-sidebar-layout {
@@ -925,6 +1022,10 @@
     .hl-sidebar-nav .hl-sidebar-item.active {
         border-left: none;
         border-bottom-color: var(--hl-a-secondary);
+    }
+
+    .hl-form-grid {
+        grid-template-columns: 1fr;
     }
 
     .hl-metrics-row {
