@@ -1,7 +1,7 @@
 # CLAUDE.md — HL Core Plugin
 
-> **COMMIT CHECKLIST:** 1) Update README.md (build queue checkboxes + "What's Implemented") 2) Commit README.md alongside code 3) A task is NOT done until README.md is updated.
-> **BEFORE CONTEXT COMPACTION:** Commit all code → update README.md with status (`[x]` done, `[~]` partial with notes) → commit & push → THEN compact.
+> **COMMIT CHECKLIST:** 1) Update STATUS.md (build queue checkboxes) + README.md ("What's Implemented") 2) Commit both alongside code 3) A task is NOT done until both are updated.
+> **BEFORE CONTEXT COMPACTION:** Commit all code → update STATUS.md + README.md with status (`[x]` done, `[~]` partial with notes) → commit & push → THEN compact.
 
 ## Project Overview
 WordPress site for Housman Learning Academy. Primary target: **hl-core** custom plugin.
@@ -9,25 +9,26 @@ Products: **B2E Mastery Program** (2-year, 25-course), **Short Courses** (standa
 See `docs/B2E_MASTER_REFERENCE.md` for the complete product catalog.
 
 **Key paths:**
-- **README.md** — Living status tracker. Read FIRST every session.
+- **STATUS.md** — Build queue + task tracking. Read FIRST every session.
+- **README.md** — What's Implemented detail, architecture tree.
 - **docs/** — 11 canonical spec files.
 - **LearnDash:** `../sfwd-lms/` — hooks/functions reference.
 - **data/** — Private Excel files. Gitignored, never commit.
 
 ## Mandatory Workflow Rules
 
-### 1. Always read README.md first
-Read `README.md` at session start to understand what's built and pending.
+### 1. Always read STATUS.md first
+Read `STATUS.md` at session start to see what's done, in-progress, and next.
 
 ### 2. How to continue between sessions
 When user says "continue" / "keep going" / starts a new session: **DO NOT code immediately.**
-1. Read README.md — check Build Queue for `[x]` done, `[~]` in-progress, `[ ]` pending
+1. Read STATUS.md — check Build Queue for `[x]` done, `[~]` in-progress, `[ ]` pending
 2. Report status: last completed, in-progress details, next tasks
 3. Ask: "Should I continue with [specific task], or something else?"
 4. Wait for confirmation before writing code
 
-### 3. ALWAYS update README.md
-After any feature/fix/refactor: update "What's Implemented", check off Build Queue items `[x]`, mark partial `[~]` with notes, update file tree if new files added. Self-check: "Did I update README.md?"
+### 3. ALWAYS update STATUS.md AND README.md
+After any feature/fix/refactor: update STATUS.md (check off build queue items `[x]`, mark partial `[~]`) AND update README.md ("What's Implemented" section, file tree if new files). Self-check: "Did I update BOTH files?"
 
 ### 4. Before context compaction — see top-of-file checklist
 
@@ -70,5 +71,5 @@ Claude Code launches from this directory (plugin root). GitHub: `Corsox-Tech/hl-
 ## On-Demand References
 - **Deployment, SSH, WP-CLI commands:** read `.claude/skills/deploy.md`
 - **Domain architecture, roles, forms, control groups:** read `.claude/skills/architecture.md`
-- **Build status, phases, what's next:** read `STATUS.md`
+- **Full implementation details, architecture tree:** read `README.md`
 - **Doc file index:** in `.claude/skills/architecture.md` (top section)

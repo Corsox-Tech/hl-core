@@ -8,11 +8,11 @@ description: SSH access, deployment commands, WP-CLI, environment targeting, sta
 ## Repository
 - **GitHub:** `https://github.com/Corsox-Tech/hl-core.git`
 - **Branch:** `main` (single-branch workflow)
-- **Git repo root:** `app/public/wp-content/plugins/hl-core/` (git commands must run from here)
+- **Git repo root:** this directory (plugin root) — git commands run from here
 - Private repo — never commit data files or credentials
 
 ## Local Development
-- **Claude Code working directory:** this plugin root (`hl-core/`)
+- **Claude Code working directory:** this directory (plugin root)
 - **Local absolute path:** `C:\Users\MateoGonzalez\Dev Projects Mateo\housman-learning-academy\app\public\wp-content\plugins\hl-core\`
 - Local files are the source of truth for editing. Claude Code edits files here.
 - **Note:** The local WordPress installation exists only as a file editing workspace. Testing happens on the test server.
@@ -145,13 +145,3 @@ node_modules/
 - `wp hl-core nuke --confirm="DELETE ALL DATA"` — **DESTRUCTIVE: Deletes ALL HL Core data** (all hl_* tables truncated, seeded users removed, auto-increment reset). Safety gate: only runs if site URL contains `staging.academy.housmanlearning.com`, `test.academy.housmanlearning.com`, or `.local`.
 - `wp hl-core create-pages [--force] [--status=draft]` — Creates all shortcode WordPress pages
 
-## Environment
-- WordPress files stored locally (Dev Projects folder) — used as editing workspace only
-- **Default target: Test server** (AWS Lightsail) — `https://test.academy.housmanlearning.com`
-- Deployment to test: SCP plugin tarball → extract on server (no Git auto-pull on AWS)
-- Deployment to staging: push to GitHub → auto-pull to Hostinger staging (secondary, not default)
-- Testing: on **test** site via SSH (WP-CLI) and browser (https://test.academy.housmanlearning.com)
-- Database: MariaDB 12.2.2 on AWS Lightsail (test), MySQL on Hostinger (staging)
-- PHP 8.4.18 (test), PHP 7.4+ (staging/production)
-- Claude Code launched from: `housman-learning-academy/` (project root)
-- Git repo is inside: `app/public/wp-content/plugins/hl-core/`
