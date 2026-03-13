@@ -20,33 +20,33 @@ class HL_Phase_Service {
     }
 
     /**
-     * Get all phases for a track, ordered by phase_number.
+     * Get all phases for a partnership, ordered by phase_number.
      *
-     * @param int $track_id
+     * @param int $partnership_id
      * @return HL_Phase[]
      */
-    public function get_phases_for_track($track_id) {
-        return $this->phase_repo->get_by_track(absint($track_id));
+    public function get_phases_for_partnership($partnership_id) {
+        return $this->phase_repo->get_by_partnership(absint($partnership_id));
     }
 
     /**
-     * Get the active phase for a track.
+     * Get the active phase for a partnership.
      *
-     * @param int $track_id
+     * @param int $partnership_id
      * @return HL_Phase|null
      */
-    public function get_active_phase($track_id) {
-        return $this->phase_repo->get_active_phase(absint($track_id));
+    public function get_active_phase($partnership_id) {
+        return $this->phase_repo->get_active_phase(absint($partnership_id));
     }
 
     /**
-     * Get the default (first) phase for a track.
+     * Get the default (first) phase for a partnership.
      *
-     * @param int $track_id
+     * @param int $partnership_id
      * @return HL_Phase|null
      */
-    public function get_default_phase($track_id) {
-        return $this->phase_repo->get_default_phase(absint($track_id));
+    public function get_default_phase($partnership_id) {
+        return $this->phase_repo->get_default_phase(absint($partnership_id));
     }
 
     /**
@@ -62,28 +62,28 @@ class HL_Phase_Service {
     /**
      * Create a new phase.
      *
-     * @param array $data Must include track_id, phase_name. phase_number auto-increments if not set.
+     * @param array $data Must include partnership_id, phase_name. phase_number auto-increments if not set.
      * @return int|WP_Error Phase ID on success.
      */
     public function create_phase($data) {
-        if (empty($data['track_id']) || empty($data['phase_name'])) {
-            return new WP_Error('missing_fields', __('Track and phase name are required.', 'hl-core'));
+        if (empty($data['partnership_id']) || empty($data['phase_name'])) {
+            return new WP_Error('missing_fields', __('Partnership and phase name are required.', 'hl-core'));
         }
 
-        $track_id = absint($data['track_id']);
+        $partnership_id = absint($data['partnership_id']);
 
         // Auto-assign phase_number if not provided.
         if (empty($data['phase_number'])) {
-            $existing = $this->phase_repo->get_by_track($track_id);
+            $existing = $this->phase_repo->get_by_partnership($partnership_id);
             $data['phase_number'] = count($existing) + 1;
         }
 
-        // Validate unique phase_number per track.
-        $existing_phases = $this->phase_repo->get_by_track($track_id);
+        // Validate unique phase_number per partnership.
+        $existing_phases = $this->phase_repo->get_by_partnership($partnership_id);
         foreach ($existing_phases as $phase) {
             if ((int) $phase->phase_number === (int) $data['phase_number']) {
                 return new WP_Error('duplicate_number', sprintf(
-                    __('Phase number %d already exists for this track.', 'hl-core'),
+                    __('Phase number %d already exists for this partnership.', 'hl-core'),
                     $data['phase_number']
                 ));
             }
@@ -95,10 +95,10 @@ class HL_Phase_Service {
             HL_Audit_Service::log(
                 'phase_created',
                 get_current_user_id(),
-                $track_id,
+                $partnership_id,
                 null,
                 $phase_id,
-                sprintf('Phase "%s" created for track #%d', $data['phase_name'], $track_id)
+                sprintf('Phase "%s" created for partnership #%d', $data['phase_name'], $partnership_id)
             );
         }
 
@@ -122,11 +122,11 @@ class HL_Phase_Service {
 
         // If changing phase_number, validate uniqueness.
         if (isset($data['phase_number']) && (int) $data['phase_number'] !== (int) $existing->phase_number) {
-            $siblings = $this->phase_repo->get_by_track($existing->track_id);
+            $siblings = $this->phase_repo->get_by_partnership($existing->partnership_id);
             foreach ($siblings as $sibling) {
                 if ((int) $sibling->phase_id !== $phase_id && (int) $sibling->phase_number === (int) $data['phase_number']) {
                     return new WP_Error('duplicate_number', sprintf(
-                        __('Phase number %d already exists for this track.', 'hl-core'),
+                        __('Phase number %d already exists for this partnership.', 'hl-core'),
                         $data['phase_number']
                     ));
                 }
@@ -139,7 +139,7 @@ class HL_Phase_Service {
             HL_Audit_Service::log(
                 'phase_updated',
                 get_current_user_id(),
-                $existing->track_id,
+                $existing->partnership_id,
                 null,
                 $phase_id,
                 sprintf('Phase #%d updated', $phase_id)
@@ -177,10 +177,10 @@ class HL_Phase_Service {
             HL_Audit_Service::log(
                 'phase_deleted',
                 get_current_user_id(),
-                $existing->track_id,
+                $existing->partnership_id,
                 null,
                 $phase_id,
-                sprintf('Phase "%s" deleted from track #%d', $existing->phase_name, $existing->track_id)
+                sprintf('Phase "%s" deleted from partnership #%d', $existing->phase_name, $existing->partnership_id)
             );
         }
 
@@ -188,17 +188,17 @@ class HL_Phase_Service {
     }
 
     /**
-     * Auto-create a single Phase + Pathway + Activity for course-type tracks.
+     * Auto-create a single Phase + Pathway + Activity for course-type partnerships.
      *
-     * @param int    $track_id
+     * @param int    $partnership_id
      * @param string $course_name
      * @return int|WP_Error Phase ID on success.
      */
-    public function auto_create_for_course_track($track_id, $course_name = '') {
-        // TODO: Implement when course-type track UI is built.
+    public function auto_create_for_course_partnership($partnership_id, $course_name = '') {
+        // TODO: Implement when course-type partnership UI is built.
         // Creates: Phase 1 (active) → single Pathway → single LD course Activity
         return $this->create_phase(array(
-            'track_id'     => absint($track_id),
+            'partnership_id'     => absint($partnership_id),
             'phase_name'   => 'Phase 1',
             'phase_number' => 1,
             'status'       => 'active',

@@ -3,7 +3,7 @@
  * Cohort Service (Container Entity)
  *
  * CRUD and queries for hl_cohort — the top-level container that groups
- * related tracks (e.g. program + control tracks under one umbrella).
+ * related partnerships (e.g. program + control partnerships under one umbrella).
  *
  * @package HL_Core
  */
@@ -126,7 +126,7 @@ class HL_Cohort_Service {
     /**
      * Delete a cohort.
      *
-     * Only allowed if no tracks are linked to this cohort.
+     * Only allowed if no partnerships are linked to this cohort.
      *
      * @param int $cohort_id
      * @return true|WP_Error
@@ -134,13 +134,13 @@ class HL_Cohort_Service {
     public function delete_cohort($cohort_id) {
         global $wpdb;
 
-        $track_count = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_track WHERE cohort_id = %d",
+        $partnership_count = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_partnership WHERE cohort_id = %d",
             $cohort_id
         ));
 
-        if ($track_count > 0) {
-            return new WP_Error('has_tracks', __('Cannot delete a cohort that has linked tracks. Remove or unlink the tracks first.', 'hl-core'));
+        if ($partnership_count > 0) {
+            return new WP_Error('has_partnerships', __('Cannot delete a cohort that has linked partnerships. Remove or unlink the partnerships first.', 'hl-core'));
         }
 
         $wpdb->delete($wpdb->prefix . 'hl_cohort', array('cohort_id' => absint($cohort_id)));
@@ -149,16 +149,16 @@ class HL_Cohort_Service {
     }
 
     /**
-     * Get all tracks belonging to a cohort.
+     * Get all partnerships belonging to a cohort.
      *
      * @param int $cohort_id
-     * @return array Array of track rows (ARRAY_A).
+     * @return array Array of partnership rows (ARRAY_A).
      */
-    public function get_tracks_for_cohort($cohort_id) {
+    public function get_partnerships_for_cohort($cohort_id) {
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_track WHERE cohort_id = %d ORDER BY track_name ASC",
+            "SELECT * FROM {$wpdb->prefix}hl_partnership WHERE cohort_id = %d ORDER BY partnership_name ASC",
             $cohort_id
         ), ARRAY_A) ?: array();
     }

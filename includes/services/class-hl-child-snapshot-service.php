@@ -1,6 +1,6 @@
 <?php
 /**
- * Child Snapshot Service — freezes age groups per child per track
+ * Child Snapshot Service — freezes age groups per child per partnership
  *
  * @package HL_Core
  */
@@ -12,36 +12,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 class HL_Child_Snapshot_Service {
 
     /**
-     * Freeze age groups for all children in classrooms linked to a track.
+     * Freeze age groups for all children in classrooms linked to a partnership.
      *
-     * Skips children that already have a snapshot for this track.
+     * Skips children that already have a snapshot for this partnership.
      *
-     * @param int         $track_id       Track ID.
+     * @param int         $partnership_id       Partnership ID.
      * @param string|null $reference_date Reference date (Y-m-d) for age calculation. Defaults to today.
      * @return int Count of newly frozen snapshots.
      */
-    public static function freeze_age_groups( $track_id, $reference_date = null ) {
+    public static function freeze_age_groups( $partnership_id, $reference_date = null ) {
         global $wpdb;
 
-        // Get all children in classrooms linked to this track via teaching assignments.
+        // Get all children in classrooms linked to this partnership via teaching assignments.
         $children = $wpdb->get_results( $wpdb->prepare(
             "SELECT DISTINCT ch.child_id, ch.dob
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
              JOIN {$wpdb->prefix}hl_child_classroom_current cc ON ta.classroom_id = cc.classroom_id AND cc.status = 'active'
              JOIN {$wpdb->prefix}hl_child ch ON cc.child_id = ch.child_id
-             WHERE e.track_id = %d AND e.status = 'active'",
-            $track_id
+             WHERE e.partnership_id = %d AND e.status = 'active'",
+            $partnership_id
         ) );
 
         if ( empty( $children ) ) {
             return 0;
         }
 
-        // Get existing snapshots for this track to skip duplicates.
+        // Get existing snapshots for this partnership to skip duplicates.
         $existing = $wpdb->get_col( $wpdb->prepare(
-            "SELECT child_id FROM {$wpdb->prefix}hl_child_track_snapshot WHERE track_id = %d",
-            $track_id
+            "SELECT child_id FROM {$wpdb->prefix}hl_child_partnership_snapshot WHERE partnership_id = %d",
+            $partnership_id
         ) );
         $existing_map = array_flip( $existing );
 
@@ -60,10 +60,10 @@ class HL_Child_Snapshot_Service {
             $age_months = HL_Age_Group_Helper::calculate_age_months( $child->dob, $reference_date );
 
             $wpdb->insert(
-                $wpdb->prefix . 'hl_child_track_snapshot',
+                $wpdb->prefix . 'hl_child_partnership_snapshot',
                 array(
                     'child_id'             => absint( $child->child_id ),
-                    'track_id'             => absint( $track_id ),
+                    'partnership_id'             => absint( $partnership_id ),
                     'frozen_age_group'     => $age_group,
                     'dob_at_freeze'        => $child->dob,
                     'age_months_at_freeze' => $age_months,
@@ -79,53 +79,53 @@ class HL_Child_Snapshot_Service {
     }
 
     /**
-     * Get the frozen age group for a single child in a track.
+     * Get the frozen age group for a single child in a partnership.
      *
      * @param int $child_id Child ID.
-     * @param int $track_id Track ID.
+     * @param int $partnership_id Partnership ID.
      * @return string|null Frozen age group slug, or null if no snapshot.
      */
-    public static function get_frozen_age_group( $child_id, $track_id ) {
+    public static function get_frozen_age_group( $child_id, $partnership_id ) {
         global $wpdb;
 
         return $wpdb->get_var( $wpdb->prepare(
-            "SELECT frozen_age_group FROM {$wpdb->prefix}hl_child_track_snapshot
-             WHERE child_id = %d AND track_id = %d",
+            "SELECT frozen_age_group FROM {$wpdb->prefix}hl_child_partnership_snapshot
+             WHERE child_id = %d AND partnership_id = %d",
             $child_id,
-            $track_id
+            $partnership_id
         ) );
     }
 
     /**
-     * Get full snapshot row for a child in a track.
+     * Get full snapshot row for a child in a partnership.
      *
      * @param int $child_id Child ID.
-     * @param int $track_id Track ID.
+     * @param int $partnership_id Partnership ID.
      * @return object|null Snapshot row.
      */
-    public static function get_snapshot( $child_id, $track_id ) {
+    public static function get_snapshot( $child_id, $partnership_id ) {
         global $wpdb;
 
         return $wpdb->get_row( $wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_child_track_snapshot
-             WHERE child_id = %d AND track_id = %d",
+            "SELECT * FROM {$wpdb->prefix}hl_child_partnership_snapshot
+             WHERE child_id = %d AND partnership_id = %d",
             $child_id,
-            $track_id
+            $partnership_id
         ) );
     }
 
     /**
-     * Get all snapshots for a track, keyed by child_id.
+     * Get all snapshots for a partnership, keyed by child_id.
      *
-     * @param int $track_id Track ID.
+     * @param int $partnership_id Partnership ID.
      * @return array Keyed by child_id.
      */
-    public static function get_snapshots_for_track( $track_id ) {
+    public static function get_snapshots_for_partnership( $partnership_id ) {
         global $wpdb;
 
         $rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_child_track_snapshot WHERE track_id = %d",
-            $track_id
+            "SELECT * FROM {$wpdb->prefix}hl_child_partnership_snapshot WHERE partnership_id = %d",
+            $partnership_id
         ) );
 
         $keyed = array();
@@ -137,24 +137,24 @@ class HL_Child_Snapshot_Service {
     }
 
     /**
-     * Get snapshots for children currently in a specific classroom for a track.
+     * Get snapshots for children currently in a specific classroom for a partnership.
      *
      * Joins snapshots with active classroom assignments.
      *
      * @param int $classroom_id Classroom ID.
-     * @param int $track_id     Track ID.
+     * @param int $partnership_id     Partnership ID.
      * @return array Keyed by child_id.
      */
-    public static function get_snapshots_for_classroom( $classroom_id, $track_id ) {
+    public static function get_snapshots_for_classroom( $classroom_id, $partnership_id ) {
         global $wpdb;
 
         $rows = $wpdb->get_results( $wpdb->prepare(
             "SELECT s.*
-             FROM {$wpdb->prefix}hl_child_track_snapshot s
+             FROM {$wpdb->prefix}hl_child_partnership_snapshot s
              JOIN {$wpdb->prefix}hl_child_classroom_current cc ON s.child_id = cc.child_id
-             WHERE cc.classroom_id = %d AND cc.status = 'active' AND s.track_id = %d",
+             WHERE cc.classroom_id = %d AND cc.status = 'active' AND s.partnership_id = %d",
             $classroom_id,
-            $track_id
+            $partnership_id
         ) );
 
         $keyed = array();
@@ -168,18 +168,18 @@ class HL_Child_Snapshot_Service {
     /**
      * Ensure a snapshot exists for a single child. Creates one if needed.
      *
-     * Used when a teacher adds a child mid-track.
+     * Used when a teacher adds a child mid-partnership.
      *
      * @param int         $child_id Child ID.
-     * @param int         $track_id Track ID.
+     * @param int         $partnership_id Partnership ID.
      * @param string|null $dob      Date of birth (Y-m-d). If null, reads from hl_child.
      * @return string|null The frozen age group, or null if no DOB available.
      */
-    public static function ensure_snapshot( $child_id, $track_id, $dob = null ) {
+    public static function ensure_snapshot( $child_id, $partnership_id, $dob = null ) {
         global $wpdb;
 
         // Check if snapshot already exists.
-        $existing = self::get_frozen_age_group( $child_id, $track_id );
+        $existing = self::get_frozen_age_group( $child_id, $partnership_id );
         if ( $existing !== null ) {
             return $existing;
         }
@@ -200,10 +200,10 @@ class HL_Child_Snapshot_Service {
         $age_months = HL_Age_Group_Helper::calculate_age_months( $dob );
 
         $wpdb->insert(
-            $wpdb->prefix . 'hl_child_track_snapshot',
+            $wpdb->prefix . 'hl_child_partnership_snapshot',
             array(
                 'child_id'             => absint( $child_id ),
-                'track_id'             => absint( $track_id ),
+                'partnership_id'             => absint( $partnership_id ),
                 'frozen_age_group'     => $age_group,
                 'dob_at_freeze'        => $dob,
                 'age_months_at_freeze' => $age_months,
