@@ -20,6 +20,9 @@ class HL_Admin {
         add_action('admin_menu', array($this, 'create_menu'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
         add_action('admin_init', array($this, 'handle_early_actions'));
+
+        // Eagerly instantiate Partnerships so its AJAX hooks register on admin-ajax.php requests.
+        HL_Admin_Partnerships::instance();
     }
 
     /**
@@ -61,8 +64,8 @@ class HL_Admin {
         $page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
 
         switch ($page) {
-            case 'hl-tracks':
-                HL_Admin_Tracks::instance()->handle_early_actions();
+            case 'hl-partnerships':
+                HL_Admin_Partnerships::instance()->handle_early_actions();
                 break;
             case 'hl-orgunits':
                 HL_Admin_OrgUnits::instance()->handle_early_actions();
@@ -103,25 +106,25 @@ class HL_Admin {
 
     public function create_menu() {
         // Top-level menu — "HL Core" with dashicon
-        add_menu_page('HL Core', 'HL Core', 'manage_hl_core', 'hl-tracks', array(HL_Admin_Tracks::instance(), 'render_page'), 'dashicons-welcome-learn-more', 30);
+        add_menu_page('HL Core', 'HL Core', 'manage_hl_core', 'hl-partnerships', array(HL_Admin_Partnerships::instance(), 'render_page'), 'dashicons-welcome-learn-more', 30);
 
         // ── Primary entities (hierarchical order) ────────────────────
-        add_submenu_page('hl-tracks', 'Partnerships', 'Partnerships', 'manage_hl_core', 'hl-tracks', array(HL_Admin_Tracks::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Org Units', 'Org Units', 'manage_hl_core', 'hl-orgunits', array(HL_Admin_OrgUnits::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Enrollments', 'Enrollments', 'manage_hl_core', 'hl-enrollments', array(HL_Admin_Enrollments::instance(), 'render_page'));
+        add_submenu_page('hl-partnerships', 'Partnerships', 'Partnerships', 'manage_hl_core', 'hl-partnerships', array(HL_Admin_Partnerships::instance(), 'render_page'));
+        add_submenu_page('hl-partnerships', 'Org Units', 'Org Units', 'manage_hl_core', 'hl-orgunits', array(HL_Admin_OrgUnits::instance(), 'render_page'));
+        add_submenu_page('hl-partnerships', 'Enrollments', 'Enrollments', 'manage_hl_core', 'hl-enrollments', array(HL_Admin_Enrollments::instance(), 'render_page'));
 
         // ── Program structure ────────────────────────────────────────
-        add_submenu_page('hl-tracks', 'Pathways', 'Pathways & Components', 'manage_hl_core', 'hl-pathways', array(HL_Admin_Pathways::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Teams', 'Teams', 'manage_hl_core', 'hl-teams', array(HL_Admin_Teams::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Classrooms', 'Classrooms', 'manage_hl_core', 'hl-classrooms', array(HL_Admin_Classrooms::instance(), 'render_page'));
+        add_submenu_page('hl-partnerships', 'Pathways', 'Pathways & Components', 'manage_hl_core', 'hl-pathways', array(HL_Admin_Pathways::instance(), 'render_page'));
+        add_submenu_page('hl-partnerships', 'Teams', 'Teams', 'manage_hl_core', 'hl-teams', array(HL_Admin_Teams::instance(), 'render_page'));
+        add_submenu_page('hl-partnerships', 'Classrooms', 'Classrooms', 'manage_hl_core', 'hl-classrooms', array(HL_Admin_Classrooms::instance(), 'render_page'));
 
         // ── Coaching & Assessments ──────────────────────────────────
-        add_submenu_page('hl-tracks', 'Coaching Hub', 'Coaching Hub', 'manage_hl_core', 'hl-coaching', array(HL_Admin_Coaching::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Assessments', 'Assessments', 'manage_hl_core', 'hl-assessment-hub', array(HL_Admin_Assessment_Hub::instance(), 'render_page'));
+        add_submenu_page('hl-partnerships', 'Coaching Hub', 'Coaching Hub', 'manage_hl_core', 'hl-coaching', array(HL_Admin_Coaching::instance(), 'render_page'));
+        add_submenu_page('hl-partnerships', 'Assessments', 'Assessments', 'manage_hl_core', 'hl-assessment-hub', array(HL_Admin_Assessment_Hub::instance(), 'render_page'));
 
         // ── Reporting & Admin tools ──────────────────────────────────
-        add_submenu_page('hl-tracks', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
-        add_submenu_page('hl-tracks', 'Settings', 'Settings', 'manage_hl_core', 'hl-settings', array(HL_Admin_Settings::instance(), 'render_page'));
+        add_submenu_page('hl-partnerships', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
+        add_submenu_page('hl-partnerships', 'Settings', 'Settings', 'manage_hl_core', 'hl-settings', array(HL_Admin_Settings::instance(), 'render_page'));
 
         // ── Hidden pages (no menu entry, but accessible via URL) ────
         add_submenu_page(null, 'Instruments', '', 'manage_hl_core', 'hl-instruments', array(HL_Admin_Instruments::instance(), 'render_page'));
@@ -159,7 +162,7 @@ class HL_Admin {
                 'nonce_upload'       => wp_create_nonce('hl_import_upload'),
                 'nonce_commit'       => wp_create_nonce('hl_import_commit'),
                 'nonce_error_report' => wp_create_nonce('hl_import_error_report'),
-                'select_track'       => __('Please select a track.', 'hl-core'),
+                'select_partnership'       => __('Please select a partnership.', 'hl-core'),
                 'select_file'        => __('Please select a CSV file.', 'hl-core'),
                 'uploading'          => __('Uploading and validating...', 'hl-core'),
                 'committing'         => __('Committing import...', 'hl-core'),

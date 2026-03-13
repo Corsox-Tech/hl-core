@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * Admin Cohorts Page
  *
- * Manage cohorts (program-level grouping for cross-track reporting).
+ * Manage cohorts (program-level grouping for cross-partnership reporting).
  * Full CRUD: list, create, edit, delete.
  *
  * @package HL_Core
@@ -136,9 +136,9 @@ class HL_Admin_Cohorts {
 
         global $wpdb;
 
-        // Unlink any tracks from this cohort.
+        // Unlink any partnerships from this cohort.
         $wpdb->update(
-            $wpdb->prefix . 'hl_track',
+            $wpdb->prefix . 'hl_partnership',
             array('cohort_id' => null),
             array('cohort_id' => $cohort_id)
         );
@@ -182,28 +182,28 @@ class HL_Admin_Cohorts {
         echo '<h1 class="wp-heading-inline">' . esc_html__('Cohorts', 'hl-core') . '</h1>';
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-cohorts&action=new')) . '" class="page-title-action">' . esc_html__('Add New', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
-        echo '<p class="description">' . esc_html__('Cohorts allow you to aggregate multiple tracks under one program for cross-track reporting.', 'hl-core') . '</p>';
+        echo '<p class="description">' . esc_html__('Cohorts allow you to aggregate multiple partnerships under one program for cross-partnership reporting.', 'hl-core') . '</p>';
 
         $cohorts = $wpdb->get_results(
             "SELECT * FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC",
             ARRAY_A
         );
 
-        // Count tracks per cohort.
-        $track_counts = array();
+        // Count partnerships per cohort.
+        $partnership_counts = array();
         $counts = $wpdb->get_results(
             "SELECT cohort_id, COUNT(*) AS cnt
-             FROM {$wpdb->prefix}hl_track
+             FROM {$wpdb->prefix}hl_partnership
              WHERE cohort_id IS NOT NULL
              GROUP BY cohort_id",
             ARRAY_A
         );
         foreach ($counts ?: array() as $row) {
-            $track_counts[$row['cohort_id']] = (int) $row['cnt'];
+            $partnership_counts[$row['cohort_id']] = (int) $row['cnt'];
         }
 
         if (empty($cohorts)) {
-            echo '<p>' . esc_html__('No cohorts found. Create your first cohort to start aggregating tracks.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No cohorts found. Create your first cohort to start aggregating partnerships.', 'hl-core') . '</p>';
             return;
         }
 
@@ -213,7 +213,7 @@ class HL_Admin_Cohorts {
         echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Code', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Tracks', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Partnerships', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Description', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead>';
@@ -227,18 +227,18 @@ class HL_Admin_Cohorts {
             );
 
             $status_color = $c['status'] === 'active' ? '#00a32a' : '#8c8f94';
-            $num_tracks   = isset($track_counts[$c['cohort_id']]) ? $track_counts[$c['cohort_id']] : 0;
+            $num_partnerships   = isset($partnership_counts[$c['cohort_id']]) ? $partnership_counts[$c['cohort_id']] : 0;
 
             echo '<tr>';
             echo '<td>' . esc_html($c['cohort_id']) . '</td>';
             echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($c['cohort_name']) . '</a></strong></td>';
             echo '<td><code>' . esc_html($c['cohort_code']) . '</code></td>';
             echo '<td><span style="color:' . esc_attr($status_color) . '; font-weight:600;">' . esc_html(ucfirst($c['status'])) . '</span></td>';
-            echo '<td>' . esc_html($num_tracks) . '</td>';
+            echo '<td>' . esc_html($num_partnerships) . '</td>';
             echo '<td>' . esc_html(wp_trim_words($c['description'] ?: '', 12, '...')) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
-            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Delete this cohort? Tracks will be unlinked but not deleted.', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
+            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Delete this cohort? Partnerships will be unlinked but not deleted.', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
             echo '</td>';
             echo '</tr>';
         }
@@ -308,46 +308,46 @@ class HL_Admin_Cohorts {
 
         // If editing, show linked tracks.
         if ($is_edit) {
-            $this->render_linked_tracks($cohort['cohort_id']);
+            $this->render_linked_partnerships($cohort['cohort_id']);
         }
     }
 
     /**
-     * Render the tracks linked to this cohort.
+     * Render the partnerships linked to this cohort.
      *
      * @param int $cohort_id
      */
-    private function render_linked_tracks($cohort_id) {
+    private function render_linked_partnerships($cohort_id) {
         global $wpdb;
 
-        $tracks = $wpdb->get_results($wpdb->prepare(
-            "SELECT track_id, track_name, track_code, status, start_date
-             FROM {$wpdb->prefix}hl_track
+        $partnerships = $wpdb->get_results($wpdb->prepare(
+            "SELECT partnership_id, partnership_name, partnership_code, status, start_date
+             FROM {$wpdb->prefix}hl_partnership
              WHERE cohort_id = %d
-             ORDER BY track_name ASC",
+             ORDER BY partnership_name ASC",
             $cohort_id
         ), ARRAY_A);
 
         echo '<hr>';
-        echo '<h2>' . esc_html__('Linked Tracks', 'hl-core') . ' ';
-        echo '<span class="count">(' . count($tracks) . ')</span></h2>';
-        echo '<p class="description">' . esc_html__('To add a track to this cohort, edit the track and select this cohort from the Cohort dropdown on the Details tab.', 'hl-core') . '</p>';
+        echo '<h2>' . esc_html__('Linked Partnerships', 'hl-core') . ' ';
+        echo '<span class="count">(' . count($partnerships) . ')</span></h2>';
+        echo '<p class="description">' . esc_html__('To add a partnership to this cohort, edit the partnership and select this cohort from the Cohort dropdown on the Details tab.', 'hl-core') . '</p>';
 
-        if (empty($tracks)) {
-            echo '<p>' . esc_html__('No tracks are linked to this cohort yet.', 'hl-core') . '</p>';
+        if (empty($partnerships)) {
+            echo '<p>' . esc_html__('No partnerships are linked to this cohort yet.', 'hl-core') . '</p>';
             return;
         }
 
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
-        echo '<th>' . esc_html__('Track Name', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Partnership Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Code', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Start Date', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead><tbody>';
 
-        foreach ($tracks as $t) {
+        foreach ($partnerships as $t) {
             $status_colors = array(
                 'active' => '#00a32a', 'draft' => '#996800',
                 'paused' => '#b32d2e', 'archived' => '#8c8f94',
@@ -355,11 +355,11 @@ class HL_Admin_Cohorts {
             $sc = isset($status_colors[$t['status']]) ? $status_colors[$t['status']] : '#666';
 
             echo '<tr>';
-            echo '<td><strong><a href="' . esc_url(admin_url('admin.php?page=hl-tracks&action=edit&id=' . $t['track_id'])) . '">' . esc_html($t['track_name']) . '</a></strong></td>';
-            echo '<td><code>' . esc_html($t['track_code']) . '</code></td>';
+            echo '<td><strong><a href="' . esc_url(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $t['partnership_id'])) . '">' . esc_html($t['partnership_name']) . '</a></strong></td>';
+            echo '<td><code>' . esc_html($t['partnership_code']) . '</code></td>';
             echo '<td><span style="color:' . esc_attr($sc) . '; font-weight:600;">' . esc_html(ucfirst($t['status'])) . '</span></td>';
             echo '<td>' . esc_html($t['start_date']) . '</td>';
-            echo '<td><a href="' . esc_url(admin_url('admin.php?page=hl-tracks&action=edit&id=' . $t['track_id'])) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a></td>';
+            echo '<td><a href="' . esc_url(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $t['partnership_id'])) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a></td>';
             echo '</tr>';
         }
 

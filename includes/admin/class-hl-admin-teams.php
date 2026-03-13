@@ -125,25 +125,25 @@ class HL_Admin_Teams {
 
         $data = array(
             'team_name'  => sanitize_text_field($_POST['team_name']),
-            'track_id' => absint($_POST['track_id']),
+            'partnership_id' => absint($_POST['partnership_id']),
             'school_id'  => absint($_POST['school_id']),
             'status'     => sanitize_text_field($_POST['status']),
         );
 
-        $track_context = isset($_POST['_hl_track_context']) ? absint($_POST['_hl_track_context']) : 0;
+        $partnership_context = isset($_POST['_hl_partnership_context']) ? absint($_POST['_hl_partnership_context']) : 0;
 
         if ($team_id > 0) {
             $wpdb->update($wpdb->prefix . 'hl_team', $data, array('team_id' => $team_id));
-            if ($track_context) {
-                $redirect = admin_url('admin.php?page=hl-tracks&action=edit&id=' . $track_context . '&tab=teams&message=team_updated');
+            if ($partnership_context) {
+                $redirect = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_context . '&tab=teams&message=team_updated');
             } else {
                 $redirect = admin_url('admin.php?page=hl-teams&message=updated');
             }
         } else {
             $data['team_uuid'] = HL_DB_Utils::generate_uuid();
             $wpdb->insert($wpdb->prefix . 'hl_team', $data);
-            if ($track_context) {
-                $redirect = admin_url('admin.php?page=hl-tracks&action=edit&id=' . $track_context . '&tab=teams&message=team_created');
+            if ($partnership_context) {
+                $redirect = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_context . '&tab=teams&message=team_created');
             } else {
                 $redirect = admin_url('admin.php?page=hl-teams&message=created');
             }
@@ -174,9 +174,9 @@ class HL_Admin_Teams {
         global $wpdb;
         $wpdb->delete($wpdb->prefix . 'hl_team', array('team_id' => $team_id));
 
-        $track_context = isset($_GET['track_context']) ? absint($_GET['track_context']) : 0;
-        if ($track_context) {
-            wp_redirect(admin_url('admin.php?page=hl-tracks&action=edit&id=' . $track_context . '&tab=teams&message=team_deleted'));
+        $partnership_context = isset($_GET['partnership_context']) ? absint($_GET['partnership_context']) : 0;
+        if ($partnership_context) {
+            wp_redirect(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_context . '&tab=teams&message=team_deleted'));
         } else {
             wp_redirect(admin_url('admin.php?page=hl-teams&message=deleted'));
         }
@@ -189,12 +189,12 @@ class HL_Admin_Teams {
     private function render_list() {
         global $wpdb;
 
-        $filter_track = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
+        $filter_partnership = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
         $filter_school  = isset($_GET['school_id']) ? absint($_GET['school_id']) : 0;
 
         $where_clauses = array();
-        if ($filter_track) {
-            $where_clauses[] = $wpdb->prepare('t.track_id = %d', $filter_track);
+        if ($filter_partnership) {
+            $where_clauses[] = $wpdb->prepare('t.partnership_id = %d', $filter_partnership);
         }
         if ($filter_school) {
             $where_clauses[] = $wpdb->prepare('t.school_id = %d', $filter_school);
@@ -206,17 +206,17 @@ class HL_Admin_Teams {
         }
 
         $teams = $wpdb->get_results(
-            "SELECT t.*, t.track_name, o.name AS school_name
+            "SELECT t.*, t.partnership_name, o.name AS school_name
              FROM {$wpdb->prefix}hl_team t
-             LEFT JOIN {$wpdb->prefix}hl_track t ON t.track_id = t.track_id
+             LEFT JOIN {$wpdb->prefix}hl_partnership t ON t.partnership_id = t.partnership_id
              LEFT JOIN {$wpdb->prefix}hl_orgunit o ON t.school_id = o.orgunit_id
              {$where}
              ORDER BY t.team_name ASC"
         );
 
-        // Get tracks and schools for filters
-        $tracks = $wpdb->get_results(
-            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
+        // Get partnerships and schools for filters
+        $partnerships = $wpdb->get_results(
+            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
         );
         $schools = $wpdb->get_results(
             "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' ORDER BY name ASC"
@@ -234,13 +234,13 @@ class HL_Admin_Teams {
             }
         }
 
-        // Track breadcrumb.
-        if ($filter_track) {
-            $track_name = $wpdb->get_var($wpdb->prepare(
-                "SELECT track_name FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $filter_track
+        // Partnership breadcrumb.
+        if ($filter_partnership) {
+            $partnership_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d", $filter_partnership
             ));
-            if ($track_name) {
-                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-tracks&action=edit&id=' . $filter_track . '&tab=teams')) . '">&larr; ' . sprintf(esc_html__('Track: %s', 'hl-core'), esc_html($track_name)) . '</a></p>';
+            if ($partnership_name) {
+                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $filter_partnership . '&tab=teams')) . '">&larr; ' . sprintf(esc_html__('Partnership: %s', 'hl-core'), esc_html($partnership_name)) . '</a></p>';
             }
         }
 
@@ -251,12 +251,12 @@ class HL_Admin_Teams {
         // Filters
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-teams" />';
-        echo '<label><strong>' . esc_html__('Track:', 'hl-core') . '</strong> </label>';
-        echo '<select name="track_id">';
+        echo '<label><strong>' . esc_html__('Partnership:', 'hl-core') . '</strong> </label>';
+        echo '<select name="partnership_id">';
         echo '<option value="">' . esc_html__('All', 'hl-core') . '</option>';
-        if ($tracks) {
-            foreach ($tracks as $track) {
-                echo '<option value="' . esc_attr($track->track_id) . '"' . selected($filter_track, $track->track_id, false) . '>' . esc_html($track->track_name) . '</option>';
+        if ($partnerships) {
+            foreach ($partnerships as $partnership) {
+                echo '<option value="' . esc_attr($partnership->partnership_id) . '"' . selected($filter_partnership, $partnership->partnership_id, false) . '>' . esc_html($partnership->partnership_name) . '</option>';
             }
         }
         echo '</select> ';
@@ -282,7 +282,7 @@ class HL_Admin_Teams {
         echo '<thead><tr>';
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Team Name', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Track', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Partnership', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
@@ -304,7 +304,7 @@ class HL_Admin_Teams {
             echo '<tr>';
             echo '<td>' . esc_html($team->team_id) . '</td>';
             echo '<td><strong><a href="' . esc_url($view_url) . '">' . esc_html($team->team_name) . '</a></strong></td>';
-            echo '<td>' . esc_html($team->track_name) . '</td>';
+            echo '<td>' . esc_html($team->partnership_name) . '</td>';
             echo '<td>' . esc_html($team->school_name) . '</td>';
             echo '<td><span style="' . esc_attr($status_style) . '">' . esc_html(ucfirst($team->status)) . '</span></td>';
             echo '<td>';
@@ -322,11 +322,11 @@ class HL_Admin_Teams {
      * Render team detail with members
      *
      * @param object $team
-     * @param array  $context Optional track context. Keys: 'track_id', 'track_name'.
+     * @param array  $context Optional partnership context. Keys: 'partnership_id', 'partnership_name'.
      */
     public function render_team_detail($team, $context = array()) {
         global $wpdb;
-        $in_track = !empty($context['track_id']);
+        $in_partnership = !empty($context['partnership_id']);
 
         // Get team members via team_member table or enrollment table
         // Attempt team_member table first; fall back to showing enrollments at this school
@@ -334,15 +334,15 @@ class HL_Admin_Teams {
             "SELECT e.enrollment_id, e.roles, e.status, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.track_id = %d AND e.school_id = %d AND e.status = 'active'
+             WHERE e.partnership_id = %d AND e.school_id = %d AND e.status = 'active'
              ORDER BY u.display_name ASC",
-            $team->track_id,
+            $team->partnership_id,
             $team->school_id
         ));
 
-        $track_row = $wpdb->get_row($wpdb->prepare(
-            "SELECT track_name FROM {$wpdb->prefix}hl_track WHERE track_id = %d",
-            $team->track_id
+        $partnership_row = $wpdb->get_row($wpdb->prepare(
+            "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
+            $team->partnership_id
         ));
 
         $school = $wpdb->get_row($wpdb->prepare(
@@ -350,7 +350,7 @@ class HL_Admin_Teams {
             $team->school_id
         ));
 
-        if (!$in_track) {
+        if (!$in_partnership) {
             echo '<h1>' . esc_html($team->team_name) . '</h1>';
             echo '<a href="' . esc_url(admin_url('admin.php?page=hl-teams')) . '">&larr; ' . esc_html__('Back to Teams', 'hl-core') . '</a>';
         } else {
@@ -358,7 +358,7 @@ class HL_Admin_Teams {
         }
 
         echo '<table class="form-table">';
-        echo '<tr><th>' . esc_html__('Track', 'hl-core') . '</th><td>' . esc_html($track_row ? $track_row->track_name : 'N/A') . '</td></tr>';
+        echo '<tr><th>' . esc_html__('Partnership', 'hl-core') . '</th><td>' . esc_html($partnership_row ? $partnership_row->partnership_name : 'N/A') . '</td></tr>';
         echo '<tr><th>' . esc_html__('School', 'hl-core') . '</th><td>' . esc_html($school ? $school->name : 'N/A') . '</td></tr>';
         echo '<tr><th>' . esc_html__('Status', 'hl-core') . '</th><td>' . esc_html(ucfirst($team->status)) . '</td></tr>';
         echo '</table>';
@@ -396,32 +396,32 @@ class HL_Admin_Teams {
      * Render the create/edit form
      *
      * @param object|null $team
-     * @param array       $context Optional track context. Keys: 'track_id', 'track_name'.
+     * @param array       $context Optional partnership context. Keys: 'partnership_id', 'partnership_name'.
      */
     public function render_form($team = null, $context = array()) {
         $is_edit   = ($team !== null);
         $title     = $is_edit ? __('Edit Team', 'hl-core') : __('Add New Team', 'hl-core');
-        $in_track = !empty($context['track_id']);
+        $in_partnership = !empty($context['partnership_id']);
 
         global $wpdb;
 
-        $tracks = $wpdb->get_results(
-            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
+        $partnerships = $wpdb->get_results(
+            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
         );
 
         $schools = $wpdb->get_results(
             "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' AND status = 'active' ORDER BY name ASC"
         );
 
-        if (!$in_track) {
+        if (!$in_partnership) {
             echo '<h1>' . esc_html($title) . '</h1>';
             echo '<a href="' . esc_url(admin_url('admin.php?page=hl-teams')) . '">&larr; ' . esc_html__('Back to Teams', 'hl-core') . '</a>';
         }
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-teams')) . '">';
         wp_nonce_field('hl_save_team', 'hl_team_nonce');
-        if ($in_track) {
-            echo '<input type="hidden" name="_hl_track_context" value="' . esc_attr($context['track_id']) . '" />';
+        if ($in_partnership) {
+            echo '<input type="hidden" name="_hl_partnership_context" value="' . esc_attr($context['partnership_id']) . '" />';
         }
 
         if ($is_edit) {
@@ -437,18 +437,18 @@ class HL_Admin_Teams {
         echo '</tr>';
 
         // Track
-        $current_track = $in_track ? absint($context['track_id']) : ($is_edit ? $team->track_id : '');
+        $current_partnership = $in_partnership ? absint($context['partnership_id']) : ($is_edit ? $team->partnership_id : '');
         echo '<tr>';
-        echo '<th scope="row"><label for="track_id">' . esc_html__('Track', 'hl-core') . '</label></th>';
-        if ($in_track) {
-            echo '<td><strong>' . esc_html($context['track_name']) . '</strong>';
-            echo '<input type="hidden" id="track_id" name="track_id" value="' . esc_attr($context['track_id']) . '" /></td>';
+        echo '<th scope="row"><label for="partnership_id">' . esc_html__('Partnership', 'hl-core') . '</label></th>';
+        if ($in_partnership) {
+            echo '<td><strong>' . esc_html($context['partnership_name']) . '</strong>';
+            echo '<input type="hidden" id="partnership_id" name="partnership_id" value="' . esc_attr($context['partnership_id']) . '" /></td>';
         } else {
-            echo '<td><select id="track_id" name="track_id" required>';
-            echo '<option value="">' . esc_html__('-- Select Track --', 'hl-core') . '</option>';
-            if ($tracks) {
-                foreach ($tracks as $track) {
-                    echo '<option value="' . esc_attr($track->track_id) . '"' . selected($current_track, $track->track_id, false) . '>' . esc_html($track->track_name) . '</option>';
+            echo '<td><select id="partnership_id" name="partnership_id" required>';
+            echo '<option value="">' . esc_html__('-- Select Partnership --', 'hl-core') . '</option>';
+            if ($partnerships) {
+                foreach ($partnerships as $partnership) {
+                    echo '<option value="' . esc_attr($partnership->partnership_id) . '"' . selected($current_partnership, $partnership->partnership_id, false) . '>' . esc_html($partnership->partnership_name) . '</option>';
                 }
             }
             echo '</select></td>';

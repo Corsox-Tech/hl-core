@@ -41,9 +41,9 @@ class HL_Admin_Imports {
     public function render_page_content() {
         global $wpdb;
 
-        // Get non-archived tracks for dropdown
-        $tracks = $wpdb->get_results(
-            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track WHERE status != 'archived' ORDER BY track_name ASC"
+        // Get non-archived partnerships for dropdown
+        $partnerships = $wpdb->get_results(
+            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership WHERE status != 'archived' ORDER BY partnership_name ASC"
         );
 
         $import_service = new HL_Import_Service();
@@ -86,12 +86,12 @@ class HL_Admin_Imports {
                 <h2><?php esc_html_e('Upload CSV', 'hl-core'); ?></h2>
                 <table class="form-table">
                     <tr>
-                        <th scope="row"><label for="hl-import-track"><?php esc_html_e('Track', 'hl-core'); ?></label></th>
+                        <th scope="row"><label for="hl-import-partnership"><?php esc_html_e('Partnership', 'hl-core'); ?></label></th>
                         <td>
-                            <select id="hl-import-track" required>
-                                <option value=""><?php esc_html_e('-- Select Track --', 'hl-core'); ?></option>
-                                <?php if ($tracks) : foreach ($tracks as $coh) : ?>
-                                    <option value="<?php echo esc_attr($coh->track_id); ?>"><?php echo esc_html($coh->track_name); ?></option>
+                            <select id="hl-import-partnership" required>
+                                <option value=""><?php esc_html_e('-- Select Partnership --', 'hl-core'); ?></option>
+                                <?php if ($partnerships) : foreach ($partnerships as $coh) : ?>
+                                    <option value="<?php echo esc_attr($coh->partnership_id); ?>"><?php echo esc_html($coh->partnership_name); ?></option>
                                 <?php endforeach; endif; ?>
                             </select>
                         </td>
@@ -200,7 +200,7 @@ class HL_Admin_Imports {
         echo '<thead><tr>';
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Date', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Track', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Partnership', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('File', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Type', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
@@ -233,7 +233,7 @@ class HL_Admin_Imports {
             echo '<tr>';
             echo '<td>' . esc_html($run['run_id']) . '</td>';
             echo '<td>' . esc_html($run['created_at']) . '</td>';
-            echo '<td>' . esc_html($run['track_name'] ? $run['track_name'] : '-') . '</td>';
+            echo '<td>' . esc_html($run['partnership_name'] ? $run['partnership_name'] : '-') . '</td>';
             echo '<td>' . esc_html($run['file_name']) . '</td>';
             echo '<td>' . esc_html($run['import_type']) . '</td>';
             echo '<td><span class="hl-status-badge ' . esc_attr($status_class) . '">' . esc_html($run['status']) . '</span></td>';
@@ -259,9 +259,9 @@ class HL_Admin_Imports {
             wp_send_json_error(array('message' => __('Permission denied.', 'hl-core')));
         }
 
-        $track_id = isset($_POST['track_id']) ? absint($_POST['track_id']) : 0;
-        if (!$track_id) {
-            wp_send_json_error(array('message' => __('Please select a track.', 'hl-core')));
+        $partnership_id = isset($_POST['partnership_id']) ? absint($_POST['partnership_id']) : 0;
+        if (!$partnership_id) {
+            wp_send_json_error(array('message' => __('Please select a partnership.', 'hl-core')));
         }
 
         $import_type = isset($_POST['import_type']) ? sanitize_text_field($_POST['import_type']) : 'participants';
@@ -270,17 +270,17 @@ class HL_Admin_Imports {
             wp_send_json_error(array('message' => __('Invalid import type.', 'hl-core')));
         }
 
-        // Verify track is not archived
+        // Verify partnership is not archived
         global $wpdb;
-        $track_status = $wpdb->get_var($wpdb->prepare(
-            "SELECT status FROM {$wpdb->prefix}hl_track WHERE track_id = %d",
-            $track_id
+        $partnership_status = $wpdb->get_var($wpdb->prepare(
+            "SELECT status FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
+            $partnership_id
         ));
-        if ($track_status === 'archived') {
-            wp_send_json_error(array('message' => __('Cannot import into an archived track.', 'hl-core')));
+        if ($partnership_status === 'archived') {
+            wp_send_json_error(array('message' => __('Cannot import into an archived partnership.', 'hl-core')));
         }
-        if (!$track_status) {
-            wp_send_json_error(array('message' => __('Track not found.', 'hl-core')));
+        if (!$partnership_status) {
+            wp_send_json_error(array('message' => __('Partnership not found.', 'hl-core')));
         }
 
         // Validate file upload
@@ -318,22 +318,22 @@ class HL_Admin_Imports {
         // Validate rows based on import type
         switch ($import_type) {
             case 'children':
-                $preview_rows = $import_service->validate_children_rows($parsed['rows'], $track_id);
+                $preview_rows = $import_service->validate_children_rows($parsed['rows'], $partnership_id);
                 break;
             case 'classrooms':
-                $preview_rows = $import_service->validate_classroom_rows($parsed['rows'], $track_id);
+                $preview_rows = $import_service->validate_classroom_rows($parsed['rows'], $partnership_id);
                 break;
             case 'teaching_assignments':
-                $preview_rows = $import_service->validate_teaching_assignment_rows($parsed['rows'], $track_id);
+                $preview_rows = $import_service->validate_teaching_assignment_rows($parsed['rows'], $partnership_id);
                 break;
             case 'participants':
             default:
-                $preview_rows = $import_service->validate_participant_rows($parsed['rows'], $track_id);
+                $preview_rows = $import_service->validate_participant_rows($parsed['rows'], $partnership_id);
                 break;
         }
 
         // Create import run
-        $run_id = $import_service->create_run($track_id, $import_type, $file['name']);
+        $run_id = $import_service->create_run($partnership_id, $import_type, $file['name']);
         if (!$run_id) {
             wp_send_json_error(array('message' => __('Failed to create import run record.', 'hl-core')));
         }

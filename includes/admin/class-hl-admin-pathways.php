@@ -171,18 +171,18 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Build a redirect URL back to the track editor when in track context.
+     * Build a redirect URL back to the partnership editor when in partnership context.
      *
-     * @param int    $track_id Track ID.
+     * @param int    $partnership_id Track ID.
      * @param string $tab       Tab slug (e.g. 'pathways').
      * @param array  $extra     Additional query args.
      * @return string Admin URL.
      */
-    private function get_track_redirect($track_id, $tab = 'pathways', $extra = array()) {
+    private function get_partnership_redirect($partnership_id, $tab = 'pathways', $extra = array()) {
         $args = array_merge(array(
             'page'   => 'hl-core',
             'action' => 'edit',
-            'id'     => $track_id,
+            'id'     => $partnership_id,
             'tab'    => $tab,
         ), $extra);
         return admin_url('admin.php?' . http_build_query($args));
@@ -239,7 +239,7 @@ class HL_Admin_Pathways {
         $data = array(
             'pathway_name'        => sanitize_text_field($_POST['pathway_name']),
             'pathway_code'        => sanitize_text_field($_POST['pathway_code']),
-            'track_id'            => absint($_POST['track_id']),
+            'partnership_id'            => absint($_POST['partnership_id']),
             'phase_id'            => !empty($_POST['phase_id']) ? absint($_POST['phase_id']) : null,
             'target_roles'        => wp_json_encode($target_roles),
             'description'         => $description,
@@ -254,12 +254,12 @@ class HL_Admin_Pathways {
             $data['pathway_code'] = HL_Normalization::generate_code($data['pathway_name']);
         }
 
-        $track_context = isset($_POST['_hl_track_context']) ? absint($_POST['_hl_track_context']) : 0;
+        $partnership_context = isset($_POST['_hl_partnership_context']) ? absint($_POST['_hl_partnership_context']) : 0;
 
         if ($pathway_id > 0) {
             $wpdb->update($wpdb->prefix . 'hl_pathway', $data, array('pathway_id' => $pathway_id));
-            if ($track_context) {
-                $redirect = $this->get_track_redirect($track_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'pathway_saved'));
+            if ($partnership_context) {
+                $redirect = $this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'pathway_saved'));
             } else {
                 $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=updated');
             }
@@ -267,8 +267,8 @@ class HL_Admin_Pathways {
             $data['pathway_uuid'] = HL_DB_Utils::generate_uuid();
             $wpdb->insert($wpdb->prefix . 'hl_pathway', $data);
             $new_id = $wpdb->insert_id;
-            if ($track_context) {
-                $redirect = $this->get_track_redirect($track_context, 'pathways', array('message' => 'pathway_saved'));
+            if ($partnership_context) {
+                $redirect = $this->get_partnership_redirect($partnership_context, 'pathways', array('message' => 'pathway_saved'));
             } else {
                 $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $new_id . '&message=created');
             }
@@ -291,15 +291,15 @@ class HL_Admin_Pathways {
         // Build external_ref JSON from type-specific dropdowns
         $external_ref = $this->build_external_ref($activity_type);
 
-        // Get track_id from the pathway
-        $track_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT track_id FROM {$wpdb->prefix}hl_pathway WHERE pathway_id = %d",
+        // Get partnership_id from the pathway
+        $partnership_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT partnership_id FROM {$wpdb->prefix}hl_pathway WHERE pathway_id = %d",
             $pathway_id
         ));
 
         $data = array(
             'pathway_id'    => $pathway_id,
-            'track_id'      => absint($track_id),
+            'partnership_id'      => absint($partnership_id),
             'activity_type' => $activity_type,
             'title'         => sanitize_text_field($_POST['title']),
             'description'   => sanitize_textarea_field($_POST['description']),
@@ -344,9 +344,9 @@ class HL_Admin_Pathways {
                 );
                 set_transient('hl_prereq_cycle_error_' . $target_activity_id, $msg, 60);
 
-                $cycle_track_ctx = isset($_POST['_hl_track_context']) ? absint($_POST['_hl_track_context']) : 0;
-                if ($cycle_track_ctx) {
-                    $redirect = $this->get_track_redirect($cycle_track_ctx, 'pathways', array('sub' => 'activity', 'pathway_id' => $pathway_id, 'activity_id' => $target_activity_id, 'prereq_error' => 'cycle'));
+                $cycle_partnership_ctx = isset($_POST['_hl_partnership_context']) ? absint($_POST['_hl_partnership_context']) : 0;
+                if ($cycle_partnership_ctx) {
+                    $redirect = $this->get_partnership_redirect($cycle_partnership_ctx, 'pathways', array('sub' => 'activity', 'pathway_id' => $pathway_id, 'activity_id' => $target_activity_id, 'prereq_error' => 'cycle'));
                 } else {
                     $redirect = admin_url('admin.php?page=hl-pathways&action=edit_activity&activity_id=' . $target_activity_id . '&prereq_error=cycle');
                 }
@@ -397,7 +397,7 @@ class HL_Admin_Pathways {
                 HL_Audit_Service::log(
                     'prereq_updated',
                     get_current_user_id(),
-                    absint($data['track_id']),
+                    absint($data['partnership_id']),
                     null,
                     $target_activity_id,
                     sprintf('Prerequisites updated for activity %d', $target_activity_id)
@@ -447,9 +447,9 @@ class HL_Admin_Pathways {
             }
         }
 
-        $track_context = isset($_POST['_hl_track_context']) ? absint($_POST['_hl_track_context']) : 0;
-        if ($track_context) {
-            $redirect = $this->get_track_redirect($track_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'activity_saved'));
+        $partnership_context = isset($_POST['_hl_partnership_context']) ? absint($_POST['_hl_partnership_context']) : 0;
+        if ($partnership_context) {
+            $redirect = $this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'activity_saved'));
         } else {
             $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=activity_saved');
         }
@@ -529,9 +529,9 @@ class HL_Admin_Pathways {
         $wpdb->delete($wpdb->prefix . 'hl_activity', array('pathway_id' => $pathway_id));
         $wpdb->delete($wpdb->prefix . 'hl_pathway', array('pathway_id' => $pathway_id));
 
-        $track_context = isset($_GET['track_context']) ? absint($_GET['track_context']) : 0;
-        if ($track_context) {
-            wp_redirect($this->get_track_redirect($track_context, 'pathways', array('message' => 'pathway_deleted')));
+        $partnership_context = isset($_GET['partnership_context']) ? absint($_GET['partnership_context']) : 0;
+        if ($partnership_context) {
+            wp_redirect($this->get_partnership_redirect($partnership_context, 'pathways', array('message' => 'pathway_deleted')));
         } else {
             wp_redirect(admin_url('admin.php?page=hl-pathways&message=deleted'));
         }
@@ -561,9 +561,9 @@ class HL_Admin_Pathways {
         global $wpdb;
         $wpdb->delete($wpdb->prefix . 'hl_activity', array('activity_id' => $activity_id));
 
-        $track_context = isset($_GET['track_context']) ? absint($_GET['track_context']) : 0;
-        if ($track_context) {
-            wp_redirect($this->get_track_redirect($track_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'activity_deleted')));
+        $partnership_context = isset($_GET['partnership_context']) ? absint($_GET['partnership_context']) : 0;
+        if ($partnership_context) {
+            wp_redirect($this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'activity_deleted')));
         } else {
             wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=activity_deleted'));
         }
@@ -583,29 +583,29 @@ class HL_Admin_Pathways {
         }
 
         $source_id     = isset($_POST['source_pathway_id']) ? absint($_POST['source_pathway_id']) : 0;
-        $target_track = isset($_POST['target_track_id']) ? absint($_POST['target_track_id']) : 0;
-        $track_context = isset($_POST['_hl_track_context']) ? absint($_POST['_hl_track_context']) : 0;
+        $target_partnership = isset($_POST['target_partnership_id']) ? absint($_POST['target_partnership_id']) : 0;
+        $partnership_context = isset($_POST['_hl_partnership_context']) ? absint($_POST['_hl_partnership_context']) : 0;
 
-        if (!$source_id || !$target_track) {
+        if (!$source_id || !$target_partnership) {
             wp_redirect(admin_url('admin.php?page=hl-pathways&message=clone_error'));
             exit;
         }
 
         $service = new HL_Pathway_Service();
-        $result  = $service->clone_pathway($source_id, $target_track);
+        $result  = $service->clone_pathway($source_id, $target_partnership);
 
         if (is_wp_error($result)) {
             set_transient('hl_clone_error', $result->get_error_message(), 60);
-            if ($track_context) {
-                wp_redirect($this->get_track_redirect($track_context, 'pathways', array('message' => 'clone_error')));
+            if ($partnership_context) {
+                wp_redirect($this->get_partnership_redirect($partnership_context, 'pathways', array('message' => 'clone_error')));
             } else {
                 wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $source_id . '&message=clone_error'));
             }
             exit;
         }
 
-        if ($track_context) {
-            wp_redirect($this->get_track_redirect($track_context, 'pathways', array('message' => 'pathway_cloned')));
+        if ($partnership_context) {
+            wp_redirect($this->get_partnership_redirect($partnership_context, 'pathways', array('message' => 'pathway_cloned')));
         } else {
             wp_redirect(admin_url('admin.php?page=hl-pathways&action=edit&id=' . $result . '&message=cloned'));
         }
@@ -640,9 +640,9 @@ class HL_Admin_Pathways {
         $service->set_template($pathway_id, $new_val);
 
         $msg = $new_val ? 'template_saved' : 'template_removed';
-        $track_context = isset($_GET['track_context']) ? absint($_GET['track_context']) : 0;
-        if ($track_context) {
-            wp_redirect($this->get_track_redirect($track_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => $msg)));
+        $partnership_context = isset($_GET['partnership_context']) ? absint($_GET['partnership_context']) : 0;
+        if ($partnership_context) {
+            wp_redirect($this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => $msg)));
         } else {
             wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=' . $msg));
         }
@@ -662,13 +662,13 @@ class HL_Admin_Pathways {
 
         $pathway_id     = absint($_POST['pathway_id']);
         $enrollment_id  = absint($_POST['enrollment_id']);
-        $track_context = isset($_POST['_hl_track_context']) ? absint($_POST['_hl_track_context']) : 0;
+        $partnership_context = isset($_POST['_hl_partnership_context']) ? absint($_POST['_hl_partnership_context']) : 0;
 
         $service = new HL_Pathway_Assignment_Service();
         $service->assign_pathway($enrollment_id, $pathway_id, 'explicit');
 
-        if ($track_context) {
-            wp_redirect($this->get_track_redirect($track_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'assigned')));
+        if ($partnership_context) {
+            wp_redirect($this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'assigned')));
         } else {
             wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=assigned'));
         }
@@ -694,9 +694,9 @@ class HL_Admin_Pathways {
         $service = new HL_Pathway_Assignment_Service();
         $service->unassign_pathway($enrollment_id, $pathway_id);
 
-        $track_context = isset($_GET['track_context']) ? absint($_GET['track_context']) : 0;
-        if ($track_context) {
-            wp_redirect($this->get_track_redirect($track_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'unassigned')));
+        $partnership_context = isset($_GET['partnership_context']) ? absint($_GET['partnership_context']) : 0;
+        if ($partnership_context) {
+            wp_redirect($this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'unassigned')));
         } else {
             wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=unassigned'));
         }
@@ -724,9 +724,9 @@ class HL_Admin_Pathways {
             $service->bulk_assign($pathway_id, $enrollment_ids, 'explicit');
         }
 
-        $track_context = isset($_POST['_hl_track_context']) ? absint($_POST['_hl_track_context']) : 0;
-        if ($track_context) {
-            wp_redirect($this->get_track_redirect($track_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'bulk_assigned')));
+        $partnership_context = isset($_POST['_hl_partnership_context']) ? absint($_POST['_hl_partnership_context']) : 0;
+        if ($partnership_context) {
+            wp_redirect($this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'bulk_assigned')));
         } else {
             wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=bulk_assigned'));
         }
@@ -754,11 +754,11 @@ class HL_Admin_Pathways {
         }
 
         $service = new HL_Pathway_Assignment_Service();
-        $service->sync_role_defaults($pathway->track_id);
+        $service->sync_role_defaults($pathway->partnership_id);
 
-        $track_context = isset($_GET['track_context']) ? absint($_GET['track_context']) : 0;
-        if ($track_context) {
-            wp_redirect($this->get_track_redirect($track_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'synced')));
+        $partnership_context = isset($_GET['partnership_context']) ? absint($_GET['partnership_context']) : 0;
+        if ($partnership_context) {
+            wp_redirect($this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'synced')));
         } else {
             wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=synced'));
         }
@@ -771,7 +771,7 @@ class HL_Admin_Pathways {
     private function render_list() {
         global $wpdb;
 
-        $filter_track = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
+        $filter_partnership = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
         $view_tab      = isset($_GET['view']) ? sanitize_text_field($_GET['view']) : 'all';
 
         // Build WHERE clause.
@@ -779,23 +779,23 @@ class HL_Admin_Pathways {
         if ($view_tab === 'templates') {
             $conditions[] = 'pw.is_template = 1';
         }
-        if ($filter_track) {
-            $conditions[] = $wpdb->prepare('pw.track_id = %d', $filter_track);
+        if ($filter_partnership) {
+            $conditions[] = $wpdb->prepare('pw.partnership_id = %d', $filter_partnership);
         }
         $where = !empty($conditions) ? ' WHERE ' . implode(' AND ', $conditions) : '';
 
         $pathways = $wpdb->get_results(
-            "SELECT pw.*, t.track_name,
+            "SELECT pw.*, t.partnership_name,
                     (SELECT COUNT(*) FROM {$wpdb->prefix}hl_activity a WHERE a.pathway_id = pw.pathway_id) as activity_count
              FROM {$wpdb->prefix}hl_pathway pw
-             LEFT JOIN {$wpdb->prefix}hl_track t ON pw.track_id = t.track_id
+             LEFT JOIN {$wpdb->prefix}hl_partnership t ON pw.partnership_id = t.partnership_id
              {$where}
              ORDER BY pw.pathway_name ASC"
         );
 
-        // Tracks for filter.
-        $tracks = $wpdb->get_results(
-            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
+        // Partnerships for filter.
+        $partnerships = $wpdb->get_results(
+            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
         );
 
         // Template count for tab badge.
@@ -831,13 +831,13 @@ class HL_Admin_Pathways {
             }
         }
 
-        // Track breadcrumb.
-        if ($filter_track) {
-            $track_name = $wpdb->get_var($wpdb->prepare(
-                "SELECT track_name FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $filter_track
+        // Partnership breadcrumb.
+        if ($filter_partnership) {
+            $partnership_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d", $filter_partnership
             ));
-            if ($track_name) {
-                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-tracks&action=edit&id=' . $filter_track . '&tab=pathways')) . '">&larr; ' . sprintf(esc_html__('Track: %s', 'hl-core'), esc_html($track_name)) . '</a></p>';
+            if ($partnership_name) {
+                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $filter_partnership . '&tab=pathways')) . '">&larr; ' . sprintf(esc_html__('Partnership: %s', 'hl-core'), esc_html($partnership_name)) . '</a></p>';
             }
         }
 
@@ -860,12 +860,12 @@ class HL_Admin_Pathways {
         if ($view_tab === 'templates') {
             echo '<input type="hidden" name="view" value="templates" />';
         }
-        echo '<label for="track_id_filter"><strong>' . esc_html__('Filter by Track:', 'hl-core') . '</strong> </label>';
-        echo '<select name="track_id" id="track_id_filter">';
-        echo '<option value="">' . esc_html__('All Tracks', 'hl-core') . '</option>';
-        if ($tracks) {
-            foreach ($tracks as $track) {
-                echo '<option value="' . esc_attr($track->track_id) . '"' . selected($filter_track, $track->track_id, false) . '>' . esc_html($track->track_name) . '</option>';
+        echo '<label for="partnership_id_filter"><strong>' . esc_html__('Filter by Partnership:', 'hl-core') . '</strong> </label>';
+        echo '<select name="partnership_id" id="partnership_id_filter">';
+        echo '<option value="">' . esc_html__('All Partnerships', 'hl-core') . '</option>';
+        if ($partnerships) {
+            foreach ($partnerships as $partnership) {
+                echo '<option value="' . esc_attr($partnership->partnership_id) . '"' . selected($filter_partnership, $partnership->partnership_id, false) . '>' . esc_html($partnership->partnership_name) . '</option>';
             }
         }
         echo '</select> ';
@@ -885,7 +885,7 @@ class HL_Admin_Pathways {
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Code', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Track', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Partnership', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Target Roles', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Activities', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
@@ -912,7 +912,7 @@ class HL_Admin_Pathways {
             echo '<td>' . esc_html($pw->pathway_id) . '</td>';
             echo '<td><strong><a href="' . esc_url($view_url) . '">' . $name_display . '</a></strong></td>';
             echo '<td><code>' . esc_html($pw->pathway_code) . '</code></td>';
-            echo '<td>' . esc_html($pw->track_name) . '</td>';
+            echo '<td>' . esc_html($pw->partnership_name) . '</td>';
             echo '<td>' . esc_html($roles_display) . '</td>';
             echo '<td>' . esc_html($pw->activity_count) . '</td>';
             echo '<td>';
@@ -930,20 +930,20 @@ class HL_Admin_Pathways {
      * Render pathway detail with activities list
      *
      * @param object $pathway
-     * @param array  $context Optional track context. Keys: 'track_id', 'track_name'.
+     * @param array  $context Optional partnership context. Keys: 'partnership_id', 'partnership_name'.
      */
     public function render_pathway_detail($pathway, $context = array()) {
         global $wpdb;
-        $in_track = !empty($context['track_id']);
+        $in_partnership = !empty($context['partnership_id']);
 
         $activities = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_activity WHERE pathway_id = %d ORDER BY ordering_hint ASC, activity_id ASC",
             $pathway->pathway_id
         ));
 
-        $track = $wpdb->get_row($wpdb->prepare(
-            "SELECT track_name FROM {$wpdb->prefix}hl_track WHERE track_id = %d",
-            $pathway->track_id
+        $partnership = $wpdb->get_row($wpdb->prepare(
+            "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
+            $pathway->partnership_id
         ));
 
         $roles_arr = json_decode($pathway->target_roles, true);
@@ -970,7 +970,7 @@ class HL_Admin_Pathways {
             }
         }
 
-        if (!$in_track) {
+        if (!$in_partnership) {
             echo '<h1>' . esc_html($pathway->pathway_name);
             if (!empty($pathway->is_template)) {
                 echo ' <span class="hl-status-badge active" style="font-size:12px; vertical-align:middle;">' . esc_html__('Template', 'hl-core') . '</span>';
@@ -986,15 +986,15 @@ class HL_Admin_Pathways {
         }
 
         // Action buttons: Edit + Clone to Track + Save as Template.
-        $all_tracks = $wpdb->get_results(
-            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
+        $all_partnerships = $wpdb->get_results(
+            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
         );
 
         echo '<div style="margin:15px 0; display:flex; gap:15px; align-items:flex-start; flex-wrap:wrap;">';
 
         // Edit button.
-        if ($in_track) {
-            $edit_url = admin_url('admin.php?page=hl-tracks&action=edit&id=' . $context['track_id'] . '&tab=pathways&sub=edit&pathway_id=' . $pathway->pathway_id);
+        if ($in_partnership) {
+            $edit_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $context['partnership_id'] . '&tab=pathways&sub=edit&pathway_id=' . $pathway->pathway_id);
         } else {
             $edit_url = admin_url('admin.php?page=hl-pathways&action=edit&id=' . $pathway->pathway_id);
         }
@@ -1004,24 +1004,24 @@ class HL_Admin_Pathways {
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=clone')) . '" style="display:flex; gap:8px; align-items:center; background:#f9f9f9; border:1px solid #ccd0d4; padding:8px 12px; border-radius:4px;">';
         wp_nonce_field('hl_clone_pathway', 'hl_clone_nonce');
         echo '<input type="hidden" name="source_pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
-        if ($in_track) {
-            echo '<input type="hidden" name="_hl_track_context" value="' . esc_attr($context['track_id']) . '" />';
+        if ($in_partnership) {
+            echo '<input type="hidden" name="_hl_partnership_context" value="' . esc_attr($context['partnership_id']) . '" />';
         }
-        echo '<label for="clone_target_track"><strong>' . esc_html__('Clone to Track:', 'hl-core') . '</strong></label> ';
-        echo '<select name="target_track_id" id="clone_target_track" required>';
+        echo '<label for="clone_target_partnership"><strong>' . esc_html__('Clone to Partnership:', 'hl-core') . '</strong></label> ';
+        echo '<select name="target_partnership_id" id="clone_target_partnership" required>';
         echo '<option value="">' . esc_html__('-- Select --', 'hl-core') . '</option>';
-        foreach ($all_tracks as $c) {
-            echo '<option value="' . esc_attr($c->track_id) . '">' . esc_html($c->track_name) . '</option>';
+        foreach ($all_partnerships as $c) {
+            echo '<option value="' . esc_attr($c->partnership_id) . '">' . esc_html($c->partnership_name) . '</option>';
         }
         echo '</select> ';
-        echo '<button type="submit" class="button button-primary" onclick="return confirm(\'' . esc_js(__('Clone this pathway and all its activities to the selected track?', 'hl-core')) . '\');">' . esc_html__('Clone', 'hl-core') . '</button>';
+        echo '<button type="submit" class="button button-primary" onclick="return confirm(\'' . esc_js(__('Clone this pathway and all its activities to the selected partnership?', 'hl-core')) . '\');">' . esc_html__('Clone', 'hl-core') . '</button>';
         echo '</form>';
 
         // Save as Template / Remove Template toggle.
         $is_tmpl = !empty($pathway->is_template);
         $tmpl_base_url = admin_url('admin.php?page=hl-pathways&action=toggle_template&id=' . $pathway->pathway_id);
-        if ($in_track) {
-            $tmpl_base_url .= '&track_context=' . $context['track_id'];
+        if ($in_partnership) {
+            $tmpl_base_url .= '&partnership_context=' . $context['partnership_id'];
         }
         $tmpl_url = wp_nonce_url($tmpl_base_url, 'hl_toggle_template_' . $pathway->pathway_id);
         if ($is_tmpl) {
@@ -1034,7 +1034,7 @@ class HL_Admin_Pathways {
 
         echo '<table class="form-table">';
         echo '<tr><th>' . esc_html__('Code', 'hl-core') . '</th><td><code>' . esc_html($pathway->pathway_code) . '</code></td></tr>';
-        echo '<tr><th>' . esc_html__('Track', 'hl-core') . '</th><td>' . esc_html($track ? $track->track_name : 'N/A') . '</td></tr>';
+        echo '<tr><th>' . esc_html__('Partnership', 'hl-core') . '</th><td>' . esc_html($partnership ? $partnership->partnership_name : 'N/A') . '</td></tr>';
         echo '<tr><th>' . esc_html__('Target Roles', 'hl-core') . '</th><td>' . esc_html($roles_display) . '</td></tr>';
 
         if (!empty($pathway->description)) {
@@ -1059,8 +1059,8 @@ class HL_Admin_Pathways {
         echo '</table>';
 
         // Activities section
-        if ($in_track) {
-            $add_activity_url = admin_url('admin.php?page=hl-tracks&action=edit&id=' . $context['track_id'] . '&tab=pathways&sub=activity&pathway_id=' . $pathway->pathway_id . '&activity_action=new');
+        if ($in_partnership) {
+            $add_activity_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $context['partnership_id'] . '&tab=pathways&sub=activity&pathway_id=' . $pathway->pathway_id . '&activity_action=new');
         } else {
             $add_activity_url = admin_url('admin.php?page=hl-pathways&action=new_activity&pathway_id=' . $pathway->pathway_id);
         }
@@ -1086,10 +1086,10 @@ class HL_Admin_Pathways {
         echo '<tbody>';
 
         foreach ($activities as $act) {
-            if ($in_track) {
-                $edit_url = admin_url('admin.php?page=hl-tracks&action=edit&id=' . $context['track_id'] . '&tab=pathways&sub=activity&pathway_id=' . $pathway->pathway_id . '&activity_id=' . $act->activity_id);
+            if ($in_partnership) {
+                $edit_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $context['partnership_id'] . '&tab=pathways&sub=activity&pathway_id=' . $pathway->pathway_id . '&activity_id=' . $act->activity_id);
                 $delete_url = wp_nonce_url(
-                    admin_url('admin.php?page=hl-pathways&action=delete_activity&activity_id=' . $act->activity_id . '&pathway_id=' . $pathway->pathway_id . '&track_context=' . $context['track_id']),
+                    admin_url('admin.php?page=hl-pathways&action=delete_activity&activity_id=' . $act->activity_id . '&pathway_id=' . $pathway->pathway_id . '&partnership_context=' . $context['partnership_id']),
                     'hl_delete_activity_' . $act->activity_id
                 );
             } else {
@@ -1134,15 +1134,15 @@ class HL_Admin_Pathways {
         // =====================================================================
         $pa_service  = new HL_Pathway_Assignment_Service();
         $assigned    = $pa_service->get_enrollments_for_pathway($pathway->pathway_id);
-        $unassigned  = $pa_service->get_unassigned_enrollments($pathway->pathway_id, $pathway->track_id);
+        $unassigned  = $pa_service->get_unassigned_enrollments($pathway->pathway_id, $pathway->partnership_id);
 
         echo '<h2 class="wp-heading-inline" style="margin-top:30px;">' . esc_html__('Assigned Enrollments', 'hl-core') . '</h2>';
         echo ' <span style="color:#666;">(' . count($assigned) . ')</span>';
 
         // Sync role defaults button.
         $sync_base = admin_url('admin.php?page=hl-pathways&action=sync_role_defaults&pathway_id=' . $pathway->pathway_id);
-        if ($in_track) {
-            $sync_base .= '&track_context=' . $context['track_id'];
+        if ($in_partnership) {
+            $sync_base .= '&partnership_context=' . $context['partnership_id'];
         }
         $sync_url = wp_nonce_url($sync_base, 'hl_sync_defaults_' . $pathway->pathway_id);
         echo ' <a href="' . esc_url($sync_url) . '" class="button button-small" style="margin-left:10px;" title="' . esc_attr__('Auto-assign this pathway to enrollments whose roles match the target roles', 'hl-core') . '">' . esc_html__('Sync Role Defaults', 'hl-core') . '</a>';
@@ -1153,8 +1153,8 @@ class HL_Admin_Pathways {
             echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=bulk_assign_pathway')) . '" style="margin-bottom:15px;">';
             wp_nonce_field('hl_bulk_assign_pathway', 'hl_bulk_assign_nonce');
             echo '<input type="hidden" name="pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
-            if ($in_track) {
-                echo '<input type="hidden" name="_hl_track_context" value="' . esc_attr($context['track_id']) . '" />';
+            if ($in_partnership) {
+                echo '<input type="hidden" name="_hl_partnership_context" value="' . esc_attr($context['partnership_id']) . '" />';
             }
             echo '<div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;">';
             echo '<select name="enrollment_ids[]" multiple="multiple" style="min-width:300px; min-height:80px;">';
@@ -1170,7 +1170,7 @@ class HL_Admin_Pathways {
             echo '</select>';
             echo '<button type="submit" class="button button-primary">' . esc_html__('Assign Selected', 'hl-core') . '</button>';
             echo '</div>';
-            echo '<p class="description">' . esc_html__('Hold Ctrl/Cmd to select multiple enrollments. These are active enrollments in this track not yet assigned to this pathway.', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('Hold Ctrl/Cmd to select multiple enrollments. These are active enrollments in this partnership not yet assigned to this pathway.', 'hl-core') . '</p>';
             echo '</form>';
         }
 
@@ -1179,8 +1179,8 @@ class HL_Admin_Pathways {
             echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=assign_pathway')) . '" style="display:flex; gap:8px; align-items:center; margin-bottom:15px;">';
             wp_nonce_field('hl_assign_pathway', 'hl_assign_nonce');
             echo '<input type="hidden" name="pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
-            if ($in_track) {
-                echo '<input type="hidden" name="_hl_track_context" value="' . esc_attr($context['track_id']) . '" />';
+            if ($in_partnership) {
+                echo '<input type="hidden" name="_hl_partnership_context" value="' . esc_attr($context['partnership_id']) . '" />';
             }
             echo '<select name="enrollment_id" required>';
             echo '<option value="">' . esc_html__('-- Quick Assign --', 'hl-core') . '</option>';
@@ -1209,8 +1209,8 @@ class HL_Admin_Pathways {
                 $roles_str = is_array($roles) ? implode(', ', $roles) : '';
 
                 $unassign_base = admin_url('admin.php?page=hl-pathways&action=unassign_pathway&pathway_id=' . $pathway->pathway_id . '&enrollment_id=' . $a['enrollment_id']);
-                if ($in_track) {
-                    $unassign_base .= '&track_context=' . $context['track_id'];
+                if ($in_partnership) {
+                    $unassign_base .= '&partnership_context=' . $context['partnership_id'];
                 }
                 $unassign_url = wp_nonce_url($unassign_base, 'hl_unassign_pathway_' . $a['enrollment_id']);
 
@@ -1237,16 +1237,16 @@ class HL_Admin_Pathways {
      * Render the pathway create/edit form
      *
      * @param object|null $pathway
-     * @param array       $context Optional track context. Keys: 'track_id', 'track_name'.
+     * @param array       $context Optional partnership context. Keys: 'partnership_id', 'partnership_name'.
      */
     public function render_pathway_form($pathway = null, $context = array()) {
         $is_edit      = ($pathway !== null);
         $title        = $is_edit ? __('Edit Pathway', 'hl-core') : __('Add New Pathway', 'hl-core');
-        $in_track    = !empty($context['track_id']);
+        $in_partnership    = !empty($context['partnership_id']);
 
         global $wpdb;
-        $tracks = $wpdb->get_results(
-            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
+        $partnerships = $wpdb->get_results(
+            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
         );
 
         $current_roles = array();
@@ -1257,8 +1257,8 @@ class HL_Admin_Pathways {
             }
         }
 
-        // Suppress header/back-link when rendering inside track editor.
-        if (!$in_track) {
+        // Suppress header/back-link when rendering inside partnership editor.
+        if (!$in_partnership) {
             echo '<h1>' . esc_html($title) . '</h1>';
             echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">&larr; ' . esc_html__('Back to Pathways', 'hl-core') . '</a>';
         }
@@ -1271,8 +1271,8 @@ class HL_Admin_Pathways {
                 echo '<div style="margin:15px 0; padding:12px 16px; background:#f0f6fc; border:1px solid #c3d9ed; border-radius:4px;">';
                 echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=clone')) . '" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">';
                 wp_nonce_field('hl_clone_pathway', 'hl_clone_nonce');
-                if ($in_track) {
-                    echo '<input type="hidden" name="_hl_track_context" value="' . esc_attr($context['track_id']) . '" />';
+                if ($in_partnership) {
+                    echo '<input type="hidden" name="_hl_partnership_context" value="' . esc_attr($context['partnership_id']) . '" />';
                 }
                 echo '<strong>' . esc_html__('Start from Template:', 'hl-core') . '</strong> ';
                 echo '<select name="source_pathway_id" required>';
@@ -1287,13 +1287,13 @@ class HL_Admin_Pathways {
                     echo '<option value="' . esc_attr($tmpl->pathway_id) . '">' . esc_html($label) . '</option>';
                 }
                 echo '</select> ';
-                if ($in_track) {
-                    echo '<input type="hidden" name="target_track_id" value="' . esc_attr($context['track_id']) . '" />';
+                if ($in_partnership) {
+                    echo '<input type="hidden" name="target_partnership_id" value="' . esc_attr($context['partnership_id']) . '" />';
                 } else {
-                    echo '<select name="target_track_id" required>';
-                    echo '<option value="">' . esc_html__('-- Into Track --', 'hl-core') . '</option>';
-                    foreach ($tracks as $c) {
-                        echo '<option value="' . esc_attr($c->track_id) . '">' . esc_html($c->track_name) . '</option>';
+                    echo '<select name="target_partnership_id" required>';
+                    echo '<option value="">' . esc_html__('-- Into Partnership --', 'hl-core') . '</option>';
+                    foreach ($partnerships as $c) {
+                        echo '<option value="' . esc_attr($c->partnership_id) . '">' . esc_html($c->partnership_name) . '</option>';
                     }
                     echo '</select> ';
                 }
@@ -1307,8 +1307,8 @@ class HL_Admin_Pathways {
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">';
         wp_nonce_field('hl_save_pathway', 'hl_pathway_nonce');
-        if ($in_track) {
-            echo '<input type="hidden" name="_hl_track_context" value="' . esc_attr($context['track_id']) . '" />';
+        if ($in_partnership) {
+            echo '<input type="hidden" name="_hl_partnership_context" value="' . esc_attr($context['partnership_id']) . '" />';
         }
 
         if ($is_edit) {
@@ -1331,19 +1331,19 @@ class HL_Admin_Pathways {
         echo '</tr>';
 
         // Track
-        $current_track = $in_track ? absint($context['track_id']) : ($is_edit ? $pathway->track_id : '');
+        $current_partnership = $in_partnership ? absint($context['partnership_id']) : ($is_edit ? $pathway->partnership_id : '');
         echo '<tr>';
-        echo '<th scope="row"><label for="track_id">' . esc_html__('Track', 'hl-core') . '</label></th>';
-        if ($in_track) {
-            // Locked to track context — show read-only name + hidden input.
-            echo '<td><strong>' . esc_html($context['track_name']) . '</strong>';
-            echo '<input type="hidden" id="track_id" name="track_id" value="' . esc_attr($context['track_id']) . '" /></td>';
+        echo '<th scope="row"><label for="partnership_id">' . esc_html__('Partnership', 'hl-core') . '</label></th>';
+        if ($in_partnership) {
+            // Locked to partnership context — show read-only name + hidden input.
+            echo '<td><strong>' . esc_html($context['partnership_name']) . '</strong>';
+            echo '<input type="hidden" id="partnership_id" name="partnership_id" value="' . esc_attr($context['partnership_id']) . '" /></td>';
         } else {
-            echo '<td><select id="track_id" name="track_id" required>';
-            echo '<option value="">' . esc_html__('-- Select Track --', 'hl-core') . '</option>';
-            if ($tracks) {
-                foreach ($tracks as $track) {
-                    echo '<option value="' . esc_attr($track->track_id) . '"' . selected($current_track, $track->track_id, false) . '>' . esc_html($track->track_name) . '</option>';
+            echo '<td><select id="partnership_id" name="partnership_id" required>';
+            echo '<option value="">' . esc_html__('-- Select Partnership --', 'hl-core') . '</option>';
+            if ($partnerships) {
+                foreach ($partnerships as $partnership) {
+                    echo '<option value="' . esc_attr($partnership->partnership_id) . '"' . selected($current_partnership, $partnership->partnership_id, false) . '>' . esc_html($partnership->partnership_name) . '</option>';
                 }
             }
             echo '</select></td>';
@@ -1354,8 +1354,8 @@ class HL_Admin_Pathways {
         $phase_repo = new HL_Phase_Repository();
         $current_phase = $is_edit && isset($pathway->phase_id) ? $pathway->phase_id : '';
         $phase_options = array();
-        if ($current_track) {
-            $phase_options = $phase_repo->get_by_track(absint($current_track));
+        if ($current_partnership) {
+            $phase_options = $phase_repo->get_by_partnership(absint($current_partnership));
         }
         echo '<tr>';
         echo '<th scope="row"><label for="phase_id">' . esc_html__('Phase', 'hl-core') . '</label></th>';
@@ -1365,7 +1365,7 @@ class HL_Admin_Pathways {
             echo '<option value="' . esc_attr($ph->phase_id) . '"' . selected($current_phase, $ph->phase_id, false) . '>' . esc_html($ph->phase_name) . '</option>';
         }
         echo '</select>';
-        echo '<p class="description">' . esc_html__('Which phase this pathway belongs to. Leave as default for single-phase tracks.', 'hl-core') . '</p></td>';
+        echo '<p class="description">' . esc_html__('Which phase this pathway belongs to. Leave as default for single-phase partnerships.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
         // Target Roles
@@ -1555,12 +1555,12 @@ class HL_Admin_Pathways {
      *
      * @param object      $pathway
      * @param object|null $activity
-     * @param array       $context Optional track context. Keys: 'track_id', 'track_name'.
+     * @param array       $context Optional partnership context. Keys: 'partnership_id', 'partnership_name'.
      */
     public function render_activity_form($pathway, $activity = null, $context = array()) {
         $is_edit   = ($activity !== null);
         $title     = $is_edit ? __('Edit Activity', 'hl-core') : __('Add New Activity', 'hl-core');
-        $in_track = !empty($context['track_id']);
+        $in_partnership = !empty($context['partnership_id']);
 
         // Parse existing external_ref for pre-populating dropdowns
         $ext_ref = array();
@@ -1571,7 +1571,7 @@ class HL_Admin_Pathways {
             }
         }
 
-        if (!$in_track) {
+        if (!$in_partnership) {
             echo '<h1>' . esc_html($title) . '</h1>';
             echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway->pathway_id)) . '">&larr; ' . esc_html__('Back to Pathway: ', 'hl-core') . esc_html($pathway->pathway_name) . '</a>';
         }
@@ -1579,8 +1579,8 @@ class HL_Admin_Pathways {
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">';
         wp_nonce_field('hl_save_activity', 'hl_activity_nonce');
         echo '<input type="hidden" name="pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
-        if ($in_track) {
-            echo '<input type="hidden" name="_hl_track_context" value="' . esc_attr($context['track_id']) . '" />';
+        if ($in_partnership) {
+            echo '<input type="hidden" name="_hl_partnership_context" value="' . esc_attr($context['partnership_id']) . '" />';
         }
 
         if ($is_edit) {
@@ -1665,7 +1665,7 @@ class HL_Admin_Pathways {
                     . '</option>';
             }
             echo '</select>';
-            echo '<p class="description">' . esc_html__('Select the JetFormBuilder observation form. It must include hidden fields (hl_enrollment_id, hl_activity_id, hl_track_id) and a "Call Hook" post-submit action with hook name: hl_core_form_submitted', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('Select the JetFormBuilder observation form. It must include hidden fields (hl_enrollment_id, hl_activity_id, hl_partnership_id) and a "Call Hook" post-submit action with hook name: hl_core_form_submitted', 'hl-core') . '</p>';
         }
         echo '</td>';
         echo '</tr>';

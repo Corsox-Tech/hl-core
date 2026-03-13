@@ -410,10 +410,10 @@ class HL_Admin_Classrooms {
             ));
 
             $classroom_id = absint($_POST['classroom_id']);
-            $track_id    = isset($_POST['track_id']) ? absint($_POST['track_id']) : 0;
+            $partnership_id    = isset($_POST['partnership_id']) ? absint($_POST['partnership_id']) : 0;
             $msg = is_wp_error($result) ? 'assignment_error' : 'assignment_created';
 
-            $redirect = admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom_id . '&track_id=' . $track_id . '&message=' . $msg);
+            $redirect = admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom_id . '&partnership_id=' . $partnership_id . '&message=' . $msg);
             wp_redirect($redirect);
             exit;
         }
@@ -433,9 +433,9 @@ class HL_Admin_Classrooms {
             $service->delete_teaching_assignment($assignment_id);
 
             $classroom_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
-            $track_id    = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
+            $partnership_id    = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
 
-            wp_redirect(admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom_id . '&track_id=' . $track_id . '&message=assignment_removed'));
+            wp_redirect(admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom_id . '&partnership_id=' . $partnership_id . '&message=assignment_removed'));
             exit;
         }
     }
@@ -452,21 +452,21 @@ class HL_Admin_Classrooms {
         echo '<h2>' . esc_html__('Teaching Assignments', 'hl-core') . '</h2>';
 
         // Track context selector
-        $tracks = $wpdb->get_results(
-            "SELECT track_id, track_name FROM {$wpdb->prefix}hl_track ORDER BY track_name ASC"
+        $partnerships = $wpdb->get_results(
+            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
         );
-        $selected_track = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
+        $selected_partnership = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
 
         echo '<form method="get" style="margin-bottom:10px;">';
         echo '<input type="hidden" name="page" value="hl-classrooms" />';
         echo '<input type="hidden" name="action" value="view" />';
         echo '<input type="hidden" name="id" value="' . esc_attr($classroom->classroom_id) . '" />';
-        echo '<label><strong>' . esc_html__('Track Context:', 'hl-core') . '</strong> </label>';
-        echo '<select name="track_id">';
-        echo '<option value="">' . esc_html__('-- Select Track --', 'hl-core') . '</option>';
-        if ($tracks) {
-            foreach ($tracks as $track) {
-                echo '<option value="' . esc_attr($track->track_id) . '"' . selected($selected_track, $track->track_id, false) . '>' . esc_html($track->track_name) . '</option>';
+        echo '<label><strong>' . esc_html__('Partnership Context:', 'hl-core') . '</strong> </label>';
+        echo '<select name="partnership_id">';
+        echo '<option value="">' . esc_html__('-- Select Partnership --', 'hl-core') . '</option>';
+        if ($partnerships) {
+            foreach ($partnerships as $partnership) {
+                echo '<option value="' . esc_attr($partnership->partnership_id) . '"' . selected($selected_partnership, $partnership->partnership_id, false) . '>' . esc_html($partnership->partnership_name) . '</option>';
             }
         }
         echo '</select> ';
@@ -481,7 +481,7 @@ class HL_Admin_Classrooms {
             echo '<thead><tr>';
             echo '<th>' . esc_html__('Teacher', 'hl-core') . '</th>';
             echo '<th>' . esc_html__('Email', 'hl-core') . '</th>';
-            echo '<th>' . esc_html__('Track', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Partnership', 'hl-core') . '</th>';
             echo '<th>' . esc_html__('Lead Teacher', 'hl-core') . '</th>';
             echo '<th>' . esc_html__('Start Date', 'hl-core') . '</th>';
             echo '<th>' . esc_html__('End Date', 'hl-core') . '</th>';
@@ -490,14 +490,14 @@ class HL_Admin_Classrooms {
 
             foreach ($assignments as $a) {
                 $remove_url = wp_nonce_url(
-                    admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom->classroom_id . '&track_id=' . $selected_track . '&remove_assignment=' . $a->assignment_id),
+                    admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom->classroom_id . '&partnership_id=' . $selected_partnership . '&remove_assignment=' . $a->assignment_id),
                     'hl_delete_teaching_assignment_' . $a->assignment_id
                 );
 
                 echo '<tr>';
                 echo '<td>' . esc_html($a->display_name) . '</td>';
                 echo '<td>' . esc_html($a->user_email) . '</td>';
-                echo '<td>' . esc_html($a->track_name) . '</td>';
+                echo '<td>' . esc_html($a->partnership_name) . '</td>';
                 echo '<td>' . ($a->is_lead_teacher ? esc_html__('Yes', 'hl-core') : esc_html__('No', 'hl-core')) . '</td>';
                 echo '<td>' . esc_html($a->effective_start_date ?: '-') . '</td>';
                 echo '<td>' . esc_html($a->effective_end_date ?: '-') . '</td>';
@@ -511,15 +511,15 @@ class HL_Admin_Classrooms {
         }
 
         // Add form (only when track selected)
-        if ($selected_track) {
+        if ($selected_partnership) {
             // Get enrollments with Teacher role at this school for the selected track
             $all_enrollments = $wpdb->get_results($wpdb->prepare(
                 "SELECT e.enrollment_id, e.roles, u.display_name, u.user_email
                  FROM {$wpdb->prefix}hl_enrollment e
                  LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-                 WHERE e.track_id = %d AND e.school_id = %d AND e.status = 'active'
+                 WHERE e.partnership_id = %d AND e.school_id = %d AND e.status = 'active'
                  ORDER BY u.display_name ASC",
-                $selected_track,
+                $selected_partnership,
                 $classroom->school_id
             ));
 
@@ -543,11 +543,11 @@ class HL_Admin_Classrooms {
 
             if (!empty($available)) {
                 echo '<h3>' . esc_html__('Add Teaching Assignment', 'hl-core') . '</h3>';
-                $form_url = admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom->classroom_id . '&track_id=' . $selected_track);
+                $form_url = admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom->classroom_id . '&partnership_id=' . $selected_partnership);
                 echo '<form method="post" action="' . esc_url($form_url) . '">';
                 wp_nonce_field('hl_save_teaching_assignment', 'hl_teaching_assignment_nonce');
                 echo '<input type="hidden" name="classroom_id" value="' . esc_attr($classroom->classroom_id) . '" />';
-                echo '<input type="hidden" name="track_id" value="' . esc_attr($selected_track) . '" />';
+                echo '<input type="hidden" name="partnership_id" value="' . esc_attr($selected_partnership) . '" />';
 
                 echo '<table class="form-table">';
 
@@ -583,7 +583,7 @@ class HL_Admin_Classrooms {
                 submit_button(__('Add Assignment', 'hl-core'), 'primary');
                 echo '</form>';
             } elseif (empty($all_enrollments)) {
-                echo '<p>' . esc_html__('No active enrollments found for this track and school.', 'hl-core') . '</p>';
+                echo '<p>' . esc_html__('No active enrollments found for this partnership and school.', 'hl-core') . '</p>';
             } else {
                 echo '<p>' . esc_html__('All available teachers are already assigned.', 'hl-core') . '</p>';
             }
@@ -617,10 +617,10 @@ class HL_Admin_Classrooms {
             );
 
             $classroom_id = absint($_POST['classroom_id']);
-            $track_id    = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
+            $partnership_id    = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
             $msg = is_wp_error($result) ? 'child_error' : 'child_assigned';
 
-            wp_redirect(admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom_id . '&track_id=' . $track_id . '&message=' . $msg));
+            wp_redirect(admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom_id . '&partnership_id=' . $partnership_id . '&message=' . $msg));
             exit;
         }
 
@@ -639,9 +639,9 @@ class HL_Admin_Classrooms {
             $service->unassign_child_from_classroom($child_id, 'Removed via admin');
 
             $classroom_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
-            $track_id    = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
+            $partnership_id    = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
 
-            wp_redirect(admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom_id . '&track_id=' . $track_id . '&message=child_unassigned'));
+            wp_redirect(admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom_id . '&partnership_id=' . $partnership_id . '&message=child_unassigned'));
             exit;
         }
     }
@@ -694,9 +694,9 @@ class HL_Admin_Classrooms {
             echo '</tr></thead><tbody>';
 
             foreach ($children as $child) {
-                $track_id_param = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
+                $partnership_id_param = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
                 $unassign_url = wp_nonce_url(
-                    admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom->classroom_id . '&track_id=' . $track_id_param . '&unassign_child=' . $child->child_id),
+                    admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom->classroom_id . '&partnership_id=' . $partnership_id_param . '&unassign_child=' . $child->child_id),
                     'hl_unassign_child_' . $child->child_id
                 );
 
@@ -782,8 +782,8 @@ class HL_Admin_Classrooms {
 
         if (!empty($unassigned) || !empty($in_other)) {
             echo '<h3>' . esc_html__('Assign Child to Classroom', 'hl-core') . '</h3>';
-            $track_id_param = isset($_GET['track_id']) ? absint($_GET['track_id']) : 0;
-            $form_url = admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom->classroom_id . '&track_id=' . $track_id_param);
+            $partnership_id_param = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
+            $form_url = admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom->classroom_id . '&partnership_id=' . $partnership_id_param);
             echo '<form method="post" action="' . esc_url($form_url) . '" style="margin-bottom:20px;">';
             wp_nonce_field('hl_save_child_assignment', 'hl_child_assignment_nonce');
             echo '<input type="hidden" name="classroom_id" value="' . esc_attr($classroom->classroom_id) . '" />';
