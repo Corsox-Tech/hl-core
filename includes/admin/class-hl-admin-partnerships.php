@@ -2145,7 +2145,7 @@ class HL_Admin_Partnerships {
              FROM {$wpdb->prefix}hl_enrollment e
              JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$wpdb->prefix}hl_orgunit o ON e.school_id = o.orgunit_id
-             LEFT JOIN {$wpdb->prefix}hl_track_email_log el
+             LEFT JOIN {$wpdb->prefix}hl_partnership_email_log el
                  ON el.partnership_id = e.partnership_id AND el.phase_id = %d AND el.user_id = e.user_id
              WHERE e.partnership_id = %d AND e.status = 'active'
              ORDER BY u.display_name",
@@ -2330,7 +2330,7 @@ class HL_Admin_Partnerships {
         foreach ($enrolled_users as $enr) {
             // Check if already sent (belt-and-suspenders)
             $already_sent = $wpdb->get_var($wpdb->prepare(
-                "SELECT log_id FROM {$wpdb->prefix}hl_track_email_log
+                "SELECT log_id FROM {$wpdb->prefix}hl_partnership_email_log
                  WHERE partnership_id = %d AND phase_id = %d AND user_id = %d",
                 $partnership_id, $phase_id, $enr['user_id']
             ));
@@ -2362,7 +2362,7 @@ class HL_Admin_Partnerships {
             if ($sent) {
                 // INSERT IGNORE for hard DB-level dedup
                 $wpdb->query($wpdb->prepare(
-                    "INSERT IGNORE INTO {$wpdb->prefix}hl_track_email_log
+                    "INSERT IGNORE INTO {$wpdb->prefix}hl_partnership_email_log
                      (partnership_id, phase_id, user_id, email_type, recipient_email, sent_at, sent_by)
                      VALUES (%d, %d, %d, %s, %s, %s, %d)",
                     $partnership_id, $phase_id, $enr['user_id'], $email_type,
@@ -2405,7 +2405,7 @@ class HL_Admin_Partnerships {
 
         global $wpdb;
         $wpdb->delete(
-            $wpdb->prefix . 'hl_track_email_log',
+            $wpdb->prefix . 'hl_partnership_email_log',
             array('partnership_id' => $partnership_id, 'phase_id' => $phase_id, 'user_id' => $user_id),
             array('%d', '%d', '%d')
         );

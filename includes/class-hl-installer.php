@@ -1727,7 +1727,7 @@ class HL_Installer {
         ) $charset_collate;";
 
         // Partnership email log — per-user, per-phase duplicate prevention for invitation emails
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_track_email_log (
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_partnership_email_log (
             log_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             partnership_id bigint(20) unsigned NOT NULL,
             phase_id bigint(20) unsigned NOT NULL,
@@ -2023,6 +2023,13 @@ class HL_Installer {
             }
         }
 
+        // ─── 3b. RENAME TABLE hl_track_email_log → hl_partnership_email_log ─
+        $old_email_log = "{$prefix}hl_track_email_log";
+        $new_email_log = "{$prefix}hl_partnership_email_log";
+        if ( $table_exists( $old_email_log ) && ! $table_exists( $new_email_log ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_email_log}` TO `{$new_email_log}`" );
+        }
+
         // ─── 4. Rename track_id → partnership_id in all dependent tables ─
         $tables_with_track_id = array(
             "{$prefix}hl_enrollment"                   => 'NOT NULL',
@@ -2038,7 +2045,7 @@ class HL_Installer {
             "{$prefix}hl_coach_assignment"              => 'NOT NULL',
             "{$prefix}hl_import_run"                    => 'NULL',
             "{$prefix}hl_audit_log"                     => 'NULL',
-            "{$prefix}hl_track_email_log"               => 'NOT NULL',
+            "{$prefix}hl_partnership_email_log"           => 'NOT NULL',
         );
 
         foreach ( $tables_with_track_id as $table => $nullable ) {
@@ -2085,7 +2092,7 @@ class HL_Installer {
             $wpdb->query( "ALTER TABLE `{$phase_table}` DROP INDEX `track_phase_number`" );
         }
 
-        $email_log_table = "{$prefix}hl_track_email_log";
+        $email_log_table = "{$prefix}hl_partnership_email_log";
         if ( $table_exists( $email_log_table ) && $index_exists( $email_log_table, 'unique_send' ) ) {
             $wpdb->query( "ALTER TABLE `{$email_log_table}` DROP INDEX `unique_send`" );
         }
