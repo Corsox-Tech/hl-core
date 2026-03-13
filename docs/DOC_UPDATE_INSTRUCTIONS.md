@@ -89,7 +89,7 @@ Add at the top of the priority list:
 
 ---
 
-### FILE 2: `01_GLOSSARY_CANONICAL_TERMS.md.md`
+### FILE 2: `01_GLOSSARY_CANONICAL_TERMS.md`
 
 **Changes needed: 4**
 
@@ -140,7 +140,7 @@ Add a new section "§1.6 Product & Program Terms" containing these entries (verb
 
 ---
 
-### FILE 3: `02_DOMAIN_MODEL_ORG_STRUCTURE.md.md`
+### FILE 3: `02_DOMAIN_MODEL_ORG_STRUCTURE.md`
 
 **Changes needed: 5**
 
@@ -240,7 +240,7 @@ Add to the Track identity fields:
 
 ---
 
-### FILE 4: `03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md.md`
+### FILE 4: `03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md`
 
 **Changes needed: 1 (minimal)**
 
@@ -252,7 +252,7 @@ No other changes needed — roles, scopes, and permissions model are unchanged.
 
 ---
 
-### FILE 5: `04_COHORT_PATHWAYS_ACTIVITIES_RULES.md.md`
+### FILE 5: `04_COHORT_PATHWAYS_ACTIVITIES_RULES.md`
 
 **Changes needed: 4**
 
@@ -292,7 +292,7 @@ Add to the list:
 
 ---
 
-### FILE 6: `05_UNLOCKING_LOGIC_PREREQS_DRIP_OVERRIDES.md.md`
+### FILE 6: `05_UNLOCKING_LOGIC_PREREQS_DRIP_OVERRIDES.md`
 
 **Changes needed: 1 (minimal)**
 
@@ -304,7 +304,7 @@ No other changes needed — the unlock logic itself is unchanged.
 
 ---
 
-### FILE 7: `06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md.md`
+### FILE 7: `06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md`
 
 **Changes needed: 2 (minimal — this doc is already mostly current)**
 
@@ -318,7 +318,7 @@ Add note after the existing comparison reporting section:
 
 ---
 
-### FILE 8: `07_IMPORTS_ROSTERS_IDENTITIES_MATCHING.md.md`
+### FILE 8: `07_IMPORTS_ROSTERS_IDENTITIES_MATCHING.md`
 
 **Changes needed: 1 (minimal)**
 
@@ -330,7 +330,7 @@ No other changes — the import system itself is unchanged.
 
 ---
 
-### FILE 9: `08_REPORTING_METRICS_VIEWS_EXPORTS.md.md`
+### FILE 9: `08_REPORTING_METRICS_VIEWS_EXPORTS.md`
 
 **Changes needed: 3**
 
@@ -356,7 +356,7 @@ Add note:
 
 ---
 
-### FILE 10: `09_PLUGIN_ARCHITECTURE_CONSTRAINTS_ACCEPTANCE_TESTS.md.md`
+### FILE 10: `09_PLUGIN_ARCHITECTURE_CONSTRAINTS_ACCEPTANCE_TESTS.md`
 
 **Changes needed: 4**
 

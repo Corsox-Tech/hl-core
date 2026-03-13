@@ -35,7 +35,13 @@ After any feature/fix/refactor: update STATUS.md (check off build queue items `[
 ### 5. Read relevant docs before building features
 Read specific doc file(s) before implementing. See `.claude/skills/architecture.md` for the doc index.
 
-### 6. Terminology
+### 6. Protected files — do NOT edit unless explicitly asked
+These files are project configuration, not development targets. Do NOT modify them during normal feature development:
+- `CLAUDE.md`, `STATUS.md`, `.claude/skills/deploy.md`, `.claude/skills/architecture.md`
+- Exception: STATUS.md build queue checkboxes (`[x]`/`[~]`) and README.md "What's Implemented" — those ARE updated per Rule #3.
+- Exception: If the user explicitly asks to update a reference file.
+
+### 7. Terminology
 Three-level hierarchy: **Cohort** (optional container) → **Track** (full program engagement) → **Phase** (time period within Track). Pathways belong to Phases.
 - **Track** = full program engagement (spans all Phases/years), NOT a single phase. Stored in `hl_track`.
 - **Phase** = time period within a Track. Stored in `hl_phase`.

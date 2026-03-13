@@ -29,38 +29,15 @@ Pick up from the first unchecked `[ ]` item each session.
 
 ---
 
-## Completed Phases
+## Completed Phases (1-32 + 35)
 
-- **Phase 1:** JetFormBuilder Integration Foundation
-- **Phase 2:** LearnDash Completion Wiring
-- **Phase 3:** Child Assessment (Custom Form)
-- **Phase 4:** Observation & Coaching Workflows
-- **Phase 5:** Reporting Dashboard
-- **Phase 6:** Constraints & Polish
-- **Phase 7:** Front-End — Participant Experience
-- **Phase 8:** Front-End — Leader Experience
-- **Phase 9:** Front-End — Staff/Admin CRM Directory
-- **Phase 10:** Coach Assignment + Coaching Enhancement
-- **Phase 11:** Sidebar Navigation & Listing Pages
-- **Phase 12:** MS365 Calendar Integration (deferred — requires Azure AD)
-- **Phase 13:** BuddyBoss Profile Tab (deferred — out of scope for v1)
-- **Phase 14:** Admin UX Improvements
-- **Phase 15:** Architecture — Explicit Pathway Assignments + Cohort Groups
-- **Phase 16:** Cohort Editor — Inline Sub-Entity CRUD
-- **Phase 17:** Admin UX — Hierarchy & Navigation
-- **Phase 18:** Frontend CSS Design System
-- **Phase 19:** Custom Teacher Self-Assessment System
-- **Phase 20:** Control Group Support
-- **Phase 21:** Assessment System Overhaul + Lutheran Seeder + Nuke Command
-- **Phase 22:** Grand Rename — Center→School, Children→Child, Cohort→Track
-- **Phase 23:** Child Assessment Restructure — Per-Child Age Groups + Roster Management
-- **Phase 24:** Teacher Assessment — Admin Visual Editor + Frontend Design Upgrade
-- **Phase 25:** Customizable Child Assessment Instructions & Behavior Key
-- **Phase 26:** Assessment CSV Export — Response Data Exports
-- **Phase 27:** Separate PRE/POST Teacher Assessment Instruments
-- **Phase 28:** Dashboard Shortcode (`[hl_dashboard]`)
-- **Phase 29:** Protect Instruments from Nuke + Admin-Customizable Display Styles
-- **Phase 30:** Admin Documentation System
-- **Phase 31:** K-2nd Grade Age Group + JFB Cleanup + Instrument Preview
-- **Phase 32:** Phase Entity + Track Types (Architecture — B2E Master Reference)
-- **Phase 35:** Admin UX/UI Redesign + Menu Consolidation
+Phases 1-11: Foundation (DB schema, LearnDash wiring, assessments, coaching, reporting, frontend, sidebar nav)
+Phases 14-18: Admin UX, architecture (pathway assignments, cohort groups, hierarchy nav), CSS design system
+Phases 19-21: Custom teacher self-assessment system, control group support, Lutheran seeder, nuke command
+Phase 22: Grand Rename (Center→School, Children→Child, Cohort→Track hierarchy restructure)
+Phases 23-27: Child assessment restructure (per-child age groups, roster management), teacher assessment editor, CSV exports, separate PRE/POST instruments
+Phases 28-31: Dashboard shortcode, instrument nuke protection, admin docs system, K-2nd grade age group
+Phase 32: Phase entity + Track types architecture (B2E Master Reference)
+Phase 35: Admin UX/UI redesign + menu consolidation
+
+Note: Phases 12 (MS365 Calendar) and 13 (BuddyBoss Profile Tab) were deferred.

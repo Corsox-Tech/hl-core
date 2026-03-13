@@ -9,18 +9,18 @@ description: Domain model, roles, coach assignment, phases, track types, scope s
 | File | Covers |
 |------|--------|
 | 00_README_SCOPE.md | Project scope and high-level requirements |
-| 01_GLOSSARY_CANONICAL_TERMS.md.md | Terminology definitions including Cohort, Track, Control Group |
-| 02_DOMAIN_MODEL_ORG_STRUCTURE.md.md | Org units, cohorts, enrollments, teams |
-| 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md.md | Roles, capabilities, access control |
-| 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md.md | Pathways, activities, prerequisite rules |
-| 05_UNLOCKING_LOGIC_PREREQS_DRIP_OVERRIDES.md.md | Unlock logic, drip rules, overrides |
-| 06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md.md | Assessment instruments (custom PHP for teacher + children, JFB for observations only), coaching |
-| 07_IMPORTS_ROSTERS_IDENTITIES_MATCHING.md.md | CSV import pipeline, identity matching |
-| 08_REPORTING_METRICS_VIEWS_EXPORTS.md.md | Reporting, metrics, export formats, program vs control comparison |
-| 09_PLUGIN_ARCHITECTURE_CONSTRAINTS_ACCEPTANCE_TESTS.md.md | Architecture, constraints, acceptance criteria |
+| 01_GLOSSARY_CANONICAL_TERMS.md | Terminology definitions including Cohort, Track, Control Group |
+| 02_DOMAIN_MODEL_ORG_STRUCTURE.md | Org units, cohorts, enrollments, teams |
+| 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md | Roles, capabilities, access control |
+| 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md | Pathways, activities, prerequisite rules |
+| 05_UNLOCKING_LOGIC_PREREQS_DRIP_OVERRIDES.md | Unlock logic, drip rules, overrides |
+| 06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md | Assessment instruments (custom PHP for teacher + children, JFB for observations only), coaching |
+| 07_IMPORTS_ROSTERS_IDENTITIES_MATCHING.md | CSV import pipeline, identity matching |
+| 08_REPORTING_METRICS_VIEWS_EXPORTS.md | Reporting, metrics, export formats, program vs control comparison |
+| 09_PLUGIN_ARCHITECTURE_CONSTRAINTS_ACCEPTANCE_TESTS.md | Architecture, constraints, acceptance criteria |
 | 10_FRONTEND_PAGES_NAVIGATION_UX.md | Front-end pages, sidebar navigation (§16), listing page specs (§17), coach assignment model (§13-15) |
 | B2E_MASTER_REFERENCE.md | **Authoritative** — Product catalog, revised architecture (Phase, Track Types, Individual Enrollments), control group clarification |
-| DOC_UPDATE_INSTRUCTIONS.md | File-by-file instructions for updating all docs to match B2E Master Reference |
+| DOC_UPDATE_INSTRUCTIONS.md | File-by-file instructions for updating all docs to match B2E Master Reference. **PENDING** — these updates have NOT been applied to docs 00-10 yet |
 
 ## UI Label Remapping (CRITICAL — Read Before Touching Any Labels)
 
