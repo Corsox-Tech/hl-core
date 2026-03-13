@@ -96,6 +96,9 @@ class HL_Installer {
         // Rename V2 Phase B1: Rename activity → component across all tables.
         self::migrate_activity_to_component();
 
+        // Rename V2 Phase C1: Rename phase → cycle across all tables.
+        self::migrate_phase_to_cycle();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -118,7 +121,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 19;
+        $current_revision = 20;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -1300,7 +1303,7 @@ class HL_Installer {
             pathway_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             pathway_uuid char(36) NOT NULL,
             partnership_id bigint(20) unsigned NOT NULL,
-            phase_id bigint(20) unsigned NULL,
+            cycle_id bigint(20) unsigned NULL,
             pathway_name varchar(255) NOT NULL,
             pathway_code varchar(100) NOT NULL,
             description longtext NULL,
@@ -1318,7 +1321,7 @@ class HL_Installer {
             UNIQUE KEY pathway_uuid (pathway_uuid),
             UNIQUE KEY partnership_pathway_code (partnership_id, pathway_code),
             KEY partnership_id (partnership_id),
-            KEY phase_id (phase_id)
+            KEY cycle_id (cycle_id)
         ) $charset_collate;";
 
         // Component table
@@ -1710,38 +1713,38 @@ class HL_Installer {
             KEY idx_key_version (instrument_key, instrument_version)
         ) $charset_collate;";
 
-        // Phase table (time-bounded period within a Partnership — groups Pathways)
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_phase (
-            phase_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            phase_uuid char(36) NOT NULL,
+        // Cycle table (time-bounded period within a Partnership — groups Pathways)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_cycle (
+            cycle_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            cycle_uuid char(36) NOT NULL,
             partnership_id bigint(20) unsigned NOT NULL,
-            phase_name varchar(255) NOT NULL,
-            phase_number int NOT NULL DEFAULT 1,
+            cycle_name varchar(255) NOT NULL,
+            cycle_number int NOT NULL DEFAULT 1,
             start_date date NULL,
             end_date date NULL,
             status varchar(20) NOT NULL DEFAULT 'draft',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (phase_id),
-            UNIQUE KEY phase_uuid (phase_uuid),
-            UNIQUE KEY partnership_phase_number (partnership_id, phase_number),
+            PRIMARY KEY (cycle_id),
+            UNIQUE KEY cycle_uuid (cycle_uuid),
+            UNIQUE KEY partnership_cycle_number (partnership_id, cycle_number),
             KEY partnership_id (partnership_id),
             KEY status (status)
         ) $charset_collate;";
 
-        // Partnership email log — per-user, per-phase duplicate prevention for invitation emails
+        // Partnership email log — per-user, per-cycle duplicate prevention for invitation emails
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_partnership_email_log (
             log_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             partnership_id bigint(20) unsigned NOT NULL,
-            phase_id bigint(20) unsigned NOT NULL,
+            cycle_id bigint(20) unsigned NOT NULL,
             user_id bigint(20) unsigned NOT NULL,
             email_type varchar(20) NOT NULL,
             recipient_email varchar(255) NOT NULL,
             sent_at datetime NOT NULL,
             sent_by bigint(20) unsigned NOT NULL,
             PRIMARY KEY (log_id),
-            UNIQUE KEY unique_send (partnership_id, phase_id, user_id),
-            KEY phase_id (phase_id)
+            UNIQUE KEY unique_send (partnership_id, cycle_id, user_id),
+            KEY cycle_id (cycle_id)
         ) $charset_collate;";
 
         // Cohort table (program-level container — groups tracks for cross-track reporting)
@@ -1862,7 +1865,7 @@ class HL_Installer {
 
         // 1. Add phase_id to hl_pathway if missing.
         if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $pathway_table ) ) === $pathway_table ) {
-            if ( ! $column_exists( $pathway_table, 'phase_id' ) ) {
+            if ( ! $column_exists( $pathway_table, 'phase_id' ) && ! $column_exists( $pathway_table, 'cycle_id' ) ) {
                 $wpdb->query( "ALTER TABLE `{$pathway_table}` ADD COLUMN `phase_id` bigint(20) unsigned NULL AFTER `track_id`" );
                 $wpdb->query( "ALTER TABLE `{$pathway_table}` ADD KEY `phase_id` (`phase_id`)" );
             }
@@ -2275,6 +2278,102 @@ class HL_Installer {
                 if ( $index_exists( $table, 'activity_id' ) ) {
                     $wpdb->query( "ALTER TABLE `{$table}` DROP INDEX `activity_id`" );
                 }
+            }
+        }
+    }
+
+    /**
+     * Rename V2 Phase C1: Rename phase → cycle (the Phase entity table only).
+     *
+     * 1. RENAME TABLE hl_phase → hl_cycle + rename PK/columns
+     * 2. Rename phase_id → cycle_id in hl_pathway
+     * 3. Rename phase_id → cycle_id in hl_partnership_email_log
+     *
+     * IMPORTANT: The "phase" column in assessment tables (pre/post enum) is a
+     * DIFFERENT concept and is NOT renamed here.
+     *
+     * All operations are idempotent — safe to run multiple times.
+     */
+    private static function migrate_phase_to_cycle() {
+        global $wpdb;
+
+        $prefix = $wpdb->prefix;
+
+        // Helper: check if a table exists.
+        $table_exists = function ( $name ) use ( $wpdb ) {
+            return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $name ) ) === $name;
+        };
+
+        // Helper: check if a column exists on a table.
+        $column_exists = function ( $table, $column ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                    $table,
+                    $column
+                )
+            ) );
+        };
+
+        // Helper: check if an index exists on a table.
+        $index_exists = function ( $table, $index_name ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_var( $wpdb->prepare(
+                "SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s LIMIT 1",
+                $table,
+                $index_name
+            ) ) );
+        };
+
+        // ─── 1. RENAME TABLE hl_phase → hl_cycle ────────────────────────
+        $old_phase = "{$prefix}hl_phase";
+        $new_cycle = "{$prefix}hl_cycle";
+
+        if ( $table_exists( $old_phase ) && ! $table_exists( $new_cycle ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_phase}` TO `{$new_cycle}`" );
+        }
+
+        // Rename columns inside hl_cycle.
+        if ( $table_exists( $new_cycle ) ) {
+            if ( $column_exists( $new_cycle, 'phase_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cycle}` CHANGE `phase_id` `cycle_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT" );
+            }
+            if ( $column_exists( $new_cycle, 'phase_uuid' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cycle}` CHANGE `phase_uuid` `cycle_uuid` char(36) NOT NULL" );
+            }
+            if ( $column_exists( $new_cycle, 'phase_name' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cycle}` CHANGE `phase_name` `cycle_name` varchar(255) NOT NULL" );
+            }
+            if ( $column_exists( $new_cycle, 'phase_number' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cycle}` CHANGE `phase_number` `cycle_number` int NOT NULL DEFAULT 1" );
+            }
+            // Drop old indexes — dbDelta will recreate with correct names.
+            if ( $index_exists( $new_cycle, 'phase_uuid' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cycle}` DROP INDEX `phase_uuid`" );
+            }
+            if ( $index_exists( $new_cycle, 'partnership_phase_number' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_cycle}` DROP INDEX `partnership_phase_number`" );
+            }
+        }
+
+        // ─── 2. Rename phase_id → cycle_id in hl_pathway ────────────────
+        $pathway_table = "{$prefix}hl_pathway";
+        if ( $table_exists( $pathway_table ) && $column_exists( $pathway_table, 'phase_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$pathway_table}` CHANGE `phase_id` `cycle_id` bigint(20) unsigned NULL" );
+            if ( $index_exists( $pathway_table, 'phase_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$pathway_table}` DROP INDEX `phase_id`" );
+            }
+        }
+
+        // ─── 3. Rename phase_id → cycle_id in hl_partnership_email_log ──
+        $email_log_table = "{$prefix}hl_partnership_email_log";
+        if ( $table_exists( $email_log_table ) && $column_exists( $email_log_table, 'phase_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$email_log_table}` CHANGE `phase_id` `cycle_id` bigint(20) unsigned NOT NULL" );
+            if ( $index_exists( $email_log_table, 'phase_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$email_log_table}` DROP INDEX `phase_id`" );
+            }
+            // Drop the unique key that references phase_id — dbDelta will recreate with cycle_id.
+            if ( $index_exists( $email_log_table, 'unique_send' ) ) {
+                $wpdb->query( "ALTER TABLE `{$email_log_table}` DROP INDEX `unique_send`" );
             }
         }
     }
