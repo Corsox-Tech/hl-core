@@ -15,9 +15,9 @@ class HL_Enrollment_Repository {
         $where = array();
         $values = array();
 
-        if (!empty($filters['track_id'])) {
-            $where[] = 'e.track_id = %d';
-            $values[] = $filters['track_id'];
+        if (!empty($filters['partnership_id'])) {
+            $where[] = 'e.partnership_id = %d';
+            $values[] = $filters['partnership_id'];
         }
         if (!empty($filters['school_id'])) {
             $where[] = 'e.school_id = %d';
@@ -51,22 +51,22 @@ class HL_Enrollment_Repository {
         return $row ? new HL_Enrollment($row) : null;
     }
 
-    public function get_by_track_and_user($track_id, $user_id) {
+    public function get_by_partnership_and_user($partnership_id, $user_id) {
         global $wpdb;
         $row = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table()} WHERE track_id = %d AND user_id = %d",
-            $track_id, $user_id
+            "SELECT * FROM {$this->table()} WHERE partnership_id = %d AND user_id = %d",
+            $partnership_id, $user_id
         ), ARRAY_A);
         return $row ? new HL_Enrollment($row) : null;
     }
 
-    public function get_by_track($track_id, $role = null) {
+    public function get_by_partnership($partnership_id, $role = null) {
         global $wpdb;
         $sql = $wpdb->prepare(
             "SELECT e.*, u.user_email, u.display_name FROM {$this->table()} e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.track_id = %d ORDER BY e.enrolled_at DESC",
-            $track_id
+             WHERE e.partnership_id = %d ORDER BY e.enrolled_at DESC",
+            $partnership_id
         );
         $rows = $wpdb->get_results($sql, ARRAY_A);
         $enrollments = array_map(function($row) { return new HL_Enrollment($row); }, $rows ?: array());
@@ -118,10 +118,10 @@ class HL_Enrollment_Repository {
         return array_map(function($row) { return new HL_Enrollment($row); }, $rows ?: array());
     }
 
-    public function count_by_track($track_id) {
+    public function count_by_partnership($partnership_id) {
         global $wpdb;
         return (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table()} WHERE track_id = %d", $track_id
+            "SELECT COUNT(*) FROM {$this->table()} WHERE partnership_id = %d", $partnership_id
         ));
     }
 }

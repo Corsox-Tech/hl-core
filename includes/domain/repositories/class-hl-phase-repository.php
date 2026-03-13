@@ -17,22 +17,22 @@ class HL_Phase_Repository {
     }
 
     /**
-     * Get all phases, optionally filtered by track.
+     * Get all phases, optionally filtered by partnership.
      *
-     * @param int|null $track_id
+     * @param int|null $partnership_id
      * @return HL_Phase[]
      */
-    public function get_all($track_id = null) {
+    public function get_all($partnership_id = null) {
         global $wpdb;
 
-        if ($track_id) {
+        if ($partnership_id) {
             $rows = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$this->table()} WHERE track_id = %d ORDER BY phase_number ASC",
-                $track_id
+                "SELECT * FROM {$this->table()} WHERE partnership_id = %d ORDER BY phase_number ASC",
+                $partnership_id
             ), ARRAY_A);
         } else {
             $rows = $wpdb->get_results(
-                "SELECT * FROM {$this->table()} ORDER BY track_id DESC, phase_number ASC",
+                "SELECT * FROM {$this->table()} ORDER BY partnership_id DESC, phase_number ASC",
                 ARRAY_A
             );
         }
@@ -58,44 +58,44 @@ class HL_Phase_Repository {
     }
 
     /**
-     * Get phases for a track, ordered by phase_number.
+     * Get phases for a partnership, ordered by phase_number.
      *
-     * @param int $track_id
+     * @param int $partnership_id
      * @return HL_Phase[]
      */
-    public function get_by_track($track_id) {
-        return $this->get_all($track_id);
+    public function get_by_partnership($partnership_id) {
+        return $this->get_all($partnership_id);
     }
 
     /**
-     * Get the first active phase for a track.
+     * Get the first active phase for a partnership.
      *
-     * @param int $track_id
+     * @param int $partnership_id
      * @return HL_Phase|null
      */
-    public function get_active_phase($track_id) {
+    public function get_active_phase($partnership_id) {
         global $wpdb;
 
         $row = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table()} WHERE track_id = %d AND status = 'active' ORDER BY phase_number ASC LIMIT 1",
-            $track_id
+            "SELECT * FROM {$this->table()} WHERE partnership_id = %d AND status = 'active' ORDER BY phase_number ASC LIMIT 1",
+            $partnership_id
         ), ARRAY_A);
 
         return $row ? new HL_Phase($row) : null;
     }
 
     /**
-     * Get the default (first) phase for a track, regardless of status.
+     * Get the default (first) phase for a partnership, regardless of status.
      *
-     * @param int $track_id
+     * @param int $partnership_id
      * @return HL_Phase|null
      */
-    public function get_default_phase($track_id) {
+    public function get_default_phase($partnership_id) {
         global $wpdb;
 
         $row = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table()} WHERE track_id = %d ORDER BY phase_number ASC LIMIT 1",
-            $track_id
+            "SELECT * FROM {$this->table()} WHERE partnership_id = %d ORDER BY phase_number ASC LIMIT 1",
+            $partnership_id
         ), ARRAY_A);
 
         return $row ? new HL_Phase($row) : null;

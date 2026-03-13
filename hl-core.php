@@ -70,7 +70,7 @@ class HL_Core {
         
         // Domain models
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-orgunit.php';
-        require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-track.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-partnership.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-enrollment.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-team.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-classroom.php';
@@ -82,7 +82,7 @@ class HL_Core {
         
         // Repositories
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-orgunit-repository.php';
-        require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-track-repository.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-partnership-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-enrollment-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-team-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-classroom-repository.php';
@@ -198,6 +198,11 @@ class HL_Core {
         
         add_action('plugins_loaded', array($this, 'init'));
         add_action('init', array($this, 'load_textdomain'));
+
+        // Extend password reset key expiration to 7 days (default is 24 hours).
+        add_filter('password_reset_expiration', function () {
+            return 7 * DAY_IN_SECONDS;
+        });
     }
     
     /**

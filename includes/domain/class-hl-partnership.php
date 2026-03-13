@@ -1,6 +1,6 @@
 <?php
 /**
- * Track domain model (a time-bounded run within a Cohort)
+ * Partnership domain model (a time-bounded run within a Cohort)
  *
  * @package HL_Core
  */
@@ -9,15 +9,15 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class HL_Track {
-    public $track_id;
-    public $track_uuid;
-    public $track_code;
-    public $track_name;
+class HL_Partnership {
+    public $partnership_id;
+    public $partnership_uuid;
+    public $partnership_code;
+    public $partnership_name;
     public $district_id;
     public $cohort_id;
     public $is_control_group;
-    public $track_type;
+    public $partnership_type;
     public $status;
     public $start_date;
     public $end_date;
@@ -36,14 +36,14 @@ class HL_Track {
 
     public function to_array() {
         return array(
-            'track_id' => $this->track_id,
-            'track_uuid' => $this->track_uuid,
-            'track_code' => $this->track_code,
-            'track_name' => $this->track_name,
+            'partnership_id' => $this->partnership_id,
+            'partnership_uuid' => $this->partnership_uuid,
+            'partnership_code' => $this->partnership_code,
+            'partnership_name' => $this->partnership_name,
             'district_id' => $this->district_id,
             'cohort_id' => $this->cohort_id,
             'is_control_group' => $this->is_control_group,
-            'track_type' => $this->track_type,
+            'partnership_type' => $this->partnership_type,
             'status' => $this->status,
             'start_date' => $this->start_date,
             'end_date' => $this->end_date,

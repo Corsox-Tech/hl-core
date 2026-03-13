@@ -19,9 +19,9 @@ class HL_Team_Repository {
         $where = array();
         $values = array();
 
-        if (!empty($filters['track_id'])) {
-            $where[] = 'track_id = %d';
-            $values[] = $filters['track_id'];
+        if (!empty($filters['partnership_id'])) {
+            $where[] = 'partnership_id = %d';
+            $values[] = $filters['partnership_id'];
         }
         if (!empty($filters['school_id'])) {
             $where[] = 'school_id = %d';
