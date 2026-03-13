@@ -15,8 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class HL_CLI_Provision_Lutheran {
 
-	/** Track code. */
-	const TRACK_CODE = 'LUTHERAN_CONTROL_2026';
+	/** Partnership code. */
+	const PARTNERSHIP_CODE = 'LUTHERAN_CONTROL_2026';
 
 	/** District code. */
 	const DISTRICT_CODE = 'LSF_PALM_BEACH';
@@ -65,7 +65,7 @@ class HL_CLI_Provision_Lutheran {
 	 * Provision Lutheran Services Florida control group data.
 	 *
 	 * Finds existing WP users by email — never creates or deletes users.
-	 * Creates HL Core entities (district, schools, track, enrollments, etc.)
+	 * Creates HL Core entities (district, schools, partnership, enrollments, etc.)
 	 * only if they don't already exist. Idempotent and production-safe.
 	 *
 	 * ## OPTIONS
@@ -108,17 +108,17 @@ class HL_CLI_Provision_Lutheran {
 		// Step 2: Schools.
 		$school_map = $this->provision_schools( $school_info_data, $district_id );
 
-		// Step 3: Track.
-		$track_id = $this->provision_track( $district_id );
+		// Step 3: Partnership.
+		$partnership_id = $this->provision_partnership( $district_id );
 
 		// Step 4: Phase.
-		$phase_id = $this->provision_phase( $track_id );
+		$phase_id = $this->provision_phase( $partnership_id );
 
-		// Step 5: Track-School links.
-		$this->provision_track_schools( $track_id, $school_map );
+		// Step 5: Partnership-School links.
+		$this->provision_partnership_schools( $partnership_id, $school_map );
 
 		// Step 6: Cohort container.
-		$cohort_id = $this->provision_cohort( $track_id );
+		$cohort_id = $this->provision_cohort( $partnership_id );
 
 		// Step 7: Classrooms.
 		$classrooms = $this->provision_classrooms( $teacher_roster_data, $school_map );
@@ -127,7 +127,7 @@ class HL_CLI_Provision_Lutheran {
 		$users = $this->lookup_users( $teacher_roster_data );
 
 		// Step 9: Enrollments.
-		$enrollments = $this->provision_enrollments( $teacher_roster_data, $users, $track_id, $school_map, $district_id );
+		$enrollments = $this->provision_enrollments( $teacher_roster_data, $users, $partnership_id, $school_map, $district_id );
 
 		// Step 10: Teaching Assignments.
 		$this->provision_teaching_assignments( $teacher_roster_data, $enrollments, $classrooms, $school_map );
@@ -136,15 +136,15 @@ class HL_CLI_Provision_Lutheran {
 		$this->provision_children( $child_roster_data, $classrooms, $school_map );
 
 		// Step 12: Freeze age groups.
-		if ( $track_id && ! $this->dry_run ) {
-			$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $track_id );
+		if ( $partnership_id && ! $this->dry_run ) {
+			$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $partnership_id );
 			WP_CLI::log( "  [12] Frozen age group snapshots: {$frozen}" );
 		} else {
-			WP_CLI::log( '  [12] Freeze age groups: ' . ( $this->dry_run ? 'SKIP (dry run)' : 'SKIP (no track)' ) );
+			WP_CLI::log( '  [12] Freeze age groups: ' . ( $this->dry_run ? 'SKIP (dry run)' : 'SKIP (no partnership)' ) );
 		}
 
 		// Step 13: Pathway + 4 Activities.
-		$pathway_data = $this->provision_pathway( $track_id );
+		$pathway_data = $this->provision_pathway( $partnership_id );
 
 		// Step 14: Drip Rules.
 		$this->provision_drip_rules( $pathway_data );
@@ -157,7 +157,7 @@ class HL_CLI_Provision_Lutheran {
 		$this->update_activity_instrument_refs( $pathway_data, $instrument_ids );
 
 		// Step 16: Assessment Instances.
-		$this->provision_assessment_instances( $enrollments, $track_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $child_instruments );
+		$this->provision_assessment_instances( $enrollments, $partnership_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $child_instruments );
 
 		// Step 17: Activity States.
 		$this->provision_activity_states( $enrollments, $pathway_data );
@@ -288,26 +288,26 @@ class HL_CLI_Provision_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 3: Track
+	// Step 3: Partnership
 	// ------------------------------------------------------------------
 
-	private function provision_track( $district_id ) {
+	private function provision_partnership( $district_id ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
 		$id = $this->find_or_create(
-			'Track',
+			'Partnership',
 			function () use ( $wpdb, $prefix ) {
 				return $wpdb->get_var( $wpdb->prepare(
-					"SELECT track_id FROM {$prefix}hl_track WHERE track_code = %s LIMIT 1",
-					self::TRACK_CODE
+					"SELECT partnership_id FROM {$prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
+					self::PARTNERSHIP_CODE
 				) );
 			},
 			function () use ( $district_id ) {
-				$repo = new HL_Track_Repository();
+				$repo = new HL_Partnership_Repository();
 				return $repo->create( array(
-					'track_name'       => 'Lutheran Control Group 2026',
-					'track_code'       => self::TRACK_CODE,
+					'partnership_name'       => 'Lutheran Control Group 2026',
+					'partnership_code'       => self::PARTNERSHIP_CODE,
 					'district_id'      => $district_id,
 					'status'           => 'active',
 					'is_control_group' => 1,
@@ -317,8 +317,8 @@ class HL_CLI_Provision_Lutheran {
 			}
 		);
 
-		$status = $this->counters['Track']['found'] > 0 ? 'FOUND' : ( $this->dry_run ? 'WOULD CREATE' : 'CREATED' );
-		WP_CLI::log( "  [3] Track: {$status}" . ( $id ? " (id={$id})" : '' ) );
+		$status = $this->counters['Partnership']['found'] > 0 ? 'FOUND' : ( $this->dry_run ? 'WOULD CREATE' : 'CREATED' );
+		WP_CLI::log( "  [3] Partnership: {$status}" . ( $id ? " (id={$id})" : '' ) );
 		return $id;
 	}
 
@@ -326,27 +326,27 @@ class HL_CLI_Provision_Lutheran {
 	// Step 4: Phase
 	// ------------------------------------------------------------------
 
-	private function provision_phase( $track_id ) {
+	private function provision_phase( $partnership_id ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
-		if ( ! $track_id ) {
-			WP_CLI::log( '  [4] Phase: SKIP (no track in dry run)' );
+		if ( ! $partnership_id ) {
+			WP_CLI::log( '  [4] Phase: SKIP (no partnership in dry run)' );
 			return null;
 		}
 
 		$id = $this->find_or_create(
 			'Phase',
-			function () use ( $wpdb, $prefix, $track_id ) {
+			function () use ( $wpdb, $prefix, $partnership_id ) {
 				return $wpdb->get_var( $wpdb->prepare(
-					"SELECT phase_id FROM {$prefix}hl_phase WHERE track_id = %d AND phase_number = 1 LIMIT 1",
-					$track_id
+					"SELECT phase_id FROM {$prefix}hl_phase WHERE partnership_id = %d AND phase_number = 1 LIMIT 1",
+					$partnership_id
 				) );
 			},
-			function () use ( $track_id ) {
+			function () use ( $partnership_id ) {
 				$svc = new HL_Phase_Service();
 				return $svc->create_phase( array(
-					'track_id'     => $track_id,
+					'partnership_id'     => $partnership_id,
 					'phase_name'   => 'Phase 1',
 					'phase_number' => 1,
 					'start_date'   => '2026-02-15',
@@ -362,15 +362,15 @@ class HL_CLI_Provision_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 5: Track-School links
+	// Step 5: Partnership-School links
 	// ------------------------------------------------------------------
 
-	private function provision_track_schools( $track_id, $school_map ) {
+	private function provision_partnership_schools( $partnership_id, $school_map ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
-		if ( ! $track_id ) {
-			WP_CLI::log( '  [5] Track-School links: SKIP (no track in dry run)' );
+		if ( ! $partnership_id ) {
+			WP_CLI::log( '  [5] Partnership-School links: SKIP (no partnership in dry run)' );
 			return;
 		}
 
@@ -379,8 +379,8 @@ class HL_CLI_Provision_Lutheran {
 
 		foreach ( $school_map as $school_id ) {
 			$exists = $wpdb->get_var( $wpdb->prepare(
-				"SELECT COUNT(*) FROM {$prefix}hl_track_school WHERE track_id = %d AND school_id = %d",
-				$track_id, $school_id
+				"SELECT COUNT(*) FROM {$prefix}hl_partnership_school WHERE partnership_id = %d AND school_id = %d",
+				$partnership_id, $school_id
 			) );
 
 			if ( $exists ) {
@@ -389,23 +389,23 @@ class HL_CLI_Provision_Lutheran {
 			}
 
 			if ( ! $this->dry_run ) {
-				$wpdb->insert( $prefix . 'hl_track_school', array(
-					'track_id'  => $track_id,
+				$wpdb->insert( $prefix . 'hl_partnership_school', array(
+					'partnership_id'  => $partnership_id,
 					'school_id' => $school_id,
 				) );
 			}
 			$linked++;
 		}
 
-		$this->counters['Track-School Links'] = array( 'found' => $found, 'created' => $linked );
-		WP_CLI::log( "  [5] Track-School links: {$found} found, {$linked} " . ( $this->dry_run ? 'would create' : 'created' ) );
+		$this->counters['Partnership-School Links'] = array( 'found' => $found, 'created' => $linked );
+		WP_CLI::log( "  [5] Partnership-School links: {$found} found, {$linked} " . ( $this->dry_run ? 'would create' : 'created' ) );
 	}
 
 	// ------------------------------------------------------------------
 	// Step 6: Cohort container
 	// ------------------------------------------------------------------
 
-	private function provision_cohort( $track_id ) {
+	private function provision_cohort( $partnership_id ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
@@ -428,12 +428,12 @@ class HL_CLI_Provision_Lutheran {
 			}
 		);
 
-		// Assign track to cohort.
-		if ( $track_id && $id && ! $this->dry_run ) {
+		// Assign partnership to cohort.
+		if ( $partnership_id && $id && ! $this->dry_run ) {
 			$wpdb->update(
-				$prefix . 'hl_track',
+				$prefix . 'hl_partnership',
 				array( 'cohort_id' => $id ),
-				array( 'track_id' => $track_id )
+				array( 'partnership_id' => $partnership_id )
 			);
 		}
 
@@ -556,12 +556,12 @@ class HL_CLI_Provision_Lutheran {
 	// Step 9: Enrollments
 	// ------------------------------------------------------------------
 
-	private function provision_enrollments( $teacher_roster_data, $users, $track_id, $school_map, $district_id ) {
+	private function provision_enrollments( $teacher_roster_data, $users, $partnership_id, $school_map, $district_id ) {
 		$repo        = new HL_Enrollment_Repository();
 		$enrollments = array();
 
-		if ( ! $track_id ) {
-			WP_CLI::log( '  [9] Enrollments: SKIP (no track in dry run)' );
+		if ( ! $partnership_id ) {
+			WP_CLI::log( '  [9] Enrollments: SKIP (no partnership in dry run)' );
 			return $enrollments;
 		}
 
@@ -577,14 +577,14 @@ class HL_CLI_Provision_Lutheran {
 
 			$eid = $this->find_or_create(
 				'Enrollments',
-				function () use ( $repo, $track_id, $user_id ) {
-					$existing = $repo->get_by_track_and_user( $track_id, $user_id );
+				function () use ( $repo, $partnership_id, $user_id ) {
+					$existing = $repo->get_by_partnership_and_user( $partnership_id, $user_id );
 					return $existing ? $existing->enrollment_id : null;
 				},
-				function () use ( $repo, $user_id, $track_id, $school_id, $district_id ) {
+				function () use ( $repo, $user_id, $partnership_id, $school_id, $district_id ) {
 					return $repo->create( array(
 						'user_id'     => $user_id,
-						'track_id'    => $track_id,
+						'partnership_id'    => $partnership_id,
 						'roles'       => array( 'teacher' ),
 						'status'      => 'active',
 						'school_id'   => $school_id,
@@ -763,12 +763,12 @@ class HL_CLI_Provision_Lutheran {
 	// Step 13: Pathway + Activities
 	// ------------------------------------------------------------------
 
-	private function provision_pathway( $track_id ) {
+	private function provision_pathway( $partnership_id ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
-		if ( ! $track_id ) {
-			WP_CLI::log( '  [13] Pathway + Activities: SKIP (no track in dry run)' );
+		if ( ! $partnership_id ) {
+			WP_CLI::log( '  [13] Pathway + Activities: SKIP (no partnership in dry run)' );
 			return array(
 				'pathway_id'  => null,
 				'tsa_pre_id'  => null,
@@ -787,12 +787,12 @@ class HL_CLI_Provision_Lutheran {
 					'LUTHERAN_CTRL_ASSESSMENTS'
 				) );
 			},
-			function () use ( $track_id ) {
+			function () use ( $partnership_id ) {
 				$svc = new HL_Pathway_Service();
 				return $svc->create_pathway( array(
 					'pathway_name'  => 'Control Group Assessments',
 					'pathway_code'  => 'LUTHERAN_CTRL_ASSESSMENTS',
-					'track_id'      => $track_id,
+					'partnership_id'      => $partnership_id,
 					'target_roles'  => array( 'teacher' ),
 					'active_status' => 1,
 				) );
@@ -829,12 +829,12 @@ class HL_CLI_Provision_Lutheran {
 						$pathway_id, $act['title']
 					) );
 				},
-				function () use ( $track_id, $pathway_id, $act ) {
+				function () use ( $partnership_id, $pathway_id, $act ) {
 					$svc = new HL_Pathway_Service();
 					return $svc->create_activity( array(
 						'title'         => $act['title'],
 						'pathway_id'    => $pathway_id,
-						'track_id'      => $track_id,
+						'partnership_id'      => $partnership_id,
 						'activity_type' => $act['type'],
 						'weight'        => 1.0,
 						'ordering_hint' => $act['order'],
@@ -1050,11 +1050,11 @@ class HL_CLI_Provision_Lutheran {
 	// Step 16: Assessment Instances
 	// ------------------------------------------------------------------
 
-	private function provision_assessment_instances( $enrollments, $track_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $child_instruments ) {
+	private function provision_assessment_instances( $enrollments, $partnership_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $child_instruments ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
-		if ( ! $track_id || ! $pathway_data['tsa_pre_id'] ) {
+		if ( ! $partnership_id || ! $pathway_data['tsa_pre_id'] ) {
 			WP_CLI::log( '  [16] Assessment Instances: SKIP (dependencies not available)' );
 			return;
 		}
@@ -1088,7 +1088,7 @@ class HL_CLI_Provision_Lutheran {
 					$inst_id = isset( $instrument_ids[ $phase ] ) ? $instrument_ids[ $phase ] : null;
 					$wpdb->insert( $prefix . 'hl_teacher_assessment_instance', array(
 						'instance_uuid'      => HL_DB_Utils::generate_uuid(),
-						'track_id'           => $track_id,
+						'partnership_id'           => $partnership_id,
 						'enrollment_id'      => $eid,
 						'activity_id'        => $activity_id,
 						'phase'              => $phase,
@@ -1134,7 +1134,7 @@ class HL_CLI_Provision_Lutheran {
 					if ( ! $this->dry_run ) {
 						$wpdb->insert( $prefix . 'hl_child_assessment_instance', array(
 							'instance_uuid'       => HL_DB_Utils::generate_uuid(),
-							'track_id'            => $track_id,
+							'partnership_id'            => $partnership_id,
 							'enrollment_id'       => $eid,
 							'activity_id'         => $activity_id,
 							'classroom_id'        => $classroom_id,

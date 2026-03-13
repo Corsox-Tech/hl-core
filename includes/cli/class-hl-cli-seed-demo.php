@@ -14,8 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class HL_CLI_Seed_Demo {
 
-    /** Demo track code used to identify seeded data. */
-    const DEMO_TRACK_CODE = 'DEMO-2026';
+    /** Demo partnership code used to identify seeded data. */
+    const DEMO_PARTNERSHIP_CODE = 'DEMO-2026';
 
     /** Email domain pattern for demo users. */
     const DEMO_EMAIL_DOMAIN = 'example.com';
@@ -69,9 +69,9 @@ class HL_CLI_Seed_Demo {
         // Step 1: Org Structure
         list( $district_id, $school_a_id, $school_b_id ) = $this->seed_orgunits();
 
-        // Step 2: Track + Phase
-        $track_id = $this->seed_track( $district_id, $school_a_id, $school_b_id );
-        $this->seed_phase( $track_id );
+        // Step 2: Partnership + Phase
+        $partnership_id = $this->seed_partnership( $district_id, $school_a_id, $school_b_id );
+        $this->seed_phase( $partnership_id );
 
         // Step 3: Classrooms
         $classrooms = $this->seed_classrooms( $school_a_id, $school_b_id );
@@ -83,10 +83,10 @@ class HL_CLI_Seed_Demo {
         $users = $this->seed_users();
 
         // Step 6: Enrollments
-        $enrollments = $this->seed_enrollments( $users, $track_id, $school_a_id, $school_b_id, $district_id );
+        $enrollments = $this->seed_enrollments( $users, $partnership_id, $school_a_id, $school_b_id, $district_id );
 
         // Step 7: Teams
-        $teams = $this->seed_teams( $track_id, $school_a_id, $school_b_id, $enrollments );
+        $teams = $this->seed_teams( $partnership_id, $school_a_id, $school_b_id, $enrollments );
 
         // Step 8: Teaching Assignments
         $this->seed_teaching_assignments( $enrollments, $classrooms );
@@ -94,12 +94,12 @@ class HL_CLI_Seed_Demo {
         // Step 9: Children
         $this->seed_children( $classrooms, $school_a_id, $school_b_id );
 
-        // Step 9b: Freeze child age groups for this track
-        $frozen = HL_Child_Snapshot_Service::freeze_age_groups( $track_id );
+        // Step 9b: Freeze child age groups for this partnership
+        $frozen = HL_Child_Snapshot_Service::freeze_age_groups( $partnership_id );
         WP_CLI::log( "  [9b/17] Frozen age group snapshots: {$frozen}" );
 
         // Step 10: Pathways & Activities
-        $pathways = $this->seed_pathways( $track_id, $instruments );
+        $pathways = $this->seed_pathways( $partnership_id, $instruments );
 
         // Step 11: Update Enrollment assigned_pathway_id
         $this->assign_pathways( $enrollments, $pathways );
@@ -117,16 +117,16 @@ class HL_CLI_Seed_Demo {
         $this->seed_rollups( $enrollments );
 
         // Step 16: Coach Assignments
-        $this->seed_coach_assignments( $track_id, $school_a_id, $school_b_id, $teams, $users );
+        $this->seed_coach_assignments( $partnership_id, $school_a_id, $school_b_id, $teams, $users );
 
         // Step 17: Coaching Sessions
-        $this->seed_coaching_sessions( $track_id, $enrollments, $users );
+        $this->seed_coaching_sessions( $partnership_id, $enrollments, $users );
 
         WP_CLI::line( '' );
         WP_CLI::success( 'Demo data seeded successfully!' );
         WP_CLI::line( '' );
         WP_CLI::line( 'Summary:' );
-        WP_CLI::line( "  Track:        {$track_id} (code: " . self::DEMO_TRACK_CODE . ')' );
+        WP_CLI::line( "  Partnership:  {$partnership_id} (code: " . self::DEMO_PARTNERSHIP_CODE . ')' );
         WP_CLI::line( "  District:     {$district_id}" );
         WP_CLI::line( "  Schools:      {$school_a_id}, {$school_b_id}" );
         WP_CLI::line( '  Classrooms:   ' . count( $classrooms ) );
@@ -149,8 +149,8 @@ class HL_CLI_Seed_Demo {
         global $wpdb;
         $row = $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT track_id FROM {$wpdb->prefix}hl_track WHERE track_code = %s LIMIT 1",
-                self::DEMO_TRACK_CODE
+                "SELECT partnership_id FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
+                self::DEMO_PARTNERSHIP_CODE
             )
         );
         return ! empty( $row );
@@ -164,22 +164,22 @@ class HL_CLI_Seed_Demo {
 
         WP_CLI::line( 'Cleaning demo data...' );
 
-        // 1. Find demo track.
-        $track_id = $wpdb->get_var(
+        // 1. Find demo partnership.
+        $partnership_id = $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT track_id FROM {$wpdb->prefix}hl_track WHERE track_code = %s LIMIT 1",
-                self::DEMO_TRACK_CODE
+                "SELECT partnership_id FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
+                self::DEMO_PARTNERSHIP_CODE
             )
         );
 
-        if ( $track_id ) {
+        if ( $partnership_id ) {
             // Delete dependent data in reverse dependency order.
 
             // Activity states & rollups via enrollments.
             $enrollment_ids = $wpdb->get_col(
                 $wpdb->prepare(
-                    "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE track_id = %d",
-                    $track_id
+                    "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d",
+                    $partnership_id
                 )
             );
 
@@ -206,14 +206,14 @@ class HL_CLI_Seed_Demo {
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
 
                 // Observations.
-                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE track_id = {$track_id}" );
+                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE partnership_id = {$partnership_id}" );
             }
 
             // Activities and related rules.
             $activity_ids = $wpdb->get_col(
                 $wpdb->prepare(
-                    "SELECT activity_id FROM {$wpdb->prefix}hl_activity WHERE track_id = %d",
-                    $track_id
+                    "SELECT activity_id FROM {$wpdb->prefix}hl_activity WHERE partnership_id = %d",
+                    $partnership_id
                 )
             );
             if ( ! empty( $activity_ids ) ) {
@@ -229,46 +229,46 @@ class HL_CLI_Seed_Demo {
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id IN ({$in_act})" );
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_drip_rule WHERE activity_id IN ({$in_act})" );
             }
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE track_id = %d", $track_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE partnership_id = %d", $partnership_id ) );
 
             // Pathways.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE track_id = %d", $track_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d", $partnership_id ) );
 
             // Phases.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_phase WHERE track_id = %d", $track_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_phase WHERE partnership_id = %d", $partnership_id ) );
 
             // Teams.
             $team_ids = $wpdb->get_col(
                 $wpdb->prepare(
-                    "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE track_id = %d",
-                    $track_id
+                    "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE partnership_id = %d",
+                    $partnership_id
                 )
             );
             if ( ! empty( $team_ids ) ) {
                 $in_teams = implode( ',', array_map( 'intval', $team_ids ) );
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_team_membership WHERE team_id IN ({$in_teams})" );
             }
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_team WHERE track_id = %d", $track_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_team WHERE partnership_id = %d", $partnership_id ) );
 
             // Enrollments.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE track_id = %d", $track_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d", $partnership_id ) );
 
-            // Track-school links.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track_school WHERE track_id = %d", $track_id ) );
+            // Partnership-school links.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_partnership_school WHERE partnership_id = %d", $partnership_id ) );
 
             // Coach assignments.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE track_id = %d", $track_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE partnership_id = %d", $partnership_id ) );
 
             // Coaching sessions.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE track_id = %d", $track_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE partnership_id = %d", $partnership_id ) );
 
-            // Child track snapshots.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_track_snapshot WHERE track_id = %d", $track_id ) );
+            // Child partnership snapshots.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_partnership_snapshot WHERE partnership_id = %d", $partnership_id ) );
 
-            // Track.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_track WHERE track_id = %d", $track_id ) );
+            // Partnership.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d", $partnership_id ) );
 
-            WP_CLI::log( "  Deleted track {$track_id} and all related records." );
+            WP_CLI::log( "  Deleted partnership {$partnership_id} and all related records." );
         }
 
         // 2. Handle demo users — only delete those we CREATED; preserve pre-existing (tagged 'found').
@@ -323,9 +323,9 @@ class HL_CLI_Seed_Demo {
         $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_orgunit WHERE name LIKE 'Demo %'" );
         WP_CLI::log( '  Deleted demo org units.' );
 
-        // 6. Clean up audit log entries for the demo track.
-        if ( $track_id ) {
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE track_id = %d", $track_id ) );
+        // 6. Clean up audit log entries for the demo partnership.
+        if ( $partnership_id ) {
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE partnership_id = %d", $partnership_id ) );
             WP_CLI::log( '  Deleted demo audit log entries.' );
         }
     }
@@ -365,55 +365,55 @@ class HL_CLI_Seed_Demo {
     }
 
     // ------------------------------------------------------------------
-    // Step 2: Track
+    // Step 2: Partnership
     // ------------------------------------------------------------------
 
     /**
-     * Seed track and link to schools.
+     * Seed partnership and link to schools.
      *
      * @param int $district_id  District orgunit ID.
      * @param int $school_a_id  School A orgunit ID.
      * @param int $school_b_id  School B orgunit ID.
-     * @return int Track ID.
+     * @return int Partnership ID.
      */
-    private function seed_track( $district_id, $school_a_id, $school_b_id ) {
+    private function seed_partnership( $district_id, $school_a_id, $school_b_id ) {
         global $wpdb;
 
-        $repo = new HL_Track_Repository();
+        $repo = new HL_Partnership_Repository();
 
-        $track_id = $repo->create( array(
-            'track_name' => 'Demo Track 2026',
-            'track_code' => self::DEMO_TRACK_CODE,
+        $partnership_id = $repo->create( array(
+            'partnership_name' => 'Demo Partnership 2026',
+            'partnership_code' => self::DEMO_PARTNERSHIP_CODE,
             'district_id' => $district_id,
             'status'      => 'active',
             'start_date'  => '2026-01-01',
             'end_date'    => '2026-12-31',
         ) );
 
-        // Link track to both schools.
-        $wpdb->insert( $wpdb->prefix . 'hl_track_school', array(
-            'track_id' => $track_id,
+        // Link partnership to both schools.
+        $wpdb->insert( $wpdb->prefix . 'hl_partnership_school', array(
+            'partnership_id' => $partnership_id,
             'school_id' => $school_a_id,
         ) );
-        $wpdb->insert( $wpdb->prefix . 'hl_track_school', array(
-            'track_id' => $track_id,
+        $wpdb->insert( $wpdb->prefix . 'hl_partnership_school', array(
+            'partnership_id' => $partnership_id,
             'school_id' => $school_b_id,
         ) );
 
-        WP_CLI::log( "  [2/17] Track created: id={$track_id}, code=" . self::DEMO_TRACK_CODE );
+        WP_CLI::log( "  [2/17] Partnership created: id={$partnership_id}, code=" . self::DEMO_PARTNERSHIP_CODE );
 
-        return $track_id;
+        return $partnership_id;
     }
 
     /**
-     * Seed a default Phase for the demo track.
+     * Seed a default Phase for the demo partnership.
      *
-     * @param int $track_id Track ID.
+     * @param int $partnership_id Partnership ID.
      */
-    private function seed_phase( $track_id ) {
+    private function seed_phase( $partnership_id ) {
         $phase_svc = new HL_Phase_Service();
         $phase_id = $phase_svc->create_phase( array(
-            'track_id'     => $track_id,
+            'partnership_id'     => $partnership_id,
             'phase_name'   => 'Phase 1',
             'phase_number' => 1,
             'start_date'   => '2026-01-01',
@@ -680,13 +680,13 @@ class HL_CLI_Seed_Demo {
      * Seed enrollments for all users except coach.
      *
      * @param array $users        User arrays.
-     * @param int   $track_id    Track ID.
+     * @param int   $partnership_id    Partnership ID.
      * @param int   $school_a_id  School A.
      * @param int   $school_b_id  School B.
      * @param int   $district_id  District ID.
      * @return array Enrollment data.
      */
-    private function seed_enrollments( $users, $track_id, $school_a_id, $school_b_id, $district_id ) {
+    private function seed_enrollments( $users, $partnership_id, $school_a_id, $school_b_id, $district_id ) {
         $repo = new HL_Enrollment_Repository();
 
         $enrollments = array(
@@ -703,7 +703,7 @@ class HL_CLI_Seed_Demo {
             $school = ( $idx < 5 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
-                'track_id' => $track_id,
+                'partnership_id' => $partnership_id,
                 'roles'     => array( 'teacher' ),
                 'status'    => 'active',
                 'school_id' => $school,
@@ -723,7 +723,7 @@ class HL_CLI_Seed_Demo {
             $school = ( $idx === 0 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
-                'track_id' => $track_id,
+                'partnership_id' => $partnership_id,
                 'roles'     => array( 'mentor' ),
                 'status'    => 'active',
                 'school_id' => $school,
@@ -738,7 +738,7 @@ class HL_CLI_Seed_Demo {
             $school = ( $idx === 0 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
-                'track_id' => $track_id,
+                'partnership_id' => $partnership_id,
                 'roles'     => array( 'school_leader' ),
                 'status'    => 'active',
                 'school_id' => $school,
@@ -752,7 +752,7 @@ class HL_CLI_Seed_Demo {
         $uid = $users['district_leader'];
         $eid = $repo->create( array(
             'user_id'   => $uid,
-            'track_id' => $track_id,
+            'partnership_id' => $partnership_id,
             'roles'     => array( 'district_leader' ),
             'status'    => 'active',
             'district_id' => $district_id,
@@ -772,13 +772,13 @@ class HL_CLI_Seed_Demo {
     /**
      * Seed teams with mentor + teacher members.
      *
-     * @param int   $track_id    Track ID.
+     * @param int   $partnership_id    Partnership ID.
      * @param int   $school_a_id  School A.
      * @param int   $school_b_id  School B.
      * @param array $enrollments  Enrollment data.
      * @return array Team IDs: ['team_a' => id, 'team_b' => id].
      */
-    private function seed_teams( $track_id, $school_a_id, $school_b_id, $enrollments ) {
+    private function seed_teams( $partnership_id, $school_a_id, $school_b_id, $enrollments ) {
         $svc = new HL_Team_Service();
 
         $team_ids = array( 'team_a' => 0, 'team_b' => 0 );
@@ -786,7 +786,7 @@ class HL_CLI_Seed_Demo {
         // Team A at School A.
         $team_a = $svc->create_team( array(
             'team_name' => 'Demo Team A',
-            'track_id' => $track_id,
+            'partnership_id' => $partnership_id,
             'school_id' => $school_a_id,
         ) );
 
@@ -803,7 +803,7 @@ class HL_CLI_Seed_Demo {
         // Team B at School B.
         $team_b = $svc->create_team( array(
             'team_name' => 'Demo Team B',
-            'track_id' => $track_id,
+            'partnership_id' => $partnership_id,
             'school_id' => $school_b_id,
         ) );
 
@@ -943,17 +943,17 @@ class HL_CLI_Seed_Demo {
     /**
      * Seed pathways and activities.
      *
-     * @param int   $track_id   Track ID.
+     * @param int   $partnership_id   Partnership ID.
      * @param array $instruments Instrument IDs keyed by age band.
      * @return array Pathway data with activity IDs.
      */
-    private function seed_pathways( $track_id, $instruments ) {
+    private function seed_pathways( $partnership_id, $instruments ) {
         $svc = new HL_Pathway_Service();
 
         // --- Teacher Pathway ---
         $tp_id = $svc->create_pathway( array(
             'pathway_name' => 'Teacher Pathway',
-            'track_id'    => $track_id,
+            'partnership_id'    => $partnership_id,
             'target_roles' => array( 'teacher' ),
             'active_status' => 1,
         ) );
@@ -964,7 +964,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Foundations of Early Learning',
             'pathway_id'    => $tp_id,
-            'track_id'     => $track_id,
+            'partnership_id'     => $partnership_id,
             'activity_type' => 'learndash_course',
             'weight'        => 2.0,
             'ordering_hint' => 1,
@@ -976,7 +976,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Pre Self-Assessment',
             'pathway_id'    => $tp_id,
-            'track_id'     => $track_id,
+            'partnership_id'     => $partnership_id,
             'activity_type' => 'teacher_self_assessment',
             'weight'        => 1.0,
             'ordering_hint' => 2,
@@ -991,7 +991,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Post Self-Assessment',
             'pathway_id'    => $tp_id,
-            'track_id'     => $track_id,
+            'partnership_id'     => $partnership_id,
             'activity_type' => 'teacher_self_assessment',
             'weight'        => 1.0,
             'ordering_hint' => 3,
@@ -1006,7 +1006,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Child Assessment',
             'pathway_id'    => $tp_id,
-            'track_id'     => $track_id,
+            'partnership_id'     => $partnership_id,
             'activity_type' => 'child_assessment',
             'weight'        => 2.0,
             'ordering_hint' => 4,
@@ -1018,7 +1018,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Coaching Attendance',
             'pathway_id'    => $tp_id,
-            'track_id'     => $track_id,
+            'partnership_id'     => $partnership_id,
             'activity_type' => 'coaching_session_attendance',
             'weight'        => 1.0,
             'ordering_hint' => 5,
@@ -1029,7 +1029,7 @@ class HL_CLI_Seed_Demo {
         // --- Mentor Pathway ---
         $mp_id = $svc->create_pathway( array(
             'pathway_name' => 'Mentor Pathway',
-            'track_id'    => $track_id,
+            'partnership_id'    => $partnership_id,
             'target_roles' => array( 'mentor' ),
             'active_status' => 1,
         ) );
@@ -1040,7 +1040,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Mentor Training Course',
             'pathway_id'    => $mp_id,
-            'track_id'     => $track_id,
+            'partnership_id'     => $partnership_id,
             'activity_type' => 'learndash_course',
             'weight'        => 2.0,
             'ordering_hint' => 1,
@@ -1052,7 +1052,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_activity( array(
             'title'         => 'Teacher Observations',
             'pathway_id'    => $mp_id,
-            'track_id'     => $track_id,
+            'partnership_id'     => $partnership_id,
             'activity_type' => 'observation',
             'weight'        => 1.0,
             'ordering_hint' => 2,
@@ -1293,13 +1293,13 @@ class HL_CLI_Seed_Demo {
     /**
      * Seed coach assignments: school-level for both schools, team-level for Team A.
      *
-     * @param int   $track_id   Track ID.
+     * @param int   $partnership_id   Partnership ID.
      * @param int   $school_a_id School A.
      * @param int   $school_b_id School B.
      * @param array $teams       Team IDs.
      * @param array $users       User data.
      */
-    private function seed_coach_assignments( $track_id, $school_a_id, $school_b_id, $teams, $users ) {
+    private function seed_coach_assignments( $partnership_id, $school_a_id, $school_b_id, $teams, $users ) {
         $service = new HL_Coach_Assignment_Service();
         $count   = 0;
 
@@ -1314,7 +1314,7 @@ class HL_CLI_Seed_Demo {
             'coach_user_id'  => $coach_user_id,
             'scope_type'     => 'school',
             'scope_id'       => $school_a_id,
-            'track_id'      => $track_id,
+            'partnership_id'      => $partnership_id,
             'effective_from' => '2026-01-01',
         ) );
         if ( ! is_wp_error( $result ) ) {
@@ -1326,7 +1326,7 @@ class HL_CLI_Seed_Demo {
             'coach_user_id'  => $coach_user_id,
             'scope_type'     => 'school',
             'scope_id'       => $school_b_id,
-            'track_id'      => $track_id,
+            'partnership_id'      => $partnership_id,
             'effective_from' => '2026-01-01',
         ) );
         if ( ! is_wp_error( $result ) ) {
@@ -1339,7 +1339,7 @@ class HL_CLI_Seed_Demo {
                 'coach_user_id'  => $coach_user_id,
                 'scope_type'     => 'team',
                 'scope_id'       => $teams['team_a'],
-                'track_id'      => $track_id,
+                'partnership_id'      => $partnership_id,
                 'effective_from' => '2026-01-15',
             ) );
             if ( ! is_wp_error( $result ) ) {
@@ -1363,11 +1363,11 @@ class HL_CLI_Seed_Demo {
      * - Teacher 3: missed session (past)
      * - Teacher 4: cancelled + rescheduled session
      *
-     * @param int   $track_id   Track ID.
+     * @param int   $partnership_id   Partnership ID.
      * @param array $enrollments Enrollment data.
      * @param array $users       User data.
      */
-    private function seed_coaching_sessions( $track_id, $enrollments, $users ) {
+    private function seed_coaching_sessions( $partnership_id, $enrollments, $users ) {
         $service = new HL_Coaching_Service();
         $count   = 0;
 
@@ -1381,7 +1381,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_a'][0] ) ) {
             $eid    = $enrollments['teachers_a'][0]['enrollment_id'];
             $result = $service->create_session( array(
-                'track_id'            => $track_id,
+                'partnership_id'            => $partnership_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1398,7 +1398,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_a'][1] ) ) {
             $eid    = $enrollments['teachers_a'][1]['enrollment_id'];
             $result = $service->create_session( array(
-                'track_id'            => $track_id,
+                'partnership_id'            => $partnership_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1414,7 +1414,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_a'][2] ) ) {
             $eid    = $enrollments['teachers_a'][2]['enrollment_id'];
             $result = $service->create_session( array(
-                'track_id'            => $track_id,
+                'partnership_id'            => $partnership_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1432,7 +1432,7 @@ class HL_CLI_Seed_Demo {
 
             // Original session (will be rescheduled).
             $orig = $service->create_session( array(
-                'track_id'            => $track_id,
+                'partnership_id'            => $partnership_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1457,7 +1457,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_b'][0] ) ) {
             $eid    = $enrollments['teachers_b'][0]['enrollment_id'];
             $result = $service->create_session( array(
-                'track_id'            => $track_id,
+                'partnership_id'            => $partnership_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',

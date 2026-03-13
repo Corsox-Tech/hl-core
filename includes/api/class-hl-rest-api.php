@@ -18,16 +18,16 @@ class HL_REST_API {
     }
 
     public function register_routes() {
-        // Tracks (run-level entities, formerly "cohorts")
-        register_rest_route($this->namespace, '/tracks', array(
+        // Partnerships (run-level entities, formerly "cohorts")
+        register_rest_route($this->namespace, '/partnerships', array(
             'methods'             => 'GET',
-            'callback'            => array($this, 'get_tracks'),
+            'callback'            => array($this, 'get_partnerships'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
 
-        register_rest_route($this->namespace, '/tracks/(?P<id>\d+)', array(
+        register_rest_route($this->namespace, '/partnerships/(?P<id>\d+)', array(
             'methods'             => 'GET',
-            'callback'            => array($this, 'get_track'),
+            'callback'            => array($this, 'get_partnership'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
 
@@ -64,27 +64,27 @@ class HL_REST_API {
         return current_user_can('manage_hl_core');
     }
 
-    public function get_tracks($request) {
-        $repo = new HL_Track_Repository();
-        $tracks = $repo->get_all();
-        $data = array_map(function($t) { return $t->to_array(); }, $tracks);
+    public function get_partnerships($request) {
+        $repo = new HL_Partnership_Repository();
+        $partnerships = $repo->get_all();
+        $data = array_map(function($p) { return $p->to_array(); }, $partnerships);
         return new WP_REST_Response($data, 200);
     }
 
-    public function get_track($request) {
-        $repo = new HL_Track_Repository();
-        $track = $repo->get_by_id($request['id']);
-        if (!$track) {
-            return new WP_Error('not_found', 'Track not found', array('status' => 404));
+    public function get_partnership($request) {
+        $repo = new HL_Partnership_Repository();
+        $partnership = $repo->get_by_id($request['id']);
+        if (!$partnership) {
+            return new WP_Error('not_found', 'Partnership not found', array('status' => 404));
         }
-        return new WP_REST_Response($track->to_array(), 200);
+        return new WP_REST_Response($partnership->to_array(), 200);
     }
 
     public function get_enrollments($request) {
         $repo = new HL_Enrollment_Repository();
         $filters = array();
-        if ($request->get_param('track_id')) {
-            $filters['track_id'] = intval($request->get_param('track_id'));
+        if ($request->get_param('partnership_id')) {
+            $filters['partnership_id'] = intval($request->get_param('partnership_id'));
         }
         $enrollments = $repo->get_all($filters);
         $data = array_map(function($e) { return $e->to_array(); }, $enrollments);
@@ -101,9 +101,9 @@ class HL_REST_API {
 
     public function get_pathways($request) {
         $repo = new HL_Pathway_Repository();
-        $track_id = $request->get_param('track_id') ? intval($request->get_param('track_id')) : null;
+        $partnership_id = $request->get_param('partnership_id') ? intval($request->get_param('partnership_id')) : null;
         $phase_id = $request->get_param('phase_id') ? intval($request->get_param('phase_id')) : null;
-        $pathways = $repo->get_all($track_id, $phase_id);
+        $pathways = $repo->get_all($partnership_id, $phase_id);
         $data = array_map(function($p) { return $p->to_array(); }, $pathways);
         return new WP_REST_Response($data, 200);
     }
@@ -111,8 +111,8 @@ class HL_REST_API {
     public function get_teams($request) {
         $repo = new HL_Team_Repository();
         $filters = array();
-        if ($request->get_param('track_id')) {
-            $filters['track_id'] = intval($request->get_param('track_id'));
+        if ($request->get_param('partnership_id')) {
+            $filters['partnership_id'] = intval($request->get_param('partnership_id'));
         }
         $teams = $repo->get_all($filters);
         $data = array_map(function($t) { return $t->to_array(); }, $teams);

@@ -238,9 +238,9 @@ class HL_Core {
         HL_Reporting_Service::instance();
 
         // Auto-generate child assessment instances when teaching assignments change
-        add_action('hl_core_teaching_assignment_changed', function ($track_id) {
+        add_action('hl_core_teaching_assignment_changed', function ($partnership_id) {
             $service = new HL_Assessment_Service();
-            $service->generate_child_assessment_instances($track_id);
+            $service->generate_child_assessment_instances($partnership_id);
         });
 
         // Register CLI commands

@@ -117,12 +117,12 @@ class HL_CLI_Create_Pages {
             array( 'title' => 'My Programs',          'shortcode' => 'hl_my_programs' ),
             array( 'title' => 'My Coaching',           'shortcode' => 'hl_my_coaching' ),
             array( 'title' => 'My Progress',           'shortcode' => 'hl_my_progress' ),
-            array( 'title' => 'My Track',              'shortcode' => 'hl_my_track' ),
+            array( 'title' => 'My Partnership',         'shortcode' => 'hl_my_partnership' ),
             array( 'title' => 'My Team',               'shortcode' => 'hl_my_team' ),
             array( 'title' => 'Team Progress',         'shortcode' => 'hl_team_progress' ),
 
             // Directory / listing pages
-            array( 'title' => 'Tracks',                'shortcode' => 'hl_tracks_listing' ),
+            array( 'title' => 'Partnerships',           'shortcode' => 'hl_partnerships_listing' ),
             array( 'title' => 'Institutions',          'shortcode' => 'hl_institutions_listing' ),
             array( 'title' => 'Classrooms',            'shortcode' => 'hl_classrooms_listing' ),
             array( 'title' => 'Learners',              'shortcode' => 'hl_learners' ),
@@ -133,8 +133,8 @@ class HL_CLI_Create_Pages {
             // Hub / workspace pages
             array( 'title' => 'Coaching Hub',          'shortcode' => 'hl_coaching_hub' ),
             array( 'title' => 'Reports',               'shortcode' => 'hl_reports_hub' ),
-            array( 'title' => 'Track Workspace',       'shortcode' => 'hl_track_workspace' ),
-            array( 'title' => 'Track Dashboard',       'shortcode' => 'hl_track_dashboard' ),
+            array( 'title' => 'Partnership Workspace',  'shortcode' => 'hl_partnership_workspace' ),
+            array( 'title' => 'Partnership Dashboard',  'shortcode' => 'hl_partnership_dashboard' ),
 
             // Detail pages (navigated to, not in sidebar menu)
             array( 'title' => 'Program',               'shortcode' => 'hl_program_page' ),
