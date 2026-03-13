@@ -175,7 +175,7 @@ class HL_Admin_Reporting {
         }
 
         if (!$partnership_id && in_array($export_type, array('completion_csv', 'school_summary_csv', 'team_summary_csv', 'teacher_assessment_csv', 'child_assessment_csv'), true)) {
-            // Track is required for all exports; fall through to render page with error
+            // Partnership is required for all exports; fall through to render page with error
             return;
         }
 
@@ -421,7 +421,7 @@ class HL_Admin_Reporting {
         echo '</select>';
         echo '</div>';
 
-        // Team dropdown (optional, only when track selected)
+        // Team dropdown (optional, only when partnership selected)
         echo '<div style="flex: 1; min-width: 140px;">';
         echo '<label for="team_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Team', 'hl-core') . '</label>';
         echo '<select name="team_id" id="team_id" style="width: 100%;">';
@@ -949,7 +949,7 @@ class HL_Admin_Reporting {
      * Render the program vs control group comparison section.
      *
      * Only appears when a cohort (container) is selected that contains both
-     * program (is_control_group=0) and control (is_control_group=1) tracks.
+     * program (is_control_group=0) and control (is_control_group=1) partnerships.
      *
      * @param HL_Reporting_Service $reporting
      * @param array                $filters

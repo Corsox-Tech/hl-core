@@ -308,7 +308,7 @@ class HL_Admin_OrgUnits {
 
         $stats = array(
             'classrooms' => $classroom_counts,
-            'tracks'     => $partnership_counts,
+            'partnerships'     => $partnership_counts,
             'leaders'    => $leader_names,
         );
 
@@ -376,7 +376,7 @@ class HL_Admin_OrgUnits {
         $district_partnership_count = 0;
         foreach ($schools as $c) {
             $cid = (int) $c->orgunit_id;
-            $district_partnership_count += isset($stats['tracks'][$cid]) ? $stats['tracks'][$cid] : 0;
+            $district_partnership_count += isset($stats['partnerships'][$cid]) ? $stats['partnerships'][$cid] : 0;
         }
 
         $meta_parts = array();
@@ -468,7 +468,7 @@ class HL_Admin_OrgUnits {
 
             $leaders     = isset($stats['leaders'][$cid]) ? $stats['leaders'][$cid] : array();
             $classrooms  = isset($stats['classrooms'][$cid]) ? $stats['classrooms'][$cid] : 0;
-            $partnership_items     = isset($stats['tracks'][$cid]) ? $stats['tracks'][$cid] : 0;
+            $partnership_items     = isset($stats['partnerships'][$cid]) ? $stats['partnerships'][$cid] : 0;
 
             $status_class = $school->status;
 

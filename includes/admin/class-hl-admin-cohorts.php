@@ -306,7 +306,7 @@ class HL_Admin_Cohorts {
         submit_button($is_edit ? __('Update Cohort', 'hl-core') : __('Create Cohort', 'hl-core'));
         echo '</form>';
 
-        // If editing, show linked tracks.
+        // If editing, show linked partnerships.
         if ($is_edit) {
             $this->render_linked_partnerships($cohort['cohort_id']);
         }

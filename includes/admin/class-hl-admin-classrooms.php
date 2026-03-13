@@ -451,7 +451,7 @@ class HL_Admin_Classrooms {
         echo '<hr />';
         echo '<h2>' . esc_html__('Teaching Assignments', 'hl-core') . '</h2>';
 
-        // Track context selector
+        // Partnership context selector
         $partnerships = $wpdb->get_results(
             "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
         );
@@ -473,7 +473,7 @@ class HL_Admin_Classrooms {
         submit_button(__('Select', 'hl-core'), 'secondary', 'submit', false);
         echo '</form>';
 
-        // Current assignments table (all tracks)
+        // Current assignments table (all partnerships)
         $assignments = $service->get_teaching_assignments($classroom->classroom_id);
 
         if (!empty($assignments)) {
@@ -510,9 +510,9 @@ class HL_Admin_Classrooms {
             echo '<p>' . esc_html__('No teaching assignments yet.', 'hl-core') . '</p>';
         }
 
-        // Add form (only when track selected)
+        // Add form (only when partnership selected)
         if ($selected_partnership) {
-            // Get enrollments with Teacher role at this school for the selected track
+            // Get enrollments with Teacher role at this school for the selected partnership
             $all_enrollments = $wpdb->get_results($wpdb->prepare(
                 "SELECT e.enrollment_id, e.roles, u.display_name, u.user_email
                  FROM {$wpdb->prefix}hl_enrollment e
@@ -588,7 +588,7 @@ class HL_Admin_Classrooms {
                 echo '<p>' . esc_html__('All available teachers are already assigned.', 'hl-core') . '</p>';
             }
         } else {
-            echo '<p class="description">' . esc_html__('Select a track above to add teaching assignments.', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('Select a partnership above to add teaching assignments.', 'hl-core') . '</p>';
         }
     }
 

@@ -193,7 +193,7 @@ class HL_Admin_Enrollments {
     private function render_list() {
         global $wpdb;
 
-        // Filter by track
+        // Filter by partnership
         $filter_partnership = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
 
         $where = '';
@@ -398,7 +398,7 @@ class HL_Admin_Enrollments {
         echo '</select></td>';
         echo '</tr>';
 
-        // Track
+        // Partnership
         $current_partnership = $in_partnership ? absint($context['partnership_id']) : ($is_edit ? $enrollment->partnership_id : '');
         echo '<tr>';
         echo '<th scope="row"><label for="partnership_id">' . esc_html__('Partnership', 'hl-core') . '</label></th>';

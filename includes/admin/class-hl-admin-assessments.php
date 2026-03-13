@@ -130,7 +130,7 @@ class HL_Admin_Assessments {
             "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
             $partnership_id
         ));
-        $safe_name = sanitize_file_name($partnership_name ?: 'track-' . $partnership_id);
+        $safe_name = sanitize_file_name($partnership_name ?: 'partnership-' . $partnership_id);
 
         if ($export_type === 'teacher') {
             $csv = $service->export_teacher_assessments_csv($partnership_id);
@@ -222,7 +222,7 @@ class HL_Admin_Assessments {
     }
 
     /**
-     * Render assessment section with track selector and data table.
+     * Render assessment section with partnership selector and data table.
      *
      * @param string $tab 'teacher' or 'children'
      */
@@ -236,7 +236,7 @@ class HL_Admin_Assessments {
         );
         $selected_partnership = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
 
-        // Auto-select most recent active track when no explicit selection
+        // Auto-select most recent active partnership when no explicit selection
         if (!$selected_partnership && $partnerships) {
             foreach ($partnerships as $t) {
                 if ($t->status === 'active') {
@@ -252,7 +252,7 @@ class HL_Admin_Assessments {
         $page_param = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'hl-assessment-hub';
         $section_param = isset($_GET['section']) ? sanitize_text_field($_GET['section']) : '';
 
-        // Track selector
+        // Partnership selector
         echo '<form method="get">';
         echo '<input type="hidden" name="page" value="' . esc_attr($page_param) . '" />';
         if ($section_param) {
@@ -265,12 +265,12 @@ class HL_Admin_Assessments {
         echo '<select name="partnership_id">';
         echo '<option value="">' . esc_html__('-- Select Partnership --', 'hl-core') . '</option>';
         if ($partnerships) {
-            foreach ($partnerships as $track_obj) {
-                $label = $track_obj->partnership_name;
-                if ($track_obj->status !== 'active') {
-                    $label .= ' (' . ucfirst($track_obj->status) . ')';
+            foreach ($partnerships as $partnership_obj) {
+                $label = $partnership_obj->partnership_name;
+                if ($partnership_obj->status !== 'active') {
+                    $label .= ' (' . ucfirst($partnership_obj->status) . ')';
                 }
-                echo '<option value="' . esc_attr($track_obj->partnership_id) . '"' . selected($selected_partnership, $track_obj->partnership_id, false) . '>' . esc_html($label) . '</option>';
+                echo '<option value="' . esc_attr($partnership_obj->partnership_id) . '"' . selected($selected_partnership, $partnership_obj->partnership_id, false) . '>' . esc_html($label) . '</option>';
             }
         }
         echo '</select> ';
@@ -278,7 +278,7 @@ class HL_Admin_Assessments {
         echo '</form>';
 
         if (!$selected_partnership) {
-            echo '<p>' . esc_html__('Select a track to view assessments.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('Select a partnership to view assessments.', 'hl-core') . '</p>';
             return;
         }
 

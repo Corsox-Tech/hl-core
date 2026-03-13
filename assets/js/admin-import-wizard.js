@@ -28,7 +28,7 @@
             this.$notices    = this.$wrap.find('.hl-import-notices');
 
             // Step 1
-            this.$trackSelect = $('#hl-import-track');
+            this.$partnershipSelect = $('#hl-import-partnership');
             this.$typeSelect   = $('#hl-import-type');
             this.$fileInput    = $('#hl-import-file');
             this.$uploadBtn    = $('#hl-import-upload-btn');
@@ -91,9 +91,9 @@
         handleUpload: function(e) {
             e.preventDefault();
 
-            var trackId = this.$trackSelect.val();
-            if (!trackId) {
-                this.showNotice('error', hl_import_i18n.select_track);
+            var partnershipId = this.$partnershipSelect.val();
+            if (!partnershipId) {
+                this.showNotice('error', hl_import_i18n.select_partnership);
                 return;
             }
 
@@ -108,7 +108,7 @@
             var formData = new FormData();
             formData.append('action', 'hl_import_upload');
             formData.append('nonce', hl_import_i18n.nonce_upload);
-            formData.append('track_id', trackId);
+            formData.append('partnership_id', partnershipId);
             formData.append('import_type', this.importType);
             formData.append('file', files[0]);
 

@@ -173,7 +173,7 @@ class HL_Admin_Pathways {
     /**
      * Build a redirect URL back to the partnership editor when in partnership context.
      *
-     * @param int    $partnership_id Track ID.
+     * @param int    $partnership_id Partnership ID.
      * @param string $tab       Tab slug (e.g. 'pathways').
      * @param array  $extra     Additional query args.
      * @return string Admin URL.
@@ -734,7 +734,7 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Handle sync role defaults for a track (GET).
+     * Handle sync role defaults for a partnership (GET).
      */
     private function handle_sync_role_defaults() {
         $pathway_id = isset($_GET['pathway_id']) ? absint($_GET['pathway_id']) : 0;
@@ -985,7 +985,7 @@ class HL_Admin_Pathways {
             echo '</h2>';
         }
 
-        // Action buttons: Edit + Clone to Track + Save as Template.
+        // Action buttons: Edit + Clone to Partnership + Save as Template.
         $all_partnerships = $wpdb->get_results(
             "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
         );
@@ -1000,7 +1000,7 @@ class HL_Admin_Pathways {
         }
         echo '<a href="' . esc_url($edit_url) . '" class="button button-primary">' . esc_html__('Edit Pathway', 'hl-core') . '</a>';
 
-        // Clone to Track form.
+        // Clone to Partnership form.
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways&action=clone')) . '" style="display:flex; gap:8px; align-items:center; background:#f9f9f9; border:1px solid #ccd0d4; padding:8px 12px; border-radius:4px;">';
         wp_nonce_field('hl_clone_pathway', 'hl_clone_nonce');
         echo '<input type="hidden" name="source_pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
@@ -1330,7 +1330,7 @@ class HL_Admin_Pathways {
         echo '<p class="description">' . esc_html__('Leave blank to auto-generate.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
-        // Track
+        // Partnership
         $current_partnership = $in_partnership ? absint($context['partnership_id']) : ($is_edit ? $pathway->partnership_id : '');
         echo '<tr>';
         echo '<th scope="row"><label for="partnership_id">' . esc_html__('Partnership', 'hl-core') . '</label></th>';
@@ -1350,7 +1350,7 @@ class HL_Admin_Pathways {
         }
         echo '</tr>';
 
-        // Phase (dropdown populated from the selected track's phases)
+        // Phase (dropdown populated from the selected partnership's phases)
         $phase_repo = new HL_Phase_Repository();
         $current_phase = $is_edit && isset($pathway->phase_id) ? $pathway->phase_id : '';
         $phase_options = array();

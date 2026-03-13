@@ -1498,7 +1498,7 @@ class HL_Admin_Instruments {
             'school_name'     => 'Sample School',
             'classroom_name'  => 'Sample Classroom',
             'phase'           => 'pre',
-            'partnership_name'      => 'Sample Track',
+            'partnership_name'      => 'Sample Partnership',
         );
 
         // Enqueue frontend CSS for the preview.

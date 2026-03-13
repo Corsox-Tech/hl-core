@@ -171,7 +171,7 @@ class HL_Admin_Coach_Assignments {
         // Get assignments
         $service = new HL_Coach_Assignment_Service();
         if ($filter_partnership) {
-            $assignments = $service->get_all_assignments_by_track($filter_partnership);
+            $assignments = $service->get_all_assignments_by_partnership($filter_partnership);
         } else {
             $assignments = $wpdb->get_results(
                 "SELECT ca.*, u.display_name AS coach_name, u.user_email AS coach_email, t.partnership_name
@@ -259,7 +259,7 @@ class HL_Admin_Coach_Assignments {
 
         echo '<table class="form-table">';
 
-        // Track
+        // Partnership
         echo '<tr><th scope="row"><label for="partnership_id">' . esc_html__('Partnership', 'hl-core') . '</label></th>';
         echo '<td><select id="partnership_id" name="partnership_id" required>';
         echo '<option value="">' . esc_html__('-- Select Partnership --', 'hl-core') . '</option>';

@@ -531,7 +531,7 @@ class HL_Admin_Coaching {
                 }
             }
             echo '</select>';
-            echo '<p class="description">' . esc_html__('Select a track first, then choose a mentor from that partnership.', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('Select a partnership first, then choose a mentor from that partnership.', 'hl-core') . '</p>';
             echo '</td>';
             echo '</tr>';
         }

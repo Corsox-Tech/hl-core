@@ -366,7 +366,7 @@ class HL_Admin_Teams {
         echo '<h2>' . esc_html__('Team Members', 'hl-core') . '</h2>';
 
         if (empty($members)) {
-            echo '<p>' . esc_html__('No active enrollments found for this team\'s track and school.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No active enrollments found for this team\'s partnership and school.', 'hl-core') . '</p>';
             return;
         }
 
@@ -436,7 +436,7 @@ class HL_Admin_Teams {
         echo '<td><input type="text" id="team_name" name="team_name" value="' . esc_attr($is_edit ? $team->team_name : '') . '" class="regular-text" required /></td>';
         echo '</tr>';
 
-        // Track
+        // Partnership
         $current_partnership = $in_partnership ? absint($context['partnership_id']) : ($is_edit ? $team->partnership_id : '');
         echo '<tr>';
         echo '<th scope="row"><label for="partnership_id">' . esc_html__('Partnership', 'hl-core') . '</label></th>';
