@@ -397,8 +397,8 @@ class HL_Admin_Partnerships {
                 'pathway_saved'      => __('Pathway saved successfully.', 'hl-core'),
                 'pathway_deleted'    => __('Pathway deleted successfully.', 'hl-core'),
                 'pathway_cloned'     => __('Pathway cloned successfully.', 'hl-core'),
-                'activity_saved'     => __('Activity saved successfully.', 'hl-core'),
-                'activity_deleted'   => __('Activity deleted successfully.', 'hl-core'),
+                'component_saved'    => __('Component saved successfully.', 'hl-core'),
+                'component_deleted'  => __('Component deleted successfully.', 'hl-core'),
                 'team_created'       => __('Team created successfully.', 'hl-core'),
                 'team_updated'       => __('Team updated successfully.', 'hl-core'),
                 'team_deleted'       => __('Team deleted successfully.', 'hl-core'),
@@ -1041,7 +1041,7 @@ class HL_Admin_Partnerships {
                 $pathways_admin->render_pathway_detail($pathway, $context);
                 return;
 
-            case 'activity':
+            case 'component':
                 $pathway_id = isset($_GET['pathway_id']) ? absint($_GET['pathway_id']) : 0;
                 $pathway    = $pathways_admin->get_pathway($pathway_id);
                 if (!$pathway || absint($pathway->partnership_id) !== absint($partnership_id)) {
@@ -1049,27 +1049,27 @@ class HL_Admin_Partnerships {
                     break;
                 }
 
-                $activity_id     = isset($_GET['activity_id']) ? absint($_GET['activity_id']) : 0;
-                $activity_action = isset($_GET['activity_action']) ? sanitize_text_field($_GET['activity_action']) : '';
+                $component_id     = isset($_GET['component_id']) ? absint($_GET['component_id']) : 0;
+                $component_action = isset($_GET['component_action']) ? sanitize_text_field($_GET['component_action']) : '';
 
-                if ($activity_id) {
-                    $activity = $pathways_admin->get_activity($activity_id);
-                    if (!$activity || absint($activity->pathway_id) !== $pathway_id) {
-                        echo '<div class="notice notice-error"><p>' . esc_html__('Activity not found.', 'hl-core') . '</p></div>';
+                if ($component_id) {
+                    $component = $pathways_admin->get_component($component_id);
+                    if (!$component || absint($component->pathway_id) !== $pathway_id) {
+                        echo '<div class="notice notice-error"><p>' . esc_html__('Component not found.', 'hl-core') . '</p></div>';
                         break;
                     }
                     $this->render_breadcrumb($partnership, 'pathways', __('Pathways', 'hl-core'), array(
                         array('label' => $pathway->pathway_name, 'url' => $base_url . '&sub=view&pathway_id=' . $pathway_id),
-                        array('label' => $activity->title . ' — ' . __('Edit', 'hl-core')),
+                        array('label' => $component->title . ' — ' . __('Edit', 'hl-core')),
                     ));
-                    $pathways_admin->render_activity_form($pathway, $activity, $context);
+                    $pathways_admin->render_component_form($pathway, $component, $context);
                 } else {
-                    // New activity
+                    // New component
                     $this->render_breadcrumb($partnership, 'pathways', __('Pathways', 'hl-core'), array(
                         array('label' => $pathway->pathway_name, 'url' => $base_url . '&sub=view&pathway_id=' . $pathway_id),
-                        array('label' => __('New Activity', 'hl-core')),
+                        array('label' => __('New Component', 'hl-core')),
                     ));
-                    $pathways_admin->render_activity_form($pathway, null, $context);
+                    $pathways_admin->render_component_form($pathway, null, $context);
                 }
                 return;
         }
@@ -1088,7 +1088,7 @@ class HL_Admin_Partnerships {
 
         $pathways = $wpdb->get_results($wpdb->prepare(
             "SELECT pw.*,
-                    (SELECT COUNT(*) FROM {$wpdb->prefix}hl_activity a WHERE a.pathway_id = pw.pathway_id) as activity_count,
+                    (SELECT COUNT(*) FROM {$wpdb->prefix}hl_component a WHERE a.pathway_id = pw.pathway_id) as component_count,
                     ph.phase_name
              FROM {$wpdb->prefix}hl_pathway pw
              LEFT JOIN {$wpdb->prefix}hl_phase ph ON pw.phase_id = ph.phase_id
@@ -1133,7 +1133,7 @@ class HL_Admin_Partnerships {
         echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Phase', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Target Roles', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Activities', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Components', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Avg Time', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead><tbody>';
@@ -1157,12 +1157,12 @@ class HL_Admin_Partnerships {
             echo '</td>';
             echo '<td>' . esc_html($pw->phase_name ?: '-') . '</td>';
             echo '<td>' . esc_html($roles_str) . '</td>';
-            echo '<td>' . esc_html($pw->activity_count) . '</td>';
+            echo '<td>' . esc_html($pw->component_count) . '</td>';
             echo '<td>' . esc_html($pw->avg_completion_time ?: '-') . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($view_url) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a> ';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
-            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Delete this pathway and all its activities?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
+            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Delete this pathway and all its components?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
             echo '</td>';
             echo '</tr>';
         }

@@ -24,3 +24,4 @@
 | B1 | DB migration activity→component | 2026-03-13 | 1 file | 6 table renames + FK columns |
 | B2 | Domain models & repos activity→component | 2026-03-13 | 3 files | HL_Activity→HL_Component, HL_Activity_Repository→HL_Component_Repository, hl-core.php require paths |
 | B3 | Services activity→component | 2026-03-13 | 6 files | HL_Pathway_Service, HL_Rules_Engine_Service, HL_Assessment_Service, HL_Reporting_Service, HL_Coaching_Service, HL_Observation_Service; all SQL, method names, params renamed |
+| B4 | Admin pages activity→component | 2026-03-13 | 4 files | class-hl-admin-pathways.php (~115 renames: methods, vars, SQL tables/columns, nonces, URL params, form fields, labels, JS), class-hl-admin-partnerships.php (~20 renames: case values, vars, method calls, SQL, labels), class-hl-admin-reporting.php (~13 renames: method, vars, labels), class-hl-admin-coaching.php (1 comment); verified 0 activity refs remain |

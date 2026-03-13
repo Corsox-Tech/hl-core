@@ -1,9 +1,9 @@
 <?php if (!defined('ABSPATH')) exit;
 
 /**
- * Admin Pathways & Activities Page
+ * Admin Pathways & Components Page
  *
- * Full CRUD admin page for managing Pathways and their Activities.
+ * Full CRUD admin page for managing Pathways and their Components.
  *
  * @package HL_Core
  */
@@ -47,8 +47,8 @@ class HL_Admin_Pathways {
             $this->handle_delete_pathway();
         }
 
-        if ($action === 'delete_activity') {
-            $this->handle_delete_activity();
+        if ($action === 'delete_component') {
+            $this->handle_delete_component();
         }
 
         if ($action === 'clone') {
@@ -111,25 +111,25 @@ class HL_Admin_Pathways {
                 }
                 break;
 
-            case 'new_activity':
+            case 'new_component':
                 $pathway_id = isset($_GET['pathway_id']) ? absint($_GET['pathway_id']) : 0;
                 $pathway    = $this->get_pathway($pathway_id);
                 if ($pathway) {
-                    $this->render_activity_form($pathway);
+                    $this->render_component_form($pathway);
                 } else {
                     echo '<div class="notice notice-error"><p>' . esc_html__('Pathway not found.', 'hl-core') . '</p></div>';
                     $this->render_list();
                 }
                 break;
 
-            case 'edit_activity':
-                $activity_id = isset($_GET['activity_id']) ? absint($_GET['activity_id']) : 0;
-                $activity    = $this->get_activity($activity_id);
-                if ($activity) {
-                    $pathway = $this->get_pathway($activity->pathway_id);
-                    $this->render_activity_form($pathway, $activity);
+            case 'edit_component':
+                $component_id = isset($_GET['component_id']) ? absint($_GET['component_id']) : 0;
+                $component    = $this->get_component($component_id);
+                if ($component) {
+                    $pathway = $this->get_pathway($component->pathway_id);
+                    $this->render_component_form($pathway, $component);
                 } else {
-                    echo '<div class="notice notice-error"><p>' . esc_html__('Activity not found.', 'hl-core') . '</p></div>';
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Component not found.', 'hl-core') . '</p></div>';
                     $this->render_list();
                 }
                 break;
@@ -157,16 +157,16 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Get activity by ID
+     * Get component by ID
      *
-     * @param int $activity_id
+     * @param int $component_id
      * @return object|null
      */
-    public function get_activity($activity_id) {
+    public function get_component($component_id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_activity WHERE activity_id = %d",
-            $activity_id
+            "SELECT * FROM {$wpdb->prefix}hl_component WHERE component_id = %d",
+            $component_id
         ));
     }
 
@@ -201,12 +201,12 @@ class HL_Admin_Pathways {
             return;
         }
 
-        // Handle activity save
-        if (isset($_POST['hl_activity_nonce']) && wp_verify_nonce($_POST['hl_activity_nonce'], 'hl_save_activity')) {
+        // Handle component save
+        if (isset($_POST['hl_component_nonce']) && wp_verify_nonce($_POST['hl_component_nonce'], 'hl_save_component')) {
             if (!current_user_can('manage_hl_core')) {
                 wp_die(__('You do not have permission to perform this action.', 'hl-core'));
             }
-            $this->save_activity();
+            $this->save_component();
             return;
         }
     }
@@ -279,17 +279,17 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Save activity data
+     * Save component data
      */
-    private function save_activity() {
+    private function save_component() {
         global $wpdb;
 
-        $activity_id   = isset($_POST['activity_id']) ? absint($_POST['activity_id']) : 0;
+        $component_id   = isset($_POST['component_id']) ? absint($_POST['component_id']) : 0;
         $pathway_id    = absint($_POST['pathway_id']);
-        $activity_type = sanitize_text_field($_POST['activity_type']);
+        $component_type = sanitize_text_field($_POST['component_type']);
 
         // Build external_ref JSON from type-specific dropdowns
-        $external_ref = $this->build_external_ref($activity_type);
+        $external_ref = $this->build_external_ref($component_type);
 
         // Get partnership_id from the pathway
         $partnership_id = $wpdb->get_var($wpdb->prepare(
@@ -298,34 +298,34 @@ class HL_Admin_Pathways {
         ));
 
         $data = array(
-            'pathway_id'    => $pathway_id,
-            'partnership_id'      => absint($partnership_id),
-            'activity_type' => $activity_type,
-            'title'         => sanitize_text_field($_POST['title']),
-            'description'   => sanitize_textarea_field($_POST['description']),
-            'weight'        => floatval($_POST['weight']),
-            'ordering_hint' => intval($_POST['ordering_hint']),
-            'external_ref'  => $external_ref,
+            'pathway_id'     => $pathway_id,
+            'partnership_id' => absint($partnership_id),
+            'component_type' => $component_type,
+            'title'          => sanitize_text_field($_POST['title']),
+            'description'    => sanitize_textarea_field($_POST['description']),
+            'weight'         => floatval($_POST['weight']),
+            'ordering_hint'  => intval($_POST['ordering_hint']),
+            'external_ref'   => $external_ref,
         );
 
-        if ($activity_id > 0) {
-            $wpdb->update($wpdb->prefix . 'hl_activity', $data, array('activity_id' => $activity_id));
-            $target_activity_id = $activity_id;
+        if ($component_id > 0) {
+            $wpdb->update($wpdb->prefix . 'hl_component', $data, array('component_id' => $component_id));
+            $target_component_id = $component_id;
         } else {
-            $data['activity_uuid'] = HL_DB_Utils::generate_uuid();
-            $wpdb->insert($wpdb->prefix . 'hl_activity', $data);
-            $target_activity_id = $wpdb->insert_id;
+            $data['component_uuid'] = HL_DB_Utils::generate_uuid();
+            $wpdb->insert($wpdb->prefix . 'hl_component', $data);
+            $target_component_id = $wpdb->insert_id;
         }
 
-        // Save prerequisite groups (only when editing — new activities redirect first, then edit to add prereqs).
-        if ($activity_id > 0 && isset($_POST['prereq_groups']) && is_array($_POST['prereq_groups'])) {
+        // Save prerequisite groups (only when editing — new components redirect first, then edit to add prereqs).
+        if ($component_id > 0 && isset($_POST['prereq_groups']) && is_array($_POST['prereq_groups'])) {
             $prereq_groups = $_POST['prereq_groups'];
 
-            // Collect all proposed prereq activity IDs for cycle detection.
+            // Collect all proposed prereq component IDs for cycle detection.
             $all_proposed_ids = array();
             foreach ($prereq_groups as $grp) {
-                if (!empty($grp['activity_ids']) && is_array($grp['activity_ids'])) {
-                    foreach ($grp['activity_ids'] as $aid) {
+                if (!empty($grp['component_ids']) && is_array($grp['component_ids'])) {
+                    foreach ($grp['component_ids'] as $aid) {
                         $all_proposed_ids[] = absint($aid);
                     }
                 }
@@ -333,22 +333,22 @@ class HL_Admin_Pathways {
 
             // Cycle detection.
             $rules_engine = new HL_Rules_Engine_Service();
-            $cycle_check  = $rules_engine->validate_no_cycles($pathway_id, $target_activity_id, $all_proposed_ids);
+            $cycle_check  = $rules_engine->validate_no_cycles($pathway_id, $target_component_id, $all_proposed_ids);
 
             if (!$cycle_check['valid']) {
                 // Cycle detected — store error and redirect back.
-                $cycle_names = $this->resolve_activity_names($cycle_check['cycle']);
+                $cycle_names = $this->resolve_component_names($cycle_check['cycle']);
                 $msg = sprintf(
                     __('Circular dependency detected: %s. Prerequisites were not saved.', 'hl-core'),
                     implode(' -> ', $cycle_names)
                 );
-                set_transient('hl_prereq_cycle_error_' . $target_activity_id, $msg, 60);
+                set_transient('hl_prereq_cycle_error_' . $target_component_id, $msg, 60);
 
                 $cycle_partnership_ctx = isset($_POST['_hl_partnership_context']) ? absint($_POST['_hl_partnership_context']) : 0;
                 if ($cycle_partnership_ctx) {
-                    $redirect = $this->get_partnership_redirect($cycle_partnership_ctx, 'pathways', array('sub' => 'activity', 'pathway_id' => $pathway_id, 'activity_id' => $target_activity_id, 'prereq_error' => 'cycle'));
+                    $redirect = $this->get_partnership_redirect($cycle_partnership_ctx, 'pathways', array('sub' => 'component', 'pathway_id' => $pathway_id, 'component_id' => $target_component_id, 'prereq_error' => 'cycle'));
                 } else {
-                    $redirect = admin_url('admin.php?page=hl-pathways&action=edit_activity&activity_id=' . $target_activity_id . '&prereq_error=cycle');
+                    $redirect = admin_url('admin.php?page=hl-pathways&action=edit_component&component_id=' . $target_component_id . '&prereq_error=cycle');
                 }
                 wp_redirect($redirect);
                 exit;
@@ -356,38 +356,38 @@ class HL_Admin_Pathways {
 
             // Valid — delete old groups/items and insert new ones.
             $old_group_ids = $wpdb->get_col($wpdb->prepare(
-                "SELECT group_id FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id = %d",
-                $target_activity_id
+                "SELECT group_id FROM {$wpdb->prefix}hl_component_prereq_group WHERE component_id = %d",
+                $target_component_id
             ));
             if (!empty($old_group_ids)) {
                 $in_ids = implode(',', array_map('intval', $old_group_ids));
-                $wpdb->query("DELETE FROM {$wpdb->prefix}hl_activity_prereq_item WHERE group_id IN ({$in_ids})");
+                $wpdb->query("DELETE FROM {$wpdb->prefix}hl_component_prereq_item WHERE group_id IN ({$in_ids})");
                 $wpdb->query($wpdb->prepare(
-                    "DELETE FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id = %d",
-                    $target_activity_id
+                    "DELETE FROM {$wpdb->prefix}hl_component_prereq_group WHERE component_id = %d",
+                    $target_component_id
                 ));
             }
 
             foreach ($prereq_groups as $grp) {
                 $grp_type    = isset($grp['prereq_type']) ? sanitize_text_field($grp['prereq_type']) : 'all_of';
                 $grp_n       = ($grp_type === 'n_of_m' && isset($grp['n_required'])) ? absint($grp['n_required']) : null;
-                $grp_act_ids = (!empty($grp['activity_ids']) && is_array($grp['activity_ids'])) ? $grp['activity_ids'] : array();
+                $grp_act_ids = (!empty($grp['component_ids']) && is_array($grp['component_ids'])) ? $grp['component_ids'] : array();
 
                 if (empty($grp_act_ids)) {
                     continue;
                 }
 
-                $wpdb->insert($wpdb->prefix . 'hl_activity_prereq_group', array(
-                    'activity_id' => $target_activity_id,
-                    'prereq_type' => $grp_type,
-                    'n_required'  => $grp_n,
+                $wpdb->insert($wpdb->prefix . 'hl_component_prereq_group', array(
+                    'component_id' => $target_component_id,
+                    'prereq_type'  => $grp_type,
+                    'n_required'   => $grp_n,
                 ));
                 $new_group_id = $wpdb->insert_id;
 
                 foreach ($grp_act_ids as $prereq_aid) {
-                    $wpdb->insert($wpdb->prefix . 'hl_activity_prereq_item', array(
-                        'group_id'                 => $new_group_id,
-                        'prerequisite_activity_id' => absint($prereq_aid),
+                    $wpdb->insert($wpdb->prefix . 'hl_component_prereq_item', array(
+                        'group_id'                  => $new_group_id,
+                        'prerequisite_component_id' => absint($prereq_aid),
                     ));
                 }
             }
@@ -399,74 +399,74 @@ class HL_Admin_Pathways {
                     get_current_user_id(),
                     absint($data['partnership_id']),
                     null,
-                    $target_activity_id,
-                    sprintf('Prerequisites updated for activity %d', $target_activity_id)
+                    $target_component_id,
+                    sprintf('Prerequisites updated for component %d', $target_component_id)
                 );
             }
-        } elseif ($activity_id > 0 && !isset($_POST['prereq_groups'])) {
+        } elseif ($component_id > 0 && !isset($_POST['prereq_groups'])) {
             // No prereq_groups key at all means the section was rendered but all groups removed.
             $old_group_ids = $wpdb->get_col($wpdb->prepare(
-                "SELECT group_id FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id = %d",
-                $target_activity_id
+                "SELECT group_id FROM {$wpdb->prefix}hl_component_prereq_group WHERE component_id = %d",
+                $target_component_id
             ));
             if (!empty($old_group_ids)) {
                 $in_ids = implode(',', array_map('intval', $old_group_ids));
-                $wpdb->query("DELETE FROM {$wpdb->prefix}hl_activity_prereq_item WHERE group_id IN ({$in_ids})");
+                $wpdb->query("DELETE FROM {$wpdb->prefix}hl_component_prereq_item WHERE group_id IN ({$in_ids})");
                 $wpdb->query($wpdb->prepare(
-                    "DELETE FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id = %d",
-                    $target_activity_id
+                    "DELETE FROM {$wpdb->prefix}hl_component_prereq_group WHERE component_id = %d",
+                    $target_component_id
                 ));
             }
         }
 
-        // Save drip rules (only on edit — activity must exist)
-        if ($activity_id > 0) {
+        // Save drip rules (only on edit — component must exist)
+        if ($component_id > 0) {
             // Delete existing drip rules
-            $wpdb->delete($wpdb->prefix . 'hl_activity_drip_rule', array('activity_id' => $target_activity_id));
+            $wpdb->delete($wpdb->prefix . 'hl_component_drip_rule', array('component_id' => $target_component_id));
 
             // Fixed date drip rule
             $drip_fixed_date = !empty($_POST['drip_fixed_date']) ? sanitize_text_field($_POST['drip_fixed_date']) : '';
             if ($drip_fixed_date) {
-                $wpdb->insert($wpdb->prefix . 'hl_activity_drip_rule', array(
-                    'activity_id'     => $target_activity_id,
+                $wpdb->insert($wpdb->prefix . 'hl_component_drip_rule', array(
+                    'component_id'    => $target_component_id,
                     'drip_type'       => 'fixed_date',
                     'release_at_date' => $drip_fixed_date . ' 00:00:00',
                 ));
             }
 
             // After-completion delay drip rule
-            $drip_base_activity_id = isset($_POST['drip_base_activity_id']) ? absint($_POST['drip_base_activity_id']) : 0;
-            $drip_delay_days       = isset($_POST['drip_delay_days']) ? absint($_POST['drip_delay_days']) : 0;
-            if ($drip_base_activity_id && $drip_delay_days) {
-                $wpdb->insert($wpdb->prefix . 'hl_activity_drip_rule', array(
-                    'activity_id'      => $target_activity_id,
-                    'drip_type'        => 'after_completion_delay',
-                    'base_activity_id' => $drip_base_activity_id,
-                    'delay_days'       => $drip_delay_days,
+            $drip_base_component_id = isset($_POST['drip_base_component_id']) ? absint($_POST['drip_base_component_id']) : 0;
+            $drip_delay_days        = isset($_POST['drip_delay_days']) ? absint($_POST['drip_delay_days']) : 0;
+            if ($drip_base_component_id && $drip_delay_days) {
+                $wpdb->insert($wpdb->prefix . 'hl_component_drip_rule', array(
+                    'component_id'      => $target_component_id,
+                    'drip_type'         => 'after_completion_delay',
+                    'base_component_id' => $drip_base_component_id,
+                    'delay_days'        => $drip_delay_days,
                 ));
             }
         }
 
         $partnership_context = isset($_POST['_hl_partnership_context']) ? absint($_POST['_hl_partnership_context']) : 0;
         if ($partnership_context) {
-            $redirect = $this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'activity_saved'));
+            $redirect = $this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'component_saved'));
         } else {
-            $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=activity_saved');
+            $redirect = admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=component_saved');
         }
         wp_redirect($redirect);
         exit;
     }
 
     /**
-     * Build external_ref JSON from POST data based on activity type
+     * Build external_ref JSON from POST data based on component type
      *
-     * @param string $activity_type
+     * @param string $component_type
      * @return string|null JSON string or null
      */
-    private function build_external_ref($activity_type) {
+    private function build_external_ref($component_type) {
         $ref = array();
 
-        switch ($activity_type) {
+        switch ($component_type) {
             case 'teacher_self_assessment':
                 $phase = isset($_POST['assessment_phase']) ? sanitize_text_field($_POST['assessment_phase']) : 'pre';
                 $ref = array( 'phase' => $phase );
@@ -525,8 +525,8 @@ class HL_Admin_Pathways {
         }
 
         global $wpdb;
-        // Delete activities first
-        $wpdb->delete($wpdb->prefix . 'hl_activity', array('pathway_id' => $pathway_id));
+        // Delete components first
+        $wpdb->delete($wpdb->prefix . 'hl_component', array('pathway_id' => $pathway_id));
         $wpdb->delete($wpdb->prefix . 'hl_pathway', array('pathway_id' => $pathway_id));
 
         $partnership_context = isset($_GET['partnership_context']) ? absint($_GET['partnership_context']) : 0;
@@ -539,18 +539,18 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Handle activity delete
+     * Handle component delete
      */
-    private function handle_delete_activity() {
-        $activity_id = isset($_GET['activity_id']) ? absint($_GET['activity_id']) : 0;
-        $pathway_id  = isset($_GET['pathway_id']) ? absint($_GET['pathway_id']) : 0;
+    private function handle_delete_component() {
+        $component_id = isset($_GET['component_id']) ? absint($_GET['component_id']) : 0;
+        $pathway_id   = isset($_GET['pathway_id']) ? absint($_GET['pathway_id']) : 0;
 
-        if (!$activity_id || !$pathway_id) {
+        if (!$component_id || !$pathway_id) {
             $this->render_list();
             return;
         }
 
-        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_delete_activity_' . $activity_id)) {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_delete_component_' . $component_id)) {
             wp_die(__('Security check failed.', 'hl-core'));
         }
 
@@ -559,13 +559,13 @@ class HL_Admin_Pathways {
         }
 
         global $wpdb;
-        $wpdb->delete($wpdb->prefix . 'hl_activity', array('activity_id' => $activity_id));
+        $wpdb->delete($wpdb->prefix . 'hl_component', array('component_id' => $component_id));
 
         $partnership_context = isset($_GET['partnership_context']) ? absint($_GET['partnership_context']) : 0;
         if ($partnership_context) {
-            wp_redirect($this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'activity_deleted')));
+            wp_redirect($this->get_partnership_redirect($partnership_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'component_deleted')));
         } else {
-            wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=activity_deleted'));
+            wp_redirect(admin_url('admin.php?page=hl-pathways&action=view&id=' . $pathway_id . '&message=component_deleted'));
         }
         exit;
     }
@@ -786,7 +786,7 @@ class HL_Admin_Pathways {
 
         $pathways = $wpdb->get_results(
             "SELECT pw.*, t.partnership_name,
-                    (SELECT COUNT(*) FROM {$wpdb->prefix}hl_activity a WHERE a.pathway_id = pw.pathway_id) as activity_count
+                    (SELECT COUNT(*) FROM {$wpdb->prefix}hl_component a WHERE a.pathway_id = pw.pathway_id) as component_count
              FROM {$wpdb->prefix}hl_pathway pw
              LEFT JOIN {$wpdb->prefix}hl_partnership t ON pw.partnership_id = t.partnership_id
              {$where}
@@ -813,9 +813,9 @@ class HL_Admin_Pathways {
                 'clone_error'      => __('Clone failed. Please try again.', 'hl-core'),
                 'template_saved'   => __('Pathway saved as template.', 'hl-core'),
                 'template_removed' => __('Pathway removed from templates.', 'hl-core'),
-                'activity_saved'   => __('Activity saved successfully.', 'hl-core'),
-                'activity_deleted' => __('Activity deleted successfully.', 'hl-core'),
-                'deleted'          => __('Pathway and its activities deleted successfully.', 'hl-core'),
+                'component_saved'   => __('Component saved successfully.', 'hl-core'),
+                'component_deleted' => __('Component deleted successfully.', 'hl-core'),
+                'deleted'           => __('Pathway and its components deleted successfully.', 'hl-core'),
             );
             if (isset($messages[$msg])) {
                 $notice_type = ($msg === 'clone_error') ? 'notice-error' : 'notice-success';
@@ -841,7 +841,7 @@ class HL_Admin_Pathways {
             }
         }
 
-        echo '<h1 class="wp-heading-inline">' . esc_html__('Pathways & Activities', 'hl-core') . '</h1>';
+        echo '<h1 class="wp-heading-inline">' . esc_html__('Pathways & Components', 'hl-core') . '</h1>';
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-pathways&action=new')) . '" class="page-title-action">' . esc_html__('Add Pathway', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
@@ -887,7 +887,7 @@ class HL_Admin_Pathways {
         echo '<th>' . esc_html__('Code', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Partnership', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Target Roles', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Activities', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Components', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead>';
         echo '<tbody>';
@@ -914,11 +914,11 @@ class HL_Admin_Pathways {
             echo '<td><code>' . esc_html($pw->pathway_code) . '</code></td>';
             echo '<td>' . esc_html($pw->partnership_name) . '</td>';
             echo '<td>' . esc_html($roles_display) . '</td>';
-            echo '<td>' . esc_html($pw->activity_count) . '</td>';
+            echo '<td>' . esc_html($pw->component_count) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($view_url) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a> ';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
-            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Delete this pathway and all its activities?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
+            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Delete this pathway and all its components?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
             echo '</td>';
             echo '</tr>';
         }
@@ -927,7 +927,7 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Render pathway detail with activities list
+     * Render pathway detail with components list
      *
      * @param object $pathway
      * @param array  $context Optional partnership context. Keys: 'partnership_id', 'partnership_name'.
@@ -936,8 +936,8 @@ class HL_Admin_Pathways {
         global $wpdb;
         $in_partnership = !empty($context['partnership_id']);
 
-        $activities = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_activity WHERE pathway_id = %d ORDER BY ordering_hint ASC, activity_id ASC",
+        $components = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_component WHERE pathway_id = %d ORDER BY ordering_hint ASC, component_id ASC",
             $pathway->pathway_id
         ));
 
@@ -958,9 +958,9 @@ class HL_Admin_Pathways {
                 'cloned'           => __('Pathway cloned successfully.', 'hl-core'),
                 'template_saved'   => __('Pathway saved as template.', 'hl-core'),
                 'template_removed' => __('Pathway removed from templates.', 'hl-core'),
-                'activity_saved'   => __('Activity saved successfully.', 'hl-core'),
-                'activity_deleted' => __('Activity deleted successfully.', 'hl-core'),
-                'assigned'         => __('Pathway assigned to enrollment.', 'hl-core'),
+                'component_saved'   => __('Component saved successfully.', 'hl-core'),
+                'component_deleted' => __('Component deleted successfully.', 'hl-core'),
+                'assigned'          => __('Pathway assigned to enrollment.', 'hl-core'),
                 'unassigned'       => __('Pathway unassigned from enrollment.', 'hl-core'),
                 'bulk_assigned'    => __('Pathway assigned to selected enrollments.', 'hl-core'),
                 'synced'           => __('Role-based default assignments synced.', 'hl-core'),
@@ -1014,7 +1014,7 @@ class HL_Admin_Pathways {
             echo '<option value="' . esc_attr($c->partnership_id) . '">' . esc_html($c->partnership_name) . '</option>';
         }
         echo '</select> ';
-        echo '<button type="submit" class="button button-primary" onclick="return confirm(\'' . esc_js(__('Clone this pathway and all its activities to the selected partnership?', 'hl-core')) . '\');">' . esc_html__('Clone', 'hl-core') . '</button>';
+        echo '<button type="submit" class="button button-primary" onclick="return confirm(\'' . esc_js(__('Clone this pathway and all its components to the selected partnership?', 'hl-core')) . '\');">' . esc_html__('Clone', 'hl-core') . '</button>';
         echo '</form>';
 
         // Save as Template / Remove Template toggle.
@@ -1058,18 +1058,18 @@ class HL_Admin_Pathways {
 
         echo '</table>';
 
-        // Activities section
+        // Components section
         if ($in_partnership) {
-            $add_activity_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $context['partnership_id'] . '&tab=pathways&sub=activity&pathway_id=' . $pathway->pathway_id . '&activity_action=new');
+            $add_component_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $context['partnership_id'] . '&tab=pathways&sub=component&pathway_id=' . $pathway->pathway_id . '&component_action=new');
         } else {
-            $add_activity_url = admin_url('admin.php?page=hl-pathways&action=new_activity&pathway_id=' . $pathway->pathway_id);
+            $add_component_url = admin_url('admin.php?page=hl-pathways&action=new_component&pathway_id=' . $pathway->pathway_id);
         }
-        echo '<h2 class="wp-heading-inline">' . esc_html__('Activities', 'hl-core') . '</h2>';
-        echo ' <a href="' . esc_url($add_activity_url) . '" class="page-title-action">' . esc_html__('Add Activity', 'hl-core') . '</a>';
+        echo '<h2 class="wp-heading-inline">' . esc_html__('Components', 'hl-core') . '</h2>';
+        echo ' <a href="' . esc_url($add_component_url) . '" class="page-title-action">' . esc_html__('Add Component', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
-        if (empty($activities)) {
-            echo '<p>' . esc_html__('No activities in this pathway yet.', 'hl-core') . '</p>';
+        if (empty($components)) {
+            echo '<p>' . esc_html__('No components in this pathway yet.', 'hl-core') . '</p>';
             return;
         }
 
@@ -1085,18 +1085,18 @@ class HL_Admin_Pathways {
         echo '</tr></thead>';
         echo '<tbody>';
 
-        foreach ($activities as $act) {
+        foreach ($components as $act) {
             if ($in_partnership) {
-                $edit_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $context['partnership_id'] . '&tab=pathways&sub=activity&pathway_id=' . $pathway->pathway_id . '&activity_id=' . $act->activity_id);
+                $edit_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $context['partnership_id'] . '&tab=pathways&sub=component&pathway_id=' . $pathway->pathway_id . '&component_id=' . $act->component_id);
                 $delete_url = wp_nonce_url(
-                    admin_url('admin.php?page=hl-pathways&action=delete_activity&activity_id=' . $act->activity_id . '&pathway_id=' . $pathway->pathway_id . '&partnership_context=' . $context['partnership_id']),
-                    'hl_delete_activity_' . $act->activity_id
+                    admin_url('admin.php?page=hl-pathways&action=delete_component&component_id=' . $act->component_id . '&pathway_id=' . $pathway->pathway_id . '&partnership_context=' . $context['partnership_id']),
+                    'hl_delete_component_' . $act->component_id
                 );
             } else {
-                $edit_url = admin_url('admin.php?page=hl-pathways&action=edit_activity&activity_id=' . $act->activity_id);
+                $edit_url = admin_url('admin.php?page=hl-pathways&action=edit_component&component_id=' . $act->component_id);
                 $delete_url = wp_nonce_url(
-                    admin_url('admin.php?page=hl-pathways&action=delete_activity&activity_id=' . $act->activity_id . '&pathway_id=' . $pathway->pathway_id),
-                    'hl_delete_activity_' . $act->activity_id
+                    admin_url('admin.php?page=hl-pathways&action=delete_component&component_id=' . $act->component_id . '&pathway_id=' . $pathway->pathway_id),
+                    'hl_delete_component_' . $act->component_id
                 );
             }
 
@@ -1108,21 +1108,21 @@ class HL_Admin_Pathways {
                 'coaching_session_attendance' => __('Coaching Attendance', 'hl-core'),
                 'observation'                => __('Observation', 'hl-core'),
             );
-            $type_display = isset($type_labels[$act->activity_type]) ? $type_labels[$act->activity_type] : $act->activity_type;
+            $type_display = isset($type_labels[$act->component_type]) ? $type_labels[$act->component_type] : $act->component_type;
 
             // Format linked resource
-            $linked_display = $this->format_external_ref($act->activity_type, $act->external_ref);
+            $linked_display = $this->format_external_ref($act->component_type, $act->external_ref);
 
             echo '<tr>';
             echo '<td>' . esc_html($act->ordering_hint) . '</td>';
             echo '<td><strong>' . esc_html($act->title) . '</strong></td>';
             echo '<td>' . esc_html($type_display) . '</td>';
             echo '<td>' . $linked_display . '</td>';
-            echo '<td>' . $this->format_prereq_summary($act->activity_id) . '</td>';
+            echo '<td>' . $this->format_prereq_summary($act->component_id) . '</td>';
             echo '<td>' . esc_html($act->weight) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
-            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Delete this activity?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
+            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Delete this component?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
             echo '</td>';
             echo '</tr>';
         }
@@ -1489,13 +1489,13 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Format external_ref for display in the activity list
+     * Format external_ref for display in the component list
      *
-     * @param string      $activity_type
+     * @param string      $component_type
      * @param string|null $external_ref JSON string
      * @return string HTML
      */
-    public function format_external_ref($activity_type, $external_ref) {
+    public function format_external_ref($component_type, $external_ref) {
         if (empty($external_ref)) {
             return '<span style="color:#999;">' . esc_html__('Not configured', 'hl-core') . '</span>';
         }
@@ -1505,7 +1505,7 @@ class HL_Admin_Pathways {
             return '<span style="color:#999;">' . esc_html__('Invalid', 'hl-core') . '</span>';
         }
 
-        switch ($activity_type) {
+        switch ($component_type) {
             case 'teacher_self_assessment':
                 $label = isset($ref['phase']) ? ucfirst($ref['phase']) : '';
                 return esc_html($label);
@@ -1551,21 +1551,21 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Render the activity create/edit form
+     * Render the component create/edit form
      *
      * @param object      $pathway
-     * @param object|null $activity
+     * @param object|null $component
      * @param array       $context Optional partnership context. Keys: 'partnership_id', 'partnership_name'.
      */
-    public function render_activity_form($pathway, $activity = null, $context = array()) {
-        $is_edit   = ($activity !== null);
-        $title     = $is_edit ? __('Edit Activity', 'hl-core') : __('Add New Activity', 'hl-core');
+    public function render_component_form($pathway, $component = null, $context = array()) {
+        $is_edit   = ($component !== null);
+        $title     = $is_edit ? __('Edit Component', 'hl-core') : __('Add New Component', 'hl-core');
         $in_partnership = !empty($context['partnership_id']);
 
         // Parse existing external_ref for pre-populating dropdowns
         $ext_ref = array();
-        if ($is_edit && !empty($activity->external_ref)) {
-            $decoded = json_decode($activity->external_ref, true);
+        if ($is_edit && !empty($component->external_ref)) {
+            $decoded = json_decode($component->external_ref, true);
             if (is_array($decoded)) {
                 $ext_ref = $decoded;
             }
@@ -1577,21 +1577,21 @@ class HL_Admin_Pathways {
         }
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">';
-        wp_nonce_field('hl_save_activity', 'hl_activity_nonce');
+        wp_nonce_field('hl_save_component', 'hl_component_nonce');
         echo '<input type="hidden" name="pathway_id" value="' . esc_attr($pathway->pathway_id) . '" />';
         if ($in_partnership) {
             echo '<input type="hidden" name="_hl_partnership_context" value="' . esc_attr($context['partnership_id']) . '" />';
         }
 
         if ($is_edit) {
-            echo '<input type="hidden" name="activity_id" value="' . esc_attr($activity->activity_id) . '" />';
+            echo '<input type="hidden" name="component_id" value="' . esc_attr($component->component_id) . '" />';
         }
 
         echo '<table class="form-table">';
 
-        // Activity Type (matches DB enum)
-        $current_type = $is_edit ? $activity->activity_type : '';
-        $activity_types = array(
+        // Component Type (matches DB enum)
+        $current_type = $is_edit ? $component->component_type : '';
+        $component_types = array(
             'learndash_course'             => __('LearnDash Course', 'hl-core'),
             'teacher_self_assessment'      => __('Teacher Self-Assessment', 'hl-core'),
             'child_assessment'          => __('Child Assessment', 'hl-core'),
@@ -1602,10 +1602,10 @@ class HL_Admin_Pathways {
         $jfb_active = HL_JFB_Integration::instance()->is_active();
 
         echo '<tr>';
-        echo '<th scope="row"><label for="activity_type">' . esc_html__('Activity Type', 'hl-core') . '</label></th>';
-        echo '<td><select id="activity_type" name="activity_type" required>';
+        echo '<th scope="row"><label for="component_type">' . esc_html__('Component Type', 'hl-core') . '</label></th>';
+        echo '<td><select id="component_type" name="component_type" required>';
         echo '<option value="">' . esc_html__('-- Select Type --', 'hl-core') . '</option>';
-        foreach ($activity_types as $type_value => $type_label) {
+        foreach ($component_types as $type_value => $type_label) {
             $disabled = '';
             // Disable observation type if JFB is not active (observations still use JFB forms)
             if (!$jfb_active && $type_value === 'observation') {
@@ -1620,37 +1620,37 @@ class HL_Admin_Pathways {
         // Title
         echo '<tr>';
         echo '<th scope="row"><label for="title">' . esc_html__('Title', 'hl-core') . '</label></th>';
-        echo '<td><input type="text" id="title" name="title" value="' . esc_attr($is_edit ? $activity->title : '') . '" class="regular-text" required /></td>';
+        echo '<td><input type="text" id="title" name="title" value="' . esc_attr($is_edit ? $component->title : '') . '" class="regular-text" required /></td>';
         echo '</tr>';
 
         // Description
         echo '<tr>';
         echo '<th scope="row"><label for="description">' . esc_html__('Description', 'hl-core') . '</label></th>';
-        echo '<td><textarea id="description" name="description" rows="5" class="large-text">' . esc_textarea($is_edit ? $activity->description : '') . '</textarea></td>';
+        echo '<td><textarea id="description" name="description" rows="5" class="large-text">' . esc_textarea($is_edit ? $component->description : '') . '</textarea></td>';
         echo '</tr>';
 
         // Weight
         echo '<tr>';
         echo '<th scope="row"><label for="weight">' . esc_html__('Weight', 'hl-core') . '</label></th>';
-        echo '<td><input type="number" id="weight" name="weight" value="' . esc_attr($is_edit ? $activity->weight : '1.0') . '" step="0.1" min="0" class="small-text" /></td>';
+        echo '<td><input type="number" id="weight" name="weight" value="' . esc_attr($is_edit ? $component->weight : '1.0') . '" step="0.1" min="0" class="small-text" /></td>';
         echo '</tr>';
 
         // Ordering Hint
         echo '<tr>';
         echo '<th scope="row"><label for="ordering_hint">' . esc_html__('Ordering Hint', 'hl-core') . '</label></th>';
-        echo '<td><input type="number" id="ordering_hint" name="ordering_hint" value="' . esc_attr($is_edit ? $activity->ordering_hint : '0') . '" class="small-text" />';
+        echo '<td><input type="number" id="ordering_hint" name="ordering_hint" value="' . esc_attr($is_edit ? $component->ordering_hint : '0') . '" class="small-text" />';
         echo '<p class="description">' . esc_html__('Lower values appear first.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
         // =====================================================================
-        // Conditional fields based on activity type
+        // Conditional fields based on component type
         // =====================================================================
 
         // --- JFB Form Dropdown (for observation only) ---
         $jfb_forms = HL_JFB_Integration::instance()->get_available_forms();
         $current_form_id = isset($ext_ref['form_id']) ? absint($ext_ref['form_id']) : 0;
 
-        echo '<tr class="hl-activity-field hl-field-jfb" style="display:none;">';
+        echo '<tr class="hl-component-field hl-field-jfb" style="display:none;">';
         echo '<th scope="row"><label for="jfb_form_id">' . esc_html__('Observation Form', 'hl-core') . '</label></th>';
         echo '<td>';
         if (empty($jfb_forms)) {
@@ -1665,7 +1665,7 @@ class HL_Admin_Pathways {
                     . '</option>';
             }
             echo '</select>';
-            echo '<p class="description">' . esc_html__('Select the JetFormBuilder observation form. It must include hidden fields (hl_enrollment_id, hl_activity_id, hl_partnership_id) and a "Call Hook" post-submit action with hook name: hl_core_form_submitted', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('Select the JetFormBuilder observation form. It must include hidden fields (hl_enrollment_id, hl_component_id, hl_partnership_id) and a "Call Hook" post-submit action with hook name: hl_core_form_submitted', 'hl-core') . '</p>';
         }
         echo '</td>';
         echo '</tr>';
@@ -1673,7 +1673,7 @@ class HL_Admin_Pathways {
         // --- Phase dropdown (for teacher_self_assessment only) ---
         $current_phase = isset($ext_ref['phase']) ? $ext_ref['phase'] : 'pre';
 
-        echo '<tr class="hl-activity-field hl-field-phase" style="display:none;">';
+        echo '<tr class="hl-component-field hl-field-phase" style="display:none;">';
         echo '<th scope="row"><label for="assessment_phase">' . esc_html__('Assessment Phase', 'hl-core') . '</label></th>';
         echo '<td><select id="assessment_phase" name="assessment_phase">';
         echo '<option value="pre"' . selected($current_phase, 'pre', false) . '>' . esc_html__('Pre-Assessment', 'hl-core') . '</option>';
@@ -1684,10 +1684,10 @@ class HL_Admin_Pathways {
         // --- Required count (for observation only) ---
         $current_required_count = isset($ext_ref['required_count']) ? absint($ext_ref['required_count']) : '';
 
-        echo '<tr class="hl-activity-field hl-field-obs-count" style="display:none;">';
+        echo '<tr class="hl-component-field hl-field-obs-count" style="display:none;">';
         echo '<th scope="row"><label for="required_count">' . esc_html__('Required Observation Count', 'hl-core') . '</label></th>';
         echo '<td><input type="number" id="required_count" name="required_count" value="' . esc_attr($current_required_count) . '" min="1" class="small-text" />';
-        echo '<p class="description">' . esc_html__('Number of observations required for completion. Leave blank if not modeled as an activity.', 'hl-core') . '</p></td>';
+        echo '<p class="description">' . esc_html__('Number of observations required for completion. Leave blank if not modeled as a component.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
         // --- Instrument dropdown (for child_assessment) ---
@@ -1700,7 +1700,7 @@ class HL_Admin_Pathways {
         );
         $current_instrument_id = isset($ext_ref['instrument_id']) ? absint($ext_ref['instrument_id']) : 0;
 
-        echo '<tr class="hl-activity-field hl-field-instrument" style="display:none;">';
+        echo '<tr class="hl-component-field hl-field-instrument" style="display:none;">';
         echo '<th scope="row"><label for="instrument_id">' . esc_html__('Child Assessment Instrument', 'hl-core') . '</label></th>';
         echo '<td>';
         if (empty($instruments)) {
@@ -1732,7 +1732,7 @@ class HL_Admin_Pathways {
         }
         $current_course_id = isset($ext_ref['course_id']) ? absint($ext_ref['course_id']) : 0;
 
-        echo '<tr class="hl-activity-field hl-field-ld" style="display:none;">';
+        echo '<tr class="hl-component-field hl-field-ld" style="display:none;">';
         echo '<th scope="row"><label for="ld_course_id">' . esc_html__('LearnDash Course', 'hl-core') . '</label></th>';
         echo '<td>';
         if (empty($ld_courses)) {
@@ -1754,13 +1754,13 @@ class HL_Admin_Pathways {
         echo '</table>';
 
         // =====================================================================
-        // Prerequisites section (only for edit mode — activity must exist first)
+        // Prerequisites section (only for edit mode — component must exist first)
         // =====================================================================
         if ($is_edit) {
             // Show cycle error if redirected back with one.
             if (isset($_GET['prereq_error']) && $_GET['prereq_error'] === 'cycle') {
-                $cycle_msg = get_transient('hl_prereq_cycle_error_' . $activity->activity_id);
-                delete_transient('hl_prereq_cycle_error_' . $activity->activity_id);
+                $cycle_msg = get_transient('hl_prereq_cycle_error_' . $component->component_id);
+                delete_transient('hl_prereq_cycle_error_' . $component->component_id);
                 echo '<div class="notice notice-error"><p><strong>' . esc_html__('Prerequisite Error:', 'hl-core') . '</strong> ';
                 if ($cycle_msg) {
                     echo esc_html($cycle_msg);
@@ -1771,21 +1771,21 @@ class HL_Admin_Pathways {
             }
 
             echo '<h2>' . esc_html__('Prerequisites', 'hl-core') . '</h2>';
-            echo '<p class="description">' . esc_html__('Define which activities must be completed before this one becomes available. Each group is an independent requirement (AND across groups).', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('Define which components must be completed before this one becomes available. Each group is an independent requirement (AND across groups).', 'hl-core') . '</p>';
 
-            // Load other activities in this pathway (exclude current).
-            $other_activities = $wpdb->get_results($wpdb->prepare(
-                "SELECT activity_id, title, ordering_hint FROM {$wpdb->prefix}hl_activity WHERE pathway_id = %d AND activity_id != %d ORDER BY ordering_hint ASC, activity_id ASC",
+            // Load other components in this pathway (exclude current).
+            $other_components = $wpdb->get_results($wpdb->prepare(
+                "SELECT component_id, title, ordering_hint FROM {$wpdb->prefix}hl_component WHERE pathway_id = %d AND component_id != %d ORDER BY ordering_hint ASC, component_id ASC",
                 $pathway->pathway_id,
-                $activity->activity_id
+                $component->component_id
             ));
 
-            $existing_groups = $this->get_prereq_groups($activity->activity_id);
+            $existing_groups = $this->get_prereq_groups($component->component_id);
 
             echo '<div id="hl-prereq-groups">';
             if (!empty($existing_groups)) {
                 foreach ($existing_groups as $idx => $grp) {
-                    $this->render_prereq_group_row($idx, $grp, $other_activities);
+                    $this->render_prereq_group_row($idx, $grp, $other_components);
                 }
             }
             echo '</div>';
@@ -1795,7 +1795,7 @@ class HL_Admin_Pathways {
             // Hidden template for JS cloning.
             echo '<script type="text/template" id="hl-prereq-group-template">';
             ob_start();
-            $this->render_prereq_group_row('__INDEX__', array(), $other_activities);
+            $this->render_prereq_group_row('__INDEX__', array(), $other_components);
             echo ob_get_clean();
             echo '</script>';
         }
@@ -1806,34 +1806,34 @@ class HL_Admin_Pathways {
         if ($is_edit) {
             // Load existing drip rules
             $drip_rules = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}hl_activity_drip_rule WHERE activity_id = %d",
-                $activity->activity_id
+                "SELECT * FROM {$wpdb->prefix}hl_component_drip_rule WHERE component_id = %d",
+                $component->component_id
             ), ARRAY_A);
 
-            $drip_fixed_date    = '';
-            $drip_base_activity = 0;
-            $drip_delay_days    = '';
+            $drip_fixed_date     = '';
+            $drip_base_component = 0;
+            $drip_delay_days     = '';
 
             if ($drip_rules) {
                 foreach ($drip_rules as $rule) {
                     if ($rule['drip_type'] === 'fixed_date' && !empty($rule['release_at_date'])) {
                         $drip_fixed_date = date('Y-m-d', strtotime($rule['release_at_date']));
                     } elseif ($rule['drip_type'] === 'after_completion_delay') {
-                        $drip_base_activity = absint($rule['base_activity_id']);
-                        $drip_delay_days    = absint($rule['delay_days']);
+                        $drip_base_component = absint($rule['base_component_id']);
+                        $drip_delay_days     = absint($rule['delay_days']);
                     }
                 }
             }
 
-            // Load activities for the delay dropdown
-            $drip_activities = $wpdb->get_results($wpdb->prepare(
-                "SELECT activity_id, title, ordering_hint FROM {$wpdb->prefix}hl_activity WHERE pathway_id = %d AND activity_id != %d ORDER BY ordering_hint ASC, activity_id ASC",
+            // Load components for the delay dropdown
+            $drip_components = $wpdb->get_results($wpdb->prepare(
+                "SELECT component_id, title, ordering_hint FROM {$wpdb->prefix}hl_component WHERE pathway_id = %d AND component_id != %d ORDER BY ordering_hint ASC, component_id ASC",
                 $pathway->pathway_id,
-                $activity->activity_id
+                $component->component_id
             ));
 
             echo '<h2>' . esc_html__('Release Schedule', 'hl-core') . '</h2>';
-            echo '<p class="description">' . esc_html__('Optional. Define when this activity becomes available. If both rules are set, all must be satisfied (most restrictive wins).', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('Optional. Define when this component becomes available. If both rules are set, all must be satisfied (most restrictive wins).', 'hl-core') . '</p>';
 
             echo '<table class="form-table">';
 
@@ -1841,35 +1841,35 @@ class HL_Admin_Pathways {
             echo '<tr>';
             echo '<th scope="row"><label for="drip_fixed_date">' . esc_html__('Fixed Release Date', 'hl-core') . '</label></th>';
             echo '<td><input type="date" id="drip_fixed_date" name="drip_fixed_date" value="' . esc_attr($drip_fixed_date) . '" />';
-            echo '<p class="description">' . esc_html__('Activity will not be available until this date. Leave blank for no date restriction.', 'hl-core') . '</p></td>';
+            echo '<p class="description">' . esc_html__('Component will not be available until this date. Leave blank for no date restriction.', 'hl-core') . '</p></td>';
             echo '</tr>';
 
             // After-completion delay
             echo '<tr>';
-            echo '<th scope="row"><label for="drip_base_activity_id">' . esc_html__('Delay After Activity', 'hl-core') . '</label></th>';
+            echo '<th scope="row"><label for="drip_base_component_id">' . esc_html__('Delay After Component', 'hl-core') . '</label></th>';
             echo '<td>';
-            echo '<select id="drip_base_activity_id" name="drip_base_activity_id">';
+            echo '<select id="drip_base_component_id" name="drip_base_component_id">';
             echo '<option value="0">' . esc_html__('-- None --', 'hl-core') . '</option>';
-            foreach ($drip_activities as $dact) {
-                echo '<option value="' . esc_attr($dact->activity_id) . '"' . selected($drip_base_activity, $dact->activity_id, false) . '>'
-                    . esc_html($dact->title) . ' (#' . esc_html($dact->activity_id) . ')'
+            foreach ($drip_components as $dact) {
+                echo '<option value="' . esc_attr($dact->component_id) . '"' . selected($drip_base_component, $dact->component_id, false) . '>'
+                    . esc_html($dact->title) . ' (#' . esc_html($dact->component_id) . ')'
                     . '</option>';
             }
             echo '</select>';
             echo ' + <input type="number" id="drip_delay_days" name="drip_delay_days" value="' . esc_attr($drip_delay_days) . '" min="0" class="small-text" /> ';
             echo esc_html__('days', 'hl-core');
-            echo '<p class="description">' . esc_html__('Activity becomes available N days after the selected activity is completed.', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('Component becomes available N days after the selected component is completed.', 'hl-core') . '</p>';
             echo '</td>';
             echo '</tr>';
 
             echo '</table>';
         }
 
-        submit_button($is_edit ? __('Update Activity', 'hl-core') : __('Create Activity', 'hl-core'));
+        submit_button($is_edit ? __('Update Component', 'hl-core') : __('Create Component', 'hl-core'));
         echo '</form>';
 
         // JavaScript to toggle conditional fields
-        $this->render_activity_form_js($current_type);
+        $this->render_component_form_js($current_type);
 
         // JavaScript for prereq group management
         if ($is_edit) {
@@ -1912,15 +1912,15 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Output JavaScript for toggling activity type conditional fields
+     * Output JavaScript for toggling component type conditional fields
      *
-     * @param string $initial_type The current activity type (for initial state)
+     * @param string $initial_type The current component type (for initial state)
      */
-    public function render_activity_form_js($initial_type = '') {
+    public function render_component_form_js($initial_type = '') {
         ?>
         <script type="text/javascript">
         (function() {
-            var typeSelect = document.getElementById('activity_type');
+            var typeSelect = document.getElementById('component_type');
             if (!typeSelect) return;
 
             var fieldMap = {
@@ -1935,7 +1935,7 @@ class HL_Admin_Pathways {
                 var type = typeSelect.value;
 
                 // Hide all conditional fields
-                var allFields = document.querySelectorAll('.hl-activity-field');
+                var allFields = document.querySelectorAll('.hl-component-field');
                 for (var i = 0; i < allFields.length; i++) {
                     allFields[i].style.display = 'none';
                 }
@@ -1960,17 +1960,17 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Get prerequisite groups with nested items for a given activity.
+     * Get prerequisite groups with nested items for a given component.
      *
-     * @param int $activity_id
+     * @param int $component_id
      * @return array Groups with items.
      */
-    private function get_prereq_groups($activity_id) {
+    private function get_prereq_groups($component_id) {
         global $wpdb;
 
         $groups = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id = %d ORDER BY group_id ASC",
-            $activity_id
+            "SELECT * FROM {$wpdb->prefix}hl_component_prereq_group WHERE component_id = %d ORDER BY group_id ASC",
+            $component_id
         ), ARRAY_A);
 
         if (empty($groups)) {
@@ -1979,7 +1979,7 @@ class HL_Admin_Pathways {
 
         foreach ($groups as &$group) {
             $group['items'] = $wpdb->get_col($wpdb->prepare(
-                "SELECT prerequisite_activity_id FROM {$wpdb->prefix}hl_activity_prereq_item WHERE group_id = %d",
+                "SELECT prerequisite_component_id FROM {$wpdb->prefix}hl_component_prereq_item WHERE group_id = %d",
                 $group['group_id']
             ));
         }
@@ -1989,13 +1989,13 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Render a single prereq group row for the activity form.
+     * Render a single prereq group row for the component form.
      *
      * @param int    $index            Row index.
      * @param array  $group            Group data (or empty for template).
-     * @param array  $other_activities Activities available as prereqs.
+     * @param array  $other_components Components available as prereqs.
      */
-    private function render_prereq_group_row($index, $group, $other_activities) {
+    private function render_prereq_group_row($index, $group, $other_components) {
         $prereq_type = isset($group['prereq_type']) ? $group['prereq_type'] : 'all_of';
         $n_required  = isset($group['n_required']) ? (int) $group['n_required'] : 2;
         $selected_ids = isset($group['items']) ? array_map('intval', $group['items']) : array();
@@ -2020,14 +2020,14 @@ class HL_Admin_Pathways {
         // Remove button
         echo '<button type="button" class="button button-small hl-remove-prereq-group" style="float:right;color:#a00;">' . esc_html__('Remove Group', 'hl-core') . '</button>';
 
-        // Activity multi-select
+        // Component multi-select
         echo '<div style="clear:both;margin-top:8px;">';
-        echo '<label><strong>' . esc_html__('Activities:', 'hl-core') . '</strong></label><br/>';
-        echo '<select name="prereq_groups[' . esc_attr($index) . '][activity_ids][]" multiple="multiple" style="min-width:300px;min-height:80px;">';
-        foreach ($other_activities as $act) {
-            $sel = in_array((int) $act->activity_id, $selected_ids, true) ? ' selected="selected"' : '';
-            echo '<option value="' . esc_attr($act->activity_id) . '"' . $sel . '>'
-                . esc_html($act->title) . ' (#' . esc_html($act->activity_id) . ')'
+        echo '<label><strong>' . esc_html__('Components:', 'hl-core') . '</strong></label><br/>';
+        echo '<select name="prereq_groups[' . esc_attr($index) . '][component_ids][]" multiple="multiple" style="min-width:300px;min-height:80px;">';
+        foreach ($other_components as $act) {
+            $sel = in_array((int) $act->component_id, $selected_ids, true) ? ' selected="selected"' : '';
+            echo '<option value="' . esc_attr($act->component_id) . '"' . $sel . '>'
+                . esc_html($act->title) . ' (#' . esc_html($act->component_id) . ')'
                 . '</option>';
         }
         echo '</select>';
@@ -2038,13 +2038,13 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Format a human-readable prereq summary for the activity list.
+     * Format a human-readable prereq summary for the component list.
      *
-     * @param int $activity_id
+     * @param int $component_id
      * @return string HTML-safe summary.
      */
-    public function format_prereq_summary($activity_id) {
-        $groups = $this->get_prereq_groups($activity_id);
+    public function format_prereq_summary($component_id) {
+        $groups = $this->get_prereq_groups($component_id);
         if (empty($groups)) {
             return '<span style="color:#999;">&mdash;</span>';
         }
@@ -2054,7 +2054,7 @@ class HL_Admin_Pathways {
             if (empty($group['items'])) {
                 continue;
             }
-            $names = $this->resolve_activity_names($group['items']);
+            $names = $this->resolve_component_names($group['items']);
             $type  = $group['prereq_type'];
 
             switch ($type) {
@@ -2086,27 +2086,27 @@ class HL_Admin_Pathways {
     }
 
     /**
-     * Resolve activity IDs to their titles.
+     * Resolve component IDs to their titles.
      *
-     * @param int[] $activity_ids
+     * @param int[] $component_ids
      * @return string[]
      */
-    private function resolve_activity_names($activity_ids) {
-        if (empty($activity_ids)) {
+    private function resolve_component_names($component_ids) {
+        if (empty($component_ids)) {
             return array();
         }
         global $wpdb;
-        $ids = implode(',', array_map('intval', $activity_ids));
+        $ids = implode(',', array_map('intval', $component_ids));
         $rows = $wpdb->get_results(
-            "SELECT activity_id, title FROM {$wpdb->prefix}hl_activity WHERE activity_id IN ({$ids})",
+            "SELECT component_id, title FROM {$wpdb->prefix}hl_component WHERE component_id IN ({$ids})",
             ARRAY_A
         );
         $map = array();
         foreach ($rows as $r) {
-            $map[(int) $r['activity_id']] = $r['title'];
+            $map[(int) $r['component_id']] = $r['title'];
         }
         $names = array();
-        foreach ($activity_ids as $aid) {
+        foreach ($component_ids as $aid) {
             $names[] = isset($map[(int) $aid]) ? $map[(int) $aid] : ('#' . $aid);
         }
         return $names;

@@ -4,7 +4,7 @@
  * Admin Reporting Dashboard
  *
  * Full reporting dashboard with scope-based filtering (partnership, school, district, team),
- * summary metrics, participant completion table, activity drill-down, and CSV export.
+ * summary metrics, participant completion table, component drill-down, and CSV export.
  *
  * @package HL_Core
  */
@@ -70,7 +70,7 @@ class HL_Admin_Reporting {
         // Gather filters from GET parameters
         $filters = $this->get_filters();
 
-        // Check if this is an activity detail drill-down
+        // Check if this is a component detail drill-down
         $enrollment_id = isset($_GET['enrollment_id']) ? absint($_GET['enrollment_id']) : 0;
 
         echo '<div class="wrap hl-admin-wrap">';
@@ -793,7 +793,7 @@ class HL_Admin_Reporting {
     // =========================================================================
 
     /**
-     * Render the activity detail drill-down for a specific enrollment
+     * Render the component detail drill-down for a specific enrollment
      *
      * @param int   $enrollment_id
      * @param array $filters
@@ -852,13 +852,13 @@ class HL_Admin_Reporting {
         echo '</table>';
         echo '</div>';
 
-        // Activity table
-        $activities = $reporting->get_activity_states($enrollment_id);
+        // Component table
+        $components = $reporting->get_component_states($enrollment_id);
 
-        echo '<h2>' . esc_html__('Activities', 'hl-core') . '</h2>';
+        echo '<h2>' . esc_html__('Components', 'hl-core') . '</h2>';
 
-        if (empty($activities)) {
-            echo '<p>' . esc_html__('No activity data available for this enrollment.', 'hl-core') . '</p>';
+        if (empty($components)) {
+            echo '<p>' . esc_html__('No component data available for this enrollment.', 'hl-core') . '</p>';
             return;
         }
 
@@ -873,16 +873,16 @@ class HL_Admin_Reporting {
         echo '</tr></thead>';
         echo '<tbody>';
 
-        foreach ($activities as $activity) {
-            $title     = isset($activity['title'])             ? $activity['title']             : __('Untitled', 'hl-core');
-            $type      = isset($activity['activity_type'])     ? $activity['activity_type']     : '';
-            $weight    = isset($activity['weight'])            ? floatval($activity['weight'])  : 1;
-            $percent   = isset($activity['completion_percent']) ? floatval($activity['completion_percent']) : 0;
-            $status    = isset($activity['completion_status']) ? $activity['completion_status'] : 'not_started';
-            $completed = isset($activity['completed_at'])      ? $activity['completed_at']     : '';
+        foreach ($components as $component) {
+            $title     = isset($component['title'])             ? $component['title']             : __('Untitled', 'hl-core');
+            $type      = isset($component['component_type'])    ? $component['component_type']    : '';
+            $weight    = isset($component['weight'])            ? floatval($component['weight'])  : 1;
+            $percent   = isset($component['completion_percent']) ? floatval($component['completion_percent']) : 0;
+            $status    = isset($component['completion_status']) ? $component['completion_status'] : 'not_started';
+            $completed = isset($component['completed_at'])      ? $component['completed_at']     : '';
 
-            // Format activity type for display
-            $type_display = $this->format_activity_type($type);
+            // Format component type for display
+            $type_display = $this->format_component_type($type);
 
             // Status badge
             $status_badge = $this->render_status_badge($status);
@@ -1170,16 +1170,16 @@ class HL_Admin_Reporting {
     }
 
     // =========================================================================
-    // Helper: Format Activity Type
+    // Helper: Format Component Type
     // =========================================================================
 
     /**
-     * Format activity type enum value for display
+     * Format component type enum value for display
      *
      * @param string $type
      * @return string
      */
-    private function format_activity_type($type) {
+    private function format_component_type($type) {
         $labels = array(
             'learndash_course'             => __('LearnDash Course', 'hl-core'),
             'teacher_self_assessment'      => __('Teacher Self-Assessment', 'hl-core'),

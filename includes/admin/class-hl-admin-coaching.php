@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) exit;
  * Full CRUD admin page for managing Coaching Sessions.
  * Supports: create/edit/delete sessions, link/unlink observations,
  * add/remove attachments via WP Media Library, rich-text notes,
- * and attendance marking with activity state updates.
+ * and attendance marking with component state updates.
  *
  * @package HL_Core
  */
