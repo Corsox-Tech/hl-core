@@ -2,19 +2,19 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Track Dashboard shortcode renderer.
+ * Partnership Dashboard shortcode renderer.
  *
- * Renders the [hl_track_dashboard] shortcode for School Leaders,
- * District Leaders, and Staff to view track-level participant overview.
+ * Renders the [hl_partnership_dashboard] shortcode for School Leaders,
+ * District Leaders, and Staff to view partnership-level participant overview.
  *
  * @package HL_Core
  */
-class HL_Frontend_Track_Dashboard {
+class HL_Frontend_Partnership_Dashboard {
 
     /**
-     * @var HL_Track_Repository
+     * @var HL_Partnership_Repository
      */
-    private $track_repo;
+    private $partnership_repo;
 
     /**
      * @var HL_Enrollment_Repository
@@ -27,38 +27,38 @@ class HL_Frontend_Track_Dashboard {
     private $orgunit_repo;
 
     public function __construct() {
-        $this->track_repo     = new HL_Track_Repository();
-        $this->enrollment_repo = new HL_Enrollment_Repository();
-        $this->orgunit_repo    = new HL_OrgUnit_Repository();
+        $this->partnership_repo = new HL_Partnership_Repository();
+        $this->enrollment_repo  = new HL_Enrollment_Repository();
+        $this->orgunit_repo     = new HL_OrgUnit_Repository();
     }
 
     public function render($atts) {
         $user_id  = get_current_user_id();
         $is_staff = HL_Security::is_staff();
-        $accessible_tracks = $this->get_accessible_tracks($user_id, $is_staff);
-        if (empty($accessible_tracks)) {
+        $accessible_partnerships = $this->get_accessible_partnerships($user_id, $is_staff);
+        if (empty($accessible_partnerships)) {
             return $this->render_access_denied();
         }
-        $selected_track_id = $this->resolve_track_id($atts, $accessible_tracks);
-        if (!$selected_track_id) {
+        $selected_partnership_id = $this->resolve_partnership_id($atts, $accessible_partnerships);
+        if (!$selected_partnership_id) {
             return $this->render_access_denied();
         }
-        $track = $this->track_repo->get_by_id($selected_track_id);
-        if (!$track) {
-            return $this->render_notice('The selected track could not be found.', 'warning');
+        $partnership = $this->partnership_repo->get_by_id($selected_partnership_id);
+        if (!$partnership) {
+            return $this->render_notice('The selected partnership could not be found.', 'warning');
         }
-        $scope = $this->determine_scope($user_id, $track, $is_staff);
+        $scope = $this->determine_scope($user_id, $partnership, $is_staff);
         if ($scope === false) {
             return $this->render_access_denied();
         }
-        $participants  = $this->get_participants($track, $scope);
+        $participants  = $this->get_participants($partnership, $scope);
         $metrics       = $this->calculate_metrics($participants);
         $school_map    = $this->build_school_map($participants);
         $scope_schools = $this->get_scope_schools($scope);
         ob_start();
         ?>
-        <div class="hl-dashboard hl-track-dashboard">
-            <?php $this->render_header($accessible_tracks, $selected_track_id); ?>
+        <div class="hl-dashboard hl-partnership-dashboard">
+            <?php $this->render_header($accessible_partnerships, $selected_partnership_id); ?>
             <?php $this->render_metrics_row($metrics); ?>
             <?php $this->render_participant_table($participants, $scope_schools, $school_map); ?>
         </div>
@@ -66,67 +66,67 @@ class HL_Frontend_Track_Dashboard {
         return ob_get_clean();
     }
 
-    private function get_accessible_tracks($user_id, $is_staff) {
-        $all_tracks = $this->track_repo->get_all();
+    private function get_accessible_partnerships($user_id, $is_staff) {
+        $all_partnerships = $this->partnership_repo->get_all();
         if ($is_staff) {
             $map = array();
-            foreach ($all_tracks as $p) {
-                $map[(int) $p->track_id] = $p;
+            foreach ($all_partnerships as $p) {
+                $map[(int) $p->partnership_id] = $p;
             }
             return $map;
         }
         $enrollments = $this->enrollment_repo->get_all(array('status' => 'active'));
-        $track_ids = array();
+        $partnership_ids = array();
         foreach ($enrollments as $enrollment) {
             if ((int) $enrollment->user_id !== $user_id) {
                 continue;
             }
             $roles = $enrollment->get_roles_array();
             if (in_array('School Leader', $roles, true) || in_array('District Leader', $roles, true)) {
-                $track_ids[] = (int) $enrollment->track_id;
+                $partnership_ids[] = (int) $enrollment->partnership_id;
             }
         }
-        if (empty($track_ids)) {
+        if (empty($partnership_ids)) {
             return array();
         }
         $map = array();
-        foreach ($all_tracks as $p) {
-            if (in_array((int) $p->track_id, $track_ids, true)) {
-                $map[(int) $p->track_id] = $p;
+        foreach ($all_partnerships as $p) {
+            if (in_array((int) $p->partnership_id, $partnership_ids, true)) {
+                $map[(int) $p->partnership_id] = $p;
             }
         }
         return $map;
     }
 
-    private function resolve_track_id($atts, $accessible_tracks) {
-        if (!empty($atts['track_id'])) {
-            $id = (int) $atts['track_id'];
-            if (isset($accessible_tracks[$id])) {
+    private function resolve_partnership_id($atts, $accessible_partnerships) {
+        if (!empty($atts['partnership_id'])) {
+            $id = (int) $atts['partnership_id'];
+            if (isset($accessible_partnerships[$id])) {
                 return $id;
             }
             return null;
         }
-        if (!empty($_GET['hl_track_id'])) {
-            $id = (int) $_GET['hl_track_id'];
-            if (isset($accessible_tracks[$id])) {
+        if (!empty($_GET['hl_partnership_id'])) {
+            $id = (int) $_GET['hl_partnership_id'];
+            if (isset($accessible_partnerships[$id])) {
                 return $id;
             }
         }
-        reset($accessible_tracks);
-        return key($accessible_tracks);
+        reset($accessible_partnerships);
+        return key($accessible_partnerships);
     }
 
-    private function determine_scope($user_id, $track, $is_staff) {
+    private function determine_scope($user_id, $partnership, $is_staff) {
         if ($is_staff) {
             return array('type' => 'staff', 'school_ids' => array(), 'district_id' => null);
         }
-        $enrollment = $this->enrollment_repo->get_by_track_and_user($track->track_id, $user_id);
+        $enrollment = $this->enrollment_repo->get_by_partnership_and_user($partnership->partnership_id, $user_id);
         if (!$enrollment) {
             return false;
         }
         $roles = $enrollment->get_roles_array();
         if (in_array('District Leader', $roles, true)) {
-            $district_id = !empty($enrollment->district_id) ? (int) $enrollment->district_id : (!empty($track->district_id) ? (int) $track->district_id : null);
+            $district_id = !empty($enrollment->district_id) ? (int) $enrollment->district_id : (!empty($partnership->district_id) ? (int) $partnership->district_id : null);
             $school_ids = array();
             if ($district_id) {
                 $schools = $this->orgunit_repo->get_schools($district_id);
@@ -143,17 +143,17 @@ class HL_Frontend_Track_Dashboard {
         return false;
     }
 
-    private function get_participants($track, $scope) {
+    private function get_participants($partnership, $scope) {
         global $wpdb;
         $prefix = $wpdb->prefix;
         $sql = $wpdb->prepare(
-            "SELECT cr.track_completion_percent, e.enrollment_id, e.user_id, e.roles, e.school_id, u.display_name, u.user_email
+            "SELECT cr.partnership_completion_percent, e.enrollment_id, e.user_id, e.roles, e.school_id, u.display_name, u.user_email
              FROM {$prefix}hl_enrollment e
              LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.track_id = %d AND e.status = 'active'
+             WHERE e.partnership_id = %d AND e.status = 'active'
              ORDER BY u.display_name ASC",
-            $track->track_id
+            $partnership->partnership_id
         );
         $rows = $wpdb->get_results($sql, ARRAY_A);
         if (!$rows) { $rows = array(); }
@@ -169,7 +169,7 @@ class HL_Frontend_Track_Dashboard {
         foreach ($rows as &$row) {
             $row['roles_array'] = is_array($row['roles']) ? $row['roles'] : (array) json_decode($row['roles'], true);
             if (!is_array($row['roles_array'])) { $row['roles_array'] = array(); }
-            $row['completion'] = $row['track_completion_percent'] !== null ? round((float) $row['track_completion_percent']) : 0;
+            $row['completion'] = $row['partnership_completion_percent'] !== null ? round((float) $row['partnership_completion_percent']) : 0;
         }
         unset($row);
         return $rows;
@@ -216,18 +216,18 @@ class HL_Frontend_Track_Dashboard {
         return array();
     }
 
-    private function render_header($tracks, $selected_track_id) {
-        $show_selector = count($tracks) > 1;
+    private function render_header($partnerships, $selected_partnership_id) {
+        $show_selector = count($partnerships) > 1;
         ?>
         <div class="hl-dashboard-header">
-            <h2 class="hl-dashboard-title"><?php echo esc_html__('Track Dashboard', 'hl-core'); ?></h2>
+            <h2 class="hl-dashboard-title"><?php echo esc_html__('Partnership Dashboard', 'hl-core'); ?></h2>
             <?php if ($show_selector) : ?>
-                <div class="hl-track-selector">
-                    <label for="hl-track-select"><?php echo esc_html__('Track:', 'hl-core'); ?></label>
-                    <select id="hl-track-select" class="hl-select" onchange="if(this.value){var u=new URL(window.location.href);u.searchParams.set('hl_track_id',this.value);window.location.href=u.toString();}">
-                        <?php foreach ($tracks as $pid => $prog) : ?>
-                            <option value="<?php echo esc_attr($pid); ?>"<?php selected($pid, $selected_track_id); ?>>
-                                <?php echo esc_html($prog->track_name); ?>
+                <div class="hl-partnership-selector">
+                    <label for="hl-partnership-select"><?php echo esc_html__('Partnership:', 'hl-core'); ?></label>
+                    <select id="hl-partnership-select" class="hl-select" onchange="if(this.value){var u=new URL(window.location.href);u.searchParams.set('hl_partnership_id',this.value);window.location.href=u.toString();}">
+                        <?php foreach ($partnerships as $pid => $prog) : ?>
+                            <option value="<?php echo esc_attr($pid); ?>"<?php selected($pid, $selected_partnership_id); ?>>
+                                <?php echo esc_html($prog->partnership_name); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -279,7 +279,7 @@ class HL_Frontend_Track_Dashboard {
             </div>
             <?php if (empty($participants)) : ?>
                 <div class="hl-notice hl-notice-info">
-                    <?php echo esc_html__('No active participants found for this track.', 'hl-core'); ?>
+                    <?php echo esc_html__('No active participants found for this partnership.', 'hl-core'); ?>
                 </div>
             <?php else : ?>
                 <table class="hl-table">
@@ -322,7 +322,7 @@ class HL_Frontend_Track_Dashboard {
                 <?php if ($show_school_filter) : ?>
                     <script>
                     function hlFilterSchool(schoolId) {
-                        var rows = document.querySelectorAll('.hl-track-dashboard .hl-table tbody tr');
+                        var rows = document.querySelectorAll('.hl-partnership-dashboard .hl-table tbody tr');
                         for (var i = 0; i < rows.length; i++) {
                             if (!schoolId || rows[i].getAttribute('data-school-id') === schoolId) {
                                 rows[i].style.display = '';
@@ -339,14 +339,14 @@ class HL_Frontend_Track_Dashboard {
     }
 
     private function render_access_denied() {
-        return '<div class="hl-dashboard hl-track-dashboard">'
+        return '<div class="hl-dashboard hl-partnership-dashboard">'
             . '<div class="hl-notice hl-notice-error">'
-            . esc_html__('You do not have permission to view the track dashboard. This view is available to School Leaders, District Leaders, and Staff.', 'hl-core')
+            . esc_html__('You do not have permission to view the partnership dashboard. This view is available to School Leaders, District Leaders, and Staff.', 'hl-core')
             . '</div></div>';
     }
 
     private function render_notice($message, $type = 'info') {
-        return '<div class="hl-dashboard hl-track-dashboard">'
+        return '<div class="hl-dashboard hl-partnership-dashboard">'
             . '<div class="hl-notice hl-notice-' . esc_attr($type) . '">'
             . esc_html($message)
             . '</div></div>';

@@ -136,7 +136,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-coaching.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-coach-assignments.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-reporting.php';
-            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-tracks.php';
+            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-partnerships.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-audit.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-settings.php';
         }
@@ -145,7 +145,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-shortcodes.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-progress.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-team-progress.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-track-dashboard.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-partnership-dashboard.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-instrument-renderer.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-teacher-assessment-renderer.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-child-assessment.php';
@@ -154,16 +154,16 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-programs.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-program-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-activity-page.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-track.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-partnership.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-team-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-classroom-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-districts-listing.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-district-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-schools-listing.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-school-page.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-track-workspace.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-partnership-workspace.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-coaching.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-tracks-listing.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-partnerships-listing.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-institutions-listing.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-coaching-hub.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-classrooms-listing.php';

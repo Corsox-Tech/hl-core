@@ -217,11 +217,11 @@ class HL_Frontend_Dashboard {
 
                 <?php if ( $context['is_leader'] ) : ?>
                     <?php
-                    // My Track — leaders.
+                    // My Partnership — leaders.
                     $this->render_nav_card(
-                        'hl_my_track',
-                        __( 'My Track', 'hl-core' ),
-                        __( 'View your track overview and team performance.', 'hl-core' ),
+                        'hl_my_partnership',
+                        __( 'My Partnership', 'hl-core' ),
+                        __( 'View your partnership overview and team performance.', 'hl-core' ),
                         'dashicons-chart-bar'
                     );
                     ?>
@@ -243,9 +243,9 @@ class HL_Frontend_Dashboard {
             <div class="hl-dash-cards">
                 <?php
                 $this->render_nav_card(
-                    'hl_tracks_listing',
-                    __( 'Tracks', 'hl-core' ),
-                    __( 'Browse and manage all tracks.', 'hl-core' ),
+                    'hl_partnerships_listing',
+                    __( 'Partnerships', 'hl-core' ),
+                    __( 'Browse and manage all partnerships.', 'hl-core' ),
                     'dashicons-list-view'
                 );
 

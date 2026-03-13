@@ -2,14 +2,14 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Renderer for the [hl_tracks_listing] shortcode.
+ * Renderer for the [hl_partnerships_listing] shortcode.
  *
- * Card grid of tracks with search and status filter.
- * Scope: admin sees all, coach sees assigned tracks, leaders see enrolled tracks.
+ * Card grid of partnerships with search and status filter.
+ * Scope: admin sees all, coach sees assigned partnerships, leaders see enrolled partnerships.
  *
  * @package HL_Core
  */
-class HL_Frontend_Tracks_Listing {
+class HL_Frontend_Partnerships_Listing {
 
     public function render( $atts ) {
         ob_start();
@@ -31,14 +31,14 @@ class HL_Frontend_Tracks_Listing {
             return ob_get_clean();
         }
 
-        $track_repo = new HL_Track_Repository();
-        $all_tracks = $track_repo->get_all();
+        $partnership_repo = new HL_Partnership_Repository();
+        $all_partnerships = $partnership_repo->get_all();
 
         // Scope filter.
-        $tracks = HL_Scope_Service::filter_by_ids(
-            $all_tracks,
-            'track_id',
-            $scope['track_ids'],
+        $partnerships = HL_Scope_Service::filter_by_ids(
+            $all_partnerships,
+            'partnership_id',
+            $scope['partnership_ids'],
             $scope['is_admin']
         );
 
@@ -49,19 +49,19 @@ class HL_Frontend_Tracks_Listing {
         // Cohort container options for filter.
         $cohort_options = $this->get_cohorts();
 
-        $workspace_url = $this->find_shortcode_page_url( 'hl_track_workspace' );
+        $workspace_url = $this->find_shortcode_page_url( 'hl_partnership_workspace' );
 
         ?>
-        <div class="hl-dashboard hl-tracks-listing hl-frontend-wrap">
+        <div class="hl-dashboard hl-partnerships-listing hl-frontend-wrap">
 
             <div class="hl-crm-page-header">
-                <h2 class="hl-crm-page-title"><?php esc_html_e( 'Tracks', 'hl-core' ); ?></h2>
+                <h2 class="hl-crm-page-title"><?php esc_html_e( 'Partnerships', 'hl-core' ); ?></h2>
             </div>
 
             <!-- Search + Status + Group Filters -->
             <div class="hl-filters-bar">
-                <input type="text" class="hl-search-input" id="hl-track-search"
-                       placeholder="<?php esc_attr_e( 'Search tracks...', 'hl-core' ); ?>">
+                <input type="text" class="hl-search-input" id="hl-partnership-search"
+                       placeholder="<?php esc_attr_e( 'Search partnerships...', 'hl-core' ); ?>">
                 <?php if ( ! empty( $cohort_options ) ) : ?>
                     <select id="hl-cohort-filter" class="hl-select">
                         <option value=""><?php esc_html_e( 'All Cohorts', 'hl-core' ); ?></option>
@@ -84,42 +84,42 @@ class HL_Frontend_Tracks_Listing {
                 </label>
             </div>
 
-            <?php if ( empty( $tracks ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No tracks found.', 'hl-core' ); ?></p></div>
+            <?php if ( empty( $partnerships ) ) : ?>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No partnerships found.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <div class="hl-crm-card-grid">
-                    <?php foreach ( $tracks as $track ) :
-                        $cid           = (int) $track->track_id;
-                        $status        = $track->status ?: 'active';
+                    <?php foreach ( $partnerships as $partnership ) :
+                        $cid           = (int) $partnership->partnership_id;
+                        $status        = $partnership->status ?: 'active';
                         $num_participants = isset( $participant_counts[ $cid ] ) ? $participant_counts[ $cid ] : 0;
                         $num_schools   = isset( $school_counts[ $cid ] ) ? $school_counts[ $cid ] : 0;
                         $detail_url    = $workspace_url
                             ? add_query_arg( 'id', $cid, $workspace_url )
                             : '';
 
-                        $start = $track->start_date ? date_i18n( 'M j, Y', strtotime( $track->start_date ) ) : '—';
-                        $end   = $track->end_date   ? date_i18n( 'M j, Y', strtotime( $track->end_date ) )   : '—';
+                        $start = $partnership->start_date ? date_i18n( 'M j, Y', strtotime( $partnership->start_date ) ) : '—';
+                        $end   = $partnership->end_date   ? date_i18n( 'M j, Y', strtotime( $partnership->end_date ) )   : '—';
                     ?>
-                        <div class="hl-crm-card hl-track-card"
+                        <div class="hl-crm-card hl-partnership-card"
                              data-status="<?php echo esc_attr( $status ); ?>"
-                             data-name="<?php echo esc_attr( strtolower( $track->track_name . ' ' . $track->track_code ) ); ?>"
-                             data-group="<?php echo esc_attr( $track->cohort_id ?: '' ); ?>">
+                             data-name="<?php echo esc_attr( strtolower( $partnership->partnership_name . ' ' . $partnership->partnership_code ) ); ?>"
+                             data-group="<?php echo esc_attr( $partnership->cohort_id ?: '' ); ?>">
                             <div class="hl-crm-card-body">
                                 <div class="hl-crm-card-header">
                                     <h3 class="hl-crm-card-title">
                                         <?php if ( $detail_url ) : ?>
-                                            <a href="<?php echo esc_url( $detail_url ); ?>"><?php echo esc_html( $track->track_name ); ?></a>
+                                            <a href="<?php echo esc_url( $detail_url ); ?>"><?php echo esc_html( $partnership->partnership_name ); ?></a>
                                         <?php else : ?>
-                                            <?php echo esc_html( $track->track_name ); ?>
+                                            <?php echo esc_html( $partnership->partnership_name ); ?>
                                         <?php endif; ?>
                                     </h3>
                                     <span class="hl-badge hl-badge-<?php echo esc_attr( $status ); ?>">
                                         <?php echo esc_html( ucfirst( $status ) ); ?>
                                     </span>
                                 </div>
-                                <?php if ( $track->track_code ) : ?>
+                                <?php if ( $partnership->partnership_code ) : ?>
                                     <div class="hl-crm-card-code">
-                                        <?php echo esc_html( $track->track_code ); ?>
+                                        <?php echo esc_html( $partnership->partnership_code ); ?>
                                     </div>
                                 <?php endif; ?>
                                 <div class="hl-crm-card-dates">
@@ -139,7 +139,7 @@ class HL_Frontend_Tracks_Listing {
                             <?php if ( $detail_url ) : ?>
                                 <div class="hl-crm-card-action">
                                     <a href="<?php echo esc_url( $detail_url ); ?>" class="hl-btn hl-btn-sm hl-btn-secondary">
-                                        <?php esc_html_e( 'Open Track', 'hl-core' ); ?>
+                                        <?php esc_html_e( 'Open Partnership', 'hl-core' ); ?>
                                     </a>
                                 </div>
                             <?php endif; ?>
@@ -148,7 +148,7 @@ class HL_Frontend_Tracks_Listing {
                 </div>
 
                 <div class="hl-empty-state hl-no-results">
-                    <p><?php esc_html_e( 'No tracks match your search or filters.', 'hl-core' ); ?></p>
+                    <p><?php esc_html_e( 'No partnerships match your search or filters.', 'hl-core' ); ?></p>
                 </div>
             <?php endif; ?>
 
@@ -156,11 +156,11 @@ class HL_Frontend_Tracks_Listing {
 
         <script>
         (function($){
-            var $cards = $('.hl-track-card');
-            var $noResults = $('.hl-tracks-listing .hl-no-results');
+            var $cards = $('.hl-partnership-card');
+            var $noResults = $('.hl-partnerships-listing .hl-no-results');
 
             function filterCards() {
-                var query = $('#hl-track-search').val().toLowerCase();
+                var query = $('#hl-partnership-search').val().toLowerCase();
                 var groupFilter = $('#hl-cohort-filter').val() || '';
                 var statuses = [];
                 $('.hl-status-filter:checked').each(function(){ statuses.push($(this).val()); });
@@ -178,7 +178,7 @@ class HL_Frontend_Tracks_Listing {
                 $noResults.toggle(visible === 0 && $cards.length > 0);
             }
 
-            $('#hl-track-search').on('input', filterCards);
+            $('#hl-partnership-search').on('input', filterCards);
             $('.hl-status-filter').on('change', filterCards);
             $('#hl-cohort-filter').on('change', filterCards);
             filterCards();
@@ -196,15 +196,15 @@ class HL_Frontend_Tracks_Listing {
     private function get_participant_counts() {
         global $wpdb;
         $results = $wpdb->get_results(
-            "SELECT track_id, COUNT(*) AS cnt
+            "SELECT partnership_id, COUNT(*) AS cnt
              FROM {$wpdb->prefix}hl_enrollment
              WHERE status = 'active'
-             GROUP BY track_id",
+             GROUP BY partnership_id",
             ARRAY_A
         );
         $map = array();
         foreach ( $results ?: array() as $row ) {
-            $map[ (int) $row['track_id'] ] = (int) $row['cnt'];
+            $map[ (int) $row['partnership_id'] ] = (int) $row['cnt'];
         }
         return $map;
     }
@@ -212,14 +212,14 @@ class HL_Frontend_Tracks_Listing {
     private function get_school_counts() {
         global $wpdb;
         $results = $wpdb->get_results(
-            "SELECT track_id, COUNT(DISTINCT school_id) AS cnt
-             FROM {$wpdb->prefix}hl_track_school
-             GROUP BY track_id",
+            "SELECT partnership_id, COUNT(DISTINCT school_id) AS cnt
+             FROM {$wpdb->prefix}hl_partnership_school
+             GROUP BY partnership_id",
             ARRAY_A
         );
         $map = array();
         foreach ( $results ?: array() as $row ) {
-            $map[ (int) $row['track_id'] ] = (int) $row['cnt'];
+            $map[ (int) $row['partnership_id'] ] = (int) $row['cnt'];
         }
         return $map;
     }

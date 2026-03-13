@@ -67,7 +67,7 @@ class HL_Frontend_School_Page {
 
         // URLs.
         $district_page_url  = $this->find_shortcode_page_url( 'hl_district_page' );
-        $workspace_page_url = $this->find_shortcode_page_url( 'hl_track_workspace' );
+        $workspace_page_url = $this->find_shortcode_page_url( 'hl_partnership_workspace' );
         $classroom_page_url = $this->find_shortcode_page_url( 'hl_classroom_page' );
 
         $back_url = '';

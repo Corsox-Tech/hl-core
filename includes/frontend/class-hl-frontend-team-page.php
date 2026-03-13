@@ -505,15 +505,15 @@ class HL_Frontend_Team_Page {
     // ========================================================================
 
     private function build_back_url( $team ) {
-        // Link back to My Track with the classrooms tab for the team's track.
-        $base = apply_filters( 'hl_core_my_track_page_url', '' );
+        // Link back to My Partnership with the teams tab for the team's partnership.
+        $base = apply_filters( 'hl_core_my_partnership_page_url', '' );
         if ( empty( $base ) ) {
-            $base = $this->find_shortcode_page_url( 'hl_my_track' );
+            $base = $this->find_shortcode_page_url( 'hl_my_partnership' );
         }
         if ( ! empty( $base ) ) {
             return add_query_arg( array(
-                'track_id' => $team->track_id,
-                'tab'       => 'teams',
+                'partnership_id' => $team->partnership_id,
+                'tab'             => 'teams',
             ), $base );
         }
         return '';

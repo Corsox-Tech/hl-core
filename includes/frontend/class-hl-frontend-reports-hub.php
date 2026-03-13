@@ -69,16 +69,16 @@ class HL_Frontend_Reports_Hub {
     private function get_report_cards( $scope ) {
         $reports = array();
 
-        // Completion Report — links to Track Workspace reports tab.
-        $workspace_url = $this->find_shortcode_page_url( 'hl_track_workspace' );
-        $track_url     = $this->find_shortcode_page_url( 'hl_my_track' );
+        // Completion Report — links to Partnership Workspace reports tab.
+        $workspace_url = $this->find_shortcode_page_url( 'hl_partnership_workspace' );
+        $partnership_url = $this->find_shortcode_page_url( 'hl_my_partnership' );
 
         // Completion report — staff use workspace, leaders use my-track.
         $completion_url = '';
         if ( $scope['is_staff'] && $workspace_url ) {
             $completion_url = add_query_arg( 'tab', 'reports', $workspace_url );
-        } elseif ( $track_url ) {
-            $completion_url = add_query_arg( 'tab', 'reports', $track_url );
+        } elseif ( $partnership_url ) {
+            $completion_url = add_query_arg( 'tab', 'reports', $partnership_url );
         }
 
         $reports[] = array(
@@ -103,8 +103,8 @@ class HL_Frontend_Reports_Hub {
             $team_url = '';
             if ( $scope['is_staff'] && $workspace_url ) {
                 $team_url = add_query_arg( 'tab', 'teams', $workspace_url );
-            } elseif ( $track_url ) {
-                $team_url = add_query_arg( 'tab', 'teams', $track_url );
+            } elseif ( $partnership_url ) {
+                $team_url = add_query_arg( 'tab', 'teams', $partnership_url );
             }
             $reports[] = array(
                 'title'       => __( 'Team Summary', 'hl-core' ),

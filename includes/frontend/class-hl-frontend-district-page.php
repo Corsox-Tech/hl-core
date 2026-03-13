@@ -66,7 +66,7 @@ class HL_Frontend_District_Page {
         // URLs.
         $back_url           = $this->find_shortcode_page_url( 'hl_districts_listing' );
         $school_page_url    = $this->find_shortcode_page_url( 'hl_school_page' );
-        $workspace_page_url = $this->find_shortcode_page_url( 'hl_track_workspace' );
+        $workspace_page_url = $this->find_shortcode_page_url( 'hl_partnership_workspace' );
 
         ?>
         <div class="hl-dashboard hl-district-page hl-frontend-wrap">

@@ -683,9 +683,9 @@ class HL_Frontend_Classroom_Page {
     }
 
     private function build_back_url() {
-        $base = apply_filters( 'hl_core_my_track_page_url', '' );
+        $base = apply_filters( 'hl_core_my_partnership_page_url', '' );
         if ( empty( $base ) ) {
-            $base = $this->find_shortcode_page_url( 'hl_my_track' );
+            $base = $this->find_shortcode_page_url( 'hl_my_partnership' );
         }
         if ( ! empty( $base ) ) {
             return add_query_arg( 'tab', 'classrooms', $base );
