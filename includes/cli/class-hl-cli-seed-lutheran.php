@@ -142,14 +142,14 @@ class HL_CLI_Seed_Lutheran {
 		$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $partnership_id );
 		WP_CLI::log( "  [10b] Frozen age group snapshots: {$frozen}" );
 
-		// Step 11: Pathway & Activities.
+		// Step 11: Pathway & Components.
 		$pathway_data = $this->seed_pathway( $partnership_id );
 
 		// Step 12: B2E Teacher Assessment Instruments (PRE + POST).
 		$instrument_ids = $this->seed_teacher_instruments();
 
-		// Update activity external_ref with instrument_ids.
-		$this->update_activity_instrument_refs( $pathway_data, $instrument_ids );
+		// Update component external_ref with instrument_ids.
+		$this->update_component_instrument_refs( $pathway_data, $instrument_ids );
 
 		// Step 12b: Child Assessment Instruments.
 		$children_instruments = $this->seed_children_instruments();
@@ -228,8 +228,8 @@ class HL_CLI_Seed_Lutheran {
 			if ( ! empty( $enrollment_ids ) ) {
 				$in_ids = implode( ',', array_map( 'intval', $enrollment_ids ) );
 
-				// Delete activity states.
-				$wpdb->query( "DELETE FROM {$prefix}hl_activity_state WHERE enrollment_id IN ({$in_ids})" );
+				// Delete component states.
+				$wpdb->query( "DELETE FROM {$prefix}hl_component_state WHERE enrollment_id IN ({$in_ids})" );
 
 				// Delete completion rollups.
 				$wpdb->query( "DELETE FROM {$prefix}hl_completion_rollup WHERE enrollment_id IN ({$in_ids})" );
@@ -254,18 +254,18 @@ class HL_CLI_Seed_Lutheran {
 				$wpdb->query( "DELETE FROM {$prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
 			}
 
-			// Delete activities and their drip rules.
-			$activity_ids = $wpdb->get_col(
+			// Delete components and their drip rules.
+			$component_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT activity_id FROM {$prefix}hl_activity WHERE partnership_id = %d",
+					"SELECT component_id FROM {$prefix}hl_component WHERE partnership_id = %d",
 					$partnership_id
 				)
 			);
-			if ( ! empty( $activity_ids ) ) {
-				$in_act = implode( ',', array_map( 'intval', $activity_ids ) );
-				$wpdb->query( "DELETE FROM {$prefix}hl_activity_drip_rule WHERE activity_id IN ({$in_act})" );
+			if ( ! empty( $component_ids ) ) {
+				$in_comp = implode( ',', array_map( 'intval', $component_ids ) );
+				$wpdb->query( "DELETE FROM {$prefix}hl_component_drip_rule WHERE component_id IN ({$in_comp})" );
 			}
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_activity WHERE partnership_id = %d", $partnership_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_component WHERE partnership_id = %d", $partnership_id ) );
 
 			// Delete pathway.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_pathway WHERE partnership_id = %d", $partnership_id ) );
@@ -961,7 +961,7 @@ class HL_CLI_Seed_Lutheran {
 	 */
 	private function seed_teaching_assignments( $teacher_roster_data, $enrollments, $classrooms, $school_map ) {
 		// Suppress auto-generation of child assessment instances during seeding.
-		// The seeder creates instances explicitly in step 13 with proper activity_id,
+		// The seeder creates instances explicitly in step 13 with proper component_id,
 		// phase, and instrument_id values. Without this, the hook fires before
 		// instruments and pathway exist, creating instances with NULL values.
 		remove_all_actions( 'hl_core_teaching_assignment_changed' );
@@ -1075,14 +1075,14 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 11: Pathway & Activities
+	// Step 11: Pathway & Components
 	// ------------------------------------------------------------------
 
 	/**
-	 * Create the control group assessment pathway with 4 activities.
+	 * Create the control group assessment pathway with 4 components.
 	 *
 	 * @param int $partnership_id Lutheran control partnership ID.
-	 * @return array Pathway data with pathway_id, activity IDs.
+	 * @return array Pathway data with pathway_id, component IDs.
 	 */
 	private function seed_pathway( $partnership_id ) {
 		$svc = new HL_Pathway_Service();
@@ -1095,64 +1095,64 @@ class HL_CLI_Seed_Lutheran {
 			'active_status' => 1,
 		) );
 
-		// Activity 1: Teacher Self-Assessment (Pre).
-		$tsa_pre_id = $svc->create_activity( array(
+		// Component 1: Teacher Self-Assessment (Pre).
+		$tsa_pre_id = $svc->create_component( array(
 			'title'         => 'Teacher Self-Assessment (Pre)',
 			'pathway_id'    => $pathway_id,
 			'partnership_id'     => $partnership_id,
-			'activity_type' => 'teacher_self_assessment',
+			'component_type' => 'teacher_self_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 1,
 			'external_ref'  => wp_json_encode( array( 'phase' => 'pre' ) ),
 		) );
 
-		// Activity 2: Child Assessment (Pre).
-		$ca_pre_id = $svc->create_activity( array(
+		// Component 2: Child Assessment (Pre).
+		$ca_pre_id = $svc->create_component( array(
 			'title'         => 'Child Assessment (Pre)',
 			'pathway_id'    => $pathway_id,
 			'partnership_id'     => $partnership_id,
-			'activity_type' => 'child_assessment',
+			'component_type' => 'child_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 2,
 			'external_ref'  => wp_json_encode( array( 'phase' => 'pre' ) ),
 		) );
 
-		// Activity 3: Teacher Self-Assessment (Post).
-		$tsa_post_id = $svc->create_activity( array(
+		// Component 3: Teacher Self-Assessment (Post).
+		$tsa_post_id = $svc->create_component( array(
 			'title'         => 'Teacher Self-Assessment (Post)',
 			'pathway_id'    => $pathway_id,
 			'partnership_id'     => $partnership_id,
-			'activity_type' => 'teacher_self_assessment',
+			'component_type' => 'teacher_self_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 3,
 			'external_ref'  => wp_json_encode( array( 'phase' => 'post' ) ),
 		) );
 
-		// Activity 4: Child Assessment (Post).
-		$ca_post_id = $svc->create_activity( array(
+		// Component 4: Child Assessment (Post).
+		$ca_post_id = $svc->create_component( array(
 			'title'         => 'Child Assessment (Post)',
 			'pathway_id'    => $pathway_id,
 			'partnership_id'     => $partnership_id,
-			'activity_type' => 'child_assessment',
+			'component_type' => 'child_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 4,
 			'external_ref'  => wp_json_encode( array( 'phase' => 'post' ) ),
 		) );
 
-		// Drip rules for POST activities: fixed_date = 2026-05-05.
+		// Drip rules for POST components: fixed_date = 2026-05-05.
 		global $wpdb;
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_drip_rule', array(
-			'activity_id'     => $tsa_post_id,
+		$wpdb->insert( $wpdb->prefix . 'hl_component_drip_rule', array(
+			'component_id'     => $tsa_post_id,
 			'drip_type'       => 'fixed_date',
 			'release_at_date' => '2026-05-05 00:00:00',
 		) );
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_drip_rule', array(
-			'activity_id'     => $ca_post_id,
+		$wpdb->insert( $wpdb->prefix . 'hl_component_drip_rule', array(
+			'component_id'     => $ca_post_id,
 			'drip_type'       => 'fixed_date',
 			'release_at_date' => '2026-05-05 00:00:00',
 		) );
 
-		WP_CLI::log( "  [11/14] Pathway created: id={$pathway_id}, 4 activities (2 pre + 2 post with drip rules)" );
+		WP_CLI::log( "  [11/14] Pathway created: id={$pathway_id}, 4 components (2 pre + 2 post with drip rules)" );
 
 		return array(
 			'pathway_id'  => $pathway_id,
@@ -1301,22 +1301,22 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	/**
-	 * Update the TSA activity external_ref to include the instrument_ids.
+	 * Update the TSA component external_ref to include the instrument_ids.
 	 *
-	 * @param array $pathway_data   Pathway and activity IDs.
+	 * @param array $pathway_data   Pathway and component IDs.
 	 * @param array $instrument_ids ['pre' => int, 'post' => int].
 	 */
-	private function update_activity_instrument_refs( $pathway_data, $instrument_ids ) {
+	private function update_component_instrument_refs( $pathway_data, $instrument_ids ) {
 		$svc = new HL_Pathway_Service();
 
-		$svc->update_activity( $pathway_data['tsa_pre_id'], array(
+		$svc->update_component( $pathway_data['tsa_pre_id'], array(
 			'external_ref' => wp_json_encode( array(
 				'phase'                 => 'pre',
 				'teacher_instrument_id' => $instrument_ids['pre'],
 			) ),
 		) );
 
-		$svc->update_activity( $pathway_data['tsa_post_id'], array(
+		$svc->update_component( $pathway_data['tsa_post_id'], array(
 			'external_ref' => wp_json_encode( array(
 				'phase'                 => 'post',
 				'teacher_instrument_id' => $instrument_ids['post'],
@@ -1325,15 +1325,15 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 13: Assessment Instances & Activity States
+	// Step 13: Assessment Instances & Component States
 	// ------------------------------------------------------------------
 
 	/**
-	 * Create teacher and child assessment instances plus activity states.
+	 * Create teacher and child assessment instances plus component states.
 	 *
 	 * @param array $enrollments           Keyed by row index.
 	 * @param int   $partnership_id             Partnership ID.
-	 * @param array $pathway_data          Pathway and activity IDs.
+	 * @param array $pathway_data          Pathway and component IDs.
 	 * @param array $instrument_ids        ['pre' => int, 'post' => int].
 	 * @param array $classrooms            Keyed by "school_name::classroom_name".
 	 * @param array $school_map            Keyed by school name => orgunit_id.
@@ -1356,7 +1356,7 @@ class HL_CLI_Seed_Lutheran {
 				'instance_uuid'      => HL_DB_Utils::generate_uuid(),
 				'partnership_id'          => $partnership_id,
 				'enrollment_id'      => $eid,
-				'activity_id'        => $pathway_data['tsa_pre_id'],
+				'component_id'        => $pathway_data['tsa_pre_id'],
 				'phase'              => 'pre',
 				'instrument_id'      => $instrument_ids['pre'],
 				'instrument_version' => '1.0',
@@ -1370,7 +1370,7 @@ class HL_CLI_Seed_Lutheran {
 				'instance_uuid'      => HL_DB_Utils::generate_uuid(),
 				'partnership_id'          => $partnership_id,
 				'enrollment_id'      => $eid,
-				'activity_id'        => $pathway_data['tsa_post_id'],
+				'component_id'        => $pathway_data['tsa_post_id'],
 				'phase'              => 'post',
 				'instrument_id'      => $instrument_ids['post'],
 				'instrument_version' => '1.0',
@@ -1401,7 +1401,7 @@ class HL_CLI_Seed_Lutheran {
 					'instance_uuid'       => HL_DB_Utils::generate_uuid(),
 					'partnership_id'           => $partnership_id,
 					'enrollment_id'       => $eid,
-					'activity_id'         => $pathway_data['ca_pre_id'],
+					'component_id'         => $pathway_data['ca_pre_id'],
 					'classroom_id'        => $classroom_id,
 					'school_id'           => $school_id,
 					'phase'               => 'pre',
@@ -1418,7 +1418,7 @@ class HL_CLI_Seed_Lutheran {
 					'instance_uuid'       => HL_DB_Utils::generate_uuid(),
 					'partnership_id'           => $partnership_id,
 					'enrollment_id'       => $eid,
-					'activity_id'         => $pathway_data['ca_post_id'],
+					'component_id'         => $pathway_data['ca_post_id'],
 					'classroom_id'        => $classroom_id,
 					'school_id'           => $school_id,
 					'phase'               => 'post',
@@ -1431,39 +1431,39 @@ class HL_CLI_Seed_Lutheran {
 				$ca_count++;
 			}
 
-			// Activity States for all 4 activities.
-			// PRE activities: not_started.
-			$wpdb->insert( $prefix . 'hl_activity_state', array(
+			// Component States for all 4 components.
+			// PRE components: not_started.
+			$wpdb->insert( $prefix . 'hl_component_state', array(
 				'enrollment_id'      => $eid,
-				'activity_id'        => $pathway_data['tsa_pre_id'],
+				'component_id'        => $pathway_data['tsa_pre_id'],
 				'completion_percent' => 0,
 				'completion_status'  => 'not_started',
 				'last_computed_at'   => $now,
 			) );
 			$state_count++;
 
-			$wpdb->insert( $prefix . 'hl_activity_state', array(
+			$wpdb->insert( $prefix . 'hl_component_state', array(
 				'enrollment_id'      => $eid,
-				'activity_id'        => $pathway_data['ca_pre_id'],
+				'component_id'        => $pathway_data['ca_pre_id'],
 				'completion_percent' => 0,
 				'completion_status'  => 'not_started',
 				'last_computed_at'   => $now,
 			) );
 			$state_count++;
 
-			// POST activities: locked.
-			$wpdb->insert( $prefix . 'hl_activity_state', array(
+			// POST components: locked.
+			$wpdb->insert( $prefix . 'hl_component_state', array(
 				'enrollment_id'      => $eid,
-				'activity_id'        => $pathway_data['tsa_post_id'],
+				'component_id'        => $pathway_data['tsa_post_id'],
 				'completion_percent' => 0,
 				'completion_status'  => 'locked',
 				'last_computed_at'   => $now,
 			) );
 			$state_count++;
 
-			$wpdb->insert( $prefix . 'hl_activity_state', array(
+			$wpdb->insert( $prefix . 'hl_component_state', array(
 				'enrollment_id'      => $eid,
-				'activity_id'        => $pathway_data['ca_post_id'],
+				'component_id'        => $pathway_data['ca_post_id'],
 				'completion_percent' => 0,
 				'completion_status'  => 'locked',
 				'last_computed_at'   => $now,
@@ -1471,7 +1471,7 @@ class HL_CLI_Seed_Lutheran {
 			$state_count++;
 		}
 
-		WP_CLI::log( "  [13/14] Assessment instances: {$tsa_count} teacher + {$ca_count} children, activity states: {$state_count}" );
+		WP_CLI::log( "  [13/14] Assessment instances: {$tsa_count} teacher + {$ca_count} children, component states: {$state_count}" );
 	}
 
 	// ------------------------------------------------------------------

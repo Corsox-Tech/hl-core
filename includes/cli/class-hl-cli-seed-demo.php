@@ -98,7 +98,7 @@ class HL_CLI_Seed_Demo {
         $frozen = HL_Child_Snapshot_Service::freeze_age_groups( $partnership_id );
         WP_CLI::log( "  [9b/17] Frozen age group snapshots: {$frozen}" );
 
-        // Step 10: Pathways & Activities
+        // Step 10: Pathways & Components
         $pathways = $this->seed_pathways( $partnership_id, $instruments );
 
         // Step 11: Update Enrollment assigned_pathway_id
@@ -110,8 +110,8 @@ class HL_CLI_Seed_Demo {
         // Step 13: Drip Rule
         $this->seed_drip_rules( $pathways );
 
-        // Step 14: Activity States
-        $this->seed_activity_states( $enrollments, $pathways );
+        // Step 14: Component States
+        $this->seed_component_states( $enrollments, $pathways );
 
         // Step 15: Completion Rollups
         $this->seed_rollups( $enrollments );
@@ -175,7 +175,7 @@ class HL_CLI_Seed_Demo {
         if ( $partnership_id ) {
             // Delete dependent data in reverse dependency order.
 
-            // Activity states & rollups via enrollments.
+            // Component states & rollups via enrollments.
             $enrollment_ids = $wpdb->get_col(
                 $wpdb->prepare(
                     "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d",
@@ -187,8 +187,8 @@ class HL_CLI_Seed_Demo {
                 $in_ids = implode( ',', array_map( 'intval', $enrollment_ids ) );
 
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_completion_rollup WHERE enrollment_id IN ({$in_ids})" );
-                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_state WHERE enrollment_id IN ({$in_ids})" );
-                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_override WHERE enrollment_id IN ({$in_ids})" );
+                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_state WHERE enrollment_id IN ({$in_ids})" );
+                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_override WHERE enrollment_id IN ({$in_ids})" );
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_team_membership WHERE enrollment_id IN ({$in_ids})" );
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teaching_assignment WHERE enrollment_id IN ({$in_ids})" );
 
@@ -209,27 +209,27 @@ class HL_CLI_Seed_Demo {
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE partnership_id = {$partnership_id}" );
             }
 
-            // Activities and related rules.
-            $activity_ids = $wpdb->get_col(
+            // Components and related rules.
+            $component_ids = $wpdb->get_col(
                 $wpdb->prepare(
-                    "SELECT activity_id FROM {$wpdb->prefix}hl_activity WHERE partnership_id = %d",
+                    "SELECT component_id FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d",
                     $partnership_id
                 )
             );
-            if ( ! empty( $activity_ids ) ) {
-                $in_act = implode( ',', array_map( 'intval', $activity_ids ) );
+            if ( ! empty( $component_ids ) ) {
+                $in_comp = implode( ',', array_map( 'intval', $component_ids ) );
 
                 $group_ids = $wpdb->get_col(
-                    "SELECT group_id FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id IN ({$in_act})"
+                    "SELECT group_id FROM {$wpdb->prefix}hl_component_prereq_group WHERE component_id IN ({$in_comp})"
                 );
                 if ( ! empty( $group_ids ) ) {
                     $in_grp = implode( ',', array_map( 'intval', $group_ids ) );
-                    $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_prereq_item WHERE group_id IN ({$in_grp})" );
+                    $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_prereq_item WHERE group_id IN ({$in_grp})" );
                 }
-                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id IN ({$in_act})" );
-                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_drip_rule WHERE activity_id IN ({$in_act})" );
+                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_prereq_group WHERE component_id IN ({$in_comp})" );
+                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_drip_rule WHERE component_id IN ({$in_comp})" );
             }
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE partnership_id = %d", $partnership_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d", $partnership_id ) );
 
             // Pathways.
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d", $partnership_id ) );
@@ -937,15 +937,15 @@ class HL_CLI_Seed_Demo {
     }
 
     // ------------------------------------------------------------------
-    // Step 10: Pathways & Activities
+    // Step 10: Pathways & Components
     // ------------------------------------------------------------------
 
     /**
-     * Seed pathways and activities.
+     * Seed pathways and components.
      *
      * @param int   $partnership_id   Partnership ID.
      * @param array $instruments Instrument IDs keyed by age band.
-     * @return array Pathway data with activity IDs.
+     * @return array Pathway data with component IDs.
      */
     private function seed_pathways( $partnership_id, $instruments ) {
         $svc = new HL_Pathway_Service();
@@ -958,26 +958,26 @@ class HL_CLI_Seed_Demo {
             'active_status' => 1,
         ) );
 
-        $teacher_activities = array();
+        $teacher_components = array();
 
         // 1. LearnDash Course.
-        $a_id = $svc->create_activity( array(
+        $a_id = $svc->create_component( array(
             'title'         => 'Foundations of Early Learning',
             'pathway_id'    => $tp_id,
             'partnership_id'     => $partnership_id,
-            'activity_type' => 'learndash_course',
+            'component_type' => 'learndash_course',
             'weight'        => 2.0,
             'ordering_hint' => 1,
             'external_ref'  => wp_json_encode( array( 'course_id' => 99901 ) ),
         ) );
-        $teacher_activities['ld_course'] = $a_id;
+        $teacher_components['ld_course'] = $a_id;
 
         // 2. Pre Self-Assessment (custom instrument).
-        $a_id = $svc->create_activity( array(
+        $a_id = $svc->create_component( array(
             'title'         => 'Pre Self-Assessment',
             'pathway_id'    => $tp_id,
             'partnership_id'     => $partnership_id,
-            'activity_type' => 'teacher_self_assessment',
+            'component_type' => 'teacher_self_assessment',
             'weight'        => 1.0,
             'ordering_hint' => 2,
             'external_ref'  => wp_json_encode( array(
@@ -985,14 +985,14 @@ class HL_CLI_Seed_Demo {
                 'phase'                 => 'pre',
             ) ),
         ) );
-        $teacher_activities['pre_self'] = $a_id;
+        $teacher_components['pre_self'] = $a_id;
 
         // 3. Post Self-Assessment (custom instrument).
-        $a_id = $svc->create_activity( array(
+        $a_id = $svc->create_component( array(
             'title'         => 'Post Self-Assessment',
             'pathway_id'    => $tp_id,
             'partnership_id'     => $partnership_id,
-            'activity_type' => 'teacher_self_assessment',
+            'component_type' => 'teacher_self_assessment',
             'weight'        => 1.0,
             'ordering_hint' => 3,
             'external_ref'  => wp_json_encode( array(
@@ -1000,31 +1000,31 @@ class HL_CLI_Seed_Demo {
                 'phase'                 => 'post',
             ) ),
         ) );
-        $teacher_activities['post_self'] = $a_id;
+        $teacher_components['post_self'] = $a_id;
 
         // 4. Child Assessment — use the infant instrument as the primary link.
-        $a_id = $svc->create_activity( array(
+        $a_id = $svc->create_component( array(
             'title'         => 'Child Assessment',
             'pathway_id'    => $tp_id,
             'partnership_id'     => $partnership_id,
-            'activity_type' => 'child_assessment',
+            'component_type' => 'child_assessment',
             'weight'        => 2.0,
             'ordering_hint' => 4,
             'external_ref'  => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ),
         ) );
-        $teacher_activities['children'] = $a_id;
+        $teacher_components['children'] = $a_id;
 
         // 5. Coaching Attendance.
-        $a_id = $svc->create_activity( array(
+        $a_id = $svc->create_component( array(
             'title'         => 'Coaching Attendance',
             'pathway_id'    => $tp_id,
             'partnership_id'     => $partnership_id,
-            'activity_type' => 'coaching_session_attendance',
+            'component_type' => 'coaching_session_attendance',
             'weight'        => 1.0,
             'ordering_hint' => 5,
             'external_ref'  => wp_json_encode( (object) array() ),
         ) );
-        $teacher_activities['coaching'] = $a_id;
+        $teacher_components['coaching'] = $a_id;
 
         // --- Mentor Pathway ---
         $mp_id = $svc->create_pathway( array(
@@ -1034,26 +1034,26 @@ class HL_CLI_Seed_Demo {
             'active_status' => 1,
         ) );
 
-        $mentor_activities = array();
+        $mentor_components = array();
 
         // 1. LearnDash Course.
-        $a_id = $svc->create_activity( array(
+        $a_id = $svc->create_component( array(
             'title'         => 'Mentor Training Course',
             'pathway_id'    => $mp_id,
             'partnership_id'     => $partnership_id,
-            'activity_type' => 'learndash_course',
+            'component_type' => 'learndash_course',
             'weight'        => 2.0,
             'ordering_hint' => 1,
             'external_ref'  => wp_json_encode( array( 'course_id' => 99902 ) ),
         ) );
-        $mentor_activities['ld_course'] = $a_id;
+        $mentor_components['ld_course'] = $a_id;
 
         // 2. Observation.
-        $a_id = $svc->create_activity( array(
+        $a_id = $svc->create_component( array(
             'title'         => 'Teacher Observations',
             'pathway_id'    => $mp_id,
             'partnership_id'     => $partnership_id,
-            'activity_type' => 'observation',
+            'component_type' => 'observation',
             'weight'        => 1.0,
             'ordering_hint' => 2,
             'external_ref'  => wp_json_encode( array(
@@ -1062,17 +1062,17 @@ class HL_CLI_Seed_Demo {
                 'required_count' => 2,
             ) ),
         ) );
-        $mentor_activities['observation'] = $a_id;
+        $mentor_components['observation'] = $a_id;
 
-        $t_act_count = count( $teacher_activities );
-        $m_act_count = count( $mentor_activities );
-        WP_CLI::log( "  [10/17] Pathways created: 2 (teacher={$t_act_count} activities, mentor={$m_act_count} activities)" );
+        $t_comp_count = count( $teacher_components );
+        $m_comp_count = count( $mentor_components );
+        WP_CLI::log( "  [10/17] Pathways created: 2 (teacher={$t_comp_count} components, mentor={$m_comp_count} components)" );
 
         return array(
             'teacher_pathway_id'  => $tp_id,
             'mentor_pathway_id'   => $mp_id,
-            'teacher_activities'  => $teacher_activities,
-            'mentor_activities'   => $mentor_activities,
+            'teacher_components'  => $teacher_components,
+            'mentor_components'   => $mentor_components,
         );
     }
 
@@ -1121,7 +1121,7 @@ class HL_CLI_Seed_Demo {
     private function seed_prereq_rules( $pathways ) {
         global $wpdb;
 
-        $ta        = $pathways['teacher_activities'];
+        $ta        = $pathways['teacher_components'];
         $post_self = $ta['post_self'];
         $pre_self  = $ta['pre_self'];
         $ld_course = $ta['ld_course'];
@@ -1129,52 +1129,52 @@ class HL_CLI_Seed_Demo {
         $coaching  = $ta['coaching'];
 
         // 1. ALL_OF: Post Self-Assessment requires Pre Self-Assessment.
-        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_group', array(
-            'activity_id' => $post_self,
+        $wpdb->insert( $wpdb->prefix . 'hl_component_prereq_group', array(
+            'component_id' => $post_self,
             'prereq_type' => 'all_of',
         ) );
         $group_id = $wpdb->insert_id;
 
-        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array(
+        $wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array(
             'group_id'                 => $group_id,
-            'prerequisite_activity_id' => $pre_self,
+            'prerequisite_component_id' => $pre_self,
         ) );
 
         // 2. ANY_OF: Child Assessment requires either LD course OR Pre Self-Assessment.
-        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_group', array(
-            'activity_id' => $children,
+        $wpdb->insert( $wpdb->prefix . 'hl_component_prereq_group', array(
+            'component_id' => $children,
             'prereq_type' => 'any_of',
         ) );
         $group_id = $wpdb->insert_id;
 
-        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array(
+        $wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array(
             'group_id'                 => $group_id,
-            'prerequisite_activity_id' => $ld_course,
+            'prerequisite_component_id' => $ld_course,
         ) );
-        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array(
+        $wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array(
             'group_id'                 => $group_id,
-            'prerequisite_activity_id' => $pre_self,
+            'prerequisite_component_id' => $pre_self,
         ) );
 
         // 3. N_OF_M: Coaching Attendance requires 2 of 3 (LD course, Pre Self, Children).
-        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_group', array(
-            'activity_id' => $coaching,
+        $wpdb->insert( $wpdb->prefix . 'hl_component_prereq_group', array(
+            'component_id' => $coaching,
             'prereq_type' => 'n_of_m',
             'n_required'  => 2,
         ) );
         $group_id = $wpdb->insert_id;
 
-        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array(
+        $wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array(
             'group_id'                 => $group_id,
-            'prerequisite_activity_id' => $ld_course,
+            'prerequisite_component_id' => $ld_course,
         ) );
-        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array(
+        $wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array(
             'group_id'                 => $group_id,
-            'prerequisite_activity_id' => $pre_self,
+            'prerequisite_component_id' => $pre_self,
         ) );
-        $wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array(
+        $wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array(
             'group_id'                 => $group_id,
-            'prerequisite_activity_id' => $children,
+            'prerequisite_component_id' => $children,
         ) );
 
         WP_CLI::log( '  [12/17] Prereq rules created: ALL_OF (Post Self <- Pre Self), ANY_OF (Children <- LD|Pre), N_OF_M (Coaching <- 2 of 3)' );
@@ -1192,10 +1192,10 @@ class HL_CLI_Seed_Demo {
     private function seed_drip_rules( $pathways ) {
         global $wpdb;
 
-        $post_self = $pathways['teacher_activities']['post_self'];
+        $post_self = $pathways['teacher_components']['post_self'];
 
-        $wpdb->insert( $wpdb->prefix . 'hl_activity_drip_rule', array(
-            'activity_id'     => $post_self,
+        $wpdb->insert( $wpdb->prefix . 'hl_component_drip_rule', array(
+            'component_id'     => $post_self,
             'drip_type'       => 'fixed_date',
             'release_at_date' => gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) ),
         ) );
@@ -1204,28 +1204,28 @@ class HL_CLI_Seed_Demo {
     }
 
     // ------------------------------------------------------------------
-    // Step 14: Activity States (partial completion)
+    // Step 14: Component States (partial completion)
     // ------------------------------------------------------------------
 
     /**
-     * Seed activity states for partial completion demonstration.
+     * Seed component states for partial completion demonstration.
      *
      * @param array $enrollments Enrollment data.
      * @param array $pathways    Pathway data.
      */
-    private function seed_activity_states( $enrollments, $pathways ) {
+    private function seed_component_states( $enrollments, $pathways ) {
         global $wpdb;
 
-        $ta   = $pathways['teacher_activities'];
-        $ma   = $pathways['mentor_activities'];
+        $ta   = $pathways['teacher_components'];
+        $ma   = $pathways['mentor_components'];
         $now  = current_time( 'mysql', true );
         $count = 0;
 
-        // Helper to insert an activity state.
-        $insert_state = function( $enrollment_id, $activity_id, $percent, $status, $completed_at = null ) use ( $wpdb, $now, &$count ) {
-            $wpdb->insert( $wpdb->prefix . 'hl_activity_state', array(
+        // Helper to insert a component state.
+        $insert_state = function( $enrollment_id, $component_id, $percent, $status, $completed_at = null ) use ( $wpdb, $now, &$count ) {
+            $wpdb->insert( $wpdb->prefix . 'hl_component_state', array(
                 'enrollment_id'     => $enrollment_id,
-                'activity_id'       => $activity_id,
+                'component_id'       => $component_id,
                 'completion_percent' => $percent,
                 'completion_status' => $status,
                 'completed_at'      => $completed_at,
@@ -1257,7 +1257,7 @@ class HL_CLI_Seed_Demo {
         $eid = $enrollments['mentors'][0]['enrollment_id'];
         $insert_state( $eid, $ma['ld_course'], 100, 'complete', $now );
 
-        WP_CLI::log( "  [14/17] Activity states created: {$count}" );
+        WP_CLI::log( "  [14/17] Component states created: {$count}" );
     }
 
     // ------------------------------------------------------------------
@@ -1265,7 +1265,7 @@ class HL_CLI_Seed_Demo {
     // ------------------------------------------------------------------
 
     /**
-     * Compute rollups for enrollments that have activity states.
+     * Compute rollups for enrollments that have component states.
      *
      * @param array $enrollments Enrollment data.
      */

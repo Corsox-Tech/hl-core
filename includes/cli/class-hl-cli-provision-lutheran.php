@@ -143,7 +143,7 @@ class HL_CLI_Provision_Lutheran {
 			WP_CLI::log( '  [12] Freeze age groups: ' . ( $this->dry_run ? 'SKIP (dry run)' : 'SKIP (no partnership)' ) );
 		}
 
-		// Step 13: Pathway + 4 Activities.
+		// Step 13: Pathway + 4 Components.
 		$pathway_data = $this->provision_pathway( $partnership_id );
 
 		// Step 14: Drip Rules.
@@ -153,14 +153,14 @@ class HL_CLI_Provision_Lutheran {
 		$instrument_ids     = $this->provision_teacher_instruments();
 		$child_instruments  = $this->provision_child_instruments();
 
-		// Update activity external_ref with instrument IDs.
-		$this->update_activity_instrument_refs( $pathway_data, $instrument_ids );
+		// Update component external_ref with instrument IDs.
+		$this->update_component_instrument_refs( $pathway_data, $instrument_ids );
 
 		// Step 16: Assessment Instances.
 		$this->provision_assessment_instances( $enrollments, $partnership_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $child_instruments );
 
-		// Step 17: Activity States.
-		$this->provision_activity_states( $enrollments, $pathway_data );
+		// Step 17: Component States.
+		$this->provision_component_states( $enrollments, $pathway_data );
 
 		// Step 18: Pathway Assignments.
 		$this->provision_pathway_assignments( $enrollments, $pathway_data );
@@ -760,7 +760,7 @@ class HL_CLI_Provision_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 13: Pathway + Activities
+	// Step 13: Pathway + Components
 	// ------------------------------------------------------------------
 
 	private function provision_pathway( $partnership_id ) {
@@ -768,7 +768,7 @@ class HL_CLI_Provision_Lutheran {
 		$prefix = $wpdb->prefix;
 
 		if ( ! $partnership_id ) {
-			WP_CLI::log( '  [13] Pathway + Activities: SKIP (no partnership in dry run)' );
+			WP_CLI::log( '  [13] Pathway + Components: SKIP (no partnership in dry run)' );
 			return array(
 				'pathway_id'  => null,
 				'tsa_pre_id'  => null,
@@ -810,8 +810,8 @@ class HL_CLI_Provision_Lutheran {
 			);
 		}
 
-		// Find or create each activity.
-		$activities = array(
+		// Find or create each component.
+		$components = array(
 			'tsa_pre_id'  => array( 'title' => 'Teacher Self-Assessment (Pre)',  'type' => 'teacher_self_assessment', 'order' => 1, 'phase' => 'pre' ),
 			'ca_pre_id'   => array( 'title' => 'Child Assessment (Pre)',         'type' => 'child_assessment',        'order' => 2, 'phase' => 'pre' ),
 			'tsa_post_id' => array( 'title' => 'Teacher Self-Assessment (Post)', 'type' => 'teacher_self_assessment', 'order' => 3, 'phase' => 'post' ),
@@ -820,22 +820,22 @@ class HL_CLI_Provision_Lutheran {
 
 		$result = array( 'pathway_id' => $pathway_id );
 
-		foreach ( $activities as $key => $act ) {
+		foreach ( $components as $key => $act ) {
 			$result[ $key ] = $this->find_or_create(
-				'Activities',
+				'Components',
 				function () use ( $wpdb, $prefix, $pathway_id, $act ) {
 					return $wpdb->get_var( $wpdb->prepare(
-						"SELECT activity_id FROM {$prefix}hl_activity WHERE pathway_id = %d AND title = %s LIMIT 1",
+						"SELECT component_id FROM {$prefix}hl_component WHERE pathway_id = %d AND title = %s LIMIT 1",
 						$pathway_id, $act['title']
 					) );
 				},
 				function () use ( $partnership_id, $pathway_id, $act ) {
 					$svc = new HL_Pathway_Service();
-					return $svc->create_activity( array(
+					return $svc->create_component( array(
 						'title'         => $act['title'],
 						'pathway_id'    => $pathway_id,
 						'partnership_id'      => $partnership_id,
-						'activity_type' => $act['type'],
+						'component_type' => $act['type'],
 						'weight'        => 1.0,
 						'ordering_hint' => $act['order'],
 						'external_ref'  => wp_json_encode( array( 'phase' => $act['phase'] ) ),
@@ -844,9 +844,9 @@ class HL_CLI_Provision_Lutheran {
 			);
 		}
 
-		$c = $this->counters['Activities'] ?? array( 'found' => 0, 'created' => 0 );
+		$c = $this->counters['Components'] ?? array( 'found' => 0, 'created' => 0 );
 		$pw_status = $this->counters['Pathway']['found'] > 0 ? 'FOUND' : 'CREATED';
-		WP_CLI::log( "  [13] Pathway: {$pw_status} (id={$pathway_id}), Activities: {$c['found']} found, {$c['created']} " . ( $this->dry_run ? 'would create' : 'created' ) );
+		WP_CLI::log( "  [13] Pathway: {$pw_status} (id={$pathway_id}), Components: {$c['found']} found, {$c['created']} " . ( $this->dry_run ? 'would create' : 'created' ) );
 		return $result;
 	}
 
@@ -858,7 +858,7 @@ class HL_CLI_Provision_Lutheran {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
-		$post_activities = array(
+		$post_components = array(
 			'tsa_post_id' => $pathway_data['tsa_post_id'],
 			'ca_post_id'  => $pathway_data['ca_post_id'],
 		);
@@ -866,13 +866,13 @@ class HL_CLI_Provision_Lutheran {
 		$found   = 0;
 		$created = 0;
 
-		foreach ( $post_activities as $aid ) {
+		foreach ( $post_components as $aid ) {
 			if ( ! $aid ) {
 				continue;
 			}
 
 			$exists = $wpdb->get_var( $wpdb->prepare(
-				"SELECT rule_id FROM {$prefix}hl_activity_drip_rule WHERE activity_id = %d LIMIT 1",
+				"SELECT rule_id FROM {$prefix}hl_component_drip_rule WHERE component_id = %d LIMIT 1",
 				$aid
 			) );
 
@@ -882,8 +882,8 @@ class HL_CLI_Provision_Lutheran {
 			}
 
 			if ( ! $this->dry_run ) {
-				$wpdb->insert( $prefix . 'hl_activity_drip_rule', array(
-					'activity_id'     => $aid,
+				$wpdb->insert( $prefix . 'hl_component_drip_rule', array(
+					'component_id'     => $aid,
 					'drip_type'       => 'fixed_date',
 					'release_at_date' => '2026-05-05 00:00:00',
 				) );
@@ -1020,16 +1020,16 @@ class HL_CLI_Provision_Lutheran {
 	}
 
 	/**
-	 * Update TSA activity external_ref with instrument_ids.
+	 * Update TSA component external_ref with instrument_ids.
 	 */
-	private function update_activity_instrument_refs( $pathway_data, $instrument_ids ) {
+	private function update_component_instrument_refs( $pathway_data, $instrument_ids ) {
 		if ( $this->dry_run || ! $pathway_data['tsa_pre_id'] || ! isset( $instrument_ids['pre'] ) || ! $instrument_ids['pre'] ) {
 			return;
 		}
 
 		$svc = new HL_Pathway_Service();
 
-		$svc->update_activity( $pathway_data['tsa_pre_id'], array(
+		$svc->update_component( $pathway_data['tsa_pre_id'], array(
 			'external_ref' => wp_json_encode( array(
 				'phase'                 => 'pre',
 				'teacher_instrument_id' => $instrument_ids['pre'],
@@ -1037,7 +1037,7 @@ class HL_CLI_Provision_Lutheran {
 		) );
 
 		if ( $pathway_data['tsa_post_id'] && isset( $instrument_ids['post'] ) && $instrument_ids['post'] ) {
-			$svc->update_activity( $pathway_data['tsa_post_id'], array(
+			$svc->update_component( $pathway_data['tsa_post_id'], array(
 				'external_ref' => wp_json_encode( array(
 					'phase'                 => 'post',
 					'teacher_instrument_id' => $instrument_ids['post'],
@@ -1069,14 +1069,14 @@ class HL_CLI_Provision_Lutheran {
 			$eid = $enrollment['enrollment_id'];
 
 			// Teacher Assessment Instances: PRE + POST.
-			foreach ( array( 'pre' => $pathway_data['tsa_pre_id'], 'post' => $pathway_data['tsa_post_id'] ) as $phase => $activity_id ) {
-				if ( ! $activity_id ) {
+			foreach ( array( 'pre' => $pathway_data['tsa_pre_id'], 'post' => $pathway_data['tsa_post_id'] ) as $phase => $component_id ) {
+				if ( ! $component_id ) {
 					continue;
 				}
 
 				$exists = $wpdb->get_var( $wpdb->prepare(
-					"SELECT instance_id FROM {$prefix}hl_teacher_assessment_instance WHERE enrollment_id = %d AND activity_id = %d AND phase = %s LIMIT 1",
-					$eid, $activity_id, $phase
+					"SELECT instance_id FROM {$prefix}hl_teacher_assessment_instance WHERE enrollment_id = %d AND component_id = %d AND phase = %s LIMIT 1",
+					$eid, $component_id, $phase
 				) );
 
 				if ( $exists ) {
@@ -1090,7 +1090,7 @@ class HL_CLI_Provision_Lutheran {
 						'instance_uuid'      => HL_DB_Utils::generate_uuid(),
 						'partnership_id'           => $partnership_id,
 						'enrollment_id'      => $eid,
-						'activity_id'        => $activity_id,
+						'component_id'        => $component_id,
 						'phase'              => $phase,
 						'instrument_id'      => $inst_id,
 						'instrument_version' => '1.0',
@@ -1116,14 +1116,14 @@ class HL_CLI_Provision_Lutheran {
 					$ci_id = isset( $child_instruments['preschool'] ) ? $child_instruments['preschool'] : ( ! empty( $child_instruments ) ? reset( $child_instruments ) : null );
 				}
 
-				foreach ( array( 'pre' => $pathway_data['ca_pre_id'], 'post' => $pathway_data['ca_post_id'] ) as $phase => $activity_id ) {
-					if ( ! $activity_id ) {
+				foreach ( array( 'pre' => $pathway_data['ca_pre_id'], 'post' => $pathway_data['ca_post_id'] ) as $phase => $component_id ) {
+					if ( ! $component_id ) {
 						continue;
 					}
 
 					$exists = $wpdb->get_var( $wpdb->prepare(
-						"SELECT instance_id FROM {$prefix}hl_child_assessment_instance WHERE enrollment_id = %d AND activity_id = %d AND phase = %s LIMIT 1",
-						$eid, $activity_id, $phase
+						"SELECT instance_id FROM {$prefix}hl_child_assessment_instance WHERE enrollment_id = %d AND component_id = %d AND phase = %s LIMIT 1",
+						$eid, $component_id, $phase
 					) );
 
 					if ( $exists ) {
@@ -1136,7 +1136,7 @@ class HL_CLI_Provision_Lutheran {
 							'instance_uuid'       => HL_DB_Utils::generate_uuid(),
 							'partnership_id'            => $partnership_id,
 							'enrollment_id'       => $eid,
-							'activity_id'         => $activity_id,
+							'component_id'         => $component_id,
 							'classroom_id'        => $classroom_id,
 							'school_id'           => $school_id,
 							'phase'               => $phase,
@@ -1159,15 +1159,15 @@ class HL_CLI_Provision_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 17: Activity States
+	// Step 17: Component States
 	// ------------------------------------------------------------------
 
-	private function provision_activity_states( $enrollments, $pathway_data ) {
+	private function provision_component_states( $enrollments, $pathway_data ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
 		if ( ! $pathway_data['tsa_pre_id'] ) {
-			WP_CLI::log( '  [17] Activity States: SKIP (no activities)' );
+			WP_CLI::log( '  [17] Component States: SKIP (no components)' );
 			return;
 		}
 
@@ -1175,7 +1175,7 @@ class HL_CLI_Provision_Lutheran {
 		$found   = 0;
 		$created = 0;
 
-		$activity_statuses = array(
+		$component_statuses = array(
 			'tsa_pre_id'  => 'not_started',
 			'ca_pre_id'   => 'not_started',
 			'tsa_post_id' => 'locked',
@@ -1185,14 +1185,14 @@ class HL_CLI_Provision_Lutheran {
 		foreach ( $enrollments as $enrollment ) {
 			$eid = $enrollment['enrollment_id'];
 
-			foreach ( $activity_statuses as $key => $status ) {
+			foreach ( $component_statuses as $key => $status ) {
 				$aid = $pathway_data[ $key ];
 				if ( ! $aid ) {
 					continue;
 				}
 
 				$exists = $wpdb->get_var( $wpdb->prepare(
-					"SELECT state_id FROM {$prefix}hl_activity_state WHERE enrollment_id = %d AND activity_id = %d LIMIT 1",
+					"SELECT state_id FROM {$prefix}hl_component_state WHERE enrollment_id = %d AND component_id = %d LIMIT 1",
 					$eid, $aid
 				) );
 
@@ -1202,9 +1202,9 @@ class HL_CLI_Provision_Lutheran {
 				}
 
 				if ( ! $this->dry_run ) {
-					$wpdb->insert( $prefix . 'hl_activity_state', array(
+					$wpdb->insert( $prefix . 'hl_component_state', array(
 						'enrollment_id'      => $eid,
-						'activity_id'        => $aid,
+						'component_id'        => $aid,
 						'completion_percent' => 0,
 						'completion_status'  => $status,
 						'last_computed_at'   => $now,
@@ -1214,8 +1214,8 @@ class HL_CLI_Provision_Lutheran {
 			}
 		}
 
-		$this->counters['Activity States'] = array( 'found' => $found, 'created' => $created );
-		WP_CLI::log( "  [17] Activity States: {$found} found, {$created} " . ( $this->dry_run ? 'would create' : 'created' ) );
+		$this->counters['Component States'] = array( 'found' => $found, 'created' => $created );
+		WP_CLI::log( "  [17] Component States: {$found} found, {$created} " . ( $this->dry_run ? 'would create' : 'created' ) );
 	}
 
 	// ------------------------------------------------------------------

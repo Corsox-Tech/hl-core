@@ -93,7 +93,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $partnership_id );
 		WP_CLI::log( "  [9b] Frozen age group snapshots: {$frozen}" );
 
-		// Step 10: Pathways & Activities.
+		// Step 10: Pathways & Components.
 		$pathways = $this->seed_pathways( $partnership_id, $instruments );
 
 		// Step 11: Assign Pathways.
@@ -105,8 +105,8 @@ class HL_CLI_Seed_Palm_Beach {
 		// Step 13: Drip Rules.
 		$this->seed_drip_rules( $pathways );
 
-		// Step 14: Activity States.
-		$this->seed_activity_states( $enrollments, $pathways );
+		// Step 14: Component States.
+		$this->seed_component_states( $enrollments, $pathways );
 
 		// Step 15: Completion Rollups.
 		$this->seed_rollups( $enrollments );
@@ -642,8 +642,8 @@ class HL_CLI_Seed_Palm_Beach {
 			if ( ! empty( $enrollment_ids ) ) {
 				$in_ids = implode( ',', array_map( 'intval', $enrollment_ids ) );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_completion_rollup WHERE enrollment_id IN ({$in_ids})" );
-				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_state WHERE enrollment_id IN ({$in_ids})" );
-				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_override WHERE enrollment_id IN ({$in_ids})" );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_state WHERE enrollment_id IN ({$in_ids})" );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_override WHERE enrollment_id IN ({$in_ids})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_team_membership WHERE enrollment_id IN ({$in_ids})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teaching_assignment WHERE enrollment_id IN ({$in_ids})" );
 
@@ -659,25 +659,25 @@ class HL_CLI_Seed_Palm_Beach {
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE partnership_id = {$partnership_id}" );
 			}
 
-			$activity_ids = $wpdb->get_col(
+			$component_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT activity_id FROM {$wpdb->prefix}hl_activity WHERE partnership_id = %d",
+					"SELECT component_id FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d",
 					$partnership_id
 				)
 			);
-			if ( ! empty( $activity_ids ) ) {
-				$in_act = implode( ',', array_map( 'intval', $activity_ids ) );
+			if ( ! empty( $component_ids ) ) {
+				$in_comp = implode( ',', array_map( 'intval', $component_ids ) );
 				$group_ids = $wpdb->get_col(
-					"SELECT group_id FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id IN ({$in_act})"
+					"SELECT group_id FROM {$wpdb->prefix}hl_component_prereq_group WHERE component_id IN ({$in_comp})"
 				);
 				if ( ! empty( $group_ids ) ) {
 					$in_grp = implode( ',', array_map( 'intval', $group_ids ) );
-					$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_prereq_item WHERE group_id IN ({$in_grp})" );
+					$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_prereq_item WHERE group_id IN ({$in_grp})" );
 				}
-				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_prereq_group WHERE activity_id IN ({$in_act})" );
-				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_drip_rule WHERE activity_id IN ({$in_act})" );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_prereq_group WHERE component_id IN ({$in_comp})" );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_drip_rule WHERE component_id IN ({$in_comp})" );
 			}
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE partnership_id = %d", $partnership_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d", $partnership_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d", $partnership_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_phase WHERE partnership_id = %d", $partnership_id ) );
 
@@ -716,10 +716,10 @@ class HL_CLI_Seed_Palm_Beach {
 			if ( ! empty( $ctrl_enrollment_ids ) ) {
 				$in_ctrl = implode( ',', array_map( 'intval', $ctrl_enrollment_ids ) );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_completion_rollup WHERE enrollment_id IN ({$in_ctrl})" );
-				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_activity_state WHERE enrollment_id IN ({$in_ctrl})" );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_state WHERE enrollment_id IN ({$in_ctrl})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ctrl})" );
 			}
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_activity WHERE partnership_id = %d", $control_partnership_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d", $control_partnership_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d", $control_partnership_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_phase WHERE partnership_id = %d", $control_partnership_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d", $control_partnership_id ) );
@@ -1302,7 +1302,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 	private function seed_teaching_assignments( $enrollments, $classrooms ) {
 		// Suppress auto-generation of child assessment instances during seeding.
-		// The seeder creates instances explicitly with proper activity_id, phase,
+		// The seeder creates instances explicitly with proper component_id, phase,
 		// and instrument_id values.
 		remove_all_actions( 'hl_core_teaching_assignment_changed' );
 
@@ -1364,7 +1364,7 @@ class HL_CLI_Seed_Palm_Beach {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 10: Pathways & Activities
+	// Step 10: Pathways & Components
 	// ------------------------------------------------------------------
 
 	private function seed_pathways( $partnership_id, $instruments ) {
@@ -1379,11 +1379,11 @@ class HL_CLI_Seed_Palm_Beach {
 		) );
 
 		$ta = array();
-		$ta['ld_course'] = $svc->create_activity( array( 'title' => 'Foundations of Early Learning', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'activity_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99901 ) ) ) );
-		$ta['pre_self']  = $svc->create_activity( array( 'title' => 'Pre Self-Assessment', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e_pre'], 'phase' => 'pre' ) ) ) );
-		$ta['post_self'] = $svc->create_activity( array( 'title' => 'Post Self-Assessment', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'activity_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 3, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e_post'], 'phase' => 'post' ) ) ) );
-		$ta['children']  = $svc->create_activity( array( 'title' => 'Child Assessment', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'activity_type' => 'child_assessment', 'weight' => 2.0, 'ordering_hint' => 4, 'external_ref' => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ) ) );
-		$ta['coaching']  = $svc->create_activity( array( 'title' => 'Coaching Attendance', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'activity_type' => 'coaching_session_attendance', 'weight' => 1.0, 'ordering_hint' => 5, 'external_ref' => wp_json_encode( (object) array() ) ) );
+		$ta['ld_course'] = $svc->create_component( array( 'title' => 'Foundations of Early Learning', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'component_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99901 ) ) ) );
+		$ta['pre_self']  = $svc->create_component( array( 'title' => 'Pre Self-Assessment', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'component_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e_pre'], 'phase' => 'pre' ) ) ) );
+		$ta['post_self'] = $svc->create_component( array( 'title' => 'Post Self-Assessment', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'component_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 3, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e_post'], 'phase' => 'post' ) ) ) );
+		$ta['children']  = $svc->create_component( array( 'title' => 'Child Assessment', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'component_type' => 'child_assessment', 'weight' => 2.0, 'ordering_hint' => 4, 'external_ref' => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ) ) );
+		$ta['coaching']  = $svc->create_component( array( 'title' => 'Coaching Attendance', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'component_type' => 'coaching_session_attendance', 'weight' => 1.0, 'ordering_hint' => 5, 'external_ref' => wp_json_encode( (object) array() ) ) );
 
 		// --- Mentor Pathway ---
 		$mp_id = $svc->create_pathway( array(
@@ -1394,12 +1394,12 @@ class HL_CLI_Seed_Palm_Beach {
 		) );
 
 		$ma = array();
-		$ma['ld_course']    = $svc->create_activity( array( 'title' => 'Mentor Training Course', 'pathway_id' => $mp_id, 'partnership_id' => $partnership_id, 'activity_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99902 ) ) ) );
-		$ma['observation']  = $svc->create_activity( array( 'title' => 'Teacher Observations', 'pathway_id' => $mp_id, 'partnership_id' => $partnership_id, 'activity_type' => 'observation', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'form_plugin' => 'jetformbuilder', 'form_id' => 99903, 'required_count' => 2 ) ) ) );
+		$ma['ld_course']    = $svc->create_component( array( 'title' => 'Mentor Training Course', 'pathway_id' => $mp_id, 'partnership_id' => $partnership_id, 'component_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99902 ) ) ) );
+		$ma['observation']  = $svc->create_component( array( 'title' => 'Teacher Observations', 'pathway_id' => $mp_id, 'partnership_id' => $partnership_id, 'component_type' => 'observation', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'form_plugin' => 'jetformbuilder', 'form_id' => 99903, 'required_count' => 2 ) ) ) );
 
-		WP_CLI::log( '  [10/17] Pathways created: 2 (teacher=' . count( $ta ) . ' activities, mentor=' . count( $ma ) . ' activities)' );
+		WP_CLI::log( '  [10/17] Pathways created: 2 (teacher=' . count( $ta ) . ' components, mentor=' . count( $ma ) . ' components)' );
 
-		return array( 'teacher_pathway_id' => $tp_id, 'mentor_pathway_id' => $mp_id, 'teacher_activities' => $ta, 'mentor_activities' => $ma );
+		return array( 'teacher_pathway_id' => $tp_id, 'mentor_pathway_id' => $mp_id, 'teacher_components' => $ta, 'mentor_components' => $ma );
 	}
 
 	// ------------------------------------------------------------------
@@ -1432,25 +1432,25 @@ class HL_CLI_Seed_Palm_Beach {
 
 	private function seed_prereq_rules( $pathways ) {
 		global $wpdb;
-		$ta = $pathways['teacher_activities'];
+		$ta = $pathways['teacher_components'];
 
 		// ALL_OF: Post Self requires Pre Self.
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_group', array( 'activity_id' => $ta['post_self'], 'prereq_type' => 'all_of' ) );
+		$wpdb->insert( $wpdb->prefix . 'hl_component_prereq_group', array( 'component_id' => $ta['post_self'], 'prereq_type' => 'all_of' ) );
 		$gid = $wpdb->insert_id;
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array( 'group_id' => $gid, 'prerequisite_activity_id' => $ta['pre_self'] ) );
+		$wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array( 'group_id' => $gid, 'prerequisite_component_id' => $ta['pre_self'] ) );
 
 		// ANY_OF: Children requires LD course OR Pre Self.
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_group', array( 'activity_id' => $ta['children'], 'prereq_type' => 'any_of' ) );
+		$wpdb->insert( $wpdb->prefix . 'hl_component_prereq_group', array( 'component_id' => $ta['children'], 'prereq_type' => 'any_of' ) );
 		$gid = $wpdb->insert_id;
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array( 'group_id' => $gid, 'prerequisite_activity_id' => $ta['ld_course'] ) );
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array( 'group_id' => $gid, 'prerequisite_activity_id' => $ta['pre_self'] ) );
+		$wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array( 'group_id' => $gid, 'prerequisite_component_id' => $ta['ld_course'] ) );
+		$wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array( 'group_id' => $gid, 'prerequisite_component_id' => $ta['pre_self'] ) );
 
 		// N_OF_M: Coaching requires 2 of 3.
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_group', array( 'activity_id' => $ta['coaching'], 'prereq_type' => 'n_of_m', 'n_required' => 2 ) );
+		$wpdb->insert( $wpdb->prefix . 'hl_component_prereq_group', array( 'component_id' => $ta['coaching'], 'prereq_type' => 'n_of_m', 'n_required' => 2 ) );
 		$gid = $wpdb->insert_id;
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array( 'group_id' => $gid, 'prerequisite_activity_id' => $ta['ld_course'] ) );
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array( 'group_id' => $gid, 'prerequisite_activity_id' => $ta['pre_self'] ) );
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_prereq_item', array( 'group_id' => $gid, 'prerequisite_activity_id' => $ta['children'] ) );
+		$wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array( 'group_id' => $gid, 'prerequisite_component_id' => $ta['ld_course'] ) );
+		$wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array( 'group_id' => $gid, 'prerequisite_component_id' => $ta['pre_self'] ) );
+		$wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array( 'group_id' => $gid, 'prerequisite_component_id' => $ta['children'] ) );
 
 		WP_CLI::log( '  [12/17] Prereq rules created: ALL_OF, ANY_OF, N_OF_M' );
 	}
@@ -1461,8 +1461,8 @@ class HL_CLI_Seed_Palm_Beach {
 
 	private function seed_drip_rules( $pathways ) {
 		global $wpdb;
-		$wpdb->insert( $wpdb->prefix . 'hl_activity_drip_rule', array(
-			'activity_id'     => $pathways['teacher_activities']['post_self'],
+		$wpdb->insert( $wpdb->prefix . 'hl_component_drip_rule', array(
+			'component_id'     => $pathways['teacher_components']['post_self'],
 			'drip_type'       => 'fixed_date',
 			'release_at_date' => gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) ),
 		) );
@@ -1470,20 +1470,20 @@ class HL_CLI_Seed_Palm_Beach {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 14: Activity States
+	// Step 14: Component States
 	// ------------------------------------------------------------------
 
-	private function seed_activity_states( $enrollments, $pathways ) {
+	private function seed_component_states( $enrollments, $pathways ) {
 		global $wpdb;
-		$ta    = $pathways['teacher_activities'];
-		$ma    = $pathways['mentor_activities'];
+		$ta    = $pathways['teacher_components'];
+		$ma    = $pathways['mentor_components'];
 		$now   = current_time( 'mysql', true );
 		$count = 0;
 
-		$insert_state = function( $enrollment_id, $activity_id, $percent, $status, $completed_at = null ) use ( $wpdb, $now, &$count ) {
-			$wpdb->insert( $wpdb->prefix . 'hl_activity_state', array(
+		$insert_state = function( $enrollment_id, $component_id, $percent, $status, $completed_at = null ) use ( $wpdb, $now, &$count ) {
+			$wpdb->insert( $wpdb->prefix . 'hl_component_state', array(
 				'enrollment_id'      => $enrollment_id,
-				'activity_id'        => $activity_id,
+				'component_id'        => $component_id,
 				'completion_percent' => $percent,
 				'completion_status'  => $status,
 				'completed_at'       => $completed_at,
@@ -1516,7 +1516,7 @@ class HL_CLI_Seed_Palm_Beach {
 			$insert_state( $enrollments['mentors'][0]['enrollment_id'], $ma['ld_course'], 100, 'complete', $now );
 		}
 
-		WP_CLI::log( "  [14/17] Activity states created: {$count}" );
+		WP_CLI::log( "  [14/17] Component states created: {$count}" );
 	}
 
 	// ------------------------------------------------------------------
@@ -1787,11 +1787,11 @@ class HL_CLI_Seed_Palm_Beach {
 		$teacher_pre_instrument_id  = isset( $instruments['teacher_b2e_pre'] ) ? $instruments['teacher_b2e_pre'] : 0;
 		$teacher_post_instrument_id = isset( $instruments['teacher_b2e_post'] ) ? $instruments['teacher_b2e_post'] : 0;
 
-		$pre_activity_id = $svc->create_activity( array(
+		$pre_component_id = $svc->create_component( array(
 			'title'         => 'Pre Self-Assessment',
 			'pathway_id'    => $ctrl_pathway_id,
 			'partnership_id'     => $control_partnership_id,
-			'activity_type' => 'teacher_self_assessment',
+			'component_type' => 'teacher_self_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 1,
 			'external_ref'  => wp_json_encode( array(
@@ -1800,11 +1800,11 @@ class HL_CLI_Seed_Palm_Beach {
 			) ),
 		) );
 
-		$svc->create_activity( array(
+		$svc->create_component( array(
 			'title'         => 'Post Self-Assessment',
 			'pathway_id'    => $ctrl_pathway_id,
 			'partnership_id'     => $control_partnership_id,
-			'activity_type' => 'teacher_self_assessment',
+			'component_type' => 'teacher_self_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 2,
 			'external_ref'  => wp_json_encode( array(
@@ -1879,9 +1879,9 @@ class HL_CLI_Seed_Palm_Beach {
 				'responses_json'     => wp_json_encode( $responses ),
 			) );
 
-			$wpdb->insert( $prefix . 'hl_activity_state', array(
+			$wpdb->insert( $prefix . 'hl_component_state', array(
 				'enrollment_id'      => $eid,
-				'activity_id'        => $pre_activity_id,
+				'component_id'        => $pre_component_id,
 				'completion_percent' => 100,
 				'completion_status'  => 'complete',
 				'completed_at'       => $now,

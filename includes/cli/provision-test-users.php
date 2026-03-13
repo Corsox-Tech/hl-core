@@ -10,7 +10,7 @@
  * - 2 classrooms (mixed age groups for thorough testing)
  * - 8 fake children across 4 age groups
  * - 2 enrollments in the Lutheran control track
- * - Teaching assignments, activity states, pathway assignments
+ * - Teaching assignments, component states, pathway assignments
  * - TSA + CA assessment instances
  *
  * Teacher A ("Jane Test") = simulates OLD teacher (set user_registered to May 2025)
@@ -30,7 +30,7 @@ $phase_id       = 1;
 $pathway_id     = 1;
 $district_id    = 1; // LSF_PALM_BEACH
 
-// Activities (from the Lutheran track)
+// Components (from the Lutheran track)
 $act_tsa_pre_id  = 1; // Teacher Self-Assessment (Pre)
 $act_ca_pre_id   = 2; // Child Assessment (Pre)
 $act_tsa_post_id = 3; // Teacher Self-Assessment (Post)
@@ -331,18 +331,18 @@ foreach ($child_ids as $cid_child) {
     }
 }
 
-// ── Step 8: Activity States (4 per enrollment) ──────────────────────
-$activity_ids = array($act_tsa_pre_id, $act_ca_pre_id, $act_tsa_post_id, $act_ca_post_id);
+// ── Step 8: Component States (4 per enrollment) ─────────────────────
+$component_ids = array($act_tsa_pre_id, $act_ca_pre_id, $act_tsa_post_id, $act_ca_post_id);
 foreach ($enrollment_ids as $eid) {
-    foreach ($activity_ids as $aid) {
+    foreach ($component_ids as $aid) {
         $existing = $wpdb->get_var($wpdb->prepare(
-            "SELECT state_id FROM {$wpdb->prefix}hl_activity_state WHERE enrollment_id = %d AND activity_id = %d",
+            "SELECT state_id FROM {$wpdb->prefix}hl_component_state WHERE enrollment_id = %d AND component_id = %d",
             $eid, $aid
         ));
         if (!$existing) {
-            $wpdb->insert("{$wpdb->prefix}hl_activity_state", array(
+            $wpdb->insert("{$wpdb->prefix}hl_component_state", array(
                 'enrollment_id'     => $eid,
-                'activity_id'       => $aid,
+                'component_id'      => $aid,
                 'completion_percent' => 0,
                 'completion_status' => 'not_started',
                 'last_computed_at'  => $now,
@@ -351,7 +351,7 @@ foreach ($enrollment_ids as $eid) {
             ));
         }
     }
-    echo "  Created 4 activity states for enrollment {$eid}\n";
+    echo "  Created 4 component states for enrollment {$eid}\n";
 }
 
 // ── Step 9: Pathway Assignments ──────────────────────────────────────
@@ -384,7 +384,7 @@ foreach ($enrollment_ids as $eid) {
             'instance_uuid'      => wp_generate_uuid4(),
             'partnership_id'           => $partnership_id,
             'enrollment_id'      => $eid,
-            'activity_id'        => $act_tsa_pre_id,
+            'component_id'       => $act_tsa_pre_id,
             'phase'              => 'pre',
             'instrument_id'      => $tsa_pre_instrument_id,
             'instrument_version' => '1.0',
@@ -403,7 +403,7 @@ foreach ($enrollment_ids as $eid) {
             'instance_uuid'      => wp_generate_uuid4(),
             'partnership_id'           => $partnership_id,
             'enrollment_id'      => $eid,
-            'activity_id'        => $act_tsa_post_id,
+            'component_id'       => $act_tsa_post_id,
             'phase'              => 'post',
             'instrument_id'      => $tsa_post_instrument_id,
             'instrument_version' => '1.0',
@@ -445,7 +445,7 @@ foreach ($enrollment_ids as $idx => $eid) {
                     'instance_uuid'      => wp_generate_uuid4(),
                     'partnership_id'           => $partnership_id,
                     'enrollment_id'      => $eid,
-                    'activity_id'        => $act_id,
+                    'component_id'       => $act_id,
                     'classroom_id'       => $cid,
                     'school_id'          => $school_id,
                     'phase'              => $phase,
@@ -471,7 +471,7 @@ echo "Test school:       Housman Test School (ID {$school_id})\n";
 echo "Classrooms:        Test Room A (ID {$classroom_ids[0]}), Test Room B (ID {$classroom_ids[1]})\n";
 echo "Children:          " . count($child_ids) . " (4 per classroom, all age groups)\n";
 echo "Enrollments:       " . count($enrollment_ids) . "\n";
-echo "Activity states:   " . (count($enrollment_ids) * 4) . "\n";
+echo "Component states:  " . (count($enrollment_ids) * 4) . "\n";
 echo "TSA instances:     " . (count($enrollment_ids) * 2) . "\n";
 echo "CA instances:      " . (count($enrollment_ids) * 8) . "\n";
 echo "\nYopmail inboxes:\n";

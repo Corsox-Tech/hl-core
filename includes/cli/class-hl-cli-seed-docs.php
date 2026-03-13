@@ -114,7 +114,7 @@ class HL_CLI_Seed_Docs {
             'assessments'            => 'Assessments',
             'coaching-observations'  => 'Coaching & Observations',
             'import-data-management' => 'Import & Data Management',
-            'pathways-activities'    => 'Pathways & Activities',
+            'pathways-components'    => 'Pathways & Components',
             'reports-exports'        => 'Reports & Exports',
             'glossary'               => 'Glossary',
         );
@@ -305,29 +305,29 @@ class HL_CLI_Seed_Docs {
         );
 
         // =====================================================================
-        // Pathways & Activities (3 articles)
+        // Pathways & Components (3 articles)
         // =====================================================================
 
         $articles[] = array(
             'slug'       => 'pathways-overview',
             'title'      => 'Pathways Overview',
-            'cat_id'     => $cat_ids['pathways-activities'] ?? 0,
+            'cat_id'     => $cat_ids['pathways-components'] ?? 0,
             'sort_order' => 1,
             'content'    => $this->content_pathways_overview(),
         );
 
         $articles[] = array(
-            'slug'       => 'activity-types-configuration',
-            'title'      => 'Activity Types & Configuration',
-            'cat_id'     => $cat_ids['pathways-activities'] ?? 0,
+            'slug'       => 'component-types-configuration',
+            'title'      => 'Component Types & Configuration',
+            'cat_id'     => $cat_ids['pathways-components'] ?? 0,
             'sort_order' => 2,
-            'content'    => $this->content_activity_types(),
+            'content'    => $this->content_component_types(),
         );
 
         $articles[] = array(
             'slug'       => 'prerequisites-drip-rules',
             'title'      => 'Prerequisites & Drip Rules',
-            'cat_id'     => $cat_ids['pathways-activities'] ?? 0,
+            'cat_id'     => $cat_ids['pathways-components'] ?? 0,
             'sort_order' => 3,
             'content'    => $this->content_prerequisites(),
         );
@@ -420,7 +420,7 @@ Inside the Cohort editor, go to the Details tab and create a new Partnership. A 
 
 <h3>4. Configure a Pathway</h3>
 
-Go to the Pathways tab within the Cohort and create a [hl_doc_link slug="pathways-overview" text="Pathway"] with the activities participants need to complete. Assign the pathway to enrollments.
+Go to the Pathways tab within the Cohort and create a [hl_doc_link slug="pathways-overview" text="Pathway"] with the components participants need to complete. Assign the pathway to enrollments.
 
 <h3>5. Import participants</h3>
 
@@ -492,7 +492,7 @@ A Cohort has a name, a code (for enrollment), a status (active, paused, archived
 A <strong>Partnership</strong> is a time-bounded run within a Cohort. Most Cohorts have one Partnership, but a Cohort can have multiple:
 <ul>
 <li>A <strong>program partnership</strong> with the full B2E curriculum (courses, coaching, observations, assessments).</li>
-<li>A <strong>control partnership</strong> with assessment-only activities (for research comparison).</li>
+<li>A <strong>control partnership</strong> with assessment-only components (for research comparison).</li>
 </ul>
 
 Partnerships hold the configuration: linked schools, pathways, teams, enrollments, and coaching assignments.
@@ -610,7 +610,7 @@ A <strong>control group</strong> is a Partnership where participants only comple
 <li>Open the Cohort editor for an existing Cohort (or create a new one).</li>
 <li>Create a new Partnership and check the <strong>"Control Group"</strong> checkbox.</li>
 <li>The Partnership will be marked with a purple "Control" badge.</li>
-<li>Create an assessment-only [hl_doc_link slug="pathways-overview" text="pathway"] with 4 activities: Teacher Self-Assessment Pre, Child Assessment Pre, Teacher Self-Assessment Post, Child Assessment Post.</li>
+<li>Create an assessment-only [hl_doc_link slug="pathways-overview" text="pathway"] with 4 components: Teacher Self-Assessment Pre, Child Assessment Pre, Teacher Self-Assessment Post, Child Assessment Post.</li>
 <li>Use [hl_doc_link slug="prerequisites-drip-rules" text="drip rules"] to time-gate the POST assessments.</li>
 </ol>
 
@@ -619,7 +619,7 @@ A <strong>control group</strong> is a Partnership where participants only comple
 <ul>
 <li>Coaching and Teams tabs are hidden in both admin and front-end.</li>
 <li>The "My Coaching" card is hidden on the Dashboard for control-group-only participants.</li>
-<li>Only assessment activities appear in the pathway.</li>
+<li>Only assessment components appear in the pathway.</li>
 <li>[hl_doc_link slug="program-vs-control-comparison" text="Comparison reports"] show side-by-side results when a Cohort contains both program and control Partnerships.</li>
 </ul>
 HTML;
@@ -643,15 +643,15 @@ The POST version uses a unique <strong>dual-column retrospective</strong> format
 
 <ol>
 <li>An admin creates a [hl_doc_link slug="assessment-instruments-versioning" text="Teacher Assessment Instrument"] in WP Admin > HL Core > Instruments.</li>
-<li>The instrument is linked to a pathway activity (type: <code>teacher_self_assessment</code>).</li>
-<li>When a teacher opens the activity, the custom form renderer displays the instrument.</li>
+<li>The instrument is linked to a pathway component (type: <code>teacher_self_assessment</code>).</li>
+<li>When a teacher opens the component, the custom form renderer displays the instrument.</li>
 <li>Responses are stored as structured JSON in the <code>hl_teacher_assessment_instance</code> table.</li>
-<li>After submission, the activity is marked complete and the [hl_doc_link slug="completion-reports" text="completion rollup"] updates.</li>
+<li>After submission, the component is marked complete and the [hl_doc_link slug="completion-reports" text="completion rollup"] updates.</li>
 </ol>
 
 <h2>Assessment instances</h2>
 
-Each teacher gets one <strong>instance</strong> per assessment activity. Instances track:
+Each teacher gets one <strong>instance</strong> per assessment component. Instances track:
 <ul>
 <li><strong>Status</strong> — not_started, in_progress, submitted</li>
 <li><strong>Responses JSON</strong> — structured answers keyed by section and item</li>
@@ -682,7 +682,7 @@ Each age group has its own instrument with age-appropriate items and scales. For
 
 <ol>
 <li>Children are assigned to classrooms and linked to teaching assignments.</li>
-<li>When a child assessment activity becomes available, HL Core generates <strong>assessment instances</strong> for each teacher-classroom pair.</li>
+<li>When a child assessment component becomes available, HL Core generates <strong>assessment instances</strong> for each teacher-classroom pair.</li>
 <li>The teacher opens the assessment and sees a matrix of children grouped by age group.</li>
 <li>For each child, the teacher rates each item on the instrument's scale.</li>
 <li>Teachers can <strong>skip</strong> individual children (e.g., if a child was absent or is new).</li>
@@ -730,7 +730,7 @@ Used for [hl_doc_link slug="child-assessment" text="Child Assessments"]. Managed
 Instruments support versioning. When an instrument has been used (instances exist), the admin sees a warning before making changes. You can:
 <ul>
 <li><strong>Edit in place</strong> — changes apply to new instances only (existing submitted responses are frozen).</li>
-<li><strong>Create a new version</strong> — create a new instrument and link it to future activities.</li>
+<li><strong>Create a new version</strong> — create a new instrument and link it to future components.</li>
 </ul>
 
 <h2>Instrument protection</h2>
@@ -798,7 +798,7 @@ Each coaching session has:
 <ol>
 <li>A session is created with status "scheduled."</li>
 <li>After the meeting, the coach updates the status to "attended" (or "missed"/"cancelled").</li>
-<li>When marked as "attended," the corresponding coaching activity in the teacher's [hl_doc_link slug="pathways-overview" text="pathway"] is updated.</li>
+<li>When marked as "attended," the corresponding coaching component in the teacher's [hl_doc_link slug="pathways-overview" text="pathway"] is updated.</li>
 <li>Terminal statuses (attended, missed, cancelled) lock the session from further status changes.</li>
 </ol>
 HTML;
@@ -839,9 +839,9 @@ HTML;
 
 <ol>
 <li>An admin creates an observation form in <strong>JetFormBuilder</strong> with the required hidden fields.</li>
-<li>The form is linked to a pathway activity (type: <code>observation</code>).</li>
+<li>The form is linked to a pathway component (type: <code>observation</code>).</li>
 <li>A mentor opens the observation page and selects a teacher from their team.</li>
-<li>HL Core renders the JFB form with hidden fields pre-populated (enrollment ID, activity ID, partnership ID).</li>
+<li>HL Core renders the JFB form with hidden fields pre-populated (enrollment ID, component ID, partnership ID).</li>
 <li>On submit, JFB fires the <code>hl_core_form_submitted</code> hook.</li>
 <li>HL Core updates the observation status and triggers the completion rollup.</li>
 </ol>
@@ -850,7 +850,7 @@ HTML;
 
 The JetFormBuilder form must include:
 <ul>
-<li><strong>Hidden fields:</strong> <code>hl_enrollment_id</code>, <code>hl_activity_id</code>, <code>hl_partnership_id</code>, <code>hl_observation_id</code></li>
+<li><strong>Hidden fields:</strong> <code>hl_enrollment_id</code>, <code>hl_component_id</code>, <code>hl_partnership_id</code>, <code>hl_observation_id</code></li>
 <li><strong>Post-submit action:</strong> "Call Hook" with hook name <code>hl_core_form_submitted</code></li>
 </ul>
 
@@ -939,14 +939,14 @@ HTML;
         return <<<'HTML'
 <h2>What is a pathway?</h2>
 
-A <strong>pathway</strong> is a structured sequence of activities that participants must complete. Think of it as the "curriculum" or "program plan" for a partnership.
+A <strong>pathway</strong> is a structured sequence of components that participants must complete. Think of it as the "curriculum" or "program plan" for a partnership.
 
 Each pathway has:
 <ul>
 <li>A <strong>name</strong> (e.g., "B2E Mastery Pathway" or "Control Group Assessment Pathway")</li>
 <li>A <strong>partnership</strong> association</li>
 <li><strong>Target roles</strong> — which enrollment roles should be auto-assigned this pathway</li>
-<li>An ordered list of <strong>activities</strong></li>
+<li>An ordered list of <strong>components</strong></li>
 </ul>
 
 <h2>Pathway assignments</h2>
@@ -963,19 +963,19 @@ Explicit assignments override role-based defaults.
 
 <h2>Pathway templates</h2>
 
-You can save a pathway as a <strong>template</strong> and use it as a starting point when creating pathways for new partnerships. Templates include all activities, prerequisites, and drip rules, with IDs remapped to the new pathway.
+You can save a pathway as a <strong>template</strong> and use it as a starting point when creating pathways for new partnerships. Templates include all components, prerequisites, and drip rules, with IDs remapped to the new pathway.
 
 <h2>The participant view</h2>
 
-Participants see their assigned pathway as a list of activity cards on the [hl_doc_link slug="understanding-the-dashboard" text="Program Page"]. Each card shows the activity type, status (locked, available, in progress, completed), and an action button.
+Participants see their assigned pathway as a list of component cards on the [hl_doc_link slug="understanding-the-dashboard" text="Program Page"]. Each card shows the component type, status (locked, available, in progress, completed), and an action button.
 HTML;
     }
 
-    private function content_activity_types() {
+    private function content_component_types() {
         return <<<'HTML'
-<h2>Activity types</h2>
+<h2>Component types</h2>
 
-HL Core supports several activity types within a [hl_doc_link slug="pathways-overview" text="pathway"]:
+HL Core supports several component types within a [hl_doc_link slug="pathways-overview" text="pathway"]:
 
 <h3>LearnDash Course</h3>
 Links to a LearnDash course. Completion is tracked via LearnDash's own progress system.
@@ -992,16 +992,16 @@ A mentor-submitted form using JetFormBuilder. See [hl_doc_link slug="observation
 <h3>Coaching Session</h3>
 Linked to [hl_doc_link slug="coaching-sessions" text="coaching sessions"]. Completion is managed by coaches when marking sessions as "attended."
 
-<h2>Configuring activities</h2>
+<h2>Configuring components</h2>
 
-When adding an activity to a pathway, you select the type and then configure type-specific options:
+When adding a component to a pathway, you select the type and then configure type-specific options:
 <ul>
-<li><strong>Course activities</strong> — select a LearnDash course from the dropdown.</li>
-<li><strong>Assessment activities</strong> — select an instrument from the dropdown.</li>
-<li><strong>Observation activities</strong> — select a JFB form from the dropdown.</li>
+<li><strong>Course components</strong> — select a LearnDash course from the dropdown.</li>
+<li><strong>Assessment components</strong> — select an instrument from the dropdown.</li>
+<li><strong>Observation components</strong> — select a JFB form from the dropdown.</li>
 </ul>
 
-Each activity can have [hl_doc_link slug="prerequisites-drip-rules" text="prerequisites and drip rules"] that control when it becomes available.
+Each component can have [hl_doc_link slug="prerequisites-drip-rules" text="prerequisites and drip rules"] that control when it becomes available.
 HTML;
     }
 
@@ -1009,30 +1009,30 @@ HTML;
         return <<<'HTML'
 <h2>Prerequisites</h2>
 
-<strong>Prerequisites</strong> control which activities must be completed before another activity becomes available. HL Core supports three group types:
+<strong>Prerequisites</strong> control which components must be completed before another component becomes available. HL Core supports three group types:
 
 <h3>ALL_OF</h3>
-Every activity in the group must be completed. Example: "Complete both Course 1 and Course 2 before the Final Assessment."
+Every component in the group must be completed. Example: "Complete both Course 1 and Course 2 before the Final Assessment."
 
 <h3>ANY_OF</h3>
-At least one activity in the group must be completed. Example: "Complete either the Online Workshop or the In-Person Workshop."
+At least one component in the group must be completed. Example: "Complete either the Online Workshop or the In-Person Workshop."
 
 <h3>N_OF_M</h3>
-A minimum number (N) of activities out of the total (M) must be completed. Example: "Complete at least 3 of 5 coaching sessions."
+A minimum number (N) of components out of the total (M) must be completed. Example: "Complete at least 3 of 5 coaching sessions."
 
 <h2>Drip rules</h2>
 
-<strong>Drip rules</strong> control <em>when</em> an activity becomes available, independent of prerequisites. Two types:
+<strong>Drip rules</strong> control <em>when</em> a component becomes available, independent of prerequisites. Two types:
 
 <h3>Fixed date</h3>
-The activity becomes available on a specific date. Example: "POST assessment opens on June 1, 2026."
+The component becomes available on a specific date. Example: "POST assessment opens on June 1, 2026."
 
-<h3>Delay after activity</h3>
-The activity becomes available a certain number of days after another activity is completed. Example: "POST assessment opens 90 days after PRE assessment is submitted."
+<h3>Delay after component</h3>
+The component becomes available a certain number of days after another component is completed. Example: "POST assessment opens 90 days after PRE assessment is submitted."
 
 <h2>Unlocking logic</h2>
 
-When both prerequisites and drip rules exist, HL Core applies <strong>"most restrictive wins"</strong> — the activity is only available when ALL conditions are satisfied (all prerequisites met AND all drip rules passed).
+When both prerequisites and drip rules exist, HL Core applies <strong>"most restrictive wins"</strong> — the component is only available when ALL conditions are satisfied (all prerequisites met AND all drip rules passed).
 
 <h2>Overrides</h2>
 
@@ -1062,7 +1062,7 @@ Reports are available in two places:
 <h2>Report types</h2>
 
 <h3>Completion report</h3>
-Shows per-participant completion percentages with filterable columns for cohort, school, district, team, and role. Each row can be expanded to show per-activity status.
+Shows per-participant completion percentages with filterable columns for cohort, school, district, team, and role. Each row can be expanded to show per-component status.
 
 <h3>School summary</h3>
 Aggregates completion by school — shows average completion, participant count, and completed/in-progress/not-started breakdowns.
@@ -1074,7 +1074,7 @@ Same as school summary but grouped by team.
 
 All reports support CSV download:
 <ul>
-<li><strong>Completion CSV</strong> — participant metadata + per-activity completion columns</li>
+<li><strong>Completion CSV</strong> — participant metadata + per-component completion columns</li>
 <li><strong>School summary CSV</strong> — school-level aggregation</li>
 <li><strong>Team summary CSV</strong> — team-level aggregation</li>
 <li><strong>Teacher assessment CSV</strong> — full response data with instrument-derived column headers</li>
@@ -1137,11 +1137,11 @@ HTML;
             ),
             'glossary-pathway' => array(
                 'title'   => 'Pathway',
-                'content' => 'A structured sequence of activities (the curriculum) assigned to participants within a Partnership. Pathways can be assigned by role (automatic) or explicitly (manual). See [hl_doc_link slug="pathways-overview"].',
+                'content' => 'A structured sequence of components (the curriculum) assigned to participants within a Partnership. Pathways can be assigned by role (automatic) or explicitly (manual). See [hl_doc_link slug="pathways-overview"].',
             ),
-            'glossary-activity' => array(
-                'title'   => 'Activity',
-                'content' => 'A single step within a Pathway — can be a LearnDash course, teacher self-assessment, child assessment, observation, or coaching session. Activities can have prerequisites and drip rules.',
+            'glossary-component' => array(
+                'title'   => 'Component',
+                'content' => 'A single step within a Pathway — can be a LearnDash course, teacher self-assessment, child assessment, observation, or coaching session. Components can have prerequisites and drip rules.',
             ),
             'glossary-instrument' => array(
                 'title'   => 'Instrument',
@@ -1149,11 +1149,11 @@ HTML;
             ),
             'glossary-drip-rule' => array(
                 'title'   => 'Drip Rule',
-                'content' => 'A time-based rule controlling when an activity becomes available. Can be a fixed date or a delay after another activity is completed. Works alongside prerequisites using "most restrictive wins" logic. See [hl_doc_link slug="prerequisites-drip-rules"].',
+                'content' => 'A time-based rule controlling when a component becomes available. Can be a fixed date or a delay after another component is completed. Works alongside prerequisites using "most restrictive wins" logic. See [hl_doc_link slug="prerequisites-drip-rules"].',
             ),
             'glossary-prerequisite' => array(
                 'title'   => 'Prerequisite',
-                'content' => 'A requirement that one or more activities must be completed before another becomes available. Supports ALL_OF, ANY_OF, and N_OF_M group types. See [hl_doc_link slug="prerequisites-drip-rules"].',
+                'content' => 'A requirement that one or more components must be completed before another becomes available. Supports ALL_OF, ANY_OF, and N_OF_M group types. See [hl_doc_link slug="prerequisites-drip-rules"].',
             ),
             'glossary-control-group' => array(
                 'title'   => 'Control Group',
@@ -1173,7 +1173,7 @@ HTML;
             ),
             'glossary-completion-rollup' => array(
                 'title'   => 'Completion Rollup',
-                'content' => 'An aggregated completion percentage for an enrollment, calculated as a weighted average across all assigned activities. Stored in the hl_completion_rollup table and recomputed when activity states change.',
+                'content' => 'An aggregated completion percentage for an enrollment, calculated as a weighted average across all assigned components. Stored in the hl_completion_rollup table and recomputed when component states change.',
             ),
             'glossary-scope' => array(
                 'title'   => 'Scope',

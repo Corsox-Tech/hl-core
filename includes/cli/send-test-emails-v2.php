@@ -17,7 +17,7 @@ $body_jane .= '<tr><td style="background:#1A2B47;padding:32px 40px;text-align:ce
 $body_jane .= '<tr><td style="background:#FFFFFF;padding:40px;">';
 $body_jane .= '<p style="margin:0 0 24px;font-size:18px;font-weight:600;color:#1A2B47;">Hello ' . esc_html($jane->first_name) . ',</p>';
 $body_jane .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been enrolled in a research study through <strong>Housman Learning Academy</strong> as part of the Lutheran Services Florida partnership.</p>';
-$body_jane .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">Your account is ready and your assessment activities are waiting for you. Please log in to get started with your <strong>Teacher Self-Assessment (Pre)</strong>.</p>';
+$body_jane .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">Your account is ready and your assessment components are waiting for you. Please log in to get started with your <strong>Teacher Self-Assessment (Pre)</strong>.</p>';
 $body_jane .= '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:32px 0;"><tr><td align="center">';
 $body_jane .= '<a href="' . $login_url . '" style="display:inline-block;background:#2ECC71;color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;padding:14px 40px;border-radius:8px;">Log In to Your Account</a>';
 $body_jane .= '</td></tr></table>';
