@@ -93,6 +93,9 @@ class HL_Installer {
         // Rename V2 Phase A1: Rename track → partnership across all tables.
         self::migrate_track_to_partnership();
 
+        // Rename V2 Phase B1: Rename activity → component across all tables.
+        self::migrate_activity_to_component();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -115,7 +118,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 18;
+        $current_revision = 19;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -514,7 +517,7 @@ class HL_Installer {
             ) ) );
         };
 
-        if ( ! $column_exists( 'activity_id' ) ) {
+        if ( ! $column_exists( 'activity_id' ) && ! $column_exists( 'component_id' ) ) {
             $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN activity_id bigint(20) unsigned NULL AFTER enrollment_id" );
         }
 
@@ -609,7 +612,7 @@ class HL_Installer {
             ) ) );
         };
 
-        if ( ! $column_exists( 'activity_id' ) ) {
+        if ( ! $column_exists( 'activity_id' ) && ! $column_exists( 'component_id' ) ) {
             $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN activity_id bigint(20) unsigned NULL AFTER enrollment_id" );
         }
 
@@ -1318,13 +1321,13 @@ class HL_Installer {
             KEY phase_id (phase_id)
         ) $charset_collate;";
 
-        // Activity table
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_activity (
-            activity_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            activity_uuid char(36) NOT NULL,
+        // Component table
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_component (
+            component_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            component_uuid char(36) NOT NULL,
             partnership_id bigint(20) unsigned NOT NULL,
             pathway_id bigint(20) unsigned NOT NULL,
-            activity_type enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','observation') NOT NULL,
+            component_type enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','observation') NOT NULL,
             title varchar(255) NOT NULL,
             description text NULL,
             ordering_hint int NOT NULL DEFAULT 0,
@@ -1334,55 +1337,55 @@ class HL_Installer {
             status enum('active','removed') NOT NULL DEFAULT 'active',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (activity_id),
-            UNIQUE KEY activity_uuid (activity_uuid),
+            PRIMARY KEY (component_id),
+            UNIQUE KEY component_uuid (component_uuid),
             KEY partnership_id (partnership_id),
             KEY pathway_id (pathway_id),
-            KEY activity_type (activity_type)
+            KEY component_type (component_type)
         ) $charset_collate;";
 
-        // Activity Prerequisite Group table
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_activity_prereq_group (
+        // Component Prerequisite Group table
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_component_prereq_group (
             group_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            activity_id bigint(20) unsigned NOT NULL,
+            component_id bigint(20) unsigned NOT NULL,
             prereq_type enum('all_of','any_of','n_of_m') NOT NULL DEFAULT 'all_of',
             n_required int NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (group_id),
-            KEY activity_id (activity_id)
+            KEY component_id (component_id)
         ) $charset_collate;";
 
-        // Activity Prerequisite Item table
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_activity_prereq_item (
+        // Component Prerequisite Item table
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_component_prereq_item (
             item_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             group_id bigint(20) unsigned NOT NULL,
-            prerequisite_activity_id bigint(20) unsigned NOT NULL,
+            prerequisite_component_id bigint(20) unsigned NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (item_id),
             KEY group_id (group_id),
-            KEY prerequisite_activity_id (prerequisite_activity_id)
+            KEY prerequisite_component_id (prerequisite_component_id)
         ) $charset_collate;";
 
-        // Activity Drip Rule table
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_activity_drip_rule (
+        // Component Drip Rule table
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_component_drip_rule (
             rule_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            activity_id bigint(20) unsigned NOT NULL,
+            component_id bigint(20) unsigned NOT NULL,
             drip_type enum('fixed_date','after_completion_delay') NOT NULL,
             release_at_date datetime NULL,
-            base_activity_id bigint(20) unsigned NULL,
+            base_component_id bigint(20) unsigned NULL,
             delay_days int NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (rule_id),
-            KEY activity_id (activity_id)
+            KEY component_id (component_id)
         ) $charset_collate;";
 
-        // Activity Override table
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_activity_override (
+        // Component Override table
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_component_override (
             override_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             override_uuid char(36) NOT NULL,
             enrollment_id bigint(20) unsigned NOT NULL,
-            activity_id bigint(20) unsigned NOT NULL,
+            component_id bigint(20) unsigned NOT NULL,
             override_type enum('exempt','manual_unlock','grace_unlock') NOT NULL,
             applied_by_user_id bigint(20) unsigned NOT NULL,
             reason text NULL,
@@ -1390,14 +1393,14 @@ class HL_Installer {
             PRIMARY KEY (override_id),
             UNIQUE KEY override_uuid (override_uuid),
             KEY enrollment_id (enrollment_id),
-            KEY activity_id (activity_id)
+            KEY component_id (component_id)
         ) $charset_collate;";
 
-        // Activity State table
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_activity_state (
+        // Component State table
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_component_state (
             state_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             enrollment_id bigint(20) unsigned NOT NULL,
-            activity_id bigint(20) unsigned NOT NULL,
+            component_id bigint(20) unsigned NOT NULL,
             completion_percent int NOT NULL DEFAULT 0,
             completion_status enum('not_started','in_progress','complete') NOT NULL DEFAULT 'not_started',
             completed_at datetime NULL,
@@ -1406,9 +1409,9 @@ class HL_Installer {
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (state_id),
-            UNIQUE KEY enrollment_activity (enrollment_id, activity_id),
+            UNIQUE KEY enrollment_component (enrollment_id, component_id),
             KEY enrollment_id (enrollment_id),
-            KEY activity_id (activity_id)
+            KEY component_id (component_id)
         ) $charset_collate;";
 
         // Completion Rollup table
@@ -1451,7 +1454,7 @@ class HL_Installer {
             instance_uuid char(36) NOT NULL,
             partnership_id bigint(20) unsigned NOT NULL,
             enrollment_id bigint(20) unsigned NOT NULL,
-            activity_id bigint(20) unsigned NULL,
+            component_id bigint(20) unsigned NULL,
             phase enum('pre','post') NOT NULL,
             instrument_id bigint(20) unsigned NULL,
             instrument_version varchar(20) NULL,
@@ -1468,7 +1471,7 @@ class HL_Installer {
             UNIQUE KEY partnership_enrollment_phase (partnership_id, enrollment_id, phase),
             KEY partnership_id (partnership_id),
             KEY enrollment_id (enrollment_id),
-            KEY activity_id (activity_id),
+            KEY component_id (component_id),
             KEY instrument_id (instrument_id)
         ) $charset_collate;";
 
@@ -1494,7 +1497,7 @@ class HL_Installer {
             instance_uuid char(36) NOT NULL,
             partnership_id bigint(20) unsigned NOT NULL,
             enrollment_id bigint(20) unsigned NOT NULL,
-            activity_id bigint(20) unsigned NULL,
+            component_id bigint(20) unsigned NULL,
             classroom_id bigint(20) unsigned NULL,
             school_id bigint(20) unsigned NULL,
             phase enum('pre','post') NULL,
@@ -1511,7 +1514,7 @@ class HL_Installer {
             UNIQUE KEY instance_uuid (instance_uuid),
             UNIQUE KEY partnership_enrollment_classroom_phase (partnership_id, enrollment_id, classroom_id, phase),
             KEY enrollment_id (enrollment_id),
-            KEY activity_id (activity_id),
+            KEY component_id (component_id),
             KEY classroom_id (classroom_id),
             KEY school_id (school_id)
         ) $charset_collate;";
@@ -2101,6 +2104,178 @@ class HL_Installer {
         $rollup_table = "{$prefix}hl_completion_rollup";
         if ( $table_exists( $rollup_table ) && $column_exists( $rollup_table, 'track_completion_percent' ) ) {
             $wpdb->query( "ALTER TABLE `{$rollup_table}` CHANGE `track_completion_percent` `partnership_completion_percent` decimal(5,2) NOT NULL DEFAULT 0.00" );
+        }
+    }
+
+    /**
+     * Rename V2 Phase B1: Rename activity → component across all tables.
+     *
+     * 1. RENAME TABLE hl_activity → hl_component + rename PK/columns
+     * 2. RENAME TABLE hl_activity_state → hl_component_state + rename FK
+     * 3. RENAME TABLE hl_activity_prereq_group → hl_component_prereq_group + rename FK
+     * 4. RENAME TABLE hl_activity_prereq_item → hl_component_prereq_item + rename FKs
+     * 5. RENAME TABLE hl_activity_drip_rule → hl_component_drip_rule + rename FKs
+     * 6. RENAME TABLE hl_activity_override → hl_component_override + rename FK
+     * 7. Rename activity_id → component_id in dependent tables
+     *
+     * All operations are idempotent — safe to run multiple times.
+     */
+    private static function migrate_activity_to_component() {
+        global $wpdb;
+
+        $prefix = $wpdb->prefix;
+
+        // Helper: check if a table exists.
+        $table_exists = function ( $name ) use ( $wpdb ) {
+            return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $name ) ) === $name;
+        };
+
+        // Helper: check if a column exists on a table.
+        $column_exists = function ( $table, $column ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                    $table,
+                    $column
+                )
+            ) );
+        };
+
+        // Helper: check if an index exists on a table.
+        $index_exists = function ( $table, $index_name ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_var( $wpdb->prepare(
+                "SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s LIMIT 1",
+                $table,
+                $index_name
+            ) ) );
+        };
+
+        // ─── 1. RENAME TABLE hl_activity → hl_component ──────────────────
+        $old_activity = "{$prefix}hl_activity";
+        $new_component = "{$prefix}hl_component";
+
+        if ( $table_exists( $old_activity ) && ! $table_exists( $new_component ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_activity}` TO `{$new_component}`" );
+        }
+
+        // Rename columns inside hl_component.
+        if ( $table_exists( $new_component ) ) {
+            if ( $column_exists( $new_component, 'activity_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_component}` CHANGE `activity_id` `component_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT" );
+            }
+            if ( $column_exists( $new_component, 'activity_uuid' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_component}` CHANGE `activity_uuid` `component_uuid` char(36) NOT NULL" );
+            }
+            if ( $column_exists( $new_component, 'activity_type' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_component}` CHANGE `activity_type` `component_type` enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','observation') NOT NULL" );
+            }
+            // Drop old indexes — dbDelta will recreate with correct names.
+            if ( $index_exists( $new_component, 'activity_uuid' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_component}` DROP INDEX `activity_uuid`" );
+            }
+            if ( $index_exists( $new_component, 'activity_type' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_component}` DROP INDEX `activity_type`" );
+            }
+        }
+
+        // ─── 2. RENAME TABLE hl_activity_state → hl_component_state ──────
+        $old_state = "{$prefix}hl_activity_state";
+        $new_state = "{$prefix}hl_component_state";
+
+        if ( $table_exists( $old_state ) && ! $table_exists( $new_state ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_state}` TO `{$new_state}`" );
+        }
+
+        if ( $table_exists( $new_state ) && $column_exists( $new_state, 'activity_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$new_state}` CHANGE `activity_id` `component_id` bigint(20) unsigned NOT NULL" );
+            // Drop old indexes — dbDelta will recreate.
+            if ( $index_exists( $new_state, 'enrollment_activity' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_state}` DROP INDEX `enrollment_activity`" );
+            }
+            if ( $index_exists( $new_state, 'activity_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_state}` DROP INDEX `activity_id`" );
+            }
+        }
+
+        // ─── 3. RENAME TABLE hl_activity_prereq_group → hl_component_prereq_group ─
+        $old_pg = "{$prefix}hl_activity_prereq_group";
+        $new_pg = "{$prefix}hl_component_prereq_group";
+
+        if ( $table_exists( $old_pg ) && ! $table_exists( $new_pg ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_pg}` TO `{$new_pg}`" );
+        }
+
+        if ( $table_exists( $new_pg ) && $column_exists( $new_pg, 'activity_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$new_pg}` CHANGE `activity_id` `component_id` bigint(20) unsigned NOT NULL" );
+            if ( $index_exists( $new_pg, 'activity_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_pg}` DROP INDEX `activity_id`" );
+            }
+        }
+
+        // ─── 4. RENAME TABLE hl_activity_prereq_item → hl_component_prereq_item ─
+        $old_pi = "{$prefix}hl_activity_prereq_item";
+        $new_pi = "{$prefix}hl_component_prereq_item";
+
+        if ( $table_exists( $old_pi ) && ! $table_exists( $new_pi ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_pi}` TO `{$new_pi}`" );
+        }
+
+        if ( $table_exists( $new_pi ) && $column_exists( $new_pi, 'prerequisite_activity_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$new_pi}` CHANGE `prerequisite_activity_id` `prerequisite_component_id` bigint(20) unsigned NOT NULL" );
+            if ( $index_exists( $new_pi, 'prerequisite_activity_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_pi}` DROP INDEX `prerequisite_activity_id`" );
+            }
+        }
+
+        // ─── 5. RENAME TABLE hl_activity_drip_rule → hl_component_drip_rule ─
+        $old_dr = "{$prefix}hl_activity_drip_rule";
+        $new_dr = "{$prefix}hl_component_drip_rule";
+
+        if ( $table_exists( $old_dr ) && ! $table_exists( $new_dr ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_dr}` TO `{$new_dr}`" );
+        }
+
+        if ( $table_exists( $new_dr ) ) {
+            if ( $column_exists( $new_dr, 'activity_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_dr}` CHANGE `activity_id` `component_id` bigint(20) unsigned NOT NULL" );
+                if ( $index_exists( $new_dr, 'activity_id' ) ) {
+                    $wpdb->query( "ALTER TABLE `{$new_dr}` DROP INDEX `activity_id`" );
+                }
+            }
+            if ( $column_exists( $new_dr, 'base_activity_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_dr}` CHANGE `base_activity_id` `base_component_id` bigint(20) unsigned NULL" );
+            }
+        }
+
+        // ─── 6. RENAME TABLE hl_activity_override → hl_component_override ─
+        $old_ov = "{$prefix}hl_activity_override";
+        $new_ov = "{$prefix}hl_component_override";
+
+        if ( $table_exists( $old_ov ) && ! $table_exists( $new_ov ) ) {
+            $wpdb->query( "RENAME TABLE `{$old_ov}` TO `{$new_ov}`" );
+        }
+
+        if ( $table_exists( $new_ov ) && $column_exists( $new_ov, 'activity_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$new_ov}` CHANGE `activity_id` `component_id` bigint(20) unsigned NOT NULL" );
+            if ( $index_exists( $new_ov, 'activity_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$new_ov}` DROP INDEX `activity_id`" );
+            }
+        }
+
+        // ─── 7. Rename activity_id → component_id in dependent tables ────
+        $dependent_tables = array(
+            "{$prefix}hl_teacher_assessment_instance" => 'NULL',
+            "{$prefix}hl_child_assessment_instance"   => 'NULL',
+            "{$prefix}hl_observation"                  => 'NULL',
+        );
+
+        foreach ( $dependent_tables as $table => $nullable ) {
+            if ( $table_exists( $table ) && $column_exists( $table, 'activity_id' ) ) {
+                $wpdb->query( "ALTER TABLE `{$table}` CHANGE `activity_id` `component_id` bigint(20) unsigned {$nullable}" );
+                if ( $index_exists( $table, 'activity_id' ) ) {
+                    $wpdb->query( "ALTER TABLE `{$table}` DROP INDEX `activity_id`" );
+                }
+            }
         }
     }
 }
