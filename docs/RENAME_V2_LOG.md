@@ -14,3 +14,4 @@
 |------|-------------|-----------|---------------|-------|
 | A1 | DB migration track→partnership | 2026-03-13 | 1 file | Tables: hl_partnership, hl_partnership_school, hl_child_partnership_snapshot + ~15 FK columns |
 | A2 | Domain models + repos track→partnership | 2026-03-13 | 12 files | HL_Track→HL_Partnership, 5 models, 4 repos, hl-core.php require paths |
+| A3 | Services track→partnership | 2026-03-13 | 19 files | HL_Track_Service→HL_Partnership_Service + 16 other services, 629 lines changed |
