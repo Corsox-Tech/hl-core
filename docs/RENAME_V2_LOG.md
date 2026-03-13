@@ -21,3 +21,4 @@
 | A-FIX | Rename missed hl_track_email_log table | 2026-03-13 | 2 files | Missed in A1 |
 | A-CLEANUP | Frontend + integrations stale track refs | 2026-03-13 | 23 files | Bulk rename track→partnership in all frontend page classes, shortcodes, instrument renderer, and LearnDash integration; 252+ lines changed |
 | A-CLEANUP2 | CLI scripts stale track refs | 2026-03-13 | 5 files | provision-test-teachers, provision-test-users, send-test-emails, send-maria-email, send-test-emails-v2 |
+| B1 | DB migration activity→component | 2026-03-13 | 1 file | 6 table renames + FK columns |
