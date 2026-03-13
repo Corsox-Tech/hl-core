@@ -882,18 +882,18 @@ button.hl-btn-danger:hover,
 }
 
 /* =====================================================
-   20. ACTIVITY CARDS
+   20. COMPONENT CARDS
    ===================================================== */
 
-.hl-activity-list {
+.hl-component-list {
     margin-bottom: 28px;
 }
 
-.hl-activity-list .hl-section-title {
+.hl-component-list .hl-section-title {
     margin-bottom: 16px;
 }
 
-.hl-activity-card {
+.hl-component-card {
     display: flex;
     align-items: stretch;
     gap: 16px;
@@ -905,27 +905,27 @@ button.hl-btn-danger:hover,
     transition: box-shadow 0.2s ease, transform 0.15s ease;
 }
 
-.hl-activity-card:hover {
+.hl-component-card:hover {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
     transform: translateY(-1px);
 }
 
-.hl-activity-completed {
+.hl-component-completed {
     border-left: 4px solid var(--hl-accent);
     background: #F0FDF4;
 }
 
-.hl-activity-locked {
+.hl-component-locked {
     opacity: 0.55;
     background: var(--hl-bg-alt);
 }
 
-.hl-activity-available {
+.hl-component-available {
     border-left: 4px solid var(--hl-secondary);
 }
 
-/* --- Activity Status Icon --- */
-.hl-activity-status-icon {
+/* --- Component Status Icon --- */
+.hl-component-status-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -943,33 +943,33 @@ button.hl-btn-danger:hover,
 .hl-icon-lock     { color: var(--hl-text-muted); font-size: 15px; }
 .hl-icon-progress { color: var(--hl-secondary); }
 
-.hl-activity-completed .hl-activity-status-icon { background: var(--hl-status-complete-bg); }
-.hl-activity-available .hl-activity-status-icon { background: var(--hl-status-progress-bg); }
+.hl-component-completed .hl-component-status-icon { background: var(--hl-status-complete-bg); }
+.hl-component-available .hl-component-status-icon { background: var(--hl-status-progress-bg); }
 
-/* --- Activity Content --- */
-.hl-activity-content {
+/* --- Component Content --- */
+.hl-component-content {
     flex: 1;
     min-width: 0;
 }
 
-.hl-activity-title {
+.hl-component-title {
     font-size: 15px;
     font-weight: 600;
     color: var(--hl-text-heading);
     margin: 0 0 6px;
 }
 
-.hl-activity-title a {
+.hl-component-title a {
     color: var(--hl-text-heading);
     text-decoration: none;
 }
 
-.hl-activity-title a:hover {
+.hl-component-title a:hover {
     color: var(--hl-secondary);
     text-decoration: underline;
 }
 
-.hl-activity-meta {
+.hl-component-meta {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
@@ -979,7 +979,7 @@ button.hl-btn-danger:hover,
     align-items: center;
 }
 
-.hl-activity-type {
+.hl-component-type {
     display: inline-block;
     padding: 2px 10px;
     border-radius: var(--hl-radius-pill);
@@ -989,21 +989,21 @@ button.hl-btn-danger:hover,
     color: var(--hl-status-role-text);
 }
 
-.hl-activity-date {
+.hl-component-date {
     color: var(--hl-accent-dark);
     font-weight: 500;
 }
 
-.hl-activity-lock-reason {
+.hl-component-lock-reason {
     color: var(--hl-error-dark);
     font-style: italic;
 }
 
-.hl-activity-progress-text {
+.hl-component-progress-text {
     color: var(--hl-text-secondary);
 }
 
-.hl-activity-action {
+.hl-component-action {
     margin: 8px 0 10px;
     display: flex;
     align-items: center;
@@ -1011,7 +1011,7 @@ button.hl-btn-danger:hover,
     flex-wrap: wrap;
 }
 
-.hl-activity-notice {
+.hl-component-notice {
     display: inline-block;
     font-size: 13px;
     color: var(--hl-text-muted);
@@ -1203,12 +1203,12 @@ button.hl-btn-danger:hover,
     background: var(--hl-bg-subtle);
 }
 
-.hl-member-activities {
+.hl-member-components {
     padding: 0 20px 16px;
 }
 
-/* --- Mini Activity Row --- */
-.hl-mini-activity {
+/* --- Mini Component Row --- */
+.hl-mini-component {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1217,7 +1217,7 @@ button.hl-btn-danger:hover,
     font-size: 13px;
 }
 
-.hl-mini-activity:last-child {
+.hl-mini-component:last-child {
     border-bottom: none;
 }
 
@@ -1575,10 +1575,10 @@ button.hl-btn-danger:hover,
 }
 
 /* =====================================================
-   30. ACTIVITY PAGE
+   30. COMPONENT PAGE
    ===================================================== */
 
-.hl-activity-page .hl-activity-type-badge {
+.hl-component-page .hl-component-type-badge {
     display: inline-block;
     padding: 4px 14px;
     background: var(--hl-status-role-bg);
@@ -1589,7 +1589,7 @@ button.hl-btn-danger:hover,
     margin-bottom: 20px;
 }
 
-.hl-activity-locked-view {
+.hl-component-locked-view {
     text-align: center;
     padding: 56px 24px;
     background: var(--hl-bg-subtle);
@@ -1597,7 +1597,7 @@ button.hl-btn-danger:hover,
     border: 1px solid var(--hl-border);
 }
 
-.hl-activity-locked-view .hl-lock-icon {
+.hl-component-locked-view .hl-lock-icon {
     font-size: 52px;
     color: var(--hl-border-medium);
     margin-bottom: 16px;

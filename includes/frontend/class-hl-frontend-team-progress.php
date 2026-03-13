@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) exit;
  *
  * Shows a logged-in mentor an overview of their team members' learning
  * progress, including per-member completion percentages and expandable
- * per-activity detail.
+ * per-component detail.
  *
  * @package HL_Core
  */
@@ -24,8 +24,8 @@ class HL_Frontend_Team_Progress {
     /** @var HL_Pathway_Repository */
     private $pathway_repo;
 
-    /** @var HL_Activity_Repository */
-    private $activity_repo;
+    /** @var HL_Component_Repository */
+    private $component_repo;
 
     /** @var HL_OrgUnit_Repository */
     private $orgunit_repo;
@@ -35,7 +35,7 @@ class HL_Frontend_Team_Progress {
         $this->partnership_repo    = new HL_Partnership_Repository();
         $this->team_repo      = new HL_Team_Repository();
         $this->pathway_repo   = new HL_Pathway_Repository();
-        $this->activity_repo  = new HL_Activity_Repository();
+        $this->component_repo = new HL_Component_Repository();
         $this->orgunit_repo   = new HL_OrgUnit_Repository();
     }
 
@@ -215,28 +215,28 @@ class HL_Frontend_Team_Progress {
         // Get the full enrollment to find the assigned pathway.
         $enrollment = $this->enrollment_repo->get_by_id($enrollment_id);
 
-        $pathway         = null;
-        $activities_data = array();
-        $complete_count  = 0;
-        $total_count     = 0;
+        $pathway          = null;
+        $components_data  = array();
+        $complete_count   = 0;
+        $total_count      = 0;
 
         if ($enrollment && !empty($enrollment->assigned_pathway_id)) {
             $pathway = $this->pathway_repo->get_by_id($enrollment->assigned_pathway_id);
         }
 
         if ($pathway) {
-            $activities = $this->activity_repo->get_by_pathway($pathway->pathway_id);
+            $components = $this->component_repo->get_by_pathway($pathway->pathway_id);
 
-            // Filter out staff-only activities.
-            $activities = array_filter($activities, function ($act) {
+            // Filter out staff-only components.
+            $components = array_filter($components, function ($act) {
                 return $act->visibility !== 'staff_only';
             });
-            $activities = array_values($activities);
+            $components = array_values($components);
 
-            $total_count = count($activities);
+            $total_count = count($components);
 
-            foreach ($activities as $activity) {
-                $state = $this->get_activity_state($enrollment_id, $activity->activity_id);
+            foreach ($components as $component) {
+                $state = $this->get_component_state($enrollment_id, $component->component_id);
 
                 $act_percent = $state ? (int) $state['completion_percent'] : 0;
                 $act_status  = $state ? $state['completion_status'] : 'not_started';
@@ -247,8 +247,8 @@ class HL_Frontend_Team_Progress {
                     $act_status  = 'complete';
                 }
 
-                $activities_data[] = array(
-                    'activity'           => $activity,
+                $components_data[] = array(
+                    'component'          => $component,
                     'completion_percent' => $act_percent,
                     'completion_status'  => $act_status,
                 );
@@ -265,7 +265,7 @@ class HL_Frontend_Team_Progress {
             'role_label'         => $role_label,
             'initials'           => $this->get_initials($display_name),
             'completion_percent' => $completion_percent,
-            'activities'         => $activities_data,
+            'components'         => $components_data,
             'complete_count'     => $complete_count,
             'total_count'        => $total_count,
         );
@@ -275,7 +275,7 @@ class HL_Frontend_Team_Progress {
      * Get overall completion percentage for a member enrollment.
      *
      * First checks `hl_completion_rollup`, then falls back to the average
-     * of `hl_activity_state` rows, and finally defaults to 0.
+     * of `hl_component_state` rows, and finally defaults to 0.
      *
      * @param int $enrollment_id
      * @return int 0-100
@@ -293,9 +293,9 @@ class HL_Frontend_Team_Progress {
             return max(0, min(100, (int) round((float) $rollup)));
         }
 
-        // Fall back to average of activity states.
+        // Fall back to average of component states.
         $avg = $wpdb->get_var($wpdb->prepare(
-            "SELECT AVG(completion_percent) as avg_pct FROM {$wpdb->prefix}hl_activity_state WHERE enrollment_id = %d",
+            "SELECT AVG(completion_percent) as avg_pct FROM {$wpdb->prefix}hl_component_state WHERE enrollment_id = %d",
             $enrollment_id
         ));
 
@@ -307,21 +307,21 @@ class HL_Frontend_Team_Progress {
     }
 
     /**
-     * Query the hl_activity_state table for a single enrollment + activity.
+     * Query the hl_component_state table for a single enrollment + component.
      *
      * @param int $enrollment_id
-     * @param int $activity_id
+     * @param int $component_id
      * @return array|null Row data or null.
      */
-    private function get_activity_state($enrollment_id, $activity_id) {
+    private function get_component_state($enrollment_id, $component_id) {
         global $wpdb;
-        $table = $wpdb->prefix . 'hl_activity_state';
+        $table = $wpdb->prefix . 'hl_component_state';
 
         return $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT * FROM {$table} WHERE enrollment_id = %d AND activity_id = %d",
+                "SELECT * FROM {$table} WHERE enrollment_id = %d AND component_id = %d",
                 $enrollment_id,
-                $activity_id
+                $component_id
             ),
             ARRAY_A
         );
@@ -411,7 +411,7 @@ class HL_Frontend_Team_Progress {
             <div class="hl-progress-bar-container">
                 <div class="hl-progress-bar <?php echo esc_attr($bar_class); ?>" style="width: <?php echo esc_attr($percent); ?>%"></div>
             </div>
-            <?php if (!empty($member['activities'])) : ?>
+            <?php if (!empty($member['components'])) : ?>
             <details class="hl-member-details">
                 <summary><?php
                     /* translators: 1: number of completed activities, 2: total activities */
@@ -421,9 +421,9 @@ class HL_Frontend_Team_Progress {
                         $member['total_count']
                     );
                 ?></summary>
-                <div class="hl-member-activities">
-                    <?php foreach ($member['activities'] as $ad) :
-                        $this->render_mini_activity($ad);
+                <div class="hl-member-components">
+                    <?php foreach ($member['components'] as $ad) :
+                        $this->render_mini_component($ad);
                     endforeach; ?>
                 </div>
             </details>
@@ -433,13 +433,13 @@ class HL_Frontend_Team_Progress {
     }
 
     /**
-     * Render a single mini activity row inside a member's expandable detail.
+     * Render a single mini component row inside a member's expandable detail.
      *
-     * @param array $ad Activity data with keys: activity, completion_percent,
+     * @param array $ad Component data with keys: component, completion_percent,
      *                  completion_status.
      */
-    private function render_mini_activity($ad) {
-        $activity = $ad['activity'];
+    private function render_mini_component($ad) {
+        $component = $ad['component'];
         $percent  = (int) $ad['completion_percent'];
         $status   = $ad['completion_status'];
 
@@ -457,9 +457,9 @@ class HL_Frontend_Team_Progress {
             $pct_label  = __('Not Started', 'hl-core');
         }
         ?>
-        <div class="hl-mini-activity <?php echo esc_attr($row_class); ?>">
+        <div class="hl-mini-component <?php echo esc_attr($row_class); ?>">
             <span class="hl-mini-status"><?php echo $icon; ?></span>
-            <span class="hl-mini-title"><?php echo esc_html($activity->title); ?></span>
+            <span class="hl-mini-title"><?php echo esc_html($component->title); ?></span>
             <span class="hl-mini-percent"><?php echo esc_html($pct_label); ?></span>
         </div>
         <?php

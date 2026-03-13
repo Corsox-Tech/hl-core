@@ -127,14 +127,14 @@ class HL_Frontend_Child_Assessment {
             return ob_get_clean();
         }
 
-        // ── Determine instance_id from atts, query string, or activity_id ──
+        // ── Determine instance_id from atts, query string, or component_id ──
         $instance_id = 0;
         if ( ! empty( $atts['instance_id'] ) ) {
             $instance_id = absint( $atts['instance_id'] );
         } elseif ( ! empty( $_GET['instance_id'] ) ) {
             $instance_id = absint( $_GET['instance_id'] );
-        } elseif ( ! empty( $_GET['activity_id'] ) ) {
-            $instance_id = $this->resolve_instance_from_activity( absint( $_GET['activity_id'] ) );
+        } elseif ( ! empty( $_GET['component_id'] ) ) {
+            $instance_id = $this->resolve_instance_from_component( absint( $_GET['component_id'] ) );
         }
 
         // Flash messages from redirect
@@ -159,25 +159,25 @@ class HL_Frontend_Child_Assessment {
     }
 
     /**
-     * Resolve an activity_id to an existing (or newly created) instance_id.
+     * Resolve a component_id to an existing (or newly created) instance_id.
      *
-     * @param int $activity_id
+     * @param int $component_id
      * @return int Instance ID, or 0 on failure.
      */
-    private function resolve_instance_from_activity( $activity_id ) {
+    private function resolve_instance_from_component( $component_id ) {
         global $wpdb;
 
         $user_id = get_current_user_id();
 
-        $activity = $wpdb->get_row( $wpdb->prepare(
+        $component = $wpdb->get_row( $wpdb->prepare(
             "SELECT a.*, p.partnership_id
-             FROM {$wpdb->prefix}hl_activity a
+             FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
-             WHERE a.activity_id = %d",
-            $activity_id
+             WHERE a.component_id = %d",
+            $component_id
         ) );
 
-        if ( ! $activity || $activity->activity_type !== 'child_assessment' ) {
+        if ( ! $component || $component->component_type !== 'child_assessment' ) {
             return 0;
         }
 
@@ -185,22 +185,22 @@ class HL_Frontend_Child_Assessment {
             "SELECT * FROM {$wpdb->prefix}hl_enrollment
              WHERE partnership_id = %d AND user_id = %d AND status = 'active'
              LIMIT 1",
-            $activity->partnership_id, $user_id
+            $component->partnership_id, $user_id
         ) );
 
         if ( ! $enrollment ) {
             return 0;
         }
 
-        $ref   = json_decode( $activity->external_ref, true );
+        $ref   = json_decode( $component->external_ref, true );
         $phase = isset( $ref['phase'] ) ? $ref['phase'] : 'pre';
 
-        // Look for existing instance by activity_id
+        // Look for existing instance by component_id
         $instance_id = $wpdb->get_var( $wpdb->prepare(
             "SELECT instance_id FROM {$wpdb->prefix}hl_child_assessment_instance
-             WHERE enrollment_id = %d AND activity_id = %d
+             WHERE enrollment_id = %d AND component_id = %d
              LIMIT 1",
-            $enrollment->enrollment_id, $activity_id
+            $enrollment->enrollment_id, $component_id
         ) );
 
         if ( $instance_id ) {
@@ -213,13 +213,13 @@ class HL_Frontend_Child_Assessment {
             "SELECT instance_id FROM {$wpdb->prefix}hl_child_assessment_instance
              WHERE enrollment_id = %d AND partnership_id = %d AND phase = %s
              LIMIT 1",
-            $enrollment->enrollment_id, $activity->partnership_id, $phase
+            $enrollment->enrollment_id, $component->partnership_id, $phase
         ) );
 
         if ( $instance_id ) {
             $wpdb->update(
                 $wpdb->prefix . 'hl_child_assessment_instance',
-                array( 'activity_id' => $activity_id ),
+                array( 'component_id' => $component_id ),
                 array( 'instance_id' => $instance_id )
             );
             $this->backfill_instance_fields( absint( $instance_id ), $enrollment, $ref );
@@ -240,7 +240,7 @@ class HL_Frontend_Child_Assessment {
         $school_id    = $teaching ? absint( $teaching->school_id ) : null;
         $age_band     = ( $teaching && ! empty( $teaching->age_band ) ) ? $teaching->age_band : null;
 
-        // Resolve instrument: try activity external_ref first, then age_band lookup
+        // Resolve instrument: try component external_ref first, then age_band lookup
         $instrument_id      = null;
         $instrument_version = null;
 
@@ -259,12 +259,12 @@ class HL_Frontend_Child_Assessment {
             }
         }
 
-        // Create new instance for this activity
+        // Create new instance for this component
         $wpdb->insert( $wpdb->prefix . 'hl_child_assessment_instance', array(
             'instance_uuid'       => HL_DB_Utils::generate_uuid(),
-            'partnership_id'           => absint( $activity->partnership_id ),
+            'partnership_id'           => absint( $component->partnership_id ),
             'enrollment_id'       => absint( $enrollment->enrollment_id ),
-            'activity_id'         => absint( $activity_id ),
+            'component_id'        => absint( $component_id ),
             'classroom_id'        => $classroom_id,
             'school_id'           => $school_id,
             'phase'               => $phase,
@@ -1052,7 +1052,7 @@ class HL_Frontend_Child_Assessment {
      *
      * @param int    $instance_id
      * @param object $enrollment
-     * @param array  $ref Decoded activity external_ref.
+     * @param array  $ref Decoded component external_ref.
      */
     private function backfill_instance_fields( $instance_id, $enrollment, $ref ) {
         global $wpdb;
@@ -1248,16 +1248,16 @@ class HL_Frontend_Child_Assessment {
     private function build_program_back_url( $instance ) {
         global $wpdb;
 
-        $activity_id   = isset( $instance['activity_id'] ) ? absint( $instance['activity_id'] ) : 0;
+        $component_id  = isset( $instance['component_id'] ) ? absint( $instance['component_id'] ) : 0;
         $enrollment_id = isset( $instance['enrollment_id'] ) ? absint( $instance['enrollment_id'] ) : 0;
 
-        if ( ! $activity_id || ! $enrollment_id ) {
+        if ( ! $component_id || ! $enrollment_id ) {
             return '';
         }
 
         $pathway_id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT pathway_id FROM {$wpdb->prefix}hl_activity WHERE activity_id = %d",
-            $activity_id
+            "SELECT pathway_id FROM {$wpdb->prefix}hl_component WHERE component_id = %d",
+            $component_id
         ) );
 
         if ( ! $pathway_id ) {

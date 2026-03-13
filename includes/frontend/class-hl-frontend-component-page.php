@@ -2,25 +2,25 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Renderer for the [hl_activity_page] shortcode.
+ * Renderer for the [hl_component_page] shortcode.
  *
- * Renders a single activity for the logged-in participant.
- * Depending on activity type:
+ * Renders a single component for the logged-in participant.
+ * Depending on component type:
  * - JFB-powered (teacher_self_assessment, observation): embeds JFB form
  * - child_assessment: links to [hl_child_assessment] page
  * - learndash_course: redirects to the LD course permalink
  * - coaching_session_attendance: shows managed-by-coach notice
  *
- * Locked activities show a lock message. Completed activities show a summary.
+ * Locked components show a lock message. Completed components show a summary.
  *
- * URL parameters: ?id={activity_id}&enrollment={enrollment_id}
+ * URL parameters: ?id={component_id}&enrollment={enrollment_id}
  *
  * @package HL_Core
  */
-class HL_Frontend_Activity_Page {
+class HL_Frontend_Component_Page {
 
-    /** @var HL_Activity_Repository */
-    private $activity_repo;
+    /** @var HL_Component_Repository */
+    private $component_repo;
 
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
@@ -35,7 +35,7 @@ class HL_Frontend_Activity_Page {
     private $jfb;
 
     /**
-     * Activity type display labels.
+     * Component type display labels.
      */
     private static $type_labels = array(
         'learndash_course'             => 'Course',
@@ -46,7 +46,7 @@ class HL_Frontend_Activity_Page {
     );
 
     public function __construct() {
-        $this->activity_repo   = new HL_Activity_Repository();
+        $this->component_repo  = new HL_Component_Repository();
         $this->enrollment_repo = new HL_Enrollment_Repository();
         $this->pathway_repo    = new HL_Pathway_Repository();
         $this->rules_engine    = new HL_Rules_Engine_Service();
@@ -54,7 +54,7 @@ class HL_Frontend_Activity_Page {
     }
 
     /**
-     * Render the Activity Page shortcode.
+     * Render the Component Page shortcode.
      *
      * @param array $atts Shortcode attributes.
      * @return string HTML output.
@@ -62,23 +62,23 @@ class HL_Frontend_Activity_Page {
     public function render($atts) {
         ob_start();
 
-        $user_id       = get_current_user_id();
-        $activity_id   = isset($_GET['id']) ? absint($_GET['id']) : 0;
-        $enrollment_id = isset($_GET['enrollment']) ? absint($_GET['enrollment']) : 0;
+        $user_id        = get_current_user_id();
+        $component_id   = isset($_GET['id']) ? absint($_GET['id']) : 0;
+        $enrollment_id  = isset($_GET['enrollment']) ? absint($_GET['enrollment']) : 0;
 
         // Validate parameters.
-        if (!$activity_id || !$enrollment_id) {
-            echo '<div class="hl-dashboard hl-activity-page">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__('Invalid activity link.', 'hl-core') . '</div>';
+        if (!$component_id || !$enrollment_id) {
+            echo '<div class="hl-dashboard hl-component-page">';
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__('Invalid component link.', 'hl-core') . '</div>';
             echo '</div>';
             return ob_get_clean();
         }
 
-        // Load activity.
-        $activity = $this->activity_repo->get_by_id($activity_id);
-        if (!$activity) {
-            echo '<div class="hl-dashboard hl-activity-page">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__('Activity not found.', 'hl-core') . '</div>';
+        // Load component.
+        $component = $this->component_repo->get_by_id($component_id);
+        if (!$component) {
+            echo '<div class="hl-dashboard hl-component-page">';
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__('Component not found.', 'hl-core') . '</div>';
             echo '</div>';
             return ob_get_clean();
         }
@@ -86,15 +86,15 @@ class HL_Frontend_Activity_Page {
         // Load and validate enrollment.
         $enrollment = $this->enrollment_repo->get_by_id($enrollment_id);
         if (!$enrollment || (int) $enrollment->user_id !== $user_id) {
-            echo '<div class="hl-dashboard hl-activity-page">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__('You do not have access to this activity.', 'hl-core') . '</div>';
+            echo '<div class="hl-dashboard hl-component-page">';
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__('You do not have access to this component.', 'hl-core') . '</div>';
             echo '</div>';
             return ob_get_clean();
         }
 
         // For LearnDash courses, redirect directly.
-        if ($activity->activity_type === 'learndash_course') {
-            $external_ref = $activity->get_external_ref_array();
+        if ($component->component_type === 'learndash_course') {
+            $external_ref = $component->get_external_ref_array();
             $course_id    = isset($external_ref['course_id']) ? absint($external_ref['course_id']) : 0;
             if ($course_id) {
                 $course_url = get_permalink($course_id);
@@ -106,7 +106,7 @@ class HL_Frontend_Activity_Page {
         }
 
         // Load pathway for breadcrumb.
-        $pathway = $this->pathway_repo->get_by_id($activity->pathway_id);
+        $pathway = $this->pathway_repo->get_by_id($component->pathway_id);
 
         // Build Program Page back link.
         $program_page_url = '';
@@ -126,16 +126,16 @@ class HL_Frontend_Activity_Page {
         // Check availability.
         $availability = $this->rules_engine->compute_availability(
             $enrollment->enrollment_id,
-            $activity->activity_id
+            $component->component_id
         );
         $avail_status = $availability['availability_status'];
 
-        $type_label = isset(self::$type_labels[$activity->activity_type])
-            ? self::$type_labels[$activity->activity_type]
-            : ucwords(str_replace('_', ' ', $activity->activity_type));
+        $type_label = isset(self::$type_labels[$component->component_type])
+            ? self::$type_labels[$component->component_type]
+            : ucwords(str_replace('_', ' ', $component->component_type));
 
         ?>
-        <div class="hl-dashboard hl-activity-page">
+        <div class="hl-dashboard hl-component-page">
 
             <?php if (!empty($program_page_url)) : ?>
                 <a href="<?php echo esc_url($program_page_url); ?>" class="hl-back-link">&larr; <?php
@@ -147,11 +147,11 @@ class HL_Frontend_Activity_Page {
                 ?></a>
             <?php endif; ?>
 
-            <h1 class="hl-partnership-title"><?php echo esc_html($activity->title); ?></h1>
-            <p class="hl-activity-type-badge"><?php echo esc_html($type_label); ?></p>
+            <h1 class="hl-partnership-title"><?php echo esc_html($component->title); ?></h1>
+            <p class="hl-component-type-badge"><?php echo esc_html($type_label); ?></p>
 
-            <?php if (!empty($activity->description)) : ?>
-                <p class="hl-inline-form-description"><?php echo esc_html($activity->description); ?></p>
+            <?php if (!empty($component->description)) : ?>
+                <p class="hl-inline-form-description"><?php echo esc_html($component->description); ?></p>
             <?php endif; ?>
 
             <?php
@@ -169,9 +169,9 @@ class HL_Frontend_Activity_Page {
             if ($avail_status === 'locked') {
                 $this->render_locked_view($availability);
             } elseif ($avail_status === 'completed') {
-                $this->render_completed_view($activity);
+                $this->render_completed_view($component);
             } else {
-                $this->render_available_view($activity, $enrollment);
+                $this->render_available_view($component, $enrollment);
             }
             ?>
         </div>
@@ -181,13 +181,13 @@ class HL_Frontend_Activity_Page {
     }
 
     /**
-     * Render the locked activity view.
+     * Render the locked component view.
      */
     private function render_locked_view($availability) {
         ?>
-        <div class="hl-activity-locked-view">
+        <div class="hl-component-locked-view">
             <div class="hl-lock-icon">&#128274;</div>
-            <h3><?php esc_html_e('This Activity is Locked', 'hl-core'); ?></h3>
+            <h3><?php esc_html_e('This Component is Locked', 'hl-core'); ?></h3>
             <p>
                 <?php echo esc_html($this->get_lock_reason_text($availability)); ?>
             </p>
@@ -196,41 +196,41 @@ class HL_Frontend_Activity_Page {
     }
 
     /**
-     * Render the completed activity view.
+     * Render the completed component view.
      */
-    private function render_completed_view($activity) {
+    private function render_completed_view($component) {
         ?>
         <div class="hl-notice hl-notice-info">
-            <strong>&#10003; <?php esc_html_e('This activity has been completed.', 'hl-core'); ?></strong>
+            <strong>&#10003; <?php esc_html_e('This component has been completed.', 'hl-core'); ?></strong>
         </div>
         <?php
     }
 
     /**
-     * Render the available activity based on type.
+     * Render the available component based on type.
      */
-    private function render_available_view($activity, $enrollment) {
-        $type = $activity->activity_type;
+    private function render_available_view($component, $enrollment) {
+        $type = $component->component_type;
 
         // Teacher self-assessment: custom instrument takes priority over JFB.
         if ($type === 'teacher_self_assessment') {
-            $external_ref = $activity->get_external_ref_array();
+            $external_ref = $component->get_external_ref_array();
             if (!empty($external_ref['teacher_instrument_id'])) {
-                $this->render_teacher_instrument_redirect($activity, $enrollment, $external_ref);
+                $this->render_teacher_instrument_redirect($component, $enrollment, $external_ref);
                 return;
             }
             // Legacy JFB-powered fallback
-            $this->render_jfb_form($activity, $enrollment);
+            $this->render_jfb_form($component, $enrollment);
             return;
         }
 
         // JFB-powered: observation.
         if ($type === 'observation') {
-            $this->render_jfb_form($activity, $enrollment);
+            $this->render_jfb_form($component, $enrollment);
             return;
         }
 
-        // Child Assessment: link to dedicated page with activity_id for instance resolution.
+        // Child Assessment: link to dedicated page with component_id for instance resolution.
         if ($type === 'child_assessment') {
             $assessment_url = apply_filters('hl_core_child_assessment_page_url', '');
             if (empty($assessment_url)) {
@@ -238,43 +238,43 @@ class HL_Frontend_Activity_Page {
             }
 
             if (!empty($assessment_url)) {
-                $assessment_url = add_query_arg('activity_id', $activity->activity_id, $assessment_url);
+                $assessment_url = add_query_arg('component_id', $component->component_id, $assessment_url);
                 echo '<div class="hl-empty-state">';
-                echo '<p>' . esc_html__('This activity uses the Child Assessment form.', 'hl-core') . '</p>';
+                echo '<p>' . esc_html__('This component uses the Child Assessment form.', 'hl-core') . '</p>';
                 echo '<a href="' . esc_url($assessment_url) . '" class="hl-btn hl-btn-primary">' . esc_html__('Go to Child Assessment', 'hl-core') . '</a>';
                 echo '</div>';
             } else {
-                echo '<div class="hl-notice hl-notice-info">' . esc_html__('Please visit the Child Assessment page to complete this activity.', 'hl-core') . '</div>';
+                echo '<div class="hl-notice hl-notice-info">' . esc_html__('Please visit the Child Assessment page to complete this component.', 'hl-core') . '</div>';
             }
             return;
         }
 
         // Coaching session attendance.
         if ($type === 'coaching_session_attendance') {
-            echo '<div class="hl-notice hl-notice-info">' . esc_html__('This activity is managed by your coach. Attendance will be recorded during your coaching session.', 'hl-core') . '</div>';
+            echo '<div class="hl-notice hl-notice-info">' . esc_html__('This component is managed by your coach. Attendance will be recorded during your coaching session.', 'hl-core') . '</div>';
             return;
         }
 
         // Fallback.
-        echo '<div class="hl-notice hl-notice-info">' . esc_html__('This activity type is not yet supported for inline display.', 'hl-core') . '</div>';
+        echo '<div class="hl-notice hl-notice-info">' . esc_html__('This component type is not yet supported for inline display.', 'hl-core') . '</div>';
     }
 
     /**
-     * Render a JFB form for self-assessment or observation activities.
+     * Render a JFB form for self-assessment or observation components.
      */
-    private function render_jfb_form($activity, $enrollment) {
-        $external_ref = $activity->get_external_ref_array();
+    private function render_jfb_form($component, $enrollment) {
+        $external_ref = $component->get_external_ref_array();
         $form_id      = isset($external_ref['form_id']) ? absint($external_ref['form_id']) : 0;
 
         if (!$form_id) {
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__('No form has been configured for this activity.', 'hl-core') . '</div>';
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__('No form has been configured for this component.', 'hl-core') . '</div>';
             return;
         }
 
         $hidden_fields = array(
-            'hl_enrollment_id' => $enrollment->enrollment_id,
-            'hl_activity_id'   => $activity->activity_id,
-                  'hl_partnership_id'     => $enrollment->partnership_id,
+            'hl_enrollment_id'  => $enrollment->enrollment_id,
+            'hl_component_id'   => $component->component_id,
+            'hl_partnership_id' => $enrollment->partnership_id,
         );
 
         ?>
@@ -288,12 +288,12 @@ class HL_Frontend_Activity_Page {
     }
 
     /**
-     * Render the Teacher Self-Assessment form inline on the activity page.
+     * Render the Teacher Self-Assessment form inline on the component page.
      *
      * Ensures an instance exists for this enrollment + instrument + phase, then
      * renders the assessment form directly (no redirect to a separate page).
      */
-    private function render_teacher_instrument_redirect($activity, $enrollment, $external_ref) {
+    private function render_teacher_instrument_redirect($component, $enrollment, $external_ref) {
         $instrument_id = absint($external_ref['teacher_instrument_id']);
         $phase         = isset($external_ref['phase']) ? sanitize_text_field($external_ref['phase']) : 'pre';
 
@@ -381,7 +381,7 @@ class HL_Frontend_Activity_Page {
                     } else {
                         // Redirect to avoid double-submit.
                         $redirect_url = add_query_arg(array(
-                            'id'         => $activity->activity_id,
+                            'id'         => $component->component_id,
                             'enrollment' => $enrollment->enrollment_id,
                             'message'    => $is_draft ? 'saved' : 'submitted',
                         ));
@@ -463,25 +463,25 @@ class HL_Frontend_Activity_Page {
                 }
             }
 
-            return __('This activity requires its prerequisites to be completed first.', 'hl-core');
+            return __('This component requires its prerequisites to be completed first.', 'hl-core');
         }
 
         if ($reason === 'drip' && !empty($availability['next_available_at'])) {
             return sprintf(
-                __('This activity will be available on %s.', 'hl-core'),
+                __('This component will be available on %s.', 'hl-core'),
                 $this->format_date($availability['next_available_at'])
             );
         }
 
         if ($reason === 'drip') {
-            return __('This activity is not yet available.', 'hl-core');
+            return __('This component is not yet available.', 'hl-core');
         }
 
-        return __('This activity is currently locked.', 'hl-core');
+        return __('This component is currently locked.', 'hl-core');
     }
 
     /**
-     * Resolve blocker activity IDs to titles.
+     * Resolve blocker component IDs to titles.
      *
      * @param int[] $blocker_ids
      * @return string[]
@@ -493,12 +493,12 @@ class HL_Frontend_Activity_Page {
         global $wpdb;
         $ids = implode(',', array_map('intval', $blocker_ids));
         $rows = $wpdb->get_results(
-            "SELECT activity_id, title FROM {$wpdb->prefix}hl_activity WHERE activity_id IN ({$ids})",
+            "SELECT component_id, title FROM {$wpdb->prefix}hl_component WHERE component_id IN ({$ids})",
             ARRAY_A
         );
         $map = array();
         foreach ($rows as $r) {
-            $map[(int) $r['activity_id']] = $r['title'];
+            $map[(int) $r['component_id']] = $r['title'];
         }
         $names = array();
         foreach ($blocker_ids as $aid) {

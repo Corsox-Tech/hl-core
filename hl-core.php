@@ -153,7 +153,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-observations.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-programs.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-program-page.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-activity-page.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-component-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-partnership.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-team-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-classroom-page.php';

@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) exit;
  * - Hero image, name, description
  * - Details panel (avg time, expiration, status)
  * - Objectives, syllabus link
- * - Activity cards with per-activity status and actions
+ * - Component cards with per-component status and actions
  *
  * URL parameters: ?id={pathway_id}&enrollment={enrollment_id}
  *
@@ -25,8 +25,8 @@ class HL_Frontend_Program_Page {
     /** @var HL_Pathway_Repository */
     private $pathway_repo;
 
-    /** @var HL_Activity_Repository */
-    private $activity_repo;
+    /** @var HL_Component_Repository */
+    private $component_repo;
 
     /** @var HL_Rules_Engine_Service */
     private $rules_engine;
@@ -35,7 +35,7 @@ class HL_Frontend_Program_Page {
     private $learndash;
 
     /**
-     * Activity type display labels.
+     * Component type display labels.
      */
     private static $type_labels = array(
         'learndash_course'             => 'Course',
@@ -49,7 +49,7 @@ class HL_Frontend_Program_Page {
         $this->enrollment_repo = new HL_Enrollment_Repository();
         $this->partnership_repo     = new HL_Partnership_Repository();
         $this->pathway_repo    = new HL_Pathway_Repository();
-        $this->activity_repo   = new HL_Activity_Repository();
+        $this->component_repo  = new HL_Component_Repository();
         $this->rules_engine    = new HL_Rules_Engine_Service();
         $this->learndash       = HL_LearnDash_Integration::instance();
     }
@@ -109,39 +109,39 @@ class HL_Frontend_Program_Page {
 
         $partnership = $this->partnership_repo->get_by_id($enrollment->partnership_id);
 
-        // Load activities and compute per-activity data.
-        $activities = $this->activity_repo->get_by_pathway($pathway->pathway_id);
-        $activities = array_filter($activities, function ($act) {
+        // Load components and compute per-component data.
+        $components = $this->component_repo->get_by_pathway($pathway->pathway_id);
+        $components = array_filter($components, function ($act) {
             return $act->visibility !== 'staff_only';
         });
-        $activities = array_values($activities);
+        $components = array_values($components);
 
         $total_weight  = 0;
         $weighted_done = 0;
-        $activity_data = array();
+        $component_data = array();
 
         // Batch-load assessment instance statuses for this enrollment.
         $assessment_statuses = $this->get_assessment_statuses($enrollment);
 
-        foreach ($activities as $activity) {
+        foreach ($components as $component) {
             $availability = $this->rules_engine->compute_availability(
                 $enrollment->enrollment_id,
-                $activity->activity_id
+                $component->component_id
             );
 
-            $state = $this->get_activity_state(
+            $state = $this->get_component_state(
                 $enrollment->enrollment_id,
-                $activity->activity_id
+                $component->component_id
             );
 
             $completion_percent = $state ? (float) $state['completion_percent'] : 0;
             $completion_status  = $state ? $state['completion_status'] : 'not_started';
             $completed_at       = $state ? $state['completed_at'] : null;
 
-            $external_ref = $activity->get_external_ref_array();
+            $external_ref = $component->get_external_ref_array();
             $course_url   = '';
 
-            if ($activity->activity_type === 'learndash_course' && !empty($external_ref['course_id'])) {
+            if ($component->component_type === 'learndash_course' && !empty($external_ref['course_id'])) {
                 $course_id  = absint($external_ref['course_id']);
                 $course_url = get_permalink($course_id);
 
@@ -161,7 +161,7 @@ class HL_Frontend_Program_Page {
             // Resolve assessment instance status for status-aware buttons.
             $assess_status   = 'not_started';
             $children_counts = null;
-            $aid = (int) $activity->activity_id;
+            $aid = (int) $component->component_id;
             if (isset($assessment_statuses['teacher'][$aid])) {
                 $assess_status = $assessment_statuses['teacher'][$aid];
             } elseif (isset($assessment_statuses['children'][$aid])) {
@@ -171,12 +171,12 @@ class HL_Frontend_Program_Page {
                 $children_counts = $assessment_statuses['children_counts'][$aid];
             }
 
-            $weight = max((float) $activity->weight, 0);
+            $weight = max((float) $component->weight, 0);
             $total_weight  += $weight;
             $weighted_done += $weight * ($completion_percent / 100);
 
-            $activity_data[] = array(
-                'activity'           => $activity,
+            $component_data[] = array(
+                'component'          => $component,
                 'availability'       => $availability,
                 'completion_percent' => $completion_percent,
                 'completion_status'  => $completion_status,
@@ -249,7 +249,7 @@ class HL_Frontend_Program_Page {
                     <div class="hl-program-detail-item"><strong><?php esc_html_e('Expires:', 'hl-core'); ?></strong> <?php echo esc_html($this->format_date($pathway->expiration_date)); ?></div>
                 <?php endif; ?>
                 <div class="hl-program-detail-item"><strong><?php esc_html_e('Status:', 'hl-core'); ?></strong> <span class="hl-badge <?php echo esc_attr($program_status_class); ?>"><?php echo esc_html($program_status); ?></span></div>
-                <div class="hl-program-detail-item"><strong><?php esc_html_e('Activities:', 'hl-core'); ?></strong> <?php echo esc_html(count($activity_data)); ?></div>
+                <div class="hl-program-detail-item"><strong><?php esc_html_e('Components:', 'hl-core'); ?></strong> <?php echo esc_html(count($component_data)); ?></div>
             </div>
 
             <!-- Objectives -->
@@ -262,22 +262,22 @@ class HL_Frontend_Program_Page {
 
             <!-- Syllabus link -->
             <?php if (!empty($pathway->syllabus_url)) : ?>
-                <div class="hl-activity-action">
+                <div class="hl-component-action">
                     <a href="<?php echo esc_url($pathway->syllabus_url); ?>" target="_blank" class="hl-btn hl-btn-secondary"><?php esc_html_e('View Syllabus', 'hl-core'); ?></a>
                 </div>
             <?php endif; ?>
 
-            <!-- Activities Section -->
-            <?php if (!empty($activity_data)) : ?>
-                <div class="hl-activity-list">
+            <!-- Components Section -->
+            <?php if (!empty($component_data)) : ?>
+                <div class="hl-component-list">
                     <h3 class="hl-section-title"><?php esc_html_e('Program Steps', 'hl-core'); ?></h3>
-                    <?php foreach ($activity_data as $ad) :
-                        $this->render_activity_card($ad, $pathway, $enrollment);
+                    <?php foreach ($component_data as $ad) :
+                        $this->render_component_card($ad, $pathway, $enrollment);
                     endforeach; ?>
                 </div>
             <?php else : ?>
                 <div class="hl-notice hl-notice-info">
-                    <?php esc_html_e('No learning activities have been added to this program yet.', 'hl-core'); ?>
+                    <?php esc_html_e('No learning components have been added to this program yet.', 'hl-core'); ?>
                 </div>
             <?php endif; ?>
         </div>
@@ -287,10 +287,10 @@ class HL_Frontend_Program_Page {
     }
 
     /**
-     * Render a single activity card with actions.
+     * Render a single component card with actions.
      */
-    private function render_activity_card($ad, $pathway, $enrollment) {
-        $activity           = $ad['activity'];
+    private function render_component_card($ad, $pathway, $enrollment) {
+        $component          = $ad['component'];
         $availability       = $ad['availability'];
         $completion_percent = (int) $ad['completion_percent'];
         $completed_at       = $ad['completed_at'];
@@ -307,33 +307,33 @@ class HL_Frontend_Program_Page {
         // CSS classes.
         switch ($avail_status) {
             case 'completed':
-                $card_class = 'hl-activity-completed';
+                $card_class = 'hl-component-completed';
                 $bar_class  = 'hl-progress-complete';
                 break;
             case 'locked':
-                $card_class = 'hl-activity-locked';
+                $card_class = 'hl-component-locked';
                 $bar_class  = 'hl-progress-locked';
                 break;
             default:
-                $card_class = 'hl-activity-available';
+                $card_class = 'hl-component-available';
                 $bar_class  = ($completion_percent > 0) ? 'hl-progress-active' : '';
                 break;
         }
 
-        $type_label = isset(self::$type_labels[$activity->activity_type])
-            ? self::$type_labels[$activity->activity_type]
-            : ucwords(str_replace('_', ' ', $activity->activity_type));
+        $type_label = isset(self::$type_labels[$component->component_type])
+            ? self::$type_labels[$component->component_type]
+            : ucwords(str_replace('_', ' ', $component->component_type));
 
         // Action button/link.
         $action_html = '';
         if ($avail_status === 'available') {
-            $action_html = $this->get_action_html($activity, $enrollment, $pathway, $assess_status);
+            $action_html = $this->get_action_html($component, $enrollment, $pathway, $assess_status);
         } elseif ($avail_status === 'completed') {
-            // Completed assessment activities: show "View Responses" link.
-            $action_html = $this->get_completed_action_html($activity, $enrollment);
+            // Completed assessment components: show "View Responses" link.
+            $action_html = $this->get_completed_action_html($component, $enrollment);
         }
 
-        // Drip date badge for locked activities.
+        // Drip date badge for locked components.
         $drip_badge = '';
         if ($avail_status === 'locked'
             && !empty($availability['locked_reason'])
@@ -345,8 +345,8 @@ class HL_Frontend_Program_Page {
                 . '</span>';
         }
         ?>
-        <div class="hl-activity-card <?php echo esc_attr($card_class); ?>">
-            <div class="hl-activity-status-icon">
+        <div class="hl-component-card <?php echo esc_attr($card_class); ?>">
+            <div class="hl-component-status-icon">
                 <?php if ($avail_status === 'completed') : ?>
                     <span class="hl-icon-check">&#10003;</span>
                 <?php elseif ($avail_status === 'locked') : ?>
@@ -355,22 +355,22 @@ class HL_Frontend_Program_Page {
                     <span class="hl-icon-progress">&#9654;</span>
                 <?php endif; ?>
             </div>
-            <div class="hl-activity-content">
-                <h4 class="hl-activity-title">
-                    <?php echo esc_html($activity->title); ?>
+            <div class="hl-component-content">
+                <h4 class="hl-component-title">
+                    <?php echo esc_html($component->title); ?>
                     <?php if (!empty($drip_badge)) echo $drip_badge; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                 </h4>
-                <div class="hl-activity-meta">
-                    <span class="hl-activity-type"><?php echo esc_html($type_label); ?></span>
+                <div class="hl-component-meta">
+                    <span class="hl-component-type"><?php echo esc_html($type_label); ?></span>
                     <?php if ($avail_status === 'completed') : ?>
                         <span class="hl-badge hl-badge-completed"><?php esc_html_e('Completed', 'hl-core'); ?></span>
                         <?php if ($completed_at) : ?>
-                            <span class="hl-activity-date"><?php echo esc_html($this->format_date($completed_at)); ?></span>
+                            <span class="hl-component-date"><?php echo esc_html($this->format_date($completed_at)); ?></span>
                         <?php endif; ?>
                     <?php elseif ($avail_status === 'locked') : ?>
-                        <span class="hl-activity-lock-reason"><?php echo esc_html($this->get_lock_reason_text($availability)); ?></span>
+                        <span class="hl-component-lock-reason"><?php echo esc_html($this->get_lock_reason_text($availability)); ?></span>
                     <?php else : ?>
-                        <span class="hl-activity-progress-text"><?php
+                        <span class="hl-component-progress-text"><?php
                             if ($assess_status === 'partial' && $children_counts) {
                                 printf(esc_html__('%d/%d Completed', 'hl-core'), $children_counts['submitted'], $children_counts['total']);
                             } elseif ($assess_status === 'draft') {
@@ -386,7 +386,7 @@ class HL_Frontend_Program_Page {
                     <?php endif; ?>
                 </div>
                 <?php if (!empty($action_html)) : ?>
-                    <div class="hl-activity-action">
+                    <div class="hl-component-action">
                         <?php echo $action_html; ?>
                     </div>
                 <?php endif; ?>
@@ -399,20 +399,20 @@ class HL_Frontend_Program_Page {
     }
 
     /**
-     * Build the action HTML for an available activity.
+     * Build the action HTML for an available component.
      *
-     * @param object $activity
+     * @param object $component
      * @param object $enrollment
      * @param object $pathway
      * @param string $assess_status Assessment instance status: not_started, draft, submitted.
      * @return string Escaped HTML.
      */
-    private function get_action_html($activity, $enrollment, $pathway, $assess_status = 'not_started') {
-        $type = $activity->activity_type;
+    private function get_action_html($component, $enrollment, $pathway, $assess_status = 'not_started') {
+        $type = $component->component_type;
 
         // LearnDash course: direct link.
         if ($type === 'learndash_course') {
-            $external_ref = $activity->get_external_ref_array();
+            $external_ref = $component->get_external_ref_array();
             $course_id    = isset($external_ref['course_id']) ? absint($external_ref['course_id']) : 0;
             if ($course_id) {
                 $url = get_permalink($course_id);
@@ -428,52 +428,52 @@ class HL_Frontend_Program_Page {
         if ($type === 'teacher_self_assessment') {
             $tsa_url = $this->find_shortcode_page_url('hl_teacher_assessment');
             if (!empty($tsa_url)) {
-                $tsa_url = add_query_arg('activity_id', $activity->activity_id, $tsa_url);
+                $tsa_url = add_query_arg('component_id', $component->component_id, $tsa_url);
                 $label = $this->get_assessment_button_label($assess_status);
                 $btn_class = ($assess_status === 'submitted') ? 'hl-btn-secondary' : 'hl-btn-primary';
                 return '<a href="' . esc_url($tsa_url) . '" class="hl-btn hl-btn-sm ' . esc_attr($btn_class) . '">'
                     . esc_html($label) . '</a>';
             }
-            // Fallback to Activity Page.
-            $activity_page_url = $this->get_activity_page_url($activity->activity_id, $enrollment->enrollment_id);
-            if (!empty($activity_page_url)) {
+            // Fallback to Component Page.
+            $component_page_url = $this->get_component_page_url($component->component_id, $enrollment->enrollment_id);
+            if (!empty($component_page_url)) {
                 $label = $this->get_assessment_button_label($assess_status);
                 $btn_class = ($assess_status === 'submitted') ? 'hl-btn-secondary' : 'hl-btn-primary';
-                return '<a href="' . esc_url($activity_page_url) . '" class="hl-btn hl-btn-sm ' . esc_attr($btn_class) . '">'
+                return '<a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm ' . esc_attr($btn_class) . '">'
                     . esc_html($label) . '</a>';
             }
             return '';
         }
 
-        // JFB-powered activities (observation): link to Activity Page.
+        // JFB-powered components (observation): link to Component Page.
         if ($type === 'observation') {
-            $activity_page_url = $this->get_activity_page_url($activity->activity_id, $enrollment->enrollment_id);
-            if (!empty($activity_page_url)) {
-                return '<a href="' . esc_url($activity_page_url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
+            $component_page_url = $this->get_component_page_url($component->component_id, $enrollment->enrollment_id);
+            if (!empty($component_page_url)) {
+                return '<a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
                     . esc_html__('Start', 'hl-core') . '</a>';
             }
             return '';
         }
 
-        // child assessment: status-aware buttons with activity_id routing.
+        // child assessment: status-aware buttons with component_id routing.
         if ($type === 'child_assessment') {
             $assessment_url = apply_filters('hl_core_child_assessment_page_url', '');
             if (empty($assessment_url)) {
                 $assessment_url = $this->find_shortcode_page_url('hl_child_assessment');
             }
             if (!empty($assessment_url)) {
-                $assessment_url = add_query_arg('activity_id', $activity->activity_id, $assessment_url);
+                $assessment_url = add_query_arg('component_id', $component->component_id, $assessment_url);
                 $label = $this->get_assessment_button_label($assess_status);
                 $btn_class = ($assess_status === 'submitted') ? 'hl-btn-secondary' : 'hl-btn-primary';
                 return '<a href="' . esc_url($assessment_url) . '" class="hl-btn hl-btn-sm ' . esc_attr($btn_class) . '">'
                     . esc_html($label) . '</a>';
             }
-            // Fallback to Activity Page.
-            $activity_page_url = $this->get_activity_page_url($activity->activity_id, $enrollment->enrollment_id);
-            if (!empty($activity_page_url)) {
+            // Fallback to Component Page.
+            $component_page_url = $this->get_component_page_url($component->component_id, $enrollment->enrollment_id);
+            if (!empty($component_page_url)) {
                 $label = $this->get_assessment_button_label($assess_status);
                 $btn_class = ($assess_status === 'submitted') ? 'hl-btn-secondary' : 'hl-btn-primary';
-                return '<a href="' . esc_url($activity_page_url) . '" class="hl-btn hl-btn-sm ' . esc_attr($btn_class) . '">'
+                return '<a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm ' . esc_attr($btn_class) . '">'
                     . esc_html($label) . '</a>';
             }
             return '';
@@ -488,7 +488,7 @@ class HL_Frontend_Program_Page {
     }
 
     /**
-     * Get status-aware button label for assessment activities.
+     * Get status-aware button label for assessment components.
      *
      * @param string $assess_status Instance status: not_started, draft, submitted.
      * @return string Translated button label.
@@ -506,28 +506,28 @@ class HL_Frontend_Program_Page {
     }
 
     /**
-     * Build the URL for the Activity Page.
+     * Build the URL for the Component Page.
      *
-     * @param int $activity_id
+     * @param int $component_id
      * @param int $enrollment_id
      * @return string
      */
-    private function get_activity_page_url($activity_id, $enrollment_id) {
-        $base = apply_filters('hl_core_activity_page_url', '');
+    private function get_component_page_url($component_id, $enrollment_id) {
+        $base = apply_filters('hl_core_component_page_url', '');
         if (empty($base)) {
-            $base = $this->find_shortcode_page_url('hl_activity_page');
+            $base = $this->find_shortcode_page_url('hl_component_page');
         }
         if (empty($base)) {
             return '';
         }
         return add_query_arg(array(
-            'id'         => $activity_id,
+            'id'         => $component_id,
             'enrollment' => $enrollment_id,
         ), $base);
     }
 
     /**
-     * Build coaching session action HTML for the activity card.
+     * Build coaching session action HTML for the component card.
      *
      * - Session scheduled: "Upcoming on [date]" badge + meeting link
      * - No session: "Schedule Session" button linking to My Coaching page
@@ -598,23 +598,23 @@ class HL_Frontend_Program_Page {
                  . '</a>';
         }
 
-        return '<span class="hl-activity-notice">' . esc_html__('Managed by your coach.', 'hl-core') . '</span>';
+        return '<span class="hl-component-notice">' . esc_html__('Managed by your coach.', 'hl-core') . '</span>';
     }
 
     /**
-     * Build the "View Responses" link for completed assessment activities.
+     * Build the "View Responses" link for completed assessment components.
      *
-     * @param object $activity
+     * @param object $component
      * @param object $enrollment
      * @return string
      */
-    private function get_completed_action_html($activity, $enrollment) {
-        $type = $activity->activity_type;
+    private function get_completed_action_html($component, $enrollment) {
+        $type = $component->component_type;
 
         if ($type === 'teacher_self_assessment') {
             $tsa_url = $this->find_shortcode_page_url('hl_teacher_assessment');
             if (!empty($tsa_url)) {
-                $tsa_url = add_query_arg('activity_id', $activity->activity_id, $tsa_url);
+                $tsa_url = add_query_arg('component_id', $component->component_id, $tsa_url);
                 return '<a href="' . esc_url($tsa_url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
                     . esc_html__('View Responses', 'hl-core') . '</a>';
             }
@@ -626,7 +626,7 @@ class HL_Frontend_Program_Page {
                 $ca_url = $this->find_shortcode_page_url('hl_child_assessment');
             }
             if (!empty($ca_url)) {
-                $ca_url = add_query_arg('activity_id', $activity->activity_id, $ca_url);
+                $ca_url = add_query_arg('component_id', $component->component_id, $ca_url);
                 return '<a href="' . esc_url($ca_url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
                     . esc_html__('View Responses', 'hl-core') . '</a>';
             }
@@ -706,7 +706,7 @@ class HL_Frontend_Program_Page {
     }
 
     /**
-     * Resolve blocker activity IDs to titles (limit to 3 names + "+N more").
+     * Resolve blocker component IDs to titles (limit to 3 names + "+N more").
      *
      * @param int[] $blocker_ids
      * @return string[]
@@ -718,12 +718,12 @@ class HL_Frontend_Program_Page {
         global $wpdb;
         $ids = implode(',', array_map('intval', $blocker_ids));
         $rows = $wpdb->get_results(
-            "SELECT activity_id, title FROM {$wpdb->prefix}hl_activity WHERE activity_id IN ({$ids})",
+            "SELECT component_id, title FROM {$wpdb->prefix}hl_component WHERE component_id IN ({$ids})",
             ARRAY_A
         );
         $map = array();
         foreach ($rows as $r) {
-            $map[(int) $r['activity_id']] = $r['title'];
+            $map[(int) $r['component_id']] = $r['title'];
         }
         $names = array();
         foreach ($blocker_ids as $aid) {
@@ -733,10 +733,10 @@ class HL_Frontend_Program_Page {
     }
 
     /**
-     * Batch-load assessment instance statuses for all assessment activities
-     * linked to this enrollment, keyed by activity_id.
+     * Batch-load assessment instance statuses for all assessment components
+     * linked to this enrollment, keyed by component_id.
      *
-     * Returns: ['teacher' => [activity_id => status], 'children' => [activity_id => status]]
+     * Returns: ['teacher' => [component_id => status], 'children' => [component_id => status]]
      *
      * @param object $enrollment
      * @return array
@@ -745,38 +745,38 @@ class HL_Frontend_Program_Page {
         global $wpdb;
         $result = array('teacher' => array(), 'children' => array(), 'children_counts' => array());
 
-        // Teacher self-assessment instances linked by activity_id.
+        // Teacher self-assessment instances linked by component_id.
         $teacher_rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT activity_id, status
+            "SELECT component_id, status
              FROM {$wpdb->prefix}hl_teacher_assessment_instance
-             WHERE enrollment_id = %d AND partnership_id = %d AND activity_id IS NOT NULL",
+             WHERE enrollment_id = %d AND partnership_id = %d AND component_id IS NOT NULL",
             $enrollment->enrollment_id,
             $enrollment->partnership_id
         ), ARRAY_A);
         foreach ($teacher_rows as $row) {
-            $result['teacher'][(int) $row['activity_id']] = $row['status'];
+            $result['teacher'][(int) $row['component_id']] = $row['status'];
         }
 
-        // child assessment instances linked by activity_id.
-        // Group by activity_id to handle multiple instances per activity.
+        // child assessment instances linked by component_id.
+        // Group by component_id to handle multiple instances per component.
         $children_rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT activity_id, status
+            "SELECT component_id, status
              FROM {$wpdb->prefix}hl_child_assessment_instance
-             WHERE enrollment_id = %d AND partnership_id = %d AND activity_id IS NOT NULL",
+             WHERE enrollment_id = %d AND partnership_id = %d AND component_id IS NOT NULL",
             $enrollment->enrollment_id,
             $enrollment->partnership_id
         ), ARRAY_A);
 
-        $children_by_activity = array();
+        $children_by_component = array();
         foreach ($children_rows as $row) {
-            $aid = (int) $row['activity_id'];
-            if (!isset($children_by_activity[$aid])) {
-                $children_by_activity[$aid] = array();
+            $aid = (int) $row['component_id'];
+            if (!isset($children_by_component[$aid])) {
+                $children_by_component[$aid] = array();
             }
-            $children_by_activity[$aid][] = $row['status'];
+            $children_by_component[$aid][] = $row['status'];
         }
 
-        foreach ($children_by_activity as $aid => $statuses) {
+        foreach ($children_by_component as $aid => $statuses) {
             $total       = count($statuses);
             $submitted   = count(array_filter($statuses, function ($s) { return $s === 'submitted'; }));
             $in_progress = count(array_filter($statuses, function ($s) { return $s === 'in_progress'; }));
@@ -800,15 +800,15 @@ class HL_Frontend_Program_Page {
     }
 
     /**
-     * Query the hl_activity_state table.
+     * Query the hl_component_state table.
      */
-    private function get_activity_state($enrollment_id, $activity_id) {
+    private function get_component_state($enrollment_id, $component_id) {
         global $wpdb;
         return $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}hl_activity_state WHERE enrollment_id = %d AND activity_id = %d",
+                "SELECT * FROM {$wpdb->prefix}hl_component_state WHERE enrollment_id = %d AND component_id = %d",
                 $enrollment_id,
-                $activity_id
+                $component_id
             ),
             ARRAY_A
         );

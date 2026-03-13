@@ -412,7 +412,7 @@ class HL_Frontend_My_Coaching {
     }
 
     private function render_schedule_form($enrollment_id, $partnership_id, $coach) {
-        // Auto-suggest session title from next coaching activity.
+        // Auto-suggest session title from next coaching component.
         $suggested_title = $this->get_suggested_session_title($enrollment_id, $partnership_id);
 
         echo '<div class="hl-schedule-form">';
@@ -448,7 +448,7 @@ class HL_Frontend_My_Coaching {
     }
 
     /**
-     * Try to auto-suggest a session title from the next coaching activity.
+     * Try to auto-suggest a session title from the next coaching component.
      *
      * @param int $enrollment_id
      * @param int $partnership_id
@@ -457,31 +457,31 @@ class HL_Frontend_My_Coaching {
     private function get_suggested_session_title($enrollment_id, $partnership_id) {
         global $wpdb;
 
-        // Find coaching activities in this track's pathways.
-        $coaching_activities = $wpdb->get_results($wpdb->prepare(
-            "SELECT a.activity_id, a.activity_name FROM {$wpdb->prefix}hl_activity a
+        // Find coaching components in this track's pathways.
+        $coaching_components = $wpdb->get_results($wpdb->prepare(
+            "SELECT a.component_id, a.title FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
              WHERE p.partnership_id = %d
-               AND a.activity_type = 'coaching_session_attendance'
+               AND a.component_type = 'coaching_session_attendance'
                AND a.status = 'active'
              ORDER BY a.sort_order ASC",
             $partnership_id
         ), ARRAY_A);
 
-        if (empty($coaching_activities)) {
+        if (empty($coaching_components)) {
             return __('Coaching Session', 'hl-core');
         }
 
         // Find the first one not yet completed.
-        foreach ($coaching_activities as $activity) {
+        foreach ($coaching_components as $component) {
             $state = $wpdb->get_var($wpdb->prepare(
-                "SELECT completion_status FROM {$wpdb->prefix}hl_activity_state
-                 WHERE enrollment_id = %d AND activity_id = %d",
-                $enrollment_id, $activity['activity_id']
+                "SELECT completion_status FROM {$wpdb->prefix}hl_component_state
+                 WHERE enrollment_id = %d AND component_id = %d",
+                $enrollment_id, $component['component_id']
             ));
 
             if ($state !== 'complete') {
-                return $activity['activity_name'];
+                return $component['title'];
             }
         }
 

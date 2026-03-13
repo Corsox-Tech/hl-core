@@ -330,7 +330,7 @@ class HL_Frontend_Dashboard {
     }
 
     /**
-     * Count available (unlocked + not completed) activities for a user.
+     * Count available (unlocked + not completed) components for a user.
      * Shares the same transient cache as HL_BuddyBoss_Integration.
      *
      * @param int $user_id
@@ -345,9 +345,9 @@ class HL_Frontend_Dashboard {
             return (int) $cached;
         }
 
-        $pa_service    = new HL_Pathway_Assignment_Service();
-        $activity_repo = new HL_Activity_Repository();
-        $rules_engine  = new HL_Rules_Engine_Service();
+        $pa_service     = new HL_Pathway_Assignment_Service();
+        $component_repo = new HL_Component_Repository();
+        $rules_engine   = new HL_Rules_Engine_Service();
 
         $enrollments = $this->enrollment_repo->get_by_user_id( $user_id, 'active' );
         $count       = 0;
@@ -355,14 +355,14 @@ class HL_Frontend_Dashboard {
         foreach ( $enrollments as $enrollment ) {
             $pathways = $pa_service->get_pathways_for_enrollment( $enrollment->enrollment_id );
             foreach ( $pathways as $pw ) {
-                $activities = $activity_repo->get_by_pathway( $pw['pathway_id'] );
-                foreach ( $activities as $activity ) {
-                    if ( $activity->visibility === 'staff_only' ) {
+                $components = $component_repo->get_by_pathway( $pw['pathway_id'] );
+                foreach ( $components as $component ) {
+                    if ( $component->visibility === 'staff_only' ) {
                         continue;
                     }
                     $avail = $rules_engine->compute_availability(
                         $enrollment->enrollment_id,
-                        $activity->activity_id
+                        $component->component_id
                     );
                     if ( $avail['availability_status'] === 'available' ) {
                         $count++;

@@ -80,8 +80,8 @@ class HL_JFB_Integration {
     /**
      * Handle JFB form submission via the hl_core_form_submitted custom action
      *
-     * Reads hidden fields from the submission, determines activity type,
-     * updates instance records, marks activity complete, and logs audit.
+     * Reads hidden fields from the submission, determines component type,
+     * updates instance records, marks component complete, and logs audit.
      *
      * @param array  $request        Form field values
      * @param object $action_handler JFB action handler
@@ -89,23 +89,23 @@ class HL_JFB_Integration {
     public function handle_form_submitted($request, $action_handler) {
         // Extract required hidden fields
         $enrollment_id = isset($request['hl_enrollment_id']) ? absint($request['hl_enrollment_id']) : 0;
-        $activity_id   = isset($request['hl_activity_id'])   ? absint($request['hl_activity_id'])   : 0;
+        $component_id  = isset($request['hl_component_id'])   ? absint($request['hl_component_id'])  : 0;
         $track_id      = isset($request['hl_track_id'])      ? absint($request['hl_track_id'])      : 0;
 
-        if (!$enrollment_id || !$activity_id || !$track_id) {
+        if (!$enrollment_id || !$component_id || !$track_id) {
             // Missing required context — cannot process
             return;
         }
 
         global $wpdb;
 
-        // Load the activity to determine its type
-        $activity = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_activity WHERE activity_id = %d",
-            $activity_id
+        // Load the component to determine its type
+        $component = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_component WHERE component_id = %d",
+            $component_id
         ));
 
-        if (!$activity) {
+        if (!$component) {
             return;
         }
 
@@ -120,36 +120,36 @@ class HL_JFB_Integration {
 
         $now = current_time('mysql');
 
-        switch ($activity->activity_type) {
+        switch ($component->component_type) {
             case 'teacher_self_assessment':
                 $this->handle_teacher_assessment_submission(
-                    $enrollment_id, $activity_id, $track_id, $activity, $jfb_record_id, $now
+                    $enrollment_id, $component_id, $track_id, $component, $jfb_record_id, $now
                 );
                 break;
 
             case 'observation':
                 $observation_id = isset($request['hl_observation_id']) ? absint($request['hl_observation_id']) : 0;
                 $this->handle_observation_submission(
-                    $enrollment_id, $activity_id, $track_id, $observation_id, $activity, $jfb_record_id, $now
+                    $enrollment_id, $component_id, $track_id, $observation_id, $component, $jfb_record_id, $now
                 );
                 break;
         }
 
-        // Update hl_activity_state to complete
-        $this->mark_activity_complete($enrollment_id, $activity_id, $now);
+        // Update hl_component_state to complete
+        $this->mark_component_complete($enrollment_id, $component_id, $now);
 
         // Trigger completion rollup recomputation
         do_action('hl_core_recompute_rollups', $enrollment_id);
 
         // Audit log
         HL_Audit_Service::log('jfb_form.submitted', array(
-            'entity_type' => 'activity',
-            'entity_id'   => $activity_id,
+            'entity_type' => 'component',
+            'entity_id'   => $component_id,
             'track_id'    => $track_id,
             'after_data'  => array(
-                'enrollment_id' => $enrollment_id,
-                'activity_type' => $activity->activity_type,
-                'jfb_record_id' => $jfb_record_id,
+                'enrollment_id'  => $enrollment_id,
+                'component_type' => $component->component_type,
+                'jfb_record_id'  => $jfb_record_id,
             ),
         ));
     }
@@ -157,13 +157,13 @@ class HL_JFB_Integration {
     /**
      * Handle teacher self-assessment JFB submission
      */
-    private function handle_teacher_assessment_submission($enrollment_id, $activity_id, $track_id, $activity, $jfb_record_id, $now) {
+    private function handle_teacher_assessment_submission($enrollment_id, $component_id, $track_id, $component, $jfb_record_id, $now) {
         global $wpdb;
 
         // Determine phase from external_ref
         $phase = 'pre';
-        if (!empty($activity->external_ref)) {
-            $ref = json_decode($activity->external_ref, true);
+        if (!empty($component->external_ref)) {
+            $ref = json_decode($component->external_ref, true);
             if (isset($ref['phase'])) {
                 $phase = sanitize_text_field($ref['phase']);
             }
@@ -171,8 +171,8 @@ class HL_JFB_Integration {
 
         // Determine jfb_form_id from external_ref
         $jfb_form_id = null;
-        if (!empty($activity->external_ref)) {
-            $ref = json_decode($activity->external_ref, true);
+        if (!empty($component->external_ref)) {
+            $ref = json_decode($component->external_ref, true);
             if (isset($ref['form_id'])) {
                 $jfb_form_id = absint($ref['form_id']);
             }
@@ -215,7 +215,7 @@ class HL_JFB_Integration {
     /**
      * Handle observation JFB submission
      */
-    private function handle_observation_submission($enrollment_id, $activity_id, $track_id, $observation_id, $activity, $jfb_record_id, $now) {
+    private function handle_observation_submission($enrollment_id, $component_id, $track_id, $observation_id, $component, $jfb_record_id, $now) {
         global $wpdb;
 
         if (!$observation_id) {
@@ -224,8 +224,8 @@ class HL_JFB_Integration {
 
         // Determine jfb_form_id from external_ref
         $jfb_form_id = null;
-        if (!empty($activity->external_ref)) {
-            $ref = json_decode($activity->external_ref, true);
+        if (!empty($component->external_ref)) {
+            $ref = json_decode($component->external_ref, true);
             if (isset($ref['form_id'])) {
                 $jfb_form_id = absint($ref['form_id']);
             }
@@ -245,19 +245,19 @@ class HL_JFB_Integration {
     }
 
     /**
-     * Mark an activity as complete in hl_activity_state
+     * Mark a component as complete in hl_component_state
      *
      * @param int    $enrollment_id
-     * @param int    $activity_id
+     * @param int    $component_id
      * @param string $now MySQL datetime
      */
-    private function mark_activity_complete($enrollment_id, $activity_id, $now) {
+    private function mark_component_complete($enrollment_id, $component_id, $now) {
         global $wpdb;
 
         $existing = $wpdb->get_var($wpdb->prepare(
-            "SELECT state_id FROM {$wpdb->prefix}hl_activity_state
-             WHERE enrollment_id = %d AND activity_id = %d",
-            $enrollment_id, $activity_id
+            "SELECT state_id FROM {$wpdb->prefix}hl_component_state
+             WHERE enrollment_id = %d AND component_id = %d",
+            $enrollment_id, $component_id
         ));
 
         $state_data = array(
@@ -269,14 +269,14 @@ class HL_JFB_Integration {
 
         if ($existing) {
             $wpdb->update(
-                $wpdb->prefix . 'hl_activity_state',
+                $wpdb->prefix . 'hl_component_state',
                 $state_data,
                 array('state_id' => $existing)
             );
         } else {
             $state_data['enrollment_id'] = $enrollment_id;
-            $state_data['activity_id']   = $activity_id;
-            $wpdb->insert($wpdb->prefix . 'hl_activity_state', $state_data);
+            $state_data['component_id']  = $component_id;
+            $wpdb->insert($wpdb->prefix . 'hl_component_state', $state_data);
         }
     }
 

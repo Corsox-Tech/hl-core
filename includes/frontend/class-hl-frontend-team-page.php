@@ -469,13 +469,13 @@ class HL_Frontend_Team_Page {
                                                 </thead>
                                                 <tbody>
                                                     <?php foreach ( $activities as $act ) :
-                                                        $aid        = $act['activity_id'];
+                                                        $aid        = $act['component_id'];
                                                         $ad         = isset( $activity_detail[ $eid ][ $aid ] ) ? $activity_detail[ $eid ][ $aid ] : null;
                                                         $act_pct    = $ad ? intval( $ad['completion_percent'] ) : 0;
                                                         $act_status = $ad ? $ad['completion_status'] : 'not_started';
                                                         $status_lbl = ucwords( str_replace( '_', ' ', $act_status ) );
                                                         $status_cls = 'hl-badge-' . str_replace( '_', '-', $act_status );
-                                                        $type_lbl   = ucwords( str_replace( '_', ' ', $act['activity_type'] ) );
+                                                        $type_lbl   = ucwords( str_replace( '_', ' ', $act['component_type'] ) );
                                                     ?>
                                                         <tr>
                                                             <td><?php echo esc_html( $act['title'] ); ?></td>

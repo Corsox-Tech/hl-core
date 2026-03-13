@@ -31,7 +31,7 @@ class HL_Shortcodes {
         add_shortcode('hl_observations', array($this, 'render_observations'));
         add_shortcode('hl_my_programs', array($this, 'render_my_programs'));
         add_shortcode('hl_program_page', array($this, 'render_program_page'));
-        add_shortcode('hl_activity_page', array($this, 'render_activity_page'));
+        add_shortcode('hl_component_page', array($this, 'render_component_page'));
         add_shortcode('hl_my_partnership', array($this, 'render_my_partnership'));
         add_shortcode('hl_team_page', array($this, 'render_team_page'));
         add_shortcode('hl_classroom_page', array($this, 'render_classroom_page'));
@@ -65,7 +65,7 @@ class HL_Shortcodes {
             || has_shortcode($post->post_content, 'hl_observations')
             || has_shortcode($post->post_content, 'hl_my_programs')
             || has_shortcode($post->post_content, 'hl_program_page')
-            || has_shortcode($post->post_content, 'hl_activity_page')
+            || has_shortcode($post->post_content, 'hl_component_page')
             || has_shortcode($post->post_content, 'hl_my_partnership')
             || has_shortcode($post->post_content, 'hl_team_page')
             || has_shortcode($post->post_content, 'hl_classroom_page')
@@ -199,15 +199,15 @@ class HL_Shortcodes {
     }
 
     /**
-     * [hl_activity_page] - Single activity page (JFB form, redirect, etc.)
+     * [hl_component_page] - Single component page (JFB form, redirect, etc.)
      */
-    public function render_activity_page($atts) {
+    public function render_component_page($atts) {
         if (!is_user_logged_in()) {
-            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this activity.', 'hl-core') . '</div>';
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this component.', 'hl-core') . '</div>';
         }
 
-        $atts = shortcode_atts(array(), $atts, 'hl_activity_page');
-        $renderer = new HL_Frontend_Activity_Page();
+        $atts = shortcode_atts(array(), $atts, 'hl_component_page');
+        $renderer = new HL_Frontend_Component_Page();
         return $renderer->render($atts);
     }
 

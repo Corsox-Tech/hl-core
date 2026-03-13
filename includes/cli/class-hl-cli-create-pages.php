@@ -138,7 +138,7 @@ class HL_CLI_Create_Pages {
 
             // Detail pages (navigated to, not in sidebar menu)
             array( 'title' => 'Program',               'shortcode' => 'hl_program_page' ),
-            array( 'title' => 'Activity',              'shortcode' => 'hl_activity_page' ),
+            array( 'title' => 'Component',              'shortcode' => 'hl_component_page' ),
             array( 'title' => 'Team',                  'shortcode' => 'hl_team_page' ),
             array( 'title' => 'Classroom',             'shortcode' => 'hl_classroom_page' ),
             array( 'title' => 'District',              'shortcode' => 'hl_district_page' ),

@@ -61,7 +61,7 @@ class HL_BuddyBoss_Integration {
     }
 
     private function __construct() {
-        // Invalidate badge cache when any activity state changes (works even without BuddyBoss).
+        // Invalidate badge cache when any component state changes (works even without BuddyBoss).
         add_action('hl_core_recompute_rollups', array($this, 'invalidate_badge_cache'), 10, 1);
 
         if (!$this->is_active()) {
@@ -203,7 +203,7 @@ class HL_BuddyBoss_Integration {
                 display: none !important;
             }
 
-            /* Available-activity badge on menu items */
+            /* Available-component badge on menu items */
             .hl-menu-badge {
                 display: inline-flex;
                 align-items: center;
@@ -763,9 +763,9 @@ class HL_BuddyBoss_Integration {
         $is_control_only = $has_enrollment ? $this->is_control_group_only($user_id) : false;
         $cached = $this->build_menu_items($roles, $is_staff, $has_enrollment, $is_control_only);
 
-        // Inject available-activity badge count into the "my-programs" item.
+        // Inject available-component badge count into the "my-programs" item.
         if ( $has_enrollment ) {
-            $badge_count = $this->count_available_activities( $user_id );
+            $badge_count = $this->count_available_components( $user_id );
             foreach ( $cached as &$item ) {
                 $item['badge'] = ( $item['slug'] === 'my-programs' && $badge_count > 0 )
                     ? $badge_count
@@ -940,7 +940,7 @@ class HL_BuddyBoss_Integration {
     // =========================================================================
 
     /**
-     * Delete the available-activity badge transient for the user who owns
+     * Delete the available-component badge transient for the user who owns
      * the given enrollment.  Hooked to hl_core_recompute_rollups.
      *
      * @param int $enrollment_id
@@ -957,18 +957,18 @@ class HL_BuddyBoss_Integration {
     }
 
     // =========================================================================
-    // Available Activity Badge
+    // Available Component Badge
     // =========================================================================
 
     /**
-     * Count activities with availability_status === 'available' across all
+     * Count components with availability_status === 'available' across all
      * active enrollments for a user.  Result is cached in a 5-minute
      * transient to avoid per-page-load overhead.
      *
      * @param int $user_id WordPress user ID.
-     * @return int Number of available (unlocked + not completed) activities.
+     * @return int Number of available (unlocked + not completed) components.
      */
-    private function count_available_activities( $user_id ) {
+    private function count_available_components( $user_id ) {
         $user_id       = absint( $user_id );
         $transient_key = 'hl_avail_count_' . $user_id;
 
@@ -979,7 +979,7 @@ class HL_BuddyBoss_Integration {
 
         $enrollment_repo = new HL_Enrollment_Repository();
         $pa_service      = new HL_Pathway_Assignment_Service();
-        $activity_repo   = new HL_Activity_Repository();
+        $component_repo  = new HL_Component_Repository();
         $rules_engine    = new HL_Rules_Engine_Service();
 
         $enrollments = $enrollment_repo->get_by_user_id( $user_id, 'active' );
@@ -989,15 +989,15 @@ class HL_BuddyBoss_Integration {
             $pathways = $pa_service->get_pathways_for_enrollment( $enrollment->enrollment_id );
 
             foreach ( $pathways as $pw ) {
-                $activities = $activity_repo->get_by_pathway( $pw['pathway_id'] );
+                $components = $component_repo->get_by_pathway( $pw['pathway_id'] );
 
-                foreach ( $activities as $activity ) {
-                    if ( $activity->visibility === 'staff_only' ) {
+                foreach ( $components as $component ) {
+                    if ( $component->visibility === 'staff_only' ) {
                         continue;
                     }
                     $avail = $rules_engine->compute_availability(
                         $enrollment->enrollment_id,
-                        $activity->activity_id
+                        $component->component_id
                     );
                     if ( $avail['availability_status'] === 'available' ) {
                         $count++;

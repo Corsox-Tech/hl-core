@@ -21,8 +21,8 @@ class HL_Frontend_My_Programs {
     /** @var HL_Pathway_Repository */
     private $pathway_repo;
 
-    /** @var HL_Activity_Repository */
-    private $activity_repo;
+    /** @var HL_Component_Repository */
+    private $component_repo;
 
     /** @var HL_Rules_Engine_Service */
     private $rules_engine;
@@ -37,7 +37,7 @@ class HL_Frontend_My_Programs {
         $this->enrollment_repo = new HL_Enrollment_Repository();
         $this->partnership_repo     = new HL_Partnership_Repository();
         $this->pathway_repo    = new HL_Pathway_Repository();
-        $this->activity_repo   = new HL_Activity_Repository();
+        $this->component_repo  = new HL_Component_Repository();
         $this->rules_engine    = new HL_Rules_Engine_Service();
         $this->learndash       = HL_LearnDash_Integration::instance();
         $this->pa_service      = new HL_Pathway_Assignment_Service();
@@ -95,31 +95,31 @@ class HL_Frontend_My_Programs {
             }
 
             // Compute overall completion % (same logic as my-progress).
-            $activities = $this->activity_repo->get_by_pathway($pathway->pathway_id);
-            $activities = array_filter($activities, function ($act) {
+            $components = $this->component_repo->get_by_pathway($pathway->pathway_id);
+            $components = array_filter($components, function ($act) {
                 return $act->visibility !== 'staff_only';
             });
-            $activities = array_values($activities);
+            $components = array_values($components);
 
             $total_weight  = 0;
             $weighted_done = 0;
 
-            foreach ($activities as $activity) {
+            foreach ($components as $component) {
                 $availability = $this->rules_engine->compute_availability(
                     $enrollment->enrollment_id,
-                    $activity->activity_id
+                    $component->component_id
                 );
 
-                $state = $this->get_activity_state(
+                $state = $this->get_component_state(
                     $enrollment->enrollment_id,
-                    $activity->activity_id
+                    $component->component_id
                 );
 
                 $completion_percent = $state ? (float) $state['completion_percent'] : 0;
 
                 // For LD courses, pull live progress.
-                $external_ref = $activity->get_external_ref_array();
-                if ($activity->activity_type === 'learndash_course' && !empty($external_ref['course_id'])) {
+                $external_ref = $component->get_external_ref_array();
+                if ($component->component_type === 'learndash_course' && !empty($external_ref['course_id'])) {
                     if ($availability['availability_status'] !== 'completed') {
                         $ld_percent = $this->learndash->get_course_progress_percent($user_id, absint($external_ref['course_id']));
                         if ($ld_percent > $completion_percent) {
@@ -132,7 +132,7 @@ class HL_Frontend_My_Programs {
                     $completion_percent = 100;
                 }
 
-                $weight = max((float) $activity->weight, 0);
+                $weight = max((float) $component->weight, 0);
                 $total_weight  += $weight;
                 $weighted_done += $weight * ($completion_percent / 100);
             }
@@ -324,19 +324,19 @@ class HL_Frontend_My_Programs {
     }
 
     /**
-     * Query the hl_activity_state table.
+     * Query the hl_component_state table.
      *
      * @param int $enrollment_id
-     * @param int $activity_id
+     * @param int $component_id
      * @return array|null
      */
-    private function get_activity_state($enrollment_id, $activity_id) {
+    private function get_component_state($enrollment_id, $component_id) {
         global $wpdb;
         return $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}hl_activity_state WHERE enrollment_id = %d AND activity_id = %d",
+                "SELECT * FROM {$wpdb->prefix}hl_component_state WHERE enrollment_id = %d AND component_id = %d",
                 $enrollment_id,
-                $activity_id
+                $component_id
             ),
             ARRAY_A
         );

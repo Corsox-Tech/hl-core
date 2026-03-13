@@ -572,7 +572,7 @@ class HL_Frontend_Observations {
     /**
      * Render the JFB form for a draft observation.
      *
-     * Finds the observation activity in the track, extracts the JFB form
+     * Finds the observation component in the track, extracts the JFB form
      * ID from external_ref, and renders the form with hidden fields
      * pre-populated for the JFB hook listener.
      *
@@ -593,10 +593,10 @@ class HL_Frontend_Observations {
 
         $partnership_id = absint( $observation['partnership_id'] );
 
-        // Find the observation activity and form ID for this track
-        $form_id     = $this->observation_service->get_observation_form_id( $partnership_id );
-        $activity    = $this->observation_service->get_observation_activity( $partnership_id );
-        $activity_id = $activity ? absint( $activity['activity_id'] ) : 0;
+        // Find the observation component and form ID for this track
+        $form_id      = $this->observation_service->get_observation_form_id( $partnership_id );
+        $component    = $this->observation_service->get_observation_activity( $partnership_id );
+        $component_id = $component ? absint( $component['component_id'] ) : 0;
 
         if ( ! $form_id ) {
             ?>
@@ -612,7 +612,7 @@ class HL_Frontend_Observations {
             'hl_observation_id' => absint( $observation['observation_id'] ),
             'hl_enrollment_id'  => absint( $observation['mentor_enrollment_id'] ),
             'hl_partnership_id'      => $partnership_id,
-            'hl_activity_id'    => $activity_id,
+            'hl_component_id'   => $component_id,
         );
 
         // Render the JFB form

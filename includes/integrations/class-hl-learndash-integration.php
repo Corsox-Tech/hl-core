@@ -68,8 +68,8 @@ class HL_LearnDash_Integration {
      * Handle LearnDash course completion event
      *
      * Finds all HL Core enrollments for the user, checks if any have
-     * learndash_course activities matching the completed course_id,
-     * marks those activities complete, and triggers rollup recomputation.
+     * learndash_course components matching the completed course_id,
+     * marks those components complete, and triggers rollup recomputation.
      */
     public function on_course_completed($data) {
         if (!is_array($data) || empty($data['user']) || empty($data['course'])) {
@@ -96,36 +96,36 @@ class HL_LearnDash_Integration {
 
         $enrollment_ids = wp_list_pluck($enrollments, 'enrollment_id');
 
-        // Find all learndash_course activities across all tracks these enrollments belong to
+        // Find all learndash_course components across all tracks these enrollments belong to
         $partnership_ids = array_unique(wp_list_pluck($enrollments, 'partnership_id'));
         $partnership_placeholders = implode(',', array_fill(0, count($partnership_ids), '%d'));
 
-        $activities = $wpdb->get_results($wpdb->prepare(
-            "SELECT activity_id, partnership_id, pathway_id, external_ref
-             FROM {$wpdb->prefix}hl_activity
-             WHERE activity_type = 'learndash_course'
+        $components = $wpdb->get_results($wpdb->prepare(
+            "SELECT component_id, partnership_id, pathway_id, external_ref
+             FROM {$wpdb->prefix}hl_component
+             WHERE component_type = 'learndash_course'
                AND partnership_id IN ($partnership_placeholders)
                AND status = 'active'",
             $partnership_ids
         ));
 
-        if (empty($activities)) {
+        if (empty($components)) {
             return;
         }
 
-        // Filter to activities that reference this specific course_id
-        $matching_activities = array();
-        foreach ($activities as $activity) {
-            if (empty($activity->external_ref)) {
+        // Filter to components that reference this specific course_id
+        $matching_components = array();
+        foreach ($components as $component) {
+            if (empty($component->external_ref)) {
                 continue;
             }
-            $ref = json_decode($activity->external_ref, true);
+            $ref = json_decode($component->external_ref, true);
             if (is_array($ref) && isset($ref['course_id']) && absint($ref['course_id']) === absint($course_id)) {
-                $matching_activities[] = $activity;
+                $matching_components[] = $component;
             }
         }
 
-        if (empty($matching_activities)) {
+        if (empty($matching_components)) {
             return;
         }
 
@@ -135,22 +135,22 @@ class HL_LearnDash_Integration {
             $partnership_enrollment_map[$enrollment->partnership_id] = $enrollment->enrollment_id;
         }
 
-        // For each matching activity, mark the corresponding enrollment's activity_state as complete
+        // For each matching component, mark the corresponding enrollment's component_state as complete
         $updated_enrollment_ids = array();
-        foreach ($matching_activities as $activity) {
-            $enrollment_id = isset($partnership_enrollment_map[$activity->partnership_id])
-                ? $partnership_enrollment_map[$activity->partnership_id]
+        foreach ($matching_components as $component) {
+            $enrollment_id = isset($partnership_enrollment_map[$component->partnership_id])
+                ? $partnership_enrollment_map[$component->partnership_id]
                 : 0;
 
             if (!$enrollment_id) {
                 continue;
             }
 
-            // Upsert activity state
+            // Upsert component state
             $existing_state_id = $wpdb->get_var($wpdb->prepare(
-                "SELECT state_id FROM {$wpdb->prefix}hl_activity_state
-                 WHERE enrollment_id = %d AND activity_id = %d",
-                $enrollment_id, $activity->activity_id
+                "SELECT state_id FROM {$wpdb->prefix}hl_component_state
+                 WHERE enrollment_id = %d AND component_id = %d",
+                $enrollment_id, $component->component_id
             ));
 
             $state_data = array(
@@ -162,22 +162,22 @@ class HL_LearnDash_Integration {
 
             if ($existing_state_id) {
                 $wpdb->update(
-                    $wpdb->prefix . 'hl_activity_state',
+                    $wpdb->prefix . 'hl_component_state',
                     $state_data,
                     array('state_id' => $existing_state_id)
                 );
             } else {
                 $state_data['enrollment_id'] = $enrollment_id;
-                $state_data['activity_id']   = $activity->activity_id;
-                $wpdb->insert($wpdb->prefix . 'hl_activity_state', $state_data);
+                $state_data['component_id']  = $component->component_id;
+                $wpdb->insert($wpdb->prefix . 'hl_component_state', $state_data);
             }
 
             $updated_enrollment_ids[] = $enrollment_id;
 
             HL_Audit_Service::log('learndash_course.completed', array(
-                'entity_type' => 'activity',
-                'entity_id'   => $activity->activity_id,
-                'partnership_id'    => $activity->partnership_id,
+                'entity_type' => 'component',
+                'entity_id'   => $component->component_id,
+                'partnership_id'    => $component->partnership_id,
                 'after_data'  => array(
                     'user_id'       => $user_id,
                     'course_id'     => $course_id,

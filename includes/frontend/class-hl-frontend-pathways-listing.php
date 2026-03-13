@@ -160,7 +160,7 @@ class HL_Frontend_Pathways_Listing {
                 LEFT JOIN {$prefix}hl_phase ph ON p.phase_id = ph.phase_id
                 LEFT JOIN (
                     SELECT pathway_id, COUNT(*) AS activity_count
-                    FROM {$prefix}hl_activity
+                    FROM {$prefix}hl_component
                     GROUP BY pathway_id
                 ) ac ON p.pathway_id = ac.pathway_id";
 

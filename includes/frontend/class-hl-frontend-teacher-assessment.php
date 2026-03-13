@@ -54,15 +54,15 @@ class HL_Frontend_Teacher_Assessment {
             return ob_get_clean();
         }
 
-        // Determine instance_id from atts, query string, or activity_id
+        // Determine instance_id from atts, query string, or component_id
         $instance_id = 0;
         if ( ! empty( $atts['instance_id'] ) ) {
             $instance_id = absint( $atts['instance_id'] );
         } elseif ( ! empty( $_GET['instance_id'] ) ) {
             $instance_id = absint( $_GET['instance_id'] );
-        } elseif ( ! empty( $_GET['activity_id'] ) ) {
-            // Resolve activity_id to an instance
-            $instance_id = $this->resolve_instance_from_activity( absint( $_GET['activity_id'] ) );
+        } elseif ( ! empty( $_GET['component_id'] ) ) {
+            // Resolve component_id to an instance
+            $instance_id = $this->resolve_instance_from_component( absint( $_GET['component_id'] ) );
         }
 
         // Flash messages from redirect
@@ -87,30 +87,30 @@ class HL_Frontend_Teacher_Assessment {
     }
 
     /**
-     * Resolve an activity_id to an existing (or newly created) instance_id.
+     * Resolve a component_id to an existing (or newly created) instance_id.
      *
-     * Finds the current user's enrollment for the activity's track, determines
-     * phase and instrument from the activity's external_ref, and gets or creates
+     * Finds the current user's enrollment for the component's track, determines
+     * phase and instrument from the component's external_ref, and gets or creates
      * the teacher_assessment_instance.
      *
-     * @param int $activity_id
+     * @param int $component_id
      * @return int Instance ID, or 0 on failure.
      */
-    private function resolve_instance_from_activity( $activity_id ) {
+    private function resolve_instance_from_component( $component_id ) {
         global $wpdb;
 
         $user_id = get_current_user_id();
 
-        // Get the activity with pathway/track context
-        $activity = $wpdb->get_row( $wpdb->prepare(
+        // Get the component with pathway/track context
+        $component = $wpdb->get_row( $wpdb->prepare(
             "SELECT a.*, p.partnership_id
-             FROM {$wpdb->prefix}hl_activity a
+             FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
-             WHERE a.activity_id = %d",
-            $activity_id
+             WHERE a.component_id = %d",
+            $component_id
         ) );
 
-        if ( ! $activity || $activity->activity_type !== 'teacher_self_assessment' ) {
+        if ( ! $component || $component->component_type !== 'teacher_self_assessment' ) {
             return 0;
         }
 
@@ -119,7 +119,7 @@ class HL_Frontend_Teacher_Assessment {
             "SELECT * FROM {$wpdb->prefix}hl_enrollment
              WHERE partnership_id = %d AND user_id = %d AND status = 'active'
              LIMIT 1",
-            $activity->partnership_id, $user_id
+            $component->partnership_id, $user_id
         ) );
 
         if ( ! $enrollment ) {
@@ -127,35 +127,35 @@ class HL_Frontend_Teacher_Assessment {
         }
 
         // Parse external_ref for phase and instrument
-        $ref = json_decode( $activity->external_ref, true );
+        $ref = json_decode( $component->external_ref, true );
         $phase = isset( $ref['phase'] ) ? $ref['phase'] : 'pre';
         $instrument_id = isset( $ref['teacher_instrument_id'] ) ? absint( $ref['teacher_instrument_id'] ) : null;
 
         // Look for existing instance
         $instance_id = $wpdb->get_var( $wpdb->prepare(
             "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
-             WHERE enrollment_id = %d AND activity_id = %d
+             WHERE enrollment_id = %d AND component_id = %d
              LIMIT 1",
-            $enrollment->enrollment_id, $activity_id
+            $enrollment->enrollment_id, $component_id
         ) );
 
         if ( $instance_id ) {
             return absint( $instance_id );
         }
 
-        // Also check by enrollment + track + phase (legacy instances without activity_id)
+        // Also check by enrollment + track + phase (legacy instances without component_id)
         $instance_id = $wpdb->get_var( $wpdb->prepare(
             "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
              WHERE enrollment_id = %d AND partnership_id = %d AND phase = %s
              LIMIT 1",
-            $enrollment->enrollment_id, $activity->partnership_id, $phase
+            $enrollment->enrollment_id, $component->partnership_id, $phase
         ) );
 
         if ( $instance_id ) {
-            // Link existing instance to this activity
+            // Link existing instance to this component
             $wpdb->update(
                 $wpdb->prefix . 'hl_teacher_assessment_instance',
-                array( 'activity_id' => $activity_id ),
+                array( 'component_id' => $component_id ),
                 array( 'instance_id' => $instance_id )
             );
             return absint( $instance_id );
@@ -163,11 +163,11 @@ class HL_Frontend_Teacher_Assessment {
 
         // Create new instance
         $result = $this->assessment_service->create_teacher_assessment_instance( array(
-            'partnership_id'     => $activity->partnership_id,
+            'partnership_id'     => $component->partnership_id,
             'enrollment_id' => $enrollment->enrollment_id,
             'phase'         => $phase,
             'instrument_id' => $instrument_id,
-            'activity_id'   => $activity_id,
+            'component_id'  => $component_id,
         ) );
 
         return is_wp_error( $result ) ? 0 : absint( $result );
@@ -514,16 +514,16 @@ class HL_Frontend_Teacher_Assessment {
     private function build_program_back_url( $instance ) {
         global $wpdb;
 
-        $activity_id   = isset( $instance['activity_id'] ) ? absint( $instance['activity_id'] ) : 0;
+        $component_id  = isset( $instance['component_id'] ) ? absint( $instance['component_id'] ) : 0;
         $enrollment_id = isset( $instance['enrollment_id'] ) ? absint( $instance['enrollment_id'] ) : 0;
 
-        if ( ! $activity_id || ! $enrollment_id ) {
+        if ( ! $component_id || ! $enrollment_id ) {
             return '';
         }
 
         $pathway_id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT pathway_id FROM {$wpdb->prefix}hl_activity WHERE activity_id = %d",
-            $activity_id
+            "SELECT pathway_id FROM {$wpdb->prefix}hl_component WHERE component_id = %d",
+            $component_id
         ) );
 
         if ( ! $pathway_id ) {
