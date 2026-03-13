@@ -1,12 +1,12 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-class HL_Activity {
-    public $activity_id;
-    public $activity_uuid;
+class HL_Component {
+    public $component_id;
+    public $component_uuid;
     public $partnership_id;
     public $pathway_id;
-    public $activity_type;
+    public $component_type;
     public $title;
     public $description;
     public $ordering_hint;

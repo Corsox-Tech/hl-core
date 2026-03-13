@@ -22,3 +22,4 @@
 | A-CLEANUP | Frontend + integrations stale track refs | 2026-03-13 | 23 files | Bulk rename track→partnership in all frontend page classes, shortcodes, instrument renderer, and LearnDash integration; 252+ lines changed |
 | A-CLEANUP2 | CLI scripts stale track refs | 2026-03-13 | 5 files | provision-test-teachers, provision-test-users, send-test-emails, send-maria-email, send-test-emails-v2 |
 | B1 | DB migration activity→component | 2026-03-13 | 1 file | 6 table renames + FK columns |
+| B2 | Domain models & repos activity→component | 2026-03-13 | 3 files | HL_Activity→HL_Component, HL_Activity_Repository→HL_Component_Repository, hl-core.php require paths |
