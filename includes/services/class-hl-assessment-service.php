@@ -75,7 +75,7 @@ class HL_Assessment_Service {
             'instance_uuid'      => HL_DB_Utils::generate_uuid(),
             'partnership_id'          => absint($data['partnership_id']),
             'enrollment_id'      => absint($data['enrollment_id']),
-            'activity_id'        => !empty($data['activity_id']) ? absint($data['activity_id']) : null,
+            'component_id'        => !empty($data['component_id']) ? absint($data['component_id']) : null,
             'phase'              => sanitize_text_field($data['phase']),
             'instrument_id'      => !empty($data['instrument_id']) ? absint($data['instrument_id']) : null,
             'instrument_version' => !empty($data['instrument_version']) ? sanitize_text_field($data['instrument_version']) : null,
@@ -286,7 +286,7 @@ class HL_Assessment_Service {
         ) );
 
         if ( ! $is_draft ) {
-            $this->update_teacher_assessment_activity_state( $instance );
+            $this->update_teacher_assessment_component_state( $instance );
         }
 
         return true;
@@ -325,31 +325,31 @@ class HL_Assessment_Service {
      *
      * @param array $instance Instance row as associative array.
      */
-    private function update_teacher_assessment_activity_state( $instance ) {
+    private function update_teacher_assessment_component_state( $instance ) {
         global $wpdb;
 
         $enrollment_id = absint( $instance['enrollment_id'] );
         $partnership_id     = absint( $instance['partnership_id'] );
         $phase         = $instance['phase'];
 
-        // Find teacher_self_assessment activities in this partnership
-        $activities = $wpdb->get_results( $wpdb->prepare(
-            "SELECT a.activity_id, a.external_ref FROM {$wpdb->prefix}hl_activity a
+        // Find teacher_self_assessment components in this partnership
+        $components = $wpdb->get_results( $wpdb->prepare(
+            "SELECT a.component_id, a.external_ref FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
              WHERE p.partnership_id = %d
-               AND a.activity_type = 'teacher_self_assessment'
+               AND a.component_type = 'teacher_self_assessment'
                AND a.status = 'active'",
             $partnership_id
         ) );
 
-        if ( empty( $activities ) ) {
+        if ( empty( $components ) ) {
             return;
         }
 
         $now = current_time( 'mysql' );
 
-        foreach ( $activities as $activity ) {
-            $ref = json_decode( $activity->external_ref, true );
+        foreach ( $components as $component ) {
+            $ref = json_decode( $component->external_ref, true );
             if ( ! is_array( $ref ) ) {
                 continue;
             }
@@ -363,9 +363,9 @@ class HL_Assessment_Service {
             }
 
             $existing = $wpdb->get_var( $wpdb->prepare(
-                "SELECT state_id FROM {$wpdb->prefix}hl_activity_state
-                 WHERE enrollment_id = %d AND activity_id = %d",
-                $enrollment_id, $activity->activity_id
+                "SELECT state_id FROM {$wpdb->prefix}hl_component_state
+                 WHERE enrollment_id = %d AND component_id = %d",
+                $enrollment_id, $component->component_id
             ) );
 
             $state_data = array(
@@ -377,14 +377,14 @@ class HL_Assessment_Service {
 
             if ( $existing ) {
                 $wpdb->update(
-                    $wpdb->prefix . 'hl_activity_state',
+                    $wpdb->prefix . 'hl_component_state',
                     $state_data,
                     array( 'state_id' => $existing )
                 );
             } else {
                 $state_data['enrollment_id'] = $enrollment_id;
-                $state_data['activity_id']   = $activity->activity_id;
-                $wpdb->insert( $wpdb->prefix . 'hl_activity_state', $state_data );
+                $state_data['component_id']   = $component->component_id;
+                $wpdb->insert( $wpdb->prefix . 'hl_component_state', $state_data );
             }
         }
 
@@ -587,7 +587,7 @@ class HL_Assessment_Service {
             ));
 
             // Update activity state for this phase
-            $this->update_child_assessment_activity_state( $instance );
+            $this->update_child_assessment_component_state( $instance );
         }
 
         return true;
@@ -601,36 +601,36 @@ class HL_Assessment_Service {
      *
      * @param array $instance Instance row as associative array.
      */
-    private function update_child_assessment_activity_state( $instance ) {
+    private function update_child_assessment_component_state( $instance ) {
         global $wpdb;
 
         $enrollment_id = absint( $instance['enrollment_id'] );
         $partnership_id      = absint( $instance['partnership_id'] );
         $phase         = $instance['phase'];
 
-        // Find child_assessment activities in this partnership
-        $activities = $wpdb->get_results( $wpdb->prepare(
-            "SELECT a.activity_id, a.external_ref FROM {$wpdb->prefix}hl_activity a
+        // Find child_assessment components in this partnership
+        $components = $wpdb->get_results( $wpdb->prepare(
+            "SELECT a.component_id, a.external_ref FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
              WHERE p.partnership_id = %d
-               AND a.activity_type = 'child_assessment'
+               AND a.component_type = 'child_assessment'
                AND a.status = 'active'",
             $partnership_id
         ) );
 
-        if ( empty( $activities ) ) {
+        if ( empty( $components ) ) {
             return;
         }
 
         $now = current_time( 'mysql' );
 
-        foreach ( $activities as $activity ) {
-            $ref = json_decode( $activity->external_ref, true );
+        foreach ( $components as $component ) {
+            $ref = json_decode( $component->external_ref, true );
             if ( ! is_array( $ref ) ) {
                 continue;
             }
 
-            // Only update the activity whose phase matches this instance
+            // Only update the component whose phase matches this instance
             if ( isset( $ref['phase'] ) && $ref['phase'] !== $phase ) {
                 continue;
             }
@@ -640,9 +640,9 @@ class HL_Assessment_Service {
             $status      = $is_complete ? 'complete' : 'not_started';
 
             $existing = $wpdb->get_var( $wpdb->prepare(
-                "SELECT state_id FROM {$wpdb->prefix}hl_activity_state
-                 WHERE enrollment_id = %d AND activity_id = %d",
-                $enrollment_id, $activity->activity_id
+                "SELECT state_id FROM {$wpdb->prefix}hl_component_state
+                 WHERE enrollment_id = %d AND component_id = %d",
+                $enrollment_id, $component->component_id
             ) );
 
             $state_data = array(
@@ -654,14 +654,14 @@ class HL_Assessment_Service {
 
             if ( $existing ) {
                 $wpdb->update(
-                    $wpdb->prefix . 'hl_activity_state',
+                    $wpdb->prefix . 'hl_component_state',
                     $state_data,
                     array( 'state_id' => $existing )
                 );
             } else {
                 $state_data['enrollment_id'] = $enrollment_id;
-                $state_data['activity_id']   = $activity->activity_id;
-                $wpdb->insert( $wpdb->prefix . 'hl_activity_state', $state_data );
+                $state_data['component_id']   = $component->component_id;
+                $wpdb->insert( $wpdb->prefix . 'hl_component_state', $state_data );
             }
         }
 
@@ -720,20 +720,20 @@ class HL_Assessment_Service {
         ) );
 
         if ( ! $is_draft ) {
-            $this->update_child_assessment_activity_state( $instance );
+            $this->update_child_assessment_component_state( $instance );
         }
 
         return true;
     }
 
     /**
-     * Get a child assessment instance by activity_id and enrollment.
+     * Get a child assessment instance by component_id and enrollment.
      *
-     * @param int $activity_id
+     * @param int $component_id
      * @param int $enrollment_id
      * @return array|null
      */
-    public function get_child_assessment_by_activity( $activity_id, $enrollment_id ) {
+    public function get_child_assessment_by_component( $component_id, $enrollment_id ) {
         global $wpdb;
         return $wpdb->get_row( $wpdb->prepare(
             "SELECT cai.*, u.display_name, u.user_email, e.user_id, t.partnership_name
@@ -741,9 +741,9 @@ class HL_Assessment_Service {
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$wpdb->prefix}hl_partnership t ON cai.partnership_id = t.partnership_id
-             WHERE cai.activity_id = %d AND cai.enrollment_id = %d
+             WHERE cai.component_id = %d AND cai.enrollment_id = %d
              LIMIT 1",
-            $activity_id, $enrollment_id
+            $component_id, $enrollment_id
         ), ARRAY_A );
     }
 

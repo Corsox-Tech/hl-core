@@ -4,11 +4,11 @@ if (!defined('ABSPATH')) exit;
 class HL_Pathway_Service {
 
     private $pathway_repo;
-    private $activity_repo;
+    private $component_repo;
 
     public function __construct() {
         $this->pathway_repo = new HL_Pathway_Repository();
-        $this->activity_repo = new HL_Activity_Repository();
+        $this->component_repo = new HL_Component_Repository();
     }
 
     /**
@@ -66,12 +66,12 @@ class HL_Pathway_Service {
         return $this->pathway_repo->delete($pathway_id);
     }
 
-    public function get_activities($pathway_id) {
-        return $this->activity_repo->get_by_pathway($pathway_id);
+    public function get_components($pathway_id) {
+        return $this->component_repo->get_by_pathway($pathway_id);
     }
 
-    public function create_activity($data) {
-        if (empty($data['title']) || empty($data['pathway_id']) || empty($data['activity_type'])) {
+    public function create_component($data) {
+        if (empty($data['title']) || empty($data['pathway_id']) || empty($data['component_type'])) {
             return new WP_Error('missing_fields', __('Title, pathway, and type are required.', 'hl-core'));
         }
 
@@ -83,15 +83,15 @@ class HL_Pathway_Service {
             }
         }
 
-        return $this->activity_repo->create($data);
+        return $this->component_repo->create($data);
     }
 
-    public function update_activity($activity_id, $data) {
-        return $this->activity_repo->update($activity_id, $data);
+    public function update_component($component_id, $data) {
+        return $this->component_repo->update($component_id, $data);
     }
 
-    public function delete_activity($activity_id) {
-        return $this->activity_repo->delete($activity_id);
+    public function delete_component($component_id) {
+        return $this->component_repo->delete($component_id);
     }
 
     /**
@@ -176,79 +176,79 @@ class HL_Pathway_Service {
             return new WP_Error('insert_failed', __('Failed to create cloned pathway.', 'hl-core'));
         }
 
-        // 3. Clone activities — build old→new activity ID map.
-        $activities = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$prefix}hl_activity WHERE pathway_id = %d ORDER BY ordering_hint ASC, activity_id ASC",
+        // 3. Clone components — build old→new component ID map.
+        $components = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$prefix}hl_component WHERE pathway_id = %d ORDER BY ordering_hint ASC, component_id ASC",
             $source_pathway_id
         ), ARRAY_A);
 
-        $activity_id_map = array(); // old_id => new_id
+        $component_id_map = array(); // old_id => new_id
 
-        foreach ($activities as $act) {
-            $old_id = $act['activity_id'];
+        foreach ($components as $comp) {
+            $old_id = $comp['component_id'];
 
-            $new_act = array(
-                'activity_uuid' => HL_DB_Utils::generate_uuid(),
+            $new_comp = array(
+                'component_uuid' => HL_DB_Utils::generate_uuid(),
                 'partnership_id'     => absint($target_partnership_id),
                 'pathway_id'    => $new_pathway_id,
-                'activity_type' => $act['activity_type'],
-                'title'         => $act['title'],
-                'description'   => $act['description'],
-                'ordering_hint' => $act['ordering_hint'],
-                'weight'        => $act['weight'],
-                'external_ref'  => $act['external_ref'],
-                'visibility'    => $act['visibility'],
+                'component_type' => $comp['component_type'],
+                'title'         => $comp['title'],
+                'description'   => $comp['description'],
+                'ordering_hint' => $comp['ordering_hint'],
+                'weight'        => $comp['weight'],
+                'external_ref'  => $comp['external_ref'],
+                'visibility'    => $comp['visibility'],
                 'status'        => 'active',
             );
 
-            $wpdb->insert("{$prefix}hl_activity", $new_act);
-            $activity_id_map[$old_id] = $wpdb->insert_id;
+            $wpdb->insert("{$prefix}hl_component", $new_comp);
+            $component_id_map[$old_id] = $wpdb->insert_id;
         }
 
-        // 4. Clone prerequisite groups and items (remapping activity IDs).
-        foreach ($activity_id_map as $old_act_id => $new_act_id) {
+        // 4. Clone prerequisite groups and items (remapping component IDs).
+        foreach ($component_id_map as $old_comp_id => $new_comp_id) {
             $groups = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$prefix}hl_activity_prereq_group WHERE activity_id = %d",
-                $old_act_id
+                "SELECT * FROM {$prefix}hl_component_prereq_group WHERE component_id = %d",
+                $old_comp_id
             ), ARRAY_A);
 
             foreach ($groups as $grp) {
-                $wpdb->insert("{$prefix}hl_activity_prereq_group", array(
-                    'activity_id' => $new_act_id,
+                $wpdb->insert("{$prefix}hl_component_prereq_group", array(
+                    'component_id' => $new_comp_id,
                     'prereq_type' => $grp['prereq_type'],
                     'n_required'  => $grp['n_required'],
                 ));
                 $new_group_id = $wpdb->insert_id;
 
                 $items = $wpdb->get_results($wpdb->prepare(
-                    "SELECT * FROM {$prefix}hl_activity_prereq_item WHERE group_id = %d",
+                    "SELECT * FROM {$prefix}hl_component_prereq_item WHERE group_id = %d",
                     $grp['group_id']
                 ), ARRAY_A);
 
                 foreach ($items as $item) {
-                    $old_prereq_id = $item['prerequisite_activity_id'];
-                    $new_prereq_id = isset($activity_id_map[$old_prereq_id]) ? $activity_id_map[$old_prereq_id] : 0;
+                    $old_prereq_id = $item['prerequisite_component_id'];
+                    $new_prereq_id = isset($component_id_map[$old_prereq_id]) ? $component_id_map[$old_prereq_id] : 0;
 
                     if ($new_prereq_id) {
-                        $wpdb->insert("{$prefix}hl_activity_prereq_item", array(
+                        $wpdb->insert("{$prefix}hl_component_prereq_item", array(
                             'group_id'                 => $new_group_id,
-                            'prerequisite_activity_id' => $new_prereq_id,
+                            'prerequisite_component_id' => $new_prereq_id,
                         ));
                     }
                 }
             }
         }
 
-        // 5. Clone drip rules (remapping activity IDs, nulling fixed_date).
-        foreach ($activity_id_map as $old_act_id => $new_act_id) {
+        // 5. Clone drip rules (remapping component IDs, nulling fixed_date).
+        foreach ($component_id_map as $old_comp_id => $new_comp_id) {
             $rules = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$prefix}hl_activity_drip_rule WHERE activity_id = %d",
-                $old_act_id
+                "SELECT * FROM {$prefix}hl_component_drip_rule WHERE component_id = %d",
+                $old_comp_id
             ), ARRAY_A);
 
             foreach ($rules as $rule) {
                 $new_rule = array(
-                    'activity_id' => $new_act_id,
+                    'component_id' => $new_comp_id,
                     'drip_type'   => $rule['drip_type'],
                 );
 
@@ -256,12 +256,12 @@ class HL_Pathway_Service {
                     // NULL the date so admin must set new dates.
                     $new_rule['release_at_date'] = null;
                 } elseif ($rule['drip_type'] === 'after_completion_delay') {
-                    $old_base = absint($rule['base_activity_id']);
-                    $new_rule['base_activity_id'] = isset($activity_id_map[$old_base]) ? $activity_id_map[$old_base] : null;
+                    $old_base = absint($rule['base_component_id']);
+                    $new_rule['base_component_id'] = isset($component_id_map[$old_base]) ? $component_id_map[$old_base] : null;
                     $new_rule['delay_days'] = $rule['delay_days'];
                 }
 
-                $wpdb->insert("{$prefix}hl_activity_drip_rule", $new_rule);
+                $wpdb->insert("{$prefix}hl_component_drip_rule", $new_rule);
             }
         }
 

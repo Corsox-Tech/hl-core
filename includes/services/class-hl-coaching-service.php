@@ -166,7 +166,7 @@ class HL_Coaching_Service {
 
         // If attended, trigger activity state updates.
         if ($new_status === 'attended') {
-            $this->update_coaching_activity_state(
+            $this->update_coaching_component_state(
                 $session['mentor_enrollment_id'],
                 $session['partnership_id']
             );
@@ -305,7 +305,7 @@ class HL_Coaching_Service {
             ));
 
             if ($session) {
-                $this->update_coaching_activity_state($session->mentor_enrollment_id, $session->partnership_id);
+                $this->update_coaching_component_state($session->mentor_enrollment_id, $session->partnership_id);
             }
         }
 
@@ -324,19 +324,19 @@ class HL_Coaching_Service {
      * @param int $enrollment_id
      * @param int $partnership_id
      */
-    private function update_coaching_activity_state($enrollment_id, $partnership_id) {
+    private function update_coaching_component_state($enrollment_id, $partnership_id) {
         global $wpdb;
 
-        $activities = $wpdb->get_results($wpdb->prepare(
-            "SELECT a.activity_id FROM {$wpdb->prefix}hl_activity a
+        $components = $wpdb->get_results($wpdb->prepare(
+            "SELECT a.component_id FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
              WHERE p.partnership_id = %d
-               AND a.activity_type = 'coaching_session_attendance'
+               AND a.component_type = 'coaching_session_attendance'
                AND a.status = 'active'",
             $partnership_id
         ));
 
-        if (empty($activities)) {
+        if (empty($components)) {
             return;
         }
 
@@ -350,14 +350,14 @@ class HL_Coaching_Service {
 
         $now = current_time('mysql');
 
-        foreach ($activities as $activity) {
+        foreach ($components as $component) {
             $percent = ($attended_count > 0) ? 100 : 0;
             $status  = ($attended_count > 0) ? 'complete' : 'not_started';
 
             $existing = $wpdb->get_var($wpdb->prepare(
-                "SELECT state_id FROM {$wpdb->prefix}hl_activity_state
-                 WHERE enrollment_id = %d AND activity_id = %d",
-                $enrollment_id, $activity->activity_id
+                "SELECT state_id FROM {$wpdb->prefix}hl_component_state
+                 WHERE enrollment_id = %d AND component_id = %d",
+                $enrollment_id, $component->component_id
             ));
 
             $state_data = array(
@@ -369,14 +369,14 @@ class HL_Coaching_Service {
 
             if ($existing) {
                 $wpdb->update(
-                    $wpdb->prefix . 'hl_activity_state',
+                    $wpdb->prefix . 'hl_component_state',
                     $state_data,
                     array('state_id' => $existing)
                 );
             } else {
                 $state_data['enrollment_id'] = $enrollment_id;
-                $state_data['activity_id']   = $activity->activity_id;
-                $wpdb->insert($wpdb->prefix . 'hl_activity_state', $state_data);
+                $state_data['component_id']   = $component->component_id;
+                $wpdb->insert($wpdb->prefix . 'hl_component_state', $state_data);
             }
         }
 
@@ -571,7 +571,7 @@ class HL_Coaching_Service {
                         || ($attendance_changed && ($update_data['attendance_status'] ?? '') === 'attended');
 
         if ($became_attended) {
-            $this->update_coaching_activity_state($before['mentor_enrollment_id'], $before['partnership_id']);
+            $this->update_coaching_component_state($before['mentor_enrollment_id'], $before['partnership_id']);
         }
 
         HL_Audit_Service::log('coaching_session.updated', array(

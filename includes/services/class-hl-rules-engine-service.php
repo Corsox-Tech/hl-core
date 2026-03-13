@@ -4,18 +4,18 @@ if (!defined('ABSPATH')) exit;
 class HL_Rules_Engine_Service {
 
     /**
-     * Compute activity availability for a given enrollment + activity
+     * Compute component availability for a given enrollment + component
      *
      * @return array {availability_status, locked_reason, blockers, next_available_at}
      */
-    public function compute_availability($enrollment_id, $activity_id) {
+    public function compute_availability($enrollment_id, $component_id) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
         // Check if already completed
         $state = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$prefix}hl_activity_state WHERE enrollment_id = %d AND activity_id = %d",
-            $enrollment_id, $activity_id
+            "SELECT * FROM {$prefix}hl_component_state WHERE enrollment_id = %d AND component_id = %d",
+            $enrollment_id, $component_id
         ), ARRAY_A);
 
         if ($state && $state['completion_status'] === 'complete') {
@@ -29,8 +29,8 @@ class HL_Rules_Engine_Service {
 
         // Check overrides (exempt = completed, manual_unlock = bypass drip)
         $override = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$prefix}hl_activity_override WHERE enrollment_id = %d AND activity_id = %d ORDER BY created_at DESC LIMIT 1",
-            $enrollment_id, $activity_id
+            "SELECT * FROM {$prefix}hl_component_override WHERE enrollment_id = %d AND component_id = %d ORDER BY created_at DESC LIMIT 1",
+            $enrollment_id, $component_id
         ), ARRAY_A);
 
         if ($override && $override['override_type'] === 'exempt') {
@@ -47,7 +47,7 @@ class HL_Rules_Engine_Service {
 
         // Check prerequisites (unless bypassed by grace_unlock)
         if (!$bypass_prereq) {
-            $prereq_result = $this->check_prerequisites($enrollment_id, $activity_id);
+            $prereq_result = $this->check_prerequisites($enrollment_id, $component_id);
             if (!$prereq_result['satisfied']) {
                 return array(
                     'availability_status' => 'locked',
@@ -62,7 +62,7 @@ class HL_Rules_Engine_Service {
 
         // Check drip rules (unless bypassed by manual_unlock)
         if (!$bypass_drip) {
-            $drip_result = $this->check_drip_rules($enrollment_id, $activity_id);
+            $drip_result = $this->check_drip_rules($enrollment_id, $component_id);
             if (!$drip_result['satisfied']) {
                 return array(
                     'availability_status' => 'locked',
@@ -81,13 +81,13 @@ class HL_Rules_Engine_Service {
         );
     }
 
-    private function check_prerequisites($enrollment_id, $activity_id) {
+    private function check_prerequisites($enrollment_id, $component_id) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
         $groups = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$prefix}hl_activity_prereq_group WHERE activity_id = %d",
-            $activity_id
+            "SELECT * FROM {$prefix}hl_component_prereq_group WHERE component_id = %d",
+            $component_id
         ), ARRAY_A);
 
         if (empty($groups)) {
@@ -97,7 +97,7 @@ class HL_Rules_Engine_Service {
         // All groups must be satisfied (AND across groups).
         foreach ($groups as $group) {
             $items = $wpdb->get_results($wpdb->prepare(
-                "SELECT prerequisite_activity_id FROM {$prefix}hl_activity_prereq_item WHERE group_id = %d",
+                "SELECT prerequisite_component_id FROM {$prefix}hl_component_prereq_item WHERE group_id = %d",
                 $group['group_id']
             ), ARRAY_A);
 
@@ -111,14 +111,14 @@ class HL_Rules_Engine_Service {
 
             foreach ($items as $item) {
                 $prereq_state = $wpdb->get_row($wpdb->prepare(
-                    "SELECT completion_status FROM {$prefix}hl_activity_state WHERE enrollment_id = %d AND activity_id = %d",
-                    $enrollment_id, $item['prerequisite_activity_id']
+                    "SELECT completion_status FROM {$prefix}hl_component_state WHERE enrollment_id = %d AND component_id = %d",
+                    $enrollment_id, $item['prerequisite_component_id']
                 ), ARRAY_A);
 
                 if ($prereq_state && $prereq_state['completion_status'] === 'complete') {
                     $completed_count++;
                 } else {
-                    $group_blockers[] = $item['prerequisite_activity_id'];
+                    $group_blockers[] = $item['prerequisite_component_id'];
                 }
             }
 
@@ -152,13 +152,13 @@ class HL_Rules_Engine_Service {
         return array('satisfied' => true, 'blockers' => array());
     }
 
-    private function check_drip_rules($enrollment_id, $activity_id) {
+    private function check_drip_rules($enrollment_id, $component_id) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
         $rules = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$prefix}hl_activity_drip_rule WHERE activity_id = %d",
-            $activity_id
+            "SELECT * FROM {$prefix}hl_component_drip_rule WHERE component_id = %d",
+            $component_id
         ), ARRAY_A);
 
         if (empty($rules)) {
@@ -175,10 +175,10 @@ class HL_Rules_Engine_Service {
                 }
             }
 
-            if ($rule['drip_type'] === 'after_completion_delay' && $rule['base_activity_id']) {
+            if ($rule['drip_type'] === 'after_completion_delay' && $rule['base_component_id']) {
                 $base_state = $wpdb->get_row($wpdb->prepare(
-                    "SELECT completed_at FROM {$prefix}hl_activity_state WHERE enrollment_id = %d AND activity_id = %d AND completion_status = 'complete'",
-                    $enrollment_id, $rule['base_activity_id']
+                    "SELECT completed_at FROM {$prefix}hl_component_state WHERE enrollment_id = %d AND component_id = %d AND completion_status = 'complete'",
+                    $enrollment_id, $rule['base_component_id']
                 ), ARRAY_A);
 
                 if (!$base_state || !$base_state['completed_at']) {
@@ -207,55 +207,55 @@ class HL_Rules_Engine_Service {
      * then runs DFS cycle detection.
      *
      * @param int   $pathway_id         The pathway to scope the check to.
-     * @param int   $activity_id        The activity being edited.
-     * @param int[] $proposed_prereq_ids All prerequisite activity IDs proposed for this activity.
+     * @param int   $component_id        The component being edited.
+     * @param int[] $proposed_prereq_ids All prerequisite component IDs proposed for this component.
      * @return array { 'valid' => bool, 'cycle' => int[]|null }
      */
-    public function validate_no_cycles($pathway_id, $activity_id, $proposed_prereq_ids) {
+    public function validate_no_cycles($pathway_id, $component_id, $proposed_prereq_ids) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        // Get all activities in this pathway.
-        $activity_ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT activity_id FROM {$prefix}hl_activity WHERE pathway_id = %d",
+        // Get all components in this pathway.
+        $component_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT component_id FROM {$prefix}hl_component WHERE pathway_id = %d",
             $pathway_id
         ));
 
-        if (empty($activity_ids)) {
+        if (empty($component_ids)) {
             return array('valid' => true, 'cycle' => null);
         }
 
-        $in_ids = implode(',', array_map('intval', $activity_ids));
+        $in_ids = implode(',', array_map('intval', $component_ids));
 
-        // Build adjacency list: activity_id => [prerequisite_activity_ids]
-        // This means: activity_id depends on (has edges TO) its prerequisites.
+        // Build adjacency list: component_id => [prerequisite_component_ids]
+        // This means: component_id depends on (has edges TO) its prerequisites.
         // A cycle means A depends on B depends on ... depends on A.
         $adj = array();
-        foreach ($activity_ids as $aid) {
+        foreach ($component_ids as $aid) {
             $adj[(int) $aid] = array();
         }
 
-        // Load all existing prereq items for activities in this pathway.
+        // Load all existing prereq items for components in this pathway.
         $rows = $wpdb->get_results(
-            "SELECT g.activity_id, i.prerequisite_activity_id
-             FROM {$prefix}hl_activity_prereq_group g
-             INNER JOIN {$prefix}hl_activity_prereq_item i ON g.group_id = i.group_id
-             WHERE g.activity_id IN ({$in_ids})",
+            "SELECT g.component_id, i.prerequisite_component_id
+             FROM {$prefix}hl_component_prereq_group g
+             INNER JOIN {$prefix}hl_component_prereq_item i ON g.group_id = i.group_id
+             WHERE g.component_id IN ({$in_ids})",
             ARRAY_A
         );
 
         foreach ($rows as $row) {
-            $from = (int) $row['activity_id'];
-            $to   = (int) $row['prerequisite_activity_id'];
-            // Skip edges for the activity being edited (we'll replace them).
-            if ($from === (int) $activity_id) {
+            $from = (int) $row['component_id'];
+            $to   = (int) $row['prerequisite_component_id'];
+            // Skip edges for the component being edited (we'll replace them).
+            if ($from === (int) $component_id) {
                 continue;
             }
             $adj[$from][] = $to;
         }
 
-        // Set the proposed edges for the target activity.
-        $adj[(int) $activity_id] = array_map('intval', $proposed_prereq_ids);
+        // Set the proposed edges for the target component.
+        $adj[(int) $component_id] = array_map('intval', $proposed_prereq_ids);
 
         // Ensure all referenced nodes exist in the adjacency list (cross-pathway prereqs are leaf nodes).
         foreach ($proposed_prereq_ids as $pid) {

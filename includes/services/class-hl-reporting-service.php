@@ -61,15 +61,15 @@ class HL_Reporting_Service {
             );
         }
 
-        // Get all active activities for this pathway
-        $activities = $wpdb->get_results($wpdb->prepare(
-            "SELECT activity_id, activity_type, weight, external_ref
-             FROM {$wpdb->prefix}hl_activity
+        // Get all active components for this pathway
+        $components = $wpdb->get_results($wpdb->prepare(
+            "SELECT component_id, component_type, weight, external_ref
+             FROM {$wpdb->prefix}hl_component
              WHERE pathway_id = %d AND status = 'active'",
             $enrollment->assigned_pathway_id
         ));
 
-        if (empty($activities)) {
+        if (empty($components)) {
             $this->upsert_rollup($enrollment_id, $enrollment->partnership_id, 0.0, 0.0);
             return array(
                 'enrollment_id'             => $enrollment_id,
@@ -79,39 +79,39 @@ class HL_Reporting_Service {
             );
         }
 
-        // Get all activity states for this enrollment (keyed by activity_id)
-        $activity_ids = wp_list_pluck($activities, 'activity_id');
-        $id_placeholders = implode(',', array_fill(0, count($activity_ids), '%d'));
+        // Get all component states for this enrollment (keyed by component_id)
+        $component_ids = wp_list_pluck($components, 'component_id');
+        $id_placeholders = implode(',', array_fill(0, count($component_ids), '%d'));
 
         $states = $wpdb->get_results($wpdb->prepare(
-            "SELECT activity_id, completion_percent, completion_status
-             FROM {$wpdb->prefix}hl_activity_state
-             WHERE enrollment_id = %d AND activity_id IN ($id_placeholders)",
-            array_merge(array($enrollment_id), $activity_ids)
+            "SELECT component_id, completion_percent, completion_status
+             FROM {$wpdb->prefix}hl_component_state
+             WHERE enrollment_id = %d AND component_id IN ($id_placeholders)",
+            array_merge(array($enrollment_id), $component_ids)
         ));
 
         $state_map = array();
         foreach ($states as $state) {
-            $state_map[$state->activity_id] = $state;
+            $state_map[$state->component_id] = $state;
         }
 
         // Compute weighted average
         $total_weight = 0.0;
         $weighted_sum = 0.0;
 
-        foreach ($activities as $activity) {
-            $weight = floatval($activity->weight);
+        foreach ($components as $component) {
+            $weight = floatval($component->weight);
             if ($weight <= 0) {
                 $weight = 1.0;
             }
             $total_weight += $weight;
 
             $percent = 0;
-            if (isset($state_map[$activity->activity_id])) {
-                $percent = intval($state_map[$activity->activity_id]->completion_percent);
+            if (isset($state_map[$component->component_id])) {
+                $percent = intval($state_map[$component->component_id]->completion_percent);
             } else {
                 // No state record — try to compute for LearnDash courses (live progress)
-                $percent = $this->get_live_activity_percent($activity, $enrollment);
+                $percent = $this->get_live_component_percent($component, $enrollment);
             }
 
             $weighted_sum += $weight * $percent;
@@ -143,9 +143,9 @@ class HL_Reporting_Service {
      * @param object $enrollment Enrollment row
      * @return int Completion percent 0-100
      */
-    private function get_live_activity_percent($activity, $enrollment) {
-        if ($activity->activity_type === 'learndash_course' && !empty($activity->external_ref)) {
-            $ref = json_decode($activity->external_ref, true);
+    private function get_live_component_percent($component, $enrollment) {
+        if ($component->component_type === 'learndash_course' && !empty($component->external_ref)) {
+            $ref = json_decode($component->external_ref, true);
             if (is_array($ref) && !empty($ref['course_id'])) {
                 $ld = HL_LearnDash_Integration::instance();
                 if ($ld->is_active()) {
@@ -288,15 +288,15 @@ class HL_Reporting_Service {
      * @param int $enrollment_id
      * @return array
      */
-    public function get_activity_states($enrollment_id) {
+    public function get_component_states($enrollment_id) {
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT s.*, a.title, a.activity_type, a.weight, a.ordering_hint, a.external_ref
-             FROM {$wpdb->prefix}hl_activity_state s
-             JOIN {$wpdb->prefix}hl_activity a ON s.activity_id = a.activity_id
+            "SELECT s.*, a.title, a.component_type, a.weight, a.ordering_hint, a.external_ref
+             FROM {$wpdb->prefix}hl_component_state s
+             JOIN {$wpdb->prefix}hl_component a ON s.component_id = a.component_id
              WHERE s.enrollment_id = %d
-             ORDER BY a.ordering_hint ASC, a.activity_id ASC",
+             ORDER BY a.ordering_hint ASC, a.component_id ASC",
             $enrollment_id
         ), ARRAY_A) ?: array();
     }
@@ -397,7 +397,7 @@ class HL_Reporting_Service {
      * @param array $enrollment_ids Optional; if empty, gets all active enrollments
      * @return array Keyed by enrollment_id => array of activity states
      */
-    public function get_partnership_activity_detail( $partnership_id, $enrollment_ids = array() ) {
+    public function get_partnership_component_detail( $partnership_id, $enrollment_ids = array() ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -416,18 +416,18 @@ class HL_Reporting_Service {
             return array();
         }
 
-        // Get all active activities for these pathways
+        // Get all active components for these pathways
         $pathway_placeholders = implode( ',', array_fill( 0, count( $pathway_ids ), '%d' ) );
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-        $activities = $wpdb->get_results( $wpdb->prepare(
-            "SELECT activity_id, pathway_id, title, activity_type, weight, ordering_hint, external_ref
-             FROM {$prefix}hl_activity
+        $components = $wpdb->get_results( $wpdb->prepare(
+            "SELECT component_id, pathway_id, title, component_type, weight, ordering_hint, external_ref
+             FROM {$prefix}hl_component
              WHERE pathway_id IN ({$pathway_placeholders}) AND status = 'active'
-             ORDER BY ordering_hint ASC, activity_id ASC",
+             ORDER BY ordering_hint ASC, component_id ASC",
             $pathway_ids
         ), ARRAY_A );
 
-        if ( empty( $activities ) ) {
+        if ( empty( $components ) ) {
             return array();
         }
 
@@ -447,40 +447,40 @@ class HL_Reporting_Service {
         $enrollment_ids = array_map( 'absint', $enrollment_ids );
         $enrollment_placeholders = implode( ',', array_fill( 0, count( $enrollment_ids ), '%d' ) );
 
-        $activity_ids = wp_list_pluck( $activities, 'activity_id' );
-        $activity_placeholders = implode( ',', array_fill( 0, count( $activity_ids ), '%d' ) );
+        $component_ids = wp_list_pluck( $components, 'component_id' );
+        $component_placeholders = implode( ',', array_fill( 0, count( $component_ids ), '%d' ) );
 
-        // Get all activity states for these enrollments and activities
+        // Get all component states for these enrollments and components
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $states = $wpdb->get_results( $wpdb->prepare(
-            "SELECT enrollment_id, activity_id, completion_percent, completion_status, completed_at
-             FROM {$prefix}hl_activity_state
+            "SELECT enrollment_id, component_id, completion_percent, completion_status, completed_at
+             FROM {$prefix}hl_component_state
              WHERE enrollment_id IN ({$enrollment_placeholders})
-             AND activity_id IN ({$activity_placeholders})",
-            array_merge( $enrollment_ids, $activity_ids )
+             AND component_id IN ({$component_placeholders})",
+            array_merge( $enrollment_ids, $component_ids )
         ), ARRAY_A );
 
-        // Build state map keyed by enrollment_id => activity_id
+        // Build state map keyed by enrollment_id => component_id
         $state_map = array();
         foreach ( $states as $state ) {
             $eid = $state['enrollment_id'];
-            $aid = $state['activity_id'];
+            $aid = $state['component_id'];
             $state_map[ $eid ][ $aid ] = $state;
         }
 
-        // Build result keyed by enrollment_id => array of activity data
+        // Build result keyed by enrollment_id => array of component data
         $result = array();
         foreach ( $enrollment_ids as $eid ) {
             $result[ $eid ] = array();
-            foreach ( $activities as $activity ) {
-                $aid = $activity['activity_id'];
+            foreach ( $components as $component ) {
+                $aid = $component['component_id'];
                 $state = isset( $state_map[ $eid ][ $aid ] ) ? $state_map[ $eid ][ $aid ] : null;
                 $result[ $eid ][ $aid ] = array(
-                    'activity_id'        => $aid,
-                    'title'              => $activity['title'],
-                    'activity_type'      => $activity['activity_type'],
-                    'weight'             => $activity['weight'],
-                    'ordering_hint'      => $activity['ordering_hint'],
+                    'component_id'        => $aid,
+                    'title'              => $component['title'],
+                    'component_type'      => $component['component_type'],
+                    'weight'             => $component['weight'],
+                    'ordering_hint'      => $component['ordering_hint'],
                     'completion_percent' => $state ? intval( $state['completion_percent'] ) : 0,
                     'completion_status'  => $state ? $state['completion_status'] : 'not_started',
                     'completed_at'       => $state ? $state['completed_at'] : null,
@@ -588,9 +588,9 @@ class HL_Reporting_Service {
      * Helper used by CSV export to build per-activity columns.
      *
      * @param int $partnership_id
-     * @return array Array of activity rows with: activity_id, title, activity_type, weight, ordering_hint
+     * @return array Array of component rows with: component_id, title, component_type, weight, ordering_hint
      */
-    public function get_partnership_activities( $partnership_id ) {
+    public function get_partnership_components( $partnership_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -600,11 +600,11 @@ class HL_Reporting_Service {
         }
 
         return $wpdb->get_results( $wpdb->prepare(
-            "SELECT a.activity_id, a.title, a.activity_type, a.weight, a.ordering_hint
-             FROM {$prefix}hl_activity a
+            "SELECT a.component_id, a.title, a.component_type, a.weight, a.ordering_hint
+             FROM {$prefix}hl_component a
              INNER JOIN {$prefix}hl_pathway p ON a.pathway_id = p.pathway_id
              WHERE p.partnership_id = %d AND p.active_status = 1 AND a.status = 'active'
-             ORDER BY a.ordering_hint ASC, a.activity_id ASC",
+             ORDER BY a.ordering_hint ASC, a.component_id ASC",
             $partnership_id
         ), ARRAY_A ) ?: array();
     }
@@ -725,15 +725,15 @@ class HL_Reporting_Service {
         $partnership_id   = isset( $filters['partnership_id'] ) ? absint( $filters['partnership_id'] ) : 0;
 
         // Resolve partnership name and code for the export header context
-        $activities     = array();
-        $activity_detail = array();
+        $components     = array();
+        $component_detail = array();
 
         if ( $include_activities && $partnership_id ) {
-            $activities = $this->get_partnership_activities( $partnership_id );
+            $components = $this->get_partnership_components( $partnership_id );
 
-            if ( ! empty( $participants ) && ! empty( $activities ) ) {
+            if ( ! empty( $participants ) && ! empty( $components ) ) {
                 $enrollment_ids = wp_list_pluck( $participants, 'enrollment_id' );
-                $activity_detail = $this->get_partnership_activity_detail( $partnership_id, $enrollment_ids );
+                $component_detail = $this->get_partnership_component_detail( $partnership_id, $enrollment_ids );
             }
         }
 
@@ -746,8 +746,8 @@ class HL_Reporting_Service {
         // Header row
         $header = array( 'Name', 'Email', 'Roles', 'School', 'Team', 'Track Completion %', 'Pathway Completion %' );
         if ( $include_activities ) {
-            foreach ( $activities as $activity ) {
-                $header[] = $activity['title'] . ' (%)';
+            foreach ( $components as $component ) {
+                $header[] = $component['title'] . ' (%)';
             }
         }
         fputcsv( $handle, $header );
@@ -769,10 +769,10 @@ class HL_Reporting_Service {
 
             if ( $include_activities ) {
                 $eid = $row['enrollment_id'];
-                foreach ( $activities as $activity ) {
-                    $aid = $activity['activity_id'];
-                    if ( isset( $activity_detail[ $eid ][ $aid ] ) ) {
-                        $line[] = $activity_detail[ $eid ][ $aid ]['completion_percent'];
+                foreach ( $components as $component ) {
+                    $aid = $component['component_id'];
+                    if ( isset( $component_detail[ $eid ][ $aid ] ) ) {
+                        $line[] = $component_detail[ $eid ][ $aid ]['completion_percent'];
                     } else {
                         $line[] = 0;
                     }

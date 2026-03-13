@@ -350,42 +350,42 @@ class HL_Observation_Service {
     // =========================================================================
 
     /**
-     * Find the observation activity for a given partnership.
+     * Find the observation component for a given partnership.
      *
-     * Queries for an active observation-type activity in the partnership's
-     * pathway. Used to pre-populate the hl_activity_id hidden field
+     * Queries for an active observation-type component in the partnership's
+     * pathway. Used to pre-populate the hl_component_id hidden field
      * when rendering the JFB form.
      *
      * @param int $partnership_id
-     * @return array|null Activity row or null if none found.
+     * @return array|null Component row or null if none found.
      */
-    public function get_observation_activity( $partnership_id ) {
+    public function get_observation_component( $partnership_id ) {
         global $wpdb;
 
         return $wpdb->get_row( $wpdb->prepare(
             "SELECT a.*
-             FROM {$wpdb->prefix}hl_activity a
+             FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
-             WHERE p.partnership_id = %d AND a.activity_type = 'observation' AND a.status = 'active'
+             WHERE p.partnership_id = %d AND a.component_type = 'observation' AND a.status = 'active'
              LIMIT 1",
             $partnership_id
         ), ARRAY_A );
     }
 
     /**
-     * Get the JFB form ID from the observation activity's external_ref.
+     * Get the JFB form ID from the observation component's external_ref.
      *
      * @param int $partnership_id
      * @return int|null JFB form ID, or null if not configured.
      */
     public function get_observation_form_id( $partnership_id ) {
-        $activity = $this->get_observation_activity( $partnership_id );
+        $component = $this->get_observation_component( $partnership_id );
 
-        if ( ! $activity || empty( $activity['external_ref'] ) ) {
+        if ( ! $component || empty( $component['external_ref'] ) ) {
             return null;
         }
 
-        $ref = HL_DB_Utils::json_decode( $activity['external_ref'] );
+        $ref = HL_DB_Utils::json_decode( $component['external_ref'] );
 
         if ( ! empty( $ref['form_id'] ) ) {
             return absint( $ref['form_id'] );
