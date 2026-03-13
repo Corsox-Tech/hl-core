@@ -19,8 +19,8 @@ class HL_Frontend_Program_Page {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Track_Repository */
-    private $track_repo;
+    /** @var HL_Partnership_Repository */
+    private $partnership_repo;
 
     /** @var HL_Pathway_Repository */
     private $pathway_repo;
@@ -47,7 +47,7 @@ class HL_Frontend_Program_Page {
 
     public function __construct() {
         $this->enrollment_repo = new HL_Enrollment_Repository();
-        $this->track_repo     = new HL_Track_Repository();
+        $this->partnership_repo     = new HL_Partnership_Repository();
         $this->pathway_repo    = new HL_Pathway_Repository();
         $this->activity_repo   = new HL_Activity_Repository();
         $this->rules_engine    = new HL_Rules_Engine_Service();
@@ -107,7 +107,7 @@ class HL_Frontend_Program_Page {
             return ob_get_clean();
         }
 
-        $track = $this->track_repo->get_by_id($enrollment->track_id);
+        $partnership = $this->partnership_repo->get_by_id($enrollment->partnership_id);
 
         // Load activities and compute per-activity data.
         $activities = $this->activity_repo->get_by_pathway($pathway->pathway_id);
@@ -201,7 +201,7 @@ class HL_Frontend_Program_Page {
         } elseif ($overall_percent >= 100) {
             $program_status       = __('Completed', 'hl-core');
             $program_status_class = 'hl-badge-completed';
-        } elseif ($track && $track->status === 'paused') {
+        } elseif ($partnership && $partnership->status === 'paused') {
             $program_status       = __('Paused', 'hl-core');
             $program_status_class = 'hl-badge-paused';
         }
@@ -231,8 +231,8 @@ class HL_Frontend_Program_Page {
                     </div>
                 <?php endif; ?>
                 <div class="hl-program-header-info">
-                    <h1 class="hl-track-title"><?php echo esc_html($pathway->pathway_name); ?></h1>
-                    <p class="hl-program-card-track"><?php echo esc_html($track ? $track->track_name : ''); ?></p>
+                    <h1 class="hl-partnership-title"><?php echo esc_html($pathway->pathway_name); ?></h1>
+                    <p class="hl-program-card-partnership"><?php echo esc_html($partnership ? $partnership->partnership_name : ''); ?></p>
                     <?php if (!empty($pathway->description)) : ?>
                         <div class="hl-inline-form-description"><?php echo wp_kses_post($pathway->description); ?></div>
                     <?php endif; ?>
@@ -544,7 +544,7 @@ class HL_Frontend_Program_Page {
         // Get the most relevant session: prefer upcoming scheduled, then most recent.
         $upcoming = $coaching_service->get_upcoming_sessions(
             $enrollment->enrollment_id,
-            $enrollment->track_id
+            $enrollment->partnership_id
         );
 
         if (!empty($upcoming)) {
@@ -571,7 +571,7 @@ class HL_Frontend_Program_Page {
         // Check for recently missed session (past, status = scheduled but datetime < now).
         $past = $coaching_service->get_past_sessions(
             $enrollment->enrollment_id,
-            $enrollment->track_id
+            $enrollment->partnership_id
         );
 
         if (!empty($past)) {
@@ -749,9 +749,9 @@ class HL_Frontend_Program_Page {
         $teacher_rows = $wpdb->get_results($wpdb->prepare(
             "SELECT activity_id, status
              FROM {$wpdb->prefix}hl_teacher_assessment_instance
-             WHERE enrollment_id = %d AND track_id = %d AND activity_id IS NOT NULL",
+             WHERE enrollment_id = %d AND partnership_id = %d AND activity_id IS NOT NULL",
             $enrollment->enrollment_id,
-            $enrollment->track_id
+            $enrollment->partnership_id
         ), ARRAY_A);
         foreach ($teacher_rows as $row) {
             $result['teacher'][(int) $row['activity_id']] = $row['status'];
@@ -762,9 +762,9 @@ class HL_Frontend_Program_Page {
         $children_rows = $wpdb->get_results($wpdb->prepare(
             "SELECT activity_id, status
              FROM {$wpdb->prefix}hl_child_assessment_instance
-             WHERE enrollment_id = %d AND track_id = %d AND activity_id IS NOT NULL",
+             WHERE enrollment_id = %d AND partnership_id = %d AND activity_id IS NOT NULL",
             $enrollment->enrollment_id,
-            $enrollment->track_id
+            $enrollment->partnership_id
         ), ARRAY_A);
 
         $children_by_activity = array();

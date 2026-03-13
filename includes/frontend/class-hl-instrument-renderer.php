@@ -34,7 +34,7 @@ class HL_Instrument_Renderer {
     /** @var array Existing answers keyed by child_id, each containing decoded answers_json. */
     private $existing_answers;
 
-    /** @var array Full instance data (display_name, school_name, classroom_name, phase, track_name, etc.). */
+    /** @var array Full instance data (display_name, school_name, classroom_name, phase, partnership_name, etc.). */
     private $instance;
 
     /** @var bool Whether this renderer is in multi-age-group mode. */
@@ -84,14 +84,14 @@ class HL_Instrument_Renderer {
      * age group, loads per-age-group instruments.
      *
      * @param int   $classroom_id     Classroom ID.
-     * @param int   $track_id         Track ID.
+     * @param int   $partnership_id         Track ID.
      * @param int   $instance_id      Instance ID.
      * @param array $existing_answers Existing answer rows keyed by child_id.
      * @param array $instance         Full instance data.
      * @param array $children         Pre-fetched active children (optional).
      * @return self Configured renderer.
      */
-    public static function create_multi_age_group( $classroom_id, $track_id, $instance_id, $existing_answers = array(), $instance = array(), $children = null ) {
+    public static function create_multi_age_group( $classroom_id, $partnership_id, $instance_id, $existing_answers = array(), $instance = array(), $children = null ) {
         global $wpdb;
 
         // 1. Get active children for classroom.
@@ -101,13 +101,13 @@ class HL_Instrument_Renderer {
         }
 
         // 2. Get frozen age groups from snapshots.
-        $snapshots = HL_Child_Snapshot_Service::get_snapshots_for_classroom( $classroom_id, $track_id );
+        $snapshots = HL_Child_Snapshot_Service::get_snapshots_for_classroom( $classroom_id, $partnership_id );
 
         // 3. Ensure snapshots exist for any children missing them.
         foreach ( $children as $child ) {
             $child = (object) $child;
             if ( ! isset( $snapshots[ $child->child_id ] ) && ! empty( $child->dob ) ) {
-                HL_Child_Snapshot_Service::ensure_snapshot( $child->child_id, $track_id, $child->dob );
+                HL_Child_Snapshot_Service::ensure_snapshot( $child->child_id, $partnership_id, $child->dob );
                 $snapshots[ $child->child_id ] = (object) array(
                     'child_id'         => $child->child_id,
                     'frozen_age_group' => HL_Age_Group_Helper::calculate_age_group( $child->dob ),

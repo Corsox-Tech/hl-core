@@ -15,12 +15,12 @@ class HL_Frontend_Dashboard {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Track_Repository */
-    private $track_repo;
+    /** @var HL_Partnership_Repository */
+    private $partnership_repo;
 
     public function __construct() {
         $this->enrollment_repo = new HL_Enrollment_Repository();
-        $this->track_repo      = new HL_Track_Repository();
+        $this->partnership_repo      = new HL_Partnership_Repository();
     }
 
     /**
@@ -100,8 +100,8 @@ class HL_Frontend_Dashboard {
             }
 
             // Check track type.
-            $track = $this->track_repo->get_by_id( $enrollment->track_id );
-            if ( $track && empty( $track->is_control_group ) ) {
+            $partnership = $this->partnership_repo->get_by_id( $enrollment->partnership_id );
+            if ( $partnership && empty( $partnership->is_control_group ) ) {
                 $context['all_control']       = false;
                 $context['has_program_track'] = true;
             }

@@ -61,7 +61,7 @@ class HL_Frontend_School_Page {
             ? $this->orgunit_repo->get_by_id( $school->parent_orgunit_id )
             : null;
 
-        $tracks    = $this->get_active_tracks_for_school( $school_id );
+        $partnerships    = $this->get_active_tracks_for_school( $school_id );
         $classrooms = $this->classroom_service->get_classrooms( $school_id );
         $staff      = $this->get_staff_at_school( $school_id );
 
@@ -94,7 +94,7 @@ class HL_Frontend_School_Page {
 
             <?php $this->render_header( $school, $parent_district, $district_page_url ); ?>
 
-            <?php $this->render_tracks_section( $tracks, $workspace_page_url, $school_id ); ?>
+            <?php $this->render_tracks_section( $partnerships, $workspace_page_url, $school_id ); ?>
 
             <?php $this->render_classrooms_section( $classrooms, $classroom_page_url ); ?>
 
@@ -160,7 +160,7 @@ class HL_Frontend_School_Page {
         ?>
         <div class="hl-crm-detail-header">
             <div class="hl-crm-detail-header-info">
-                <h2 class="hl-track-title"><?php echo esc_html( $school->name ); ?></h2>
+                <h2 class="hl-partnership-title"><?php echo esc_html( $school->name ); ?></h2>
                 <?php if ( $parent_district ) :
                     $d_url = $district_page_url
                         ? add_query_arg( 'id', $parent_district->orgunit_id, $district_page_url )
@@ -185,28 +185,28 @@ class HL_Frontend_School_Page {
     // Section: Active Tracks
     // ========================================================================
 
-    private function render_tracks_section( $tracks, $workspace_url, $school_id ) {
+    private function render_tracks_section( $partnerships, $workspace_url, $school_id ) {
         ?>
         <div class="hl-crm-section">
             <h3 class="hl-section-title"><?php esc_html_e( 'Active Tracks', 'hl-core' ); ?></h3>
 
-            <?php if ( empty( $tracks ) ) : ?>
+            <?php if ( empty( $partnerships ) ) : ?>
                 <div class="hl-empty-state"><p><?php esc_html_e( 'No active tracks at this school.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <div class="hl-crm-track-list">
-                    <?php foreach ( $tracks as $row ) :
-                        $trk              = $row['track'];
+                    <?php foreach ( $partnerships as $row ) :
+                        $trk              = $row['partnership'];
                         $participant_count = $row['participant_count'];
-                        $status           = $track->status ?: 'active';
+                        $status           = $partnership->status ?: 'active';
                         $status_class     = 'hl-badge-' . sanitize_html_class( $status );
 
                         $track_url = $workspace_url
-                            ? add_query_arg( array( 'id' => $track->track_id, 'orgunit' => $school_id ), $workspace_url )
+                            ? add_query_arg( array( 'id' => $partnership->partnership_id, 'orgunit' => $school_id ), $workspace_url )
                             : '';
                     ?>
                         <div class="hl-crm-track-row">
                             <div class="hl-crm-track-info">
-                                <strong><?php echo esc_html( $track->track_name ); ?></strong>
+                                <strong><?php echo esc_html( $partnership->partnership_name ); ?></strong>
                                 <span class="hl-badge <?php echo esc_attr( $status_class ); ?>"><?php echo esc_html( ucfirst( $status ) ); ?></span>
                                 <span class="hl-crm-track-count">
                                     <?php printf(
@@ -318,7 +318,7 @@ class HL_Frontend_School_Page {
                                 <td><strong><?php echo esc_html( $s['display_name'] ); ?></strong></td>
                                 <td><?php echo esc_html( $s['user_email'] ); ?></td>
                                 <td><?php echo esc_html( $s['roles_str'] ); ?></td>
-                                <td><?php echo esc_html( $s['track_name'] ); ?></td>
+                                <td><?php echo esc_html( $s['partnership_name'] ); ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -342,10 +342,10 @@ class HL_Frontend_School_Page {
         $rows = $wpdb->get_results( $wpdb->prepare(
             "SELECT t.*,
                     (SELECT COUNT(*) FROM {$prefix}hl_enrollment e2
-                     WHERE e2.track_id = t.track_id AND e2.status = 'active'
+                     WHERE e2.partnership_id = t.partnership_id AND e2.status = 'active'
                        AND e2.school_id = %d) AS participant_count
-             FROM {$prefix}hl_track t
-             INNER JOIN {$prefix}hl_track_school cs ON t.track_id = cs.track_id
+             FROM {$prefix}hl_partnership t
+             INNER JOIN {$prefix}hl_partnership_school cs ON t.partnership_id = cs.partnership_id
              WHERE cs.school_id = %d
                AND t.status = 'active'
              ORDER BY t.start_date DESC",
@@ -357,7 +357,7 @@ class HL_Frontend_School_Page {
             $count = isset( $row['participant_count'] ) ? (int) $row['participant_count'] : 0;
             unset( $row['participant_count'] );
             return array(
-                'track'             => new HL_Track( $row ),
+                'partnership'             => new HL_Partnership( $row ),
                 'participant_count' => $count,
             );
         }, $rows ?: array() );
@@ -372,10 +372,10 @@ class HL_Frontend_School_Page {
 
         $rows = $wpdb->get_results( $wpdb->prepare(
             "SELECT e.enrollment_id, u.display_name, u.user_email, e.roles,
-                    t.track_name
+                    t.partnership_name
              FROM {$prefix}hl_enrollment e
              INNER JOIN {$wpdb->users} u ON e.user_id = u.ID
-             INNER JOIN {$prefix}hl_track t ON e.track_id = t.track_id
+             INNER JOIN {$prefix}hl_partnership t ON e.partnership_id = t.partnership_id
              WHERE e.school_id = %d
                AND e.status = 'active'
              ORDER BY u.display_name ASC",

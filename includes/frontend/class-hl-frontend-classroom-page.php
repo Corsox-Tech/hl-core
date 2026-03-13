@@ -585,7 +585,7 @@ class HL_Frontend_Classroom_Page {
         ?>
         <div class="hl-classroom-page-header">
             <div class="hl-classroom-page-header-info">
-                <h2 class="hl-track-title"><?php echo esc_html( $classroom->classroom_name ); ?></h2>
+                <h2 class="hl-partnership-title"><?php echo esc_html( $classroom->classroom_name ); ?></h2>
                 <?php if ( $school ) : ?>
                     <p class="hl-scope-indicator"><?php echo esc_html( $school->name ); ?></p>
                 <?php endif; ?>
@@ -672,7 +672,7 @@ class HL_Frontend_Classroom_Page {
             "SELECT t.is_control_group
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
-             JOIN {$wpdb->prefix}hl_track t ON e.track_id = t.track_id
+             JOIN {$wpdb->prefix}hl_partnership t ON e.partnership_id = t.partnership_id
              WHERE ta.classroom_id = %d AND e.user_id = %d AND e.status = 'active'
              LIMIT 1",
             $classroom_id,

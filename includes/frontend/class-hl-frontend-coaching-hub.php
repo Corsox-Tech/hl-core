@@ -23,7 +23,7 @@ class HL_Frontend_Coaching_Hub {
         }
 
         $sessions = $this->get_sessions( $scope );
-        $tracks  = $this->get_track_options( $scope );
+        $partnerships  = $this->get_partnership_options( $scope );
 
         $my_coaching_url = $this->find_shortcode_page_url( 'hl_my_coaching' );
 
@@ -51,12 +51,12 @@ class HL_Frontend_Coaching_Hub {
                     <option value="cancelled"><?php esc_html_e( 'Cancelled', 'hl-core' ); ?></option>
                     <option value="rescheduled"><?php esc_html_e( 'Rescheduled', 'hl-core' ); ?></option>
                 </select>
-                <?php if ( count( $tracks ) > 1 ) : ?>
+                <?php if ( count( $partnerships ) > 1 ) : ?>
                     <select class="hl-select" id="hl-coaching-track-filter">
                         <option value=""><?php esc_html_e( 'All Tracks', 'hl-core' ); ?></option>
-                        <?php foreach ( $tracks as $c ) : ?>
-                            <option value="<?php echo esc_attr( $c['track_id'] ); ?>">
-                                <?php echo esc_html( $c['track_name'] ); ?>
+                        <?php foreach ( $partnerships as $c ) : ?>
+                            <option value="<?php echo esc_attr( $c['partnership_id'] ); ?>">
+                                <?php echo esc_html( $c['partnership_name'] ); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -92,7 +92,7 @@ class HL_Frontend_Coaching_Hub {
                                         ( $s['coach_name'] ?: '' )
                                     ) ); ?>"
                                     data-status="<?php echo esc_attr( $status ); ?>"
-                                    data-track="<?php echo esc_attr( $s['track_id'] ); ?>">
+                                    data-partnership="<?php echo esc_attr( $s['partnership_id'] ); ?>">
                                     <td><?php echo esc_html( $s['session_title'] ?: __( 'Coaching Session', 'hl-core' ) ); ?></td>
                                     <td><?php echo esc_html( $s['participant_name'] ?: '—' ); ?></td>
                                     <td><?php echo esc_html( $s['coach_name'] ?: '—' ); ?></td>
@@ -135,7 +135,7 @@ class HL_Frontend_Coaching_Hub {
                     var $r = $(this);
                     var matchSearch = !query || $r.data('search').indexOf(query) !== -1;
                     var matchStatus = !status || $r.data('status') === status;
-                    var matchTrack = !track || String($r.data('track')) === track;
+                    var matchTrack = !track || String($r.data('partnership')) === track;
                     var show = matchSearch && matchStatus && matchTrack;
                     $r.toggle(show);
                     if (show) visible++;
@@ -160,7 +160,7 @@ class HL_Frontend_Coaching_Hub {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $sql = "SELECT cs.coaching_session_id, cs.track_id, cs.session_title,
+        $sql = "SELECT cs.coaching_session_id, cs.partnership_id, cs.session_title,
                        cs.session_datetime, cs.session_status, cs.meeting_url,
                        cs.coach_user_id, cs.mentor_enrollment_id,
                        coach.display_name AS coach_name,
@@ -175,10 +175,10 @@ class HL_Frontend_Coaching_Hub {
 
         if ( ! $scope['is_admin'] ) {
             if ( $scope['is_coach'] ) {
-                if ( ! empty( $scope['track_ids'] ) ) {
-                    $placeholders = implode( ',', array_fill( 0, count( $scope['track_ids'] ), '%d' ) );
-                    $where[]      = "cs.track_id IN ({$placeholders})";
-                    $values       = array_merge( $values, $scope['track_ids'] );
+                if ( ! empty( $scope['partnership_ids'] ) ) {
+                    $placeholders = implode( ',', array_fill( 0, count( $scope['partnership_ids'] ), '%d' ) );
+                    $where[]      = "cs.partnership_id IN ({$placeholders})";
+                    $values       = array_merge( $values, $scope['partnership_ids'] );
                 } else {
                     $where[]  = 'cs.coach_user_id = %d';
                     $values[] = $scope['user_id'];
@@ -206,21 +206,21 @@ class HL_Frontend_Coaching_Hub {
         return $wpdb->get_results( $sql, ARRAY_A ) ?: array();
     }
 
-    private function get_track_options( $scope ) {
+    private function get_partnership_options( $scope ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
         if ( $scope['is_admin'] ) {
             return $wpdb->get_results(
-                "SELECT track_id, track_name FROM {$prefix}hl_track ORDER BY track_name ASC",
+                "SELECT partnership_id, partnership_name FROM {$prefix}hl_partnership ORDER BY partnership_name ASC",
                 ARRAY_A
             ) ?: array();
         }
 
-        if ( empty( $scope['track_ids'] ) ) return array();
-        $in = implode( ',', $scope['track_ids'] );
+        if ( empty( $scope['partnership_ids'] ) ) return array();
+        $in = implode( ',', $scope['partnership_ids'] );
         return $wpdb->get_results(
-            "SELECT track_id, track_name FROM {$prefix}hl_track WHERE track_id IN ({$in}) ORDER BY track_name ASC",
+            "SELECT partnership_id, partnership_name FROM {$prefix}hl_partnership WHERE partnership_id IN ({$in}) ORDER BY partnership_name ASC",
             ARRAY_A
         ) ?: array();
     }

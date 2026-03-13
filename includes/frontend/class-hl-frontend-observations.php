@@ -135,7 +135,7 @@ class HL_Frontend_Observations {
                                 <td><?php echo esc_html( $this->format_date( $obs['created_at'] ) ); ?></td>
                                 <td><?php echo esc_html( ! empty( $obs['teacher_name'] ) ? $obs['teacher_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
                                 <td><?php echo esc_html( ! empty( $obs['classroom_name'] ) ? $obs['classroom_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
-                                <td><?php echo esc_html( ! empty( $obs['track_name'] ) ? $obs['track_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
+                                <td><?php echo esc_html( ! empty( $obs['partnership_name'] ) ? $obs['partnership_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
                                 <td><?php $this->render_status_badge( $obs['status'] ); ?></td>
                                 <td>
                                     <?php
@@ -263,7 +263,7 @@ class HL_Frontend_Observations {
                                     <?php foreach ( $mentor_enrollments as $me ) : ?>
                                         <option value="<?php echo esc_attr( $me['enrollment_id'] ); ?>"
                                             <?php selected( $selected_enrollment_id, absint( $me['enrollment_id'] ) ); ?>>
-                                            <?php echo esc_html( $me['track_name'] ); ?>
+                                            <?php echo esc_html( $me['partnership_name'] ); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -439,10 +439,10 @@ class HL_Frontend_Observations {
             return new WP_Error( 'not_authorized', __( 'You are not authorized to create observations for this enrollment.', 'hl-core' ) );
         }
 
-        // Get the track_id and school_id from the mentor enrollment
+        // Get the partnership_id and school_id from the mentor enrollment
         global $wpdb;
         $enrollment = $wpdb->get_row( $wpdb->prepare(
-            "SELECT track_id, school_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+            "SELECT partnership_id, school_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
             $mentor_enrollment_id
         ), ARRAY_A );
 
@@ -451,7 +451,7 @@ class HL_Frontend_Observations {
         }
 
         return $this->observation_service->create_observation( array(
-            'track_id'             => $enrollment['track_id'],
+            'partnership_id'             => $enrollment['partnership_id'],
             'mentor_enrollment_id'  => $mentor_enrollment_id,
             'teacher_enrollment_id' => $teacher_enrollment_id,
             'classroom_id'          => $classroom_id ?: null,
@@ -540,7 +540,7 @@ class HL_Frontend_Observations {
                     </span>
                     <span class="hl-meta-item">
                         <strong><?php esc_html_e( 'Track:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( ! empty( $observation['track_name'] ) ? $observation['track_name'] : __( 'N/A', 'hl-core' ) ); ?>
+                        <?php echo esc_html( ! empty( $observation['partnership_name'] ) ? $observation['partnership_name'] : __( 'N/A', 'hl-core' ) ); ?>
                     </span>
                     <span class="hl-meta-item">
                         <strong><?php esc_html_e( 'Created:', 'hl-core' ); ?></strong>
@@ -591,11 +591,11 @@ class HL_Frontend_Observations {
             return;
         }
 
-        $track_id = absint( $observation['track_id'] );
+        $partnership_id = absint( $observation['partnership_id'] );
 
         // Find the observation activity and form ID for this track
-        $form_id     = $this->observation_service->get_observation_form_id( $track_id );
-        $activity    = $this->observation_service->get_observation_activity( $track_id );
+        $form_id     = $this->observation_service->get_observation_form_id( $partnership_id );
+        $activity    = $this->observation_service->get_observation_activity( $partnership_id );
         $activity_id = $activity ? absint( $activity['activity_id'] ) : 0;
 
         if ( ! $form_id ) {
@@ -611,7 +611,7 @@ class HL_Frontend_Observations {
         $hidden_fields = array(
             'hl_observation_id' => absint( $observation['observation_id'] ),
             'hl_enrollment_id'  => absint( $observation['mentor_enrollment_id'] ),
-            'hl_track_id'      => $track_id,
+            'hl_partnership_id'      => $partnership_id,
             'hl_activity_id'    => $activity_id,
         );
 
@@ -659,7 +659,7 @@ class HL_Frontend_Observations {
                     </tr>
                     <tr>
                         <th scope="row"><?php esc_html_e( 'Track', 'hl-core' ); ?></th>
-                        <td><?php echo esc_html( ! empty( $observation['track_name'] ) ? $observation['track_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
+                        <td><?php echo esc_html( ! empty( $observation['partnership_name'] ) ? $observation['partnership_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
                     </tr>
                     <tr>
                         <th scope="row"><?php esc_html_e( 'Created', 'hl-core' ); ?></th>

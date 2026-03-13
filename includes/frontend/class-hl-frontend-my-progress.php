@@ -15,8 +15,8 @@ class HL_Frontend_My_Progress {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Track_Repository */
-    private $track_repo;
+    /** @var HL_Partnership_Repository */
+    private $partnership_repo;
 
     /** @var HL_Pathway_Repository */
     private $pathway_repo;
@@ -46,7 +46,7 @@ class HL_Frontend_My_Progress {
 
     public function __construct() {
         $this->enrollment_repo = new HL_Enrollment_Repository();
-        $this->track_repo   = new HL_Track_Repository();
+        $this->partnership_repo   = new HL_Partnership_Repository();
         $this->pathway_repo   = new HL_Pathway_Repository();
         $this->activity_repo  = new HL_Activity_Repository();
         $this->rules_engine   = new HL_Rules_Engine_Service();
@@ -57,7 +57,7 @@ class HL_Frontend_My_Progress {
     /**
      * Render the My Progress shortcode.
      *
-     * @param array $atts Shortcode attributes. Optional key: track_id.
+     * @param array $atts Shortcode attributes. Optional key: partnership_id.
      * @return string HTML output.
      */
     public function render($atts) {
@@ -82,8 +82,8 @@ class HL_Frontend_My_Progress {
             'user_id' => $user_id,
             'status'  => 'active',
         );
-        if (!empty($atts['track_id'])) {
-            $filters['track_id'] = absint($atts['track_id']);
+        if (!empty($atts['partnership_id'])) {
+            $filters['partnership_id'] = absint($atts['partnership_id']);
         }
 
         $all_enrollments = $this->enrollment_repo->get_all(array('status' => 'active'));
@@ -94,7 +94,7 @@ class HL_Frontend_My_Progress {
             if ((int) $enrollment->user_id !== $user_id) {
                 return false;
             }
-            if (!empty($atts['track_id']) && (int) $enrollment->track_id !== absint($atts['track_id'])) {
+            if (!empty($atts['partnership_id']) && (int) $enrollment->partnership_id !== absint($atts['partnership_id'])) {
                 return false;
             }
             return true;
@@ -110,8 +110,8 @@ class HL_Frontend_My_Progress {
         // ── Build per-enrollment data ───────────────────────────────────
         $track_blocks = array();
         foreach ($enrollments as $enrollment) {
-            $track = $this->track_repo->get_by_id($enrollment->track_id);
-            if (!$track) {
+            $partnership = $this->partnership_repo->get_by_id($enrollment->partnership_id);
+            if (!$partnership) {
                 continue;
             }
 
@@ -201,7 +201,7 @@ class HL_Frontend_My_Progress {
 
             $track_blocks[] = array(
                 'enrollment'      => $enrollment,
-                'track'           => $track,
+                'partnership'           => $partnership,
                 'pathway'         => $pathway,
                 'activities'      => $activity_data,
                 'overall_percent' => $overall_percent,
@@ -221,24 +221,24 @@ class HL_Frontend_My_Progress {
             <div class="hl-track-tabs">
             <?php foreach ($track_blocks as $idx => $block) : ?>
                 <button class="hl-tab<?php echo $idx === 0 ? ' active' : ''; ?>"
-                        data-track="<?php echo esc_attr($block['track']->track_id); ?>">
-                    <?php echo esc_html($block['track']->track_code . ' - ' . $this->format_year($block['track']->start_date)); ?>
+                        data-partnership="<?php echo esc_attr($block['partnership']->partnership_id); ?>">
+                    <?php echo esc_html($block['partnership']->partnership_code . ' - ' . $this->format_year($block['partnership']->start_date)); ?>
                 </button>
             <?php endforeach; ?>
             </div>
         <?php endif; ?>
 
         <?php foreach ($track_blocks as $block) :
-            $track      = $block['track'];
+            $partnership      = $block['partnership'];
             $pathway    = $block['pathway'];
             $enrollment = $block['enrollment'];
             $percent    = $block['overall_percent'];
         ?>
-            <div class="hl-track-block" data-track-id="<?php echo esc_attr($track->track_id); ?>">
+            <div class="hl-partnership-block" data-partnership-id="<?php echo esc_attr($partnership->partnership_id); ?>">
                 <?php // ── Header ──────────────────────────────────────── ?>
                 <div class="hl-progress-header">
                     <div class="hl-progress-header-info">
-                        <h2 class="hl-track-title"><?php echo esc_html($track->track_code . ' - ' . $this->format_year($track->start_date)); ?></h2>
+                        <h2 class="hl-partnership-title"><?php echo esc_html($partnership->partnership_code . ' - ' . $this->format_year($partnership->start_date)); ?></h2>
                         <div class="hl-track-meta">
                             <span class="hl-meta-item"><strong><?php esc_html_e('Role:', 'hl-core'); ?></strong> <?php echo esc_html($block['role_label']); ?></span>
                             <span class="hl-meta-item"><strong><?php esc_html_e('Pathway:', 'hl-core'); ?></strong> <?php echo $pathway ? esc_html($pathway->pathway_name) : esc_html__('Unassigned', 'hl-core'); ?></span>
@@ -433,9 +433,9 @@ class HL_Frontend_My_Progress {
                     $phase = isset($external_ref['phase']) ? $external_ref['phase'] : 'pre';
                     $instance_id = $wpdb->get_var($wpdb->prepare(
                         "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
-                         WHERE enrollment_id = %d AND track_id = %d AND phase = %s",
+                         WHERE enrollment_id = %d AND partnership_id = %d AND phase = %s",
                         $ad['enrollment_id'],
-                        $activity->track_id ?? 0,
+                        $activity->partnership_id ?? 0,
                         $phase
                     ));
 
@@ -535,7 +535,7 @@ class HL_Frontend_My_Progress {
      *
      * @param int   $activity_id The activity to open.
      * @param int   $user_id     Current user ID.
-     * @param array $atts        Shortcode attributes (for track_id filtering).
+     * @param array $atts        Shortcode attributes (for partnership_id filtering).
      */
     private function maybe_render_inline_form($activity_id, $user_id, $atts) {
         // Load the activity.
@@ -566,10 +566,10 @@ class HL_Frontend_My_Progress {
             if ((int) $e->user_id !== $user_id) {
                 continue;
             }
-            if (!empty($atts['track_id']) && (int) $e->track_id !== absint($atts['track_id'])) {
+            if (!empty($atts['partnership_id']) && (int) $e->partnership_id !== absint($atts['partnership_id'])) {
                 continue;
             }
-            if ((int) $e->track_id === (int) $activity->track_id) {
+            if ((int) $e->partnership_id === (int) $activity->partnership_id) {
                 $enrollment = $e;
                 break;
             }
@@ -610,7 +610,7 @@ class HL_Frontend_My_Progress {
         $hidden_fields = array(
             'hl_enrollment_id' => $enrollment->enrollment_id,
             'hl_activity_id'   => $activity->activity_id,
-                  'hl_track_id'     => $enrollment->track_id,
+                  'hl_partnership_id'     => $enrollment->partnership_id,
         );
 
         // Render the inline form view.

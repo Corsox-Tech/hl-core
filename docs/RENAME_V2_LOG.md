@@ -19,3 +19,4 @@
 | A5 | Frontend shortcodes + BuddyBoss track→partnership | 2026-03-13 | 14 files | 4 frontend classes renamed, shortcodes updated, CSS selectors, BuddyBoss menu items, hl-core.php require paths; 384 lines changed |
 | A6 | CLI & REST API track→partnership | 2026-03-13 | 8 files | 4 seeders, provision-lutheran, create-pages, REST API, hl-core.php hook; ~650 lines changed |
 | A-FIX | Rename missed hl_track_email_log table | 2026-03-13 | 2 files | Missed in A1 |
+| A-CLEANUP | Frontend + integrations stale track refs | 2026-03-13 | 23 files | Bulk rename track→partnership in all frontend page classes, shortcodes, instrument renderer, and LearnDash integration; 252+ lines changed |

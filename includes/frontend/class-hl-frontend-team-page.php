@@ -21,8 +21,8 @@ class HL_Frontend_Team_Page {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Track_Repository */
-    private $track_repo;
+    /** @var HL_Partnership_Repository */
+    private $partnership_repo;
 
     /** @var HL_OrgUnit_Repository */
     private $orgunit_repo;
@@ -33,7 +33,7 @@ class HL_Frontend_Team_Page {
     public function __construct() {
         $this->team_repo         = new HL_Team_Repository();
         $this->enrollment_repo   = new HL_Enrollment_Repository();
-        $this->track_repo       = new HL_Track_Repository();
+        $this->partnership_repo       = new HL_Partnership_Repository();
         $this->orgunit_repo      = new HL_OrgUnit_Repository();
         $this->reporting_service = HL_Reporting_Service::instance();
     }
@@ -66,7 +66,7 @@ class HL_Frontend_Team_Page {
 
         $reporting = HL_Reporting_Service::instance();
         $filters   = array(
-            'track_id' => $team->track_id,
+            'partnership_id' => $team->partnership_id,
             'team_id'   => $team->team_id,
         );
         $csv = $reporting->export_completion_csv( $filters, true );
@@ -114,7 +114,7 @@ class HL_Frontend_Team_Page {
             return ob_get_clean();
         }
 
-        $track = $this->track_repo->get_by_id( $team->track_id );
+        $partnership = $this->partnership_repo->get_by_id( $team->partnership_id );
         $school = $team->school_id ? $this->orgunit_repo->get_by_id( $team->school_id ) : null;
 
         // Breadcrumb URL.
@@ -137,15 +137,15 @@ class HL_Frontend_Team_Page {
 
             <?php if ( ! empty( $back_url ) ) : ?>
                 <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr; <?php
-                    if ( $track ) {
-                        printf( esc_html__( 'Back to %s', 'hl-core' ), esc_html( $track->track_name ) );
+                    if ( $partnership ) {
+                        printf( esc_html__( 'Back to %s', 'hl-core' ), esc_html( $partnership->partnership_name ) );
                     } else {
                         esc_html_e( 'Back to My Track', 'hl-core' );
                     }
                 ?></a>
             <?php endif; ?>
 
-            <?php $this->render_header( $team, $track, $school ); ?>
+            <?php $this->render_header( $team, $partnership, $school ); ?>
 
             <div class="hl-track-tabs">
                 <?php foreach ( $tabs as $key => $label ) : ?>
@@ -163,7 +163,7 @@ class HL_Frontend_Team_Page {
                     if ( $key === 'members' ) {
                         $this->render_members_tab( $team );
                     } else {
-                        $this->render_report_tab( $team, $track );
+                        $this->render_report_tab( $team, $partnership );
                     }
                     ?>
                 </div>
@@ -201,7 +201,7 @@ class HL_Frontend_Team_Page {
 
         // Check if user is a leader whose scope includes this team's school.
         $enrollments = $this->enrollment_repo->get_all( array(
-            'track_id' => $team->track_id,
+            'partnership_id' => $team->partnership_id,
             'status'    => 'active',
         ) );
 
@@ -238,7 +238,7 @@ class HL_Frontend_Team_Page {
     // Header
     // ========================================================================
 
-    private function render_header( $team, $track, $school ) {
+    private function render_header( $team, $partnership, $school ) {
         $members      = $this->team_repo->get_members( $team->team_id );
         $member_count = count( $members );
 
@@ -260,15 +260,15 @@ class HL_Frontend_Team_Page {
         ?>
         <div class="hl-team-page-header">
             <div class="hl-team-page-header-info">
-                <h2 class="hl-track-title"><?php echo esc_html( $team->team_name ); ?></h2>
+                <h2 class="hl-partnership-title"><?php echo esc_html( $team->team_name ); ?></h2>
                 <?php if ( $school ) : ?>
                     <p class="hl-scope-indicator"><?php echo esc_html( $school->name ); ?></p>
                 <?php endif; ?>
                 <div class="hl-track-meta">
-                    <?php if ( $track ) : ?>
+                    <?php if ( $partnership ) : ?>
                         <span class="hl-meta-item">
                             <strong><?php esc_html_e( 'Track:', 'hl-core' ); ?></strong>
-                            <?php echo esc_html( $track->track_name ); ?>
+                            <?php echo esc_html( $partnership->partnership_name ); ?>
                         </span>
                     <?php endif; ?>
                     <span class="hl-meta-item">
@@ -360,8 +360,8 @@ class HL_Frontend_Team_Page {
     // Tab: Report
     // ========================================================================
 
-    private function render_report_tab( $team, $track ) {
-        if ( ! $track ) {
+    private function render_report_tab( $team, $partnership ) {
+        if ( ! $partnership ) {
             echo '<div class="hl-empty-state"><p>'
                 . esc_html__( 'Track data unavailable.', 'hl-core' )
                 . '</p></div>';
@@ -369,7 +369,7 @@ class HL_Frontend_Team_Page {
         }
 
         $filters      = array(
-            'track_id' => $track->track_id,
+            'partnership_id' => $partnership->partnership_id,
             'team_id'   => $team->team_id,
         );
         $participants = $this->reporting_service->get_participant_report( $filters );
@@ -380,11 +380,11 @@ class HL_Frontend_Team_Page {
         $activities      = array();
 
         if ( ! empty( $enrollment_ids ) ) {
-            $activity_detail = $this->reporting_service->get_track_activity_detail(
-                $track->track_id,
+            $activity_detail = $this->reporting_service->get_partnership_activity_detail(
+                $partnership->partnership_id,
                 $enrollment_ids
             );
-            $activities = $this->reporting_service->get_track_activities( $track->track_id );
+            $activities = $this->reporting_service->get_partnership_activities( $partnership->partnership_id );
         }
 
         // CSV export URL.

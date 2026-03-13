@@ -41,7 +41,7 @@ class HL_Frontend_Districts_Listing {
 
         // Pre-compute counts.
         $school_counts = $this->get_school_counts();
-        $track_counts = $this->get_active_track_counts();
+        $partnership_counts = $this->get_active_partnership_counts();
 
         $district_page_url = $this->find_shortcode_page_url( 'hl_district_page' );
 
@@ -59,7 +59,7 @@ class HL_Frontend_Districts_Listing {
                     <?php foreach ( $districts as $district ) :
                         $did          = $district->orgunit_id;
                         $num_schools  = isset( $school_counts[ $did ] ) ? $school_counts[ $did ] : 0;
-                        $num_tracks  = isset( $track_counts[ $did ] ) ? $track_counts[ $did ] : 0;
+                        $num_tracks  = isset( $partnership_counts[ $did ] ) ? $partnership_counts[ $did ] : 0;
                         $detail_url   = $district_page_url
                             ? add_query_arg( 'id', $did, $district_page_url )
                             : '';
@@ -131,21 +131,21 @@ class HL_Frontend_Districts_Listing {
     /**
      * Count active tracks per district.
      *
-     * A track is linked to a district when it has schools (via hl_track_school)
+     * A track is linked to a district when it has schools (via hl_partnership_school)
      * whose parent_orgunit_id is the district.
      *
      * @return array [ district_orgunit_id => count ]
      */
-    private function get_active_track_counts() {
+    private function get_active_partnership_counts() {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
         $results = $wpdb->get_results(
             "SELECT ou.parent_orgunit_id AS district_id,
-                    COUNT(DISTINCT cs.track_id) AS cnt
-             FROM {$prefix}hl_track_school cs
+                    COUNT(DISTINCT cs.partnership_id) AS cnt
+             FROM {$prefix}hl_partnership_school cs
              INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
-             INNER JOIN {$prefix}hl_track t ON cs.track_id = t.track_id
+             INNER JOIN {$prefix}hl_partnership t ON cs.partnership_id = t.partnership_id
              WHERE ou.parent_orgunit_id IS NOT NULL
                AND t.status = 'active'
              GROUP BY ou.parent_orgunit_id",

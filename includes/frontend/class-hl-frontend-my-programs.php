@@ -15,8 +15,8 @@ class HL_Frontend_My_Programs {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Track_Repository */
-    private $track_repo;
+    /** @var HL_Partnership_Repository */
+    private $partnership_repo;
 
     /** @var HL_Pathway_Repository */
     private $pathway_repo;
@@ -35,7 +35,7 @@ class HL_Frontend_My_Programs {
 
     public function __construct() {
         $this->enrollment_repo = new HL_Enrollment_Repository();
-        $this->track_repo     = new HL_Track_Repository();
+        $this->partnership_repo     = new HL_Partnership_Repository();
         $this->pathway_repo    = new HL_Pathway_Repository();
         $this->activity_repo   = new HL_Activity_Repository();
         $this->rules_engine    = new HL_Rules_Engine_Service();
@@ -83,8 +83,8 @@ class HL_Frontend_My_Programs {
                 continue;
             }
 
-            $track = $this->track_repo->get_by_id($enrollment->track_id);
-            if (!$track) {
+            $partnership = $this->partnership_repo->get_by_id($enrollment->partnership_id);
+            if (!$partnership) {
                 continue;
             }
 
@@ -148,8 +148,8 @@ class HL_Frontend_My_Programs {
                 $phase = $phase_repo->get_by_id($pathway->phase_id);
                 if ($phase) {
                     // Only show phase name if track has multiple phases.
-                    $phases_for_track = $phase_repo->get_by_track($track->track_id);
-                    if (count($phases_for_track) > 1) {
+                    $phases_for_partnership = $phase_repo->get_by_partnership($partnership->partnership_id);
+                    if (count($phases_for_partnership) > 1) {
                         $phase_name = $phase->phase_name;
                     }
                 }
@@ -158,7 +158,7 @@ class HL_Frontend_My_Programs {
             $cards[] = array(
                 'enrollment'  => $enrollment,
                 'pathway'     => $pathway,
-                'track'       => $track,
+                'partnership'       => $partnership,
                 'percent'     => $overall_percent,
                 'phase_name'  => $phase_name,
             );
@@ -168,7 +168,7 @@ class HL_Frontend_My_Programs {
         // Check if all enrollments are control group — if so, skip coach widget.
         $all_control = !empty($cards);
         foreach ($cards as $card) {
-            if (empty($card['track']->is_control_group)) {
+            if (empty($card['partnership']->is_control_group)) {
                 $all_control = false;
                 break;
             }
@@ -179,7 +179,7 @@ class HL_Frontend_My_Programs {
         if (!$all_control && !empty($enrollments)) {
             $coach_service = new HL_Coach_Assignment_Service();
             foreach ($enrollments as $e) {
-                $coach = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->track_id);
+                $coach = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->partnership_id);
                 if ($coach) break;
             }
         }
@@ -218,7 +218,7 @@ class HL_Frontend_My_Programs {
      */
     private function render_program_card($card) {
         $pathway    = $card['pathway'];
-        $track      = $card['track'];
+        $partnership      = $card['partnership'];
         $enrollment = $card['enrollment'];
         $percent    = (int) $card['percent'];
 
@@ -267,8 +267,8 @@ class HL_Frontend_My_Programs {
             </div>
             <div class="hl-program-card-body">
                 <h3 class="hl-program-card-title"><?php echo esc_html($pathway->pathway_name); ?></h3>
-                <p class="hl-program-card-track">
-                    <?php echo esc_html($track->track_name); ?>
+                <p class="hl-program-card-partnership">
+                    <?php echo esc_html($partnership->partnership_name); ?>
                     <?php if (!empty($card['phase_name'])) : ?>
                         <span class="hl-program-card-phase">&mdash; <?php echo esc_html($card['phase_name']); ?></span>
                     <?php endif; ?>

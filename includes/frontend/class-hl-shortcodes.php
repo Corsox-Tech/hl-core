@@ -100,7 +100,7 @@ class HL_Shortcodes {
             return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your progress.', 'hl-core') . '</div>';
         }
 
-        $atts = shortcode_atts(array('track_id' => ''), $atts, 'hl_my_progress');
+        $atts = shortcode_atts(array('partnership_id' => ''), $atts, 'hl_my_progress');
         $renderer = new HL_Frontend_My_Progress();
         return $renderer->render($atts);
     }
@@ -113,7 +113,7 @@ class HL_Shortcodes {
             return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view team progress.', 'hl-core') . '</div>';
         }
 
-        $atts = shortcode_atts(array('track_id' => ''), $atts, 'hl_team_progress');
+        $atts = shortcode_atts(array('partnership_id' => ''), $atts, 'hl_team_progress');
         $renderer = new HL_Frontend_Team_Progress();
         return $renderer->render($atts);
     }
