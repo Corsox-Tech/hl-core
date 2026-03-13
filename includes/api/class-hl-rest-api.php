@@ -102,8 +102,8 @@ class HL_REST_API {
     public function get_pathways($request) {
         $repo = new HL_Pathway_Repository();
         $partnership_id = $request->get_param('partnership_id') ? intval($request->get_param('partnership_id')) : null;
-        $phase_id = $request->get_param('phase_id') ? intval($request->get_param('phase_id')) : null;
-        $pathways = $repo->get_all($partnership_id, $phase_id);
+        $cycle_id = $request->get_param('cycle_id') ? intval($request->get_param('cycle_id')) : null;
+        $pathways = $repo->get_all($partnership_id, $cycle_id);
         $data = array_map(function($p) { return $p->to_array(); }, $pathways);
         return new WP_REST_Response($data, 200);
     }

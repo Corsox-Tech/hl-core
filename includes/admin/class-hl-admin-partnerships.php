@@ -48,13 +48,13 @@ class HL_Admin_Partnerships {
             $this->handle_unlink_school();
         }
 
-        if ($action === 'delete_phase') {
-            $this->handle_delete_phase();
+        if ($action === 'delete_cycle') {
+            $this->handle_delete_cycle();
         }
 
-        // Phase save (POST).
-        if (isset($_POST['hl_phase_nonce'])) {
-            $this->handle_save_phase();
+        // Cycle save (POST).
+        if (isset($_POST['hl_cycle_nonce'])) {
+            $this->handle_save_cycle();
         }
     }
 
@@ -412,12 +412,12 @@ class HL_Admin_Partnerships {
                 'template_saved'     => __('Pathway saved as template.', 'hl-core'),
                 'template_removed'   => __('Pathway removed from templates.', 'hl-core'),
                 'clone_error'        => __('Clone failed. Please try again.', 'hl-core'),
-                'phase_saved'        => __('Phase saved successfully.', 'hl-core'),
-                'phase_deleted'      => __('Phase deleted successfully.', 'hl-core'),
-                'phase_delete_error' => __('Cannot delete phase: it still has linked pathways.', 'hl-core'),
+                'cycle_saved'        => __('Cycle saved successfully.', 'hl-core'),
+                'cycle_deleted'      => __('Cycle deleted successfully.', 'hl-core'),
+                'cycle_delete_error' => __('Cannot delete cycle: it still has linked pathways.', 'hl-core'),
             );
             if (isset($messages[$msg])) {
-                $notice_type = in_array($msg, array('clone_error', 'phase_delete_error'), true) ? 'notice-error' : 'notice-success';
+                $notice_type = in_array($msg, array('clone_error', 'cycle_delete_error'), true) ? 'notice-error' : 'notice-success';
                 echo '<div class="notice ' . $notice_type . ' is-dismissible"><p>' . esc_html($messages[$msg]) . '</p></div>';
             }
         }
@@ -441,7 +441,7 @@ class HL_Admin_Partnerships {
         $tabs = array(
             'details'     => __('Details', 'hl-core'),
             'schools'     => __('Schools', 'hl-core'),
-            'phases'      => __('Phases', 'hl-core'),
+            'cycles'      => __('Cycles', 'hl-core'),
             'pathways'    => __('Pathways', 'hl-core'),
             'teams'       => __('Teams', 'hl-core'),
             'enrollments' => __('Enrollments', 'hl-core'),
@@ -461,10 +461,10 @@ class HL_Admin_Partnerships {
             unset($tabs['emails']);
         }
 
-        // Course-type partnerships hide phases tab (auto-managed).
+        // Course-type partnerships hide cycles tab (auto-managed).
         $partnership_type = isset($partnership->partnership_type) ? $partnership->partnership_type : 'program';
         if ($partnership_type === 'course') {
-            unset($tabs['phases'], $tabs['teams'], $tabs['coaching']);
+            unset($tabs['cycles'], $tabs['teams'], $tabs['coaching']);
         }
 
         echo '<nav class="nav-tab-wrapper" style="margin-top:15px;">';
@@ -481,8 +481,8 @@ class HL_Admin_Partnerships {
             case 'schools':
                 $this->render_tab_schools($partnership);
                 break;
-            case 'phases':
-                $this->render_tab_phases($partnership, $sub);
+            case 'cycles':
+                $this->render_tab_cycles($partnership, $sub);
                 break;
             case 'pathways':
                 $this->render_tab_pathways($partnership, $sub);
@@ -669,8 +669,8 @@ class HL_Admin_Partnerships {
         echo '<div class="hl-field hl-field-full">';
         echo '<label for="partnership_type">' . esc_html__('Partnership Type', 'hl-core') . '</label>';
         echo '<select id="partnership_type" name="partnership_type">';
-        echo '<option value="program"' . selected($current_type, 'program', false) . '>' . esc_html__('Program (Phases, Pathways, Teams, Coaching, Assessments)', 'hl-core') . '</option>';
-        echo '<option value="course"' . selected($current_type, 'course', false) . '>' . esc_html__('Course (auto-created single Phase + Pathway)', 'hl-core') . '</option>';
+        echo '<option value="program"' . selected($current_type, 'program', false) . '>' . esc_html__('Program (Cycles, Pathways, Teams, Coaching, Assessments)', 'hl-core') . '</option>';
+        echo '<option value="course"' . selected($current_type, 'course', false) . '>' . esc_html__('Course (auto-created single Cycle + Pathway)', 'hl-core') . '</option>';
         echo '</select>';
         echo '</div>';
 
@@ -787,14 +787,14 @@ class HL_Admin_Partnerships {
     }
 
     // =========================================================================
-    // Tab: Phases
+    // Tab: Cycles
     // =========================================================================
 
     /**
-     * Handle Phase save (create or update).
+     * Handle Cycle save (create or update).
      */
-    private function handle_save_phase() {
-        if (!wp_verify_nonce($_POST['hl_phase_nonce'], 'hl_save_phase')) {
+    private function handle_save_cycle() {
+        if (!wp_verify_nonce($_POST['hl_cycle_nonce'], 'hl_save_cycle')) {
             wp_die(__('Security check failed.', 'hl-core'));
         }
 
@@ -803,34 +803,34 @@ class HL_Admin_Partnerships {
         }
 
         $partnership_id = absint($_POST['partnership_id']);
-        $phase_id = isset($_POST['phase_id']) ? absint($_POST['phase_id']) : 0;
+        $cycle_id = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
 
         $data = array(
-            'phase_name'   => sanitize_text_field($_POST['phase_name']),
-            'phase_number' => absint($_POST['phase_number']),
+            'cycle_name'   => sanitize_text_field($_POST['cycle_name']),
+            'cycle_number' => absint($_POST['cycle_number']),
             'start_date'   => sanitize_text_field($_POST['start_date']) ?: null,
             'end_date'     => sanitize_text_field($_POST['end_date']) ?: null,
             'status'       => in_array($_POST['status'], array('draft', 'active', 'completed'), true) ? $_POST['status'] : 'draft',
         );
 
-        $phase_svc = new HL_Phase_Service();
+        $cycle_svc = new HL_Cycle_Service();
 
-        if ($phase_id > 0) {
-            $phase_svc->update_phase($phase_id, $data);
+        if ($cycle_id > 0) {
+            $cycle_svc->update_cycle($cycle_id, $data);
         } else {
             $data['partnership_id'] = $partnership_id;
-            $phase_svc->create_phase($data);
+            $cycle_svc->create_cycle($data);
         }
 
-        wp_redirect(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_id . '&tab=phases&message=phase_saved'));
+        wp_redirect(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_id . '&tab=cycles&message=cycle_saved'));
         exit;
     }
 
     /**
-     * Handle Phase delete (GET action).
+     * Handle Cycle delete (GET action).
      */
-    private function handle_delete_phase() {
-        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_delete_phase')) {
+    private function handle_delete_cycle() {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_delete_cycle')) {
             wp_die(__('Security check failed.', 'hl-core'));
         }
 
@@ -838,70 +838,70 @@ class HL_Admin_Partnerships {
             wp_die(__('You do not have permission to perform this action.', 'hl-core'));
         }
 
-        $phase_id = isset($_GET['phase_id']) ? absint($_GET['phase_id']) : 0;
+        $cycle_id = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
         $partnership_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
 
-        $phase_svc = new HL_Phase_Service();
-        $result = $phase_svc->delete_phase($phase_id);
+        $cycle_svc = new HL_Cycle_Service();
+        $result = $cycle_svc->delete_cycle($cycle_id);
 
         if (is_wp_error($result)) {
-            wp_redirect(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_id . '&tab=phases&message=phase_delete_error'));
+            wp_redirect(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_id . '&tab=cycles&message=cycle_delete_error'));
         } else {
-            wp_redirect(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_id . '&tab=phases&message=phase_deleted'));
+            wp_redirect(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_id . '&tab=cycles&message=cycle_deleted'));
         }
         exit;
     }
 
     /**
-     * Render the Phases tab.
+     * Render the Cycles tab.
      */
-    private function render_tab_phases($partnership, $sub = '') {
+    private function render_tab_cycles($partnership, $sub = '') {
         $partnership_id = $partnership->partnership_id;
-        $base_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_id . '&tab=phases');
+        $base_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_id . '&tab=cycles');
 
         switch ($sub) {
             case 'new':
-                $this->render_breadcrumb($partnership, 'phases', __('Phases', 'hl-core'), array(
-                    array('label' => __('New Phase', 'hl-core')),
+                $this->render_breadcrumb($partnership, 'cycles', __('Cycles', 'hl-core'), array(
+                    array('label' => __('New Cycle', 'hl-core')),
                 ));
-                $this->render_phase_form($partnership, null);
+                $this->render_cycle_form($partnership, null);
                 break;
 
             case 'edit':
-                $phase_id = isset($_GET['phase_id']) ? absint($_GET['phase_id']) : 0;
-                $phase_repo = new HL_Phase_Repository();
-                $phase = $phase_repo->get_by_id($phase_id);
-                if ($phase) {
-                    $this->render_breadcrumb($partnership, 'phases', __('Phases', 'hl-core'), array(
-                        array('label' => esc_html($phase->phase_name)),
+                $cycle_id = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
+                $cycle_repo = new HL_Cycle_Repository();
+                $cycle = $cycle_repo->get_by_id($cycle_id);
+                if ($cycle) {
+                    $this->render_breadcrumb($partnership, 'cycles', __('Cycles', 'hl-core'), array(
+                        array('label' => esc_html($cycle->cycle_name)),
                     ));
-                    $this->render_phase_form($partnership, $phase);
+                    $this->render_cycle_form($partnership, $cycle);
                 } else {
-                    echo '<div class="notice notice-error"><p>' . esc_html__('Phase not found.', 'hl-core') . '</p></div>';
-                    $this->render_phases_list($partnership);
+                    echo '<div class="notice notice-error"><p>' . esc_html__('Cycle not found.', 'hl-core') . '</p></div>';
+                    $this->render_cycles_list($partnership);
                 }
                 break;
 
             default:
-                $this->render_phases_list($partnership);
+                $this->render_cycles_list($partnership);
                 break;
         }
     }
 
     /**
-     * Render the list of Phases for a partnership.
+     * Render the list of Cycles for a partnership.
      */
-    private function render_phases_list($partnership) {
+    private function render_cycles_list($partnership) {
         $partnership_id = $partnership->partnership_id;
-        $base_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_id . '&tab=phases');
-        $phase_repo = new HL_Phase_Repository();
-        $phases = $phase_repo->get_by_partnership($partnership_id);
+        $base_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_id . '&tab=cycles');
+        $cycle_repo = new HL_Cycle_Repository();
+        $cycles = $cycle_repo->get_by_partnership($partnership_id);
 
-        echo '<a href="' . esc_url($base_url . '&sub=new') . '" class="page-title-action">' . esc_html__('Add Phase', 'hl-core') . '</a>';
+        echo '<a href="' . esc_url($base_url . '&sub=new') . '" class="page-title-action">' . esc_html__('Add Cycle', 'hl-core') . '</a>';
         echo '<br style="clear:both;" />';
 
-        if (empty($phases)) {
-            echo '<p>' . esc_html__('No phases defined for this partnership yet.', 'hl-core') . '</p>';
+        if (empty($cycles)) {
+            echo '<p>' . esc_html__('No cycles defined for this partnership yet.', 'hl-core') . '</p>';
             return;
         }
 
@@ -920,26 +920,26 @@ class HL_Admin_Partnerships {
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead><tbody>';
 
-        foreach ($phases as $phase) {
-            $pathway_count = $phase_repo->count_pathways($phase->phase_id);
-            $sc = isset($status_colors[$phase->status]) ? $status_colors[$phase->status] : '#666';
-            $edit_url = $base_url . '&sub=edit&phase_id=' . $phase->phase_id;
+        foreach ($cycles as $cycle) {
+            $pathway_count = $cycle_repo->count_pathways($cycle->cycle_id);
+            $sc = isset($status_colors[$cycle->status]) ? $status_colors[$cycle->status] : '#666';
+            $edit_url = $base_url . '&sub=edit&cycle_id=' . $cycle->cycle_id;
             $delete_url = wp_nonce_url(
-                admin_url('admin.php?page=hl-partnerships&action=delete_phase&id=' . $partnership_id . '&phase_id=' . $phase->phase_id),
-                'hl_delete_phase'
+                admin_url('admin.php?page=hl-partnerships&action=delete_cycle&id=' . $partnership_id . '&cycle_id=' . $cycle->cycle_id),
+                'hl_delete_cycle'
             );
 
             echo '<tr>';
-            echo '<td>' . esc_html($phase->phase_number) . '</td>';
-            echo '<td><a href="' . esc_url($edit_url) . '"><strong>' . esc_html($phase->phase_name) . '</strong></a></td>';
-            echo '<td><span style="color:' . esc_attr($sc) . '; font-weight:600;">' . esc_html(ucfirst($phase->status)) . '</span></td>';
-            echo '<td>' . esc_html($phase->start_date ?: '—') . '</td>';
-            echo '<td>' . esc_html($phase->end_date ?: '—') . '</td>';
+            echo '<td>' . esc_html($cycle->cycle_number) . '</td>';
+            echo '<td><a href="' . esc_url($edit_url) . '"><strong>' . esc_html($cycle->cycle_name) . '</strong></a></td>';
+            echo '<td><span style="color:' . esc_attr($sc) . '; font-weight:600;">' . esc_html(ucfirst($cycle->status)) . '</span></td>';
+            echo '<td>' . esc_html($cycle->start_date ?: '—') . '</td>';
+            echo '<td>' . esc_html($cycle->end_date ?: '—') . '</td>';
             echo '<td>' . esc_html($pathway_count) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '">' . esc_html__('Edit', 'hl-core') . '</a>';
             if ($pathway_count === 0) {
-                echo ' | <a href="' . esc_url($delete_url) . '" onclick="return confirm(\'' . esc_js(__('Delete this phase?', 'hl-core')) . '\');" style="color:#b32d2e;">' . esc_html__('Delete', 'hl-core') . '</a>';
+                echo ' | <a href="' . esc_url($delete_url) . '" onclick="return confirm(\'' . esc_js(__('Delete this cycle?', 'hl-core')) . '\');" style="color:#b32d2e;">' . esc_html__('Delete', 'hl-core') . '</a>';
             }
             echo '</td>';
             echo '</tr>';
@@ -949,32 +949,32 @@ class HL_Admin_Partnerships {
     }
 
     /**
-     * Render the Phase create/edit form.
+     * Render the Cycle create/edit form.
      */
-    private function render_phase_form($partnership, $phase) {
-        $is_edit = ($phase !== null);
+    private function render_cycle_form($partnership, $cycle) {
+        $is_edit = ($cycle !== null);
         $partnership_id = $partnership->partnership_id;
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-partnerships')) . '">';
-        wp_nonce_field('hl_save_phase', 'hl_phase_nonce');
+        wp_nonce_field('hl_save_cycle', 'hl_cycle_nonce');
         echo '<input type="hidden" name="partnership_id" value="' . esc_attr($partnership_id) . '" />';
         if ($is_edit) {
-            echo '<input type="hidden" name="phase_id" value="' . esc_attr($phase->phase_id) . '" />';
+            echo '<input type="hidden" name="cycle_id" value="' . esc_attr($cycle->cycle_id) . '" />';
         }
 
         echo '<table class="form-table">';
 
-        // Phase Name
-        echo '<tr><th scope="row"><label for="phase_name">' . esc_html__('Phase Name', 'hl-core') . '</label></th>';
-        echo '<td><input type="text" id="phase_name" name="phase_name" value="' . esc_attr($is_edit ? $phase->phase_name : '') . '" class="regular-text" required /></td></tr>';
+        // Cycle Name
+        echo '<tr><th scope="row"><label for="cycle_name">' . esc_html__('Cycle Name', 'hl-core') . '</label></th>';
+        echo '<td><input type="text" id="cycle_name" name="cycle_name" value="' . esc_attr($is_edit ? $cycle->cycle_name : '') . '" class="regular-text" required /></td></tr>';
 
-        // Phase Number
-        echo '<tr><th scope="row"><label for="phase_number">' . esc_html__('Phase Number', 'hl-core') . '</label></th>';
-        echo '<td><input type="number" id="phase_number" name="phase_number" value="' . esc_attr($is_edit ? $phase->phase_number : '') . '" min="1" class="small-text" required />';
+        // Cycle Number
+        echo '<tr><th scope="row"><label for="cycle_number">' . esc_html__('Cycle Number', 'hl-core') . '</label></th>';
+        echo '<td><input type="number" id="cycle_number" name="cycle_number" value="' . esc_attr($is_edit ? $cycle->cycle_number : '') . '" min="1" class="small-text" required />';
         echo '<p class="description">' . esc_html__('Determines ordering. Must be unique within this partnership.', 'hl-core') . '</p></td></tr>';
 
         // Status
-        $current_status = $is_edit ? $phase->status : 'draft';
+        $current_status = $is_edit ? $cycle->status : 'draft';
         echo '<tr><th scope="row"><label for="status">' . esc_html__('Status', 'hl-core') . '</label></th>';
         echo '<td><select id="status" name="status">';
         foreach (array('draft', 'active', 'completed') as $s) {
@@ -984,15 +984,15 @@ class HL_Admin_Partnerships {
 
         // Start Date
         echo '<tr><th scope="row"><label for="start_date">' . esc_html__('Start Date', 'hl-core') . '</label></th>';
-        echo '<td><input type="date" id="start_date" name="start_date" value="' . esc_attr($is_edit && $phase->start_date ? $phase->start_date : '') . '" /></td></tr>';
+        echo '<td><input type="date" id="start_date" name="start_date" value="' . esc_attr($is_edit && $cycle->start_date ? $cycle->start_date : '') . '" /></td></tr>';
 
         // End Date
         echo '<tr><th scope="row"><label for="end_date">' . esc_html__('End Date', 'hl-core') . '</label></th>';
-        echo '<td><input type="date" id="end_date" name="end_date" value="' . esc_attr($is_edit && $phase->end_date ? $phase->end_date : '') . '" /></td></tr>';
+        echo '<td><input type="date" id="end_date" name="end_date" value="' . esc_attr($is_edit && $cycle->end_date ? $cycle->end_date : '') . '" /></td></tr>';
 
         echo '</table>';
 
-        submit_button($is_edit ? __('Update Phase', 'hl-core') : __('Create Phase', 'hl-core'));
+        submit_button($is_edit ? __('Update Cycle', 'hl-core') : __('Create Cycle', 'hl-core'));
         echo '</form>';
     }
 
@@ -1089,11 +1089,11 @@ class HL_Admin_Partnerships {
         $pathways = $wpdb->get_results($wpdb->prepare(
             "SELECT pw.*,
                     (SELECT COUNT(*) FROM {$wpdb->prefix}hl_component a WHERE a.pathway_id = pw.pathway_id) as component_count,
-                    ph.phase_name
+                    ph.cycle_name
              FROM {$wpdb->prefix}hl_pathway pw
-             LEFT JOIN {$wpdb->prefix}hl_phase ph ON pw.phase_id = ph.phase_id
+             LEFT JOIN {$wpdb->prefix}hl_cycle ph ON pw.cycle_id = ph.cycle_id
              WHERE pw.partnership_id = %d
-             ORDER BY ph.phase_number ASC, pw.pathway_name ASC",
+             ORDER BY ph.cycle_number ASC, pw.pathway_name ASC",
             $partnership_id
         ));
 
@@ -1131,7 +1131,7 @@ class HL_Admin_Partnerships {
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Phase', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Cycle', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Target Roles', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Components', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Avg Time', 'hl-core') . '</th>';
@@ -1155,7 +1155,7 @@ class HL_Admin_Partnerships {
                 echo ' <span class="hl-status-badge active" style="font-size:10px;">' . esc_html__('Template', 'hl-core') . '</span>';
             }
             echo '</td>';
-            echo '<td>' . esc_html($pw->phase_name ?: '-') . '</td>';
+            echo '<td>' . esc_html($pw->cycle_name ?: '-') . '</td>';
             echo '<td>' . esc_html($roles_str) . '</td>';
             echo '<td>' . esc_html($pw->component_count) . '</td>';
             echo '<td>' . esc_html($pw->avg_completion_time ?: '-') . '</td>';
@@ -1931,33 +1931,33 @@ class HL_Admin_Partnerships {
 
         $partnership_id = absint($partnership->partnership_id);
 
-        // Get phases for this partnership
-        $phases = $wpdb->get_results($wpdb->prepare(
-            "SELECT phase_id, phase_name, phase_number
-             FROM {$wpdb->prefix}hl_phase
+        // Get cycles for this partnership
+        $cycles = $wpdb->get_results($wpdb->prepare(
+            "SELECT cycle_id, cycle_name, cycle_number
+             FROM {$wpdb->prefix}hl_cycle
              WHERE partnership_id = %d
-             ORDER BY phase_number",
+             ORDER BY cycle_number",
             $partnership_id
         ), ARRAY_A);
 
-        if (empty($phases)) {
+        if (empty($cycles)) {
             echo '<div class="notice notice-warning" style="margin:0;"><p>'
-                . esc_html__('No phases found for this partnership. Create a phase first before sending emails.', 'hl-core')
+                . esc_html__('No cycles found for this partnership. Create a cycle first before sending emails.', 'hl-core')
                 . '</p></div>';
             return;
         }
 
-        $selected_phase_id = absint($phases[0]['phase_id']);
+        $selected_cycle_id = absint($cycles[0]['cycle_id']);
         $nonce = wp_create_nonce('hl_send_partnership_emails');
         $reset_nonce = wp_create_nonce('hl_reset_email_log');
 
-        // Phase selector
+        // Cycle selector
         echo '<div class="hl-form-section" style="margin-bottom:16px;">';
-        echo '<label for="hl-email-phase-select" style="font-weight:600;margin-right:8px;">' . esc_html__('Select Phase:', 'hl-core') . '</label>';
-        echo '<select id="hl-email-phase-select" style="min-width:300px;">';
-        foreach ($phases as $phase) {
-            echo '<option value="' . esc_attr($phase['phase_id']) . '">'
-                . esc_html('Phase ' . $phase['phase_number'] . ': ' . $phase['phase_name'])
+        echo '<label for="hl-email-cycle-select" style="font-weight:600;margin-right:8px;">' . esc_html__('Select Cycle:', 'hl-core') . '</label>';
+        echo '<select id="hl-email-cycle-select" style="min-width:300px;">';
+        foreach ($cycles as $cycle) {
+            echo '<option value="' . esc_attr($cycle['cycle_id']) . '">'
+                . esc_html('Cycle ' . $cycle['cycle_number'] . ': ' . $cycle['cycle_name'])
                 . '</option>';
         }
         echo '</select>';
@@ -1965,7 +1965,7 @@ class HL_Admin_Partnerships {
 
         // Container for AJAX-loaded recipient tables
         echo '<div id="hl-email-recipients-container">';
-        $this->render_email_recipients($partnership_id, $selected_phase_id);
+        $this->render_email_recipients($partnership_id, $selected_cycle_id);
         echo '</div>';
 
         // Inline JS
@@ -1977,10 +1977,10 @@ class HL_Admin_Partnerships {
             var resetNonce = '<?php echo esc_js($reset_nonce); ?>';
             var ajaxUrl = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
             var container = document.getElementById('hl-email-recipients-container');
-            var phaseSelect = document.getElementById('hl-email-phase-select');
+            var cycleSelect = document.getElementById('hl-email-cycle-select');
 
-            // Phase change → reload recipients
-            phaseSelect.addEventListener('change', function() {
+            // Cycle change → reload recipients
+            cycleSelect.addEventListener('change', function() {
                 container.innerHTML = '<p><span class="dashicons dashicons-update" style="animation:rotation 1s linear infinite;"></span> Loading...</p>';
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', ajaxUrl);
@@ -1998,7 +1998,7 @@ class HL_Admin_Partnerships {
                         container.innerHTML = '<div class="notice notice-error"><p>Unexpected error.</p></div>';
                     }
                 };
-                xhr.send('action=hl_send_partnership_emails&sub_action=load_recipients&partnership_id=' + partnershipId + '&phase_id=' + phaseSelect.value + '&_wpnonce=' + nonce);
+                xhr.send('action=hl_send_partnership_emails&sub_action=load_recipients&partnership_id=' + partnershipId + '&cycle_id=' + cycleSelect.value + '&_wpnonce=' + nonce);
             });
 
             function getSelectedUserIds() {
@@ -2064,7 +2064,7 @@ class HL_Admin_Partnerships {
                                             }
                                         } catch(e) {}
                                     };
-                                    xhr2.send('action=hl_send_partnership_emails&sub_action=load_recipients&partnership_id=' + partnershipId + '&phase_id=' + phaseSelect.value + '&_wpnonce=' + nonce);
+                                    xhr2.send('action=hl_send_partnership_emails&sub_action=load_recipients&partnership_id=' + partnershipId + '&cycle_id=' + cycleSelect.value + '&_wpnonce=' + nonce);
                                 } else {
                                     sendBtn.disabled = false;
                                     sendBtn.textContent = '<?php echo esc_js(__('Send to Selected', 'hl-core')); ?> (' + ids.length + ')';
@@ -2075,7 +2075,7 @@ class HL_Admin_Partnerships {
                                 alert('Unexpected error.');
                             }
                         };
-                        xhr.send('action=hl_send_partnership_emails&sub_action=send&partnership_id=' + partnershipId + '&phase_id=' + phaseSelect.value + '&user_ids=' + ids.join(',') + '&_wpnonce=' + nonce);
+                        xhr.send('action=hl_send_partnership_emails&sub_action=send&partnership_id=' + partnershipId + '&cycle_id=' + cycleSelect.value + '&user_ids=' + ids.join(',') + '&_wpnonce=' + nonce);
                     });
                 }
 
@@ -2107,7 +2107,7 @@ class HL_Admin_Partnerships {
                                             }
                                         } catch(e) {}
                                     };
-                                    xhr2.send('action=hl_send_partnership_emails&sub_action=load_recipients&partnership_id=' + partnershipId + '&phase_id=' + phaseSelect.value + '&_wpnonce=' + nonce);
+                                    xhr2.send('action=hl_send_partnership_emails&sub_action=load_recipients&partnership_id=' + partnershipId + '&cycle_id=' + cycleSelect.value + '&_wpnonce=' + nonce);
                                 } else {
                                     btn.style.opacity = '1';
                                     alert(resp.data || 'Error resetting.');
@@ -2116,7 +2116,7 @@ class HL_Admin_Partnerships {
                                 btn.style.opacity = '1';
                             }
                         };
-                        xhr.send('action=hl_reset_email_log&partnership_id=' + partnershipId + '&phase_id=' + phaseSelect.value + '&user_id=' + userId + '&_wpnonce=' + resetNonce);
+                        xhr.send('action=hl_reset_email_log&partnership_id=' + partnershipId + '&cycle_id=' + cycleSelect.value + '&user_id=' + userId + '&_wpnonce=' + resetNonce);
                     });
                 });
 
@@ -2132,10 +2132,10 @@ class HL_Admin_Partnerships {
     }
 
     /**
-     * Render the email recipients HTML for a specific partnership + phase.
+     * Render the email recipients HTML for a specific partnership + cycle.
      * Used both on initial page load and via AJAX reload.
      */
-    private function render_email_recipients($partnership_id, $phase_id) {
+    private function render_email_recipients($partnership_id, $cycle_id) {
         global $wpdb;
 
         $enrollments = $wpdb->get_results($wpdb->prepare(
@@ -2146,10 +2146,10 @@ class HL_Admin_Partnerships {
              JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$wpdb->prefix}hl_orgunit o ON e.school_id = o.orgunit_id
              LEFT JOIN {$wpdb->prefix}hl_partnership_email_log el
-                 ON el.partnership_id = e.partnership_id AND el.phase_id = %d AND el.user_id = e.user_id
+                 ON el.partnership_id = e.partnership_id AND el.cycle_id = %d AND el.user_id = e.user_id
              WHERE e.partnership_id = %d AND e.status = 'active'
              ORDER BY u.display_name",
-            $phase_id, $partnership_id
+            $cycle_id, $partnership_id
         ), ARRAY_A);
 
         $cutoff = '2026-01-01 00:00:00';
@@ -2267,27 +2267,27 @@ class HL_Admin_Partnerships {
 
         $sub_action = isset($_POST['sub_action']) ? sanitize_text_field($_POST['sub_action']) : 'send';
         $partnership_id = isset($_POST['partnership_id']) ? absint($_POST['partnership_id']) : 0;
-        $phase_id = isset($_POST['phase_id']) ? absint($_POST['phase_id']) : 0;
+        $cycle_id = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
 
-        if (!$partnership_id || !$phase_id) {
-            wp_send_json_error(__('Invalid partnership or phase.', 'hl-core'));
+        if (!$partnership_id || !$cycle_id) {
+            wp_send_json_error(__('Invalid partnership or cycle.', 'hl-core'));
         }
 
         global $wpdb;
 
-        // Validate phase belongs to partnership
-        $phase = $wpdb->get_row($wpdb->prepare(
-            "SELECT phase_id, phase_name FROM {$wpdb->prefix}hl_phase WHERE phase_id = %d AND partnership_id = %d",
-            $phase_id, $partnership_id
+        // Validate cycle belongs to partnership
+        $cycle = $wpdb->get_row($wpdb->prepare(
+            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d AND partnership_id = %d",
+            $cycle_id, $partnership_id
         ));
-        if (!$phase) {
-            wp_send_json_error(__('Phase not found for this partnership.', 'hl-core'));
+        if (!$cycle) {
+            wp_send_json_error(__('Cycle not found for this partnership.', 'hl-core'));
         }
 
         // Load recipients sub-action
         if ($sub_action === 'load_recipients') {
             ob_start();
-            $this->render_email_recipients($partnership_id, $phase_id);
+            $this->render_email_recipients($partnership_id, $cycle_id);
             $html = ob_get_clean();
             wp_send_json_success(array('html' => $html));
         }
@@ -2331,8 +2331,8 @@ class HL_Admin_Partnerships {
             // Check if already sent (belt-and-suspenders)
             $already_sent = $wpdb->get_var($wpdb->prepare(
                 "SELECT log_id FROM {$wpdb->prefix}hl_partnership_email_log
-                 WHERE partnership_id = %d AND phase_id = %d AND user_id = %d",
-                $partnership_id, $phase_id, $enr['user_id']
+                 WHERE partnership_id = %d AND cycle_id = %d AND user_id = %d",
+                $partnership_id, $cycle_id, $enr['user_id']
             ));
             if ($already_sent) {
                 $skipped++;
@@ -2363,9 +2363,9 @@ class HL_Admin_Partnerships {
                 // INSERT IGNORE for hard DB-level dedup
                 $wpdb->query($wpdb->prepare(
                     "INSERT IGNORE INTO {$wpdb->prefix}hl_partnership_email_log
-                     (partnership_id, phase_id, user_id, email_type, recipient_email, sent_at, sent_by)
+                     (partnership_id, cycle_id, user_id, email_type, recipient_email, sent_at, sent_by)
                      VALUES (%d, %d, %d, %s, %s, %s, %d)",
-                    $partnership_id, $phase_id, $enr['user_id'], $email_type,
+                    $partnership_id, $cycle_id, $enr['user_id'], $email_type,
                     $enr['user_email'], $now, $current_user_id
                 ));
                 $sent_count++;
@@ -2396,17 +2396,17 @@ class HL_Admin_Partnerships {
         }
 
         $partnership_id = isset($_POST['partnership_id']) ? absint($_POST['partnership_id']) : 0;
-        $phase_id = isset($_POST['phase_id']) ? absint($_POST['phase_id']) : 0;
+        $cycle_id = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
         $user_id  = isset($_POST['user_id'])  ? absint($_POST['user_id'])  : 0;
 
-        if (!$partnership_id || !$phase_id || !$user_id) {
+        if (!$partnership_id || !$cycle_id || !$user_id) {
             wp_send_json_error(__('Missing parameters.', 'hl-core'));
         }
 
         global $wpdb;
         $wpdb->delete(
             $wpdb->prefix . 'hl_partnership_email_log',
-            array('partnership_id' => $partnership_id, 'phase_id' => $phase_id, 'user_id' => $user_id),
+            array('partnership_id' => $partnership_id, 'cycle_id' => $cycle_id, 'user_id' => $user_id),
             array('%d', '%d', '%d')
         );
 

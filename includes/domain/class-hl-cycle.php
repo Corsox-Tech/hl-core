@@ -1,6 +1,6 @@
 <?php
 /**
- * Phase domain model (time-bounded period within a Partnership)
+ * Cycle domain model (time-bounded period within a Partnership)
  *
  * @package HL_Core
  */
@@ -9,12 +9,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class HL_Phase {
-    public $phase_id;
-    public $phase_uuid;
+class HL_Cycle {
+    public $cycle_id;
+    public $cycle_uuid;
     public $partnership_id;
-    public $phase_name;
-    public $phase_number;
+    public $cycle_name;
+    public $cycle_number;
     public $start_date;
     public $end_date;
     public $status;

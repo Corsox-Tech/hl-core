@@ -75,7 +75,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-team.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-classroom.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-child.php';
-        require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-phase.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-cycle.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-pathway.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-component.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-teacher-assessment-instrument.php';
@@ -87,7 +87,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-team-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-classroom-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-child-repository.php';
-        require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-phase-repository.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-cycle-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-pathway-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-component-repository.php';
         
@@ -101,7 +101,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-enrollment-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-team-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-classroom-service.php';
-        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-phase-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-cycle-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-pathway-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-rules-engine-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-assessment-service.php';

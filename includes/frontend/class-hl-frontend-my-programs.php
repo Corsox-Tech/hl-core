@@ -141,16 +141,16 @@ class HL_Frontend_My_Programs {
                 ? round(($weighted_done / $total_weight) * 100)
                 : 0;
 
-            // Resolve phase name if pathway has a phase.
-            $phase_name = '';
-            if (!empty($pathway->phase_id)) {
-                $phase_repo = new HL_Phase_Repository();
-                $phase = $phase_repo->get_by_id($pathway->phase_id);
-                if ($phase) {
-                    // Only show phase name if track has multiple phases.
-                    $phases_for_partnership = $phase_repo->get_by_partnership($partnership->partnership_id);
-                    if (count($phases_for_partnership) > 1) {
-                        $phase_name = $phase->phase_name;
+            // Resolve cycle name if pathway has a cycle.
+            $cycle_name = '';
+            if (!empty($pathway->cycle_id)) {
+                $cycle_repo = new HL_Cycle_Repository();
+                $cycle = $cycle_repo->get_by_id($pathway->cycle_id);
+                if ($cycle) {
+                    // Only show cycle name if track has multiple cycles.
+                    $cycles_for_partnership = $cycle_repo->get_by_partnership($partnership->partnership_id);
+                    if (count($cycles_for_partnership) > 1) {
+                        $cycle_name = $cycle->cycle_name;
                     }
                 }
             }
@@ -160,7 +160,7 @@ class HL_Frontend_My_Programs {
                 'pathway'     => $pathway,
                 'partnership'       => $partnership,
                 'percent'     => $overall_percent,
-                'phase_name'  => $phase_name,
+                'cycle_name'  => $cycle_name,
             );
             } // end foreach assigned_pathways
         }
@@ -269,8 +269,8 @@ class HL_Frontend_My_Programs {
                 <h3 class="hl-program-card-title"><?php echo esc_html($pathway->pathway_name); ?></h3>
                 <p class="hl-program-card-partnership">
                     <?php echo esc_html($partnership->partnership_name); ?>
-                    <?php if (!empty($card['phase_name'])) : ?>
-                        <span class="hl-program-card-phase">&mdash; <?php echo esc_html($card['phase_name']); ?></span>
+                    <?php if (!empty($card['cycle_name'])) : ?>
+                        <span class="hl-program-card-cycle">&mdash; <?php echo esc_html($card['cycle_name']); ?></span>
                     <?php endif; ?>
                 </p>
                 <div class="hl-program-card-progress">

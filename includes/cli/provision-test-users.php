@@ -26,7 +26,7 @@ global $wpdb;
 
 // ── Constants ──────────────────────────────────────────────────────────
 $partnership_id       = 1;
-$phase_id       = 1;
+$cycle_id       = 1;
 $pathway_id     = 1;
 $district_id    = 1; // LSF_PALM_BEACH
 

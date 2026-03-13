@@ -113,9 +113,9 @@ class HL_CLI_Seed_Lutheran {
 		// Log school alias resolutions for verification.
 		$this->log_school_resolutions( $school_map );
 
-		// Step 3: Partnership (run) + Phase.
+		// Step 3: Partnership (run) + Cycle.
 		$partnership_id = $this->seed_partnership( $district_id );
-		$this->seed_phase( $partnership_id );
+		$this->seed_cycle( $partnership_id );
 
 		// Step 4: Link schools to partnership.
 		$this->link_schools_to_partnership( $partnership_id, $school_map );
@@ -270,8 +270,8 @@ class HL_CLI_Seed_Lutheran {
 			// Delete pathway.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_pathway WHERE partnership_id = %d", $partnership_id ) );
 
-			// Delete phases.
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_phase WHERE partnership_id = %d", $partnership_id ) );
+			// Delete cycles.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_cycle WHERE partnership_id = %d", $partnership_id ) );
 
 			// Delete enrollments.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_enrollment WHERE partnership_id = %d", $partnership_id ) );
@@ -656,22 +656,22 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	/**
-	 * Seed a default Phase for the Lutheran control partnership.
+	 * Seed a default Cycle for the Lutheran control partnership.
 	 *
 	 * @param int $partnership_id Partnership ID.
 	 */
-	private function seed_phase( $partnership_id ) {
-		$phase_svc = new HL_Phase_Service();
-		$phase_id = $phase_svc->create_phase( array(
+	private function seed_cycle( $partnership_id ) {
+		$cycle_svc = new HL_Cycle_Service();
+		$cycle_id = $cycle_svc->create_cycle( array(
 			'partnership_id'     => $partnership_id,
-			'phase_name'   => 'Phase 1',
-			'phase_number' => 1,
+			'cycle_name'   => 'Cycle 1',
+			'cycle_number' => 1,
 			'start_date'   => '2026-02-15',
 			'end_date'     => '2026-07-31',
 			'status'       => 'active',
 		) );
 
-		WP_CLI::log( "  [3b/14] Phase created: id={$phase_id}" );
+		WP_CLI::log( "  [3b/14] Cycle created: id={$cycle_id}" );
 	}
 
 	// ------------------------------------------------------------------

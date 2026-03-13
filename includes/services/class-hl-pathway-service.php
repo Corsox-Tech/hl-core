@@ -12,14 +12,14 @@ class HL_Pathway_Service {
     }
 
     /**
-     * Get pathways, optionally filtered by partnership and/or phase.
+     * Get pathways, optionally filtered by partnership and/or cycle.
      *
      * @param int|null $partnership_id
-     * @param int|null $phase_id
+     * @param int|null $cycle_id
      * @return HL_Pathway[]
      */
-    public function get_pathways($partnership_id = null, $phase_id = null) {
-        return $this->pathway_repo->get_all($partnership_id, $phase_id);
+    public function get_pathways($partnership_id = null, $cycle_id = null) {
+        return $this->pathway_repo->get_all($partnership_id, $cycle_id);
     }
 
     public function get_pathway($pathway_id) {
@@ -27,18 +27,18 @@ class HL_Pathway_Service {
     }
 
     /**
-     * Create a pathway. Accepts phase_id; auto-resolves partnership_id from phase if needed.
+     * Create a pathway. Accepts cycle_id; auto-resolves partnership_id from cycle if needed.
      *
      * @param array $data
      * @return int|WP_Error
      */
     public function create_pathway($data) {
-        // If phase_id is provided but partnership_id is missing, resolve partnership_id from the phase.
-        if (!empty($data['phase_id']) && empty($data['partnership_id'])) {
-            $phase_repo = new HL_Phase_Repository();
-            $phase = $phase_repo->get_by_id(absint($data['phase_id']));
-            if ($phase) {
-                $data['partnership_id'] = $phase->partnership_id;
+        // If cycle_id is provided but partnership_id is missing, resolve partnership_id from the cycle.
+        if (!empty($data['cycle_id']) && empty($data['partnership_id'])) {
+            $cycle_repo = new HL_Cycle_Repository();
+            $cycle = $cycle_repo->get_by_id(absint($data['cycle_id']));
+            if ($cycle) {
+                $data['partnership_id'] = $cycle->partnership_id;
             }
         }
 
@@ -46,12 +46,12 @@ class HL_Pathway_Service {
             return new WP_Error('missing_fields', __('Pathway name and partnership are required.', 'hl-core'));
         }
 
-        // If partnership_id provided but no phase_id, auto-resolve to default phase.
-        if (empty($data['phase_id']) && !empty($data['partnership_id'])) {
-            $phase_repo = new HL_Phase_Repository();
-            $default_phase = $phase_repo->get_default_phase(absint($data['partnership_id']));
-            if ($default_phase) {
-                $data['phase_id'] = $default_phase->phase_id;
+        // If partnership_id provided but no cycle_id, auto-resolve to default cycle.
+        if (empty($data['cycle_id']) && !empty($data['partnership_id'])) {
+            $cycle_repo = new HL_Cycle_Repository();
+            $default_cycle = $cycle_repo->get_default_cycle(absint($data['partnership_id']));
+            if ($default_cycle) {
+                $data['cycle_id'] = $default_cycle->cycle_id;
             }
         }
 
@@ -75,7 +75,7 @@ class HL_Pathway_Service {
             return new WP_Error('missing_fields', __('Title, pathway, and type are required.', 'hl-core'));
         }
 
-        // Auto-resolve partnership_id from pathway's phase if not provided.
+        // Auto-resolve partnership_id from pathway's cycle if not provided.
         if (empty($data['partnership_id']) && !empty($data['pathway_id'])) {
             $pathway = $this->pathway_repo->get_by_id(absint($data['pathway_id']));
             if ($pathway) {
@@ -122,15 +122,15 @@ class HL_Pathway_Service {
     }
 
     /**
-     * Clone a pathway (with activities, prereq groups/items, drip rules) into a target phase/partnership.
+     * Clone a pathway (with activities, prereq groups/items, drip rules) into a target cycle/partnership.
      *
      * @param int      $source_pathway_id Source pathway to clone from.
      * @param int      $target_partnership_id   Target partnership for the new pathway.
      * @param string   $name_suffix       Suffix appended to the cloned pathway name.
-     * @param int|null $target_phase_id   Target phase (overrides partnership_id resolution).
+     * @param int|null $target_cycle_id   Target cycle (overrides partnership_id resolution).
      * @return int|WP_Error New pathway ID on success.
      */
-    public function clone_pathway($source_pathway_id, $target_partnership_id, $name_suffix = ' (Copy)', $target_phase_id = null) {
+    public function clone_pathway($source_pathway_id, $target_partnership_id, $name_suffix = ' (Copy)', $target_cycle_id = null) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -144,19 +144,19 @@ class HL_Pathway_Service {
             return new WP_Error('not_found', __('Source pathway not found.', 'hl-core'));
         }
 
-        // Resolve phase_id: explicit param > target partnership's default phase > source's phase.
-        $resolved_phase_id = $target_phase_id;
-        if (!$resolved_phase_id) {
-            $phase_repo = new HL_Phase_Repository();
-            $default_phase = $phase_repo->get_default_phase(absint($target_partnership_id));
-            $resolved_phase_id = $default_phase ? $default_phase->phase_id : $source['phase_id'];
+        // Resolve cycle_id: explicit param > target partnership's default cycle > source's cycle.
+        $resolved_cycle_id = $target_cycle_id;
+        if (!$resolved_cycle_id) {
+            $cycle_repo = new HL_Cycle_Repository();
+            $default_cycle = $cycle_repo->get_default_cycle(absint($target_partnership_id));
+            $resolved_cycle_id = $default_cycle ? $default_cycle->cycle_id : $source['cycle_id'];
         }
 
         // 2. Create new pathway.
         $new_pathway_data = array(
             'pathway_uuid'        => HL_DB_Utils::generate_uuid(),
             'partnership_id'           => absint($target_partnership_id),
-            'phase_id'           => $resolved_phase_id ? absint($resolved_phase_id) : null,
+            'cycle_id'           => $resolved_cycle_id ? absint($resolved_cycle_id) : null,
             'pathway_name'        => $source['pathway_name'] . $name_suffix,
             'pathway_code'        => HL_Normalization::generate_code($source['pathway_name'] . $name_suffix),
             'description'         => $source['description'],

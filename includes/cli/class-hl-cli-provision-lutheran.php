@@ -111,8 +111,8 @@ class HL_CLI_Provision_Lutheran {
 		// Step 3: Partnership.
 		$partnership_id = $this->provision_partnership( $district_id );
 
-		// Step 4: Phase.
-		$phase_id = $this->provision_phase( $partnership_id );
+		// Step 4: Cycle.
+		$cycle_id = $this->provision_cycle( $partnership_id );
 
 		// Step 5: Partnership-School links.
 		$this->provision_partnership_schools( $partnership_id, $school_map );
@@ -326,29 +326,29 @@ class HL_CLI_Provision_Lutheran {
 	// Step 4: Phase
 	// ------------------------------------------------------------------
 
-	private function provision_phase( $partnership_id ) {
+	private function provision_cycle( $partnership_id ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
 		if ( ! $partnership_id ) {
-			WP_CLI::log( '  [4] Phase: SKIP (no partnership in dry run)' );
+			WP_CLI::log( '  [4] Cycle: SKIP (no partnership in dry run)' );
 			return null;
 		}
 
 		$id = $this->find_or_create(
-			'Phase',
+			'Cycle',
 			function () use ( $wpdb, $prefix, $partnership_id ) {
 				return $wpdb->get_var( $wpdb->prepare(
-					"SELECT phase_id FROM {$prefix}hl_phase WHERE partnership_id = %d AND phase_number = 1 LIMIT 1",
+					"SELECT cycle_id FROM {$prefix}hl_cycle WHERE partnership_id = %d AND cycle_number = 1 LIMIT 1",
 					$partnership_id
 				) );
 			},
 			function () use ( $partnership_id ) {
-				$svc = new HL_Phase_Service();
-				return $svc->create_phase( array(
+				$svc = new HL_Cycle_Service();
+				return $svc->create_cycle( array(
 					'partnership_id'     => $partnership_id,
-					'phase_name'   => 'Phase 1',
-					'phase_number' => 1,
+					'cycle_name'   => 'Cycle 1',
+					'cycle_number' => 1,
 					'start_date'   => '2026-02-15',
 					'end_date'     => '2026-07-31',
 					'status'       => 'active',
@@ -356,8 +356,8 @@ class HL_CLI_Provision_Lutheran {
 			}
 		);
 
-		$status = $this->counters['Phase']['found'] > 0 ? 'FOUND' : ( $this->dry_run ? 'WOULD CREATE' : 'CREATED' );
-		WP_CLI::log( "  [4] Phase: {$status}" . ( $id ? " (id={$id})" : '' ) );
+		$status = $this->counters['Cycle']['found'] > 0 ? 'FOUND' : ( $this->dry_run ? 'WOULD CREATE' : 'CREATED' );
+		WP_CLI::log( "  [4] Cycle: {$status}" . ( $id ? " (id={$id})" : '' ) );
 		return $id;
 	}
 
