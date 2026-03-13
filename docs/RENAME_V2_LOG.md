@@ -12,3 +12,4 @@
 
 | Task | Description | Timestamp | Files Changed | Notes |
 |------|-------------|-----------|---------------|-------|
+| A1 | DB migration track→partnership | 2026-03-13 | 1 file | Tables: hl_partnership, hl_partnership_school, hl_child_partnership_snapshot + ~15 FK columns |
