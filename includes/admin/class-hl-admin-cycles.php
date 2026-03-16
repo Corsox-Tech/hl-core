@@ -1740,7 +1740,7 @@ class HL_Admin_Cycles {
 
         // Container for AJAX-loaded recipient tables
         echo '<div id="hl-email-recipients-container">';
-        $this->render_email_recipients($cycle_id, $selected_cycle_id);
+        $this->render_email_recipients($cycle_id);
         echo '</div>';
 
         // Inline JS
@@ -1907,10 +1907,10 @@ class HL_Admin_Cycles {
     }
 
     /**
-     * Render the email recipients HTML for a specific cycle + cycle.
+     * Render the email recipients HTML for a specific cycle.
      * Used both on initial page load and via AJAX reload.
      */
-    private function render_email_recipients($cycle_id, $cycle_id) {
+    private function render_email_recipients($cycle_id) {
         global $wpdb;
 
         $enrollments = $wpdb->get_results($wpdb->prepare(
@@ -1921,10 +1921,10 @@ class HL_Admin_Cycles {
              JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$wpdb->prefix}hl_orgunit o ON e.school_id = o.orgunit_id
              LEFT JOIN {$wpdb->prefix}hl_cycle_email_log el
-                 ON el.cycle_id = e.cycle_id AND el.cycle_id = %d AND el.user_id = e.user_id
+                 ON el.cycle_id = e.cycle_id AND el.user_id = e.user_id
              WHERE e.cycle_id = %d AND e.status = 'active'
              ORDER BY u.display_name",
-            $cycle_id, $cycle_id
+            $cycle_id
         ), ARRAY_A);
 
         $cutoff = '2026-01-01 00:00:00';
@@ -2062,7 +2062,7 @@ class HL_Admin_Cycles {
         // Load recipients sub-action
         if ($sub_action === 'load_recipients') {
             ob_start();
-            $this->render_email_recipients($cycle_id, $cycle_id);
+            $this->render_email_recipients($cycle_id);
             $html = ob_get_clean();
             wp_send_json_success(array('html' => $html));
         }
