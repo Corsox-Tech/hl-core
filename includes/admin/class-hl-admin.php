@@ -109,6 +109,7 @@ class HL_Admin {
         add_menu_page('HL Core', 'HL Core', 'manage_hl_core', 'hl-cycles', array(HL_Admin_Cycles::instance(), 'render_page'), 'dashicons-welcome-learn-more', 30);
 
         // ── Primary entities (hierarchical order) ────────────────────
+        add_submenu_page('hl-cycles', 'Partnerships', 'Partnerships', 'manage_hl_core', 'hl-partnerships', array(HL_Admin_Partnerships::instance(), 'render_page'));
         add_submenu_page('hl-cycles', 'Cycles', 'Cycles', 'manage_hl_core', 'hl-cycles', array(HL_Admin_Cycles::instance(), 'render_page'));
         add_submenu_page('hl-cycles', 'Org Units', 'Org Units', 'manage_hl_core', 'hl-orgunits', array(HL_Admin_OrgUnits::instance(), 'render_page'));
         add_submenu_page('hl-cycles', 'Enrollments', 'Enrollments', 'manage_hl_core', 'hl-enrollments', array(HL_Admin_Enrollments::instance(), 'render_page'));
@@ -129,7 +130,7 @@ class HL_Admin {
         // ── Hidden pages (no menu entry, but accessible via URL) ────
         add_submenu_page(null, 'Instruments', '', 'manage_hl_core', 'hl-instruments', array(HL_Admin_Instruments::instance(), 'render_page'));
         add_submenu_page(null, 'Assessments (Standalone)', '', 'manage_hl_core', 'hl-assessments', array(HL_Admin_Assessments::instance(), 'render_page'));
-        add_submenu_page(null, 'Partnerships', '', 'manage_hl_core', 'hl-partnerships', array(HL_Admin_Partnerships::instance(), 'render_page'));
+        // Partnerships is now a visible menu item (registered above)
     }
 
     public function enqueue_assets($hook) {
