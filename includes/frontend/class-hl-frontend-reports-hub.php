@@ -117,7 +117,7 @@ class HL_Frontend_Reports_Hub {
         if ( $scope['is_staff'] || in_array( 'district_leader', $scope['hl_roles'], true ) ) {
             $reports[] = array(
                 'title'       => __( 'Program Group Report', 'hl-core' ),
-                'description' => __( 'View cross-track aggregate metrics for cohort groups. Compare tracks within a program.', 'hl-core' ),
+                'description' => __( 'View cross-track aggregate metrics for partnership groups. Compare tracks within a program.', 'hl-core' ),
                 'url'         => '', // TODO: link to dedicated group report page when built
             );
         }

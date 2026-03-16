@@ -181,11 +181,11 @@ class HL_CLI_Seed_Docs {
         // =====================================================================
 
         $articles[] = array(
-            'slug'       => 'cohorts-vs-cycles',
-            'title'      => 'Cohorts vs Cycles',
+            'slug'       => 'partnerships-vs-cycles',
+            'title'      => 'Partnerships vs Cycles',
             'cat_id'     => $cat_ids['core-concepts'] ?? 0,
             'sort_order' => 1,
-            'content'    => $this->content_cohorts_vs_cycles(),
+            'content'    => $this->content_partnerships_vs_cycles(),
         );
 
         $articles[] = array(
@@ -410,17 +410,17 @@ Here's the typical workflow to get a new B2E program running in HL Core:
 
 Go to <strong>WP Admin > HL Core > Org Units</strong> and create the school district and schools that will participate. Each school should be associated with its parent district.
 
-<h3>2. Create a Cohort</h3>
+<h3>2. Create a Partnership</h3>
 
-Go to <strong>HL Core > Cohorts</strong> and create a new [hl_doc_link slug="cohorts-vs-cycles" text="Cohort"]. A Cohort is the contract-level container — for example, "B2E Mastery - Palm Beach County 2026." Set the status to Active and optionally assign it to a Cohort Group.
+Go to <strong>HL Core > Partnerships</strong> and create a new [hl_doc_link slug="partnerships-vs-cycles" text="Partnership"]. A Partnership is the contract-level container — for example, "B2E Mastery - Palm Beach County 2026." Set the status to Active and optionally assign it to a Partnership Group.
 
 <h3>3. Create a Cycle</h3>
 
-Inside the Cohort editor, go to the Details tab and create a new Cycle. A Cycle is the time-bounded run within the Cohort. Link schools to the Cycle and set start/end dates.
+Inside the Partnership editor, go to the Details tab and create a new Cycle. A Cycle is the time-bounded run within the Partnership. Link schools to the Cycle and set start/end dates.
 
 <h3>4. Configure a Pathway</h3>
 
-Go to the Pathways tab within the Cohort and create a [hl_doc_link slug="pathways-overview" text="Pathway"] with the components participants need to complete. Assign the pathway to enrollments.
+Go to the Pathways tab within the Partnership and create a [hl_doc_link slug="pathways-overview" text="Pathway"] with the components participants need to complete. Assign the pathway to enrollments.
 
 <h3>5. Import participants</h3>
 
@@ -471,25 +471,25 @@ The Dashboard automatically detects your roles from your [hl_doc_link slug="enro
 HTML;
     }
 
-    private function content_cohorts_vs_cycles() {
+    private function content_partnerships_vs_cycles() {
         return <<<'HTML'
 <h2>The two-level hierarchy</h2>
 
 HL Core uses a two-level hierarchy for program management:
 
-<h3>Cohort (the container)</h3>
+<h3>Partnership (the container)</h3>
 
-A <strong>Cohort</strong> is a contract-level entity that represents a program cycle. Think of it as the "project" or "contract." Examples:
+A <strong>Partnership</strong> is a contract-level entity that represents a program cycle. Think of it as the "project" or "contract." Examples:
 <ul>
 <li>"B2E Mastery - Palm Beach County 2026"</li>
 <li>"B2E Mastery - Lutheran Services Florida"</li>
 </ul>
 
-A Cohort has a name, a code (for enrollment), a status (active, paused, archived), and optional start/end dates.
+A Partnership has a name, a code (for enrollment), a status (active, paused, archived), and optional start/end dates.
 
 <h3>Cycle (the run)</h3>
 
-A <strong>Cycle</strong> is a time-bounded run within a Cohort. Most Cohorts have one Cycle, but a Cohort can have multiple:
+A <strong>Cycle</strong> is a time-bounded run within a Partnership. Most Partnerships have one Cycle, but a Partnership can have multiple:
 <ul>
 <li>A <strong>program cycle</strong> with the full B2E curriculum (courses, coaching, observations, assessments).</li>
 <li>A <strong>control cycle</strong> with assessment-only components (for research comparison).</li>
@@ -502,8 +502,8 @@ Cycles hold the configuration: linked schools, pathways, teams, enrollments, and
 The separation exists because:
 <ul>
 <li>A single contract may include both a program group and a [hl_doc_link slug="control-groups" text="control group"].</li>
-<li>[hl_doc_link slug="program-vs-control-comparison" text="Comparison reports"] operate at the Cohort level, comparing cycles within the same Cohort.</li>
-<li>Cohort Groups aggregate multiple Cohorts for cross-program reporting.</li>
+<li>[hl_doc_link slug="program-vs-control-comparison" text="Comparison reports"] operate at the Partnership level, comparing cycles within the same Partnership.</li>
+<li>Partnership Groups aggregate multiple Partnerships for cross-program reporting.</li>
 </ul>
 
 <blockquote>The front-end shows "Program" to participants (the word "Cycle" appears only in admin interfaces). See the Glossary for the full label mapping.</blockquote>
@@ -565,7 +565,7 @@ Go to <strong>WP Admin > HL Core > Org Units</strong> to manage the organization
 
 <h3>Linking schools to cycles</h3>
 
-When editing a Cycle (inside the Cohort editor), use the <strong>Schools</strong> tab to link/unlink schools. Only linked schools can have participants enrolled in that Cycle.
+When editing a Cycle (inside the Partnership editor), use the <strong>Schools</strong> tab to link/unlink schools. Only linked schools can have participants enrolled in that Cycle.
 HTML;
     }
 
@@ -588,7 +588,7 @@ A <strong>Team</strong> groups teachers together under one or two mentors for co
 
 Teams can be created in two ways:
 <ul>
-<li><strong>WP Admin</strong> — Go to HL Core > Teams or use the Teams tab in the Cohort editor.</li>
+<li><strong>WP Admin</strong> — Go to HL Core > Teams or use the Teams tab in the Partnership editor.</li>
 <li><strong>CSV Import</strong> — The participant import can automatically create teams when importing mentors.</li>
 </ul>
 
@@ -607,7 +607,7 @@ A <strong>control group</strong> is a Cycle where participants only complete ass
 <h2>How to create a control group</h2>
 
 <ol>
-<li>Open the Cohort editor for an existing Cohort (or create a new one).</li>
+<li>Open the Partnership editor for an existing Partnership (or create a new one).</li>
 <li>Create a new Cycle and check the <strong>"Control Group"</strong> checkbox.</li>
 <li>The Cycle will be marked with a purple "Control" badge.</li>
 <li>Create an assessment-only [hl_doc_link slug="pathways-overview" text="pathway"] with 4 components: Teacher Self-Assessment Pre, Child Assessment Pre, Teacher Self-Assessment Post, Child Assessment Post.</li>
@@ -620,7 +620,7 @@ A <strong>control group</strong> is a Cycle where participants only complete ass
 <li>Coaching and Teams tabs are hidden in both admin and front-end.</li>
 <li>The "My Coaching" card is hidden on the Dashboard for control-group-only participants.</li>
 <li>Only assessment components appear in the pathway.</li>
-<li>[hl_doc_link slug="program-vs-control-comparison" text="Comparison reports"] show side-by-side results when a Cohort contains both program and control Cycles.</li>
+<li>[hl_doc_link slug="program-vs-control-comparison" text="Comparison reports"] show side-by-side results when a Partnership contains both program and control Cycles.</li>
 </ul>
 HTML;
     }
@@ -825,7 +825,7 @@ When a coach is reassigned, the old assignment is closed (given an <code>effecti
 
 <h2>Managing assignments</h2>
 
-Go to <strong>WP Admin > HL Core > Coach Assignments</strong> to create, edit, or end coach assignments. You can filter by cohort to see assignments for a specific program.
+Go to <strong>WP Admin > HL Core > Coach Assignments</strong> to create, edit, or end coach assignments. You can filter by partnership to see assignments for a specific program.
 HTML;
     }
 
@@ -1062,7 +1062,7 @@ Reports are available in two places:
 <h2>Report types</h2>
 
 <h3>Completion report</h3>
-Shows per-participant completion percentages with filterable columns for cohort, school, district, team, and role. Each row can be expanded to show per-component status.
+Shows per-participant completion percentages with filterable columns for partnership, school, district, team, and role. Each row can be expanded to show per-component status.
 
 <h3>School summary</h3>
 Aggregates completion by school — shows average completion, participant count, and completed/in-progress/not-started breakdowns.
@@ -1091,7 +1091,7 @@ HTML;
         return <<<'HTML'
 <h2>Overview</h2>
 
-When a [hl_doc_link slug="cohorts-vs-cycles" text="Cohort"] contains both a program Cycle and a [hl_doc_link slug="control-groups" text="control group"] Cycle, HL Core can generate <strong>comparison reports</strong> that measure program impact.
+When a [hl_doc_link slug="partnerships-vs-cycles" text="Partnership"] contains both a program Cycle and a [hl_doc_link slug="control-groups" text="control group"] Cycle, HL Core can generate <strong>comparison reports</strong> that measure program impact.
 
 <h2>How comparison works</h2>
 
@@ -1107,7 +1107,7 @@ The comparison analyzes Teacher Self-Assessment data from both cycles:
 
 <ol>
 <li>Go to <strong>WP Admin > HL Core > Reports</strong>.</li>
-<li>Select a <strong>Cohort Group</strong> filter that contains both program and control cohorts.</li>
+<li>Select a <strong>Partnership Group</strong> filter that contains both program and control partnerships.</li>
 <li>The comparison section appears automatically below the standard reports.</li>
 </ol>
 
@@ -1123,13 +1123,13 @@ HTML;
 
     private function get_glossary_definitions() {
         return array(
-            'glossary-cohort' => array(
-                'title'   => 'Cohort',
-                'content' => 'A contract-level container entity that represents a program cycle. A Cohort holds one or more Cycles. Example: "B2E Mastery - Palm Beach County 2026." See [hl_doc_link slug="cohorts-vs-cycles"] for details.',
+            'glossary-partnership' => array(
+                'title'   => 'Partnership',
+                'content' => 'A contract-level container entity that represents a program cycle. A Partnership holds one or more Cycles. Example: "B2E Mastery - Palm Beach County 2026." See [hl_doc_link slug="partnerships-vs-cycles"] for details.',
             ),
             'glossary-cycle' => array(
                 'title'   => 'Cycle',
-                'content' => 'A time-bounded run within a Cohort. Cycles hold enrollments, schools, pathways, teams, and coaching assignments. Most Cohorts have one Cycle, but research designs may include both a program Cycle and a control Cycle. The front-end shows "Program" instead of "Cycle" to participants.',
+                'content' => 'A time-bounded run within a Partnership. Cycles hold enrollments, schools, pathways, teams, and coaching assignments. Most Partnerships have one Cycle, but research designs may include both a program Cycle and a control Cycle. The front-end shows "Program" instead of "Cycle" to participants.',
             ),
             'glossary-enrollment' => array(
                 'title'   => 'Enrollment',

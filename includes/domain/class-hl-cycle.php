@@ -15,7 +15,7 @@ class HL_Cycle {
     public $cycle_code;
     public $cycle_name;
     public $district_id;
-    public $cohort_id;
+    public $partnership_id;
     public $is_control_group;
     public $cycle_type;
     public $status;
@@ -41,7 +41,7 @@ class HL_Cycle {
             'cycle_code' => $this->cycle_code,
             'cycle_name' => $this->cycle_name,
             'district_id' => $this->district_id,
-            'cohort_id' => $this->cohort_id,
+            'partnership_id' => $this->partnership_id,
             'is_control_group' => $this->is_control_group,
             'cycle_type' => $this->cycle_type,
             'status' => $this->status,

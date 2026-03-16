@@ -21,8 +21,8 @@ class HL_CLI_Seed_Lutheran {
 	/** District code. */
 	const DISTRICT_CODE = 'LSF_PALM_BEACH';
 
-	/** Cohort (container) code. */
-	const COHORT_CODE = 'B2E_LSF';
+	/** Partnership (container) code. */
+	const PARTNERSHIP_CODE = 'B2E_LSF';
 
 	/** User meta key to tag Lutheran seed users. */
 	const SEED_META_KEY = '_hl_lutheran_seed';
@@ -119,8 +119,8 @@ class HL_CLI_Seed_Lutheran {
 		// Step 4: Link schools to cycle.
 		$this->link_schools_to_cycle( $cycle_id, $school_map );
 
-		// Step 5: Cohort (container).
-		$cohort_id = $this->seed_cohort( $cycle_id );
+		// Step 5: Partnership (container).
+		$partnership_id = $this->seed_partnership( $cycle_id );
 
 		// Step 6: Classrooms.
 		$classrooms = $this->seed_classrooms( $teacher_roster_data, $school_map );
@@ -166,7 +166,7 @@ class HL_CLI_Seed_Lutheran {
 		WP_CLI::line( "  District:     {$district_id} (code: " . self::DISTRICT_CODE . ')' );
 		WP_CLI::line( '  Schools:      ' . count( $school_map ) );
 		WP_CLI::line( "  Cycle:  {$cycle_id} (code: " . self::CYCLE_CODE . ')' );
-		WP_CLI::line( "  Cohort:       {$cohort_id} (code: " . self::COHORT_CODE . ')' );
+		WP_CLI::line( "  Partnership:       {$partnership_id} (code: " . self::PARTNERSHIP_CODE . ')' );
 		WP_CLI::line( '  Classrooms:   ' . count( $classrooms ) );
 		WP_CLI::line( '  Teachers:     ' . count( $users ) );
 		WP_CLI::line( '  Enrollments:  ' . count( $enrollments ) );
@@ -287,14 +287,14 @@ class HL_CLI_Seed_Lutheran {
 			WP_CLI::log( "  Deleted cycle {$cycle_id} and all related records." );
 		}
 
-		// Delete cohort (container).
+		// Delete partnership (container).
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$prefix}hl_cohort WHERE cohort_code = %s",
-				self::COHORT_CODE
+				"DELETE FROM {$prefix}hl_partnership WHERE partnership_code = %s",
+				self::PARTNERSHIP_CODE
 			)
 		);
-		WP_CLI::log( '  Deleted cohort container (' . self::COHORT_CODE . ').' );
+		WP_CLI::log( '  Deleted partnership container (' . self::PARTNERSHIP_CODE . ').' );
 
 		// Delete district and schools.
 		$district_id = $wpdb->get_var(
@@ -675,46 +675,46 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 5: Cohort (container)
+	// Step 5: Partnership (container)
 	// ------------------------------------------------------------------
 
 	/**
-	 * Create or find the B2E_LSF cohort (container), then assign the cycle.
+	 * Create or find the B2E_LSF partnership (container), then assign the cycle.
 	 *
 	 * @param int $cycle_id The Lutheran control cycle ID.
-	 * @return int Cohort (container) ID.
+	 * @return int Partnership (container) ID.
 	 */
-	private function seed_cohort( $cycle_id ) {
+	private function seed_partnership( $cycle_id ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
-		// Check if cohort (container) already exists.
-		$cohort_id = $wpdb->get_var(
+		// Check if partnership (container) already exists.
+		$partnership_id = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT cohort_id FROM {$prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
-				self::COHORT_CODE
+				"SELECT partnership_id FROM {$prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
+				self::PARTNERSHIP_CODE
 			)
 		);
 
-		if ( ! $cohort_id ) {
-			$wpdb->insert( $prefix . 'hl_cohort', array(
-				'cohort_uuid' => HL_DB_Utils::generate_uuid(),
-				'cohort_name' => 'B2E Mastery - Lutheran Services Florida',
-				'cohort_code' => self::COHORT_CODE,
+		if ( ! $partnership_id ) {
+			$wpdb->insert( $prefix . 'hl_partnership', array(
+				'partnership_uuid' => HL_DB_Utils::generate_uuid(),
+				'partnership_name' => 'B2E Mastery - Lutheran Services Florida',
+				'partnership_code' => self::PARTNERSHIP_CODE,
 				'status'      => 'active',
 			) );
-			$cohort_id = $wpdb->insert_id;
+			$partnership_id = $wpdb->insert_id;
 		}
 
-		// Assign the control cycle to this cohort (container).
+		// Assign the control cycle to this partnership (container).
 		$wpdb->update(
 			$prefix . 'hl_cycle',
-			array( 'cohort_id' => $cohort_id ),
+			array( 'partnership_id' => $partnership_id ),
 			array( 'cycle_id' => $cycle_id )
 		);
 
-		WP_CLI::log( "  [5/14] Cohort (container): id={$cohort_id}, code=" . self::COHORT_CODE );
-		return $cohort_id;
+		WP_CLI::log( "  [5/14] Partnership (container): id={$partnership_id}, code=" . self::PARTNERSHIP_CODE );
+		return $partnership_id;
 	}
 
 	// ------------------------------------------------------------------

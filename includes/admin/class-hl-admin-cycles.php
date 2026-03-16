@@ -102,7 +102,7 @@ class HL_Admin_Cycles {
         // Proactively ensure cycle_id column exists BEFORE any save attempt.
         // If the column was missed by dbDelta or a migration, this adds it now so
         // the INSERT/UPDATE below won't fail silently.
-        $this->ensure_cohort_column();
+        $this->ensure_partnership_column();
 
         $cycle_id = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
 
@@ -114,7 +114,7 @@ class HL_Admin_Cycles {
             'end_date'         => sanitize_text_field($_POST['end_date']),
             'timezone'         => sanitize_text_field($_POST['timezone']),
             'district_id'      => !empty($_POST['district_id']) ? absint($_POST['district_id']) : null,
-            'cohort_id'        => !empty($_POST['cohort_id']) ? absint($_POST['cohort_id']) : null,
+            'partnership_id'        => !empty($_POST['partnership_id']) ? absint($_POST['partnership_id']) : null,
             'is_control_group' => !empty($_POST['is_control_group']) ? 1 : 0,
             'cycle_type'       => isset($_POST['cycle_type']) && in_array($_POST['cycle_type'], array('program', 'course'), true) ? $_POST['cycle_type'] : 'program',
         );
@@ -126,10 +126,10 @@ class HL_Admin_Cycles {
         if ($cycle_id > 0) {
             $updated = $this->repo->update($cycle_id, $data);
 
-            if (!$updated || $updated->cohort_id === null && $data['cohort_id'] !== null) {
-                error_log('[HL Core] Cohort assignment save may have failed for ID ' . $cycle_id
-                    . ': expected=' . ($data['cohort_id'] ?? 'NULL')
-                    . ' got=' . ($updated ? ($updated->cohort_id ?? 'NULL') : 'NO_RESULT'));
+            if (!$updated || $updated->partnership_id === null && $data['partnership_id'] !== null) {
+                error_log('[HL Core] Partnership assignment save may have failed for ID ' . $cycle_id
+                    . ': expected=' . ($data['partnership_id'] ?? 'NULL')
+                    . ' got=' . ($updated ? ($updated->partnership_id ?? 'NULL') : 'NO_RESULT'));
             }
 
             $redirect = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $cycle_id . '&tab=details&message=updated');
@@ -147,12 +147,12 @@ class HL_Admin_Cycles {
     }
 
     /**
-     * Ensure the cohort_id column exists in the hl_cycle table.
+     * Ensure the partnership_id column exists in the hl_cycle table.
      *
      * Self-healing: if the migration failed or dbDelta didn't add the column,
      * this creates it on the fly so the save can succeed.
      */
-    private function ensure_cohort_column() {
+    private function ensure_partnership_column() {
         global $wpdb;
         $table = $wpdb->prefix . 'hl_cycle';
 
@@ -160,25 +160,25 @@ class HL_Admin_Cycles {
             "SELECT COLUMN_NAME FROM information_schema.COLUMNS
              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
             $table,
-            'cohort_id'
+            'partnership_id'
         ) );
 
         if ( empty( $has_col ) ) {
-            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `cohort_id` bigint(20) unsigned DEFAULT NULL" );
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `partnership_id` bigint(20) unsigned DEFAULT NULL" );
 
             // Verify it was actually added.
             $verify = $wpdb->get_var( $wpdb->prepare(
                 "SELECT COLUMN_NAME FROM information_schema.COLUMNS
                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
                 $table,
-                'cohort_id'
+                'partnership_id'
             ) );
 
             if ( ! empty( $verify ) ) {
-                $wpdb->query( "ALTER TABLE `{$table}` ADD INDEX `cohort_id` (`cohort_id`)" );
-                error_log( '[HL Core] Self-healed: added missing cohort_id column to ' . $table );
+                $wpdb->query( "ALTER TABLE `{$table}` ADD INDEX `partnership_id` (`partnership_id`)" );
+                error_log( '[HL Core] Self-healed: added missing partnership_id column to ' . $table );
             } else {
-                error_log( '[HL Core] CRITICAL: Failed to add cohort_id column. Last error: ' . $wpdb->last_error );
+                error_log( '[HL Core] CRITICAL: Failed to add partnership_id column. Last error: ' . $wpdb->last_error );
             }
         }
     }
@@ -507,7 +507,7 @@ class HL_Admin_Cycles {
     }
 
     /**
-     * Build the cohort context array passed to standalone class render methods.
+     * Build the partnership context array passed to standalone class render methods.
      *
      * @param object $cycle
      * @return array

@@ -132,7 +132,7 @@ class HL_CLI_Seed_Palm_Beach {
 		if ( $control_data ) {
 			WP_CLI::line( "  Control cycle: {$control_data['cycle_id']} (code: LSF-CTRL-2026)" );
 			WP_CLI::line( "  Control participants: {$control_data['participant_count']}" );
-			WP_CLI::line( "  Cohort (container): {$control_data['cohort_id']} (B2E Program Evaluation)" );
+			WP_CLI::line( "  Partnership (container): {$control_data['partnership_id']} (B2E Program Evaluation)" );
 		}
 		WP_CLI::line( '' );
 	}
@@ -726,14 +726,14 @@ class HL_CLI_Seed_Palm_Beach {
 			WP_CLI::log( "  Deleted control cycle {$control_cycle_id} and related records." );
 		}
 
-		// Delete B2E Program Evaluation cohort (container).
+		// Delete B2E Program Evaluation partnership (container).
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$wpdb->prefix}hl_cohort WHERE cohort_code = %s",
+				"DELETE FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = %s",
 				'B2E-EVAL'
 			)
 		);
-		WP_CLI::log( '  Deleted cohort (B2E-EVAL).' );
+		WP_CLI::log( '  Deleted partnership (B2E-EVAL).' );
 
 		// Handle demo users — only delete those we CREATED; preserve pre-existing (tagged 'found').
 		$demo_rows = $wpdb->get_results(
@@ -1665,7 +1665,7 @@ class HL_CLI_Seed_Palm_Beach {
 	/**
 	 * Seed the Lutheran Services Florida control group.
 	 *
-	 * Creates a cohort (container), a control cycle, assessment-only pathway,
+	 * Creates a partnership (container), a control cycle, assessment-only pathway,
 	 * control participants, and submitted PRE assessments.
 	 *
 	 * @param int   $program_cycle_id The Palm Beach program cycle ID.
@@ -1687,31 +1687,31 @@ class HL_CLI_Seed_Palm_Beach {
 			HL_Installer::create_tables();
 		}
 
-		// Step 18: Create cohort (container).
-		$cohort_id = $wpdb->get_var( $wpdb->prepare(
-			"SELECT cohort_id FROM {$prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
+		// Step 18: Create partnership (container).
+		$partnership_id = $wpdb->get_var( $wpdb->prepare(
+			"SELECT partnership_id FROM {$prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
 			'B2E-EVAL'
 		) );
 
-		if ( ! $cohort_id ) {
-			$wpdb->insert( $prefix . 'hl_cohort', array(
-				'cohort_uuid' => wp_generate_uuid4(),
-				'cohort_name' => 'B2E Program Evaluation',
-				'cohort_code' => 'B2E-EVAL',
+		if ( ! $partnership_id ) {
+			$wpdb->insert( $prefix . 'hl_partnership', array(
+				'partnership_uuid' => wp_generate_uuid4(),
+				'partnership_name' => 'B2E Program Evaluation',
+				'partnership_code' => 'B2E-EVAL',
 				'status'      => 'active',
 			) );
-			$cohort_id = $wpdb->insert_id;
+			$partnership_id = $wpdb->insert_id;
 		}
 
-		if ( ! $cohort_id ) {
-			WP_CLI::log( '  [18/20] ERROR: Could not create cohort (container). DB error: ' . $wpdb->last_error );
+		if ( ! $partnership_id ) {
+			WP_CLI::log( '  [18/20] ERROR: Could not create partnership (container). DB error: ' . $wpdb->last_error );
 			return null;
 		}
 
-		// Assign the ELC Palm Beach cycle to this cohort.
+		// Assign the ELC Palm Beach cycle to this partnership.
 		$wpdb->update(
 			$prefix . 'hl_cycle',
-			array( 'cohort_id' => $cohort_id ),
+			array( 'partnership_id' => $partnership_id ),
 			array( 'cycle_id' => $program_cycle_id )
 		);
 
@@ -1727,7 +1727,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'cycle_name'       => 'Lutheran Services Florida — Control Group',
 				'cycle_code'       => 'LSF-CTRL-2026',
 				'is_control_group' => 1,
-				'cohort_id'        => $cohort_id,
+				'partnership_id'        => $partnership_id,
 				'status'           => 'active',
 				'start_date'       => '2026-01-01',
 				'end_date'         => '2026-12-31',
@@ -1739,7 +1739,7 @@ class HL_CLI_Seed_Palm_Beach {
 			return null;
 		}
 
-		WP_CLI::log( "  [18/20] Cohort id={$cohort_id} (B2E-EVAL), control cycle id={$control_cycle_id} (LSF-CTRL-2026)" );
+		WP_CLI::log( "  [18/20] Partnership id={$partnership_id} (B2E-EVAL), control cycle id={$control_cycle_id} (LSF-CTRL-2026)" );
 
 		// Create assessment-only pathway.
 		$svc = new HL_Pathway_Service();
@@ -1923,7 +1923,7 @@ class HL_CLI_Seed_Palm_Beach {
 			. ", program PRE submitted: {$program_pre_count}" );
 
 		return array(
-			'cohort_id'         => $cohort_id,
+			'partnership_id'         => $partnership_id,
 			'cycle_id'          => $control_cycle_id,
 			'participant_count' => count( $ctrl_enrollment_ids ),
 		);

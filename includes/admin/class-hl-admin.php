@@ -129,7 +129,7 @@ class HL_Admin {
         // ── Hidden pages (no menu entry, but accessible via URL) ────
         add_submenu_page(null, 'Instruments', '', 'manage_hl_core', 'hl-instruments', array(HL_Admin_Instruments::instance(), 'render_page'));
         add_submenu_page(null, 'Assessments (Standalone)', '', 'manage_hl_core', 'hl-assessments', array(HL_Admin_Assessments::instance(), 'render_page'));
-        add_submenu_page(null, 'Cohorts', '', 'manage_hl_core', 'hl-cohorts', array(HL_Admin_Cohorts::instance(), 'render_page'));
+        add_submenu_page(null, 'Partnerships', '', 'manage_hl_core', 'hl-partnerships', array(HL_Admin_Partnerships::instance(), 'render_page'));
     }
 
     public function enqueue_assets($hook) {

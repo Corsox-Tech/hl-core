@@ -17,8 +17,8 @@ class HL_Capabilities {
     public static function get_all_capabilities() {
         return array(
             'manage_hl_core',
-            'hl_view_cohorts',
-            'hl_edit_cohorts',
+            'hl_view_partnerships',
+            'hl_edit_partnerships',
             'hl_view_enrollments',
             'hl_edit_enrollments',
             'hl_view_assessments',
@@ -33,7 +33,7 @@ class HL_Capabilities {
     public static function get_coach_capabilities() {
         return array(
             'manage_hl_core',
-            'hl_view_cohorts',
+            'hl_view_partnerships',
             'hl_view_enrollments',
             'hl_view_assessments',
             'hl_view_assessment_responses',

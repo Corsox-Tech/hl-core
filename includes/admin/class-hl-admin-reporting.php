@@ -100,7 +100,7 @@ class HL_Admin_Reporting {
             'district_id' => isset($_GET['district_id']) ? absint($_GET['district_id']) : 0,
             'team_id'     => isset($_GET['team_id'])     ? absint($_GET['team_id'])     : 0,
             'role'        => isset($_GET['role'])         ? sanitize_text_field($_GET['role']) : '',
-            'cohort_id'   => isset($_GET['cohort_id'])   ? absint($_GET['cohort_id'])   : 0,
+            'partnership_id'   => isset($_GET['partnership_id'])   ? absint($_GET['partnership_id'])   : 0,
         );
     }
 
@@ -134,13 +134,13 @@ class HL_Admin_Reporting {
 
         $cycle_id = $filters['cycle_id'];
 
-        // Group summary export uses cohort_id (container), not cycle_id.
+        // Group summary export uses partnership_id (container), not cycle_id.
         if ($export_type === 'group_summary_csv') {
-            $cohort_id = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
-            if ($cohort_id) {
+            $partnership_id = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
+            if ($partnership_id) {
                 $reporting = HL_Reporting_Service::instance();
-                $csv      = $reporting->export_group_summary_csv($cohort_id);
-                $filename = 'group-summary-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $reporting->export_group_summary_csv($partnership_id);
+                $filename = 'group-summary-' . $partnership_id . '-' . gmdate('Y-m-d') . '.csv';
                 if (!empty($csv)) {
                     header('Content-Type: text/csv; charset=utf-8');
                     header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -154,13 +154,13 @@ class HL_Admin_Reporting {
             return;
         }
 
-        // Comparison CSV export uses cohort_id (container), not cycle_id.
+        // Comparison CSV export uses partnership_id (container), not cycle_id.
         if ($export_type === 'comparison_csv') {
-            $cohort_id = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
-            if ($cohort_id) {
+            $partnership_id = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
+            if ($partnership_id) {
                 $reporting = HL_Reporting_Service::instance();
-                $csv      = $reporting->export_group_comparison_csv($cohort_id);
-                $filename = 'program-vs-control-comparison-' . $cohort_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $reporting->export_group_comparison_csv($partnership_id);
+                $filename = 'program-vs-control-comparison-' . $partnership_id . '-' . gmdate('Y-m-d') . '.csv';
                 if (!empty($csv)) {
                     header('Content-Type: text/csv; charset=utf-8');
                     header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -304,7 +304,7 @@ class HL_Admin_Reporting {
         // Assessment exports (staff only)
         $this->render_assessment_exports($filters);
 
-        // Group comparison (when cohort_id filter is active)
+        // Group comparison (when partnership_id filter is active)
         $this->render_group_comparison($reporting, $filters);
     }
 
@@ -361,10 +361,10 @@ class HL_Admin_Reporting {
 
         $roles = array('Teacher', 'Mentor', 'School Leader', 'District Leader');
 
-        // Fetch cohorts (containers) for the cohort filter.
+        // Fetch partnerships (containers) for the partnership filter.
         global $wpdb;
-        $cohorts = $wpdb->get_results(
-            "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort WHERE status = 'active' ORDER BY cohort_name ASC",
+        $partnerships = $wpdb->get_results(
+            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership WHERE status = 'active' ORDER BY partnership_name ASC",
             ARRAY_A
         ) ?: array();
 
@@ -372,13 +372,13 @@ class HL_Admin_Reporting {
         echo '<form method="get" action="' . esc_url(admin_url('admin.php')) . '" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">';
         echo '<input type="hidden" name="page" value="hl-reporting" />';
 
-        // Cohort (container) dropdown (for comparison reporting)
+        // Partnership (container) dropdown (for comparison reporting)
         echo '<div style="flex: 1; min-width: 160px;">';
-        echo '<label for="cohort_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Cohort', 'hl-core') . '</label>';
-        echo '<select name="cohort_id" id="cohort_id" style="width: 100%;">';
-        echo '<option value="">' . esc_html__('-- No Cohort --', 'hl-core') . '</option>';
-        foreach ($cohorts as $cg) {
-            echo '<option value="' . esc_attr($cg['cohort_id']) . '"' . selected($filters['cohort_id'], $cg['cohort_id'], false) . '>' . esc_html($cg['cohort_name']) . '</option>';
+        echo '<label for="partnership_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Partnership', 'hl-core') . '</label>';
+        echo '<select name="partnership_id" id="partnership_id" style="width: 100%;">';
+        echo '<option value="">' . esc_html__('-- No Partnership --', 'hl-core') . '</option>';
+        foreach ($partnerships as $cg) {
+            echo '<option value="' . esc_attr($cg['partnership_id']) . '"' . selected($filters['partnership_id'], $cg['partnership_id'], false) . '>' . esc_html($cg['partnership_name']) . '</option>';
         }
         echo '</select>';
         echo '</div>';
@@ -948,34 +948,34 @@ class HL_Admin_Reporting {
     /**
      * Render the program vs control group comparison section.
      *
-     * Only appears when a cohort (container) is selected that contains both
+     * Only appears when a partnership (container) is selected that contains both
      * program (is_control_group=0) and control (is_control_group=1) cycles.
      *
      * @param HL_Reporting_Service $reporting
      * @param array                $filters
      */
     private function render_group_comparison($reporting, $filters) {
-        $cohort_id = isset($filters['cohort_id']) ? absint($filters['cohort_id']) : 0;
-        if (!$cohort_id) {
+        $partnership_id = isset($filters['partnership_id']) ? absint($filters['partnership_id']) : 0;
+        if (!$partnership_id) {
             return;
         }
 
-        $comparison = $reporting->get_cohort_assessment_comparison($cohort_id);
+        $comparison = $reporting->get_partnership_assessment_comparison($partnership_id);
         if (!$comparison) {
             return;
         }
 
-        // Get cohort (container) name.
+        // Get partnership (container) name.
         global $wpdb;
-        $cohort_name = $wpdb->get_var($wpdb->prepare(
-            "SELECT cohort_name FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d",
-            $cohort_id
+        $partnership_name = $wpdb->get_var($wpdb->prepare(
+            "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
+            $partnership_id
         ));
 
         echo '<div style="margin-top: 30px; border-top: 2px solid #9b59b6; padding-top: 20px;">';
         echo '<h2 style="color: #9b59b6;">' . esc_html(sprintf(
             __('Program vs Control Comparison — %s', 'hl-core'),
-            $cohort_name ?: __('Cohort', 'hl-core')
+            $partnership_name ?: __('Partnership', 'hl-core')
         )) . '</h2>';
 
         // Info cards.
@@ -1058,7 +1058,7 @@ class HL_Admin_Reporting {
         }
 
         // Export button.
-        $export_url = $this->page_url(array('export' => 'comparison_csv', 'cohort_id' => $cohort_id));
+        $export_url = $this->page_url(array('export' => 'comparison_csv', 'partnership_id' => $partnership_id));
         echo '<a href="' . esc_url($export_url) . '" class="button">';
         echo esc_html__('Export Comparison CSV', 'hl-core');
         echo '</a>';

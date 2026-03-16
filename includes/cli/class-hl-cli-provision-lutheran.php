@@ -21,8 +21,8 @@ class HL_CLI_Provision_Lutheran {
 	/** District code. */
 	const DISTRICT_CODE = 'LSF_PALM_BEACH';
 
-	/** Cohort (container) code. */
-	const COHORT_CODE = 'B2E_LSF';
+	/** Partnership (container) code. */
+	const PARTNERSHIP_CODE = 'B2E_LSF';
 
 	/** @var bool Dry-run mode — log what would happen without writing. */
 	private $dry_run = false;
@@ -114,8 +114,8 @@ class HL_CLI_Provision_Lutheran {
 		// Step 4: Cycle-School links.
 		$this->provision_cycle_schools( $cycle_id, $school_map );
 
-		// Step 6: Cohort container.
-		$cohort_id = $this->provision_cohort( $cycle_id );
+		// Step 6: Partnership container.
+		$partnership_id = $this->provision_partnership( $cycle_id );
 
 		// Step 7: Classrooms.
 		$classrooms = $this->provision_classrooms( $teacher_roster_data, $school_map );
@@ -360,43 +360,43 @@ class HL_CLI_Provision_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 6: Cohort container
+	// Step 6: Partnership container
 	// ------------------------------------------------------------------
 
-	private function provision_cohort( $cycle_id ) {
+	private function provision_partnership( $cycle_id ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
 		$id = $this->find_or_create(
-			'Cohort',
+			'Partnership',
 			function () use ( $wpdb, $prefix ) {
 				return $wpdb->get_var( $wpdb->prepare(
-					"SELECT cohort_id FROM {$prefix}hl_cohort WHERE cohort_code = %s LIMIT 1",
-					self::COHORT_CODE
+					"SELECT partnership_id FROM {$prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
+					self::PARTNERSHIP_CODE
 				) );
 			},
 			function () use ( $wpdb, $prefix ) {
-				$wpdb->insert( $prefix . 'hl_cohort', array(
-					'cohort_uuid' => HL_DB_Utils::generate_uuid(),
-					'cohort_name' => 'B2E Mastery - Lutheran Services Florida',
-					'cohort_code' => self::COHORT_CODE,
+				$wpdb->insert( $prefix . 'hl_partnership', array(
+					'partnership_uuid' => HL_DB_Utils::generate_uuid(),
+					'partnership_name' => 'B2E Mastery - Lutheran Services Florida',
+					'partnership_code' => self::PARTNERSHIP_CODE,
 					'status'      => 'active',
 				) );
 				return $wpdb->insert_id;
 			}
 		);
 
-		// Assign cycle to cohort.
+		// Assign cycle to partnership.
 		if ( $cycle_id && $id && ! $this->dry_run ) {
 			$wpdb->update(
 				$prefix . 'hl_cycle',
-				array( 'cohort_id' => $id ),
+				array( 'partnership_id' => $id ),
 				array( 'cycle_id' => $cycle_id )
 			);
 		}
 
-		$status = $this->counters['Cohort']['found'] > 0 ? 'FOUND' : ( $this->dry_run ? 'WOULD CREATE' : 'CREATED' );
-		WP_CLI::log( "  [6] Cohort: {$status}" . ( $id ? " (id={$id})" : '' ) );
+		$status = $this->counters['Partnership']['found'] > 0 ? 'FOUND' : ( $this->dry_run ? 'WOULD CREATE' : 'CREATED' );
+		WP_CLI::log( "  [6] Partnership: {$status}" . ( $id ? " (id={$id})" : '' ) );
 		return $id;
 	}
 

@@ -18,7 +18,7 @@ class HL_REST_API {
     }
 
     public function register_routes() {
-        // Cycles (run-level entities, formerly "cohorts")
+        // Cycles (run-level entities, formerly "partnerships")
         register_rest_route($this->namespace, '/cycles', array(
             'methods'             => 'GET',
             'callback'            => array($this, 'get_cycles'),

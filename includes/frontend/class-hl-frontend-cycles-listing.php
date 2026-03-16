@@ -46,8 +46,8 @@ class HL_Frontend_Cycles_Listing {
         $participant_counts = $this->get_participant_counts();
         $school_counts      = $this->get_school_counts();
 
-        // Cohort container options for filter.
-        $cohort_options = $this->get_cohorts();
+        // Partnership container options for filter.
+        $partnership_options = $this->get_partnerships();
 
         $workspace_url = $this->find_shortcode_page_url( 'hl_cycle_workspace' );
 
@@ -62,10 +62,10 @@ class HL_Frontend_Cycles_Listing {
             <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-cycle-search"
                        placeholder="<?php esc_attr_e( 'Search cycles...', 'hl-core' ); ?>">
-                <?php if ( ! empty( $cohort_options ) ) : ?>
-                    <select id="hl-cohort-filter" class="hl-select">
-                        <option value=""><?php esc_html_e( 'All Cohorts', 'hl-core' ); ?></option>
-                        <?php foreach ( $cohort_options as $gid => $gname ) : ?>
+                <?php if ( ! empty( $partnership_options ) ) : ?>
+                    <select id="hl-partnership-filter" class="hl-select">
+                        <option value=""><?php esc_html_e( 'All Partnerships', 'hl-core' ); ?></option>
+                        <?php foreach ( $partnership_options as $gid => $gname ) : ?>
                             <option value="<?php echo esc_attr( $gid ); ?>"><?php echo esc_html( $gname ); ?></option>
                         <?php endforeach; ?>
                     </select>
@@ -103,7 +103,7 @@ class HL_Frontend_Cycles_Listing {
                         <div class="hl-crm-card hl-cycle-card"
                              data-status="<?php echo esc_attr( $status ); ?>"
                              data-name="<?php echo esc_attr( strtolower( $cycle->cycle_name . ' ' . $cycle->cycle_code ) ); ?>"
-                             data-group="<?php echo esc_attr( $cycle->cohort_id ?: '' ); ?>">
+                             data-group="<?php echo esc_attr( $cycle->partnership_id ?: '' ); ?>">
                             <div class="hl-crm-card-body">
                                 <div class="hl-crm-card-header">
                                     <h3 class="hl-crm-card-title">
@@ -161,7 +161,7 @@ class HL_Frontend_Cycles_Listing {
 
             function filterCards() {
                 var query = $('#hl-cycle-search').val().toLowerCase();
-                var groupFilter = $('#hl-cohort-filter').val() || '';
+                var groupFilter = $('#hl-partnership-filter').val() || '';
                 var statuses = [];
                 $('.hl-status-filter:checked').each(function(){ statuses.push($(this).val()); });
 
@@ -180,7 +180,7 @@ class HL_Frontend_Cycles_Listing {
 
             $('#hl-cycle-search').on('input', filterCards);
             $('.hl-status-filter').on('change', filterCards);
-            $('#hl-cohort-filter').on('change', filterCards);
+            $('#hl-partnership-filter').on('change', filterCards);
             filterCards();
         })(jQuery);
         </script>
@@ -224,15 +224,15 @@ class HL_Frontend_Cycles_Listing {
         return $map;
     }
 
-    private function get_cohorts() {
+    private function get_partnerships() {
         global $wpdb;
         $results = $wpdb->get_results(
-            "SELECT cohort_id, cohort_name FROM {$wpdb->prefix}hl_cohort WHERE status = 'active' ORDER BY cohort_name ASC",
+            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership WHERE status = 'active' ORDER BY partnership_name ASC",
             ARRAY_A
         );
         $map = array();
         foreach ( $results ?: array() as $row ) {
-            $map[ (int) $row['cohort_id'] ] = $row['cohort_name'];
+            $map[ (int) $row['partnership_id'] ] = $row['partnership_name'];
         }
         return $map;
     }

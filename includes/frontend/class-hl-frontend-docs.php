@@ -580,8 +580,8 @@ class HL_Frontend_Docs {
      * Render an inline cross-reference link to another doc article.
      *
      * Usage:
-     *   [hl_doc_link slug="cohorts-vs-tracks"]
-     *   [hl_doc_link slug="cohorts-vs-tracks" text="Learn about Cohorts"]
+     *   [hl_doc_link slug="partnerships-vs-tracks"]
+     *   [hl_doc_link slug="partnerships-vs-tracks" text="Learn about Partnerships"]
      *
      * @param array $atts Shortcode attributes.
      * @return string HTML anchor tag or plain text if slug not found.

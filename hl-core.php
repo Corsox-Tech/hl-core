@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Housman Learning Core
  * Plugin URI: https://housmanlearning.com
- * Description: System-of-record for Housman Learning Academy Cohort management
+ * Description: System-of-record for Housman Learning Academy Partnership management
  * Version: 1.0.0
  * Author: Housman Learning
  * Author URI: https://housmanlearning.com
@@ -70,6 +70,7 @@ class HL_Core {
         
         // Domain models
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-orgunit.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-partnership.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-cycle.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-enrollment.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-team.php';
@@ -81,6 +82,7 @@ class HL_Core {
         
         // Repositories
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-orgunit-repository.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-partnership-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-cycle-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-enrollment-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-team-repository.php';
@@ -95,7 +97,7 @@ class HL_Core {
         
         // Services
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-cycle-service.php';
-        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-cohort-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-partnership-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-enrollment-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-team-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-classroom-service.php';
@@ -120,7 +122,7 @@ class HL_Core {
         // Admin
         if (is_admin()) {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin.php';
-            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-cohorts.php';
+            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-partnerships.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-orgunits.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-enrollments.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-pathways.php';

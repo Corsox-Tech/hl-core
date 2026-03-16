@@ -12,14 +12,14 @@ if (!defined('ABSPATH')) {
 class HL_Date_Utils {
     
     /**
-     * Get cohort timezone (default America/Bogota)
+     * Get partnership timezone (default America/Bogota)
      */
-    public static function get_cohort_timezone($cohort_id = null) {
-        if ($cohort_id) {
+    public static function get_partnership_timezone($partnership_id = null) {
+        if ($partnership_id) {
             global $wpdb;
             $timezone = $wpdb->get_var($wpdb->prepare(
-                "SELECT timezone FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d",
-                $cohort_id
+                "SELECT timezone FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
+                $partnership_id
             ));
             if ($timezone) {
                 return $timezone;
@@ -29,20 +29,20 @@ class HL_Date_Utils {
     }
 
     /**
-     * Convert date to cohort timezone
+     * Convert date to partnership timezone
      */
-    public static function to_cohort_timezone($date, $cohort_id = null) {
-        $timezone = self::get_cohort_timezone($cohort_id);
+    public static function to_partnership_timezone($date, $partnership_id = null) {
+        $timezone = self::get_partnership_timezone($partnership_id);
         $dt = new DateTime($date, new DateTimeZone('UTC'));
         $dt->setTimezone(new DateTimeZone($timezone));
         return $dt;
     }
 
     /**
-     * Current datetime in cohort timezone
+     * Current datetime in partnership timezone
      */
-    public static function now($cohort_id = null) {
-        $timezone = self::get_cohort_timezone($cohort_id);
+    public static function now($partnership_id = null) {
+        $timezone = self::get_partnership_timezone($partnership_id);
         return new DateTime('now', new DateTimeZone($timezone));
     }
 }

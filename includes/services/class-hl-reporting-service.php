@@ -610,21 +610,21 @@ class HL_Reporting_Service {
     }
 
     // =========================================================================
-    // Cohort-Level (Cross-Cycle) Queries
+    // Partnership-Level (Cross-Cycle) Queries
     // =========================================================================
 
     /**
      * Get group-level summary: one row per cycle in the group.
      *
-     * @param int $cohort_id Cohort (container) ID.
+     * @param int $partnership_id Partnership (container) ID.
      * @return array Array of: cycle_id, cycle_name, cycle_code, status, participant_count, avg_completion_percent
      */
-    public function get_cohort_summary( $cohort_id ) {
+    public function get_partnership_summary( $partnership_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $cohort_id = absint( $cohort_id );
-        if ( ! $cohort_id ) {
+        $partnership_id = absint( $partnership_id );
+        if ( ! $partnership_id ) {
             return array();
         }
 
@@ -639,25 +639,25 @@ class HL_Reporting_Service {
              FROM {$prefix}hl_cycle t
              LEFT JOIN {$prefix}hl_enrollment e ON t.cycle_id = e.cycle_id AND e.status = 'active'
              LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
-             WHERE t.cohort_id = %d
+             WHERE t.partnership_id = %d
              GROUP BY t.cycle_id, t.cycle_name, t.cycle_code, t.status
              ORDER BY t.cycle_name ASC",
-            $cohort_id
+            $partnership_id
         ), ARRAY_A ) ?: array();
     }
 
     /**
-     * Get aggregate metrics across all cycles in a cohort (container).
+     * Get aggregate metrics across all cycles in a partnership (container).
      *
-     * @param int $cohort_id Cohort (container) ID.
+     * @param int $partnership_id Partnership (container) ID.
      * @return array Keys: total_cycles, total_participants, avg_completion_percent
      */
-    public function get_cohort_aggregate( $cohort_id ) {
+    public function get_partnership_aggregate( $partnership_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $cohort_id = absint( $cohort_id );
-        if ( ! $cohort_id ) {
+        $partnership_id = absint( $partnership_id );
+        if ( ! $partnership_id ) {
             return array( 'total_cycles' => 0, 'total_participants' => 0, 'avg_completion_percent' => 0 );
         }
 
@@ -669,21 +669,21 @@ class HL_Reporting_Service {
              FROM {$prefix}hl_cycle t
              LEFT JOIN {$prefix}hl_enrollment e ON t.cycle_id = e.cycle_id AND e.status = 'active'
              LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
-             WHERE t.cohort_id = %d",
-            $cohort_id
+             WHERE t.partnership_id = %d",
+            $partnership_id
         ), ARRAY_A );
 
         return $row ?: array( 'total_cycles' => 0, 'total_participants' => 0, 'avg_completion_percent' => 0 );
     }
 
     /**
-     * Export cohort summary as CSV.
+     * Export partnership summary as CSV.
      *
-     * @param int $cohort_id Cohort (container) ID.
+     * @param int $partnership_id Partnership (container) ID.
      * @return string CSV content
      */
-    public function export_cohort_summary_csv( $cohort_id ) {
-        $rows = $this->get_cohort_summary( $cohort_id );
+    public function export_partnership_summary_csv( $partnership_id ) {
+        $rows = $this->get_partnership_summary( $partnership_id );
 
         $handle = fopen( 'php://temp', 'r+' );
         if ( $handle === false ) {
@@ -859,29 +859,29 @@ class HL_Reporting_Service {
     // =========================================================================
 
     /**
-     * Get assessment comparison data for program vs control cycles in a cohort.
+     * Get assessment comparison data for program vs control cycles in a partnership.
      *
      * Returns per-section, per-item average scores for program cycles (is_control_group=0)
-     * vs control cycles (is_control_group=1) within the same cohort (container).
+     * vs control cycles (is_control_group=1) within the same partnership (container).
      *
-     * @param int $cohort_id Cohort (container) ID.
-     * @return array|null Comparison data or null if cohort has no control cycles.
+     * @param int $partnership_id Partnership (container) ID.
+     * @return array|null Comparison data or null if partnership has no control cycles.
      */
-    public function get_cohort_assessment_comparison( $cohort_id ) {
+    public function get_partnership_assessment_comparison( $partnership_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $cohort_id = absint( $cohort_id );
-        if ( ! $cohort_id ) {
+        $partnership_id = absint( $partnership_id );
+        if ( ! $partnership_id ) {
             return null;
         }
 
-        // Get all cycles in the cohort.
+        // Get all cycles in the partnership.
         $cycles = $wpdb->get_results( $wpdb->prepare(
             "SELECT cycle_id, cycle_name, is_control_group
              FROM {$prefix}hl_cycle
-             WHERE cohort_id = %d",
-            $cohort_id
+             WHERE partnership_id = %d",
+            $partnership_id
         ), ARRAY_A );
 
         if ( empty( $cycles ) ) {
@@ -1087,11 +1087,11 @@ class HL_Reporting_Service {
      * Flattens comparison data into one row per item per section with
      * program and control pre/post means, change values, and Cohen's d effect size.
      *
-     * @param int $cohort_id Cohort (container) ID.
+     * @param int $partnership_id Partnership (container) ID.
      * @return string CSV content or empty string.
      */
-    public function export_cohort_comparison_csv( $cohort_id ) {
-        $comparison = $this->get_cohort_assessment_comparison( $cohort_id );
+    public function export_partnership_comparison_csv( $partnership_id ) {
+        $comparison = $this->get_partnership_assessment_comparison( $partnership_id );
         if ( ! $comparison ) {
             return '';
         }

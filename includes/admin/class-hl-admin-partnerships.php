@@ -2,14 +2,14 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Admin Cohorts Page
+ * Admin Partnerships Page
  *
- * Manage cohorts (program-level grouping for cross-cycle reporting).
+ * Manage partnerships (program-level grouping for cross-cycle reporting).
  * Full CRUD: list, create, edit, delete.
  *
  * @package HL_Core
  */
-class HL_Admin_Cohorts {
+class HL_Admin_Partnerships {
 
     private static $instance = null;
 
@@ -26,7 +26,7 @@ class HL_Admin_Cohorts {
      * Handle POST saves and GET deletes before any HTML output.
      */
     public function handle_early_actions() {
-        if (isset($_POST['hl_cohort_nonce'])) {
+        if (isset($_POST['hl_partnership_nonce'])) {
             $this->handle_save();
         }
 
@@ -65,7 +65,7 @@ class HL_Admin_Cohorts {
     // =========================================================================
 
     private function handle_save() {
-        if (!wp_verify_nonce($_POST['hl_cohort_nonce'], 'hl_save_cohort')) {
+        if (!wp_verify_nonce($_POST['hl_partnership_nonce'], 'hl_save_partnership')) {
             wp_die(__('Security check failed.', 'hl-core'));
         }
         if (!current_user_can('manage_hl_core')) {
@@ -74,60 +74,60 @@ class HL_Admin_Cohorts {
 
         global $wpdb;
 
-        $cohort_id   = isset($_POST['cohort_id']) ? absint($_POST['cohort_id']) : 0;
-        $cohort_name = sanitize_text_field($_POST['cohort_name']);
-        $cohort_code = sanitize_text_field($_POST['cohort_code']);
+        $partnership_id   = isset($_POST['partnership_id']) ? absint($_POST['partnership_id']) : 0;
+        $partnership_name = sanitize_text_field($_POST['partnership_name']);
+        $partnership_code = sanitize_text_field($_POST['partnership_code']);
         $description = sanitize_textarea_field($_POST['description']);
         $status      = in_array($_POST['status'], array('active', 'archived'), true) ? $_POST['status'] : 'active';
 
-        if (empty($cohort_name)) {
-            wp_redirect(admin_url('admin.php?page=hl-cohorts&action=' . ($cohort_id ? 'edit&id=' . $cohort_id : 'new') . '&message=error'));
+        if (empty($partnership_name)) {
+            wp_redirect(admin_url('admin.php?page=hl-partnerships&action=' . ($partnership_id ? 'edit&id=' . $partnership_id : 'new') . '&message=error'));
             exit;
         }
 
-        if (empty($cohort_code)) {
-            $cohort_code = HL_Normalization::generate_code($cohort_name);
+        if (empty($partnership_code)) {
+            $partnership_code = HL_Normalization::generate_code($partnership_name);
         }
 
         $data = array(
-            'cohort_name'  => $cohort_name,
-            'cohort_code'  => $cohort_code,
+            'partnership_name'  => $partnership_name,
+            'partnership_code'  => $partnership_code,
             'description'  => $description,
             'status'       => $status,
         );
 
-        if ($cohort_id > 0) {
+        if ($partnership_id > 0) {
             $wpdb->update(
-                $wpdb->prefix . 'hl_cohort',
+                $wpdb->prefix . 'hl_partnership',
                 $data,
-                array('cohort_id' => $cohort_id)
+                array('partnership_id' => $partnership_id)
             );
             $message = 'updated';
         } else {
-            $data['cohort_uuid'] = HL_DB_Utils::generate_uuid();
-            $wpdb->insert($wpdb->prefix . 'hl_cohort', $data);
-            $cohort_id = $wpdb->insert_id;
+            $data['partnership_uuid'] = HL_DB_Utils::generate_uuid();
+            $wpdb->insert($wpdb->prefix . 'hl_partnership', $data);
+            $partnership_id = $wpdb->insert_id;
             $message   = 'created';
         }
 
         if (class_exists('HL_Audit_Service')) {
             HL_Audit_Service::log(
-                $message === 'created' ? 'cohort_created' : 'cohort_updated',
+                $message === 'created' ? 'partnership_created' : 'partnership_updated',
                 get_current_user_id(),
-                null, null, $cohort_id,
-                sprintf('Cohort "%s" %s', $cohort_name, $message)
+                null, null, $partnership_id,
+                sprintf('Partnership "%s" %s', $partnership_name, $message)
             );
         }
 
-        wp_redirect(admin_url('admin.php?page=hl-cohorts&message=' . $message));
+        wp_redirect(admin_url('admin.php?page=hl-partnerships&message=' . $message));
         exit;
     }
 
     private function handle_delete() {
-        $cohort_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
-        if (!$cohort_id) return;
+        $partnership_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+        if (!$partnership_id) return;
 
-        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_delete_cohort_' . $cohort_id)) {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_delete_partnership_' . $partnership_id)) {
             wp_die(__('Security check failed.', 'hl-core'));
         }
         if (!current_user_can('manage_hl_core')) {
@@ -136,25 +136,25 @@ class HL_Admin_Cohorts {
 
         global $wpdb;
 
-        // Unlink any cycles from this cohort.
+        // Unlink any cycles from this partnership.
         $wpdb->update(
             $wpdb->prefix . 'hl_cycle',
-            array('cohort_id' => null),
-            array('cohort_id' => $cohort_id)
+            array('partnership_id' => null),
+            array('partnership_id' => $partnership_id)
         );
 
-        $wpdb->delete($wpdb->prefix . 'hl_cohort', array('cohort_id' => $cohort_id));
+        $wpdb->delete($wpdb->prefix . 'hl_partnership', array('partnership_id' => $partnership_id));
 
         if (class_exists('HL_Audit_Service')) {
             HL_Audit_Service::log(
-                'cohort_deleted',
+                'partnership_deleted',
                 get_current_user_id(),
-                null, null, $cohort_id,
-                sprintf('Cohort #%d deleted', $cohort_id)
+                null, null, $partnership_id,
+                sprintf('Partnership #%d deleted', $partnership_id)
             );
         }
 
-        wp_redirect(admin_url('admin.php?page=hl-cohorts&message=deleted'));
+        wp_redirect(admin_url('admin.php?page=hl-partnerships&message=deleted'));
         exit;
     }
 
@@ -168,9 +168,9 @@ class HL_Admin_Cohorts {
         // Messages.
         if (isset($_GET['message'])) {
             $msgs = array(
-                'created' => array('success', __('Cohort created.', 'hl-core')),
-                'updated' => array('success', __('Cohort updated.', 'hl-core')),
-                'deleted' => array('success', __('Cohort deleted.', 'hl-core')),
+                'created' => array('success', __('Partnership created.', 'hl-core')),
+                'updated' => array('success', __('Partnership updated.', 'hl-core')),
+                'deleted' => array('success', __('Partnership deleted.', 'hl-core')),
                 'error'   => array('error', __('An error occurred. Please check required fields.', 'hl-core')),
             );
             $m = sanitize_text_field($_GET['message']);
@@ -179,31 +179,31 @@ class HL_Admin_Cohorts {
             }
         }
 
-        echo '<h1 class="wp-heading-inline">' . esc_html__('Cohorts', 'hl-core') . '</h1>';
-        echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-cohorts&action=new')) . '" class="page-title-action">' . esc_html__('Add New', 'hl-core') . '</a>';
+        echo '<h1 class="wp-heading-inline">' . esc_html__('Partnerships', 'hl-core') . '</h1>';
+        echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-partnerships&action=new')) . '" class="page-title-action">' . esc_html__('Add New', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
-        echo '<p class="description">' . esc_html__('Cohorts allow you to aggregate multiple cycles under one program for cross-cycle reporting.', 'hl-core') . '</p>';
+        echo '<p class="description">' . esc_html__('Partnerships allow you to aggregate multiple cycles under one program for cross-cycle reporting.', 'hl-core') . '</p>';
 
-        $cohorts = $wpdb->get_results(
-            "SELECT * FROM {$wpdb->prefix}hl_cohort ORDER BY cohort_name ASC",
+        $partnerships = $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC",
             ARRAY_A
         );
 
-        // Count cycles per cohort.
+        // Count cycles per partnership.
         $cycle_counts = array();
         $counts = $wpdb->get_results(
-            "SELECT cohort_id, COUNT(*) AS cnt
+            "SELECT partnership_id, COUNT(*) AS cnt
              FROM {$wpdb->prefix}hl_cycle
-             WHERE cohort_id IS NOT NULL
-             GROUP BY cohort_id",
+             WHERE partnership_id IS NOT NULL
+             GROUP BY partnership_id",
             ARRAY_A
         );
         foreach ($counts ?: array() as $row) {
-            $cycle_counts[$row['cohort_id']] = (int) $row['cnt'];
+            $cycle_counts[$row['partnership_id']] = (int) $row['cnt'];
         }
 
-        if (empty($cohorts)) {
-            echo '<p>' . esc_html__('No cohorts found. Create your first cohort to start aggregating cycles.', 'hl-core') . '</p>';
+        if (empty($partnerships)) {
+            echo '<p>' . esc_html__('No partnerships found. Create your first partnership to start aggregating cycles.', 'hl-core') . '</p>';
             return;
         }
 
@@ -219,26 +219,26 @@ class HL_Admin_Cohorts {
         echo '</tr></thead>';
         echo '<tbody>';
 
-        foreach ($cohorts as $c) {
-            $edit_url   = admin_url('admin.php?page=hl-cohorts&action=edit&id=' . $c['cohort_id']);
+        foreach ($partnerships as $c) {
+            $edit_url   = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $c['partnership_id']);
             $delete_url = wp_nonce_url(
-                admin_url('admin.php?page=hl-cohorts&action=delete&id=' . $c['cohort_id']),
-                'hl_delete_cohort_' . $c['cohort_id']
+                admin_url('admin.php?page=hl-partnerships&action=delete&id=' . $c['partnership_id']),
+                'hl_delete_partnership_' . $c['partnership_id']
             );
 
             $status_color = $c['status'] === 'active' ? '#00a32a' : '#8c8f94';
-            $num_cycles   = isset($cycle_counts[$c['cohort_id']]) ? $cycle_counts[$c['cohort_id']] : 0;
+            $num_cycles   = isset($cycle_counts[$c['partnership_id']]) ? $cycle_counts[$c['partnership_id']] : 0;
 
             echo '<tr>';
-            echo '<td>' . esc_html($c['cohort_id']) . '</td>';
-            echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($c['cohort_name']) . '</a></strong></td>';
-            echo '<td><code>' . esc_html($c['cohort_code']) . '</code></td>';
+            echo '<td>' . esc_html($c['partnership_id']) . '</td>';
+            echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($c['partnership_name']) . '</a></strong></td>';
+            echo '<td><code>' . esc_html($c['partnership_code']) . '</code></td>';
             echo '<td><span style="color:' . esc_attr($status_color) . '; font-weight:600;">' . esc_html(ucfirst($c['status'])) . '</span></td>';
             echo '<td>' . esc_html($num_cycles) . '</td>';
             echo '<td>' . esc_html(wp_trim_words($c['description'] ?: '', 12, '...')) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
-            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Delete this cohort? Cycles will be unlinked but not deleted.', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
+            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Delete this partnership? Cycles will be unlinked but not deleted.', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
             echo '</td>';
             echo '</tr>';
         }
@@ -253,43 +253,43 @@ class HL_Admin_Cohorts {
     private function render_form() {
         global $wpdb;
 
-        $cohort_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
-        $cohort    = null;
+        $partnership_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+        $partnership    = null;
         $is_edit   = false;
 
-        if ($cohort_id) {
-            $cohort = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}hl_cohort WHERE cohort_id = %d",
-                $cohort_id
+        if ($partnership_id) {
+            $partnership = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
+                $partnership_id
             ), ARRAY_A);
-            if ($cohort) {
+            if ($partnership) {
                 $is_edit = true;
             }
         }
 
-        echo '<h1>' . ($is_edit ? esc_html__('Edit Cohort', 'hl-core') : esc_html__('Add New Cohort', 'hl-core')) . '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-cohorts')) . '">&larr; ' . esc_html__('Back to Cohorts', 'hl-core') . '</a>';
+        echo '<h1>' . ($is_edit ? esc_html__('Edit Partnership', 'hl-core') : esc_html__('Add New Partnership', 'hl-core')) . '</h1>';
+        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-partnerships')) . '">&larr; ' . esc_html__('Back to Partnerships', 'hl-core') . '</a>';
 
-        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-cohorts')) . '">';
-        wp_nonce_field('hl_save_cohort', 'hl_cohort_nonce');
+        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-partnerships')) . '">';
+        wp_nonce_field('hl_save_partnership', 'hl_partnership_nonce');
 
         if ($is_edit) {
-            echo '<input type="hidden" name="cohort_id" value="' . esc_attr($cohort['cohort_id']) . '" />';
+            echo '<input type="hidden" name="partnership_id" value="' . esc_attr($partnership['partnership_id']) . '" />';
         }
 
         echo '<table class="form-table">';
 
         // Name
-        echo '<tr><th scope="row"><label for="cohort_name">' . esc_html__('Cohort Name', 'hl-core') . '</label></th>';
-        echo '<td><input type="text" id="cohort_name" name="cohort_name" value="' . esc_attr($is_edit ? $cohort['cohort_name'] : '') . '" class="regular-text" required /></td></tr>';
+        echo '<tr><th scope="row"><label for="partnership_name">' . esc_html__('Partnership Name', 'hl-core') . '</label></th>';
+        echo '<td><input type="text" id="partnership_name" name="partnership_name" value="' . esc_attr($is_edit ? $partnership['partnership_name'] : '') . '" class="regular-text" required /></td></tr>';
 
         // Code
-        echo '<tr><th scope="row"><label for="cohort_code">' . esc_html__('Cohort Code', 'hl-core') . '</label></th>';
-        echo '<td><input type="text" id="cohort_code" name="cohort_code" value="' . esc_attr($is_edit ? $cohort['cohort_code'] : '') . '" class="regular-text" />';
+        echo '<tr><th scope="row"><label for="partnership_code">' . esc_html__('Partnership Code', 'hl-core') . '</label></th>';
+        echo '<td><input type="text" id="partnership_code" name="partnership_code" value="' . esc_attr($is_edit ? $partnership['partnership_code'] : '') . '" class="regular-text" />';
         echo '<p class="description">' . esc_html__('Leave blank to auto-generate from name.', 'hl-core') . '</p></td></tr>';
 
         // Status
-        $current_status = $is_edit ? $cohort['status'] : 'active';
+        $current_status = $is_edit ? $partnership['status'] : 'active';
         echo '<tr><th scope="row"><label for="status">' . esc_html__('Status', 'hl-core') . '</label></th>';
         echo '<td><select id="status" name="status">';
         foreach (array('active', 'archived') as $s) {
@@ -299,42 +299,42 @@ class HL_Admin_Cohorts {
 
         // Description
         echo '<tr><th scope="row"><label for="description">' . esc_html__('Description', 'hl-core') . '</label></th>';
-        echo '<td><textarea id="description" name="description" rows="4" class="large-text">' . esc_textarea($is_edit ? ($cohort['description'] ?: '') : '') . '</textarea></td></tr>';
+        echo '<td><textarea id="description" name="description" rows="4" class="large-text">' . esc_textarea($is_edit ? ($partnership['description'] ?: '') : '') . '</textarea></td></tr>';
 
         echo '</table>';
 
-        submit_button($is_edit ? __('Update Cohort', 'hl-core') : __('Create Cohort', 'hl-core'));
+        submit_button($is_edit ? __('Update Partnership', 'hl-core') : __('Create Partnership', 'hl-core'));
         echo '</form>';
 
         // If editing, show linked cycles.
         if ($is_edit) {
-            $this->render_linked_cycles($cohort['cohort_id']);
+            $this->render_linked_cycles($partnership['partnership_id']);
         }
     }
 
     /**
-     * Render the cycles linked to this cohort.
+     * Render the cycles linked to this partnership.
      *
-     * @param int $cohort_id
+     * @param int $partnership_id
      */
-    private function render_linked_cycles($cohort_id) {
+    private function render_linked_cycles($partnership_id) {
         global $wpdb;
 
         $cycles = $wpdb->get_results($wpdb->prepare(
             "SELECT cycle_id, cycle_name, cycle_code, status, start_date
              FROM {$wpdb->prefix}hl_cycle
-             WHERE cohort_id = %d
+             WHERE partnership_id = %d
              ORDER BY cycle_name ASC",
-            $cohort_id
+            $partnership_id
         ), ARRAY_A);
 
         echo '<hr>';
         echo '<h2>' . esc_html__('Linked Cycles', 'hl-core') . ' ';
         echo '<span class="count">(' . count($cycles) . ')</span></h2>';
-        echo '<p class="description">' . esc_html__('To add a cycle to this cohort, edit the cycle and select this cohort from the Cohort dropdown on the Details tab.', 'hl-core') . '</p>';
+        echo '<p class="description">' . esc_html__('To add a cycle to this partnership, edit the cycle and select this partnership from the Partnership dropdown on the Details tab.', 'hl-core') . '</p>';
 
         if (empty($cycles)) {
-            echo '<p>' . esc_html__('No cycles are linked to this cohort yet.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No cycles are linked to this partnership yet.', 'hl-core') . '</p>';
             return;
         }
 
