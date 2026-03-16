@@ -16,8 +16,8 @@ Pick up from the first unchecked `[ ]` item each session.
 - [ ] **33.5 — Expiration enforcement** — Check on course access, auto-mark expired, optional LearnDash unenroll.
 
 ### Phase 34: Program Progress Matrix Report (B2E Master Reference)
-- [ ] **34.1 — Report query** — Query all LearnDash Course activities across all Phases of a Track, map completion per participant.
-- [ ] **34.2 — Admin report view** — Course-by-course grid with Phase/School/Team/Role filters.
+- [ ] **34.1 — Report query** — Query all LearnDash Course activities across all Cycles, map completion per participant.
+- [ ] **34.2 — Admin report view** — Course-by-course grid with Cycle/School/Team/Role filters.
 - [ ] **34.3 — CSV export** — Export the matrix as CSV.
 
 ### Lower Priority (Future)
@@ -39,5 +39,6 @@ Phases 23-27: Child assessment restructure (per-child age groups, roster managem
 Phases 28-31: Dashboard shortcode, instrument nuke protection, admin docs system, K-2nd grade age group
 Phase 32: Phase entity + Track types architecture (B2E Master Reference)
 Phase 35: Admin UX/UI redesign + menu consolidation
+Grand Rename V3: Corrective rename — Partnership↔Cohort swap, Phase entity deleted. Partnership=container, Cycle=yearly run.
 
 Note: Phases 12 (MS365 Calendar) and 13 (BuddyBoss Profile Tab) were deferred.

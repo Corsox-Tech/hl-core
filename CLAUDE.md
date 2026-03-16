@@ -42,13 +42,13 @@ These files are project configuration, not development targets. Do NOT modify th
 - Exception: If the user explicitly asks to update a reference file.
 
 ### 7. Terminology
-Hierarchy: **Partnership** (full program engagement) → **Cycle** (time period within Partnership). Pathways belong to Cycles.
-- **Partnership** = full program engagement (spans all Cycles/years). Stored in `hl_partnership`. Has `partnership_type`: `program` (full B2E) or `course` (simple institutional access).
-- **Cycle** = time period within a Partnership. Stored in `hl_cycle`.
-- **Cohort** = optional container grouping Partnerships. Stored in `hl_cohort`. Hidden from all UI — retained in DB only.
+Hierarchy: **Partnership** (container) → **Cycle** (yearly run). Pathways belong to Cycles.
+- **Partnership** = program-level container (groups Cycles for cross-cycle reporting). Stored in `hl_partnership`. Simple entity: name, code, description, status.
+- **Cycle** = time-bounded run within a Partnership (the operational entity). Stored in `hl_cycle`. Has `cycle_type`: `program` (full B2E) or `course` (simple institutional access). Enrollments, teams, pathways, components all belong to a Cycle.
 - **Learning Plan** = client-facing term for Pathway. Three plans: Teacher, Mentor, Leader.
+- No `hl_cohort` table — removed in Grand Rename V3. Old `hl_cycle` (Phase entity) also deleted.
 
-### Naming (Post-Rename V2)
+### Naming (Post-Rename V3)
 Code, DB, and UI all use the same terms now — no remapping layer needed.
 - `HL_Label_Remap` still exists in code but is **legacy — pending removal**. Do not add new remap entries.
 - `HL_JFB_Integration` still exists but is **legacy — pending full removal**. All forms are now built in PHP. Do not add new JFB references.
