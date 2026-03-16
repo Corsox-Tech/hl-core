@@ -195,7 +195,7 @@ class HL_Admin_Coaching {
         } else {
             // Create new session
             $data = array(
-                'partnership_id'             => absint($_POST['partnership_id']),
+                'cycle_id'             => absint($_POST['cycle_id']),
                 'mentor_enrollment_id' => absint($_POST['mentor_enrollment_id']),
                 'coach_user_id'        => absint($_POST['coach_user_id']),
                 'session_title'        => sanitize_text_field($_POST['session_title'] ?? ''),
@@ -354,23 +354,23 @@ class HL_Admin_Coaching {
     private function render_list() {
         global $wpdb;
 
-        $filter_partnership = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
+        $filter_cycle = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
 
-        // Get all partnerships for the filter dropdown
-        $partnerships = $wpdb->get_results(
-            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
+        // Get all cycles for the filter dropdown
+        $cycles = $wpdb->get_results(
+            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle ORDER BY cycle_name ASC"
         );
 
         // Show success/error messages
         $this->render_messages();
 
-        // Partnership breadcrumb.
-        if ($filter_partnership) {
-            $partnership_name = $wpdb->get_var($wpdb->prepare(
-                "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d", $filter_partnership
+        // Cycle breadcrumb.
+        if ($filter_cycle) {
+            $cycle_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d", $filter_cycle
             ));
-            if ($partnership_name) {
-                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $filter_partnership . '&tab=coaching')) . '">&larr; ' . sprintf(esc_html__('Partnership: %s', 'hl-core'), esc_html($partnership_name)) . '</a></p>';
+            if ($cycle_name) {
+                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-cycles&action=edit&id=' . $filter_cycle . '&tab=coaching')) . '">&larr; ' . sprintf(esc_html__('Cycle: %s', 'hl-core'), esc_html($cycle_name)) . '</a></p>';
             }
         }
 
@@ -378,15 +378,15 @@ class HL_Admin_Coaching {
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-coaching&action=new')) . '" class="page-title-action">' . esc_html__('Add New Session', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
-        // Partnership filter
+        // Cycle filter
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-coaching" />';
-        echo '<label><strong>' . esc_html__('Partnership:', 'hl-core') . '</strong> </label>';
-        echo '<select name="partnership_id">';
-        echo '<option value="">' . esc_html__('All Partnerships', 'hl-core') . '</option>';
-        if ($partnerships) {
-            foreach ($partnerships as $partnership) {
-                echo '<option value="' . esc_attr($partnership->partnership_id) . '"' . selected($filter_partnership, $partnership->partnership_id, false) . '>' . esc_html($partnership->partnership_name) . '</option>';
+        echo '<label><strong>' . esc_html__('Cycle:', 'hl-core') . '</strong> </label>';
+        echo '<select name="cycle_id">';
+        echo '<option value="">' . esc_html__('All Cycles', 'hl-core') . '</option>';
+        if ($cycles) {
+            foreach ($cycles as $cycle) {
+                echo '<option value="' . esc_attr($cycle->cycle_id) . '"' . selected($filter_cycle, $cycle->cycle_id, false) . '>' . esc_html($cycle->cycle_name) . '</option>';
             }
         }
         echo '</select> ';
@@ -394,18 +394,18 @@ class HL_Admin_Coaching {
         echo '</form>';
 
         // Get sessions
-        if ($filter_partnership) {
+        if ($filter_cycle) {
             $service  = new HL_Coaching_Service();
-            $sessions = $service->get_by_partnership($filter_partnership);
+            $sessions = $service->get_by_cycle($filter_cycle);
         } else {
-            // Get all sessions across partnerships
+            // Get all sessions across cycles
             $sessions = $wpdb->get_results(
-                "SELECT cs.*, u_coach.display_name as coach_name, u_mentor.display_name as mentor_name, t.partnership_name
+                "SELECT cs.*, u_coach.display_name as coach_name, u_mentor.display_name as mentor_name, t.cycle_name
                  FROM {$wpdb->prefix}hl_coaching_session cs
                  LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
                  JOIN {$wpdb->prefix}hl_enrollment e ON cs.mentor_enrollment_id = e.enrollment_id
                  LEFT JOIN {$wpdb->users} u_mentor ON e.user_id = u_mentor.ID
-                 LEFT JOIN {$wpdb->prefix}hl_partnership t ON cs.partnership_id = t.partnership_id
+                 LEFT JOIN {$wpdb->prefix}hl_cycle t ON cs.cycle_id = t.cycle_id
                  ORDER BY cs.created_at DESC",
                 ARRAY_A
             ) ?: array();
@@ -421,8 +421,8 @@ class HL_Admin_Coaching {
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Title', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Date/Time', 'hl-core') . '</th>';
-        if (!$filter_partnership) {
-            echo '<th>' . esc_html__('Partnership', 'hl-core') . '</th>';
+        if (!$filter_cycle) {
+            echo '<th>' . esc_html__('Cycle', 'hl-core') . '</th>';
         }
         echo '<th>' . esc_html__('Participant', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Coach', 'hl-core') . '</th>';
@@ -456,8 +456,8 @@ class HL_Admin_Coaching {
             echo '<td>' . esc_html($session['session_id']) . '</td>';
             echo '<td>' . esc_html($session['session_title'] ?? '') . '</td>';
             echo '<td>' . $session_date_display . '</td>';
-            if (!$filter_partnership) {
-                echo '<td>' . esc_html(isset($session['partnership_name']) ? $session['partnership_name'] : '-') . '</td>';
+            if (!$filter_cycle) {
+                echo '<td>' . esc_html(isset($session['cycle_name']) ? $session['cycle_name'] : '-') . '</td>';
             }
             echo '<td>' . esc_html($session['mentor_name'] ?: '-') . '</td>';
             echo '<td>' . esc_html($session['coach_name'] ?: '-') . '</td>';
@@ -508,30 +508,30 @@ class HL_Admin_Coaching {
 
         echo '<table class="form-table">';
 
-        // ---- Partnership ----
+        // ---- Cycle ----
         if ($is_edit) {
-            // Partnership is read-only on edit
+            // Cycle is read-only on edit
             echo '<tr>';
-            echo '<th scope="row">' . esc_html__('Partnership', 'hl-core') . '</th>';
-            echo '<td><strong>' . esc_html($session['partnership_name']) . '</strong>';
-            echo '<input type="hidden" name="partnership_id" value="' . esc_attr($session['partnership_id']) . '" />';
+            echo '<th scope="row">' . esc_html__('Cycle', 'hl-core') . '</th>';
+            echo '<td><strong>' . esc_html($session['cycle_name']) . '</strong>';
+            echo '<input type="hidden" name="cycle_id" value="' . esc_attr($session['cycle_id']) . '" />';
             echo '</td>';
             echo '</tr>';
         } else {
-            $partnerships = $wpdb->get_results(
-                "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
+            $cycles = $wpdb->get_results(
+                "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle ORDER BY cycle_name ASC"
             );
             echo '<tr>';
-            echo '<th scope="row"><label for="partnership_id">' . esc_html__('Partnership', 'hl-core') . '</label></th>';
-            echo '<td><select id="partnership_id" name="partnership_id" required>';
-            echo '<option value="">' . esc_html__('-- Select Partnership --', 'hl-core') . '</option>';
-            if ($partnerships) {
-                foreach ($partnerships as $partnership) {
-                    echo '<option value="' . esc_attr($partnership->partnership_id) . '">' . esc_html($partnership->partnership_name) . '</option>';
+            echo '<th scope="row"><label for="cycle_id">' . esc_html__('Cycle', 'hl-core') . '</label></th>';
+            echo '<td><select id="cycle_id" name="cycle_id" required>';
+            echo '<option value="">' . esc_html__('-- Select Cycle --', 'hl-core') . '</option>';
+            if ($cycles) {
+                foreach ($cycles as $cycle) {
+                    echo '<option value="' . esc_attr($cycle->cycle_id) . '">' . esc_html($cycle->cycle_name) . '</option>';
                 }
             }
             echo '</select>';
-            echo '<p class="description">' . esc_html__('Select a partnership first, then choose a mentor from that partnership.', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('Select a cycle first, then choose a mentor from that cycle.', 'hl-core') . '</p>';
             echo '</td>';
             echo '</tr>';
         }
@@ -546,11 +546,11 @@ class HL_Admin_Coaching {
             echo '</td>';
             echo '</tr>';
         } else {
-            // Will be populated by JavaScript when partnership is selected
+            // Will be populated by JavaScript when cycle is selected
             echo '<tr>';
             echo '<th scope="row"><label for="mentor_enrollment_id">' . esc_html__('Mentor', 'hl-core') . '</label></th>';
             echo '<td><select id="mentor_enrollment_id" name="mentor_enrollment_id" required>';
-            echo '<option value="">' . esc_html__('-- Select Partnership First --', 'hl-core') . '</option>';
+            echo '<option value="">' . esc_html__('-- Select Cycle First --', 'hl-core') . '</option>';
             echo '</select></td>';
             echo '</tr>';
         }
@@ -657,7 +657,7 @@ class HL_Admin_Coaching {
             $this->render_attachments_section($session);
         }
 
-        // Render JavaScript for partnership-dependent mentor dropdown (create only)
+        // Render JavaScript for cycle-dependent mentor dropdown (create only)
         if (!$is_edit) {
             $this->render_mentor_dropdown_js();
         }
@@ -729,7 +729,7 @@ class HL_Admin_Coaching {
         // Link observation form
         $available = $service->get_available_observations(
             $session['session_id'],
-            $session['partnership_id'],
+            $session['cycle_id'],
             $session['mentor_enrollment_id']
         );
 
@@ -756,7 +756,7 @@ class HL_Admin_Coaching {
             echo '<button type="submit" class="button">' . esc_html__('Link Observation', 'hl-core') . '</button>';
             echo '</form>';
         } else {
-            echo '<p class="description">' . esc_html__('No additional submitted observations available for this mentor in this partnership.', 'hl-core') . '</p>';
+            echo '<p class="description">' . esc_html__('No additional submitted observations available for this mentor in this cycle.', 'hl-core') . '</p>';
         }
     }
 
@@ -902,61 +902,61 @@ class HL_Admin_Coaching {
     // =========================================================================
 
     /**
-     * Render JavaScript for partnership-dependent mentor dropdown on the create form
+     * Render JavaScript for cycle-dependent mentor dropdown on the create form
      *
-     * When the partnership is changed, fetches enrolled mentors via an inline data
-     * approach (pre-loads all partnership enrollment data as JSON) to avoid AJAX dependencies.
+     * When the cycle is changed, fetches enrolled mentors via an inline data
+     * approach (pre-loads all cycle enrollment data as JSON) to avoid AJAX dependencies.
      */
     private function render_mentor_dropdown_js() {
         global $wpdb;
 
-        // Pre-load all partnership enrollments grouped by partnership_id
+        // Pre-load all cycle enrollments grouped by cycle_id
         // Only load users with Mentor role (roles JSON contains "Mentor")
         $all_enrollments = $wpdb->get_results(
-            "SELECT e.enrollment_id, e.partnership_id, e.roles, u.display_name, u.user_email
+            "SELECT e.enrollment_id, e.cycle_id, e.roles, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              WHERE e.status = 'active'
              ORDER BY u.display_name ASC"
         );
 
-        $partnership_mentors = array();
+        $cycle_mentors = array();
         foreach ($all_enrollments as $e) {
             $roles = json_decode($e->roles, true);
             if (!is_array($roles) || !in_array('Mentor', $roles)) {
                 continue;
             }
-            if (!isset($partnership_mentors[$e->partnership_id])) {
-                $partnership_mentors[$e->partnership_id] = array();
+            if (!isset($cycle_mentors[$e->cycle_id])) {
+                $cycle_mentors[$e->cycle_id] = array();
             }
-            $partnership_mentors[$e->partnership_id][] = array(
+            $cycle_mentors[$e->cycle_id][] = array(
                 'enrollment_id' => $e->enrollment_id,
                 'display_name'  => $e->display_name,
                 'user_email'    => $e->user_email,
             );
         }
 
-        $json_data = wp_json_encode($partnership_mentors);
+        $json_data = wp_json_encode($cycle_mentors);
 
         ?>
         <script type="text/javascript">
         (function() {
-            var partnershipMentors = <?php echo $json_data; ?>;
-            var partnershipSelect  = document.getElementById('partnership_id');
+            var cycleMentors = <?php echo $json_data; ?>;
+            var cycleSelect  = document.getElementById('cycle_id');
             var mentorSelect  = document.getElementById('mentor_enrollment_id');
 
-            if (!partnershipSelect || !mentorSelect) return;
+            if (!cycleSelect || !mentorSelect) return;
 
-            partnershipSelect.addEventListener('change', function() {
-                var partnershipId = this.value;
+            cycleSelect.addEventListener('change', function() {
+                var cycleId = this.value;
                 mentorSelect.innerHTML = '';
 
-                if (!partnershipId || !partnershipMentors[partnershipId]) {
+                if (!cycleId || !cycleMentors[cycleId]) {
                     var opt = document.createElement('option');
                     opt.value = '';
-                    opt.textContent = partnershipId
-                        ? '<?php echo esc_js(__('No mentors found in this partnership', 'hl-core')); ?>'
-                        : '<?php echo esc_js(__('-- Select Partnership First --', 'hl-core')); ?>';
+                    opt.textContent = cycleId
+                        ? '<?php echo esc_js(__('No mentors found in this cycle', 'hl-core')); ?>'
+                        : '<?php echo esc_js(__('-- Select Cycle First --', 'hl-core')); ?>';
                     mentorSelect.appendChild(opt);
                     return;
                 }
@@ -966,7 +966,7 @@ class HL_Admin_Coaching {
                 defaultOpt.textContent = '<?php echo esc_js(__('-- Select Mentor --', 'hl-core')); ?>';
                 mentorSelect.appendChild(defaultOpt);
 
-                var mentors = partnershipMentors[partnershipId];
+                var mentors = cycleMentors[cycleId];
                 for (var i = 0; i < mentors.length; i++) {
                     var opt = document.createElement('option');
                     opt.value = mentors[i].enrollment_id;

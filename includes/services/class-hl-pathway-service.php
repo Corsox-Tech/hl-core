@@ -12,13 +12,13 @@ class HL_Pathway_Service {
     }
 
     /**
-     * Get pathways, optionally filtered by partnership.
+     * Get pathways, optionally filtered by cycle.
      *
-     * @param int|null $partnership_id
+     * @param int|null $cycle_id
      * @return HL_Pathway[]
      */
-    public function get_pathways($partnership_id = null) {
-        return $this->pathway_repo->get_all($partnership_id);
+    public function get_pathways($cycle_id = null) {
+        return $this->pathway_repo->get_all($cycle_id);
     }
 
     public function get_pathway($pathway_id) {
@@ -32,8 +32,8 @@ class HL_Pathway_Service {
      * @return int|WP_Error
      */
     public function create_pathway($data) {
-        if (empty($data['pathway_name']) || empty($data['partnership_id'])) {
-            return new WP_Error('missing_fields', __('Pathway name and partnership are required.', 'hl-core'));
+        if (empty($data['pathway_name']) || empty($data['cycle_id'])) {
+            return new WP_Error('missing_fields', __('Pathway name and cycle are required.', 'hl-core'));
         }
 
         return $this->pathway_repo->create($data);
@@ -56,11 +56,11 @@ class HL_Pathway_Service {
             return new WP_Error('missing_fields', __('Title, pathway, and type are required.', 'hl-core'));
         }
 
-        // Auto-resolve partnership_id from pathway's cycle if not provided.
-        if (empty($data['partnership_id']) && !empty($data['pathway_id'])) {
+        // Auto-resolve cycle_id from pathway's cycle if not provided.
+        if (empty($data['cycle_id']) && !empty($data['pathway_id'])) {
             $pathway = $this->pathway_repo->get_by_id(absint($data['pathway_id']));
             if ($pathway) {
-                $data['partnership_id'] = $pathway->partnership_id;
+                $data['cycle_id'] = $pathway->cycle_id;
             }
         }
 
@@ -103,14 +103,14 @@ class HL_Pathway_Service {
     }
 
     /**
-     * Clone a pathway (with activities, prereq groups/items, drip rules) into a target cycle/partnership.
+     * Clone a pathway (with activities, prereq groups/items, drip rules) into a target cycle/cycle.
      *
      * @param int      $source_pathway_id Source pathway to clone from.
-     * @param int      $target_partnership_id   Target partnership for the new pathway.
+     * @param int      $target_cycle_id   Target cycle for the new pathway.
      * @param string   $name_suffix       Suffix appended to the cloned pathway name.
      * @return int|WP_Error New pathway ID on success.
      */
-    public function clone_pathway($source_pathway_id, $target_partnership_id, $name_suffix = ' (Copy)') {
+    public function clone_pathway($source_pathway_id, $target_cycle_id, $name_suffix = ' (Copy)') {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -127,7 +127,7 @@ class HL_Pathway_Service {
         // 2. Create new pathway.
         $new_pathway_data = array(
             'pathway_uuid'        => HL_DB_Utils::generate_uuid(),
-            'partnership_id'           => absint($target_partnership_id),
+            'cycle_id'           => absint($target_cycle_id),
             'pathway_name'        => $source['pathway_name'] . $name_suffix,
             'pathway_code'        => HL_Normalization::generate_code($source['pathway_name'] . $name_suffix),
             'description'         => $source['description'],
@@ -160,7 +160,7 @@ class HL_Pathway_Service {
 
             $new_comp = array(
                 'component_uuid' => HL_DB_Utils::generate_uuid(),
-                'partnership_id'     => absint($target_partnership_id),
+                'cycle_id'     => absint($target_cycle_id),
                 'pathway_id'    => $new_pathway_id,
                 'component_type' => $comp['component_type'],
                 'title'         => $comp['title'],
@@ -241,10 +241,10 @@ class HL_Pathway_Service {
             HL_Audit_Service::log(
                 'pathway_cloned',
                 get_current_user_id(),
-                absint($target_partnership_id),
+                absint($target_cycle_id),
                 null,
                 $new_pathway_id,
-                sprintf('Pathway cloned from #%d to partnership #%d', $source_pathway_id, $target_partnership_id)
+                sprintf('Pathway cloned from #%d to cycle #%d', $source_pathway_id, $target_cycle_id)
             );
         }
 

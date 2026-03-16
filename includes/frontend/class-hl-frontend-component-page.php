@@ -147,7 +147,7 @@ class HL_Frontend_Component_Page {
                 ?></a>
             <?php endif; ?>
 
-            <h1 class="hl-partnership-title"><?php echo esc_html($component->title); ?></h1>
+            <h1 class="hl-cycle-title"><?php echo esc_html($component->title); ?></h1>
             <p class="hl-component-type-badge"><?php echo esc_html($type_label); ?></p>
 
             <?php if (!empty($component->description)) : ?>
@@ -274,7 +274,7 @@ class HL_Frontend_Component_Page {
         $hidden_fields = array(
             'hl_enrollment_id'  => $enrollment->enrollment_id,
             'hl_component_id'   => $component->component_id,
-            'hl_partnership_id' => $enrollment->partnership_id,
+            'hl_cycle_id' => $enrollment->cycle_id,
         );
 
         ?>
@@ -303,16 +303,16 @@ class HL_Frontend_Component_Page {
         global $wpdb;
         $instance_id = $wpdb->get_var($wpdb->prepare(
             "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
-             WHERE enrollment_id = %d AND partnership_id = %d AND phase = %s",
+             WHERE enrollment_id = %d AND cycle_id = %d AND phase = %s",
             $enrollment->enrollment_id,
-            $enrollment->partnership_id,
+            $enrollment->cycle_id,
             $phase
         ));
 
         if (!$instance_id) {
             $instrument = $assessment_service->get_teacher_instrument($instrument_id);
             $result = $assessment_service->create_teacher_assessment_instance(array(
-                'partnership_id'           => $enrollment->partnership_id,
+                'cycle_id'           => $enrollment->cycle_id,
                 'enrollment_id'      => $enrollment->enrollment_id,
                 'phase'              => $phase,
                 'instrument_id'      => $instrument_id,
@@ -352,7 +352,7 @@ class HL_Frontend_Component_Page {
         if ($phase === 'post') {
             $pre_responses = $assessment_service->get_pre_responses_for_post(
                 absint($instance['enrollment_id']),
-                absint($instance['partnership_id'])
+                absint($instance['cycle_id'])
             );
         }
 

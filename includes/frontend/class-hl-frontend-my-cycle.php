@@ -2,25 +2,20 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Renderer for the [hl_partnership_workspace] shortcode.
+ * Renderer for the [hl_my_cycle] shortcode.
  *
- * The operational "command center" for one partnership. Staff/admin sees everything;
- * when accessed from a District/School page, auto-filters to that org unit.
- *
- * Tabs: Dashboard, Teams, Staff, Reports, Classrooms.
- *
- * Access: Housman Admin, Coach, plus leaders scoped to their org unit.
- * URL: ?id={partnership_id}&orgunit={orgunit_id}
+ * Auto-scoped cycle workspace for School Leaders and District Leaders.
+ * Tabs: Teams, Staff, Reports, Classrooms.
  *
  * @package HL_Core
  */
-class HL_Frontend_Partnership_Workspace {
-
-    /** @var HL_Partnership_Repository */
-    private $partnership_repo;
+class HL_Frontend_My_Cycle {
 
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
+
+    /** @var HL_Cycle_Repository */
+    private $cycle_repo;
 
     /** @var HL_Team_Repository */
     private $team_repo;
@@ -35,8 +30,8 @@ class HL_Frontend_Partnership_Workspace {
     private $orgunit_repo;
 
     public function __construct() {
-        $this->partnership_repo  = new HL_Partnership_Repository();
         $this->enrollment_repo   = new HL_Enrollment_Repository();
+        $this->cycle_repo  = new HL_Cycle_Repository();
         $this->team_repo         = new HL_Team_Repository();
         $this->classroom_service = new HL_Classroom_Service();
         $this->reporting_service = HL_Reporting_Service::instance();
@@ -47,57 +42,62 @@ class HL_Frontend_Partnership_Workspace {
     // CSV Export (called from template_redirect, before headers)
     // ========================================================================
 
+    /**
+     * Handle CSV export requests.
+     */
     public static function handle_export() {
-        if ( empty( $_GET['hl_export_action'] ) || $_GET['hl_export_action'] !== 'workspace_csv' ) {
+        if ( empty( $_GET['hl_export_action'] ) || $_GET['hl_export_action'] !== 'my_cycle_csv' ) {
             return;
         }
         if ( ! is_user_logged_in() ) {
             wp_die( __( 'You must be logged in.', 'hl-core' ) );
         }
-        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) ), 'hl_workspace_export' ) ) {
+        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) ), 'hl_cycle_export' ) ) {
             wp_die( __( 'Invalid security token.', 'hl-core' ) );
         }
 
-        $partnership_id = absint( $_GET['partnership_id'] ?? 0 );
-        if ( ! $partnership_id ) {
-            wp_die( __( 'Missing partnership ID.', 'hl-core' ) );
+        $cycle_id = absint( $_GET[  'cycle_id'] ?? 0 );
+        if ( ! $cycle_id ) {
+            wp_die( __( 'Missing cycle ID.', 'hl-core' ) );
         }
 
-        // Verify access.
-        if ( ! HL_Security::can_manage() ) {
-            // Check if user has leader enrollment for this partnership.
-            $user_id         = get_current_user_id();
-            $enrollment_repo = new HL_Enrollment_Repository();
-            $enrollment      = $enrollment_repo->get_by_partnership_and_user( $partnership_id, $user_id );
-            if ( ! $enrollment ) {
-                wp_die( __( 'Access denied.', 'hl-core' ) );
+        $user_id         = get_current_user_id();
+        $enrollment_repo = new HL_Enrollment_Repository();
+        $all             = $enrollment_repo->get_all( array(   'cycle_id' => $cycle_id, 'status' => 'active' ) );
+
+        $user_enrollment = null;
+        foreach ( $all as $e ) {
+            if ( (int) $e->user_id === $user_id ) {
+                $user_enrollment = $e;
+                break;
             }
         }
 
-        $filters = array( 'partnership_id' => $partnership_id );
+        $is_staff = HL_Security::can_manage();
+        if ( ! $user_enrollment && ! $is_staff ) {
+            wp_die( __( 'Access denied.', 'hl-core' ) );
+        }
 
-        // Optional org unit scope.
-        $orgunit_id = absint( $_GET['orgunit'] ?? 0 );
-        if ( $orgunit_id ) {
-            $orgunit_repo = new HL_OrgUnit_Repository();
-            $orgunit      = $orgunit_repo->get_by_id( $orgunit_id );
-            if ( $orgunit ) {
-                if ( $orgunit->is_school() ) {
-                    $filters['school_id'] = $orgunit_id;
-                } elseif ( $orgunit->is_district() ) {
-                    $filters['district_id'] = $orgunit_id;
-                }
+        // Build scope filters.
+        $filters = array(   'cycle_id' => $cycle_id );
+
+        if ( $user_enrollment && ! $is_staff ) {
+            $roles = $user_enrollment->get_roles_array();
+            if ( in_array( 'school_leader', $roles, true ) && $user_enrollment->school_id ) {
+                $filters['school_id'] = (int) $user_enrollment->school_id;
+            } elseif ( in_array( 'district_leader', $roles, true ) && $user_enrollment->district_id ) {
+                $filters['district_id'] = (int) $user_enrollment->district_id;
             }
         }
 
         $reporting = HL_Reporting_Service::instance();
         $csv       = $reporting->export_completion_csv( $filters, true );
 
-        $partnership_repo = new HL_Partnership_Repository();
-        $partnership      = $partnership_repo->get_by_id( $partnership_id );
-        $filename    = $partnership
-            ? sanitize_file_name( $partnership->partnership_name ) . '-workspace-report'
-            : 'workspace-report';
+        $cycle_repo = new HL_Cycle_Repository();
+        $cycle      = $cycle_repo->get_by_id( $cycle_id );
+        $filename    = $cycle
+            ? sanitize_file_name( $cycle->cycle_name ) . '-report'
+            : 'cycle-report';
 
         header( 'Content-Type: text/csv; charset=utf-8' );
         header( 'Content-Disposition: attachment; filename="' . $filename . '.csv"' );
@@ -111,94 +111,96 @@ class HL_Frontend_Partnership_Workspace {
     // Render
     // ========================================================================
 
+    /**
+     * Render the My Cycle shortcode.
+     *
+     * @param array $atts Shortcode attributes.
+     * @return string HTML output.
+     */
     public function render( $atts ) {
         ob_start();
+        $user_id = get_current_user_id();
 
-        $user_id        = get_current_user_id();
-        $partnership_id = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
+        // Get all active enrollments for this user.
+        $all_enrollments  = $this->enrollment_repo->get_all( array( 'status' => 'active' ) );
+        $user_enrollments = array_filter( $all_enrollments, function ( $e ) use ( $user_id ) {
+            return (int) $e->user_id === $user_id;
+        } );
+        $user_enrollments = array_values( $user_enrollments );
 
-        if ( ! $partnership_id ) {
-            echo '<div class="hl-dashboard hl-partnership-workspace hl-frontend-wrap">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'Invalid partnership link.', 'hl-core' ) . '</div>';
-            echo '</div>';
+        // Filter to leader enrollments (or staff).
+        $is_staff           = HL_Security::can_manage();
+        $leader_enrollments = array();
+        foreach ( $user_enrollments as $enrollment ) {
+            $roles = $enrollment->get_roles_array();
+            if ( in_array( 'school_leader', $roles, true )
+                || in_array( 'district_leader', $roles, true )
+                || $is_staff
+            ) {
+                $leader_enrollments[] = $enrollment;
+            }
+        }
+
+        if ( empty( $leader_enrollments ) ) {
+            echo '<div class="hl-notice hl-notice-warning">'
+                . esc_html__( 'You do not have access to this page. My Cycle is available for School Leaders and District Leaders.', 'hl-core' )
+                . '</div>';
             return ob_get_clean();
         }
 
-        $partnership = $this->partnership_repo->get_by_id( $partnership_id );
-        if ( ! $partnership ) {
-            echo '<div class="hl-dashboard hl-partnership-workspace hl-frontend-wrap">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'Partnership not found.', 'hl-core' ) . '</div>';
-            echo '</div>';
+        // Determine active cycle.
+        $active_cycle_id = isset( $_GET[  'cycle_id'] ) ? absint( $_GET[  'cycle_id'] ) : 0;
+        $active_enrollment = null;
+
+        if ( $active_cycle_id ) {
+            foreach ( $leader_enrollments as $enrollment ) {
+                if ( (int) $enrollment->cycle_id === $active_cycle_id ) {
+                    $active_enrollment = $enrollment;
+                    break;
+                }
+            }
+        }
+
+        if ( ! $active_enrollment ) {
+            $active_enrollment = $leader_enrollments[0];
+            $active_cycle_id  = (int) $active_enrollment->cycle_id;
+        }
+
+        $cycle = $this->cycle_repo->get_by_id( $active_cycle_id );
+        if ( ! $cycle ) {
+            echo '<div class="hl-notice hl-notice-error">'
+                . esc_html__( 'Cycle not found.', 'hl-core' )
+                . '</div>';
             return ob_get_clean();
         }
 
-        // Access check.
-        $is_staff   = HL_Security::can_manage();
-        $enrollment = $this->enrollment_repo->get_by_partnership_and_user( $partnership_id, $user_id );
-
-        if ( ! $is_staff && ! $enrollment ) {
-            echo '<div class="hl-dashboard hl-partnership-workspace hl-frontend-wrap">';
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__( 'You do not have access to this partnership.', 'hl-core' ) . '</div>';
-            echo '</div>';
-            return ob_get_clean();
-        }
-
-        // Resolve scope from URL orgunit parameter or from enrollment.
-        $orgunit_id = isset( $_GET['orgunit'] ) ? absint( $_GET['orgunit'] ) : 0;
-        $scope      = $this->resolve_scope( $enrollment, $is_staff, $orgunit_id );
+        // Resolve scope.
+        $scope        = $this->resolve_scope( $active_enrollment, $is_staff );
         $scope_orgunit = ( $scope && ! empty( $scope['orgunit_id'] ) )
             ? $this->orgunit_repo->get_by_id( $scope['orgunit_id'] )
             : null;
 
-        // Build orgunit filter options for staff.
-        $orgunit_options = array();
-        if ( $is_staff ) {
-            $orgunit_options = $this->get_partnership_orgunit_options( $partnership_id );
-        }
-
         // Active tab.
-        $active_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'dashboard';
-        $valid_tabs = array( 'dashboard', 'teams', 'staff', 'reports', 'classrooms' );
+        $active_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'teams';
+        $valid_tabs = array( 'teams', 'staff', 'reports', 'classrooms' );
         if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
-            $active_tab = 'dashboard';
+            $active_tab = 'teams';
         }
 
         $tabs = array(
-            'dashboard'  => __( 'Dashboard', 'hl-core' ),
             'teams'      => __( 'Teams', 'hl-core' ),
             'staff'      => __( 'Staff', 'hl-core' ),
             'reports'    => __( 'Reports', 'hl-core' ),
             'classrooms' => __( 'Classrooms', 'hl-core' ),
         );
 
-        // Control group partnerships don't have teams.
-        if ( $partnership->is_control_group ) {
-            unset( $tabs['teams'] );
-        }
-
-        // Build back URL.
-        $back_url = $this->build_back_url( $scope_orgunit );
-
         ?>
-        <div class="hl-dashboard hl-partnership-workspace hl-frontend-wrap">
+        <div class="hl-dashboard hl-my-cycle hl-frontend-wrap">
+            <?php $this->render_header( $cycle, $scope, $scope_orgunit, $leader_enrollments, $active_enrollment ); ?>
 
-            <?php if ( ! empty( $back_url ) ) : ?>
-                <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr;
-                    <?php
-                    if ( $scope_orgunit ) {
-                        printf( esc_html__( 'Back to %s', 'hl-core' ), esc_html( $scope_orgunit->name ) );
-                    } else {
-                        esc_html_e( 'Back', 'hl-core' );
-                    }
-                    ?>
-                </a>
-            <?php endif; ?>
-
-            <?php $this->render_header( $partnership, $scope, $scope_orgunit, $orgunit_options, $orgunit_id ); ?>
-
-            <div class="hl-partnership-tabs">
+            <div class="hl-cycle-tabs">
                 <?php foreach ( $tabs as $key => $label ) : ?>
-                    <button class="hl-tab hl-partnership-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
+                    <button class="hl-tab hl-cycle-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
                             data-target="hl-tab-<?php echo esc_attr( $key ); ?>">
                         <?php echo esc_html( $label ); ?>
                     </button>
@@ -207,29 +209,25 @@ class HL_Frontend_Partnership_Workspace {
 
             <?php foreach ( $tabs as $key => $label ) : ?>
                 <div id="hl-tab-<?php echo esc_attr( $key ); ?>"
-                     class="hl-partnership-content <?php echo $active_tab === $key ? 'active' : ''; ?>">
+                     class="hl-cycle-content <?php echo $active_tab === $key ? 'active' : ''; ?>">
                     <?php
                     switch ( $key ) {
-                        case 'dashboard':
-                            $this->render_dashboard_tab( $partnership, $scope );
-                            break;
                         case 'teams':
-                            $this->render_teams_tab( $partnership, $scope );
+                            $this->render_teams_tab( $cycle, $scope );
                             break;
                         case 'staff':
-                            $this->render_staff_tab( $partnership, $scope );
+                            $this->render_staff_tab( $cycle, $scope );
                             break;
                         case 'reports':
-                            $this->render_reports_tab( $partnership, $scope, $orgunit_id );
+                            $this->render_reports_tab( $cycle, $scope );
                             break;
                         case 'classrooms':
-                            $this->render_classrooms_tab( $partnership, $scope );
+                            $this->render_classrooms_tab( $cycle, $scope );
                             break;
                     }
                     ?>
                 </div>
             <?php endforeach; ?>
-
         </div>
         <?php
 
@@ -241,44 +239,32 @@ class HL_Frontend_Partnership_Workspace {
     // ========================================================================
 
     /**
-     * Resolve scope: URL orgunit parameter takes priority, then enrollment roles.
+     * Resolve the leader's visibility scope from their enrollment.
+     *
+     * @param HL_Enrollment $enrollment
+     * @param bool          $is_staff
+     * @return array ['type' => school|district|all, 'orgunit_id' => int]
      */
-    private function resolve_scope( $enrollment, $is_staff, $orgunit_id = 0 ) {
-        // Explicit orgunit from URL.
-        if ( $orgunit_id ) {
-            $orgunit = $this->orgunit_repo->get_by_id( $orgunit_id );
-            if ( $orgunit ) {
-                if ( $orgunit->is_school() ) {
-                    return array( 'type' => 'school', 'orgunit_id' => (int) $orgunit->orgunit_id );
-                }
-                if ( $orgunit->is_district() ) {
-                    return array( 'type' => 'district', 'orgunit_id' => (int) $orgunit->orgunit_id );
-                }
-            }
+    private function resolve_scope( $enrollment, $is_staff = false ) {
+        $roles = $enrollment->get_roles_array();
+
+        if ( in_array( 'district_leader', $roles, true ) && $enrollment->district_id ) {
+            return array( 'type' => 'district', 'orgunit_id' => (int) $enrollment->district_id );
         }
 
-        // Staff with no filter — full partnership.
-        if ( $is_staff ) {
-            return array( 'type' => 'all', 'orgunit_id' => 0 );
+        if ( in_array( 'school_leader', $roles, true ) && $enrollment->school_id ) {
+            return array( 'type' => 'school', 'orgunit_id' => (int) $enrollment->school_id );
         }
 
-        // Enrollment-based scope.
-        if ( $enrollment ) {
-            $roles = $enrollment->get_roles_array();
-
-            if ( in_array( 'district_leader', $roles, true ) && $enrollment->district_id ) {
-                return array( 'type' => 'district', 'orgunit_id' => (int) $enrollment->district_id );
-            }
-            if ( in_array( 'school_leader', $roles, true ) && $enrollment->school_id ) {
-                return array( 'type' => 'school', 'orgunit_id' => (int) $enrollment->school_id );
-            }
-        }
-
+        // Staff or leader without org-unit assignment — full cycle.
         return array( 'type' => 'all', 'orgunit_id' => 0 );
     }
 
-    private function get_scope_filters( $partnership_id, $scope ) {
-        $filters = array( 'partnership_id' => $partnership_id );
+    /**
+     * Build reporting-service-compatible filters from scope.
+     */
+    private function get_scope_filters( $cycle_id, $scope ) {
+        $filters = array(   'cycle_id' => $cycle_id );
         if ( $scope['type'] === 'school' && $scope['orgunit_id'] ) {
             $filters['school_id'] = $scope['orgunit_id'];
         } elseif ( $scope['type'] === 'district' && $scope['orgunit_id'] ) {
@@ -287,6 +273,11 @@ class HL_Frontend_Partnership_Workspace {
         return $filters;
     }
 
+    /**
+     * Get school IDs that fall within the leader's scope.
+     *
+     * @return int[] Empty array means "all" (no filtering).
+     */
     private function get_scoped_school_ids( $scope ) {
         if ( ! $scope || $scope['type'] === 'all' ) {
             return array();
@@ -305,37 +296,42 @@ class HL_Frontend_Partnership_Workspace {
     // Header
     // ========================================================================
 
-    private function render_header( $partnership, $scope, $scope_orgunit, $orgunit_options, $current_orgunit_id ) {
-        $status       = $partnership->status ?: 'active';
+    private function render_header( $cycle, $scope, $scope_orgunit, $leader_enrollments, $active_enrollment ) {
+        $status       = $cycle->status ?: 'active';
         $status_class = 'hl-badge-' . sanitize_html_class( $status );
 
         $scope_label = '';
         if ( $scope_orgunit ) {
             $scope_label = sprintf(
-                __( 'Filtered to %s', 'hl-core' ),
+                /* translators: %s: org-unit name */
+                __( 'Showing data for %s', 'hl-core' ),
                 $scope_orgunit->name
             );
         } elseif ( $scope['type'] === 'all' ) {
-            $scope_label = __( 'Showing all partnership data', 'hl-core' );
+            $scope_label = __( 'Showing all cycle data', 'hl-core' );
         }
 
         ?>
-        <div class="hl-my-partnership-header">
-            <div class="hl-my-partnership-header-info">
-                <h2 class="hl-partnership-title"><?php echo esc_html( $partnership->partnership_name ); ?></h2>
+        <div class="hl-my-cycle-header">
+            <div class="hl-my-cycle-header-info">
+                <h2 class="hl-cycle-title"><?php echo esc_html( $cycle->cycle_name ); ?></h2>
                 <?php if ( $scope_label ) : ?>
                     <p class="hl-scope-indicator"><?php echo esc_html( $scope_label ); ?></p>
                 <?php endif; ?>
-                <div class="hl-partnership-meta">
+                <div class="hl-cycle-meta">
                     <span class="hl-badge <?php echo esc_attr( $status_class ); ?>">
                         <?php echo esc_html( ucfirst( $status ) ); ?>
                     </span>
-                    <?php if ( $partnership->start_date || $partnership->end_date ) : ?>
+                    <?php if ( $cycle->start_date || $cycle->end_date ) : ?>
                         <span class="hl-meta-item">
                             <?php
                             $dates = array();
-                            if ( $partnership->start_date ) $dates[] = date_i18n( 'M j, Y', strtotime( $partnership->start_date ) );
-                            if ( $partnership->end_date )   $dates[] = date_i18n( 'M j, Y', strtotime( $partnership->end_date ) );
+                            if ( $cycle->start_date ) {
+                                $dates[] = date_i18n( 'M j, Y', strtotime( $cycle->start_date ) );
+                            }
+                            if ( $cycle->end_date ) {
+                                $dates[] = date_i18n( 'M j, Y', strtotime( $cycle->end_date ) );
+                            }
                             echo esc_html( implode( ' — ', $dates ) );
                             ?>
                         </span>
@@ -343,16 +339,18 @@ class HL_Frontend_Partnership_Workspace {
                 </div>
             </div>
 
-            <?php if ( ! empty( $orgunit_options ) ) : ?>
-                <div class="hl-partnership-selector">
-                    <label for="hl-orgunit-filter"><?php esc_html_e( 'Filter:', 'hl-core' ); ?></label>
-                    <select id="hl-orgunit-filter" class="hl-select"
-                            onchange="var u=new URL(window.location);if(this.value){u.searchParams.set('orgunit',this.value)}else{u.searchParams.delete('orgunit')};window.location=u;">
-                        <option value=""><?php esc_html_e( 'All', 'hl-core' ); ?></option>
-                        <?php foreach ( $orgunit_options as $opt ) : ?>
-                            <option value="<?php echo esc_attr( $opt['id'] ); ?>"
-                                <?php selected( (int) $opt['id'], (int) $current_orgunit_id ); ?>>
-                                <?php echo esc_html( $opt['label'] ); ?>
+            <?php if ( count( $leader_enrollments ) > 1 ) : ?>
+                <div class="hl-cycle-selector">
+                    <label for="hl-cycle-switcher"><?php esc_html_e( 'Cycle:', 'hl-core' ); ?></label>
+                    <select id="hl-cycle-switcher" class="hl-select"
+                            onchange="if(this.value){var u=new URL(window.location);u.searchParams.set(  'cycle_id',this.value);window.location=u;}">
+                        <?php foreach ( $leader_enrollments as $le ) :
+                            $le_cycle = $this->cycle_repo->get_by_id( $le->cycle_id );
+                            if ( ! $le_cycle ) continue;
+                        ?>
+                            <option value="<?php echo esc_attr( $le->cycle_id ); ?>"
+                                <?php selected( (int) $le->cycle_id, (int) $active_enrollment->cycle_id ); ?>>
+                                <?php echo esc_html( $le_cycle->cycle_name ); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -363,107 +361,16 @@ class HL_Frontend_Partnership_Workspace {
     }
 
     // ========================================================================
-    // Tab: Dashboard
-    // ========================================================================
-
-    private function render_dashboard_tab( $partnership, $scope ) {
-        $filters      = $this->get_scope_filters( $partnership->partnership_id, $scope );
-        $participants = $this->reporting_service->get_participant_report( $filters );
-
-        // Compute stats.
-        $total      = count( $participants );
-        $sum_pct    = 0;
-        $on_track   = 0;
-        $behind     = 0;
-        $not_started = 0;
-
-        foreach ( $participants as $p ) {
-            $pct = floatval( $p['partnership_completion_percent'] );
-            $sum_pct += $pct;
-
-            if ( $pct >= 100 ) {
-                $on_track++;
-            } elseif ( $pct > 0 ) {
-                $behind++;
-            } else {
-                $not_started++;
-            }
-        }
-
-        $avg_pct = $total > 0 ? round( $sum_pct / $total ) : 0;
-
-        // Staff counts.
-        $teacher_count = 0;
-        $mentor_count  = 0;
-        foreach ( $participants as $p ) {
-            $roles_raw = json_decode( $p['roles'], true );
-            if ( is_array( $roles_raw ) ) {
-                if ( in_array( 'teacher', $roles_raw, true ) ) $teacher_count++;
-                if ( in_array( 'mentor', $roles_raw, true ) )  $mentor_count++;
-            }
-        }
-
-        // School count.
-        $school_names = array();
-        foreach ( $participants as $p ) {
-            if ( ! empty( $p['school_name'] ) && ! in_array( $p['school_name'], $school_names, true ) ) {
-                $school_names[] = $p['school_name'];
-            }
-        }
-
-        ?>
-        <div class="hl-workspace-dashboard">
-            <div class="hl-metrics-row">
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $avg_pct . '%' ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Avg Completion', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $total ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Total Participants', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $on_track ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Completed', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $behind ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'In Progress', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $not_started ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Not Started', 'hl-core' ); ?></div>
-                </div>
-            </div>
-
-            <div class="hl-metrics-row">
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $teacher_count ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Teachers', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $mentor_count ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Mentors', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( count( $school_names ) ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Schools', 'hl-core' ); ?></div>
-                </div>
-            </div>
-        </div>
-        <?php
-    }
-
-    // ========================================================================
     // Tab: Teams
     // ========================================================================
 
-    private function render_teams_tab( $partnership, $scope ) {
-        $all_teams  = $this->team_repo->get_all( array( 'partnership_id' => $partnership->partnership_id ) );
+    private function render_teams_tab( $cycle, $scope ) {
+        $all_teams  = $this->team_repo->get_all( array(   'cycle_id' => $cycle->cycle_id ) );
         $school_ids = $this->get_scoped_school_ids( $scope );
 
         if ( ! empty( $school_ids ) ) {
             $all_teams = array_filter( $all_teams, function ( $t ) use ( $school_ids ) {
+                // Include teams matching a scoped school OR teams with no school assigned.
                 return empty( $t->school_id )
                     || in_array( (int) $t->school_id, $school_ids, true );
             } );
@@ -472,7 +379,7 @@ class HL_Frontend_Partnership_Workspace {
 
         if ( empty( $all_teams ) ) {
             echo '<div class="hl-empty-state"><p>'
-                . esc_html__( 'No teams found in scope.', 'hl-core' )
+                . esc_html__( 'No teams found in your scope.', 'hl-core' )
                 . '</p></div>';
             return;
         }
@@ -490,6 +397,7 @@ class HL_Frontend_Partnership_Workspace {
         $members      = $this->team_repo->get_members( $team->team_id );
         $member_count = count( $members );
 
+        // Mentors.
         $mentor_names = array();
         foreach ( $members as $m ) {
             if ( $m['membership_type'] === 'mentor' ) {
@@ -497,6 +405,7 @@ class HL_Frontend_Partnership_Workspace {
             }
         }
 
+        // Avg completion.
         $sum = 0;
         foreach ( $members as $m ) {
             $sum += $this->reporting_service->get_enrollment_completion( $m['enrollment_id'] );
@@ -505,6 +414,7 @@ class HL_Frontend_Partnership_Workspace {
 
         $progress_class = $avg >= 100 ? 'hl-progress-complete' : ( $avg > 0 ? 'hl-progress-active' : '' );
 
+        // School name.
         $school      = $team->school_id ? $this->orgunit_repo->get_by_id( $team->school_id ) : null;
         $school_name = $school ? $school->name : '';
 
@@ -564,13 +474,13 @@ class HL_Frontend_Partnership_Workspace {
     // Tab: Staff
     // ========================================================================
 
-    private function render_staff_tab( $partnership, $scope ) {
-        $filters      = $this->get_scope_filters( $partnership->partnership_id, $scope );
+    private function render_staff_tab( $cycle, $scope ) {
+        $filters      = $this->get_scope_filters( $cycle->cycle_id, $scope );
         $participants = $this->reporting_service->get_participant_report( $filters );
 
         if ( empty( $participants ) ) {
             echo '<div class="hl-empty-state"><p>'
-                . esc_html__( 'No staff found in scope.', 'hl-core' )
+                . esc_html__( 'No staff found in your scope.', 'hl-core' )
                 . '</p></div>';
             return;
         }
@@ -580,12 +490,12 @@ class HL_Frontend_Partnership_Workspace {
             <div class="hl-table-header">
                 <h3 class="hl-section-title"><?php esc_html_e( 'Staff Directory', 'hl-core' ); ?></h3>
                 <div class="hl-table-filters">
-                    <input type="text" class="hl-search-input" data-table="hl-workspace-staff-table"
+                    <input type="text" class="hl-search-input" data-table="hl-staff-table"
                            placeholder="<?php esc_attr_e( 'Search by name...', 'hl-core' ); ?>">
                 </div>
             </div>
 
-            <table class="hl-table" id="hl-workspace-staff-table">
+            <table class="hl-table" id="hl-staff-table">
                 <thead>
                     <tr>
                         <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
@@ -603,7 +513,7 @@ class HL_Frontend_Partnership_Workspace {
                                 return ucwords( str_replace( '_', ' ', $r ) );
                             }, $roles_raw ) )
                             : '';
-                        $completion = round( floatval( $p['partnership_completion_percent'] ) );
+                        $completion = round( floatval( $p['cycle_completion_percent'] ) );
                         $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
                     ?>
                         <tr data-name="<?php echo esc_attr( strtolower( $p['display_name'] ) ); ?>">
@@ -634,8 +544,8 @@ class HL_Frontend_Partnership_Workspace {
     // Tab: Reports
     // ========================================================================
 
-    private function render_reports_tab( $partnership, $scope, $orgunit_id ) {
-        $filters      = $this->get_scope_filters( $partnership->partnership_id, $scope );
+    private function render_reports_tab( $cycle, $scope ) {
+        $filters      = $this->get_scope_filters( $cycle->cycle_id, $scope );
         $participants = $this->reporting_service->get_participant_report( $filters );
 
         // Activity detail for expandable rows.
@@ -644,14 +554,17 @@ class HL_Frontend_Partnership_Workspace {
         $activities      = array();
 
         if ( ! empty( $enrollment_ids ) ) {
-            $activity_detail = $this->reporting_service->get_partnership_activity_detail(
-                $partnership->partnership_id,
+            $activity_detail = $this->reporting_service->get_cycle_activity_detail(
+                $cycle->cycle_id,
                 $enrollment_ids
             );
-            $activities = $this->reporting_service->get_partnership_activities( $partnership->partnership_id );
+            $activities = $this->reporting_service->get_cycle_activities( $cycle->cycle_id );
         }
 
-        // Filter options.
+        // Age bands per enrollment.
+        $age_bands_map = $this->get_enrollment_age_bands( $enrollment_ids );
+
+        // Build filter options from participant data.
         $school_options = array();
         $team_options   = array();
 
@@ -667,15 +580,11 @@ class HL_Frontend_Partnership_Workspace {
         sort( $team_options );
 
         // CSV export URL.
-        $export_args = array(
-            'hl_export_action' => 'workspace_csv',
-            'partnership_id'   => $partnership->partnership_id,
-            '_wpnonce'         => wp_create_nonce( 'hl_workspace_export' ),
-        );
-        if ( $orgunit_id ) {
-            $export_args['orgunit'] = $orgunit_id;
-        }
-        $export_url = add_query_arg( $export_args );
+        $export_url = add_query_arg( array(
+            'hl_export_action' => 'my_cycle_csv',
+              'cycle_id'  => $cycle->cycle_id,
+            '_wpnonce'         => wp_create_nonce( 'hl_cycle_export' ),
+        ) );
 
         ?>
         <div class="hl-table-container hl-reports-container">
@@ -712,7 +621,7 @@ class HL_Frontend_Partnership_Workspace {
             <?php if ( empty( $participants ) ) : ?>
                 <div class="hl-empty-state"><p><?php esc_html_e( 'No participants found.', 'hl-core' ); ?></p></div>
             <?php else : ?>
-                <table class="hl-table hl-reports-table" id="hl-workspace-reports-table">
+                <table class="hl-table hl-reports-table" id="hl-reports-table">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -720,6 +629,7 @@ class HL_Frontend_Partnership_Workspace {
                             <th><?php esc_html_e( 'Team', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Role', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Institution', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Age Groups', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Completed', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Details', 'hl-core' ); ?></th>
                         </tr>
@@ -729,15 +639,16 @@ class HL_Frontend_Partnership_Workspace {
                         $row_num = 0;
                         foreach ( $participants as $p ) :
                             $row_num++;
-                            $eid        = $p['enrollment_id'];
-                            $roles_raw  = json_decode( $p['roles'], true );
-                            $roles_str  = is_array( $roles_raw )
+                            $eid       = $p['enrollment_id'];
+                            $roles_raw = json_decode( $p['roles'], true );
+                            $roles_str = is_array( $roles_raw )
                                 ? implode( ', ', array_map( function ( $r ) {
                                     return ucwords( str_replace( '_', ' ', $r ) );
                                 }, $roles_raw ) )
                                 : '';
-                            $completion = round( floatval( $p['partnership_completion_percent'] ) );
+                            $completion = round( floatval( $p['cycle_completion_percent'] ) );
                             $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
+                            $age_bands  = isset( $age_bands_map[ $eid ] ) ? $age_bands_map[ $eid ] : '—';
                         ?>
                             <tr class="hl-report-row"
                                 data-name="<?php echo esc_attr( strtolower( $p['display_name'] ) ); ?>"
@@ -748,6 +659,7 @@ class HL_Frontend_Partnership_Workspace {
                                 <td><?php echo esc_html( $p['team_name'] ?: '—' ); ?></td>
                                 <td><?php echo esc_html( $roles_str ); ?></td>
                                 <td><?php echo esc_html( $p['school_name'] ?: '—' ); ?></td>
+                                <td><?php echo esc_html( $age_bands ); ?></td>
                                 <td>
                                     <div class="hl-inline-progress">
                                         <div class="hl-progress-inline">
@@ -761,13 +673,13 @@ class HL_Frontend_Partnership_Workspace {
                                 </td>
                                 <td>
                                     <button class="hl-btn hl-btn-sm hl-btn-secondary hl-detail-toggle"
-                                            data-target="hl-ws-detail-<?php echo esc_attr( $eid ); ?>">
+                                            data-target="hl-detail-<?php echo esc_attr( $eid ); ?>">
                                         <?php esc_html_e( 'View', 'hl-core' ); ?>
                                     </button>
                                 </td>
                             </tr>
-                            <tr class="hl-detail-row" id="hl-ws-detail-<?php echo esc_attr( $eid ); ?>">
-                                <td colspan="7">
+                            <tr class="hl-detail-row" id="hl-detail-<?php echo esc_attr( $eid ); ?>">
+                                <td colspan="8">
                                     <div class="hl-detail-content">
                                         <?php if ( isset( $activity_detail[ $eid ] ) && ! empty( $activities ) ) : ?>
                                             <table class="hl-table hl-detail-table">
@@ -816,14 +728,17 @@ class HL_Frontend_Partnership_Workspace {
     // Tab: Classrooms
     // ========================================================================
 
-    private function render_classrooms_tab( $partnership, $scope ) {
+    private function render_classrooms_tab( $cycle, $scope ) {
         $school_ids = $this->get_scoped_school_ids( $scope );
 
-        $classrooms = $this->get_partnership_classrooms( $partnership->partnership_id );
+        // Always get cycle-scoped classrooms (via teaching assignments),
+        // then optionally filter by the leader's school scope.
+        $classrooms = $this->get_cycle_classrooms( $cycle->cycle_id );
 
         if ( ! empty( $school_ids ) ) {
             $classrooms = array_filter( $classrooms, function ( $c ) use ( $school_ids ) {
                 $cr = is_object( $c ) ? $c : (object) $c;
+                // Include classrooms matching a scoped school OR with no school assigned.
                 return empty( $cr->school_id )
                     || in_array( (int) $cr->school_id, $school_ids, true );
             } );
@@ -832,17 +747,18 @@ class HL_Frontend_Partnership_Workspace {
 
         if ( empty( $classrooms ) ) {
             echo '<div class="hl-empty-state"><p>'
-                . esc_html__( 'No classrooms found in scope.', 'hl-core' )
+                . esc_html__( 'No classrooms found in your scope.', 'hl-core' )
                 . '</p></div>';
             return;
         }
 
+        // Batch data.
         $classroom_ids = array_map( function ( $c ) {
             return is_object( $c ) ? $c->classroom_id : $c['classroom_id'];
         }, $classrooms );
 
         $child_counts  = $this->get_classroom_child_counts( $classroom_ids );
-        $teacher_names = $this->get_classroom_teacher_names( $classroom_ids, $partnership->partnership_id );
+        $teacher_names = $this->get_classroom_teacher_names( $classroom_ids, $cycle->cycle_id );
 
         $school_cache       = array();
         $classroom_page_url = $this->find_shortcode_page_url( 'hl_classroom_page' );
@@ -851,7 +767,7 @@ class HL_Frontend_Partnership_Workspace {
         <div class="hl-table-container">
             <h3 class="hl-section-title"><?php esc_html_e( 'Classrooms', 'hl-core' ); ?></h3>
 
-            <table class="hl-table" id="hl-workspace-classrooms-table">
+            <table class="hl-table" id="hl-classrooms-table">
                 <thead>
                     <tr>
                         <th><?php esc_html_e( 'Classroom', 'hl-core' ); ?></th>
@@ -867,8 +783,8 @@ class HL_Frontend_Partnership_Workspace {
                         $cid = $cr->classroom_id;
 
                         if ( ! isset( $school_cache[ $cr->school_id ] ) ) {
-                            $school_obj                     = $this->orgunit_repo->get_by_id( $cr->school_id );
-                            $school_cache[ $cr->school_id ] = $school_obj ? $school_obj->name : '';
+                            $school_obj                        = $this->orgunit_repo->get_by_id( $cr->school_id );
+                            $school_cache[ $cr->school_id ]    = $school_obj ? $school_obj->name : '';
                         }
 
                         $count    = isset( $child_counts[ $cid ] ) ? $child_counts[ $cid ] : 0;
@@ -904,67 +820,40 @@ class HL_Frontend_Partnership_Workspace {
     // ========================================================================
 
     /**
-     * Get org unit filter options for staff: all districts and schools linked to this partnership.
+     * Get age-band labels per enrollment (from teaching assignments).
      */
-    private function get_partnership_orgunit_options( $partnership_id ) {
+    private function get_enrollment_age_bands( $enrollment_ids ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        // Get districts and schools linked via partnership_school.
-        $results = $wpdb->get_results( $wpdb->prepare(
-            "SELECT DISTINCT ou.orgunit_id, ou.name, ou.orgunit_type,
-                    COALESCE(parent.name, '') AS parent_name
-             FROM {$prefix}hl_partnership_school cs
-             INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
-             LEFT JOIN {$prefix}hl_orgunit parent ON ou.parent_orgunit_id = parent.orgunit_id
-             WHERE cs.partnership_id = %d
-             ORDER BY parent.name ASC, ou.name ASC",
-            $partnership_id
-        ), ARRAY_A );
-
-        $options   = array();
-        $districts = array();
-
-        foreach ( $results ?: array() as $row ) {
-            // Add the parent district if not yet added.
-            if ( ! empty( $row['parent_name'] ) ) {
-                $parent_id = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT parent_orgunit_id FROM {$prefix}hl_orgunit WHERE orgunit_id = %d",
-                    $row['orgunit_id']
-                ) );
-                if ( $parent_id && ! isset( $districts[ $parent_id ] ) ) {
-                    $districts[ $parent_id ] = true;
-                    $options[] = array(
-                        'id'    => $parent_id,
-                        'label' => $row['parent_name'] . ' (District)',
-                    );
-                }
-            }
-
-            $options[] = array(
-                'id'    => $row['orgunit_id'],
-                'label' => $row['name'] . ( $row['parent_name'] ? ' — ' . $row['parent_name'] : '' ),
-            );
+        if ( empty( $enrollment_ids ) ) {
+            return array();
         }
 
-        return $options;
+        $enrollment_ids = array_map( 'absint', $enrollment_ids );
+        $placeholders   = implode( ',', array_fill( 0, count( $enrollment_ids ), '%d' ) );
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $results = $wpdb->get_results( $wpdb->prepare(
+            "SELECT ta.enrollment_id,
+                    GROUP_CONCAT(DISTINCT cr.age_band ORDER BY cr.age_band SEPARATOR ', ') AS age_bands
+             FROM {$prefix}hl_teaching_assignment ta
+             JOIN {$prefix}hl_classroom cr ON ta.classroom_id = cr.classroom_id
+             WHERE ta.enrollment_id IN ({$placeholders})
+             GROUP BY ta.enrollment_id",
+            $enrollment_ids
+        ), ARRAY_A );
+
+        $map = array();
+        foreach ( $results as $row ) {
+            $map[ $row['enrollment_id'] ] = $row['age_bands'];
+        }
+        return $map;
     }
 
-    private function get_partnership_classrooms( $partnership_id ) {
-        global $wpdb;
-        $prefix = $wpdb->prefix;
-
-        return $wpdb->get_results( $wpdb->prepare(
-            "SELECT DISTINCT cr.*
-             FROM {$prefix}hl_classroom cr
-             INNER JOIN {$prefix}hl_teaching_assignment ta ON cr.classroom_id = ta.classroom_id
-             INNER JOIN {$prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
-             WHERE e.partnership_id = %d
-             ORDER BY cr.classroom_name ASC",
-            $partnership_id
-        ) ) ?: array();
-    }
-
+    /**
+     * Batch-get child counts per classroom.
+     */
     private function get_classroom_child_counts( $classroom_ids ) {
         global $wpdb;
 
@@ -991,7 +880,10 @@ class HL_Frontend_Partnership_Workspace {
         return $map;
     }
 
-    private function get_classroom_teacher_names( $classroom_ids, $partnership_id ) {
+    /**
+     * Batch-get teacher names per classroom (scoped to a cycle).
+     */
+    private function get_classroom_teacher_names( $classroom_ids, $cycle_id ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
@@ -1010,9 +902,9 @@ class HL_Frontend_Partnership_Workspace {
              JOIN {$prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
              JOIN {$wpdb->users} u ON e.user_id = u.ID
              WHERE ta.classroom_id IN ({$placeholders})
-               AND e.partnership_id = %d
+               AND e.cycle_id = %d
              GROUP BY ta.classroom_id",
-            array_merge( $classroom_ids, array( $partnership_id ) )
+            array_merge( $classroom_ids, array( $cycle_id ) )
         ), ARRAY_A );
 
         $map = array();
@@ -1022,24 +914,27 @@ class HL_Frontend_Partnership_Workspace {
         return $map;
     }
 
-    private function build_back_url( $scope_orgunit ) {
-        if ( ! $scope_orgunit ) {
-            return '';
-        }
+    /**
+     * Get classrooms that have teaching assignments for a cycle.
+     */
+    private function get_cycle_classrooms( $cycle_id ) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
 
-        if ( $scope_orgunit->is_district() ) {
-            $url = $this->find_shortcode_page_url( 'hl_district_page' );
-            return $url ? add_query_arg( 'id', $scope_orgunit->orgunit_id, $url ) : '';
-        }
-
-        if ( $scope_orgunit->is_school() ) {
-            $url = $this->find_shortcode_page_url( 'hl_school_page' );
-            return $url ? add_query_arg( 'id', $scope_orgunit->orgunit_id, $url ) : '';
-        }
-
-        return '';
+        return $wpdb->get_results( $wpdb->prepare(
+            "SELECT DISTINCT cr.*
+             FROM {$prefix}hl_classroom cr
+             INNER JOIN {$prefix}hl_teaching_assignment ta ON cr.classroom_id = ta.classroom_id
+             INNER JOIN {$prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
+             WHERE e.cycle_id = %d
+             ORDER BY cr.classroom_name ASC",
+            $cycle_id
+        ) ) ?: array();
     }
 
+    /**
+     * Find the URL of a page containing a given shortcode.
+     */
     private function find_shortcode_page_url( $shortcode ) {
         global $wpdb;
         $page_id = $wpdb->get_var( $wpdb->prepare(

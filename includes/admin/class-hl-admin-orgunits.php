@@ -4,7 +4,7 @@
  * Admin OrgUnits Page — Hierarchical District → School View
  *
  * Displays districts as collapsible sections with nested school tables.
- * Edit forms show related data (schools for districts, partnerships/classrooms/staff for schools).
+ * Edit forms show related data (schools for districts, cycles/classrooms/staff for schools).
  *
  * @package HL_Core
  */
@@ -163,16 +163,16 @@ class HL_Admin_OrgUnits {
     }
 
     /**
-     * Get active partnership counts per school
+     * Get active cycle counts per school
      *
      * @return array school_id => count
      */
-    private function get_active_partnership_counts_per_school() {
+    private function get_active_cycle_counts_per_school() {
         global $wpdb;
         $rows = $wpdb->get_results(
-            "SELECT cc.school_id, COUNT(DISTINCT ct.partnership_id) as cnt
-             FROM {$wpdb->prefix}hl_partnership_school cc
-             JOIN {$wpdb->prefix}hl_partnership t ON t.partnership_id = ct.partnership_id AND t.status = 'active'
+            "SELECT cc.school_id, COUNT(DISTINCT ct.cycle_id) as cnt
+             FROM {$wpdb->prefix}hl_cycle_school cc
+             JOIN {$wpdb->prefix}hl_cycle t ON t.cycle_id = ct.cycle_id AND t.status = 'active'
              GROUP BY cc.school_id"
         );
 
@@ -303,12 +303,12 @@ class HL_Admin_OrgUnits {
         $districts        = $this->get_districts();
         $schools_grouped  = $this->get_schools_grouped();
         $classroom_counts = $this->get_classroom_counts();
-        $partnership_counts    = $this->get_active_partnership_counts_per_school();
+        $cycle_counts    = $this->get_active_cycle_counts_per_school();
         $leader_names     = $this->get_school_leader_names();
 
         $stats = array(
             'classrooms' => $classroom_counts,
-            'partnerships'     => $partnership_counts,
+            'cycles'     => $cycle_counts,
             'leaders'    => $leader_names,
         );
 
@@ -372,16 +372,16 @@ class HL_Admin_OrgUnits {
 
         $school_count = count($schools);
 
-        // Sum partnership counts from child schools
-        $district_partnership_count = 0;
+        // Sum cycle counts from child schools
+        $district_cycle_count = 0;
         foreach ($schools as $c) {
             $cid = (int) $c->orgunit_id;
-            $district_partnership_count += isset($stats['partnerships'][$cid]) ? $stats['partnerships'][$cid] : 0;
+            $district_cycle_count += isset($stats['cycles'][$cid]) ? $stats['cycles'][$cid] : 0;
         }
 
         $meta_parts = array();
         $meta_parts[] = sprintf(_n('%d School', '%d Schools', $school_count, 'hl-core'), $school_count);
-        $meta_parts[] = sprintf(_n('%d Active Partnership', '%d Active Partnerships', $district_partnership_count, 'hl-core'), $district_partnership_count);
+        $meta_parts[] = sprintf(_n('%d Active Cycle', '%d Active Cycles', $district_cycle_count, 'hl-core'), $district_cycle_count);
 
         // Status
         $status_class = 'active';
@@ -452,7 +452,7 @@ class HL_Admin_OrgUnits {
         echo '<th>' . esc_html__('Code', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Leader(s)', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Classrooms', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Active Partnerships', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Active Cycles', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead>';
@@ -468,7 +468,7 @@ class HL_Admin_OrgUnits {
 
             $leaders     = isset($stats['leaders'][$cid]) ? $stats['leaders'][$cid] : array();
             $classrooms  = isset($stats['classrooms'][$cid]) ? $stats['classrooms'][$cid] : 0;
-            $partnership_items     = isset($stats['partnerships'][$cid]) ? $stats['partnerships'][$cid] : 0;
+            $cycle_items     = isset($stats['cycles'][$cid]) ? $stats['cycles'][$cid] : 0;
 
             $status_class = $school->status;
 
@@ -477,7 +477,7 @@ class HL_Admin_OrgUnits {
             echo '<td><code>' . esc_html($school->orgunit_code) . '</code></td>';
             echo '<td>' . (!empty($leaders) ? esc_html(implode(', ', $leaders)) : '<span style="color:#8c8f94;">&mdash;</span>') . '</td>';
             echo '<td>' . esc_html($classrooms) . '</td>';
-            echo '<td>' . esc_html($partnership_items) . '</td>';
+            echo '<td>' . esc_html($cycle_items) . '</td>';
             echo '<td><span class="hl-status-badge ' . esc_attr($status_class) . '">' . esc_html(ucfirst($school->status)) . '</span></td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
@@ -805,7 +805,7 @@ class HL_Admin_OrgUnits {
     }
 
     /**
-     * Render related data for a school being edited: partnerships, classrooms, staff
+     * Render related data for a school being edited: cycles, classrooms, staff
      *
      * @param object $orgunit
      */
@@ -813,34 +813,34 @@ class HL_Admin_OrgUnits {
         global $wpdb;
         $cid = (int) $orgunit->orgunit_id;
 
-        // --- Linked Partnerships ---
-        echo '<h3>' . esc_html__('Linked Partnerships', 'hl-core') . '</h3>';
+        // --- Linked Cycles ---
+        echo '<h3>' . esc_html__('Linked Cycles', 'hl-core') . '</h3>';
 
-        $partnerships = $wpdb->get_results($wpdb->prepare(
-            "SELECT t.partnership_id, t.partnership_name, t.status, c.start_date
-             FROM {$wpdb->prefix}hl_partnership_school cc
-             JOIN {$wpdb->prefix}hl_partnership t ON t.partnership_id = ct.partnership_id
+        $cycles = $wpdb->get_results($wpdb->prepare(
+            "SELECT t.cycle_id, t.cycle_name, t.status, c.start_date
+             FROM {$wpdb->prefix}hl_cycle_school cc
+             JOIN {$wpdb->prefix}hl_cycle t ON t.cycle_id = ct.cycle_id
              WHERE cc.school_id = %d
              ORDER BY c.start_date DESC",
             $cid
         ));
 
-        if (empty($partnership_items)) {
-            echo '<p>' . esc_html__('No partnerships linked to this school.', 'hl-core') . '</p>';
+        if (empty($cycle_items)) {
+            echo '<p>' . esc_html__('No cycles linked to this school.', 'hl-core') . '</p>';
         } else {
             echo '<table class="widefat striped">';
             echo '<thead><tr>';
-            echo '<th>' . esc_html__('Partnership', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Cycle', 'hl-core') . '</th>';
             echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
             echo '<th>' . esc_html__('Start Date', 'hl-core') . '</th>';
             echo '</tr></thead><tbody>';
 
-            foreach ($partnerships as $partnership) {
-                $partnership_item_url = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership->partnership_id);
+            foreach ($cycles as $cycle) {
+                $cycle_item_url = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $cycle->cycle_id);
                 echo '<tr>';
-                echo '<td><a href="' . esc_url($partnership_item_url) . '">' . esc_html($partnership->partnership_name) . '</a></td>';
-                echo '<td><span class="hl-status-badge ' . esc_attr($partnership_item->status) . '">' . esc_html(ucfirst($partnership_item->status)) . '</span></td>';
-                echo '<td>' . esc_html($partnership_item->start_date) . '</td>';
+                echo '<td><a href="' . esc_url($cycle_item_url) . '">' . esc_html($cycle->cycle_name) . '</a></td>';
+                echo '<td><span class="hl-status-badge ' . esc_attr($cycle_item->status) . '">' . esc_html(ucfirst($cycle_item->status)) . '</span></td>';
+                echo '<td>' . esc_html($cycle_item->start_date) . '</td>';
                 echo '</tr>';
             }
 
@@ -885,10 +885,10 @@ class HL_Admin_OrgUnits {
         echo '<h3>' . esc_html__('Staff &amp; Leaders', 'hl-core') . '</h3>';
 
         $staff = $wpdb->get_results($wpdb->prepare(
-            "SELECT e.enrollment_id, e.roles, u.display_name, u.user_email, t.partnership_name
+            "SELECT e.enrollment_id, e.roles, u.display_name, u.user_email, t.cycle_name
              FROM {$wpdb->prefix}hl_enrollment e
              JOIN {$wpdb->users} u ON u.ID = e.user_id
-             JOIN {$wpdb->prefix}hl_partnership t ON t.partnership_id = e.partnership_id
+             JOIN {$wpdb->prefix}hl_cycle t ON t.cycle_id = e.cycle_id
              WHERE e.school_id = %d AND e.status = 'active'
              ORDER BY u.display_name ASC",
             $cid
@@ -902,7 +902,7 @@ class HL_Admin_OrgUnits {
             echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
             echo '<th>' . esc_html__('Email', 'hl-core') . '</th>';
             echo '<th>' . esc_html__('Roles', 'hl-core') . '</th>';
-            echo '<th>' . esc_html__('Partnership', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Cycle', 'hl-core') . '</th>';
             echo '</tr></thead><tbody>';
 
             foreach ($staff as $person) {
@@ -922,7 +922,7 @@ class HL_Admin_OrgUnits {
                 echo '<td><a href="' . esc_url($enrollment_url) . '">' . esc_html($person->display_name) . '</a></td>';
                 echo '<td>' . esc_html($person->user_email) . '</td>';
                 echo '<td>' . $roles_display . '</td>';
-                echo '<td>' . esc_html($person->partnership_name) . '</td>';
+                echo '<td>' . esc_html($person->cycle_name) . '</td>';
                 echo '</tr>';
             }
 

@@ -181,11 +181,11 @@ class HL_CLI_Seed_Docs {
         // =====================================================================
 
         $articles[] = array(
-            'slug'       => 'cohorts-vs-partnerships',
-            'title'      => 'Cohorts vs Partnerships',
+            'slug'       => 'cohorts-vs-cycles',
+            'title'      => 'Cohorts vs Cycles',
             'cat_id'     => $cat_ids['core-concepts'] ?? 0,
             'sort_order' => 1,
-            'content'    => $this->content_cohorts_vs_partnerships(),
+            'content'    => $this->content_cohorts_vs_cycles(),
         );
 
         $articles[] = array(
@@ -379,7 +379,7 @@ class HL_CLI_Seed_Docs {
         return <<<'HTML'
 <h2>What is HL Core?</h2>
 
-HL Core is the system-of-record plugin for Housman Learning Academy. It manages everything related to your B2E (Birth to 5 Educators) programs: partnership management, participant enrollment, assessments, coaching sessions, observations, and reporting.
+HL Core is the system-of-record plugin for Housman Learning Academy. It manages everything related to your B2E (Birth to 5 Educators) programs: cycle management, participant enrollment, assessments, coaching sessions, observations, and reporting.
 
 <h2>Who is this documentation for?</h2>
 
@@ -412,11 +412,11 @@ Go to <strong>WP Admin > HL Core > Org Units</strong> and create the school dist
 
 <h3>2. Create a Cohort</h3>
 
-Go to <strong>HL Core > Cohorts</strong> and create a new [hl_doc_link slug="cohorts-vs-partnerships" text="Cohort"]. A Cohort is the contract-level container — for example, "B2E Mastery - Palm Beach County 2026." Set the status to Active and optionally assign it to a Cohort Group.
+Go to <strong>HL Core > Cohorts</strong> and create a new [hl_doc_link slug="cohorts-vs-cycles" text="Cohort"]. A Cohort is the contract-level container — for example, "B2E Mastery - Palm Beach County 2026." Set the status to Active and optionally assign it to a Cohort Group.
 
-<h3>3. Create a Partnership</h3>
+<h3>3. Create a Cycle</h3>
 
-Inside the Cohort editor, go to the Details tab and create a new Partnership. A Partnership is the time-bounded run within the Cohort. Link schools to the Partnership and set start/end dates.
+Inside the Cohort editor, go to the Details tab and create a new Cycle. A Cycle is the time-bounded run within the Cohort. Link schools to the Cycle and set start/end dates.
 
 <h3>4. Configure a Pathway</h3>
 
@@ -449,7 +449,7 @@ The Dashboard is the home page for all HL Core users. It shows different cards d
 <li><strong>My Coaching</strong> — Your coaching sessions (hidden for control group participants).</li>
 <li><strong>My Classrooms</strong> — Classrooms you're assigned to teach.</li>
 <li><strong>My Team</strong> — Your mentoring team (mentors only).</li>
-<li><strong>My Partnership</strong> — Your partnership workspace (leaders and mentors).</li>
+<li><strong>My Cycle</strong> — Your cycle workspace (leaders and mentors).</li>
 </ul>
 
 <h3>For staff and administrators</h3>
@@ -457,7 +457,7 @@ The Dashboard is the home page for all HL Core users. It shows different cards d
 In addition to any participant cards (if enrolled), staff see an <strong>Administration</strong> section with:
 
 <ul>
-<li><strong>Partnerships</strong> — All partnerships in the system.</li>
+<li><strong>Cycles</strong> — All cycles in the system.</li>
 <li><strong>Institutions</strong> — Districts and schools.</li>
 <li><strong>Learners</strong> — Participant directory.</li>
 <li><strong>Pathways</strong> — Pathway configuration.</li>
@@ -467,11 +467,11 @@ In addition to any participant cards (if enrolled), staff see an <strong>Adminis
 
 <h2>Role detection</h2>
 
-The Dashboard automatically detects your roles from your [hl_doc_link slug="enrollments-and-roles" text="enrollment records"]. A single user can have multiple roles across different partnerships — the Dashboard shows the union of all relevant cards.
+The Dashboard automatically detects your roles from your [hl_doc_link slug="enrollments-and-roles" text="enrollment records"]. A single user can have multiple roles across different cycles — the Dashboard shows the union of all relevant cards.
 HTML;
     }
 
-    private function content_cohorts_vs_partnerships() {
+    private function content_cohorts_vs_cycles() {
         return <<<'HTML'
 <h2>The two-level hierarchy</h2>
 
@@ -479,7 +479,7 @@ HL Core uses a two-level hierarchy for program management:
 
 <h3>Cohort (the container)</h3>
 
-A <strong>Cohort</strong> is a contract-level entity that represents a program partnership. Think of it as the "project" or "contract." Examples:
+A <strong>Cohort</strong> is a contract-level entity that represents a program cycle. Think of it as the "project" or "contract." Examples:
 <ul>
 <li>"B2E Mastery - Palm Beach County 2026"</li>
 <li>"B2E Mastery - Lutheran Services Florida"</li>
@@ -487,26 +487,26 @@ A <strong>Cohort</strong> is a contract-level entity that represents a program p
 
 A Cohort has a name, a code (for enrollment), a status (active, paused, archived), and optional start/end dates.
 
-<h3>Partnership (the run)</h3>
+<h3>Cycle (the run)</h3>
 
-A <strong>Partnership</strong> is a time-bounded run within a Cohort. Most Cohorts have one Partnership, but a Cohort can have multiple:
+A <strong>Cycle</strong> is a time-bounded run within a Cohort. Most Cohorts have one Cycle, but a Cohort can have multiple:
 <ul>
-<li>A <strong>program partnership</strong> with the full B2E curriculum (courses, coaching, observations, assessments).</li>
-<li>A <strong>control partnership</strong> with assessment-only components (for research comparison).</li>
+<li>A <strong>program cycle</strong> with the full B2E curriculum (courses, coaching, observations, assessments).</li>
+<li>A <strong>control cycle</strong> with assessment-only components (for research comparison).</li>
 </ul>
 
-Partnerships hold the configuration: linked schools, pathways, teams, enrollments, and coaching assignments.
+Cycles hold the configuration: linked schools, pathways, teams, enrollments, and coaching assignments.
 
 <h3>Why two levels?</h3>
 
 The separation exists because:
 <ul>
 <li>A single contract may include both a program group and a [hl_doc_link slug="control-groups" text="control group"].</li>
-<li>[hl_doc_link slug="program-vs-control-comparison" text="Comparison reports"] operate at the Cohort level, comparing partnerships within the same Cohort.</li>
+<li>[hl_doc_link slug="program-vs-control-comparison" text="Comparison reports"] operate at the Cohort level, comparing cycles within the same Cohort.</li>
 <li>Cohort Groups aggregate multiple Cohorts for cross-program reporting.</li>
 </ul>
 
-<blockquote>The front-end shows "Program" to participants (the word "Partnership" appears only in admin interfaces). See the Glossary for the full label mapping.</blockquote>
+<blockquote>The front-end shows "Program" to participants (the word "Cycle" appears only in admin interfaces). See the Glossary for the full label mapping.</blockquote>
 HTML;
     }
 
@@ -514,23 +514,23 @@ HTML;
         return <<<'HTML'
 <h2>How enrollment works</h2>
 
-An <strong>enrollment</strong> links a WordPress user to a specific Partnership. Each enrollment record contains:
+An <strong>enrollment</strong> links a WordPress user to a specific Cycle. Each enrollment record contains:
 <ul>
-<li>The user's <strong>roles</strong> within that partnership (stored as JSON — e.g., <code>["teacher"]</code> or <code>["school_leader", "mentor"]</code>)</li>
+<li>The user's <strong>roles</strong> within that cycle (stored as JSON — e.g., <code>["teacher"]</code> or <code>["school_leader", "mentor"]</code>)</li>
 <li>A <strong>school</strong> association</li>
 <li>A <strong>status</strong> (active, completed, withdrawn)</li>
 <li>Optional <strong>pathway assignment</strong></li>
 </ul>
 
-<h2>Partnership roles vs WordPress roles</h2>
+<h2>Cycle roles vs WordPress roles</h2>
 
 This is an important distinction:
 
 <strong>WordPress roles</strong> (like Administrator, Subscriber, Coach) are global — they apply site-wide. HL Core creates only one custom WP role: <strong>Coach</strong>.
 
-<strong>Partnership roles</strong> (teacher, mentor, school_leader, district_leader) are per-enrollment. A user can be a teacher in one partnership and a mentor in another. These roles live in the <code>hl_enrollment.roles</code> JSON column, not in WordPress user roles.
+<strong>Cycle roles</strong> (teacher, mentor, school_leader, district_leader) are per-enrollment. A user can be a teacher in one cycle and a mentor in another. These roles live in the <code>hl_enrollment.roles</code> JSON column, not in WordPress user roles.
 
-<h3>Available partnership roles</h3>
+<h3>Available cycle roles</h3>
 
 <ul>
 <li><strong>teacher</strong> — A B2E program participant who completes the curriculum.</li>
@@ -557,15 +557,15 @@ A <strong>District</strong> is the top-level organizational unit. It represents 
 
 <h3>Schools</h3>
 
-A <strong>School</strong> belongs to a district and represents a physical site. Schools are linked to Partnerships (a Partnership can serve multiple schools), and enrollments are associated with schools.
+A <strong>School</strong> belongs to a district and represents a physical site. Schools are linked to Cycles (a Cycle can serve multiple schools), and enrollments are associated with schools.
 
 <h2>Managing organizations</h2>
 
 Go to <strong>WP Admin > HL Core > Org Units</strong> to manage the organizational hierarchy. The admin page shows a collapsible view with districts as sections and schools nested beneath them.
 
-<h3>Linking schools to partnerships</h3>
+<h3>Linking schools to cycles</h3>
 
-When editing a Partnership (inside the Cohort editor), use the <strong>Schools</strong> tab to link/unlink schools. Only linked schools can have participants enrolled in that Partnership.
+When editing a Cycle (inside the Cohort editor), use the <strong>Schools</strong> tab to link/unlink schools. Only linked schools can have participants enrolled in that Cycle.
 HTML;
     }
 
@@ -573,14 +573,14 @@ HTML;
         return <<<'HTML'
 <h2>What are teams?</h2>
 
-A <strong>Team</strong> groups teachers together under one or two mentors for coaching and observation purposes. Teams belong to a specific Partnership and School.
+A <strong>Team</strong> groups teachers together under one or two mentors for coaching and observation purposes. Teams belong to a specific Cycle and School.
 
 <h2>Team structure</h2>
 
 <ul>
-<li>Each team has a <strong>name</strong> and is associated with a <strong>school</strong> and <strong>partnership</strong>.</li>
+<li>Each team has a <strong>name</strong> and is associated with a <strong>school</strong> and <strong>cycle</strong>.</li>
 <li>A team can have up to <strong>2 mentors</strong> (soft limit — can be overridden).</li>
-<li>A teacher can only belong to <strong>one team per partnership</strong> (hard limit).</li>
+<li>A teacher can only belong to <strong>one team per cycle</strong> (hard limit).</li>
 <li>Mentors are also enrolled participants — they have their own [hl_doc_link slug="enrollments-and-roles" text="enrollment"] with the "mentor" role.</li>
 </ul>
 
@@ -602,14 +602,14 @@ HTML;
         return <<<'HTML'
 <h2>What is a control group?</h2>
 
-A <strong>control group</strong> is a Partnership where participants only complete assessments — no courses, coaching, or observations. Control groups exist for research purposes: by comparing assessment results between the program group and the control group, Housman can measure the impact of the B2E curriculum.
+A <strong>control group</strong> is a Cycle where participants only complete assessments — no courses, coaching, or observations. Control groups exist for research purposes: by comparing assessment results between the program group and the control group, Housman can measure the impact of the B2E curriculum.
 
 <h2>How to create a control group</h2>
 
 <ol>
 <li>Open the Cohort editor for an existing Cohort (or create a new one).</li>
-<li>Create a new Partnership and check the <strong>"Control Group"</strong> checkbox.</li>
-<li>The Partnership will be marked with a purple "Control" badge.</li>
+<li>Create a new Cycle and check the <strong>"Control Group"</strong> checkbox.</li>
+<li>The Cycle will be marked with a purple "Control" badge.</li>
 <li>Create an assessment-only [hl_doc_link slug="pathways-overview" text="pathway"] with 4 components: Teacher Self-Assessment Pre, Child Assessment Pre, Teacher Self-Assessment Post, Child Assessment Post.</li>
 <li>Use [hl_doc_link slug="prerequisites-drip-rules" text="drip rules"] to time-gate the POST assessments.</li>
 </ol>
@@ -620,7 +620,7 @@ A <strong>control group</strong> is a Partnership where participants only comple
 <li>Coaching and Teams tabs are hidden in both admin and front-end.</li>
 <li>The "My Coaching" card is hidden on the Dashboard for control-group-only participants.</li>
 <li>Only assessment components appear in the pathway.</li>
-<li>[hl_doc_link slug="program-vs-control-comparison" text="Comparison reports"] show side-by-side results when a Cohort contains both program and control Partnerships.</li>
+<li>[hl_doc_link slug="program-vs-control-comparison" text="Comparison reports"] show side-by-side results when a Cohort contains both program and control Cycles.</li>
 </ul>
 HTML;
     }
@@ -841,7 +841,7 @@ HTML;
 <li>An admin creates an observation form in <strong>JetFormBuilder</strong> with the required hidden fields.</li>
 <li>The form is linked to a pathway component (type: <code>observation</code>).</li>
 <li>A mentor opens the observation page and selects a teacher from their team.</li>
-<li>HL Core renders the JFB form with hidden fields pre-populated (enrollment ID, component ID, partnership ID).</li>
+<li>HL Core renders the JFB form with hidden fields pre-populated (enrollment ID, component ID, cycle ID).</li>
 <li>On submit, JFB fires the <code>hl_core_form_submitted</code> hook.</li>
 <li>HL Core updates the observation status and triggers the completion rollup.</li>
 </ol>
@@ -850,7 +850,7 @@ HTML;
 
 The JetFormBuilder form must include:
 <ul>
-<li><strong>Hidden fields:</strong> <code>hl_enrollment_id</code>, <code>hl_component_id</code>, <code>hl_partnership_id</code>, <code>hl_observation_id</code></li>
+<li><strong>Hidden fields:</strong> <code>hl_enrollment_id</code>, <code>hl_component_id</code>, <code>hl_cycle_id</code>, <code>hl_observation_id</code></li>
 <li><strong>Post-submit action:</strong> "Call Hook" with hook name <code>hl_core_form_submitted</code></li>
 </ul>
 
@@ -867,10 +867,10 @@ The CSV Import wizard lets you bulk-import data into HL Core. It supports four i
 <h3>Import types</h3>
 
 <ul>
-<li><strong>Participants</strong> — Creates WordPress users, enrolls them in a partnership, assigns roles and schools. Handles identity matching (existing users are linked, not duplicated).</li>
+<li><strong>Participants</strong> — Creates WordPress users, enrolls them in a cycle, assigns roles and schools. Handles identity matching (existing users are linked, not duplicated).</li>
 <li><strong>Children</strong> — Adds children to classrooms. Uses fingerprint-based matching to avoid duplicates.</li>
 <li><strong>Classrooms</strong> — Creates classrooms at schools. Detects duplicates by school + name.</li>
-<li><strong>Teaching Assignments</strong> — Links teachers (by email) to classrooms within a partnership.</li>
+<li><strong>Teaching Assignments</strong> — Links teachers (by email) to classrooms within a cycle.</li>
 </ul>
 
 <h2>The import process</h2>
@@ -878,7 +878,7 @@ The CSV Import wizard lets you bulk-import data into HL Core. It supports four i
 The import uses a 3-step wizard:
 
 <h3>Step 1: Upload</h3>
-Select the import type, choose the target partnership, and upload a CSV file. The system validates columns and maps them to expected fields (with synonym support — e.g., "Email Address" maps to "email").
+Select the import type, choose the target cycle, and upload a CSV file. The system validates columns and maps them to expected fields (with synonym support — e.g., "Email Address" maps to "email").
 
 <h3>Step 2: Preview & Select</h3>
 Review the parsed data. Each row shows a status badge: ready, warning, or error. Select which rows to import. Unmapped columns are shown but ignored.
@@ -909,7 +909,7 @@ A <strong>classroom</strong> represents a physical classroom at a school. Classr
 
 <h3>Teaching assignments</h3>
 
-A <strong>teaching assignment</strong> links an enrolled teacher to a classroom within a specific partnership. When a teaching assignment is created, HL Core automatically generates [hl_doc_link slug="child-assessment" text="child assessment"] instances for that teacher-classroom pair.
+A <strong>teaching assignment</strong> links an enrolled teacher to a classroom within a specific cycle. When a teaching assignment is created, HL Core automatically generates [hl_doc_link slug="child-assessment" text="child assessment"] instances for that teacher-classroom pair.
 
 <h2>Children</h2>
 
@@ -939,12 +939,12 @@ HTML;
         return <<<'HTML'
 <h2>What is a pathway?</h2>
 
-A <strong>pathway</strong> is a structured sequence of components that participants must complete. Think of it as the "curriculum" or "program plan" for a partnership.
+A <strong>pathway</strong> is a structured sequence of components that participants must complete. Think of it as the "curriculum" or "program plan" for a cycle.
 
 Each pathway has:
 <ul>
 <li>A <strong>name</strong> (e.g., "B2E Mastery Pathway" or "Control Group Assessment Pathway")</li>
-<li>A <strong>partnership</strong> association</li>
+<li>A <strong>cycle</strong> association</li>
 <li><strong>Target roles</strong> — which enrollment roles should be auto-assigned this pathway</li>
 <li>An ordered list of <strong>components</strong></li>
 </ul>
@@ -963,7 +963,7 @@ Explicit assignments override role-based defaults.
 
 <h2>Pathway templates</h2>
 
-You can save a pathway as a <strong>template</strong> and use it as a starting point when creating pathways for new partnerships. Templates include all components, prerequisites, and drip rules, with IDs remapped to the new pathway.
+You can save a pathway as a <strong>template</strong> and use it as a starting point when creating pathways for new cycles. Templates include all components, prerequisites, and drip rules, with IDs remapped to the new pathway.
 
 <h2>The participant view</h2>
 
@@ -1091,11 +1091,11 @@ HTML;
         return <<<'HTML'
 <h2>Overview</h2>
 
-When a [hl_doc_link slug="cohorts-vs-partnerships" text="Cohort"] contains both a program Partnership and a [hl_doc_link slug="control-groups" text="control group"] Partnership, HL Core can generate <strong>comparison reports</strong> that measure program impact.
+When a [hl_doc_link slug="cohorts-vs-cycles" text="Cohort"] contains both a program Cycle and a [hl_doc_link slug="control-groups" text="control group"] Cycle, HL Core can generate <strong>comparison reports</strong> that measure program impact.
 
 <h2>How comparison works</h2>
 
-The comparison analyzes Teacher Self-Assessment data from both partnerships:
+The comparison analyzes Teacher Self-Assessment data from both cycles:
 <ul>
 <li><strong>Per-section means</strong> — average scores for each assessment section in both program and control groups</li>
 <li><strong>Per-item means</strong> — average scores for each individual item</li>
@@ -1125,19 +1125,19 @@ HTML;
         return array(
             'glossary-cohort' => array(
                 'title'   => 'Cohort',
-                'content' => 'A contract-level container entity that represents a program partnership. A Cohort holds one or more Partnerships. Example: "B2E Mastery - Palm Beach County 2026." See [hl_doc_link slug="cohorts-vs-partnerships"] for details.',
+                'content' => 'A contract-level container entity that represents a program cycle. A Cohort holds one or more Cycles. Example: "B2E Mastery - Palm Beach County 2026." See [hl_doc_link slug="cohorts-vs-cycles"] for details.',
             ),
-            'glossary-partnership' => array(
-                'title'   => 'Partnership',
-                'content' => 'A time-bounded run within a Cohort. Partnerships hold enrollments, schools, pathways, teams, and coaching assignments. Most Cohorts have one Partnership, but research designs may include both a program Partnership and a control Partnership. The front-end shows "Program" instead of "Partnership" to participants.',
+            'glossary-cycle' => array(
+                'title'   => 'Cycle',
+                'content' => 'A time-bounded run within a Cohort. Cycles hold enrollments, schools, pathways, teams, and coaching assignments. Most Cohorts have one Cycle, but research designs may include both a program Cycle and a control Cycle. The front-end shows "Program" instead of "Cycle" to participants.',
             ),
             'glossary-enrollment' => array(
                 'title'   => 'Enrollment',
-                'content' => 'A record linking a WordPress user to a specific Partnership with one or more roles (teacher, mentor, school_leader, district_leader). Enrollment roles are stored per-partnership, not as WordPress roles. See [hl_doc_link slug="enrollments-and-roles"].',
+                'content' => 'A record linking a WordPress user to a specific Cycle with one or more roles (teacher, mentor, school_leader, district_leader). Enrollment roles are stored per-cycle, not as WordPress roles. See [hl_doc_link slug="enrollments-and-roles"].',
             ),
             'glossary-pathway' => array(
                 'title'   => 'Pathway',
-                'content' => 'A structured sequence of components (the curriculum) assigned to participants within a Partnership. Pathways can be assigned by role (automatic) or explicitly (manual). See [hl_doc_link slug="pathways-overview"].',
+                'content' => 'A structured sequence of components (the curriculum) assigned to participants within a Cycle. Pathways can be assigned by role (automatic) or explicitly (manual). See [hl_doc_link slug="pathways-overview"].',
             ),
             'glossary-component' => array(
                 'title'   => 'Component',
@@ -1157,7 +1157,7 @@ HTML;
             ),
             'glossary-control-group' => array(
                 'title'   => 'Control Group',
-                'content' => 'A Partnership where participants only complete assessments (no courses, coaching, or observations). Used for research purposes to measure program impact by comparison. See [hl_doc_link slug="control-groups"].',
+                'content' => 'A Cycle where participants only complete assessments (no courses, coaching, or observations). Used for research purposes to measure program impact by comparison. See [hl_doc_link slug="control-groups"].',
             ),
             'glossary-coach-assignment' => array(
                 'title'   => 'Coach Assignment',
@@ -1181,7 +1181,7 @@ HTML;
             ),
             'glossary-teaching-assignment' => array(
                 'title'   => 'Teaching Assignment',
-                'content' => 'A record linking an enrolled teacher to a classroom within a specific Partnership. Teaching assignments trigger automatic generation of child assessment instances for that teacher-classroom pair.',
+                'content' => 'A record linking an enrolled teacher to a classroom within a specific Cycle. Teaching assignments trigger automatic generation of child assessment instances for that teacher-classroom pair.',
             ),
         );
     }

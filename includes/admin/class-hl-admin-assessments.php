@@ -75,9 +75,9 @@ class HL_Admin_Assessments {
                 wp_die(__('You do not have permission to perform this action.', 'hl-core'));
             }
 
-            $partnership_id = absint($_POST['partnership_id']);
+            $cycle_id = absint($_POST['cycle_id']);
             $service = new HL_Assessment_Service();
-            $result = $service->generate_child_assessment_instances($partnership_id);
+            $result = $service->generate_child_assessment_instances($cycle_id);
 
             $msg = 'generated';
             if (!empty($result['errors'])) {
@@ -88,9 +88,9 @@ class HL_Admin_Assessments {
 
             $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'hl-assessment-hub';
             if ($current_page === 'hl-assessment-hub') {
-                $redirect = admin_url('admin.php?page=hl-assessment-hub&section=child-assessments&partnership_id=' . $partnership_id . '&message=' . $msg . '&created=' . $result['created'] . '&existing=' . $result['existing']);
+                $redirect = admin_url('admin.php?page=hl-assessment-hub&section=child-assessments&cycle_id=' . $cycle_id . '&message=' . $msg . '&created=' . $result['created'] . '&existing=' . $result['existing']);
             } else {
-                $redirect = admin_url('admin.php?page=hl-assessments&partnership_id=' . $partnership_id . '&tab=children&message=' . $msg . '&created=' . $result['created'] . '&existing=' . $result['existing']);
+                $redirect = admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&tab=children&message=' . $msg . '&created=' . $result['created'] . '&existing=' . $result['existing']);
             }
             wp_redirect($redirect);
             exit;
@@ -113,36 +113,36 @@ class HL_Admin_Assessments {
         }
 
         $export_type = sanitize_text_field($_GET['export']);
-        $partnership_id   = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
+        $cycle_id   = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
 
-        if (!$partnership_id) {
+        if (!$cycle_id) {
             return;
         }
 
-        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_export_' . $export_type . '_' . $partnership_id)) {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_export_' . $export_type . '_' . $cycle_id)) {
             return;
         }
 
         $service = new HL_Assessment_Service();
 
         global $wpdb;
-        $partnership_name = $wpdb->get_var($wpdb->prepare(
-            "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
-            $partnership_id
+        $cycle_name = $wpdb->get_var($wpdb->prepare(
+            "SELECT cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+            $cycle_id
         ));
-        $safe_name = sanitize_file_name($partnership_name ?: 'partnership-' . $partnership_id);
+        $safe_name = sanitize_file_name($cycle_name ?: 'cycle-' . $cycle_id);
 
         if ($export_type === 'teacher') {
-            $csv = $service->export_teacher_assessments_csv($partnership_id);
+            $csv = $service->export_teacher_assessments_csv($cycle_id);
             $filename = 'teacher-assessments-' . $safe_name . '-' . date('Y-m-d') . '.csv';
         } elseif ($export_type === 'teacher_responses') {
-            $csv = $service->export_teacher_assessment_responses_csv($partnership_id);
+            $csv = $service->export_teacher_assessment_responses_csv($cycle_id);
             $filename = 'teacher-assessment-responses-' . $safe_name . '-' . date('Y-m-d') . '.csv';
         } elseif ($export_type === 'children') {
-            $csv = $service->export_child_assessments_csv($partnership_id);
+            $csv = $service->export_child_assessments_csv($cycle_id);
             $filename = 'child-assessments-' . $safe_name . '-' . date('Y-m-d') . '.csv';
         } elseif ($export_type === 'children_responses') {
-            $csv = $service->export_child_assessment_responses_csv($partnership_id);
+            $csv = $service->export_child_assessment_responses_csv($cycle_id);
             $filename = 'child-assessment-responses-' . $safe_name . '-' . date('Y-m-d') . '.csv';
         } else {
             return;
@@ -150,7 +150,7 @@ class HL_Admin_Assessments {
 
         HL_Audit_Service::log('assessment.exported', array(
             'entity_type' => $export_type . '_assessment',
-            'partnership_id'    => $partnership_id,
+            'cycle_id'    => $cycle_id,
             'after_data'  => array('export_type' => $export_type),
         ));
 
@@ -209,9 +209,9 @@ class HL_Admin_Assessments {
         echo '<h1>' . esc_html__('Assessments', 'hl-core') . '</h1>';
 
         // Tab navigation (standalone only — hub uses sidebar)
-        $selected_partnership = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
-        $teacher_url  = admin_url('admin.php?page=hl-assessments&partnership_id=' . $selected_partnership . '&tab=teacher');
-        $children_url = admin_url('admin.php?page=hl-assessments&partnership_id=' . $selected_partnership . '&tab=children');
+        $selected_cycle = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
+        $teacher_url  = admin_url('admin.php?page=hl-assessments&cycle_id=' . $selected_cycle . '&tab=teacher');
+        $children_url = admin_url('admin.php?page=hl-assessments&cycle_id=' . $selected_cycle . '&tab=children');
 
         echo '<nav class="nav-tab-wrapper">';
         echo '<a href="' . esc_url($teacher_url) . '" class="nav-tab' . ($active_tab === 'teacher' ? ' nav-tab-active' : '') . '">' . esc_html__('Teacher Self-Assessments', 'hl-core') . '</a>';
@@ -222,37 +222,37 @@ class HL_Admin_Assessments {
     }
 
     /**
-     * Render assessment section with partnership selector and data table.
+     * Render assessment section with cycle selector and data table.
      *
      * @param string $tab 'teacher' or 'children'
      */
     private function render_assessment_section($tab) {
         $service = new HL_Assessment_Service();
 
-        // Partnership filter
+        // Cycle filter
         global $wpdb;
-        $partnerships = $wpdb->get_results(
-            "SELECT partnership_id, partnership_name, status FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
+        $cycles = $wpdb->get_results(
+            "SELECT cycle_id, cycle_name, status FROM {$wpdb->prefix}hl_cycle ORDER BY cycle_name ASC"
         );
-        $selected_partnership = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
+        $selected_cycle = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
 
-        // Auto-select most recent active partnership when no explicit selection
-        if (!$selected_partnership && $partnerships) {
-            foreach ($partnerships as $t) {
+        // Auto-select most recent active cycle when no explicit selection
+        if (!$selected_cycle && $cycles) {
+            foreach ($cycles as $t) {
                 if ($t->status === 'active') {
-                    $selected_partnership = (int) $t->partnership_id;
+                    $selected_cycle = (int) $t->cycle_id;
                 }
             }
-            if (!$selected_partnership) {
-                $last = end($partnerships);
-                $selected_partnership = (int) $last->partnership_id;
+            if (!$selected_cycle) {
+                $last = end($cycles);
+                $selected_cycle = (int) $last->cycle_id;
             }
         }
 
         $page_param = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'hl-assessment-hub';
         $section_param = isset($_GET['section']) ? sanitize_text_field($_GET['section']) : '';
 
-        // Partnership selector
+        // Cycle selector
         echo '<form method="get">';
         echo '<input type="hidden" name="page" value="' . esc_attr($page_param) . '" />';
         if ($section_param) {
@@ -261,31 +261,31 @@ class HL_Admin_Assessments {
         if ($page_param === 'hl-assessments') {
             echo '<input type="hidden" name="tab" value="' . esc_attr($tab) . '" />';
         }
-        echo '<label><strong>' . esc_html__('Partnership:', 'hl-core') . '</strong> </label>';
-        echo '<select name="partnership_id">';
-        echo '<option value="">' . esc_html__('-- Select Partnership --', 'hl-core') . '</option>';
-        if ($partnerships) {
-            foreach ($partnerships as $partnership_obj) {
-                $label = $partnership_obj->partnership_name;
-                if ($partnership_obj->status !== 'active') {
-                    $label .= ' (' . ucfirst($partnership_obj->status) . ')';
+        echo '<label><strong>' . esc_html__('Cycle:', 'hl-core') . '</strong> </label>';
+        echo '<select name="cycle_id">';
+        echo '<option value="">' . esc_html__('-- Select Cycle --', 'hl-core') . '</option>';
+        if ($cycles) {
+            foreach ($cycles as $cycle_obj) {
+                $label = $cycle_obj->cycle_name;
+                if ($cycle_obj->status !== 'active') {
+                    $label .= ' (' . ucfirst($cycle_obj->status) . ')';
                 }
-                echo '<option value="' . esc_attr($partnership_obj->partnership_id) . '"' . selected($selected_partnership, $partnership_obj->partnership_id, false) . '>' . esc_html($label) . '</option>';
+                echo '<option value="' . esc_attr($cycle_obj->cycle_id) . '"' . selected($selected_cycle, $cycle_obj->cycle_id, false) . '>' . esc_html($label) . '</option>';
             }
         }
         echo '</select> ';
         submit_button(__('View', 'hl-core'), 'secondary', 'submit', false);
         echo '</form>';
 
-        if (!$selected_partnership) {
-            echo '<p>' . esc_html__('Select a partnership to view assessments.', 'hl-core') . '</p>';
+        if (!$selected_cycle) {
+            echo '<p>' . esc_html__('Select a cycle to view assessments.', 'hl-core') . '</p>';
             return;
         }
 
         if ($tab === 'children') {
-            $this->render_children_tab($selected_partnership, $service);
+            $this->render_children_tab($selected_cycle, $service);
         } else {
-            $this->render_teacher_tab($selected_partnership, $service);
+            $this->render_teacher_tab($selected_cycle, $service);
         }
     }
 
@@ -293,17 +293,17 @@ class HL_Admin_Assessments {
     // Teacher Self-Assessment Tab
     // =========================================================================
 
-    private function render_teacher_tab($partnership_id, $service) {
-        $instances = $service->get_teacher_assessments_by_partnership($partnership_id);
+    private function render_teacher_tab($cycle_id, $service) {
+        $instances = $service->get_teacher_assessments_by_cycle($cycle_id);
 
         // Export buttons
         $export_completion_url = wp_nonce_url(
-            admin_url('admin.php?page=hl-assessments&partnership_id=' . $partnership_id . '&export=teacher'),
-            'hl_export_teacher_' . $partnership_id
+            admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&export=teacher'),
+            'hl_export_teacher_' . $cycle_id
         );
         $export_responses_url = wp_nonce_url(
-            admin_url('admin.php?page=hl-assessments&partnership_id=' . $partnership_id . '&export=teacher_responses'),
-            'hl_export_teacher_responses_' . $partnership_id
+            admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&export=teacher_responses'),
+            'hl_export_teacher_responses_' . $cycle_id
         );
         echo '<div class="hl-top-bar">';
         echo '<a href="' . esc_url($export_completion_url) . '" class="button">' . esc_html__('Export Completion CSV', 'hl-core') . '</a>';
@@ -311,7 +311,7 @@ class HL_Admin_Assessments {
         echo '</div>';
 
         if (empty($instances)) {
-            echo '<p>' . esc_html__('No teacher assessment instances found for this partnership.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No teacher assessment instances found for this cycle.', 'hl-core') . '</p>';
             return;
         }
 
@@ -367,7 +367,7 @@ class HL_Admin_Assessments {
                     . esc_html($phase_label) . ' <span style="color:#646970;font-weight:400;">(' . $phase_cnt . ')</span></td></tr>';
             }
 
-            $view_url = admin_url('admin.php?page=hl-assessments&action=view_teacher&instance_id=' . $inst['instance_id'] . '&partnership_id=' . $partnership_id);
+            $view_url = admin_url('admin.php?page=hl-assessments&action=view_teacher&instance_id=' . $inst['instance_id'] . '&cycle_id=' . $cycle_id);
             $user_edit_url = admin_url('user-edit.php?user_id=' . $inst['user_id']);
 
             echo '<tr>';
@@ -393,33 +393,33 @@ class HL_Admin_Assessments {
     // Child Assessment Tab
     // =========================================================================
 
-    private function render_children_tab($partnership_id, $service) {
-        $instances = $service->get_child_assessments_by_partnership($partnership_id);
+    private function render_children_tab($cycle_id, $service) {
+        $instances = $service->get_child_assessments_by_cycle($cycle_id);
 
         // Action buttons row
         echo '<div class="hl-top-bar" style="justify-content:flex-start;">';
 
         // Generate instances button
-        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-assessments&partnership_id=' . $partnership_id . '&tab=children')) . '" style="display:inline;">';
+        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&tab=children')) . '" style="display:inline;">';
         wp_nonce_field('hl_generate_children_instances', 'hl_generate_children_nonce');
-        echo '<input type="hidden" name="partnership_id" value="' . esc_attr($partnership_id) . '" />';
+        echo '<input type="hidden" name="cycle_id" value="' . esc_attr($cycle_id) . '" />';
         submit_button(
             __('Generate Instances from Teaching Assignments', 'hl-core'),
             'secondary',
             'submit',
             false,
-            array('onclick' => 'return confirm("' . esc_js(__('This will create child assessment instances for all teaching assignments in this partnership. Continue?', 'hl-core')) . '");')
+            array('onclick' => 'return confirm("' . esc_js(__('This will create child assessment instances for all teaching assignments in this cycle. Continue?', 'hl-core')) . '");')
         );
         echo '</form>';
 
         // Export buttons
         $export_completion_url = wp_nonce_url(
-            admin_url('admin.php?page=hl-assessments&partnership_id=' . $partnership_id . '&export=children'),
-            'hl_export_children_' . $partnership_id
+            admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&export=children'),
+            'hl_export_children_' . $cycle_id
         );
         $export_responses_url = wp_nonce_url(
-            admin_url('admin.php?page=hl-assessments&partnership_id=' . $partnership_id . '&export=children_responses'),
-            'hl_export_children_responses_' . $partnership_id
+            admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&export=children_responses'),
+            'hl_export_children_responses_' . $cycle_id
         );
         echo '<a href="' . esc_url($export_completion_url) . '" class="button">' . esc_html__('Export Completion CSV', 'hl-core') . '</a>';
         echo '<a href="' . esc_url($export_responses_url) . '" class="button">' . esc_html__('Export Responses CSV', 'hl-core') . '</a>';
@@ -427,7 +427,7 @@ class HL_Admin_Assessments {
         echo '</div>';
 
         if (empty($instances)) {
-            echo '<p>' . esc_html__('No child assessment instances found for this partnership. Use "Generate Instances" to create them from teaching assignments.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No child assessment instances found for this cycle. Use "Generate Instances" to create them from teaching assignments.', 'hl-core') . '</p>';
             return;
         }
 
@@ -492,7 +492,7 @@ class HL_Admin_Assessments {
                     . esc_html($phase_label) . ' <span style="color:#646970;font-weight:400;">(' . $phase_cnt . ')</span></td></tr>';
             }
 
-            $view_url = admin_url('admin.php?page=hl-assessments&action=view_children&instance_id=' . $inst['instance_id'] . '&partnership_id=' . $partnership_id);
+            $view_url = admin_url('admin.php?page=hl-assessments&action=view_children&instance_id=' . $inst['instance_id'] . '&cycle_id=' . $cycle_id);
             $user_edit_url = admin_url('user-edit.php?user_id=' . $inst['user_id']);
 
             $age_band_display = $inst['instrument_age_band'] ? ucfirst($inst['instrument_age_band']) : '<em style="color:#b32d2e;">' . esc_html__('Needs Review', 'hl-core') . '</em>';
@@ -533,8 +533,8 @@ class HL_Admin_Assessments {
             return;
         }
 
-        $partnership_id = $instance['partnership_id'];
-        $back_url = admin_url('admin.php?page=hl-assessment-hub&section=teacher-assessments&partnership_id=' . $partnership_id);
+        $cycle_id = $instance['cycle_id'];
+        $back_url = admin_url('admin.php?page=hl-assessment-hub&section=teacher-assessments&cycle_id=' . $cycle_id);
 
         echo '<h2>' . esc_html__('Teacher Self-Assessment Detail', 'hl-core') . '</h2>';
         echo '<a href="' . esc_url($back_url) . '" style="margin-bottom:16px;display:inline-block;">&larr; ' . esc_html__('Back to Assessments', 'hl-core') . '</a>';
@@ -544,7 +544,7 @@ class HL_Admin_Assessments {
         echo '<div class="hl-detail-grid">';
 
         echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Instance', 'hl-core') . '</span><span class="hl-detail-value">#' . esc_html($instance['instance_id']) . '</span></div>';
-        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Partnership', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['partnership_name']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Cycle', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['cycle_name']) . '</span></div>';
         echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Teacher', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['display_name']) . '</span></div>';
         echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Email', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['user_email']) . '</span></div>';
         echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Cycle', 'hl-core') . '</span><span class="hl-detail-value"><strong>' . esc_html(strtoupper($instance['phase'])) . '</strong></span></div>';
@@ -664,8 +664,8 @@ class HL_Admin_Assessments {
             return;
         }
 
-        $partnership_id = $instance['partnership_id'];
-        $back_url = admin_url('admin.php?page=hl-assessment-hub&section=child-assessments&partnership_id=' . $partnership_id);
+        $cycle_id = $instance['cycle_id'];
+        $back_url = admin_url('admin.php?page=hl-assessment-hub&section=child-assessments&cycle_id=' . $cycle_id);
 
         echo '<h2>' . esc_html__('Child Assessment Detail', 'hl-core') . '</h2>';
         echo '<a href="' . esc_url($back_url) . '" style="margin-bottom:16px;display:inline-block;">&larr; ' . esc_html__('Back to Assessments', 'hl-core') . '</a>';
@@ -675,7 +675,7 @@ class HL_Admin_Assessments {
         echo '<div class="hl-detail-grid">';
 
         echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Instance', 'hl-core') . '</span><span class="hl-detail-value">#' . esc_html($instance['instance_id']) . '</span></div>';
-        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Partnership', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['partnership_name']) . '</span></div>';
+        echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Cycle', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['cycle_name']) . '</span></div>';
         echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Teacher', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['display_name']) . '</span></div>';
         echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Email', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['user_email']) . '</span></div>';
         echo '<div class="hl-detail-item"><span class="hl-detail-label">' . esc_html__('Classroom', 'hl-core') . '</span><span class="hl-detail-value">' . esc_html($instance['classroom_name']) . '</span></div>';

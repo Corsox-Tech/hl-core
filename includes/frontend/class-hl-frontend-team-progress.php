@@ -15,8 +15,8 @@ class HL_Frontend_Team_Progress {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Partnership_Repository */
-    private $partnership_repo;
+    /** @var HL_Cycle_Repository */
+    private $cycle_repo;
 
     /** @var HL_Team_Repository */
     private $team_repo;
@@ -32,7 +32,7 @@ class HL_Frontend_Team_Progress {
 
     public function __construct() {
         $this->enrollment_repo = new HL_Enrollment_Repository();
-        $this->partnership_repo    = new HL_Partnership_Repository();
+        $this->cycle_repo    = new HL_Cycle_Repository();
         $this->team_repo      = new HL_Team_Repository();
         $this->pathway_repo   = new HL_Pathway_Repository();
         $this->component_repo = new HL_Component_Repository();
@@ -42,7 +42,7 @@ class HL_Frontend_Team_Progress {
     /**
      * Render the Team Progress shortcode.
      *
-     * @param array $atts Shortcode attributes. Optional key: partnership_id.
+     * @param array $atts Shortcode attributes. Optional key: cycle_id.
      * @return string HTML output.
      */
     public function render($atts) {
@@ -61,7 +61,7 @@ class HL_Frontend_Team_Progress {
             if (!$enrollment->has_role('Mentor')) {
                 return false;
             }
-            if (!empty($atts['partnership_id']) && (int) $enrollment->partnership_id !== absint($atts['partnership_id'])) {
+            if (!empty($atts['cycle_id']) && (int) $enrollment->cycle_id !== absint($atts['cycle_id'])) {
                 return false;
             }
             return true;
@@ -78,7 +78,7 @@ class HL_Frontend_Team_Progress {
         $track_blocks = array();
 
         foreach ($mentor_enrollments as $mentor_enrollment) {
-            $block = $this->build_partnership_block($mentor_enrollment);
+            $block = $this->build_cycle_block($mentor_enrollment);
             if ($block !== null) {
                 $track_blocks[] = $block;
             }
@@ -96,15 +96,15 @@ class HL_Frontend_Team_Progress {
             <div class="hl-track-tabs">
             <?php foreach ($track_blocks as $idx => $block) : ?>
                 <button class="hl-tab<?php echo $idx === 0 ? ' active' : ''; ?>"
-                        data-partnership="<?php echo esc_attr($block[  'partnership']->partnership_id); ?>">
-                    <?php echo esc_html($block[  'partnership']->partnership_code . ' - ' . $this->format_year($block[  'partnership']->start_date)); ?>
+                        data-cycle="<?php echo esc_attr($block[  'cycle']->cycle_id); ?>">
+                    <?php echo esc_html($block[  'cycle']->cycle_code . ' - ' . $this->format_year($block[  'cycle']->start_date)); ?>
                 </button>
             <?php endforeach; ?>
             </div>
         <?php endif; ?>
 
         <?php foreach ($track_blocks as $block) :
-            $this->render_partnership_block($block);
+            $this->render_cycle_block($block);
         endforeach; ?>
         </div>
         <?php
@@ -120,11 +120,11 @@ class HL_Frontend_Team_Progress {
      * @param HL_Enrollment $mentor_enrollment
      * @return array|null Null if the mentor is not on a team in this track.
      */
-    private function build_partnership_block($mentor_enrollment) {
+    private function build_cycle_block($mentor_enrollment) {
         global $wpdb;
 
-        $partnership = $this->partnership_repo->get_by_id($mentor_enrollment->partnership_id);
-        if (!$partnership) {
+        $cycle = $this->cycle_repo->get_by_id($mentor_enrollment->cycle_id);
+        if (!$cycle) {
             return null;
         }
 
@@ -138,7 +138,7 @@ class HL_Frontend_Team_Progress {
             // Mentor is not assigned to a team; we still return a block so we
             // can show an informational message.
             return array(
-                  'partnership'       => $partnership,
+                  'cycle'       => $cycle,
                 'team'          => null,
                 'school_name'   => '',
                 'members'       => array(),
@@ -184,7 +184,7 @@ class HL_Frontend_Team_Progress {
         $team_avg = ($member_count > 0) ? round($completion_sum / $member_count) : 0;
 
         return array(
-              'partnership'      => $partnership,
+              'cycle'      => $cycle,
             'team'        => $team,
             'school_name' => $school_name,
             'members'     => $members,
@@ -334,14 +334,14 @@ class HL_Frontend_Team_Progress {
      *
      * @param array $block
      */
-    private function render_partnership_block($block) {
-        $partnership      = $block['partnership'];
+    private function render_cycle_block($block) {
+        $cycle      = $block['cycle'];
         $team        = $block['team'];
         $school_name = $block['school_name'];
         $members     = $block['members'];
         $team_avg    = $block['team_avg'];
         ?>
-        <div class="hl-partnership-block" data-partnership-id="<?php echo esc_attr($partnership->partnership_id); ?>">
+        <div class="hl-cycle-block" data-cycle-id="<?php echo esc_attr($cycle->cycle_id); ?>">
         <?php if (!$team) : ?>
             <div class="hl-notice hl-notice-info">
                 <?php esc_html_e('You are not assigned to a team in this track.', 'hl-core'); ?>
@@ -352,7 +352,7 @@ class HL_Frontend_Team_Progress {
                 <div class="hl-team-header-info">
                     <h2 class="hl-team-title"><?php echo esc_html($team->team_name); ?></h2>
                     <div class="hl-track-meta">
-                        <span class="hl-meta-item"><strong><?php esc_html_e('Track:', 'hl-core'); ?></strong> <?php echo esc_html($partnership->partnership_code . ' - ' . $this->format_year($partnership->start_date)); ?></span>
+                        <span class="hl-meta-item"><strong><?php esc_html_e('Track:', 'hl-core'); ?></strong> <?php echo esc_html($cycle->cycle_code . ' - ' . $this->format_year($cycle->start_date)); ?></span>
                         <?php if (!empty($school_name)) : ?>
                         <span class="hl-meta-item"><strong><?php esc_html_e('School:', 'hl-core'); ?></strong> <?php echo esc_html($school_name); ?></span>
                         <?php endif; ?>

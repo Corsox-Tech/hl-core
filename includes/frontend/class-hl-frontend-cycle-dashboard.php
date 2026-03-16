@@ -2,19 +2,19 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Partnership Dashboard shortcode renderer.
+ * Cycle Dashboard shortcode renderer.
  *
- * Renders the [hl_partnership_dashboard] shortcode for School Leaders,
- * District Leaders, and Staff to view partnership-level participant overview.
+ * Renders the [hl_cycle_dashboard] shortcode for School Leaders,
+ * District Leaders, and Staff to view cycle-level participant overview.
  *
  * @package HL_Core
  */
-class HL_Frontend_Partnership_Dashboard {
+class HL_Frontend_Cycle_Dashboard {
 
     /**
-     * @var HL_Partnership_Repository
+     * @var HL_Cycle_Repository
      */
-    private $partnership_repo;
+    private $cycle_repo;
 
     /**
      * @var HL_Enrollment_Repository
@@ -27,7 +27,7 @@ class HL_Frontend_Partnership_Dashboard {
     private $orgunit_repo;
 
     public function __construct() {
-        $this->partnership_repo = new HL_Partnership_Repository();
+        $this->cycle_repo = new HL_Cycle_Repository();
         $this->enrollment_repo  = new HL_Enrollment_Repository();
         $this->orgunit_repo     = new HL_OrgUnit_Repository();
     }
@@ -35,30 +35,30 @@ class HL_Frontend_Partnership_Dashboard {
     public function render($atts) {
         $user_id  = get_current_user_id();
         $is_staff = HL_Security::is_staff();
-        $accessible_partnerships = $this->get_accessible_partnerships($user_id, $is_staff);
-        if (empty($accessible_partnerships)) {
+        $accessible_cycles = $this->get_accessible_cycles($user_id, $is_staff);
+        if (empty($accessible_cycles)) {
             return $this->render_access_denied();
         }
-        $selected_partnership_id = $this->resolve_partnership_id($atts, $accessible_partnerships);
-        if (!$selected_partnership_id) {
+        $selected_cycle_id = $this->resolve_cycle_id($atts, $accessible_cycles);
+        if (!$selected_cycle_id) {
             return $this->render_access_denied();
         }
-        $partnership = $this->partnership_repo->get_by_id($selected_partnership_id);
-        if (!$partnership) {
-            return $this->render_notice('The selected partnership could not be found.', 'warning');
+        $cycle = $this->cycle_repo->get_by_id($selected_cycle_id);
+        if (!$cycle) {
+            return $this->render_notice('The selected cycle could not be found.', 'warning');
         }
-        $scope = $this->determine_scope($user_id, $partnership, $is_staff);
+        $scope = $this->determine_scope($user_id, $cycle, $is_staff);
         if ($scope === false) {
             return $this->render_access_denied();
         }
-        $participants  = $this->get_participants($partnership, $scope);
+        $participants  = $this->get_participants($cycle, $scope);
         $metrics       = $this->calculate_metrics($participants);
         $school_map    = $this->build_school_map($participants);
         $scope_schools = $this->get_scope_schools($scope);
         ob_start();
         ?>
-        <div class="hl-dashboard hl-partnership-dashboard">
-            <?php $this->render_header($accessible_partnerships, $selected_partnership_id); ?>
+        <div class="hl-dashboard hl-cycle-dashboard">
+            <?php $this->render_header($accessible_cycles, $selected_cycle_id); ?>
             <?php $this->render_metrics_row($metrics); ?>
             <?php $this->render_participant_table($participants, $scope_schools, $school_map); ?>
         </div>
@@ -66,67 +66,67 @@ class HL_Frontend_Partnership_Dashboard {
         return ob_get_clean();
     }
 
-    private function get_accessible_partnerships($user_id, $is_staff) {
-        $all_partnerships = $this->partnership_repo->get_all();
+    private function get_accessible_cycles($user_id, $is_staff) {
+        $all_cycles = $this->cycle_repo->get_all();
         if ($is_staff) {
             $map = array();
-            foreach ($all_partnerships as $p) {
-                $map[(int) $p->partnership_id] = $p;
+            foreach ($all_cycles as $p) {
+                $map[(int) $p->cycle_id] = $p;
             }
             return $map;
         }
         $enrollments = $this->enrollment_repo->get_all(array('status' => 'active'));
-        $partnership_ids = array();
+        $cycle_ids = array();
         foreach ($enrollments as $enrollment) {
             if ((int) $enrollment->user_id !== $user_id) {
                 continue;
             }
             $roles = $enrollment->get_roles_array();
             if (in_array('School Leader', $roles, true) || in_array('District Leader', $roles, true)) {
-                $partnership_ids[] = (int) $enrollment->partnership_id;
+                $cycle_ids[] = (int) $enrollment->cycle_id;
             }
         }
-        if (empty($partnership_ids)) {
+        if (empty($cycle_ids)) {
             return array();
         }
         $map = array();
-        foreach ($all_partnerships as $p) {
-            if (in_array((int) $p->partnership_id, $partnership_ids, true)) {
-                $map[(int) $p->partnership_id] = $p;
+        foreach ($all_cycles as $p) {
+            if (in_array((int) $p->cycle_id, $cycle_ids, true)) {
+                $map[(int) $p->cycle_id] = $p;
             }
         }
         return $map;
     }
 
-    private function resolve_partnership_id($atts, $accessible_partnerships) {
-        if (!empty($atts['partnership_id'])) {
-            $id = (int) $atts['partnership_id'];
-            if (isset($accessible_partnerships[$id])) {
+    private function resolve_cycle_id($atts, $accessible_cycles) {
+        if (!empty($atts['cycle_id'])) {
+            $id = (int) $atts['cycle_id'];
+            if (isset($accessible_cycles[$id])) {
                 return $id;
             }
             return null;
         }
-        if (!empty($_GET['hl_partnership_id'])) {
-            $id = (int) $_GET['hl_partnership_id'];
-            if (isset($accessible_partnerships[$id])) {
+        if (!empty($_GET['hl_cycle_id'])) {
+            $id = (int) $_GET['hl_cycle_id'];
+            if (isset($accessible_cycles[$id])) {
                 return $id;
             }
         }
-        reset($accessible_partnerships);
-        return key($accessible_partnerships);
+        reset($accessible_cycles);
+        return key($accessible_cycles);
     }
 
-    private function determine_scope($user_id, $partnership, $is_staff) {
+    private function determine_scope($user_id, $cycle, $is_staff) {
         if ($is_staff) {
             return array('type' => 'staff', 'school_ids' => array(), 'district_id' => null);
         }
-        $enrollment = $this->enrollment_repo->get_by_partnership_and_user($partnership->partnership_id, $user_id);
+        $enrollment = $this->enrollment_repo->get_by_cycle_and_user($cycle->cycle_id, $user_id);
         if (!$enrollment) {
             return false;
         }
         $roles = $enrollment->get_roles_array();
         if (in_array('District Leader', $roles, true)) {
-            $district_id = !empty($enrollment->district_id) ? (int) $enrollment->district_id : (!empty($partnership->district_id) ? (int) $partnership->district_id : null);
+            $district_id = !empty($enrollment->district_id) ? (int) $enrollment->district_id : (!empty($cycle->district_id) ? (int) $cycle->district_id : null);
             $school_ids = array();
             if ($district_id) {
                 $schools = $this->orgunit_repo->get_schools($district_id);
@@ -143,17 +143,17 @@ class HL_Frontend_Partnership_Dashboard {
         return false;
     }
 
-    private function get_participants($partnership, $scope) {
+    private function get_participants($cycle, $scope) {
         global $wpdb;
         $prefix = $wpdb->prefix;
         $sql = $wpdb->prepare(
-            "SELECT cr.partnership_completion_percent, e.enrollment_id, e.user_id, e.roles, e.school_id, u.display_name, u.user_email
+            "SELECT cr.cycle_completion_percent, e.enrollment_id, e.user_id, e.roles, e.school_id, u.display_name, u.user_email
              FROM {$prefix}hl_enrollment e
              LEFT JOIN {$prefix}hl_completion_rollup cr ON e.enrollment_id = cr.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.partnership_id = %d AND e.status = 'active'
+             WHERE e.cycle_id = %d AND e.status = 'active'
              ORDER BY u.display_name ASC",
-            $partnership->partnership_id
+            $cycle->cycle_id
         );
         $rows = $wpdb->get_results($sql, ARRAY_A);
         if (!$rows) { $rows = array(); }
@@ -169,7 +169,7 @@ class HL_Frontend_Partnership_Dashboard {
         foreach ($rows as &$row) {
             $row['roles_array'] = is_array($row['roles']) ? $row['roles'] : (array) json_decode($row['roles'], true);
             if (!is_array($row['roles_array'])) { $row['roles_array'] = array(); }
-            $row['completion'] = $row['partnership_completion_percent'] !== null ? round((float) $row['partnership_completion_percent']) : 0;
+            $row['completion'] = $row['cycle_completion_percent'] !== null ? round((float) $row['cycle_completion_percent']) : 0;
         }
         unset($row);
         return $rows;
@@ -216,18 +216,18 @@ class HL_Frontend_Partnership_Dashboard {
         return array();
     }
 
-    private function render_header($partnerships, $selected_partnership_id) {
-        $show_selector = count($partnerships) > 1;
+    private function render_header($cycles, $selected_cycle_id) {
+        $show_selector = count($cycles) > 1;
         ?>
         <div class="hl-dashboard-header">
-            <h2 class="hl-dashboard-title"><?php echo esc_html__('Partnership Dashboard', 'hl-core'); ?></h2>
+            <h2 class="hl-dashboard-title"><?php echo esc_html__('Cycle Dashboard', 'hl-core'); ?></h2>
             <?php if ($show_selector) : ?>
-                <div class="hl-partnership-selector">
-                    <label for="hl-partnership-select"><?php echo esc_html__('Partnership:', 'hl-core'); ?></label>
-                    <select id="hl-partnership-select" class="hl-select" onchange="if(this.value){var u=new URL(window.location.href);u.searchParams.set('hl_partnership_id',this.value);window.location.href=u.toString();}">
-                        <?php foreach ($partnerships as $pid => $prog) : ?>
-                            <option value="<?php echo esc_attr($pid); ?>"<?php selected($pid, $selected_partnership_id); ?>>
-                                <?php echo esc_html($prog->partnership_name); ?>
+                <div class="hl-cycle-selector">
+                    <label for="hl-cycle-select"><?php echo esc_html__('Cycle:', 'hl-core'); ?></label>
+                    <select id="hl-cycle-select" class="hl-select" onchange="if(this.value){var u=new URL(window.location.href);u.searchParams.set('hl_cycle_id',this.value);window.location.href=u.toString();}">
+                        <?php foreach ($cycles as $pid => $prog) : ?>
+                            <option value="<?php echo esc_attr($pid); ?>"<?php selected($pid, $selected_cycle_id); ?>>
+                                <?php echo esc_html($prog->cycle_name); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -279,7 +279,7 @@ class HL_Frontend_Partnership_Dashboard {
             </div>
             <?php if (empty($participants)) : ?>
                 <div class="hl-notice hl-notice-info">
-                    <?php echo esc_html__('No active participants found for this partnership.', 'hl-core'); ?>
+                    <?php echo esc_html__('No active participants found for this cycle.', 'hl-core'); ?>
                 </div>
             <?php else : ?>
                 <table class="hl-table">
@@ -322,7 +322,7 @@ class HL_Frontend_Partnership_Dashboard {
                 <?php if ($show_school_filter) : ?>
                     <script>
                     function hlFilterSchool(schoolId) {
-                        var rows = document.querySelectorAll('.hl-partnership-dashboard .hl-table tbody tr');
+                        var rows = document.querySelectorAll('.hl-cycle-dashboard .hl-table tbody tr');
                         for (var i = 0; i < rows.length; i++) {
                             if (!schoolId || rows[i].getAttribute('data-school-id') === schoolId) {
                                 rows[i].style.display = '';
@@ -339,14 +339,14 @@ class HL_Frontend_Partnership_Dashboard {
     }
 
     private function render_access_denied() {
-        return '<div class="hl-dashboard hl-partnership-dashboard">'
+        return '<div class="hl-dashboard hl-cycle-dashboard">'
             . '<div class="hl-notice hl-notice-error">'
-            . esc_html__('You do not have permission to view the partnership dashboard. This view is available to School Leaders, District Leaders, and Staff.', 'hl-core')
+            . esc_html__('You do not have permission to view the cycle dashboard. This view is available to School Leaders, District Leaders, and Staff.', 'hl-core')
             . '</div></div>';
     }
 
     private function render_notice($message, $type = 'info') {
-        return '<div class="hl-dashboard hl-partnership-dashboard">'
+        return '<div class="hl-dashboard hl-cycle-dashboard">'
             . '<div class="hl-notice hl-notice-' . esc_attr($type) . '">'
             . esc_html($message)
             . '</div></div>';

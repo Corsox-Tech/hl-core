@@ -18,16 +18,16 @@ class HL_REST_API {
     }
 
     public function register_routes() {
-        // Partnerships (run-level entities, formerly "cohorts")
-        register_rest_route($this->namespace, '/partnerships', array(
+        // Cycles (run-level entities, formerly "cohorts")
+        register_rest_route($this->namespace, '/cycles', array(
             'methods'             => 'GET',
-            'callback'            => array($this, 'get_partnerships'),
+            'callback'            => array($this, 'get_cycles'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
 
-        register_rest_route($this->namespace, '/partnerships/(?P<id>\d+)', array(
+        register_rest_route($this->namespace, '/cycles/(?P<id>\d+)', array(
             'methods'             => 'GET',
-            'callback'            => array($this, 'get_partnership'),
+            'callback'            => array($this, 'get_cycle'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
 
@@ -64,27 +64,27 @@ class HL_REST_API {
         return current_user_can('manage_hl_core');
     }
 
-    public function get_partnerships($request) {
-        $repo = new HL_Partnership_Repository();
-        $partnerships = $repo->get_all();
-        $data = array_map(function($p) { return $p->to_array(); }, $partnerships);
+    public function get_cycles($request) {
+        $repo = new HL_Cycle_Repository();
+        $cycles = $repo->get_all();
+        $data = array_map(function($p) { return $p->to_array(); }, $cycles);
         return new WP_REST_Response($data, 200);
     }
 
-    public function get_partnership($request) {
-        $repo = new HL_Partnership_Repository();
-        $partnership = $repo->get_by_id($request['id']);
-        if (!$partnership) {
-            return new WP_Error('not_found', 'Partnership not found', array('status' => 404));
+    public function get_cycle($request) {
+        $repo = new HL_Cycle_Repository();
+        $cycle = $repo->get_by_id($request['id']);
+        if (!$cycle) {
+            return new WP_Error('not_found', 'Cycle not found', array('status' => 404));
         }
-        return new WP_REST_Response($partnership->to_array(), 200);
+        return new WP_REST_Response($cycle->to_array(), 200);
     }
 
     public function get_enrollments($request) {
         $repo = new HL_Enrollment_Repository();
         $filters = array();
-        if ($request->get_param('partnership_id')) {
-            $filters['partnership_id'] = intval($request->get_param('partnership_id'));
+        if ($request->get_param('cycle_id')) {
+            $filters['cycle_id'] = intval($request->get_param('cycle_id'));
         }
         $enrollments = $repo->get_all($filters);
         $data = array_map(function($e) { return $e->to_array(); }, $enrollments);
@@ -101,8 +101,8 @@ class HL_REST_API {
 
     public function get_pathways($request) {
         $repo = new HL_Pathway_Repository();
-        $partnership_id = $request->get_param('partnership_id') ? intval($request->get_param('partnership_id')) : null;
-        $pathways = $repo->get_all($partnership_id);
+        $cycle_id = $request->get_param('cycle_id') ? intval($request->get_param('cycle_id')) : null;
+        $pathways = $repo->get_all($cycle_id);
         $data = array_map(function($p) { return $p->to_array(); }, $pathways);
         return new WP_REST_Response($data, 200);
     }
@@ -110,8 +110,8 @@ class HL_REST_API {
     public function get_teams($request) {
         $repo = new HL_Team_Repository();
         $filters = array();
-        if ($request->get_param('partnership_id')) {
-            $filters['partnership_id'] = intval($request->get_param('partnership_id'));
+        if ($request->get_param('cycle_id')) {
+            $filters['cycle_id'] = intval($request->get_param('cycle_id'));
         }
         $teams = $repo->get_all($filters);
         $data = array_map(function($t) { return $t->to_array(); }, $teams);

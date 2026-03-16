@@ -15,9 +15,9 @@ class HL_Shortcodes {
     private function __construct() {
         add_action('init', array($this, 'register_shortcodes'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
-        add_action('template_redirect', array('HL_Frontend_My_Partnership', 'handle_export'));
+        add_action('template_redirect', array('HL_Frontend_My_Cycle', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Team_Page', 'handle_export'));
-        add_action('template_redirect', array('HL_Frontend_Partnership_Workspace', 'handle_export'));
+        add_action('template_redirect', array('HL_Frontend_Cycle_Workspace', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_My_Coaching', 'handle_post_actions'));
         add_action('template_redirect', array('HL_Frontend_Classroom_Page', 'handle_post_actions'));
     }
@@ -25,23 +25,23 @@ class HL_Shortcodes {
     public function register_shortcodes() {
         add_shortcode('hl_my_progress', array($this, 'render_my_progress'));
         add_shortcode('hl_team_progress', array($this, 'render_team_progress'));
-        add_shortcode('hl_partnership_dashboard', array($this, 'render_partnership_dashboard'));
+        add_shortcode('hl_cycle_dashboard', array($this, 'render_cycle_dashboard'));
         add_shortcode('hl_child_assessment', array($this, 'render_child_assessment'));
         add_shortcode('hl_teacher_assessment', array($this, 'render_teacher_assessment'));
         add_shortcode('hl_observations', array($this, 'render_observations'));
         add_shortcode('hl_my_programs', array($this, 'render_my_programs'));
         add_shortcode('hl_program_page', array($this, 'render_program_page'));
         add_shortcode('hl_component_page', array($this, 'render_component_page'));
-        add_shortcode('hl_my_partnership', array($this, 'render_my_partnership'));
+        add_shortcode('hl_my_cycle', array($this, 'render_my_cycle'));
         add_shortcode('hl_team_page', array($this, 'render_team_page'));
         add_shortcode('hl_classroom_page', array($this, 'render_classroom_page'));
         add_shortcode('hl_districts_listing', array($this, 'render_districts_listing'));
         add_shortcode('hl_district_page', array($this, 'render_district_page'));
         add_shortcode('hl_schools_listing', array($this, 'render_schools_listing'));
         add_shortcode('hl_school_page', array($this, 'render_school_page'));
-        add_shortcode('hl_partnership_workspace', array($this, 'render_partnership_workspace'));
+        add_shortcode('hl_cycle_workspace', array($this, 'render_cycle_workspace'));
         add_shortcode('hl_my_coaching', array($this, 'render_my_coaching'));
-        add_shortcode('hl_partnerships_listing', array($this, 'render_partnerships_listing'));
+        add_shortcode('hl_cycles_listing', array($this, 'render_cycles_listing'));
         add_shortcode('hl_institutions_listing', array($this, 'render_institutions_listing'));
         add_shortcode('hl_coaching_hub', array($this, 'render_coaching_hub'));
         add_shortcode('hl_classrooms_listing', array($this, 'render_classrooms_listing'));
@@ -59,23 +59,23 @@ class HL_Shortcodes {
 
         $has_shortcode = has_shortcode($post->post_content, 'hl_my_progress')
             || has_shortcode($post->post_content, 'hl_team_progress')
-            || has_shortcode($post->post_content, 'hl_partnership_dashboard')
+            || has_shortcode($post->post_content, 'hl_cycle_dashboard')
             || has_shortcode($post->post_content, 'hl_child_assessment')
             || has_shortcode($post->post_content, 'hl_teacher_assessment')
             || has_shortcode($post->post_content, 'hl_observations')
             || has_shortcode($post->post_content, 'hl_my_programs')
             || has_shortcode($post->post_content, 'hl_program_page')
             || has_shortcode($post->post_content, 'hl_component_page')
-            || has_shortcode($post->post_content, 'hl_my_partnership')
+            || has_shortcode($post->post_content, 'hl_my_cycle')
             || has_shortcode($post->post_content, 'hl_team_page')
             || has_shortcode($post->post_content, 'hl_classroom_page')
             || has_shortcode($post->post_content, 'hl_districts_listing')
             || has_shortcode($post->post_content, 'hl_district_page')
             || has_shortcode($post->post_content, 'hl_schools_listing')
             || has_shortcode($post->post_content, 'hl_school_page')
-            || has_shortcode($post->post_content, 'hl_partnership_workspace')
+            || has_shortcode($post->post_content, 'hl_cycle_workspace')
             || has_shortcode($post->post_content, 'hl_my_coaching')
-            || has_shortcode($post->post_content, 'hl_partnerships_listing')
+            || has_shortcode($post->post_content, 'hl_cycles_listing')
             || has_shortcode($post->post_content, 'hl_institutions_listing')
             || has_shortcode($post->post_content, 'hl_coaching_hub')
             || has_shortcode($post->post_content, 'hl_classrooms_listing')
@@ -100,7 +100,7 @@ class HL_Shortcodes {
             return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your progress.', 'hl-core') . '</div>';
         }
 
-        $atts = shortcode_atts(array('partnership_id' => ''), $atts, 'hl_my_progress');
+        $atts = shortcode_atts(array('cycle_id' => ''), $atts, 'hl_my_progress');
         $renderer = new HL_Frontend_My_Progress();
         return $renderer->render($atts);
     }
@@ -113,7 +113,7 @@ class HL_Shortcodes {
             return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view team progress.', 'hl-core') . '</div>';
         }
 
-        $atts = shortcode_atts(array('partnership_id' => ''), $atts, 'hl_team_progress');
+        $atts = shortcode_atts(array('cycle_id' => ''), $atts, 'hl_team_progress');
         $renderer = new HL_Frontend_Team_Progress();
         return $renderer->render($atts);
     }
@@ -160,15 +160,15 @@ class HL_Shortcodes {
     }
 
     /**
-     * [hl_partnership_dashboard] - Leader/Staff partnership overview
+     * [hl_cycle_dashboard] - Leader/Staff cycle overview
      */
-    public function render_partnership_dashboard($atts) {
+    public function render_cycle_dashboard($atts) {
         if (!is_user_logged_in()) {
-            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view the partnership dashboard.', 'hl-core') . '</div>';
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view the cycle dashboard.', 'hl-core') . '</div>';
         }
 
-        $atts = shortcode_atts(array('partnership_id' => ''), $atts, 'hl_partnership_dashboard');
-        $renderer = new HL_Frontend_Partnership_Dashboard();
+        $atts = shortcode_atts(array('cycle_id' => ''), $atts, 'hl_cycle_dashboard');
+        $renderer = new HL_Frontend_Cycle_Dashboard();
         return $renderer->render($atts);
     }
 
@@ -212,18 +212,18 @@ class HL_Shortcodes {
     }
 
     /**
-     * [hl_my_partnership] - Leader's auto-scoped partnership workspace
+     * [hl_my_cycle] - Leader's auto-scoped cycle workspace
      */
-    public function render_my_partnership($atts) {
+    public function render_my_cycle($atts) {
         if (!is_user_logged_in()) {
-            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your partnership.', 'hl-core') . '</div>';
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your cycle.', 'hl-core') . '</div>';
         }
 
         // Ensure assets are loaded (fallback if has_shortcode detection missed this page).
         $this->ensure_frontend_assets();
 
-        $atts = shortcode_atts(array(), $atts, 'hl_my_partnership');
-        $renderer = new HL_Frontend_My_Partnership();
+        $atts = shortcode_atts(array(), $atts, 'hl_my_cycle');
+        $renderer = new HL_Frontend_My_Cycle();
         return $renderer->render($atts);
     }
 
@@ -318,17 +318,17 @@ class HL_Shortcodes {
     }
 
     /**
-     * [hl_partnership_workspace] - Full partnership command center with Dashboard tab
+     * [hl_cycle_workspace] - Full cycle command center with Dashboard tab
      */
-    public function render_partnership_workspace($atts) {
+    public function render_cycle_workspace($atts) {
         if (!is_user_logged_in()) {
             return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
         }
 
         $this->ensure_frontend_assets();
 
-        $atts = shortcode_atts(array(), $atts, 'hl_partnership_workspace');
-        $renderer = new HL_Frontend_Partnership_Workspace();
+        $atts = shortcode_atts(array(), $atts, 'hl_cycle_workspace');
+        $renderer = new HL_Frontend_Cycle_Workspace();
         return $renderer->render($atts);
     }
 
@@ -348,17 +348,17 @@ class HL_Shortcodes {
     }
 
     /**
-     * [hl_partnerships_listing] - Partnership listing with scope filtering
+     * [hl_cycles_listing] - Cycle listing with scope filtering
      */
-    public function render_partnerships_listing($atts) {
+    public function render_cycles_listing($atts) {
         if (!is_user_logged_in()) {
             return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
         }
 
         $this->ensure_frontend_assets();
 
-        $atts = shortcode_atts(array(), $atts, 'hl_partnerships_listing');
-        $renderer = new HL_Frontend_Partnerships_Listing();
+        $atts = shortcode_atts(array(), $atts, 'hl_cycles_listing');
+        $renderer = new HL_Frontend_Cycles_Listing();
         return $renderer->render($atts);
     }
 

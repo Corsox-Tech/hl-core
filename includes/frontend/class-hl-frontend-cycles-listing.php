@@ -2,14 +2,14 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Renderer for the [hl_partnerships_listing] shortcode.
+ * Renderer for the [hl_cycles_listing] shortcode.
  *
- * Card grid of partnerships with search and status filter.
- * Scope: admin sees all, coach sees assigned partnerships, leaders see enrolled partnerships.
+ * Card grid of cycles with search and status filter.
+ * Scope: admin sees all, coach sees assigned cycles, leaders see enrolled cycles.
  *
  * @package HL_Core
  */
-class HL_Frontend_Partnerships_Listing {
+class HL_Frontend_Cycles_Listing {
 
     public function render( $atts ) {
         ob_start();
@@ -31,14 +31,14 @@ class HL_Frontend_Partnerships_Listing {
             return ob_get_clean();
         }
 
-        $partnership_repo = new HL_Partnership_Repository();
-        $all_partnerships = $partnership_repo->get_all();
+        $cycle_repo = new HL_Cycle_Repository();
+        $all_cycles = $cycle_repo->get_all();
 
         // Scope filter.
-        $partnerships = HL_Scope_Service::filter_by_ids(
-            $all_partnerships,
-            'partnership_id',
-            $scope['partnership_ids'],
+        $cycles = HL_Scope_Service::filter_by_ids(
+            $all_cycles,
+            'cycle_id',
+            $scope['cycle_ids'],
             $scope['is_admin']
         );
 
@@ -49,19 +49,19 @@ class HL_Frontend_Partnerships_Listing {
         // Cohort container options for filter.
         $cohort_options = $this->get_cohorts();
 
-        $workspace_url = $this->find_shortcode_page_url( 'hl_partnership_workspace' );
+        $workspace_url = $this->find_shortcode_page_url( 'hl_cycle_workspace' );
 
         ?>
-        <div class="hl-dashboard hl-partnerships-listing hl-frontend-wrap">
+        <div class="hl-dashboard hl-cycles-listing hl-frontend-wrap">
 
             <div class="hl-crm-page-header">
-                <h2 class="hl-crm-page-title"><?php esc_html_e( 'Partnerships', 'hl-core' ); ?></h2>
+                <h2 class="hl-crm-page-title"><?php esc_html_e( 'Cycles', 'hl-core' ); ?></h2>
             </div>
 
             <!-- Search + Status + Group Filters -->
             <div class="hl-filters-bar">
-                <input type="text" class="hl-search-input" id="hl-partnership-search"
-                       placeholder="<?php esc_attr_e( 'Search partnerships...', 'hl-core' ); ?>">
+                <input type="text" class="hl-search-input" id="hl-cycle-search"
+                       placeholder="<?php esc_attr_e( 'Search cycles...', 'hl-core' ); ?>">
                 <?php if ( ! empty( $cohort_options ) ) : ?>
                     <select id="hl-cohort-filter" class="hl-select">
                         <option value=""><?php esc_html_e( 'All Cohorts', 'hl-core' ); ?></option>
@@ -84,42 +84,42 @@ class HL_Frontend_Partnerships_Listing {
                 </label>
             </div>
 
-            <?php if ( empty( $partnerships ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No partnerships found.', 'hl-core' ); ?></p></div>
+            <?php if ( empty( $cycles ) ) : ?>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No cycles found.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <div class="hl-crm-card-grid">
-                    <?php foreach ( $partnerships as $partnership ) :
-                        $cid           = (int) $partnership->partnership_id;
-                        $status        = $partnership->status ?: 'active';
+                    <?php foreach ( $cycles as $cycle ) :
+                        $cid           = (int) $cycle->cycle_id;
+                        $status        = $cycle->status ?: 'active';
                         $num_participants = isset( $participant_counts[ $cid ] ) ? $participant_counts[ $cid ] : 0;
                         $num_schools   = isset( $school_counts[ $cid ] ) ? $school_counts[ $cid ] : 0;
                         $detail_url    = $workspace_url
                             ? add_query_arg( 'id', $cid, $workspace_url )
                             : '';
 
-                        $start = $partnership->start_date ? date_i18n( 'M j, Y', strtotime( $partnership->start_date ) ) : '—';
-                        $end   = $partnership->end_date   ? date_i18n( 'M j, Y', strtotime( $partnership->end_date ) )   : '—';
+                        $start = $cycle->start_date ? date_i18n( 'M j, Y', strtotime( $cycle->start_date ) ) : '—';
+                        $end   = $cycle->end_date   ? date_i18n( 'M j, Y', strtotime( $cycle->end_date ) )   : '—';
                     ?>
-                        <div class="hl-crm-card hl-partnership-card"
+                        <div class="hl-crm-card hl-cycle-card"
                              data-status="<?php echo esc_attr( $status ); ?>"
-                             data-name="<?php echo esc_attr( strtolower( $partnership->partnership_name . ' ' . $partnership->partnership_code ) ); ?>"
-                             data-group="<?php echo esc_attr( $partnership->cohort_id ?: '' ); ?>">
+                             data-name="<?php echo esc_attr( strtolower( $cycle->cycle_name . ' ' . $cycle->cycle_code ) ); ?>"
+                             data-group="<?php echo esc_attr( $cycle->cohort_id ?: '' ); ?>">
                             <div class="hl-crm-card-body">
                                 <div class="hl-crm-card-header">
                                     <h3 class="hl-crm-card-title">
                                         <?php if ( $detail_url ) : ?>
-                                            <a href="<?php echo esc_url( $detail_url ); ?>"><?php echo esc_html( $partnership->partnership_name ); ?></a>
+                                            <a href="<?php echo esc_url( $detail_url ); ?>"><?php echo esc_html( $cycle->cycle_name ); ?></a>
                                         <?php else : ?>
-                                            <?php echo esc_html( $partnership->partnership_name ); ?>
+                                            <?php echo esc_html( $cycle->cycle_name ); ?>
                                         <?php endif; ?>
                                     </h3>
                                     <span class="hl-badge hl-badge-<?php echo esc_attr( $status ); ?>">
                                         <?php echo esc_html( ucfirst( $status ) ); ?>
                                     </span>
                                 </div>
-                                <?php if ( $partnership->partnership_code ) : ?>
+                                <?php if ( $cycle->cycle_code ) : ?>
                                     <div class="hl-crm-card-code">
-                                        <?php echo esc_html( $partnership->partnership_code ); ?>
+                                        <?php echo esc_html( $cycle->cycle_code ); ?>
                                     </div>
                                 <?php endif; ?>
                                 <div class="hl-crm-card-dates">
@@ -139,7 +139,7 @@ class HL_Frontend_Partnerships_Listing {
                             <?php if ( $detail_url ) : ?>
                                 <div class="hl-crm-card-action">
                                     <a href="<?php echo esc_url( $detail_url ); ?>" class="hl-btn hl-btn-sm hl-btn-secondary">
-                                        <?php esc_html_e( 'Open Partnership', 'hl-core' ); ?>
+                                        <?php esc_html_e( 'Open Cycle', 'hl-core' ); ?>
                                     </a>
                                 </div>
                             <?php endif; ?>
@@ -148,7 +148,7 @@ class HL_Frontend_Partnerships_Listing {
                 </div>
 
                 <div class="hl-empty-state hl-no-results">
-                    <p><?php esc_html_e( 'No partnerships match your search or filters.', 'hl-core' ); ?></p>
+                    <p><?php esc_html_e( 'No cycles match your search or filters.', 'hl-core' ); ?></p>
                 </div>
             <?php endif; ?>
 
@@ -156,11 +156,11 @@ class HL_Frontend_Partnerships_Listing {
 
         <script>
         (function($){
-            var $cards = $('.hl-partnership-card');
-            var $noResults = $('.hl-partnerships-listing .hl-no-results');
+            var $cards = $('.hl-cycle-card');
+            var $noResults = $('.hl-cycles-listing .hl-no-results');
 
             function filterCards() {
-                var query = $('#hl-partnership-search').val().toLowerCase();
+                var query = $('#hl-cycle-search').val().toLowerCase();
                 var groupFilter = $('#hl-cohort-filter').val() || '';
                 var statuses = [];
                 $('.hl-status-filter:checked').each(function(){ statuses.push($(this).val()); });
@@ -178,7 +178,7 @@ class HL_Frontend_Partnerships_Listing {
                 $noResults.toggle(visible === 0 && $cards.length > 0);
             }
 
-            $('#hl-partnership-search').on('input', filterCards);
+            $('#hl-cycle-search').on('input', filterCards);
             $('.hl-status-filter').on('change', filterCards);
             $('#hl-cohort-filter').on('change', filterCards);
             filterCards();
@@ -196,15 +196,15 @@ class HL_Frontend_Partnerships_Listing {
     private function get_participant_counts() {
         global $wpdb;
         $results = $wpdb->get_results(
-            "SELECT partnership_id, COUNT(*) AS cnt
+            "SELECT cycle_id, COUNT(*) AS cnt
              FROM {$wpdb->prefix}hl_enrollment
              WHERE status = 'active'
-             GROUP BY partnership_id",
+             GROUP BY cycle_id",
             ARRAY_A
         );
         $map = array();
         foreach ( $results ?: array() as $row ) {
-            $map[ (int) $row['partnership_id'] ] = (int) $row['cnt'];
+            $map[ (int) $row['cycle_id'] ] = (int) $row['cnt'];
         }
         return $map;
     }
@@ -212,14 +212,14 @@ class HL_Frontend_Partnerships_Listing {
     private function get_school_counts() {
         global $wpdb;
         $results = $wpdb->get_results(
-            "SELECT partnership_id, COUNT(DISTINCT school_id) AS cnt
-             FROM {$wpdb->prefix}hl_partnership_school
-             GROUP BY partnership_id",
+            "SELECT cycle_id, COUNT(DISTINCT school_id) AS cnt
+             FROM {$wpdb->prefix}hl_cycle_school
+             GROUP BY cycle_id",
             ARRAY_A
         );
         $map = array();
         foreach ( $results ?: array() as $row ) {
-            $map[ (int) $row['partnership_id'] ] = (int) $row['cnt'];
+            $map[ (int) $row['cycle_id'] ] = (int) $row['cnt'];
         }
         return $map;
     }

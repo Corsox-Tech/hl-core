@@ -58,7 +58,7 @@ class HL_Frontend_District_Page {
         }
 
         $schools = $this->orgunit_repo->get_schools( $district_id );
-        $partnerships = $this->get_active_tracks_for_district( $district_id );
+        $cycles = $this->get_active_tracks_for_district( $district_id );
 
         // Stats.
         $total_participants = $this->count_participants_in_district( $district_id );
@@ -66,7 +66,7 @@ class HL_Frontend_District_Page {
         // URLs.
         $back_url           = $this->find_shortcode_page_url( 'hl_districts_listing' );
         $school_page_url    = $this->find_shortcode_page_url( 'hl_school_page' );
-        $workspace_page_url = $this->find_shortcode_page_url( 'hl_partnership_workspace' );
+        $workspace_page_url = $this->find_shortcode_page_url( 'hl_cycle_workspace' );
 
         ?>
         <div class="hl-dashboard hl-district-page hl-frontend-wrap">
@@ -77,7 +77,7 @@ class HL_Frontend_District_Page {
 
             <?php $this->render_header( $district, count( $schools ), $total_participants ); ?>
 
-            <?php $this->render_tracks_section( $partnerships, $workspace_page_url, $district_id ); ?>
+            <?php $this->render_tracks_section( $cycles, $workspace_page_url, $district_id ); ?>
 
             <?php $this->render_schools_section( $schools, $school_page_url ); ?>
 
@@ -121,7 +121,7 @@ class HL_Frontend_District_Page {
         ?>
         <div class="hl-crm-detail-header">
             <div class="hl-crm-detail-header-info">
-                <h2 class="hl-partnership-title"><?php echo esc_html( $district->name ); ?></h2>
+                <h2 class="hl-cycle-title"><?php echo esc_html( $district->name ); ?></h2>
                 <p class="hl-scope-indicator"><?php esc_html_e( 'School District', 'hl-core' ); ?></p>
             </div>
             <div class="hl-crm-detail-header-stats">
@@ -142,31 +142,31 @@ class HL_Frontend_District_Page {
     // Section: Active Tracks
     // ========================================================================
 
-    private function render_tracks_section( $partnerships, $workspace_url, $district_id ) {
+    private function render_tracks_section( $cycles, $workspace_url, $district_id ) {
         ?>
         <div class="hl-crm-section">
             <h3 class="hl-section-title"><?php esc_html_e( 'Active Tracks', 'hl-core' ); ?></h3>
 
-            <?php if ( empty( $partnerships ) ) : ?>
+            <?php if ( empty( $cycles ) ) : ?>
                 <div class="hl-empty-state"><p><?php esc_html_e( 'No active tracks in this district.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <div class="hl-crm-track-list">
-                    <?php foreach ( $partnerships as $trk ) :
-                        $status       = $partnership->status ?: 'active';
+                    <?php foreach ( $cycles as $trk ) :
+                        $status       = $cycle->status ?: 'active';
                         $status_class = 'hl-badge-' . sanitize_html_class( $status );
                         $dates        = array();
-                        if ( $partnership->start_date ) $dates[] = date_i18n( 'M j, Y', strtotime( $partnership->start_date ) );
-                        if ( $partnership->end_date )   $dates[] = date_i18n( 'M j, Y', strtotime( $partnership->end_date ) );
+                        if ( $cycle->start_date ) $dates[] = date_i18n( 'M j, Y', strtotime( $cycle->start_date ) );
+                        if ( $cycle->end_date )   $dates[] = date_i18n( 'M j, Y', strtotime( $cycle->end_date ) );
 
-                        $participant_count = $this->enrollment_repo->count_by_partnership( $partnership->partnership_id );
+                        $participant_count = $this->enrollment_repo->count_by_cycle( $cycle->cycle_id );
 
                         $track_url = $workspace_url
-                            ? add_query_arg( array( 'id' => $partnership->partnership_id, 'orgunit' => $district_id ), $workspace_url )
+                            ? add_query_arg( array( 'id' => $cycle->cycle_id, 'orgunit' => $district_id ), $workspace_url )
                             : '';
                     ?>
                         <div class="hl-crm-track-row">
                             <div class="hl-crm-track-info">
-                                <strong><?php echo esc_html( $partnership->partnership_name ); ?></strong>
+                                <strong><?php echo esc_html( $cycle->cycle_name ); ?></strong>
                                 <span class="hl-badge <?php echo esc_attr( $status_class ); ?>"><?php echo esc_html( ucfirst( $status ) ); ?></span>
                                 <?php if ( ! empty( $dates ) ) : ?>
                                     <span class="hl-crm-track-dates"><?php echo esc_html( implode( ' — ', $dates ) ); ?></span>
@@ -276,8 +276,8 @@ class HL_Frontend_District_Page {
 
         $rows = $wpdb->get_results( $wpdb->prepare(
             "SELECT DISTINCT t.*
-             FROM {$prefix}hl_partnership t
-             INNER JOIN {$prefix}hl_partnership_school cs ON t.partnership_id = cs.partnership_id
+             FROM {$prefix}hl_cycle t
+             INNER JOIN {$prefix}hl_cycle_school cs ON t.cycle_id = cs.cycle_id
              INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
              WHERE ou.parent_orgunit_id = %d
                AND t.status = 'active'
@@ -285,7 +285,7 @@ class HL_Frontend_District_Page {
             $district_id
         ), ARRAY_A );
 
-        return array_map( function ( $row ) { return new HL_Partnership( $row ); }, $rows ?: array() );
+        return array_map( function ( $row ) { return new HL_Cycle( $row ); }, $rows ?: array() );
     }
 
     /**
@@ -298,8 +298,8 @@ class HL_Frontend_District_Page {
         return (int) $wpdb->get_var( $wpdb->prepare(
             "SELECT COUNT(DISTINCT e.enrollment_id)
              FROM {$prefix}hl_enrollment e
-             INNER JOIN {$prefix}hl_partnership t ON e.partnership_id = t.partnership_id
-             INNER JOIN {$prefix}hl_partnership_school cs ON t.partnership_id = cs.partnership_id
+             INNER JOIN {$prefix}hl_cycle t ON e.cycle_id = t.cycle_id
+             INNER JOIN {$prefix}hl_cycle_school cs ON t.cycle_id = cs.cycle_id
              INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
              WHERE ou.parent_orgunit_id = %d
                AND t.status = 'active'

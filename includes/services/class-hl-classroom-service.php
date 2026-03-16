@@ -41,11 +41,11 @@ class HL_Classroom_Service {
     public function get_teaching_assignments($classroom_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT ta.*, e.user_id, e.roles, e.partnership_id, u.display_name, u.user_email, t.partnership_name
+            "SELECT ta.*, e.user_id, e.roles, e.cycle_id, u.display_name, u.user_email, t.cycle_name
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              LEFT JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             LEFT JOIN {$wpdb->prefix}hl_partnership t ON e.partnership_id = t.partnership_id
+             LEFT JOIN {$wpdb->prefix}hl_cycle t ON e.cycle_id = t.cycle_id
              WHERE ta.classroom_id = %d
              ORDER BY u.display_name ASC",
             $classroom_id
@@ -106,12 +106,12 @@ class HL_Classroom_Service {
         ));
 
         // Trigger child assessment instance auto-generation
-        $partnership_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT partnership_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+        $cycle_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT cycle_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
             $data['enrollment_id']
         ));
-        if ($partnership_id) {
-            do_action('hl_core_teaching_assignment_changed', (int) $partnership_id);
+        if ($cycle_id) {
+            do_action('hl_core_teaching_assignment_changed', (int) $cycle_id);
         }
 
         return $assignment_id;
@@ -158,9 +158,9 @@ class HL_Classroom_Service {
     public function delete_teaching_assignment($assignment_id) {
         global $wpdb;
 
-        // Get before data for audit and partnership_id for hook
+        // Get before data for audit and cycle_id for hook
         $before = $wpdb->get_row($wpdb->prepare(
-            "SELECT ta.*, e.partnership_id FROM {$wpdb->prefix}hl_teaching_assignment ta
+            "SELECT ta.*, e.cycle_id FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
              WHERE ta.assignment_id = %d",
             $assignment_id
@@ -179,8 +179,8 @@ class HL_Classroom_Service {
             ));
 
             // Trigger child assessment instance auto-generation
-            if (!empty($before['partnership_id'])) {
-                do_action('hl_core_teaching_assignment_changed', (int) $before['partnership_id']);
+            if (!empty($before['cycle_id'])) {
+                do_action('hl_core_teaching_assignment_changed', (int) $before['cycle_id']);
             }
         }
 
@@ -588,17 +588,17 @@ class HL_Classroom_Service {
             'reason'       => 'Teacher added',
         ) );
 
-        // Auto-create snapshot for all partnerships this classroom is linked to.
-        $partnership_ids = $wpdb->get_col( $wpdb->prepare(
-            "SELECT DISTINCT e.partnership_id
+        // Auto-create snapshot for all cycles this classroom is linked to.
+        $cycle_ids = $wpdb->get_col( $wpdb->prepare(
+            "SELECT DISTINCT e.cycle_id
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
              WHERE ta.classroom_id = %d AND e.status = 'active'",
             $classroom_id
         ) );
 
-        foreach ( $partnership_ids as $partnership_id ) {
-            HL_Child_Snapshot_Service::ensure_snapshot( $child_id, (int) $partnership_id, $dob );
+        foreach ( $cycle_ids as $cycle_id ) {
+            HL_Child_Snapshot_Service::ensure_snapshot( $child_id, (int) $cycle_id, $dob );
         }
 
         HL_Audit_Service::log( 'child_classroom.teacher_added', array(

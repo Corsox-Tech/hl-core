@@ -37,29 +37,29 @@ wp_update_user(array('ID' => $maria_id, 'first_name' => 'Maria', 'last_name' => 
 WP_CLI::log("Maria user ID: $maria_id");
 
 // ── 3. Find the Demo Track ───────────────────────────────────
-$partnership_id = $wpdb->get_var("SELECT partnership_id FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = 'DEMO-2026' LIMIT 1");
-if (!$partnership_id) {
+$cycle_id = $wpdb->get_var("SELECT cycle_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_code = 'DEMO-2026' LIMIT 1");
+if (!$cycle_id) {
     // Fallback: use any active track
-    $partnership_id = $wpdb->get_var("SELECT partnership_id FROM {$wpdb->prefix}hl_partnership LIMIT 1");
+    $cycle_id = $wpdb->get_var("SELECT cycle_id FROM {$wpdb->prefix}hl_cycle LIMIT 1");
 }
-if (!$partnership_id) {
+if (!$cycle_id) {
     WP_CLI::error("No track found. Run seed-demo first.");
 }
-WP_CLI::log("Using track ID: $partnership_id");
+WP_CLI::log("Using track ID: $cycle_id");
 
 // ── Helper functions ─────────────────────────────────────────
-function ensure_enrollment($wpdb, $user_id, $partnership_id) {
+function ensure_enrollment($wpdb, $user_id, $cycle_id) {
     $prefix = $wpdb->prefix;
     $existing = $wpdb->get_var($wpdb->prepare(
-        "SELECT enrollment_id FROM {$prefix}hl_enrollment WHERE user_id = %d AND partnership_id = %d",
-        $user_id, $partnership_id
+        "SELECT enrollment_id FROM {$prefix}hl_enrollment WHERE user_id = %d AND cycle_id = %d",
+        $user_id, $cycle_id
     ));
     if ($existing) return (int)$existing;
 
     $wpdb->insert("{$prefix}hl_enrollment", array(
         'enrollment_uuid' => wp_generate_uuid4(),
         'user_id'         => $user_id,
-        'partnership_id'        => $partnership_id,
+        'cycle_id'        => $cycle_id,
         'roles'           => wp_json_encode(array('teacher')),
         'status'          => 'active',
     ));
@@ -138,8 +138,8 @@ function add_child($wpdb, $first, $last, $dob, $school_id, $classroom_id, $gende
 $school_id = $wpdb->get_var("SELECT school_id FROM {$wpdb->prefix}hl_classroom LIMIT 1");
 if (!$school_id) {
     $school_id = $wpdb->get_var($wpdb->prepare(
-        "SELECT school_id FROM {$wpdb->prefix}hl_partnership_school WHERE partnership_id = %d LIMIT 1",
-        $partnership_id
+        "SELECT school_id FROM {$wpdb->prefix}hl_cycle_school WHERE cycle_id = %d LIMIT 1",
+        $cycle_id
     ));
 }
 if (!$school_id) {
@@ -148,8 +148,8 @@ if (!$school_id) {
 WP_CLI::log("Using school ID: $school_id");
 
 // ── 5. Enrollments ───────────────────────────────────────────
-$jane_eid  = ensure_enrollment($wpdb, $jane_id, $partnership_id);
-$maria_eid = ensure_enrollment($wpdb, $maria_id, $partnership_id);
+$jane_eid  = ensure_enrollment($wpdb, $jane_id, $cycle_id);
+$maria_eid = ensure_enrollment($wpdb, $maria_id, $cycle_id);
 WP_CLI::log("Jane enrollment: $jane_eid, Maria enrollment: $maria_eid");
 
 // ── 6. Classrooms ────────────────────────────────────────────
@@ -192,14 +192,14 @@ WP_CLI::log("Added 5 children to Maria's classroom.");
 // ── 10. Freeze age groups ────────────────────────────────────
 if (class_exists('HL_Child_Snapshot_Service')) {
     $snapshot_service = new HL_Child_Snapshot_Service();
-    $snapshot_service->freeze_age_groups($partnership_id);
-    WP_CLI::log("Froze age groups for track $partnership_id.");
+    $snapshot_service->freeze_age_groups($cycle_id);
+    WP_CLI::log("Froze age groups for track $cycle_id.");
 }
 
 // ── 11. Assign teacher pathway ───────────────────────────────
 $teacher_pathway = $wpdb->get_var($wpdb->prepare(
-    "SELECT pathway_id FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d AND target_roles LIKE %s LIMIT 1",
-    $partnership_id, '%teacher%'
+    "SELECT pathway_id FROM {$wpdb->prefix}hl_pathway WHERE cycle_id = %d AND target_roles LIKE %s LIMIT 1",
+    $cycle_id, '%teacher%'
 ));
 if ($teacher_pathway) {
     foreach (array($jane_eid, $maria_eid) as $eid) {
@@ -222,7 +222,7 @@ if ($teacher_pathway) {
 // ── 12. Generate child assessment instances ──────────────────
 if (class_exists('HL_Assessment_Service')) {
     $service = new HL_Assessment_Service();
-    $service->generate_child_assessment_instances($partnership_id);
+    $service->generate_child_assessment_instances($cycle_id);
     WP_CLI::log("Generated child assessment instances.");
 }
 

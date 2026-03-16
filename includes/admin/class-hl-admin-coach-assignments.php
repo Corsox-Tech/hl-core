@@ -83,7 +83,7 @@ class HL_Admin_Coach_Assignments {
             'coach_user_id' => absint($_POST['coach_user_id']),
             'scope_type'    => sanitize_text_field($_POST['scope_type']),
             'scope_id'      => absint($_POST['scope_id']),
-            'partnership_id'      => absint($_POST['partnership_id']),
+            'cycle_id'      => absint($_POST['cycle_id']),
             'effective_from' => sanitize_text_field($_POST['effective_from']),
         ));
 
@@ -124,8 +124,8 @@ class HL_Admin_Coach_Assignments {
     private function render_list() {
         global $wpdb;
 
-        $filter_partnership = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
-        $partnerships = $wpdb->get_results("SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC");
+        $filter_cycle = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
+        $cycles = $wpdb->get_results("SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle ORDER BY cycle_name ASC");
 
         // Messages
         if (isset($_GET['message'])) {
@@ -140,13 +140,13 @@ class HL_Admin_Coach_Assignments {
             }
         }
 
-        // Partnership breadcrumb.
-        if ($filter_partnership) {
-            $partnership_name = $wpdb->get_var($wpdb->prepare(
-                "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d", $filter_partnership
+        // Cycle breadcrumb.
+        if ($filter_cycle) {
+            $cycle_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d", $filter_cycle
             ));
-            if ($partnership_name) {
-                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $filter_partnership . '&tab=coaching')) . '">&larr; ' . sprintf(esc_html__('Partnership: %s', 'hl-core'), esc_html($partnership_name)) . '</a></p>';
+            if ($cycle_name) {
+                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-cycles&action=edit&id=' . $filter_cycle . '&tab=coaching')) . '">&larr; ' . sprintf(esc_html__('Cycle: %s', 'hl-core'), esc_html($cycle_name)) . '</a></p>';
             }
         }
 
@@ -154,15 +154,15 @@ class HL_Admin_Coach_Assignments {
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-coaching&tab=assignments&action=new')) . '" class="page-title-action">' . esc_html__('Add Assignment', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
-        // Partnership filter
+        // Cycle filter
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-coaching" />';
         echo '<input type="hidden" name="tab" value="assignments" />';
-        echo '<label><strong>' . esc_html__('Partnership:', 'hl-core') . '</strong> </label>';
-        echo '<select name="partnership_id">';
-        echo '<option value="">' . esc_html__('All Partnerships', 'hl-core') . '</option>';
-        foreach ($partnerships as $c) {
-            echo '<option value="' . esc_attr($c->partnership_id) . '"' . selected($filter_partnership, $c->partnership_id, false) . '>' . esc_html($c->partnership_name) . '</option>';
+        echo '<label><strong>' . esc_html__('Cycle:', 'hl-core') . '</strong> </label>';
+        echo '<select name="cycle_id">';
+        echo '<option value="">' . esc_html__('All Cycles', 'hl-core') . '</option>';
+        foreach ($cycles as $c) {
+            echo '<option value="' . esc_attr($c->cycle_id) . '"' . selected($filter_cycle, $c->cycle_id, false) . '>' . esc_html($c->cycle_name) . '</option>';
         }
         echo '</select> ';
         submit_button(__('Filter', 'hl-core'), 'secondary', 'submit', false);
@@ -170,15 +170,15 @@ class HL_Admin_Coach_Assignments {
 
         // Get assignments
         $service = new HL_Coach_Assignment_Service();
-        if ($filter_partnership) {
-            $assignments = $service->get_all_assignments_by_partnership($filter_partnership);
+        if ($filter_cycle) {
+            $assignments = $service->get_all_assignments_by_cycle($filter_cycle);
         } else {
             $assignments = $wpdb->get_results(
-                "SELECT ca.*, u.display_name AS coach_name, u.user_email AS coach_email, t.partnership_name
+                "SELECT ca.*, u.display_name AS coach_name, u.user_email AS coach_email, t.cycle_name
                  FROM {$wpdb->prefix}hl_coach_assignment ca
                  LEFT JOIN {$wpdb->users} u ON ca.coach_user_id = u.ID
-                 LEFT JOIN {$wpdb->prefix}hl_partnership t ON ca.partnership_id = t.partnership_id
-                 ORDER BY ca.partnership_id ASC, ca.scope_type ASC, ca.effective_from DESC",
+                 LEFT JOIN {$wpdb->prefix}hl_cycle t ON ca.cycle_id = t.cycle_id
+                 ORDER BY ca.cycle_id ASC, ca.scope_type ASC, ca.effective_from DESC",
                 ARRAY_A
             ) ?: array();
         }
@@ -191,8 +191,8 @@ class HL_Admin_Coach_Assignments {
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
-        if (!$filter_partnership) {
-            echo '<th>' . esc_html__('Partnership', 'hl-core') . '</th>';
+        if (!$filter_cycle) {
+            echo '<th>' . esc_html__('Cycle', 'hl-core') . '</th>';
         }
         echo '<th>' . esc_html__('Coach', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Scope', 'hl-core') . '</th>';
@@ -223,8 +223,8 @@ class HL_Admin_Coach_Assignments {
 
             echo '<tr>';
             echo '<td>' . esc_html($a['coach_assignment_id']) . '</td>';
-            if (!$filter_partnership) {
-                echo '<td>' . esc_html($a['partnership_name'] ?? '-') . '</td>';
+            if (!$filter_cycle) {
+                echo '<td>' . esc_html($a['cycle_name'] ?? '-') . '</td>';
             }
             echo '<td>' . esc_html($a['coach_name'] ?? '-') . '</td>';
             echo '<td><code>' . esc_html($a['scope_type']) . '</code></td>';
@@ -251,7 +251,7 @@ class HL_Admin_Coach_Assignments {
         echo '<h1>' . esc_html__('Add Coach Assignment', 'hl-core') . '</h1>';
         echo '<a href="' . esc_url(admin_url('admin.php?page=hl-coaching&tab=assignments')) . '">&larr; ' . esc_html__('Back to Assignments', 'hl-core') . '</a>';
 
-        $partnerships = $wpdb->get_results("SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC");
+        $cycles = $wpdb->get_results("SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle ORDER BY cycle_name ASC");
         $staff   = $this->get_staff_users();
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-coaching&tab=assignments')) . '">';
@@ -259,12 +259,12 @@ class HL_Admin_Coach_Assignments {
 
         echo '<table class="form-table">';
 
-        // Partnership
-        echo '<tr><th scope="row"><label for="partnership_id">' . esc_html__('Partnership', 'hl-core') . '</label></th>';
-        echo '<td><select id="partnership_id" name="partnership_id" required>';
-        echo '<option value="">' . esc_html__('-- Select Partnership --', 'hl-core') . '</option>';
-        foreach ($partnerships as $c) {
-            echo '<option value="' . esc_attr($c->partnership_id) . '">' . esc_html($c->partnership_name) . '</option>';
+        // Cycle
+        echo '<tr><th scope="row"><label for="cycle_id">' . esc_html__('Cycle', 'hl-core') . '</label></th>';
+        echo '<td><select id="cycle_id" name="cycle_id" required>';
+        echo '<option value="">' . esc_html__('-- Select Cycle --', 'hl-core') . '</option>';
+        foreach ($cycles as $c) {
+            echo '<option value="' . esc_attr($c->cycle_id) . '">' . esc_html($c->cycle_name) . '</option>';
         }
         echo '</select></td></tr>';
 

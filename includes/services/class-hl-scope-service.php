@@ -32,7 +32,7 @@ class HL_Scope_Service {
      *     @type bool     $is_admin       manage_options
      *     @type bool     $is_staff       manage_hl_core
      *     @type bool     $is_coach       staff but not admin
-     *     @type int[]    $partnership_ids     Tracks visible (empty = all for admin)
+     *     @type int[]    $cycle_ids     Tracks visible (empty = all for admin)
      *     @type int[]    $school_ids     Schools visible
      *     @type int[]    $district_ids   Districts visible
      *     @type int[]    $team_ids       Teams visible
@@ -65,14 +65,14 @@ class HL_Scope_Service {
     // =========================================================================
 
     /**
-     * Check if the current user can view a specific partnership.
+     * Check if the current user can view a specific cycle.
      */
-    public static function can_view_partnership( $partnership_id, $user_id = null ) {
+    public static function can_view_cycle( $cycle_id, $user_id = null ) {
         $scope = self::get_scope( $user_id );
         if ( $scope['is_admin'] ) {
             return true;
         }
-        return in_array( (int) $partnership_id, $scope['partnership_ids'], true );
+        return in_array( (int) $cycle_id, $scope['cycle_ids'], true );
     }
 
     /**
@@ -101,7 +101,7 @@ class HL_Scope_Service {
      * When $allowed is empty AND user is NOT admin, returns empty array.
      *
      * @param array  $items   Array of objects or assoc arrays.
-     * @param string $key     Property/key name (e.g. 'partnership_id').
+     * @param string $key     Property/key name (e.g. 'cycle_id').
      * @param int[]  $allowed Allowed IDs from scope.
      * @param bool   $is_admin Whether user is admin (empty = no filter).
      * @return array Filtered items (re-indexed).
@@ -132,7 +132,7 @@ class HL_Scope_Service {
             'is_admin'       => $is_admin,
             'is_staff'       => $is_staff,
             'is_coach'       => $is_staff && ! $is_admin,
-            'partnership_ids'     => array(),
+            'cycle_ids'     => array(),
             'school_ids'     => array(),
             'district_ids'   => array(),
             'team_ids'       => array(),
@@ -164,7 +164,7 @@ class HL_Scope_Service {
 
         // Active coach assignments.
         $assignments = $wpdb->get_results( $wpdb->prepare(
-            "SELECT DISTINCT partnership_id, scope_type, scope_id
+            "SELECT DISTINCT cycle_id, scope_type, scope_id
              FROM {$prefix}hl_coach_assignment
              WHERE coach_user_id = %d
                AND effective_from <= %s
@@ -172,11 +172,11 @@ class HL_Scope_Service {
             $user_id, $today, $today
         ), ARRAY_A );
 
-        $partnership_ids = array();
+        $cycle_ids = array();
         $school_ids = array();
 
         foreach ( $assignments as $a ) {
-            $partnership_ids[] = (int) $a['partnership_id'];
+            $cycle_ids[] = (int) $a['cycle_id'];
 
             switch ( $a['scope_type'] ) {
                 case 'school':
@@ -205,7 +205,7 @@ class HL_Scope_Service {
 
         // Also include any personal enrollments.
         $own = $wpdb->get_results( $wpdb->prepare(
-            "SELECT enrollment_id, partnership_id, school_id, district_id, roles
+            "SELECT enrollment_id, cycle_id, school_id, district_id, roles
              FROM {$prefix}hl_enrollment
              WHERE user_id = %d AND status = 'active'",
             $user_id
@@ -214,7 +214,7 @@ class HL_Scope_Service {
         $hl_roles = array();
         foreach ( $own as $e ) {
             $scope['enrollment_ids'][] = (int) $e['enrollment_id'];
-            $partnership_ids[] = (int) $e['partnership_id'];
+            $cycle_ids[] = (int) $e['cycle_id'];
             if ( $e['school_id'] ) {
                 $school_ids[] = (int) $e['school_id'];
             }
@@ -233,7 +233,7 @@ class HL_Scope_Service {
             $scope['district_ids'] = array_map( 'intval', $district_ids );
         }
 
-        $scope['partnership_ids']     = array_values( array_unique( $partnership_ids ) );
+        $scope['cycle_ids']     = array_values( array_unique( $cycle_ids ) );
         $scope['school_ids']     = $school_ids;
         $scope['enrollment_ids'] = array_values( array_unique( $scope['enrollment_ids'] ) );
         $scope['hl_roles']       = array_values( array_unique( $hl_roles ) );
@@ -254,7 +254,7 @@ class HL_Scope_Service {
         $prefix = $wpdb->prefix;
 
         $enrollments = $wpdb->get_results( $wpdb->prepare(
-            "SELECT enrollment_id, partnership_id, school_id, district_id, roles
+            "SELECT enrollment_id, cycle_id, school_id, district_id, roles
              FROM {$prefix}hl_enrollment
              WHERE user_id = %d AND status = 'active'",
             $user_id
@@ -265,14 +265,14 @@ class HL_Scope_Service {
         }
 
         $hl_roles       = array();
-        $partnership_ids     = array();
+        $cycle_ids     = array();
         $school_ids     = array();
         $district_ids   = array();
         $enrollment_ids = array();
 
         foreach ( $enrollments as $e ) {
             $enrollment_ids[] = (int) $e['enrollment_id'];
-            $partnership_ids[]     = (int) $e['partnership_id'];
+            $cycle_ids[]     = (int) $e['cycle_id'];
             if ( $e['school_id'] ) {
                 $school_ids[] = (int) $e['school_id'];
             }
@@ -317,7 +317,7 @@ class HL_Scope_Service {
         }
 
         $scope['hl_roles']       = array_values( array_unique( $hl_roles ) );
-        $scope['partnership_ids']     = array_values( array_unique( $partnership_ids ) );
+        $scope['cycle_ids']     = array_values( array_unique( $cycle_ids ) );
         $scope['school_ids']     = array_values( array_unique( $school_ids ) );
         $scope['district_ids']   = $district_ids;
         $scope['team_ids']       = array_values( array_unique( $team_ids ) );

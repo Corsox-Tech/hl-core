@@ -125,25 +125,25 @@ class HL_Admin_Teams {
 
         $data = array(
             'team_name'  => sanitize_text_field($_POST['team_name']),
-            'partnership_id' => absint($_POST['partnership_id']),
+            'cycle_id' => absint($_POST['cycle_id']),
             'school_id'  => absint($_POST['school_id']),
             'status'     => sanitize_text_field($_POST['status']),
         );
 
-        $partnership_context = isset($_POST['_hl_partnership_context']) ? absint($_POST['_hl_partnership_context']) : 0;
+        $cycle_context = isset($_POST['_hl_cycle_context']) ? absint($_POST['_hl_cycle_context']) : 0;
 
         if ($team_id > 0) {
             $wpdb->update($wpdb->prefix . 'hl_team', $data, array('team_id' => $team_id));
-            if ($partnership_context) {
-                $redirect = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_context . '&tab=teams&message=team_updated');
+            if ($cycle_context) {
+                $redirect = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $cycle_context . '&tab=teams&message=team_updated');
             } else {
                 $redirect = admin_url('admin.php?page=hl-teams&message=updated');
             }
         } else {
             $data['team_uuid'] = HL_DB_Utils::generate_uuid();
             $wpdb->insert($wpdb->prefix . 'hl_team', $data);
-            if ($partnership_context) {
-                $redirect = admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_context . '&tab=teams&message=team_created');
+            if ($cycle_context) {
+                $redirect = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $cycle_context . '&tab=teams&message=team_created');
             } else {
                 $redirect = admin_url('admin.php?page=hl-teams&message=created');
             }
@@ -174,9 +174,9 @@ class HL_Admin_Teams {
         global $wpdb;
         $wpdb->delete($wpdb->prefix . 'hl_team', array('team_id' => $team_id));
 
-        $partnership_context = isset($_GET['partnership_context']) ? absint($_GET['partnership_context']) : 0;
-        if ($partnership_context) {
-            wp_redirect(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $partnership_context . '&tab=teams&message=team_deleted'));
+        $cycle_context = isset($_GET['cycle_context']) ? absint($_GET['cycle_context']) : 0;
+        if ($cycle_context) {
+            wp_redirect(admin_url('admin.php?page=hl-cycles&action=edit&id=' . $cycle_context . '&tab=teams&message=team_deleted'));
         } else {
             wp_redirect(admin_url('admin.php?page=hl-teams&message=deleted'));
         }
@@ -189,12 +189,12 @@ class HL_Admin_Teams {
     private function render_list() {
         global $wpdb;
 
-        $filter_partnership = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
+        $filter_cycle = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
         $filter_school  = isset($_GET['school_id']) ? absint($_GET['school_id']) : 0;
 
         $where_clauses = array();
-        if ($filter_partnership) {
-            $where_clauses[] = $wpdb->prepare('t.partnership_id = %d', $filter_partnership);
+        if ($filter_cycle) {
+            $where_clauses[] = $wpdb->prepare('t.cycle_id = %d', $filter_cycle);
         }
         if ($filter_school) {
             $where_clauses[] = $wpdb->prepare('t.school_id = %d', $filter_school);
@@ -206,17 +206,17 @@ class HL_Admin_Teams {
         }
 
         $teams = $wpdb->get_results(
-            "SELECT t.*, t.partnership_name, o.name AS school_name
+            "SELECT t.*, t.cycle_name, o.name AS school_name
              FROM {$wpdb->prefix}hl_team t
-             LEFT JOIN {$wpdb->prefix}hl_partnership t ON t.partnership_id = t.partnership_id
+             LEFT JOIN {$wpdb->prefix}hl_cycle t ON t.cycle_id = t.cycle_id
              LEFT JOIN {$wpdb->prefix}hl_orgunit o ON t.school_id = o.orgunit_id
              {$where}
              ORDER BY t.team_name ASC"
         );
 
-        // Get partnerships and schools for filters
-        $partnerships = $wpdb->get_results(
-            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
+        // Get cycles and schools for filters
+        $cycles = $wpdb->get_results(
+            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle ORDER BY cycle_name ASC"
         );
         $schools = $wpdb->get_results(
             "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' ORDER BY name ASC"
@@ -234,13 +234,13 @@ class HL_Admin_Teams {
             }
         }
 
-        // Partnership breadcrumb.
-        if ($filter_partnership) {
-            $partnership_name = $wpdb->get_var($wpdb->prepare(
-                "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d", $filter_partnership
+        // Cycle breadcrumb.
+        if ($filter_cycle) {
+            $cycle_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d", $filter_cycle
             ));
-            if ($partnership_name) {
-                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-partnerships&action=edit&id=' . $filter_partnership . '&tab=teams')) . '">&larr; ' . sprintf(esc_html__('Partnership: %s', 'hl-core'), esc_html($partnership_name)) . '</a></p>';
+            if ($cycle_name) {
+                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-cycles&action=edit&id=' . $filter_cycle . '&tab=teams')) . '">&larr; ' . sprintf(esc_html__('Cycle: %s', 'hl-core'), esc_html($cycle_name)) . '</a></p>';
             }
         }
 
@@ -251,12 +251,12 @@ class HL_Admin_Teams {
         // Filters
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-teams" />';
-        echo '<label><strong>' . esc_html__('Partnership:', 'hl-core') . '</strong> </label>';
-        echo '<select name="partnership_id">';
+        echo '<label><strong>' . esc_html__('Cycle:', 'hl-core') . '</strong> </label>';
+        echo '<select name="cycle_id">';
         echo '<option value="">' . esc_html__('All', 'hl-core') . '</option>';
-        if ($partnerships) {
-            foreach ($partnerships as $partnership) {
-                echo '<option value="' . esc_attr($partnership->partnership_id) . '"' . selected($filter_partnership, $partnership->partnership_id, false) . '>' . esc_html($partnership->partnership_name) . '</option>';
+        if ($cycles) {
+            foreach ($cycles as $cycle) {
+                echo '<option value="' . esc_attr($cycle->cycle_id) . '"' . selected($filter_cycle, $cycle->cycle_id, false) . '>' . esc_html($cycle->cycle_name) . '</option>';
             }
         }
         echo '</select> ';
@@ -282,7 +282,7 @@ class HL_Admin_Teams {
         echo '<thead><tr>';
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Team Name', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Partnership', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Cycle', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
@@ -304,7 +304,7 @@ class HL_Admin_Teams {
             echo '<tr>';
             echo '<td>' . esc_html($team->team_id) . '</td>';
             echo '<td><strong><a href="' . esc_url($view_url) . '">' . esc_html($team->team_name) . '</a></strong></td>';
-            echo '<td>' . esc_html($team->partnership_name) . '</td>';
+            echo '<td>' . esc_html($team->cycle_name) . '</td>';
             echo '<td>' . esc_html($team->school_name) . '</td>';
             echo '<td><span style="' . esc_attr($status_style) . '">' . esc_html(ucfirst($team->status)) . '</span></td>';
             echo '<td>';
@@ -322,11 +322,11 @@ class HL_Admin_Teams {
      * Render team detail with members
      *
      * @param object $team
-     * @param array  $context Optional partnership context. Keys: 'partnership_id', 'partnership_name'.
+     * @param array  $context Optional cycle context. Keys: 'cycle_id', 'cycle_name'.
      */
     public function render_team_detail($team, $context = array()) {
         global $wpdb;
-        $in_partnership = !empty($context['partnership_id']);
+        $in_cycle = !empty($context['cycle_id']);
 
         // Get team members via team_member table or enrollment table
         // Attempt team_member table first; fall back to showing enrollments at this school
@@ -334,15 +334,15 @@ class HL_Admin_Teams {
             "SELECT e.enrollment_id, e.roles, e.status, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.partnership_id = %d AND e.school_id = %d AND e.status = 'active'
+             WHERE e.cycle_id = %d AND e.school_id = %d AND e.status = 'active'
              ORDER BY u.display_name ASC",
-            $team->partnership_id,
+            $team->cycle_id,
             $team->school_id
         ));
 
-        $partnership_row = $wpdb->get_row($wpdb->prepare(
-            "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
-            $team->partnership_id
+        $cycle_row = $wpdb->get_row($wpdb->prepare(
+            "SELECT cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+            $team->cycle_id
         ));
 
         $school = $wpdb->get_row($wpdb->prepare(
@@ -350,7 +350,7 @@ class HL_Admin_Teams {
             $team->school_id
         ));
 
-        if (!$in_partnership) {
+        if (!$in_cycle) {
             echo '<h1>' . esc_html($team->team_name) . '</h1>';
             echo '<a href="' . esc_url(admin_url('admin.php?page=hl-teams')) . '">&larr; ' . esc_html__('Back to Teams', 'hl-core') . '</a>';
         } else {
@@ -358,7 +358,7 @@ class HL_Admin_Teams {
         }
 
         echo '<table class="form-table">';
-        echo '<tr><th>' . esc_html__('Partnership', 'hl-core') . '</th><td>' . esc_html($partnership_row ? $partnership_row->partnership_name : 'N/A') . '</td></tr>';
+        echo '<tr><th>' . esc_html__('Cycle', 'hl-core') . '</th><td>' . esc_html($cycle_row ? $cycle_row->cycle_name : 'N/A') . '</td></tr>';
         echo '<tr><th>' . esc_html__('School', 'hl-core') . '</th><td>' . esc_html($school ? $school->name : 'N/A') . '</td></tr>';
         echo '<tr><th>' . esc_html__('Status', 'hl-core') . '</th><td>' . esc_html(ucfirst($team->status)) . '</td></tr>';
         echo '</table>';
@@ -366,7 +366,7 @@ class HL_Admin_Teams {
         echo '<h2>' . esc_html__('Team Members', 'hl-core') . '</h2>';
 
         if (empty($members)) {
-            echo '<p>' . esc_html__('No active enrollments found for this team\'s partnership and school.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No active enrollments found for this team\'s cycle and school.', 'hl-core') . '</p>';
             return;
         }
 
@@ -396,32 +396,32 @@ class HL_Admin_Teams {
      * Render the create/edit form
      *
      * @param object|null $team
-     * @param array       $context Optional partnership context. Keys: 'partnership_id', 'partnership_name'.
+     * @param array       $context Optional cycle context. Keys: 'cycle_id', 'cycle_name'.
      */
     public function render_form($team = null, $context = array()) {
         $is_edit   = ($team !== null);
         $title     = $is_edit ? __('Edit Team', 'hl-core') : __('Add New Team', 'hl-core');
-        $in_partnership = !empty($context['partnership_id']);
+        $in_cycle = !empty($context['cycle_id']);
 
         global $wpdb;
 
-        $partnerships = $wpdb->get_results(
-            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
+        $cycles = $wpdb->get_results(
+            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle ORDER BY cycle_name ASC"
         );
 
         $schools = $wpdb->get_results(
             "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' AND status = 'active' ORDER BY name ASC"
         );
 
-        if (!$in_partnership) {
+        if (!$in_cycle) {
             echo '<h1>' . esc_html($title) . '</h1>';
             echo '<a href="' . esc_url(admin_url('admin.php?page=hl-teams')) . '">&larr; ' . esc_html__('Back to Teams', 'hl-core') . '</a>';
         }
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-teams')) . '">';
         wp_nonce_field('hl_save_team', 'hl_team_nonce');
-        if ($in_partnership) {
-            echo '<input type="hidden" name="_hl_partnership_context" value="' . esc_attr($context['partnership_id']) . '" />';
+        if ($in_cycle) {
+            echo '<input type="hidden" name="_hl_cycle_context" value="' . esc_attr($context['cycle_id']) . '" />';
         }
 
         if ($is_edit) {
@@ -436,19 +436,19 @@ class HL_Admin_Teams {
         echo '<td><input type="text" id="team_name" name="team_name" value="' . esc_attr($is_edit ? $team->team_name : '') . '" class="regular-text" required /></td>';
         echo '</tr>';
 
-        // Partnership
-        $current_partnership = $in_partnership ? absint($context['partnership_id']) : ($is_edit ? $team->partnership_id : '');
+        // Cycle
+        $current_cycle = $in_cycle ? absint($context['cycle_id']) : ($is_edit ? $team->cycle_id : '');
         echo '<tr>';
-        echo '<th scope="row"><label for="partnership_id">' . esc_html__('Partnership', 'hl-core') . '</label></th>';
-        if ($in_partnership) {
-            echo '<td><strong>' . esc_html($context['partnership_name']) . '</strong>';
-            echo '<input type="hidden" id="partnership_id" name="partnership_id" value="' . esc_attr($context['partnership_id']) . '" /></td>';
+        echo '<th scope="row"><label for="cycle_id">' . esc_html__('Cycle', 'hl-core') . '</label></th>';
+        if ($in_cycle) {
+            echo '<td><strong>' . esc_html($context['cycle_name']) . '</strong>';
+            echo '<input type="hidden" id="cycle_id" name="cycle_id" value="' . esc_attr($context['cycle_id']) . '" /></td>';
         } else {
-            echo '<td><select id="partnership_id" name="partnership_id" required>';
-            echo '<option value="">' . esc_html__('-- Select Partnership --', 'hl-core') . '</option>';
-            if ($partnerships) {
-                foreach ($partnerships as $partnership) {
-                    echo '<option value="' . esc_attr($partnership->partnership_id) . '"' . selected($current_partnership, $partnership->partnership_id, false) . '>' . esc_html($partnership->partnership_name) . '</option>';
+            echo '<td><select id="cycle_id" name="cycle_id" required>';
+            echo '<option value="">' . esc_html__('-- Select Cycle --', 'hl-core') . '</option>';
+            if ($cycles) {
+                foreach ($cycles as $cycle) {
+                    echo '<option value="' . esc_attr($cycle->cycle_id) . '"' . selected($current_cycle, $cycle->cycle_id, false) . '>' . esc_html($cycle->cycle_name) . '</option>';
                 }
             }
             echo '</select></td>';

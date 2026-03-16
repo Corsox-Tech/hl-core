@@ -103,7 +103,7 @@ class HL_Frontend_Teacher_Assessment {
 
         // Get the component with pathway/track context
         $component = $wpdb->get_row( $wpdb->prepare(
-            "SELECT a.*, p.partnership_id
+            "SELECT a.*, p.cycle_id
              FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
              WHERE a.component_id = %d",
@@ -117,9 +117,9 @@ class HL_Frontend_Teacher_Assessment {
         // Get user's enrollment in this track
         $enrollment = $wpdb->get_row( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_enrollment
-             WHERE partnership_id = %d AND user_id = %d AND status = 'active'
+             WHERE cycle_id = %d AND user_id = %d AND status = 'active'
              LIMIT 1",
-            $component->partnership_id, $user_id
+            $component->cycle_id, $user_id
         ) );
 
         if ( ! $enrollment ) {
@@ -146,9 +146,9 @@ class HL_Frontend_Teacher_Assessment {
         // Also check by enrollment + track + phase (legacy instances without component_id)
         $instance_id = $wpdb->get_var( $wpdb->prepare(
             "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
-             WHERE enrollment_id = %d AND partnership_id = %d AND phase = %s
+             WHERE enrollment_id = %d AND cycle_id = %d AND phase = %s
              LIMIT 1",
-            $enrollment->enrollment_id, $component->partnership_id, $phase
+            $enrollment->enrollment_id, $component->cycle_id, $phase
         ) );
 
         if ( $instance_id ) {
@@ -163,7 +163,7 @@ class HL_Frontend_Teacher_Assessment {
 
         // Create new instance
         $result = $this->assessment_service->create_teacher_assessment_instance( array(
-            'partnership_id'     => $component->partnership_id,
+            'cycle_id'     => $component->cycle_id,
             'enrollment_id' => $enrollment->enrollment_id,
             'phase'         => $phase,
             'instrument_id' => $instrument_id,
@@ -184,13 +184,13 @@ class HL_Frontend_Teacher_Assessment {
 
         // Get all teacher assessment instances for this user that use custom instruments
         $instances = $wpdb->get_results( $wpdb->prepare(
-            "SELECT tai.*, t.partnership_name, e.user_id
+            "SELECT tai.*, t.cycle_name, e.user_id
              FROM {$wpdb->prefix}hl_teacher_assessment_instance tai
              JOIN {$wpdb->prefix}hl_enrollment e ON tai.enrollment_id = e.enrollment_id
-             JOIN {$wpdb->prefix}hl_partnership t ON tai.partnership_id = t.partnership_id
+             JOIN {$wpdb->prefix}hl_cycle t ON tai.cycle_id = t.cycle_id
              WHERE e.user_id = %d
                AND tai.instrument_id IS NOT NULL
-             ORDER BY t.partnership_name, tai.phase ASC",
+             ORDER BY t.cycle_name, tai.phase ASC",
             $user_id
         ), ARRAY_A );
 
@@ -216,7 +216,7 @@ class HL_Frontend_Teacher_Assessment {
                     <tbody>
                         <?php foreach ( $instances as $row ) : ?>
                             <tr>
-                                <td><?php echo esc_html( $row['partnership_name'] ); ?></td>
+                                <td><?php echo esc_html( $row['cycle_name'] ); ?></td>
                                 <td>
                                     <span class="hl-badge hl-badge-<?php echo $row['phase'] === 'pre' ? 'blue' : 'green'; ?>">
                                         <?php echo esc_html( $row['phase'] === 'pre' ? __( 'Pre-Program', 'hl-core' ) : __( 'Post-Program', 'hl-core' ) ); ?>
@@ -318,7 +318,7 @@ class HL_Frontend_Teacher_Assessment {
         if ( $phase === 'post' ) {
             $pre_responses = $this->assessment_service->get_pre_responses_for_post(
                 absint( $instance['enrollment_id'] ),
-                absint( $instance['partnership_id'] )
+                absint( $instance['cycle_id'] )
             );
         }
 
@@ -381,7 +381,7 @@ class HL_Frontend_Teacher_Assessment {
                     array(
                         'show_instrument_name' => false,
                         'show_program_name'    => true,
-                        'program_name'         => $instance['partnership_name'],
+                        'program_name'         => $instance['cycle_name'],
                     )
                 );
                 echo $renderer->render();
@@ -429,7 +429,7 @@ class HL_Frontend_Teacher_Assessment {
             <div class="hl-assessment-meta">
                 <span class="hl-meta-item">
                     <strong><?php esc_html_e( 'Program:', 'hl-core' ); ?></strong>
-                    <?php echo esc_html( $instance['partnership_name'] ); ?>
+                    <?php echo esc_html( $instance['cycle_name'] ); ?>
                 </span>
                 <span class="hl-meta-item">
                     <strong><?php esc_html_e( 'Submitted:', 'hl-core' ); ?></strong>

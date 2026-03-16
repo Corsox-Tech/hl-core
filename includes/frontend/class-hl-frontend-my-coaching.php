@@ -41,7 +41,7 @@ class HL_Frontend_My_Coaching {
         // Allow filtering by enrollment via query param, default to first.
         $selected_enrollment_id = isset($_GET['enrollment']) ? absint($_GET['enrollment']) : 0;
         $enrollment = null;
-        $partnership_id  = 0;
+        $cycle_id  = 0;
 
         if ($selected_enrollment_id) {
             foreach ($enrollments as $e) {
@@ -56,20 +56,20 @@ class HL_Frontend_My_Coaching {
             $enrollment = $enrollments[0];
         }
 
-        $partnership_id     = (int) $enrollment->partnership_id;
+        $cycle_id     = (int) $enrollment->cycle_id;
         $enrollment_id = (int) $enrollment->enrollment_id;
 
         // Resolve coach.
         $coach_service = new HL_Coach_Assignment_Service();
-        $coach = $coach_service->get_coach_for_enrollment($enrollment_id, $partnership_id);
+        $coach = $coach_service->get_coach_for_enrollment($enrollment_id, $cycle_id);
 
         // Get sessions.
         $coaching_service = new HL_Coaching_Service();
-        $upcoming = $coaching_service->get_upcoming_sessions($enrollment_id, $partnership_id);
-        $past     = $coaching_service->get_past_sessions($enrollment_id, $partnership_id);
+        $upcoming = $coaching_service->get_upcoming_sessions($enrollment_id, $cycle_id);
+        $past     = $coaching_service->get_past_sessions($enrollment_id, $cycle_id);
 
         // Cancellation allowed?
-        $can_cancel = $coaching_service->is_cancellation_allowed($partnership_id);
+        $can_cancel = $coaching_service->is_cancellation_allowed($cycle_id);
 
         ?>
         <div class="hl-dashboard hl-my-coaching">
@@ -84,13 +84,13 @@ class HL_Frontend_My_Coaching {
             <?php $this->render_coach_card($coach); ?>
 
             <h3><?php esc_html_e('Upcoming Sessions', 'hl-core'); ?></h3>
-            <?php $this->render_upcoming_sessions($upcoming, $can_cancel, $enrollment_id, $partnership_id); ?>
+            <?php $this->render_upcoming_sessions($upcoming, $can_cancel, $enrollment_id, $cycle_id); ?>
 
             <h3><?php esc_html_e('Past Sessions', 'hl-core'); ?></h3>
             <?php $this->render_past_sessions($past); ?>
 
             <h3><?php esc_html_e('Schedule New Session', 'hl-core'); ?></h3>
-            <?php $this->render_schedule_form($enrollment_id, $partnership_id, $coach); ?>
+            <?php $this->render_schedule_form($enrollment_id, $cycle_id, $coach); ?>
         </div>
         <?php
 
@@ -126,7 +126,7 @@ class HL_Frontend_My_Coaching {
         }
 
         $enrollment_id = absint($_POST['enrollment_id']);
-        $partnership_id     = absint($_POST['partnership_id']);
+        $cycle_id     = absint($_POST['cycle_id']);
         $user_id       = get_current_user_id();
 
         // Verify ownership.
@@ -138,12 +138,12 @@ class HL_Frontend_My_Coaching {
 
         // Resolve coach.
         $coach_service = new HL_Coach_Assignment_Service();
-        $coach = $coach_service->get_coach_for_enrollment($enrollment_id, $partnership_id);
+        $coach = $coach_service->get_coach_for_enrollment($enrollment_id, $cycle_id);
         $coach_user_id = $coach ? absint($coach['coach_user_id']) : 0;
 
         $coaching_service = new HL_Coaching_Service();
         $result = $coaching_service->create_session(array(
-            'partnership_id'             => $partnership_id,
+            'cycle_id'             => $cycle_id,
             'mentor_enrollment_id' => $enrollment_id,
             'coach_user_id'        => $coach_user_id,
             'session_title'        => sanitize_text_field($_POST['session_title'] ?? ''),
@@ -182,7 +182,7 @@ class HL_Frontend_My_Coaching {
         }
 
         // Check cancellation allowed.
-        if (!$coaching_service->is_cancellation_allowed($session['partnership_id'])) {
+        if (!$coaching_service->is_cancellation_allowed($session['cycle_id'])) {
             return;
         }
 
@@ -260,17 +260,17 @@ class HL_Frontend_My_Coaching {
     }
 
     private function render_enrollment_switcher($enrollments, $current_enrollment_id) {
-        $partnership_repo = new HL_Partnership_Repository();
+        $cycle_repo = new HL_Cycle_Repository();
         $pathway_repo = new HL_Pathway_Repository();
 
         echo '<div class="hl-enrollment-switcher">';
         echo '<label>' . esc_html__('Program:', 'hl-core') . ' </label>';
         echo '<select class="hl-select" onchange="if(this.value){window.location.search=\'enrollment=\'+this.value;}">';
         foreach ($enrollments as $e) {
-            $partnership = $partnership_repo->get_by_id($e->partnership_id);
+            $cycle = $cycle_repo->get_by_id($e->cycle_id);
             $pathway = !empty($e->assigned_pathway_id) ? $pathway_repo->get_by_id($e->assigned_pathway_id) : null;
             $label = ($pathway ? $pathway->pathway_name : __('Program', 'hl-core'))
-                   . ' — ' . ($partnership ? $partnership->partnership_name : '');
+                   . ' — ' . ($cycle ? $cycle->cycle_name : '');
             $selected = ((int) $e->enrollment_id === $current_enrollment_id) ? ' selected' : '';
             echo '<option value="' . esc_attr($e->enrollment_id) . '"' . $selected . '>'
                 . esc_html($label)
@@ -302,7 +302,7 @@ class HL_Frontend_My_Coaching {
         echo '</div>';
     }
 
-    private function render_upcoming_sessions($sessions, $can_cancel, $enrollment_id, $partnership_id) {
+    private function render_upcoming_sessions($sessions, $can_cancel, $enrollment_id, $cycle_id) {
         if (empty($sessions)) {
             echo '<p class="hl-session-no-items">' . esc_html__('No upcoming sessions.', 'hl-core') . '</p>';
             return;
@@ -411,15 +411,15 @@ class HL_Frontend_My_Coaching {
         echo '</div>';
     }
 
-    private function render_schedule_form($enrollment_id, $partnership_id, $coach) {
+    private function render_schedule_form($enrollment_id, $cycle_id, $coach) {
         // Auto-suggest session title from next coaching component.
-        $suggested_title = $this->get_suggested_session_title($enrollment_id, $partnership_id);
+        $suggested_title = $this->get_suggested_session_title($enrollment_id, $cycle_id);
 
         echo '<div class="hl-schedule-form">';
         echo '<form method="post">';
         wp_nonce_field('hl_schedule_session', 'hl_schedule_session_nonce');
         echo '<input type="hidden" name="enrollment_id" value="' . esc_attr($enrollment_id) . '" />';
-        echo '<input type="hidden" name="partnership_id" value="' . esc_attr($partnership_id) . '" />';
+        echo '<input type="hidden" name="cycle_id" value="' . esc_attr($cycle_id) . '" />';
 
         // Session title.
         echo '<div class="hl-form-group">';
@@ -451,21 +451,21 @@ class HL_Frontend_My_Coaching {
      * Try to auto-suggest a session title from the next coaching component.
      *
      * @param int $enrollment_id
-     * @param int $partnership_id
+     * @param int $cycle_id
      * @return string
      */
-    private function get_suggested_session_title($enrollment_id, $partnership_id) {
+    private function get_suggested_session_title($enrollment_id, $cycle_id) {
         global $wpdb;
 
         // Find coaching components in this track's pathways.
         $coaching_components = $wpdb->get_results($wpdb->prepare(
             "SELECT a.component_id, a.title FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
-             WHERE p.partnership_id = %d
+             WHERE p.cycle_id = %d
                AND a.component_type = 'coaching_session_attendance'
                AND a.status = 'active'
              ORDER BY a.sort_order ASC",
-            $partnership_id
+            $cycle_id
         ), ARRAY_A);
 
         if (empty($coaching_components)) {

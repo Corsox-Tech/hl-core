@@ -15,8 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class HL_CLI_Seed_Lutheran {
 
-	/** Partnership code used to identify Lutheran seeded data. */
-	const PARTNERSHIP_CODE = 'LUTHERAN_CONTROL_2026';
+	/** Cycle code used to identify Lutheran seeded data. */
+	const CYCLE_CODE = 'LUTHERAN_CONTROL_2026';
 
 	/** District code. */
 	const DISTRICT_CODE = 'LSF_PALM_BEACH';
@@ -113,14 +113,14 @@ class HL_CLI_Seed_Lutheran {
 		// Log school alias resolutions for verification.
 		$this->log_school_resolutions( $school_map );
 
-		// Step 3: Partnership (run).
-		$partnership_id = $this->seed_partnership( $district_id );
+		// Step 3: Cycle (run).
+		$cycle_id = $this->seed_cycle( $district_id );
 
-		// Step 4: Link schools to partnership.
-		$this->link_schools_to_partnership( $partnership_id, $school_map );
+		// Step 4: Link schools to cycle.
+		$this->link_schools_to_cycle( $cycle_id, $school_map );
 
 		// Step 5: Cohort (container).
-		$cohort_id = $this->seed_cohort( $partnership_id );
+		$cohort_id = $this->seed_cohort( $cycle_id );
 
 		// Step 6: Classrooms.
 		$classrooms = $this->seed_classrooms( $teacher_roster_data, $school_map );
@@ -129,7 +129,7 @@ class HL_CLI_Seed_Lutheran {
 		$users = $this->seed_users( $teacher_roster_data );
 
 		// Step 8: Enrollments.
-		$enrollments = $this->seed_enrollments( $teacher_roster_data, $users, $partnership_id, $school_map, $district_id );
+		$enrollments = $this->seed_enrollments( $teacher_roster_data, $users, $cycle_id, $school_map, $district_id );
 
 		// Step 9: Teaching Assignments.
 		$this->seed_teaching_assignments( $teacher_roster_data, $enrollments, $classrooms, $school_map );
@@ -137,12 +137,12 @@ class HL_CLI_Seed_Lutheran {
 		// Step 10: Children.
 		$this->seed_children( $child_roster_data, $classrooms, $school_map );
 
-		// Step 10b: Freeze child age groups for this partnership.
-		$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $partnership_id );
+		// Step 10b: Freeze child age groups for this cycle.
+		$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $cycle_id );
 		WP_CLI::log( "  [10b] Frozen age group snapshots: {$frozen}" );
 
 		// Step 11: Pathway & Components.
-		$pathway_data = $this->seed_pathway( $partnership_id );
+		$pathway_data = $this->seed_pathway( $cycle_id );
 
 		// Step 12: B2E Teacher Assessment Instruments (PRE + POST).
 		$instrument_ids = $this->seed_teacher_instruments();
@@ -154,7 +154,7 @@ class HL_CLI_Seed_Lutheran {
 		$children_instruments = $this->seed_children_instruments();
 
 		// Step 13: Assessment Instances.
-		$this->seed_assessment_instances( $enrollments, $partnership_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $children_instruments );
+		$this->seed_assessment_instances( $enrollments, $cycle_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $children_instruments );
 
 		// Step 14: Pathway Assignments.
 		$this->seed_pathway_assignments( $enrollments, $pathway_data['pathway_id'] );
@@ -165,7 +165,7 @@ class HL_CLI_Seed_Lutheran {
 		WP_CLI::line( 'Summary:' );
 		WP_CLI::line( "  District:     {$district_id} (code: " . self::DISTRICT_CODE . ')' );
 		WP_CLI::line( '  Schools:      ' . count( $school_map ) );
-		WP_CLI::line( "  Partnership:  {$partnership_id} (code: " . self::PARTNERSHIP_CODE . ')' );
+		WP_CLI::line( "  Cycle:  {$cycle_id} (code: " . self::CYCLE_CODE . ')' );
 		WP_CLI::line( "  Cohort:       {$cohort_id} (code: " . self::COHORT_CODE . ')' );
 		WP_CLI::line( '  Classrooms:   ' . count( $classrooms ) );
 		WP_CLI::line( '  Teachers:     ' . count( $users ) );
@@ -187,8 +187,8 @@ class HL_CLI_Seed_Lutheran {
 		global $wpdb;
 		$row = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT partnership_id FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
-				self::PARTNERSHIP_CODE
+				"SELECT cycle_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_code = %s LIMIT 1",
+				self::CYCLE_CODE
 			)
 		);
 		return ! empty( $row );
@@ -207,20 +207,20 @@ class HL_CLI_Seed_Lutheran {
 
 		WP_CLI::line( 'Cleaning Lutheran control group data...' );
 
-		// Find the partnership.
-		$partnership_id = $wpdb->get_var(
+		// Find the cycle.
+		$cycle_id = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT partnership_id FROM {$prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
-				self::PARTNERSHIP_CODE
+				"SELECT cycle_id FROM {$prefix}hl_cycle WHERE cycle_code = %s LIMIT 1",
+				self::CYCLE_CODE
 			)
 		);
 
-		if ( $partnership_id ) {
+		if ( $cycle_id ) {
 			// Get enrollment IDs.
 			$enrollment_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT enrollment_id FROM {$prefix}hl_enrollment WHERE partnership_id = %d",
-					$partnership_id
+					"SELECT enrollment_id FROM {$prefix}hl_enrollment WHERE cycle_id = %d",
+					$cycle_id
 				)
 			);
 
@@ -256,35 +256,35 @@ class HL_CLI_Seed_Lutheran {
 			// Delete components and their drip rules.
 			$component_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT component_id FROM {$prefix}hl_component WHERE partnership_id = %d",
-					$partnership_id
+					"SELECT component_id FROM {$prefix}hl_component WHERE cycle_id = %d",
+					$cycle_id
 				)
 			);
 			if ( ! empty( $component_ids ) ) {
 				$in_comp = implode( ',', array_map( 'intval', $component_ids ) );
 				$wpdb->query( "DELETE FROM {$prefix}hl_component_drip_rule WHERE component_id IN ({$in_comp})" );
 			}
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_component WHERE partnership_id = %d", $partnership_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_component WHERE cycle_id = %d", $cycle_id ) );
 
 			// Delete pathway.
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_pathway WHERE partnership_id = %d", $partnership_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_pathway WHERE cycle_id = %d", $cycle_id ) );
 
 			// Delete enrollments.
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_enrollment WHERE partnership_id = %d", $partnership_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_enrollment WHERE cycle_id = %d", $cycle_id ) );
 
-			// Delete partnership-school links.
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_partnership_school WHERE partnership_id = %d", $partnership_id ) );
+			// Delete cycle-school links.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_cycle_school WHERE cycle_id = %d", $cycle_id ) );
 
-			// Delete child partnership snapshots.
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_child_partnership_snapshot WHERE partnership_id = %d", $partnership_id ) );
+			// Delete child cycle snapshots.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_child_cycle_snapshot WHERE cycle_id = %d", $cycle_id ) );
 
-			// Delete partnership.
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_partnership WHERE partnership_id = %d", $partnership_id ) );
+			// Delete cycle.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_cycle WHERE cycle_id = %d", $cycle_id ) );
 
 			// Delete audit log entries.
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_audit_log WHERE partnership_id = %d", $partnership_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$prefix}hl_audit_log WHERE cycle_id = %d", $cycle_id ) );
 
-			WP_CLI::log( "  Deleted partnership {$partnership_id} and all related records." );
+			WP_CLI::log( "  Deleted cycle {$cycle_id} and all related records." );
 		}
 
 		// Delete cohort (container).
@@ -337,10 +337,10 @@ class HL_CLI_Seed_Lutheran {
 		}
 
 		// Delete B2E teacher instrument only if no other seeder is using it.
-		$other_partnership = $wpdb->get_var(
-			"SELECT partnership_id FROM {$prefix}hl_partnership WHERE partnership_code IN ('DEMO-2026','ELC-PB-2026') LIMIT 1"
+		$other_cycle = $wpdb->get_var(
+			"SELECT cycle_id FROM {$prefix}hl_cycle WHERE cycle_code IN ('DEMO-2026','ELC-PB-2026') LIMIT 1"
 		);
-		if ( ! $other_partnership ) {
+		if ( ! $other_cycle ) {
 			$wpdb->query(
 				"DELETE FROM {$prefix}hl_teacher_assessment_instrument WHERE instrument_key IN ('b2e_self_assessment','b2e_self_assessment_pre','b2e_self_assessment_post')"
 			);
@@ -625,21 +625,21 @@ class HL_CLI_Seed_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 3: Partnership (run)
+	// Step 3: Cycle (run)
 	// ------------------------------------------------------------------
 
 	/**
-	 * Create the Lutheran control group partnership.
+	 * Create the Lutheran control group cycle.
 	 *
 	 * @param int $district_id District orgunit_id.
-	 * @return int Partnership ID.
+	 * @return int Cycle ID.
 	 */
-	private function seed_partnership( $district_id ) {
-		$repo = new HL_Partnership_Repository();
+	private function seed_cycle( $district_id ) {
+		$repo = new HL_Cycle_Repository();
 
-		$partnership_id = $repo->create( array(
-			'partnership_name'       => 'Lutheran Control Group 2026',
-			'partnership_code'       => self::PARTNERSHIP_CODE,
+		$cycle_id = $repo->create( array(
+			'cycle_name'       => 'Lutheran Control Group 2026',
+			'cycle_code'       => self::CYCLE_CODE,
 			'district_id'      => $district_id,
 			'status'           => 'active',
 			'is_control_group' => 1,
@@ -647,31 +647,31 @@ class HL_CLI_Seed_Lutheran {
 			'end_date'         => '2026-07-31',
 		) );
 
-		WP_CLI::log( "  [3/14] Partnership created: id={$partnership_id}, code=" . self::PARTNERSHIP_CODE );
-		return $partnership_id;
+		WP_CLI::log( "  [3/14] Cycle created: id={$cycle_id}, code=" . self::CYCLE_CODE );
+		return $cycle_id;
 	}
 
 	// ------------------------------------------------------------------
-	// Step 4: Link schools to partnership
+	// Step 4: Link schools to cycle
 	// ------------------------------------------------------------------
 
 	/**
-	 * Insert hl_partnership_school records for each school.
+	 * Insert hl_cycle_school records for each school.
 	 *
-	 * @param int   $partnership_id  Partnership ID.
+	 * @param int   $cycle_id  Cycle ID.
 	 * @param array $school_map Keyed by school name => orgunit_id.
 	 */
-	private function link_schools_to_partnership( $partnership_id, $school_map ) {
+	private function link_schools_to_cycle( $cycle_id, $school_map ) {
 		global $wpdb;
 
 		foreach ( $school_map as $school_id ) {
-			$wpdb->insert( $wpdb->prefix . 'hl_partnership_school', array(
-				'partnership_id' => $partnership_id,
+			$wpdb->insert( $wpdb->prefix . 'hl_cycle_school', array(
+				'cycle_id' => $cycle_id,
 				'school_id' => $school_id,
 			) );
 		}
 
-		WP_CLI::log( '  [4/14] Linked ' . count( $school_map ) . ' schools to partnership' );
+		WP_CLI::log( '  [4/14] Linked ' . count( $school_map ) . ' schools to cycle' );
 	}
 
 	// ------------------------------------------------------------------
@@ -679,12 +679,12 @@ class HL_CLI_Seed_Lutheran {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Create or find the B2E_LSF cohort (container), then assign the partnership.
+	 * Create or find the B2E_LSF cohort (container), then assign the cycle.
 	 *
-	 * @param int $partnership_id The Lutheran control partnership ID.
+	 * @param int $cycle_id The Lutheran control cycle ID.
 	 * @return int Cohort (container) ID.
 	 */
-	private function seed_cohort( $partnership_id ) {
+	private function seed_cohort( $cycle_id ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
@@ -706,11 +706,11 @@ class HL_CLI_Seed_Lutheran {
 			$cohort_id = $wpdb->insert_id;
 		}
 
-		// Assign the control partnership to this cohort (container).
+		// Assign the control cycle to this cohort (container).
 		$wpdb->update(
-			$prefix . 'hl_partnership',
+			$prefix . 'hl_cycle',
 			array( 'cohort_id' => $cohort_id ),
-			array( 'partnership_id' => $partnership_id )
+			array( 'cycle_id' => $cycle_id )
 		);
 
 		WP_CLI::log( "  [5/14] Cohort (container): id={$cohort_id}, code=" . self::COHORT_CODE );
@@ -884,12 +884,12 @@ class HL_CLI_Seed_Lutheran {
 	 *
 	 * @param array $teacher_roster_data Rows from extracted data.
 	 * @param array $users               Keyed by row index => user data.
-	 * @param int   $partnership_id           Lutheran control partnership ID.
+	 * @param int   $cycle_id           Lutheran control cycle ID.
 	 * @param array $school_map          Keyed by school name => orgunit_id.
 	 * @param int   $district_id         District orgunit_id.
 	 * @return array Keyed by row index => array with enrollment_id, user_id, school_name, classroom_name.
 	 */
-	private function seed_enrollments( $teacher_roster_data, $users, $partnership_id, $school_map, $district_id ) {
+	private function seed_enrollments( $teacher_roster_data, $users, $cycle_id, $school_map, $district_id ) {
 		$repo        = new HL_Enrollment_Repository();
 		$enrollments = array();
 
@@ -904,7 +904,7 @@ class HL_CLI_Seed_Lutheran {
 
 			$eid = $repo->create( array(
 				'user_id'     => $users[ $idx ]['user_id'],
-				'partnership_id'   => $partnership_id,
+				'cycle_id'   => $cycle_id,
 				'roles'       => array( 'teacher' ),
 				'status'      => 'active',
 				'school_id'   => $school_id,
@@ -1058,16 +1058,16 @@ class HL_CLI_Seed_Lutheran {
 	/**
 	 * Create the control group assessment pathway with 4 components.
 	 *
-	 * @param int $partnership_id Lutheran control partnership ID.
+	 * @param int $cycle_id Lutheran control cycle ID.
 	 * @return array Pathway data with pathway_id, component IDs.
 	 */
-	private function seed_pathway( $partnership_id ) {
+	private function seed_pathway( $cycle_id ) {
 		$svc = new HL_Pathway_Service();
 
 		$pathway_id = $svc->create_pathway( array(
 			'pathway_name'  => 'Control Group Assessments',
 			'pathway_code'  => 'LUTHERAN_CTRL_ASSESSMENTS',
-			'partnership_id'     => $partnership_id,
+			'cycle_id'     => $cycle_id,
 			'target_roles'  => array( 'teacher' ),
 			'active_status' => 1,
 		) );
@@ -1076,7 +1076,7 @@ class HL_CLI_Seed_Lutheran {
 		$tsa_pre_id = $svc->create_component( array(
 			'title'         => 'Teacher Self-Assessment (Pre)',
 			'pathway_id'    => $pathway_id,
-			'partnership_id'     => $partnership_id,
+			'cycle_id'     => $cycle_id,
 			'component_type' => 'teacher_self_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 1,
@@ -1087,7 +1087,7 @@ class HL_CLI_Seed_Lutheran {
 		$ca_pre_id = $svc->create_component( array(
 			'title'         => 'Child Assessment (Pre)',
 			'pathway_id'    => $pathway_id,
-			'partnership_id'     => $partnership_id,
+			'cycle_id'     => $cycle_id,
 			'component_type' => 'child_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 2,
@@ -1098,7 +1098,7 @@ class HL_CLI_Seed_Lutheran {
 		$tsa_post_id = $svc->create_component( array(
 			'title'         => 'Teacher Self-Assessment (Post)',
 			'pathway_id'    => $pathway_id,
-			'partnership_id'     => $partnership_id,
+			'cycle_id'     => $cycle_id,
 			'component_type' => 'teacher_self_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 3,
@@ -1109,7 +1109,7 @@ class HL_CLI_Seed_Lutheran {
 		$ca_post_id = $svc->create_component( array(
 			'title'         => 'Child Assessment (Post)',
 			'pathway_id'    => $pathway_id,
-			'partnership_id'     => $partnership_id,
+			'cycle_id'     => $cycle_id,
 			'component_type' => 'child_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 4,
@@ -1309,7 +1309,7 @@ class HL_CLI_Seed_Lutheran {
 	 * Create teacher and child assessment instances plus component states.
 	 *
 	 * @param array $enrollments           Keyed by row index.
-	 * @param int   $partnership_id             Partnership ID.
+	 * @param int   $cycle_id             Cycle ID.
 	 * @param array $pathway_data          Pathway and component IDs.
 	 * @param array $instrument_ids        ['pre' => int, 'post' => int].
 	 * @param array $classrooms            Keyed by "school_name::classroom_name".
@@ -1317,7 +1317,7 @@ class HL_CLI_Seed_Lutheran {
 	 * @param array $teacher_roster_data   Teacher roster rows.
 	 * @param array $children_instruments  Keyed by age band: 'infant' => id, etc.
 	 */
-	private function seed_assessment_instances( $enrollments, $partnership_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $children_instruments = array() ) {
+	private function seed_assessment_instances( $enrollments, $cycle_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $children_instruments = array() ) {
 		global $wpdb;
 		$prefix       = $wpdb->prefix;
 		$now          = current_time( 'mysql' );
@@ -1331,7 +1331,7 @@ class HL_CLI_Seed_Lutheran {
 			// Teacher Assessment Instance: PRE.
 			$wpdb->insert( $prefix . 'hl_teacher_assessment_instance', array(
 				'instance_uuid'      => HL_DB_Utils::generate_uuid(),
-				'partnership_id'          => $partnership_id,
+				'cycle_id'          => $cycle_id,
 				'enrollment_id'      => $eid,
 				'component_id'        => $pathway_data['tsa_pre_id'],
 				'phase'              => 'pre',
@@ -1345,7 +1345,7 @@ class HL_CLI_Seed_Lutheran {
 			// Teacher Assessment Instance: POST.
 			$wpdb->insert( $prefix . 'hl_teacher_assessment_instance', array(
 				'instance_uuid'      => HL_DB_Utils::generate_uuid(),
-				'partnership_id'          => $partnership_id,
+				'cycle_id'          => $cycle_id,
 				'enrollment_id'      => $eid,
 				'component_id'        => $pathway_data['tsa_post_id'],
 				'phase'              => 'post',
@@ -1376,7 +1376,7 @@ class HL_CLI_Seed_Lutheran {
 				// Child Assessment Instance: PRE.
 				$wpdb->insert( $prefix . 'hl_child_assessment_instance', array(
 					'instance_uuid'       => HL_DB_Utils::generate_uuid(),
-					'partnership_id'           => $partnership_id,
+					'cycle_id'           => $cycle_id,
 					'enrollment_id'       => $eid,
 					'component_id'         => $pathway_data['ca_pre_id'],
 					'classroom_id'        => $classroom_id,
@@ -1393,7 +1393,7 @@ class HL_CLI_Seed_Lutheran {
 				// Child Assessment Instance: POST.
 				$wpdb->insert( $prefix . 'hl_child_assessment_instance', array(
 					'instance_uuid'       => HL_DB_Utils::generate_uuid(),
-					'partnership_id'           => $partnership_id,
+					'cycle_id'           => $cycle_id,
 					'enrollment_id'       => $eid,
 					'component_id'         => $pathway_data['ca_post_id'],
 					'classroom_id'        => $classroom_id,

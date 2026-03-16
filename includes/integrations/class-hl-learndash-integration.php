@@ -84,7 +84,7 @@ class HL_LearnDash_Integration {
 
         // Find all active enrollments for this user
         $enrollments = $wpdb->get_results($wpdb->prepare(
-            "SELECT enrollment_id, partnership_id, assigned_pathway_id
+            "SELECT enrollment_id, cycle_id, assigned_pathway_id
              FROM {$wpdb->prefix}hl_enrollment
              WHERE user_id = %d AND status = 'active'",
             $user_id
@@ -97,16 +97,16 @@ class HL_LearnDash_Integration {
         $enrollment_ids = wp_list_pluck($enrollments, 'enrollment_id');
 
         // Find all learndash_course components across all tracks these enrollments belong to
-        $partnership_ids = array_unique(wp_list_pluck($enrollments, 'partnership_id'));
-        $partnership_placeholders = implode(',', array_fill(0, count($partnership_ids), '%d'));
+        $cycle_ids = array_unique(wp_list_pluck($enrollments, 'cycle_id'));
+        $cycle_placeholders = implode(',', array_fill(0, count($cycle_ids), '%d'));
 
         $components = $wpdb->get_results($wpdb->prepare(
-            "SELECT component_id, partnership_id, pathway_id, external_ref
+            "SELECT component_id, cycle_id, pathway_id, external_ref
              FROM {$wpdb->prefix}hl_component
              WHERE component_type = 'learndash_course'
-               AND partnership_id IN ($partnership_placeholders)
+               AND cycle_id IN ($cycle_placeholders)
                AND status = 'active'",
-            $partnership_ids
+            $cycle_ids
         ));
 
         if (empty($components)) {
@@ -129,17 +129,17 @@ class HL_LearnDash_Integration {
             return;
         }
 
-        // Build a lookup: partnership_id => enrollment_id
-        $partnership_enrollment_map = array();
+        // Build a lookup: cycle_id => enrollment_id
+        $cycle_enrollment_map = array();
         foreach ($enrollments as $enrollment) {
-            $partnership_enrollment_map[$enrollment->partnership_id] = $enrollment->enrollment_id;
+            $cycle_enrollment_map[$enrollment->cycle_id] = $enrollment->enrollment_id;
         }
 
         // For each matching component, mark the corresponding enrollment's component_state as complete
         $updated_enrollment_ids = array();
         foreach ($matching_components as $component) {
-            $enrollment_id = isset($partnership_enrollment_map[$component->partnership_id])
-                ? $partnership_enrollment_map[$component->partnership_id]
+            $enrollment_id = isset($cycle_enrollment_map[$component->cycle_id])
+                ? $cycle_enrollment_map[$component->cycle_id]
                 : 0;
 
             if (!$enrollment_id) {
@@ -177,7 +177,7 @@ class HL_LearnDash_Integration {
             HL_Audit_Service::log('learndash_course.completed', array(
                 'entity_type' => 'component',
                 'entity_id'   => $component->component_id,
-                'partnership_id'    => $component->partnership_id,
+                'cycle_id'    => $component->cycle_id,
                 'after_data'  => array(
                     'user_id'       => $user_id,
                     'course_id'     => $course_id,

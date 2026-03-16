@@ -1,6 +1,6 @@
 <?php
 /**
- * Partnership Repository
+ * Cycle Repository
  *
  * @package HL_Core
  */
@@ -9,56 +9,56 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class HL_Partnership_Repository {
+class HL_Cycle_Repository {
 
     /**
-     * Get all partnerships
+     * Get all cycles
      */
     public function get_all() {
         global $wpdb;
         $results = $wpdb->get_results(
-            "SELECT * FROM {$wpdb->prefix}hl_partnership ORDER BY created_at DESC",
+            "SELECT * FROM {$wpdb->prefix}hl_cycle ORDER BY created_at DESC",
             ARRAY_A
         );
 
-        $partnerships = array();
+        $cycles = array();
         foreach ($results as $row) {
-            $partnerships[] = new HL_Partnership($row);
+            $cycles[] = new HL_Cycle($row);
         }
-        return $partnerships;
+        return $cycles;
     }
 
     /**
-     * Get partnership by ID
+     * Get cycle by ID
      */
-    public function get_by_id($partnership_id) {
+    public function get_by_id($cycle_id) {
         global $wpdb;
         $row = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
-            $partnership_id
+            "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+            $cycle_id
         ), ARRAY_A);
 
-        return $row ? new HL_Partnership($row) : null;
+        return $row ? new HL_Cycle($row) : null;
     }
 
     /**
-     * Create partnership
+     * Create cycle
      */
     public function create($data) {
         global $wpdb;
 
         // Generate UUID if not provided
-        if (empty($data['partnership_uuid'])) {
-            $data['partnership_uuid'] = HL_DB_Utils::generate_uuid();
+        if (empty($data['cycle_uuid'])) {
+            $data['cycle_uuid'] = HL_DB_Utils::generate_uuid();
         }
 
         // Generate code if not provided
-        if (empty($data['partnership_code']) && !empty($data['partnership_name'])) {
-            $data['partnership_code'] = HL_Normalization::generate_code($data['partnership_name']);
+        if (empty($data['cycle_code']) && !empty($data['cycle_name'])) {
+            $data['cycle_code'] = HL_Normalization::generate_code($data['cycle_name']);
         }
 
         $wpdb->insert(
-            $wpdb->prefix . 'hl_partnership',
+            $wpdb->prefix . 'hl_cycle',
             $data
         );
 
@@ -66,9 +66,9 @@ class HL_Partnership_Repository {
     }
 
     /**
-     * Update partnership
+     * Update cycle
      */
-    public function update($partnership_id, $data) {
+    public function update($cycle_id, $data) {
         global $wpdb;
 
         // Build explicit format array so $wpdb doesn't rely on auto-detection.
@@ -86,29 +86,29 @@ class HL_Partnership_Repository {
         }
 
         $result = $wpdb->update(
-            $wpdb->prefix . 'hl_partnership',
+            $wpdb->prefix . 'hl_cycle',
             $data,
-            array('partnership_id' => $partnership_id),
+            array('cycle_id' => $cycle_id),
             $formats,
             array('%d')
         );
 
         if ($result === false) {
-            error_log('[HL Core] Partnership update FAILED for ID ' . $partnership_id . ': ' . $wpdb->last_error);
+            error_log('[HL Core] Cycle update FAILED for ID ' . $cycle_id . ': ' . $wpdb->last_error);
             error_log('[HL Core] Failed query: ' . $wpdb->last_query);
         }
 
-        return $this->get_by_id($partnership_id);
+        return $this->get_by_id($cycle_id);
     }
 
     /**
-     * Delete partnership
+     * Delete cycle
      */
-    public function delete($partnership_id) {
+    public function delete($cycle_id) {
         global $wpdb;
         return $wpdb->delete(
-            $wpdb->prefix . 'hl_partnership',
-            array('partnership_id' => $partnership_id)
+            $wpdb->prefix . 'hl_cycle',
+            array('cycle_id' => $cycle_id)
         );
     }
 }

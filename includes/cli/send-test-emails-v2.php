@@ -16,7 +16,7 @@ $body_jane  = '<table role="presentation" cellpadding="0" cellspacing="0" width=
 $body_jane .= '<tr><td style="background:#1A2B47;padding:32px 40px;text-align:center;border-radius:12px 12px 0 0;">' . $logo . '</td></tr>';
 $body_jane .= '<tr><td style="background:#FFFFFF;padding:40px;">';
 $body_jane .= '<p style="margin:0 0 24px;font-size:18px;font-weight:600;color:#1A2B47;">Hello ' . esc_html($jane->first_name) . ',</p>';
-$body_jane .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been enrolled in a research study through <strong>Housman Learning Academy</strong> as part of the Lutheran Services Florida partnership.</p>';
+$body_jane .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been enrolled in a research study through <strong>Housman Learning Academy</strong> as part of the Lutheran Services Florida cycle.</p>';
 $body_jane .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">Your account is ready and your assessment components are waiting for you. Please log in to get started with your <strong>Teacher Self-Assessment (Pre)</strong>.</p>';
 $body_jane .= '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:32px 0;"><tr><td align="center">';
 $body_jane .= '<a href="' . $login_url . '" style="display:inline-block;background:#2ECC71;color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;padding:14px 40px;border-radius:8px;">Log In to Your Account</a>';
@@ -32,7 +32,7 @@ $body_jane .= '<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#6
 $body_jane .= '</td></tr>';
 $body_jane .= '<tr><td style="background:#F4F5F7;padding:24px 40px;text-align:center;border-top:1px solid #E5E7EB;border-radius:0 0 12px 12px;">';
 $body_jane .= '<p style="margin:0 0 8px;font-size:13px;color:#6B7280;">Housman Learning Academy</p>';
-$body_jane .= '<p style="margin:0;font-size:12px;color:#9CA3AF;">This email was sent because you are enrolled in a research partnership.<br>Please do not reply to this email.</p>';
+$body_jane .= '<p style="margin:0;font-size:12px;color:#9CA3AF;">This email was sent because you are enrolled in a research cycle.<br>Please do not reply to this email.</p>';
 $body_jane .= '</td></tr></table>';
 
 $sent_jane = wp_mail($jane->user_email, "You've been enrolled in Housman Learning Academy", $body_jane, $headers);
@@ -47,7 +47,7 @@ if (is_wp_error($reset_key)) { echo "ERROR: " . $reset_key->get_error_message() 
 $reset_url = 'https://academy.housmanlearning.com/wp-login.php?action=rp&key=' . $reset_key . '&login=' . rawurlencode($maria->user_login);
 
 $school_name = $wpdb->get_var($wpdb->prepare(
-    "SELECT o.name FROM {$wpdb->prefix}hl_orgunit o INNER JOIN {$wpdb->prefix}hl_enrollment e ON e.school_id = o.orgunit_id WHERE e.user_id = %d AND e.partnership_id = 1 LIMIT 1",
+    "SELECT o.name FROM {$wpdb->prefix}hl_orgunit o INNER JOIN {$wpdb->prefix}hl_enrollment e ON e.school_id = o.orgunit_id WHERE e.user_id = %d AND e.cycle_id = 1 LIMIT 1",
     $maria->ID
 ));
 if (!$school_name) $school_name = 'Housman Test School';
@@ -61,7 +61,7 @@ $body_maria  = '<table role="presentation" cellpadding="0" cellspacing="0" width
 $body_maria .= '<tr><td style="background:#1A2B47;padding:32px 40px;text-align:center;border-radius:12px 12px 0 0;">' . $logo . '</td></tr>';
 $body_maria .= '<tr><td style="background:#FFFFFF;padding:40px;">';
 $body_maria .= '<p style="margin:0 0 24px;font-size:18px;font-weight:600;color:#1A2B47;">Hello ' . $name . ',</p>';
-$body_maria .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been invited to participate in a research study through <strong>Housman Learning Academy</strong> in partnership with <strong>Lutheran Services Florida</strong>.</p>';
+$body_maria .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been invited to participate in a research study through <strong>Housman Learning Academy</strong> in cycle with <strong>Lutheran Services Florida</strong>.</p>';
 $body_maria .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">An account has been created for you. To get started, please click the button below to set your password and access your assessments.</p>';
 $body_maria .= '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:32px 0;"><tr><td align="center">';
 $body_maria .= '<a href="' . $safe_url . '" style="display:inline-block;background:#2ECC71;color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;padding:14px 40px;border-radius:8px;">Accept Invitation &amp; Set Password</a>';
@@ -84,7 +84,7 @@ $body_maria .= '<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#
 $body_maria .= '</td></tr>';
 $body_maria .= '<tr><td style="background:#F4F5F7;padding:24px 40px;text-align:center;border-top:1px solid #E5E7EB;border-radius:0 0 12px 12px;">';
 $body_maria .= '<p style="margin:0 0 8px;font-size:13px;color:#6B7280;">Housman Learning Academy</p>';
-$body_maria .= '<p style="margin:0;font-size:12px;color:#9CA3AF;">This email was sent because you were invited to participate in a research partnership.<br>Please do not reply to this email.</p>';
+$body_maria .= '<p style="margin:0;font-size:12px;color:#9CA3AF;">This email was sent because you were invited to participate in a research cycle.<br>Please do not reply to this email.</p>';
 $body_maria .= '</td></tr></table>';
 
 $sent_maria = wp_mail($maria->user_email, "You've been invited to Housman Learning Academy", $body_maria, $headers);

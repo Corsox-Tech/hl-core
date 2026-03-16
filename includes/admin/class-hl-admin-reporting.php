@@ -3,7 +3,7 @@
 /**
  * Admin Reporting Dashboard
  *
- * Full reporting dashboard with scope-based filtering (partnership, school, district, team),
+ * Full reporting dashboard with scope-based filtering (cycle, school, district, team),
  * summary metrics, participant completion table, component drill-down, and CSV export.
  *
  * @package HL_Core
@@ -95,7 +95,7 @@ class HL_Admin_Reporting {
      */
     private function get_filters() {
         return array(
-            'partnership_id'    => isset($_GET['partnership_id'])    ? absint($_GET['partnership_id'])    : 0,
+            'cycle_id'    => isset($_GET['cycle_id'])    ? absint($_GET['cycle_id'])    : 0,
             'school_id'   => isset($_GET['school_id'])   ? absint($_GET['school_id'])   : 0,
             'district_id' => isset($_GET['district_id']) ? absint($_GET['district_id']) : 0,
             'team_id'     => isset($_GET['team_id'])     ? absint($_GET['team_id'])     : 0,
@@ -132,9 +132,9 @@ class HL_Admin_Reporting {
             wp_die(esc_html__('You do not have permission to export data.', 'hl-core'));
         }
 
-        $partnership_id = $filters['partnership_id'];
+        $cycle_id = $filters['cycle_id'];
 
-        // Group summary export uses cohort_id (container), not partnership_id.
+        // Group summary export uses cohort_id (container), not cycle_id.
         if ($export_type === 'group_summary_csv') {
             $cohort_id = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
             if ($cohort_id) {
@@ -154,7 +154,7 @@ class HL_Admin_Reporting {
             return;
         }
 
-        // Comparison CSV export uses cohort_id (container), not partnership_id.
+        // Comparison CSV export uses cohort_id (container), not cycle_id.
         if ($export_type === 'comparison_csv') {
             $cohort_id = isset($_GET['cohort_id']) ? absint($_GET['cohort_id']) : 0;
             if ($cohort_id) {
@@ -174,8 +174,8 @@ class HL_Admin_Reporting {
             return;
         }
 
-        if (!$partnership_id && in_array($export_type, array('completion_csv', 'school_summary_csv', 'team_summary_csv', 'teacher_assessment_csv', 'child_assessment_csv'), true)) {
-            // Partnership is required for all exports; fall through to render page with error
+        if (!$cycle_id && in_array($export_type, array('completion_csv', 'school_summary_csv', 'team_summary_csv', 'teacher_assessment_csv', 'child_assessment_csv'), true)) {
+            // Cycle is required for all exports; fall through to render page with error
             return;
         }
 
@@ -186,29 +186,29 @@ class HL_Admin_Reporting {
         switch ($export_type) {
             case 'completion_csv':
                 $csv      = $reporting->export_completion_csv($filters, true);
-                $filename = 'completion-report-partnership-' . $partnership_id . '-' . gmdate('Y-m-d') . '.csv';
+                $filename = 'completion-report-cycle-' . $cycle_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             case 'school_summary_csv':
-                $csv      = $reporting->export_school_summary_csv($partnership_id, $filters['district_id']);
-                $filename = 'school-summary-partnership-' . $partnership_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $reporting->export_school_summary_csv($cycle_id, $filters['district_id']);
+                $filename = 'school-summary-cycle-' . $cycle_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             case 'team_summary_csv':
-                $csv      = $reporting->export_team_summary_csv($partnership_id, $filters['school_id']);
-                $filename = 'team-summary-partnership-' . $partnership_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $reporting->export_team_summary_csv($cycle_id, $filters['school_id']);
+                $filename = 'team-summary-cycle-' . $cycle_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             case 'teacher_assessment_csv':
                 $assessment_service = new HL_Assessment_Service();
-                $csv      = $assessment_service->export_teacher_assessments_csv($partnership_id);
-                $filename = 'teacher-assessments-partnership-' . $partnership_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $assessment_service->export_teacher_assessments_csv($cycle_id);
+                $filename = 'teacher-assessments-cycle-' . $cycle_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             case 'child_assessment_csv':
                 $assessment_service = new HL_Assessment_Service();
-                $csv      = $assessment_service->export_child_assessments_csv($partnership_id);
-                $filename = 'child-assessments-partnership-' . $partnership_id . '-' . gmdate('Y-m-d') . '.csv';
+                $csv      = $assessment_service->export_child_assessments_csv($cycle_id);
+                $filename = 'child-assessments-cycle-' . $cycle_id . '-' . gmdate('Y-m-d') . '.csv';
                 break;
 
             default:
@@ -238,21 +238,21 @@ class HL_Admin_Reporting {
      * @param array $filters Current filters
      */
     private function handle_recompute($filters) {
-        $partnership_id = $filters['partnership_id'];
+        $cycle_id = $filters['cycle_id'];
 
-        if (!$partnership_id) {
-            wp_die(esc_html__('Partnership is required for recomputing rollups.', 'hl-core'));
+        if (!$cycle_id) {
+            wp_die(esc_html__('Cycle is required for recomputing rollups.', 'hl-core'));
         }
 
-        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_recompute_rollups_' . $partnership_id)) {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'hl_recompute_rollups_' . $cycle_id)) {
             wp_die(esc_html__('Security check failed.', 'hl-core'));
         }
 
         $reporting = HL_Reporting_Service::instance();
-        $result    = $reporting->recompute_partnership_rollups($partnership_id);
+        $result    = $reporting->recompute_cycle_rollups($cycle_id);
 
         $redirect_url = $this->page_url(array(
-            'partnership_id' => $partnership_id,
+            'cycle_id' => $cycle_id,
             'message'   => 'recomputed',
             'updated'   => $result['updated'],
             'errors'    => $result['errors'],
@@ -281,11 +281,11 @@ class HL_Admin_Reporting {
         // Filters bar
         $this->render_filters_bar($filters);
 
-        $partnership_id = $filters['partnership_id'];
+        $cycle_id = $filters['cycle_id'];
 
-        if (!$partnership_id) {
+        if (!$cycle_id) {
             echo '<div class="hl-empty-state">';
-            echo '<p>' . esc_html__('Please select a partnership to view the reporting dashboard.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('Please select a cycle to view the reporting dashboard.', 'hl-core') . '</p>';
             echo '</div>';
             return;
         }
@@ -342,17 +342,17 @@ class HL_Admin_Reporting {
      * @param array $filters
      */
     private function render_filters_bar($filters) {
-        $partnership_item_repo  = new HL_Partnership_Repository();
+        $cycle_item_repo  = new HL_Cycle_Repository();
         $orgunit_repo = new HL_OrgUnit_Repository();
         $team_service = new HL_Team_Service();
 
-        $partnership_items   = $partnership_item_repo->get_all();
+        $cycle_items   = $cycle_item_repo->get_all();
         $districts = $orgunit_repo->get_districts();
         $schools   = $orgunit_repo->get_schools();
 
         $teams = array();
-        if ($filters['partnership_id']) {
-            $team_filters = array('partnership_id' => $filters['partnership_id']);
+        if ($filters['cycle_id']) {
+            $team_filters = array('cycle_id' => $filters['cycle_id']);
             if ($filters['school_id']) {
                 $team_filters['school_id'] = $filters['school_id'];
             }
@@ -383,16 +383,16 @@ class HL_Admin_Reporting {
         echo '</select>';
         echo '</div>';
 
-        // Partnership dropdown (required)
+        // Cycle dropdown (required)
         echo '<div style="flex: 1; min-width: 160px;">';
-        echo '<label for="partnership_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Partnership', 'hl-core') . ' <span style="color: #d63638;">*</span></label>';
-        echo '<select name="partnership_id" id="partnership_id" style="width: 100%;">';
-        echo '<option value="">' . esc_html__('-- Select Partnership --', 'hl-core') . '</option>';
-        foreach ($partnership_items as $partnership) {
-            echo '<option value="' . esc_attr($partnership->partnership_id) . '"' . selected($filters['partnership_id'], $partnership->partnership_id, false) . '>';
-            echo esc_html($partnership->partnership_name);
-            if ($partnership->partnership_code) {
-                echo ' (' . esc_html($partnership->partnership_code) . ')';
+        echo '<label for="cycle_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Cycle', 'hl-core') . ' <span style="color: #d63638;">*</span></label>';
+        echo '<select name="cycle_id" id="cycle_id" style="width: 100%;">';
+        echo '<option value="">' . esc_html__('-- Select Cycle --', 'hl-core') . '</option>';
+        foreach ($cycle_items as $cycle) {
+            echo '<option value="' . esc_attr($cycle->cycle_id) . '"' . selected($filters['cycle_id'], $cycle->cycle_id, false) . '>';
+            echo esc_html($cycle->cycle_name);
+            if ($cycle->cycle_code) {
+                echo ' (' . esc_html($cycle->cycle_code) . ')';
             }
             echo '</option>';
         }
@@ -421,7 +421,7 @@ class HL_Admin_Reporting {
         echo '</select>';
         echo '</div>';
 
-        // Team dropdown (optional, only when partnership selected)
+        // Team dropdown (optional, only when cycle selected)
         echo '<div style="flex: 1; min-width: 140px;">';
         echo '<label for="team_id" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1e1e1e;">' . esc_html__('Team', 'hl-core') . '</label>';
         echo '<select name="team_id" id="team_id" style="width: 100%;">';
@@ -453,7 +453,7 @@ class HL_Admin_Reporting {
         echo '</form>';
 
         // Action buttons (separate from filter form)
-        if ($filters['partnership_id']) {
+        if ($filters['cycle_id']) {
             echo '<div style="display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">';
 
             // Export CSV button
@@ -466,12 +466,12 @@ class HL_Admin_Reporting {
             if (current_user_can('manage_options')) {
                 $recompute_url = wp_nonce_url(
                     $this->page_url(array(
-                        'partnership_id' => $filters['partnership_id'],
+                        'cycle_id' => $filters['cycle_id'],
                         'action'    => 'recompute',
                     )),
-                    'hl_recompute_rollups_' . $filters['partnership_id']
+                    'hl_recompute_rollups_' . $filters['cycle_id']
                 );
-                echo '<a href="' . esc_url($recompute_url) . '" class="button" onclick="return confirm(\'' . esc_js(__('Recompute all rollups for this partnership? This may take a moment.', 'hl-core')) . '\');">';
+                echo '<a href="' . esc_url($recompute_url) . '" class="button" onclick="return confirm(\'' . esc_js(__('Recompute all rollups for this cycle? This may take a moment.', 'hl-core')) . '\');">';
                 echo esc_html__('Recompute Rollups', 'hl-core');
                 echo '</a>';
             }
@@ -493,8 +493,8 @@ class HL_Admin_Reporting {
      * @param array                $filters
      */
     private function render_summary_cards($reporting, $filters) {
-        $partnership_id = $filters['partnership_id'];
-        $summary   = $reporting->get_partnership_summary($partnership_id);
+        $cycle_id = $filters['cycle_id'];
+        $summary   = $reporting->get_cycle_summary($cycle_id);
 
         // Get school count from filtered data
         $school_count = $this->get_school_count($filters);
@@ -542,12 +542,12 @@ class HL_Admin_Reporting {
             return 1;
         }
 
-        // Count schools linked to this partnership
+        // Count schools linked to this cycle
         $sql = "SELECT COUNT(DISTINCT cc.school_id)
-                FROM {$wpdb->prefix}hl_partnership_school cc";
+                FROM {$wpdb->prefix}hl_cycle_school cc";
 
-        $where  = array('ct.partnership_id = %d');
-        $values = array($filters['partnership_id']);
+        $where  = array('ct.cycle_id = %d');
+        $values = array($filters['cycle_id']);
 
         if ($filters['district_id']) {
             $sql .= " JOIN {$wpdb->prefix}hl_orgunit o ON cc.school_id = o.orgunit_id";
@@ -570,8 +570,8 @@ class HL_Admin_Reporting {
         global $wpdb;
 
         $sql    = "SELECT COUNT(*) FROM {$wpdb->prefix}hl_team";
-        $where  = array('partnership_id = %d');
-        $values = array($filters['partnership_id']);
+        $where  = array('cycle_id = %d');
+        $values = array($filters['cycle_id']);
 
         if ($filters['school_id']) {
             $where[]  = 'school_id = %d';
@@ -603,7 +603,7 @@ class HL_Admin_Reporting {
      * @param array                $filters
      */
     private function render_summary_tables($reporting, $filters) {
-        $partnership_id = $filters['partnership_id'];
+        $cycle_id = $filters['cycle_id'];
 
         if (!$filters['school_id'] && !$filters['team_id']) {
             // Show school summary
@@ -621,8 +621,8 @@ class HL_Admin_Reporting {
      * @param array                $filters
      */
     private function render_school_summary_table($reporting, $filters) {
-        $partnership_id = $filters['partnership_id'];
-        $schools   = $reporting->get_school_summary($partnership_id, $filters['district_id']);
+        $cycle_id = $filters['cycle_id'];
+        $schools   = $reporting->get_school_summary($cycle_id, $filters['district_id']);
 
         echo '<div style="margin-bottom: 20px;">';
         echo '<h2 style="display: inline-block; margin-right: 10px;">' . esc_html__('School Summary', 'hl-core') . '</h2>';
@@ -633,7 +633,7 @@ class HL_Admin_Reporting {
         echo '</div>';
 
         if (empty($schools)) {
-            echo '<p>' . esc_html__('No school data available for this partnership.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('No school data available for this cycle.', 'hl-core') . '</p>';
             return;
         }
 
@@ -652,7 +652,7 @@ class HL_Admin_Reporting {
 
             // Link to filter by this school
             $school_url = $this->page_url(array(
-                'partnership_id' => $filters['partnership_id'],
+                'cycle_id' => $filters['cycle_id'],
                 'school_id' => isset($school['school_id']) ? $school['school_id'] : 0,
             ));
 
@@ -673,9 +673,9 @@ class HL_Admin_Reporting {
      * @param array                $filters
      */
     private function render_team_summary_table($reporting, $filters) {
-        $partnership_id = $filters['partnership_id'];
+        $cycle_id = $filters['cycle_id'];
         $school_id = $filters['school_id'];
-        $teams     = $reporting->get_team_summary($partnership_id, $school_id);
+        $teams     = $reporting->get_team_summary($cycle_id, $school_id);
 
         echo '<div style="margin-bottom: 20px;">';
         echo '<h2 style="display: inline-block; margin-right: 10px;">' . esc_html__('Team Summary', 'hl-core') . '</h2>';
@@ -709,7 +709,7 @@ class HL_Admin_Reporting {
 
             // Link to filter by this team
             $team_url = $this->page_url(array(
-                'partnership_id' => $filters['partnership_id'],
+                'cycle_id' => $filters['cycle_id'],
                 'school_id' => $filters['school_id'],
                 'team_id'   => isset($team['team_id']) ? $team['team_id'] : 0,
             ));
@@ -765,7 +765,7 @@ class HL_Admin_Reporting {
             $roles_raw    = isset($p['roles'])         ? $p['roles']        : '';
             $school_name  = isset($p['school_name'])   ? $p['school_name'] : '';
             $team_name    = isset($p['team_name'])     ? $p['team_name']   : '';
-            $completion   = isset($p['partnership_completion_percent']) ? floatval($p['partnership_completion_percent']) : 0;
+            $completion   = isset($p['cycle_completion_percent']) ? floatval($p['cycle_completion_percent']) : 0;
             $enrollment_id = isset($p['enrollment_id']) ? absint($p['enrollment_id']) : 0;
 
             // Decode roles (stored as JSON array)
@@ -803,10 +803,10 @@ class HL_Admin_Reporting {
 
         // Get enrollment info
         $enrollment = $wpdb->get_row($wpdb->prepare(
-            "SELECT e.*, u.display_name, u.user_email, t.partnership_name, t.partnership_code
+            "SELECT e.*, u.display_name, u.user_email, t.cycle_name, t.cycle_code
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             LEFT JOIN {$wpdb->prefix}hl_partnership t ON e.partnership_id = t.partnership_id
+             LEFT JOIN {$wpdb->prefix}hl_cycle t ON e.cycle_id = t.cycle_id
              WHERE e.enrollment_id = %d",
             $enrollment_id
         ), ARRAY_A);
@@ -836,10 +836,10 @@ class HL_Admin_Reporting {
         echo '<tr><th>' . esc_html__('Email', 'hl-core') . '</th>';
         echo '<td>' . esc_html($enrollment['user_email']) . '</td></tr>';
 
-        echo '<tr><th>' . esc_html__('Partnership', 'hl-core') . '</th>';
-        echo '<td>' . esc_html($enrollment['partnership_name']);
-        if (!empty($enrollment['partnership_code'])) {
-            echo ' <code>' . esc_html($enrollment['partnership_code']) . '</code>';
+        echo '<tr><th>' . esc_html__('Cycle', 'hl-core') . '</th>';
+        echo '<td>' . esc_html($enrollment['cycle_name']);
+        if (!empty($enrollment['cycle_code'])) {
+            echo ' <code>' . esc_html($enrollment['cycle_code']) . '</code>';
         }
         echo '</td></tr>';
 
@@ -910,7 +910,7 @@ class HL_Admin_Reporting {
      * @param array $filters
      */
     private function render_assessment_exports($filters) {
-        if (!$filters['partnership_id']) {
+        if (!$filters['cycle_id']) {
             return;
         }
 
@@ -949,7 +949,7 @@ class HL_Admin_Reporting {
      * Render the program vs control group comparison section.
      *
      * Only appears when a cohort (container) is selected that contains both
-     * program (is_control_group=0) and control (is_control_group=1) partnerships.
+     * program (is_control_group=0) and control (is_control_group=1) cycles.
      *
      * @param HL_Reporting_Service $reporting
      * @param array                $filters
@@ -981,11 +981,11 @@ class HL_Admin_Reporting {
         // Info cards.
         echo '<div class="hl-metrics-row" style="margin-bottom: 20px;">';
 
-        // Program partnerships.
+        // Program cycles.
         echo '<div class="hl-metric-card">';
-        echo '<div class="metric-value">' . esc_html(count($comparison['program']['partnership_names'])) . '</div>';
-        echo '<div class="metric-label">' . esc_html__('Program Partnerships', 'hl-core') . '</div>';
-        echo '<div style="font-size:11px;color:#666;margin-top:4px;">' . esc_html(implode(', ', $comparison['program']['partnership_names'])) . '</div>';
+        echo '<div class="metric-value">' . esc_html(count($comparison['program']['cycle_names'])) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Program Cycles', 'hl-core') . '</div>';
+        echo '<div style="font-size:11px;color:#666;margin-top:4px;">' . esc_html(implode(', ', $comparison['program']['cycle_names'])) . '</div>';
         echo '</div>';
 
         echo '<div class="hl-metric-card">';
@@ -993,11 +993,11 @@ class HL_Admin_Reporting {
         echo '<div class="metric-label">' . esc_html__('Program Participants', 'hl-core') . '</div>';
         echo '</div>';
 
-        // Control partnerships.
+        // Control cycles.
         echo '<div class="hl-metric-card" style="border-left: 3px solid #9b59b6;">';
-        echo '<div class="metric-value">' . esc_html(count($comparison['control']['partnership_names'])) . '</div>';
-        echo '<div class="metric-label">' . esc_html__('Control Partnerships', 'hl-core') . '</div>';
-        echo '<div style="font-size:11px;color:#666;margin-top:4px;">' . esc_html(implode(', ', $comparison['control']['partnership_names'])) . '</div>';
+        echo '<div class="metric-value">' . esc_html(count($comparison['control']['cycle_names'])) . '</div>';
+        echo '<div class="metric-label">' . esc_html__('Control Cycles', 'hl-core') . '</div>';
+        echo '<div style="font-size:11px;color:#666;margin-top:4px;">' . esc_html(implode(', ', $comparison['control']['cycle_names'])) . '</div>';
         echo '</div>';
 
         echo '<div class="hl-metric-card" style="border-left: 3px solid #9b59b6;">';

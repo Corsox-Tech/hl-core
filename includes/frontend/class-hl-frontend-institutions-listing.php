@@ -46,7 +46,7 @@ class HL_Frontend_Institutions_Listing {
 
         // Pre-compute stats.
         $school_counts = $this->get_school_counts_by_district();
-        $partnership_counts = $this->get_active_partnership_counts_by_district();
+        $cycle_counts = $this->get_active_cycle_counts_by_district();
         $leaders       = $this->get_school_leaders();
         $district_map  = $this->build_district_map( $districts );
 
@@ -85,7 +85,7 @@ class HL_Frontend_Institutions_Listing {
                             <?php foreach ( $districts as $district ) :
                                 $did         = (int) $district->orgunit_id;
                                 $num_schools = isset( $school_counts[ $did ] ) ? $school_counts[ $did ] : 0;
-                                $num_tracks = isset( $partnership_counts[ $did ] ) ? $partnership_counts[ $did ] : 0;
+                                $num_tracks = isset( $cycle_counts[ $did ] ) ? $cycle_counts[ $did ] : 0;
                                 $detail_url  = $district_page_url ? add_query_arg( 'id', $did, $district_page_url ) : '';
                             ?>
                                 <div class="hl-crm-card hl-inst-card"
@@ -250,15 +250,15 @@ class HL_Frontend_Institutions_Listing {
         return $map;
     }
 
-    private function get_active_partnership_counts_by_district() {
+    private function get_active_cycle_counts_by_district() {
         global $wpdb;
         $prefix = $wpdb->prefix;
         $results = $wpdb->get_results(
             "SELECT ou.parent_orgunit_id AS district_id,
-                    COUNT(DISTINCT cs.partnership_id) AS cnt
-             FROM {$prefix}hl_partnership_school cs
+                    COUNT(DISTINCT cs.cycle_id) AS cnt
+             FROM {$prefix}hl_cycle_school cs
              INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
-             INNER JOIN {$prefix}hl_partnership t ON cs.partnership_id = t.partnership_id
+             INNER JOIN {$prefix}hl_cycle t ON cs.cycle_id = t.cycle_id
              WHERE ou.parent_orgunit_id IS NOT NULL AND t.status = 'active'
              GROUP BY ou.parent_orgunit_id",
             ARRAY_A

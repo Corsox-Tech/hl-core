@@ -70,7 +70,7 @@ class HL_Core {
         
         // Domain models
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-orgunit.php';
-        require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-partnership.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-cycle.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-enrollment.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-team.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-classroom.php';
@@ -81,7 +81,7 @@ class HL_Core {
         
         // Repositories
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-orgunit-repository.php';
-        require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-partnership-repository.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-cycle-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-enrollment-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-team-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-classroom-repository.php';
@@ -94,7 +94,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'security/class-hl-security.php';
         
         // Services
-        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-partnership-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-cycle-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-cohort-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-enrollment-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-team-service.php';
@@ -133,7 +133,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-coaching.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-coach-assignments.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-reporting.php';
-            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-partnerships.php';
+            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-cycles.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-audit.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-settings.php';
         }
@@ -142,7 +142,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-shortcodes.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-progress.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-team-progress.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-partnership-dashboard.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-cycle-dashboard.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-instrument-renderer.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-teacher-assessment-renderer.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-child-assessment.php';
@@ -151,16 +151,16 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-programs.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-program-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-component-page.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-partnership.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-cycle.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-team-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-classroom-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-districts-listing.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-district-page.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-schools-listing.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-school-page.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-partnership-workspace.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-cycle-workspace.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-coaching.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-partnerships-listing.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-cycles-listing.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-institutions-listing.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-coaching-hub.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-classrooms-listing.php';
@@ -209,7 +209,7 @@ class HL_Core {
         // Run schema migrations if needed (checks revision number, no-ops when current).
         HL_Installer::maybe_upgrade();
 
-        // UI label remapping (Track→Partnership, Activity→Component).
+        // UI label remapping (Track→Cycle, Activity→Component).
         HL_Label_Remap::init();
 
         // Initialize admin
@@ -235,9 +235,9 @@ class HL_Core {
         HL_Reporting_Service::instance();
 
         // Auto-generate child assessment instances when teaching assignments change
-        add_action('hl_core_teaching_assignment_changed', function ($partnership_id) {
+        add_action('hl_core_teaching_assignment_changed', function ($cycle_id) {
             $service = new HL_Assessment_Service();
-            $service->generate_child_assessment_instances($partnership_id);
+            $service->generate_child_assessment_instances($cycle_id);
         });
 
         // Register CLI commands

@@ -29,7 +29,7 @@ function hl_build_existing_email($user) {
   <tr>
     <td style="background:#FFFFFF;padding:40px;">
       <p style="margin:0 0 24px;font-size:18px;font-weight:600;color:#1A2B47;">Hello ' . $name . ',</p>
-      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been enrolled in a research study through <strong>Housman Learning Academy</strong> as part of the Lutheran Services Florida partnership.</p>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been enrolled in a research study through <strong>Housman Learning Academy</strong> as part of the Lutheran Services Florida cycle.</p>
       <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">Your account is ready and your assessment components are waiting for you. Please log in to get started with your <strong>Teacher Self-Assessment (Pre)</strong>.</p>
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:32px 0;">
         <tr><td align="center">
@@ -50,7 +50,7 @@ function hl_build_existing_email($user) {
   <tr>
     <td style="background:#F4F5F7;padding:24px 40px;text-align:center;border-top:1px solid #E5E7EB;border-radius:0 0 12px 12px;">
       <p style="margin:0 0 8px;font-size:13px;color:#6B7280;">Housman Learning Academy</p>
-      <p style="margin:0;font-size:12px;color:#9CA3AF;">This email was sent because you are enrolled in a research partnership.<br>Please do not reply to this email.</p>
+      <p style="margin:0;font-size:12px;color:#9CA3AF;">This email was sent because you are enrolled in a research cycle.<br>Please do not reply to this email.</p>
     </td>
   </tr>
 </table>';
@@ -71,7 +71,7 @@ function hl_build_new_email($user, $reset_url, $school_name) {
   <tr>
     <td style="background:#FFFFFF;padding:40px;">
       <p style="margin:0 0 24px;font-size:18px;font-weight:600;color:#1A2B47;">Hello ' . $name . ',</p>
-      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been invited to participate in a research study through <strong>Housman Learning Academy</strong> in partnership with <strong>Lutheran Services Florida</strong>.</p>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been invited to participate in a research study through <strong>Housman Learning Academy</strong> in cycle with <strong>Lutheran Services Florida</strong>.</p>
       <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">An account has been created for you. To get started, please click the button below to set your password and access your assessments.</p>
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:32px 0;">
         <tr><td align="center">
@@ -100,7 +100,7 @@ function hl_build_new_email($user, $reset_url, $school_name) {
   <tr>
     <td style="background:#F4F5F7;padding:24px 40px;text-align:center;border-top:1px solid #E5E7EB;border-radius:0 0 12px 12px;">
       <p style="margin:0 0 8px;font-size:13px;color:#6B7280;">Housman Learning Academy</p>
-      <p style="margin:0;font-size:12px;color:#9CA3AF;">This email was sent because you were invited to participate in a research partnership.<br>Please do not reply to this email.</p>
+      <p style="margin:0;font-size:12px;color:#9CA3AF;">This email was sent because you were invited to participate in a research cycle.<br>Please do not reply to this email.</p>
     </td>
   </tr>
 </table>';
@@ -133,7 +133,7 @@ $reset_url = "https://academy.housmanlearning.com/wp-login.php?action=rp&key={$r
 $school_name = $wpdb->get_var($wpdb->prepare(
     "SELECT o.name FROM {$wpdb->prefix}hl_orgunit o
      INNER JOIN {$wpdb->prefix}hl_enrollment e ON e.school_id = o.orgunit_id
-     WHERE e.user_id = %d AND e.partnership_id = 1 LIMIT 1",
+     WHERE e.user_id = %d AND e.cycle_id = 1 LIMIT 1",
     $maria->ID
 ));
 if (!$school_name) $school_name = 'Housman Test School';

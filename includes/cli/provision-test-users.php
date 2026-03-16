@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) {
 global $wpdb;
 
 // ── Constants ──────────────────────────────────────────────────────────
-$partnership_id       = 1;
+$cycle_id       = 1;
 $pathway_id     = 1;
 $district_id    = 1; // LSF_PALM_BEACH
 
@@ -135,12 +135,12 @@ if (!$school_id) {
 
 // Link school to track
 $link_exists = $wpdb->get_var($wpdb->prepare(
-    "SELECT COUNT(*) FROM {$wpdb->prefix}hl_partnership_school WHERE partnership_id = %d AND orgunit_id = %d",
-    $partnership_id, $school_id
+    "SELECT COUNT(*) FROM {$wpdb->prefix}hl_cycle_school WHERE cycle_id = %d AND orgunit_id = %d",
+    $cycle_id, $school_id
 ));
 if (!$link_exists) {
-    $wpdb->insert("{$wpdb->prefix}hl_partnership_school", array(
-        'partnership_id'   => $partnership_id,
+    $wpdb->insert("{$wpdb->prefix}hl_cycle_school", array(
+        'cycle_id'   => $cycle_id,
         'orgunit_id' => $school_id,
     ));
     echo "  Linked test school to track\n";
@@ -191,8 +191,8 @@ foreach ($classrooms as $c) {
 $enrollment_ids = array();
 foreach ($user_ids as $idx => $uid) {
     $existing = $wpdb->get_var($wpdb->prepare(
-        "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d AND user_id = %d",
-        $partnership_id, $uid
+        "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE cycle_id = %d AND user_id = %d",
+        $cycle_id, $uid
     ));
     if ($existing) {
         echo "  Enrollment already exists for user {$uid}: ID {$existing}\n";
@@ -202,7 +202,7 @@ foreach ($user_ids as $idx => $uid) {
 
     $wpdb->insert("{$wpdb->prefix}hl_enrollment", array(
         'enrollment_uuid' => wp_generate_uuid4(),
-        'partnership_id'        => $partnership_id,
+        'cycle_id'        => $cycle_id,
         'user_id'         => $uid,
         'roles'           => '["teacher"]',
         'assigned_pathway_id' => $pathway_id,
@@ -309,8 +309,8 @@ foreach ($child_ids as $cid_child) {
     ));
 
     $existing_snap = $wpdb->get_var($wpdb->prepare(
-        "SELECT snapshot_id FROM {$wpdb->prefix}hl_child_track_snapshot WHERE child_id = %d AND partnership_id = %d",
-        $cid_child, $partnership_id
+        "SELECT snapshot_id FROM {$wpdb->prefix}hl_child_track_snapshot WHERE child_id = %d AND cycle_id = %d",
+        $cid_child, $cycle_id
     ));
     if (!$existing_snap) {
         $dob_dt = new DateTime($child_row->dob);
@@ -319,7 +319,7 @@ foreach ($child_ids as $cid_child) {
 
         $wpdb->insert("{$wpdb->prefix}hl_child_track_snapshot", array(
             'child_id'           => $cid_child,
-            'partnership_id'           => $partnership_id,
+            'cycle_id'           => $cycle_id,
             'frozen_age_group'   => $ag,
             'dob_at_freeze'      => $child_row->dob,
             'age_months_at_freeze' => $age_months,
@@ -381,7 +381,7 @@ foreach ($enrollment_ids as $eid) {
     if (!$existing) {
         $wpdb->insert("{$wpdb->prefix}hl_teacher_assessment_instance", array(
             'instance_uuid'      => wp_generate_uuid4(),
-            'partnership_id'           => $partnership_id,
+            'cycle_id'           => $cycle_id,
             'enrollment_id'      => $eid,
             'component_id'       => $act_tsa_pre_id,
             'phase'              => 'pre',
@@ -400,7 +400,7 @@ foreach ($enrollment_ids as $eid) {
     if (!$existing) {
         $wpdb->insert("{$wpdb->prefix}hl_teacher_assessment_instance", array(
             'instance_uuid'      => wp_generate_uuid4(),
-            'partnership_id'           => $partnership_id,
+            'cycle_id'           => $cycle_id,
             'enrollment_id'      => $eid,
             'component_id'       => $act_tsa_post_id,
             'phase'              => 'post',
@@ -442,7 +442,7 @@ foreach ($enrollment_ids as $idx => $eid) {
             if (!$existing) {
                 $wpdb->insert("{$wpdb->prefix}hl_child_assessment_instance", array(
                     'instance_uuid'      => wp_generate_uuid4(),
-                    'partnership_id'           => $partnership_id,
+                    'cycle_id'           => $cycle_id,
                     'enrollment_id'      => $eid,
                     'component_id'       => $act_id,
                     'classroom_id'       => $cid,

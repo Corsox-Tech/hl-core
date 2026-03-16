@@ -15,8 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class HL_CLI_Provision_Lutheran {
 
-	/** Partnership code. */
-	const PARTNERSHIP_CODE = 'LUTHERAN_CONTROL_2026';
+	/** Cycle code. */
+	const CYCLE_CODE = 'LUTHERAN_CONTROL_2026';
 
 	/** District code. */
 	const DISTRICT_CODE = 'LSF_PALM_BEACH';
@@ -65,7 +65,7 @@ class HL_CLI_Provision_Lutheran {
 	 * Provision Lutheran Services Florida control group data.
 	 *
 	 * Finds existing WP users by email — never creates or deletes users.
-	 * Creates HL Core entities (district, schools, partnership, enrollments, etc.)
+	 * Creates HL Core entities (district, schools, cycle, enrollments, etc.)
 	 * only if they don't already exist. Idempotent and production-safe.
 	 *
 	 * ## OPTIONS
@@ -108,14 +108,14 @@ class HL_CLI_Provision_Lutheran {
 		// Step 2: Schools.
 		$school_map = $this->provision_schools( $school_info_data, $district_id );
 
-		// Step 3: Partnership.
-		$partnership_id = $this->provision_partnership( $district_id );
+		// Step 3: Cycle.
+		$cycle_id = $this->provision_cycle( $district_id );
 
-		// Step 4: Partnership-School links.
-		$this->provision_partnership_schools( $partnership_id, $school_map );
+		// Step 4: Cycle-School links.
+		$this->provision_cycle_schools( $cycle_id, $school_map );
 
 		// Step 6: Cohort container.
-		$cohort_id = $this->provision_cohort( $partnership_id );
+		$cohort_id = $this->provision_cohort( $cycle_id );
 
 		// Step 7: Classrooms.
 		$classrooms = $this->provision_classrooms( $teacher_roster_data, $school_map );
@@ -124,7 +124,7 @@ class HL_CLI_Provision_Lutheran {
 		$users = $this->lookup_users( $teacher_roster_data );
 
 		// Step 9: Enrollments.
-		$enrollments = $this->provision_enrollments( $teacher_roster_data, $users, $partnership_id, $school_map, $district_id );
+		$enrollments = $this->provision_enrollments( $teacher_roster_data, $users, $cycle_id, $school_map, $district_id );
 
 		// Step 10: Teaching Assignments.
 		$this->provision_teaching_assignments( $teacher_roster_data, $enrollments, $classrooms, $school_map );
@@ -133,15 +133,15 @@ class HL_CLI_Provision_Lutheran {
 		$this->provision_children( $child_roster_data, $classrooms, $school_map );
 
 		// Step 12: Freeze age groups.
-		if ( $partnership_id && ! $this->dry_run ) {
-			$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $partnership_id );
+		if ( $cycle_id && ! $this->dry_run ) {
+			$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $cycle_id );
 			WP_CLI::log( "  [12] Frozen age group snapshots: {$frozen}" );
 		} else {
-			WP_CLI::log( '  [12] Freeze age groups: ' . ( $this->dry_run ? 'SKIP (dry run)' : 'SKIP (no partnership)' ) );
+			WP_CLI::log( '  [12] Freeze age groups: ' . ( $this->dry_run ? 'SKIP (dry run)' : 'SKIP (no cycle)' ) );
 		}
 
 		// Step 13: Pathway + 4 Components.
-		$pathway_data = $this->provision_pathway( $partnership_id );
+		$pathway_data = $this->provision_pathway( $cycle_id );
 
 		// Step 14: Drip Rules.
 		$this->provision_drip_rules( $pathway_data );
@@ -154,7 +154,7 @@ class HL_CLI_Provision_Lutheran {
 		$this->update_component_instrument_refs( $pathway_data, $instrument_ids );
 
 		// Step 16: Assessment Instances.
-		$this->provision_assessment_instances( $enrollments, $partnership_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $child_instruments );
+		$this->provision_assessment_instances( $enrollments, $cycle_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $child_instruments );
 
 		// Step 17: Component States.
 		$this->provision_component_states( $enrollments, $pathway_data );
@@ -285,26 +285,26 @@ class HL_CLI_Provision_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 3: Partnership
+	// Step 3: Cycle
 	// ------------------------------------------------------------------
 
-	private function provision_partnership( $district_id ) {
+	private function provision_cycle( $district_id ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
 		$id = $this->find_or_create(
-			'Partnership',
+			'Cycle',
 			function () use ( $wpdb, $prefix ) {
 				return $wpdb->get_var( $wpdb->prepare(
-					"SELECT partnership_id FROM {$prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
-					self::PARTNERSHIP_CODE
+					"SELECT cycle_id FROM {$prefix}hl_cycle WHERE cycle_code = %s LIMIT 1",
+					self::CYCLE_CODE
 				) );
 			},
 			function () use ( $district_id ) {
-				$repo = new HL_Partnership_Repository();
+				$repo = new HL_Cycle_Repository();
 				return $repo->create( array(
-					'partnership_name'       => 'Lutheran Control Group 2026',
-					'partnership_code'       => self::PARTNERSHIP_CODE,
+					'cycle_name'       => 'Lutheran Control Group 2026',
+					'cycle_code'       => self::CYCLE_CODE,
 					'district_id'      => $district_id,
 					'status'           => 'active',
 					'is_control_group' => 1,
@@ -314,21 +314,21 @@ class HL_CLI_Provision_Lutheran {
 			}
 		);
 
-		$status = $this->counters['Partnership']['found'] > 0 ? 'FOUND' : ( $this->dry_run ? 'WOULD CREATE' : 'CREATED' );
-		WP_CLI::log( "  [3] Partnership: {$status}" . ( $id ? " (id={$id})" : '' ) );
+		$status = $this->counters['Cycle']['found'] > 0 ? 'FOUND' : ( $this->dry_run ? 'WOULD CREATE' : 'CREATED' );
+		WP_CLI::log( "  [3] Cycle: {$status}" . ( $id ? " (id={$id})" : '' ) );
 		return $id;
 	}
 
 	// ------------------------------------------------------------------
-	// Step 4: Partnership-School links
+	// Step 4: Cycle-School links
 	// ------------------------------------------------------------------
 
-	private function provision_partnership_schools( $partnership_id, $school_map ) {
+	private function provision_cycle_schools( $cycle_id, $school_map ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
-		if ( ! $partnership_id ) {
-			WP_CLI::log( '  [5] Partnership-School links: SKIP (no partnership in dry run)' );
+		if ( ! $cycle_id ) {
+			WP_CLI::log( '  [5] Cycle-School links: SKIP (no cycle in dry run)' );
 			return;
 		}
 
@@ -337,8 +337,8 @@ class HL_CLI_Provision_Lutheran {
 
 		foreach ( $school_map as $school_id ) {
 			$exists = $wpdb->get_var( $wpdb->prepare(
-				"SELECT COUNT(*) FROM {$prefix}hl_partnership_school WHERE partnership_id = %d AND school_id = %d",
-				$partnership_id, $school_id
+				"SELECT COUNT(*) FROM {$prefix}hl_cycle_school WHERE cycle_id = %d AND school_id = %d",
+				$cycle_id, $school_id
 			) );
 
 			if ( $exists ) {
@@ -347,23 +347,23 @@ class HL_CLI_Provision_Lutheran {
 			}
 
 			if ( ! $this->dry_run ) {
-				$wpdb->insert( $prefix . 'hl_partnership_school', array(
-					'partnership_id'  => $partnership_id,
+				$wpdb->insert( $prefix . 'hl_cycle_school', array(
+					'cycle_id'  => $cycle_id,
 					'school_id' => $school_id,
 				) );
 			}
 			$linked++;
 		}
 
-		$this->counters['Partnership-School Links'] = array( 'found' => $found, 'created' => $linked );
-		WP_CLI::log( "  [5] Partnership-School links: {$found} found, {$linked} " . ( $this->dry_run ? 'would create' : 'created' ) );
+		$this->counters['Cycle-School Links'] = array( 'found' => $found, 'created' => $linked );
+		WP_CLI::log( "  [5] Cycle-School links: {$found} found, {$linked} " . ( $this->dry_run ? 'would create' : 'created' ) );
 	}
 
 	// ------------------------------------------------------------------
 	// Step 6: Cohort container
 	// ------------------------------------------------------------------
 
-	private function provision_cohort( $partnership_id ) {
+	private function provision_cohort( $cycle_id ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
@@ -386,12 +386,12 @@ class HL_CLI_Provision_Lutheran {
 			}
 		);
 
-		// Assign partnership to cohort.
-		if ( $partnership_id && $id && ! $this->dry_run ) {
+		// Assign cycle to cohort.
+		if ( $cycle_id && $id && ! $this->dry_run ) {
 			$wpdb->update(
-				$prefix . 'hl_partnership',
+				$prefix . 'hl_cycle',
 				array( 'cohort_id' => $id ),
-				array( 'partnership_id' => $partnership_id )
+				array( 'cycle_id' => $cycle_id )
 			);
 		}
 
@@ -514,12 +514,12 @@ class HL_CLI_Provision_Lutheran {
 	// Step 9: Enrollments
 	// ------------------------------------------------------------------
 
-	private function provision_enrollments( $teacher_roster_data, $users, $partnership_id, $school_map, $district_id ) {
+	private function provision_enrollments( $teacher_roster_data, $users, $cycle_id, $school_map, $district_id ) {
 		$repo        = new HL_Enrollment_Repository();
 		$enrollments = array();
 
-		if ( ! $partnership_id ) {
-			WP_CLI::log( '  [9] Enrollments: SKIP (no partnership in dry run)' );
+		if ( ! $cycle_id ) {
+			WP_CLI::log( '  [9] Enrollments: SKIP (no cycle in dry run)' );
 			return $enrollments;
 		}
 
@@ -535,14 +535,14 @@ class HL_CLI_Provision_Lutheran {
 
 			$eid = $this->find_or_create(
 				'Enrollments',
-				function () use ( $repo, $partnership_id, $user_id ) {
-					$existing = $repo->get_by_partnership_and_user( $partnership_id, $user_id );
+				function () use ( $repo, $cycle_id, $user_id ) {
+					$existing = $repo->get_by_cycle_and_user( $cycle_id, $user_id );
 					return $existing ? $existing->enrollment_id : null;
 				},
-				function () use ( $repo, $user_id, $partnership_id, $school_id, $district_id ) {
+				function () use ( $repo, $user_id, $cycle_id, $school_id, $district_id ) {
 					return $repo->create( array(
 						'user_id'     => $user_id,
-						'partnership_id'    => $partnership_id,
+						'cycle_id'    => $cycle_id,
 						'roles'       => array( 'teacher' ),
 						'status'      => 'active',
 						'school_id'   => $school_id,
@@ -721,12 +721,12 @@ class HL_CLI_Provision_Lutheran {
 	// Step 13: Pathway + Components
 	// ------------------------------------------------------------------
 
-	private function provision_pathway( $partnership_id ) {
+	private function provision_pathway( $cycle_id ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
-		if ( ! $partnership_id ) {
-			WP_CLI::log( '  [13] Pathway + Components: SKIP (no partnership in dry run)' );
+		if ( ! $cycle_id ) {
+			WP_CLI::log( '  [13] Pathway + Components: SKIP (no cycle in dry run)' );
 			return array(
 				'pathway_id'  => null,
 				'tsa_pre_id'  => null,
@@ -745,12 +745,12 @@ class HL_CLI_Provision_Lutheran {
 					'LUTHERAN_CTRL_ASSESSMENTS'
 				) );
 			},
-			function () use ( $partnership_id ) {
+			function () use ( $cycle_id ) {
 				$svc = new HL_Pathway_Service();
 				return $svc->create_pathway( array(
 					'pathway_name'  => 'Control Group Assessments',
 					'pathway_code'  => 'LUTHERAN_CTRL_ASSESSMENTS',
-					'partnership_id'      => $partnership_id,
+					'cycle_id'      => $cycle_id,
 					'target_roles'  => array( 'teacher' ),
 					'active_status' => 1,
 				) );
@@ -787,12 +787,12 @@ class HL_CLI_Provision_Lutheran {
 						$pathway_id, $act['title']
 					) );
 				},
-				function () use ( $partnership_id, $pathway_id, $act ) {
+				function () use ( $cycle_id, $pathway_id, $act ) {
 					$svc = new HL_Pathway_Service();
 					return $svc->create_component( array(
 						'title'         => $act['title'],
 						'pathway_id'    => $pathway_id,
-						'partnership_id'      => $partnership_id,
+						'cycle_id'      => $cycle_id,
 						'component_type' => $act['type'],
 						'weight'        => 1.0,
 						'ordering_hint' => $act['order'],
@@ -1008,11 +1008,11 @@ class HL_CLI_Provision_Lutheran {
 	// Step 16: Assessment Instances
 	// ------------------------------------------------------------------
 
-	private function provision_assessment_instances( $enrollments, $partnership_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $child_instruments ) {
+	private function provision_assessment_instances( $enrollments, $cycle_id, $pathway_data, $instrument_ids, $classrooms, $school_map, $teacher_roster_data, $child_instruments ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
-		if ( ! $partnership_id || ! $pathway_data['tsa_pre_id'] ) {
+		if ( ! $cycle_id || ! $pathway_data['tsa_pre_id'] ) {
 			WP_CLI::log( '  [16] Assessment Instances: SKIP (dependencies not available)' );
 			return;
 		}
@@ -1046,7 +1046,7 @@ class HL_CLI_Provision_Lutheran {
 					$inst_id = isset( $instrument_ids[ $phase ] ) ? $instrument_ids[ $phase ] : null;
 					$wpdb->insert( $prefix . 'hl_teacher_assessment_instance', array(
 						'instance_uuid'      => HL_DB_Utils::generate_uuid(),
-						'partnership_id'           => $partnership_id,
+						'cycle_id'           => $cycle_id,
 						'enrollment_id'      => $eid,
 						'component_id'        => $component_id,
 						'phase'              => $phase,
@@ -1092,7 +1092,7 @@ class HL_CLI_Provision_Lutheran {
 					if ( ! $this->dry_run ) {
 						$wpdb->insert( $prefix . 'hl_child_assessment_instance', array(
 							'instance_uuid'       => HL_DB_Utils::generate_uuid(),
-							'partnership_id'            => $partnership_id,
+							'cycle_id'            => $cycle_id,
 							'enrollment_id'       => $eid,
 							'component_id'         => $component_id,
 							'classroom_id'        => $classroom_id,

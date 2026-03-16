@@ -21,8 +21,8 @@ class HL_Frontend_Team_Page {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Partnership_Repository */
-    private $partnership_repo;
+    /** @var HL_Cycle_Repository */
+    private $cycle_repo;
 
     /** @var HL_OrgUnit_Repository */
     private $orgunit_repo;
@@ -33,7 +33,7 @@ class HL_Frontend_Team_Page {
     public function __construct() {
         $this->team_repo         = new HL_Team_Repository();
         $this->enrollment_repo   = new HL_Enrollment_Repository();
-        $this->partnership_repo       = new HL_Partnership_Repository();
+        $this->cycle_repo       = new HL_Cycle_Repository();
         $this->orgunit_repo      = new HL_OrgUnit_Repository();
         $this->reporting_service = HL_Reporting_Service::instance();
     }
@@ -66,7 +66,7 @@ class HL_Frontend_Team_Page {
 
         $reporting = HL_Reporting_Service::instance();
         $filters   = array(
-            'partnership_id' => $team->partnership_id,
+            'cycle_id' => $team->cycle_id,
             'team_id'   => $team->team_id,
         );
         $csv = $reporting->export_completion_csv( $filters, true );
@@ -114,7 +114,7 @@ class HL_Frontend_Team_Page {
             return ob_get_clean();
         }
 
-        $partnership = $this->partnership_repo->get_by_id( $team->partnership_id );
+        $cycle = $this->cycle_repo->get_by_id( $team->cycle_id );
         $school = $team->school_id ? $this->orgunit_repo->get_by_id( $team->school_id ) : null;
 
         // Breadcrumb URL.
@@ -137,15 +137,15 @@ class HL_Frontend_Team_Page {
 
             <?php if ( ! empty( $back_url ) ) : ?>
                 <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr; <?php
-                    if ( $partnership ) {
-                        printf( esc_html__( 'Back to %s', 'hl-core' ), esc_html( $partnership->partnership_name ) );
+                    if ( $cycle ) {
+                        printf( esc_html__( 'Back to %s', 'hl-core' ), esc_html( $cycle->cycle_name ) );
                     } else {
                         esc_html_e( 'Back to My Track', 'hl-core' );
                     }
                 ?></a>
             <?php endif; ?>
 
-            <?php $this->render_header( $team, $partnership, $school ); ?>
+            <?php $this->render_header( $team, $cycle, $school ); ?>
 
             <div class="hl-track-tabs">
                 <?php foreach ( $tabs as $key => $label ) : ?>
@@ -163,7 +163,7 @@ class HL_Frontend_Team_Page {
                     if ( $key === 'members' ) {
                         $this->render_members_tab( $team );
                     } else {
-                        $this->render_report_tab( $team, $partnership );
+                        $this->render_report_tab( $team, $cycle );
                     }
                     ?>
                 </div>
@@ -201,7 +201,7 @@ class HL_Frontend_Team_Page {
 
         // Check if user is a leader whose scope includes this team's school.
         $enrollments = $this->enrollment_repo->get_all( array(
-            'partnership_id' => $team->partnership_id,
+            'cycle_id' => $team->cycle_id,
             'status'    => 'active',
         ) );
 
@@ -238,7 +238,7 @@ class HL_Frontend_Team_Page {
     // Header
     // ========================================================================
 
-    private function render_header( $team, $partnership, $school ) {
+    private function render_header( $team, $cycle, $school ) {
         $members      = $this->team_repo->get_members( $team->team_id );
         $member_count = count( $members );
 
@@ -260,15 +260,15 @@ class HL_Frontend_Team_Page {
         ?>
         <div class="hl-team-page-header">
             <div class="hl-team-page-header-info">
-                <h2 class="hl-partnership-title"><?php echo esc_html( $team->team_name ); ?></h2>
+                <h2 class="hl-cycle-title"><?php echo esc_html( $team->team_name ); ?></h2>
                 <?php if ( $school ) : ?>
                     <p class="hl-scope-indicator"><?php echo esc_html( $school->name ); ?></p>
                 <?php endif; ?>
                 <div class="hl-track-meta">
-                    <?php if ( $partnership ) : ?>
+                    <?php if ( $cycle ) : ?>
                         <span class="hl-meta-item">
                             <strong><?php esc_html_e( 'Track:', 'hl-core' ); ?></strong>
-                            <?php echo esc_html( $partnership->partnership_name ); ?>
+                            <?php echo esc_html( $cycle->cycle_name ); ?>
                         </span>
                     <?php endif; ?>
                     <span class="hl-meta-item">
@@ -360,8 +360,8 @@ class HL_Frontend_Team_Page {
     // Tab: Report
     // ========================================================================
 
-    private function render_report_tab( $team, $partnership ) {
-        if ( ! $partnership ) {
+    private function render_report_tab( $team, $cycle ) {
+        if ( ! $cycle ) {
             echo '<div class="hl-empty-state"><p>'
                 . esc_html__( 'Track data unavailable.', 'hl-core' )
                 . '</p></div>';
@@ -369,7 +369,7 @@ class HL_Frontend_Team_Page {
         }
 
         $filters      = array(
-            'partnership_id' => $partnership->partnership_id,
+            'cycle_id' => $cycle->cycle_id,
             'team_id'   => $team->team_id,
         );
         $participants = $this->reporting_service->get_participant_report( $filters );
@@ -380,11 +380,11 @@ class HL_Frontend_Team_Page {
         $activities      = array();
 
         if ( ! empty( $enrollment_ids ) ) {
-            $activity_detail = $this->reporting_service->get_partnership_activity_detail(
-                $partnership->partnership_id,
+            $activity_detail = $this->reporting_service->get_cycle_activity_detail(
+                $cycle->cycle_id,
                 $enrollment_ids
             );
-            $activities = $this->reporting_service->get_partnership_activities( $partnership->partnership_id );
+            $activities = $this->reporting_service->get_cycle_activities( $cycle->cycle_id );
         }
 
         // CSV export URL.
@@ -505,14 +505,14 @@ class HL_Frontend_Team_Page {
     // ========================================================================
 
     private function build_back_url( $team ) {
-        // Link back to My Partnership with the teams tab for the team's partnership.
-        $base = apply_filters( 'hl_core_my_partnership_page_url', '' );
+        // Link back to My Cycle with the teams tab for the team's cycle.
+        $base = apply_filters( 'hl_core_my_cycle_page_url', '' );
         if ( empty( $base ) ) {
-            $base = $this->find_shortcode_page_url( 'hl_my_partnership' );
+            $base = $this->find_shortcode_page_url( 'hl_my_cycle' );
         }
         if ( ! empty( $base ) ) {
             return add_query_arg( array(
-                'partnership_id' => $team->partnership_id,
+                'cycle_id' => $team->cycle_id,
                 'tab'             => 'teams',
             ), $base );
         }

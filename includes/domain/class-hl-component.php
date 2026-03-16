@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 class HL_Component {
     public $component_id;
     public $component_uuid;
-    public $partnership_id;
+    public $cycle_id;
     public $pathway_id;
     public $component_type;
     public $title;

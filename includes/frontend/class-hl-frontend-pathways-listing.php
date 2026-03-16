@@ -24,7 +24,7 @@ class HL_Frontend_Pathways_Listing {
         }
 
         $pathways = $this->get_pathways( $scope );
-        $partnerships  = $this->get_partnership_options( $scope );
+        $cycles  = $this->get_cycle_options( $scope );
 
         $program_page_url = $this->find_shortcode_page_url( 'hl_program_page' );
 
@@ -38,12 +38,12 @@ class HL_Frontend_Pathways_Listing {
             <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-pathway-search"
                        placeholder="<?php esc_attr_e( 'Search pathways...', 'hl-core' ); ?>">
-                <?php if ( count( $partnerships ) > 1 ) : ?>
+                <?php if ( count( $cycles ) > 1 ) : ?>
                     <select class="hl-select" id="hl-pathway-track-filter">
                         <option value=""><?php esc_html_e( 'All Tracks', 'hl-core' ); ?></option>
-                        <?php foreach ( $partnerships as $c ) : ?>
-                            <option value="<?php echo esc_attr( $c['partnership_id'] ); ?>">
-                                <?php echo esc_html( $c['partnership_name'] ); ?>
+                        <?php foreach ( $cycles as $c ) : ?>
+                            <option value="<?php echo esc_attr( $c['cycle_id'] ); ?>">
+                                <?php echo esc_html( $c['cycle_name'] ); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -66,8 +66,8 @@ class HL_Frontend_Pathways_Listing {
                             : __( 'All Roles', 'hl-core' );
                     ?>
                         <div class="hl-crm-card hl-pathway-card"
-                             data-name="<?php echo esc_attr( strtolower( $pw['pathway_name'] . ' ' . $pw['partnership_name'] ) ); ?>"
-                             data-partnership="<?php echo esc_attr( $pw['partnership_id'] ); ?>">
+                             data-name="<?php echo esc_attr( strtolower( $pw['pathway_name'] . ' ' . $pw['cycle_name'] ) ); ?>"
+                             data-cycle="<?php echo esc_attr( $pw['cycle_id'] ); ?>">
                             <?php if ( $image_url ) : ?>
                                 <div class="hl-crm-card-image">
                                     <img src="<?php echo esc_url( $image_url ); ?>" alt="">
@@ -76,7 +76,7 @@ class HL_Frontend_Pathways_Listing {
                             <div class="hl-crm-card-body">
                                 <h3 class="hl-crm-card-title"><?php echo esc_html( $pw['pathway_name'] ); ?></h3>
                                 <div class="hl-crm-card-subtitle">
-                                    <?php echo esc_html( $pw['partnership_name'] ); ?>
+                                    <?php echo esc_html( $pw['cycle_name'] ); ?>
                                 </div>
                                 <div class="hl-crm-card-meta">
                                     <span class="hl-crm-card-stat">
@@ -122,7 +122,7 @@ class HL_Frontend_Pathways_Listing {
                 $cards.each(function(){
                     var $c = $(this);
                     var matchSearch = !query || $c.data('name').indexOf(query) !== -1;
-                    var matchTrack = !track || String($c.data('partnership')) === track;
+                    var matchTrack = !track || String($c.data('cycle')) === track;
                     var show = matchSearch && matchTrack;
                     $c.toggle(show);
                     if (show) visible++;
@@ -147,12 +147,12 @@ class HL_Frontend_Pathways_Listing {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $sql = "SELECT p.pathway_id, p.pathway_name, p.partnership_id, p.target_roles,
+        $sql = "SELECT p.pathway_id, p.pathway_name, p.cycle_id, p.target_roles,
                        p.featured_image_id, p.avg_completion_time,
-                       tr.partnership_name,
+                       tr.cycle_name,
                        COALESCE(ac.activity_count, 0) AS activity_count
                 FROM {$prefix}hl_pathway p
-                LEFT JOIN {$prefix}hl_partnership tr ON p.partnership_id = tr.partnership_id
+                LEFT JOIN {$prefix}hl_cycle tr ON p.cycle_id = tr.cycle_id
                 LEFT JOIN (
                     SELECT pathway_id, COUNT(*) AS activity_count
                     FROM {$prefix}hl_component
@@ -162,16 +162,16 @@ class HL_Frontend_Pathways_Listing {
         $where  = array();
         $values = array();
 
-        if ( ! $scope['is_admin'] && ! empty( $scope['partnership_ids'] ) ) {
-            $placeholders = implode( ',', array_fill( 0, count( $scope['partnership_ids'] ), '%d' ) );
-            $where[]      = "p.partnership_id IN ({$placeholders})";
-            $values       = array_merge( $values, $scope['partnership_ids'] );
+        if ( ! $scope['is_admin'] && ! empty( $scope['cycle_ids'] ) ) {
+            $placeholders = implode( ',', array_fill( 0, count( $scope['cycle_ids'] ), '%d' ) );
+            $where[]      = "p.cycle_id IN ({$placeholders})";
+            $values       = array_merge( $values, $scope['cycle_ids'] );
         }
 
         if ( ! empty( $where ) ) {
             $sql .= ' WHERE ' . implode( ' AND ', $where );
         }
-        $sql .= ' ORDER BY tr.partnership_name ASC, p.pathway_name ASC';
+        $sql .= ' ORDER BY tr.cycle_name ASC, p.pathway_name ASC';
 
         if ( ! empty( $values ) ) {
             $sql = $wpdb->prepare( $sql, $values );
@@ -180,19 +180,19 @@ class HL_Frontend_Pathways_Listing {
         return $wpdb->get_results( $sql, ARRAY_A ) ?: array();
     }
 
-    private function get_partnership_options( $scope ) {
+    private function get_cycle_options( $scope ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
         if ( $scope['is_admin'] ) {
             return $wpdb->get_results(
-                "SELECT partnership_id, partnership_name FROM {$prefix}hl_partnership ORDER BY partnership_name ASC",
+                "SELECT cycle_id, cycle_name FROM {$prefix}hl_cycle ORDER BY cycle_name ASC",
                 ARRAY_A
             ) ?: array();
         }
-        if ( empty( $scope['partnership_ids'] ) ) return array();
-        $in = implode( ',', $scope['partnership_ids'] );
+        if ( empty( $scope['cycle_ids'] ) ) return array();
+        $in = implode( ',', $scope['cycle_ids'] );
         return $wpdb->get_results(
-            "SELECT partnership_id, partnership_name FROM {$prefix}hl_partnership WHERE partnership_id IN ({$in}) ORDER BY partnership_name ASC",
+            "SELECT cycle_id, cycle_name FROM {$prefix}hl_cycle WHERE cycle_id IN ({$in}) ORDER BY cycle_name ASC",
             ARRAY_A
         ) ?: array();
     }

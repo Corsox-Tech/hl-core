@@ -78,9 +78,9 @@ class HL_Frontend_My_Team {
                                     <strong><?php echo esc_html( $team['member_count'] ); ?></strong>
                                     <?php echo esc_html( _n( 'Member', 'Members', (int) $team['member_count'], 'hl-core' ) ); ?>
                                 </span>
-                                <?php if ( $team['partnership_name'] ) : ?>
+                                <?php if ( $team['cycle_name'] ) : ?>
                                     <span class="hl-crm-card-stat">
-                                        <?php echo esc_html( $team['partnership_name'] ); ?>
+                                        <?php echo esc_html( $team['cycle_name'] ); ?>
                                     </span>
                                 <?php endif; ?>
                             </div>
@@ -111,14 +111,14 @@ class HL_Frontend_My_Team {
         $prefix = $wpdb->prefix;
 
         return $wpdb->get_results( $wpdb->prepare(
-            "SELECT t.team_id, t.team_name, t.school_id, t.partnership_id,
-                    ou.name AS school_name, tr.partnership_name,
+            "SELECT t.team_id, t.team_name, t.school_id, t.cycle_id,
+                    ou.name AS school_name, tr.cycle_name,
                     COALESCE(mc.member_count, 0) AS member_count
              FROM {$prefix}hl_team_membership tm
              JOIN {$prefix}hl_team t ON tm.team_id = t.team_id
              JOIN {$prefix}hl_enrollment e ON tm.enrollment_id = e.enrollment_id
              LEFT JOIN {$prefix}hl_orgunit ou ON t.school_id = ou.orgunit_id
-             LEFT JOIN {$prefix}hl_partnership tr ON t.partnership_id = tr.partnership_id
+             LEFT JOIN {$prefix}hl_cycle tr ON t.cycle_id = tr.cycle_id
              LEFT JOIN (
                  SELECT team_id, COUNT(*) AS member_count
                  FROM {$prefix}hl_team_membership

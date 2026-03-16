@@ -170,7 +170,7 @@ class HL_Frontend_Child_Assessment {
         $user_id = get_current_user_id();
 
         $component = $wpdb->get_row( $wpdb->prepare(
-            "SELECT a.*, p.partnership_id
+            "SELECT a.*, p.cycle_id
              FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
              WHERE a.component_id = %d",
@@ -183,9 +183,9 @@ class HL_Frontend_Child_Assessment {
 
         $enrollment = $wpdb->get_row( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_enrollment
-             WHERE partnership_id = %d AND user_id = %d AND status = 'active'
+             WHERE cycle_id = %d AND user_id = %d AND status = 'active'
              LIMIT 1",
-            $component->partnership_id, $user_id
+            $component->cycle_id, $user_id
         ) );
 
         if ( ! $enrollment ) {
@@ -211,9 +211,9 @@ class HL_Frontend_Child_Assessment {
         // Look for existing instance by enrollment + track + phase
         $instance_id = $wpdb->get_var( $wpdb->prepare(
             "SELECT instance_id FROM {$wpdb->prefix}hl_child_assessment_instance
-             WHERE enrollment_id = %d AND partnership_id = %d AND phase = %s
+             WHERE enrollment_id = %d AND cycle_id = %d AND phase = %s
              LIMIT 1",
-            $enrollment->enrollment_id, $component->partnership_id, $phase
+            $enrollment->enrollment_id, $component->cycle_id, $phase
         ) );
 
         if ( $instance_id ) {
@@ -262,7 +262,7 @@ class HL_Frontend_Child_Assessment {
         // Create new instance for this component
         $wpdb->insert( $wpdb->prefix . 'hl_child_assessment_instance', array(
             'instance_uuid'       => HL_DB_Utils::generate_uuid(),
-            'partnership_id'           => absint( $component->partnership_id ),
+            'cycle_id'           => absint( $component->cycle_id ),
             'enrollment_id'       => absint( $enrollment->enrollment_id ),
             'component_id'        => absint( $component_id ),
             'classroom_id'        => $classroom_id,
@@ -291,13 +291,13 @@ class HL_Frontend_Child_Assessment {
         $user_id = get_current_user_id();
 
         $instances = $wpdb->get_results( $wpdb->prepare(
-            "SELECT cai.*, t.partnership_name, cr.classroom_name, e.user_id
+            "SELECT cai.*, t.cycle_name, cr.classroom_name, e.user_id
              FROM {$wpdb->prefix}hl_child_assessment_instance cai
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
-             JOIN {$wpdb->prefix}hl_partnership t ON cai.partnership_id = t.partnership_id
+             JOIN {$wpdb->prefix}hl_cycle t ON cai.cycle_id = t.cycle_id
              JOIN {$wpdb->prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
              WHERE e.user_id = %d
-             ORDER BY t.partnership_name, cr.classroom_name",
+             ORDER BY t.cycle_name, cr.classroom_name",
             $user_id
         ), ARRAY_A );
 
@@ -324,7 +324,7 @@ class HL_Frontend_Child_Assessment {
                     <tbody>
                         <?php foreach ( $instances as $row ) : ?>
                             <tr>
-                                <td><?php echo esc_html( $row['partnership_name'] ); ?></td>
+                                <td><?php echo esc_html( $row['cycle_name'] ); ?></td>
                                 <td><?php echo esc_html( $row['classroom_name'] ); ?></td>
                                 <td><?php echo esc_html( $row['instrument_age_band'] ? ucfirst( $row['instrument_age_band'] ) : __( 'N/A', 'hl-core' ) ); ?></td>
                                 <td>
@@ -409,11 +409,11 @@ class HL_Frontend_Child_Assessment {
 
         // ── Roster reconciliation ─────────────────────────────────────
         // Ensure all active children have snapshots.
-        $partnership_id = absint( $instance['partnership_id'] );
+        $cycle_id = absint( $instance['cycle_id'] );
         foreach ( $children as $child ) {
             $child = (object) $child;
             if ( ! empty( $child->dob ) ) {
-                HL_Child_Snapshot_Service::ensure_snapshot( $child->child_id, $partnership_id, $child->dob );
+                HL_Child_Snapshot_Service::ensure_snapshot( $child->child_id, $cycle_id, $child->dob );
             }
         }
 
@@ -812,11 +812,11 @@ class HL_Frontend_Child_Assessment {
 
             <?php
             // Use multi-age-group renderer (per-child frozen age groups).
-            $partnership_id     = absint( $instance['partnership_id'] );
+            $cycle_id     = absint( $instance['cycle_id'] );
             $classroom_id = absint( $instance['classroom_id'] );
             $renderer = HL_Instrument_Renderer::create_multi_age_group(
                 $classroom_id,
-                $partnership_id,
+                $cycle_id,
                 $instance_id,
                 $answers_map,
                 $instance,

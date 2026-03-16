@@ -585,7 +585,7 @@ class HL_Frontend_Classroom_Page {
         ?>
         <div class="hl-classroom-page-header">
             <div class="hl-classroom-page-header-info">
-                <h2 class="hl-partnership-title"><?php echo esc_html( $classroom->classroom_name ); ?></h2>
+                <h2 class="hl-cycle-title"><?php echo esc_html( $classroom->classroom_name ); ?></h2>
                 <?php if ( $school ) : ?>
                     <p class="hl-scope-indicator"><?php echo esc_html( $school->name ); ?></p>
                 <?php endif; ?>
@@ -672,7 +672,7 @@ class HL_Frontend_Classroom_Page {
             "SELECT t.is_control_group
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
-             JOIN {$wpdb->prefix}hl_partnership t ON e.partnership_id = t.partnership_id
+             JOIN {$wpdb->prefix}hl_cycle t ON e.cycle_id = t.cycle_id
              WHERE ta.classroom_id = %d AND e.user_id = %d AND e.status = 'active'
              LIMIT 1",
             $classroom_id,
@@ -683,9 +683,9 @@ class HL_Frontend_Classroom_Page {
     }
 
     private function build_back_url() {
-        $base = apply_filters( 'hl_core_my_partnership_page_url', '' );
+        $base = apply_filters( 'hl_core_my_cycle_page_url', '' );
         if ( empty( $base ) ) {
-            $base = $this->find_shortcode_page_url( 'hl_my_partnership' );
+            $base = $this->find_shortcode_page_url( 'hl_my_cycle' );
         }
         if ( ! empty( $base ) ) {
             return add_query_arg( 'tab', 'classrooms', $base );

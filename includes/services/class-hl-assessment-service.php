@@ -19,17 +19,17 @@ class HL_Assessment_Service {
     }
 
     /**
-     * Get teacher self-assessment instances by partnership with user info
+     * Get teacher self-assessment instances by cycle with user info
      */
-    public function get_teacher_assessments_by_partnership($partnership_id) {
+    public function get_teacher_assessments_by_cycle($cycle_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
             "SELECT tai.*, e.user_id, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_teacher_assessment_instance tai
              JOIN {$wpdb->prefix}hl_enrollment e ON tai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE tai.partnership_id = %d ORDER BY tai.phase ASC, u.display_name ASC",
-            $partnership_id
+             WHERE tai.cycle_id = %d ORDER BY tai.phase ASC, u.display_name ASC",
+            $cycle_id
         ), ARRAY_A) ?: array();
     }
 
@@ -39,11 +39,11 @@ class HL_Assessment_Service {
     public function get_teacher_assessment($instance_id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
-            "SELECT tai.*, u.display_name, u.user_email, e.user_id, e.roles, t.partnership_name
+            "SELECT tai.*, u.display_name, u.user_email, e.user_id, e.roles, t.cycle_name
              FROM {$wpdb->prefix}hl_teacher_assessment_instance tai
              JOIN {$wpdb->prefix}hl_enrollment e ON tai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             LEFT JOIN {$wpdb->prefix}hl_partnership t ON tai.partnership_id = t.partnership_id
+             LEFT JOIN {$wpdb->prefix}hl_cycle t ON tai.cycle_id = t.cycle_id
              WHERE tai.instance_id = %d",
             $instance_id
         ), ARRAY_A);
@@ -67,13 +67,13 @@ class HL_Assessment_Service {
     public function create_teacher_assessment_instance($data) {
         global $wpdb;
 
-        if (empty($data['partnership_id']) || empty($data['enrollment_id']) || empty($data['phase'])) {
-            return new WP_Error('missing_fields', __('Partnership, enrollment, and phase are required.', 'hl-core'));
+        if (empty($data['cycle_id']) || empty($data['enrollment_id']) || empty($data['phase'])) {
+            return new WP_Error('missing_fields', __('Cycle, enrollment, and phase are required.', 'hl-core'));
         }
 
         $insert_data = array(
             'instance_uuid'      => HL_DB_Utils::generate_uuid(),
-            'partnership_id'          => absint($data['partnership_id']),
+            'cycle_id'          => absint($data['cycle_id']),
             'enrollment_id'      => absint($data['enrollment_id']),
             'component_id'        => !empty($data['component_id']) ? absint($data['component_id']) : null,
             'phase'              => sanitize_text_field($data['phase']),
@@ -93,7 +93,7 @@ class HL_Assessment_Service {
         HL_Audit_Service::log('teacher_assessment.created', array(
             'entity_type' => 'teacher_assessment_instance',
             'entity_id'   => $instance_id,
-            'partnership_id'   => $data['partnership_id'],
+            'cycle_id'   => $data['cycle_id'],
             'after_data'  => $insert_data,
         ));
 
@@ -157,26 +157,26 @@ class HL_Assessment_Service {
         HL_Audit_Service::log('teacher_assessment.submitted', array(
             'entity_type' => 'teacher_assessment_instance',
             'entity_id'   => $instance_id,
-            'partnership_id'   => $instance['partnership_id'],
+            'cycle_id'   => $instance['cycle_id'],
         ));
 
         return true;
     }
 
     /**
-     * Check if all teacher assessments are complete for an enrollment in a partnership
+     * Check if all teacher assessments are complete for an enrollment in a cycle
      */
-    public function is_teacher_assessment_complete($enrollment_id, $partnership_id) {
+    public function is_teacher_assessment_complete($enrollment_id, $cycle_id) {
         global $wpdb;
         $total = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id = %d AND partnership_id = %d",
-            $enrollment_id, $partnership_id
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id = %d AND cycle_id = %d",
+            $enrollment_id, $cycle_id
         ));
         if ($total === 0) return true;
 
         $submitted = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id = %d AND partnership_id = %d AND status = 'submitted'",
-            $enrollment_id, $partnership_id
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id = %d AND cycle_id = %d AND status = 'submitted'",
+            $enrollment_id, $cycle_id
         ));
 
         return $submitted >= $total;
@@ -282,7 +282,7 @@ class HL_Assessment_Service {
         HL_Audit_Service::log( $action_label, array(
             'entity_type' => 'teacher_assessment_instance',
             'entity_id'   => $instance_id,
-            'partnership_id'   => $instance['partnership_id'],
+            'cycle_id'   => $instance['cycle_id'],
         ) );
 
         if ( ! $is_draft ) {
@@ -296,17 +296,17 @@ class HL_Assessment_Service {
      * Get PRE responses for pre-filling POST "Before" column.
      *
      * @param int    $enrollment_id
-     * @param int    $partnership_id
+     * @param int    $cycle_id
      * @return array Decoded responses array, or empty array.
      */
-    public function get_pre_responses_for_post( $enrollment_id, $partnership_id ) {
+    public function get_pre_responses_for_post( $enrollment_id, $cycle_id ) {
         global $wpdb;
 
         $json = $wpdb->get_var( $wpdb->prepare(
             "SELECT responses_json FROM {$wpdb->prefix}hl_teacher_assessment_instance
-             WHERE enrollment_id = %d AND partnership_id = %d AND phase = 'pre' AND status = 'submitted'
+             WHERE enrollment_id = %d AND cycle_id = %d AND phase = 'pre' AND status = 'submitted'
              LIMIT 1",
-            $enrollment_id, $partnership_id
+            $enrollment_id, $cycle_id
         ) );
 
         if ( $json ) {
@@ -329,17 +329,17 @@ class HL_Assessment_Service {
         global $wpdb;
 
         $enrollment_id = absint( $instance['enrollment_id'] );
-        $partnership_id     = absint( $instance['partnership_id'] );
+        $cycle_id     = absint( $instance['cycle_id'] );
         $phase         = $instance['phase'];
 
-        // Find teacher_self_assessment components in this partnership
+        // Find teacher_self_assessment components in this cycle
         $components = $wpdb->get_results( $wpdb->prepare(
             "SELECT a.component_id, a.external_ref FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
-             WHERE p.partnership_id = %d
+             WHERE p.cycle_id = %d
                AND a.component_type = 'teacher_self_assessment'
                AND a.status = 'active'",
-            $partnership_id
+            $cycle_id
         ) );
 
         if ( empty( $components ) ) {
@@ -408,9 +408,9 @@ class HL_Assessment_Service {
     }
 
     /**
-     * Get child assessment instances by partnership with joined data
+     * Get child assessment instances by cycle with joined data
      */
-    public function get_child_assessments_by_partnership($partnership_id) {
+    public function get_child_assessments_by_cycle($cycle_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
             "SELECT cai.*, e.user_id, u.display_name, u.user_email, cr.classroom_name, o.name AS school_name
@@ -419,9 +419,9 @@ class HL_Assessment_Service {
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$wpdb->prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
              LEFT JOIN {$wpdb->prefix}hl_orgunit o ON cai.school_id = o.orgunit_id
-             WHERE cai.partnership_id = %d
+             WHERE cai.cycle_id = %d
              ORDER BY cai.phase ASC, u.display_name ASC, cr.classroom_name ASC",
-            $partnership_id
+            $cycle_id
         ), ARRAY_A) ?: array();
     }
 
@@ -431,12 +431,12 @@ class HL_Assessment_Service {
     public function get_child_assessment($instance_id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
-            "SELECT cai.*, u.display_name, u.user_email, e.user_id, t.partnership_name,
+            "SELECT cai.*, u.display_name, u.user_email, e.user_id, t.cycle_name,
                     cr.classroom_name, o.name AS school_name
              FROM {$wpdb->prefix}hl_child_assessment_instance cai
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             LEFT JOIN {$wpdb->prefix}hl_partnership t ON cai.partnership_id = t.partnership_id
+             LEFT JOIN {$wpdb->prefix}hl_cycle t ON cai.cycle_id = t.cycle_id
              LEFT JOIN {$wpdb->prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
              LEFT JOIN {$wpdb->prefix}hl_orgunit o ON cai.school_id = o.orgunit_id
              WHERE cai.instance_id = %d",
@@ -463,15 +463,15 @@ class HL_Assessment_Service {
      * Check if all child assessments are complete for an enrollment.
      *
      * @param int         $enrollment_id
-     * @param int         $partnership_id
+     * @param int         $cycle_id
      * @param string|null $phase Optional phase filter ('pre' or 'post').
      */
-    public function is_child_assessment_complete( $enrollment_id, $partnership_id, $phase = null ) {
+    public function is_child_assessment_complete( $enrollment_id, $cycle_id, $phase = null ) {
         global $wpdb;
 
         $where = $wpdb->prepare(
-            "enrollment_id = %d AND partnership_id = %d",
-            $enrollment_id, $partnership_id
+            "enrollment_id = %d AND cycle_id = %d",
+            $enrollment_id, $cycle_id
         );
         if ( $phase ) {
             $where .= $wpdb->prepare( " AND phase = %s", $phase );
@@ -583,7 +583,7 @@ class HL_Assessment_Service {
             HL_Audit_Service::log('child_assessment.submitted', array(
                 'entity_type' => 'child_assessment_instance',
                 'entity_id'   => $instance_id,
-                'partnership_id'   => $instance['partnership_id'],
+                'cycle_id'   => $instance['cycle_id'],
             ));
 
             // Update activity state for this phase
@@ -605,17 +605,17 @@ class HL_Assessment_Service {
         global $wpdb;
 
         $enrollment_id = absint( $instance['enrollment_id'] );
-        $partnership_id      = absint( $instance['partnership_id'] );
+        $cycle_id      = absint( $instance['cycle_id'] );
         $phase         = $instance['phase'];
 
-        // Find child_assessment components in this partnership
+        // Find child_assessment components in this cycle
         $components = $wpdb->get_results( $wpdb->prepare(
             "SELECT a.component_id, a.external_ref FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
-             WHERE p.partnership_id = %d
+             WHERE p.cycle_id = %d
                AND a.component_type = 'child_assessment'
                AND a.status = 'active'",
-            $partnership_id
+            $cycle_id
         ) );
 
         if ( empty( $components ) ) {
@@ -635,7 +635,7 @@ class HL_Assessment_Service {
                 continue;
             }
 
-            $is_complete = $this->is_child_assessment_complete( $enrollment_id, $partnership_id, $phase );
+            $is_complete = $this->is_child_assessment_complete( $enrollment_id, $cycle_id, $phase );
             $percent     = $is_complete ? 100 : 0;
             $status      = $is_complete ? 'complete' : 'not_started';
 
@@ -716,7 +716,7 @@ class HL_Assessment_Service {
         HL_Audit_Service::log( $action_label, array(
             'entity_type' => 'child_assessment_instance',
             'entity_id'   => $instance_id,
-            'partnership_id'   => $instance['partnership_id'],
+            'cycle_id'   => $instance['cycle_id'],
         ) );
 
         if ( ! $is_draft ) {
@@ -736,11 +736,11 @@ class HL_Assessment_Service {
     public function get_child_assessment_by_component( $component_id, $enrollment_id ) {
         global $wpdb;
         return $wpdb->get_row( $wpdb->prepare(
-            "SELECT cai.*, u.display_name, u.user_email, e.user_id, t.partnership_name
+            "SELECT cai.*, u.display_name, u.user_email, e.user_id, t.cycle_name
              FROM {$wpdb->prefix}hl_child_assessment_instance cai
              JOIN {$wpdb->prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             LEFT JOIN {$wpdb->prefix}hl_partnership t ON cai.partnership_id = t.partnership_id
+             LEFT JOIN {$wpdb->prefix}hl_cycle t ON cai.cycle_id = t.cycle_id
              WHERE cai.component_id = %d AND cai.enrollment_id = %d
              LIMIT 1",
             $component_id, $enrollment_id
@@ -752,31 +752,31 @@ class HL_Assessment_Service {
     // =========================================================================
 
     /**
-     * Generate child assessment instances for a partnership.
+     * Generate child assessment instances for a cycle.
      *
-     * Canonical rule: For each partnership, for each classroom with a teaching assignment,
+     * Canonical rule: For each cycle, for each classroom with a teaching assignment,
      * for each teacher enrollment assigned to that classroom, ensure one instance exists.
      *
-     * @param int $partnership_id
+     * @param int $cycle_id
      * @return array ['created' => int, 'existing' => int, 'errors' => array]
      */
-    public function generate_child_assessment_instances($partnership_id) {
+    public function generate_child_assessment_instances($cycle_id) {
         global $wpdb;
 
-        // Freeze age groups for all children in this partnership before generating instances.
-        HL_Child_Snapshot_Service::freeze_age_groups( $partnership_id );
+        // Freeze age groups for all children in this cycle before generating instances.
+        HL_Child_Snapshot_Service::freeze_age_groups( $cycle_id );
 
         $result = array('created' => 0, 'existing' => 0, 'errors' => array());
 
-        // Get all teaching assignments for this partnership (join through enrollment)
+        // Get all teaching assignments for this cycle (join through enrollment)
         $assignments = $wpdb->get_results($wpdb->prepare(
             "SELECT ta.assignment_id, ta.enrollment_id, ta.classroom_id,
                     cr.school_id, cr.age_band, cr.classroom_name
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
              JOIN {$wpdb->prefix}hl_classroom cr ON ta.classroom_id = cr.classroom_id
-             WHERE e.partnership_id = %d AND e.status = 'active'",
-            $partnership_id
+             WHERE e.cycle_id = %d AND e.status = 'active'",
+            $cycle_id
         ));
 
         if (empty($assignments)) {
@@ -787,8 +787,8 @@ class HL_Assessment_Service {
             // Check if instance already exists
             $existing = $wpdb->get_var($wpdb->prepare(
                 "SELECT instance_id FROM {$wpdb->prefix}hl_child_assessment_instance
-                 WHERE partnership_id = %d AND enrollment_id = %d AND classroom_id = %d",
-                $partnership_id, $ta->enrollment_id, $ta->classroom_id
+                 WHERE cycle_id = %d AND enrollment_id = %d AND classroom_id = %d",
+                $cycle_id, $ta->enrollment_id, $ta->classroom_id
             ));
 
             if ($existing) {
@@ -833,7 +833,7 @@ class HL_Assessment_Service {
 
             $insert_data = array(
                 'instance_uuid'      => HL_DB_Utils::generate_uuid(),
-                'partnership_id'          => absint($partnership_id),
+                'cycle_id'          => absint($cycle_id),
                 'enrollment_id'      => absint($ta->enrollment_id),
                 'classroom_id'       => absint($ta->classroom_id),
                 'school_id'          => absint($ta->school_id),
@@ -859,7 +859,7 @@ class HL_Assessment_Service {
         if ($result['created'] > 0) {
             HL_Audit_Service::log('child_assessment.instances_generated', array(
                 'entity_type' => 'child_assessment_instance',
-                'partnership_id'   => $partnership_id,
+                'cycle_id'   => $cycle_id,
                 'after_data'  => array(
                     'created'  => $result['created'],
                     'existing' => $result['existing'],
@@ -877,17 +877,17 @@ class HL_Assessment_Service {
     /**
      * Export teacher assessment data as CSV
      *
-     * @param int $partnership_id
+     * @param int $cycle_id
      * @return string CSV content
      */
-    public function export_teacher_assessments_csv($partnership_id) {
+    public function export_teacher_assessments_csv($cycle_id) {
         global $wpdb;
 
-        $instances = $this->get_teacher_assessments_by_partnership($partnership_id);
+        $instances = $this->get_teacher_assessments_by_cycle($cycle_id);
 
-        $partnership = $wpdb->get_var($wpdb->prepare(
-            "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
-            $partnership_id
+        $cycle = $wpdb->get_var($wpdb->prepare(
+            "SELECT cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+            $cycle_id
         ));
 
         $output = fopen('php://temp', 'r+');
@@ -952,11 +952,11 @@ class HL_Assessment_Service {
      * Reads responses_json from each instance and flattens into one column
      * per instrument item (e.g., P1, P2, …, W1-W4, SR1-SR4).
      *
-     * @param int $partnership_id
+     * @param int $cycle_id
      * @return string CSV content
      */
-    public function export_teacher_assessment_responses_csv( $partnership_id ) {
-        $instances = $this->get_teacher_assessments_by_partnership( $partnership_id );
+    public function export_teacher_assessment_responses_csv( $cycle_id ) {
+        $instances = $this->get_teacher_assessments_by_cycle( $cycle_id );
 
         // Collect unique instrument_ids and load their sections.
         $instrument_ids = array();
@@ -1050,13 +1050,13 @@ class HL_Assessment_Service {
     /**
      * Export child assessment data as CSV
      *
-     * @param int $partnership_id
+     * @param int $cycle_id
      * @return string CSV content
      */
-    public function export_child_assessments_csv($partnership_id) {
+    public function export_child_assessments_csv($cycle_id) {
         global $wpdb;
 
-        $instances = $this->get_child_assessments_by_partnership($partnership_id);
+        $instances = $this->get_child_assessments_by_cycle($cycle_id);
 
         // Collect all unique question IDs from answers_json across all child rows
         $all_question_ids = array();
@@ -1172,13 +1172,13 @@ class HL_Assessment_Service {
      * One row per child per instance. Skipped children are excluded.
      * Includes teacher email and submitted_at.
      *
-     * @param int $partnership_id
+     * @param int $cycle_id
      * @return string CSV content
      */
-    public function export_child_assessment_responses_csv( $partnership_id ) {
+    public function export_child_assessment_responses_csv( $cycle_id ) {
         global $wpdb;
 
-        $instances = $this->get_child_assessments_by_partnership( $partnership_id );
+        $instances = $this->get_child_assessments_by_cycle( $cycle_id );
 
         // Collect all unique question IDs and childrows.
         $all_question_ids     = array();

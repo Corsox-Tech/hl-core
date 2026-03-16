@@ -14,8 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class HL_CLI_Seed_Palm_Beach {
 
-	/** Partnership code used to identify Palm Beach seeded data. */
-	const PARTNERSHIP_CODE = 'ELC-PB-2026';
+	/** Cycle code used to identify Palm Beach seeded data. */
+	const CYCLE_CODE = 'ELC-PB-2026';
 
 	/** User meta key to tag Palm Beach demo users. */
 	const DEMO_META_KEY = '_hl_palm_beach_seed';
@@ -64,8 +64,8 @@ class HL_CLI_Seed_Palm_Beach {
 		// Step 1: Org Structure.
 		$orgunits = $this->seed_orgunits();
 
-		// Step 2: Partnership.
-		$partnership_id = $this->seed_partnership( $orgunits );
+		// Step 2: Cycle.
+		$cycle_id = $this->seed_cycle( $orgunits );
 
 		// Step 3: Classrooms.
 		$classrooms = $this->seed_classrooms( $orgunits );
@@ -77,10 +77,10 @@ class HL_CLI_Seed_Palm_Beach {
 		$users = $this->seed_users();
 
 		// Step 6: Enrollments.
-		$enrollments = $this->seed_enrollments( $users, $partnership_id, $orgunits );
+		$enrollments = $this->seed_enrollments( $users, $cycle_id, $orgunits );
 
 		// Step 7: Teams.
-		$teams = $this->seed_teams( $partnership_id, $orgunits, $enrollments );
+		$teams = $this->seed_teams( $cycle_id, $orgunits, $enrollments );
 
 		// Step 8: Teaching Assignments.
 		$this->seed_teaching_assignments( $enrollments, $classrooms );
@@ -88,12 +88,12 @@ class HL_CLI_Seed_Palm_Beach {
 		// Step 9: Children.
 		$this->seed_children( $classrooms, $orgunits );
 
-		// Step 9b: Freeze child age groups for this partnership.
-		$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $partnership_id );
+		// Step 9b: Freeze child age groups for this cycle.
+		$frozen = HL_Child_Snapshot_Service::freeze_age_groups( $cycle_id );
 		WP_CLI::log( "  [9b] Frozen age group snapshots: {$frozen}" );
 
 		// Step 10: Pathways & Components.
-		$pathways = $this->seed_pathways( $partnership_id, $instruments );
+		$pathways = $this->seed_pathways( $cycle_id, $instruments );
 
 		// Step 11: Assign Pathways.
 		$this->assign_pathways( $enrollments, $pathways );
@@ -111,26 +111,26 @@ class HL_CLI_Seed_Palm_Beach {
 		$this->seed_rollups( $enrollments );
 
 		// Step 16: Coach Assignments.
-		$this->seed_coach_assignments( $partnership_id, $orgunits, $teams, $users );
+		$this->seed_coach_assignments( $cycle_id, $orgunits, $teams, $users );
 
 		// Step 17: Coaching Sessions.
-		$this->seed_coaching_sessions( $partnership_id, $enrollments, $users );
+		$this->seed_coaching_sessions( $cycle_id, $enrollments, $users );
 
 		// Step 18-20: Lutheran Control Group.
-		$control_data = $this->seed_control_group( $partnership_id, $instruments );
+		$control_data = $this->seed_control_group( $cycle_id, $instruments );
 
 		WP_CLI::line( '' );
 		WP_CLI::success( 'Palm Beach demo data seeded successfully!' );
 		WP_CLI::line( '' );
 		WP_CLI::line( 'Summary:' );
-		WP_CLI::line( "  Partnership:  {$partnership_id} (code: " . self::PARTNERSHIP_CODE . ')' );
+		WP_CLI::line( "  Cycle:  {$cycle_id} (code: " . self::CYCLE_CODE . ')' );
 		WP_CLI::line( '  Schools:      ' . count( $orgunits['schools'] ) );
 		WP_CLI::line( '  Classrooms:   ' . count( $classrooms ) );
 		WP_CLI::line( '  Instruments:  ' . count( $instruments ) );
 		WP_CLI::line( '  Users:        ' . count( $users['all_ids'] ) );
 		WP_CLI::line( '  Enrollments:  ' . count( $enrollments['all'] ) );
 		if ( $control_data ) {
-			WP_CLI::line( "  Control partnership: {$control_data['partnership_id']} (code: LSF-CTRL-2026)" );
+			WP_CLI::line( "  Control cycle: {$control_data['cycle_id']} (code: LSF-CTRL-2026)" );
 			WP_CLI::line( "  Control participants: {$control_data['participant_count']}" );
 			WP_CLI::line( "  Cohort (container): {$control_data['cohort_id']} (B2E Program Evaluation)" );
 		}
@@ -608,8 +608,8 @@ class HL_CLI_Seed_Palm_Beach {
 		global $wpdb;
 		$row = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT partnership_id FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
-				self::PARTNERSHIP_CODE
+				"SELECT cycle_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_code = %s LIMIT 1",
+				self::CYCLE_CODE
 			)
 		);
 		return ! empty( $row );
@@ -623,18 +623,18 @@ class HL_CLI_Seed_Palm_Beach {
 
 		WP_CLI::line( 'Cleaning Palm Beach demo data...' );
 
-		$partnership_id = $wpdb->get_var(
+		$cycle_id = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT partnership_id FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
-				self::PARTNERSHIP_CODE
+				"SELECT cycle_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_code = %s LIMIT 1",
+				self::CYCLE_CODE
 			)
 		);
 
-		if ( $partnership_id ) {
+		if ( $cycle_id ) {
 			$enrollment_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d",
-					$partnership_id
+					"SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE cycle_id = %d",
+					$cycle_id
 				)
 			);
 
@@ -655,13 +655,13 @@ class HL_CLI_Seed_Palm_Beach {
 				}
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_child_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
-				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE partnership_id = {$partnership_id}" );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE cycle_id = {$cycle_id}" );
 			}
 
 			$component_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT component_id FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d",
-					$partnership_id
+					"SELECT component_id FROM {$wpdb->prefix}hl_component WHERE cycle_id = %d",
+					$cycle_id
 				)
 			);
 			if ( ! empty( $component_ids ) ) {
@@ -676,39 +676,39 @@ class HL_CLI_Seed_Palm_Beach {
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_prereq_group WHERE component_id IN ({$in_comp})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_drip_rule WHERE component_id IN ({$in_comp})" );
 			}
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d", $partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d", $partnership_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_component WHERE cycle_id = %d", $cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE cycle_id = %d", $cycle_id ) );
 
 			$team_ids = $wpdb->get_col(
-				$wpdb->prepare( "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE partnership_id = %d", $partnership_id )
+				$wpdb->prepare( "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE cycle_id = %d", $cycle_id )
 			);
 			if ( ! empty( $team_ids ) ) {
 				$in_teams = implode( ',', array_map( 'intval', $team_ids ) );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_team_membership WHERE team_id IN ({$in_teams})" );
 			}
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_team WHERE partnership_id = %d", $partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d", $partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_partnership_school WHERE partnership_id = %d", $partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE partnership_id = %d", $partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE partnership_id = %d", $partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_partnership_snapshot WHERE partnership_id = %d", $partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d", $partnership_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_team WHERE cycle_id = %d", $cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE cycle_id = %d", $cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cycle_school WHERE cycle_id = %d", $cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE cycle_id = %d", $cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE cycle_id = %d", $cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_cycle_snapshot WHERE cycle_id = %d", $cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d", $cycle_id ) );
 
-			WP_CLI::log( "  Deleted partnership {$partnership_id} and all related records." );
+			WP_CLI::log( "  Deleted cycle {$cycle_id} and all related records." );
 		}
 
-		// Delete Lutheran control partnership.
-		$control_partnership_id = $wpdb->get_var(
+		// Delete Lutheran control cycle.
+		$control_cycle_id = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT partnership_id FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
+				"SELECT cycle_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_code = %s LIMIT 1",
 				'LSF-CTRL-2026'
 			)
 		);
-		if ( $control_partnership_id ) {
+		if ( $control_cycle_id ) {
 			$ctrl_enrollment_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d",
-					$control_partnership_id
+					"SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE cycle_id = %d",
+					$control_cycle_id
 				)
 			);
 			if ( ! empty( $ctrl_enrollment_ids ) ) {
@@ -717,13 +717,13 @@ class HL_CLI_Seed_Palm_Beach {
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_state WHERE enrollment_id IN ({$in_ctrl})" );
 				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ctrl})" );
 			}
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d", $control_partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d", $control_partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d", $control_partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_partnership_snapshot WHERE partnership_id = %d", $control_partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d", $control_partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE partnership_id = %d", $control_partnership_id ) );
-			WP_CLI::log( "  Deleted control partnership {$control_partnership_id} and related records." );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_component WHERE cycle_id = %d", $control_cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE cycle_id = %d", $control_cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE cycle_id = %d", $control_cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_cycle_snapshot WHERE cycle_id = %d", $control_cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d", $control_cycle_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE cycle_id = %d", $control_cycle_id ) );
+			WP_CLI::log( "  Deleted control cycle {$control_cycle_id} and related records." );
 		}
 
 		// Delete B2E Program Evaluation cohort (container).
@@ -758,8 +758,8 @@ class HL_CLI_Seed_Palm_Beach {
 		// Delete Palm Beach instruments.
 		$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_instrument WHERE name LIKE 'Palm Beach %'" );
 		// Only delete B2E instrument if demo seed isn't active (shared instrument).
-		$demo_partnership = $wpdb->get_var( "SELECT partnership_id FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = 'DEMO-2026' LIMIT 1" );
-		if ( ! $demo_partnership ) {
+		$demo_cycle = $wpdb->get_var( "SELECT cycle_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_code = 'DEMO-2026' LIMIT 1" );
+		if ( ! $demo_cycle ) {
 			$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key IN ('b2e_self_assessment','b2e_self_assessment_pre','b2e_self_assessment_post')" );
 		}
 		WP_CLI::log( '  Deleted Palm Beach instruments.' );
@@ -793,8 +793,8 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 		WP_CLI::log( '  Deleted Palm Beach org units.' );
 
-		if ( $partnership_id ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE partnership_id = %d", $partnership_id ) );
+		if ( $cycle_id ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE cycle_id = %d", $cycle_id ) );
 			WP_CLI::log( '  Deleted Palm Beach audit log entries.' );
 		}
 	}
@@ -834,16 +834,16 @@ class HL_CLI_Seed_Palm_Beach {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 2: Partnership
+	// Step 2: Cycle
 	// ------------------------------------------------------------------
 
-	private function seed_partnership( $orgunits ) {
+	private function seed_cycle( $orgunits ) {
 		global $wpdb;
-		$repo = new HL_Partnership_Repository();
+		$repo = new HL_Cycle_Repository();
 
-		$partnership_id = $repo->create( array(
-			'partnership_name'  => 'ELC Palm Beach 2026',
-			'partnership_code'  => self::PARTNERSHIP_CODE,
+		$cycle_id = $repo->create( array(
+			'cycle_name'  => 'ELC Palm Beach 2026',
+			'cycle_code'  => self::CYCLE_CODE,
 			'district_id' => $orgunits['district_id'],
 			'status'      => 'active',
 			'start_date'  => '2026-01-01',
@@ -851,14 +851,14 @@ class HL_CLI_Seed_Palm_Beach {
 		) );
 
 		foreach ( $orgunits['schools'] as $school_id ) {
-			$wpdb->insert( $wpdb->prefix . 'hl_partnership_school', array(
-				'partnership_id' => $partnership_id,
+			$wpdb->insert( $wpdb->prefix . 'hl_cycle_school', array(
+				'cycle_id' => $cycle_id,
 				'school_id' => $school_id,
 			) );
 		}
 
-		WP_CLI::log( "  [2/17] Partnership created: id={$partnership_id}, code=" . self::PARTNERSHIP_CODE );
-		return $partnership_id;
+		WP_CLI::log( "  [2/17] Cycle created: id={$cycle_id}, code=" . self::CYCLE_CODE );
+		return $cycle_id;
 	}
 
 	// ------------------------------------------------------------------
@@ -1124,7 +1124,7 @@ class HL_CLI_Seed_Palm_Beach {
 	// Step 6: Enrollments
 	// ------------------------------------------------------------------
 
-	private function seed_enrollments( $users, $partnership_id, $orgunits ) {
+	private function seed_enrollments( $users, $cycle_id, $orgunits ) {
 		$repo = new HL_Enrollment_Repository();
 		$c    = $orgunits['schools'];
 		$did  = $orgunits['district_id'];
@@ -1144,7 +1144,7 @@ class HL_CLI_Seed_Palm_Beach {
 			}
 			$eid = $repo->create( array(
 				'user_id'     => $t['user_id'],
-				'partnership_id'   => $partnership_id,
+				'cycle_id'   => $cycle_id,
 				'roles'       => $roles,
 				'status'      => 'active',
 				'school_id'   => $school_id,
@@ -1165,7 +1165,7 @@ class HL_CLI_Seed_Palm_Beach {
 			$school_id = $c[ $cl['school_key'] ];
 			$eid = $repo->create( array(
 				'user_id'     => $cl['user_id'],
-				'partnership_id'   => $partnership_id,
+				'cycle_id'   => $cycle_id,
 				'roles'       => array( 'school_leader' ),
 				'status'      => 'active',
 				'school_id'   => $school_id,
@@ -1179,7 +1179,7 @@ class HL_CLI_Seed_Palm_Beach {
 			$school_id = $c[ $m['school_key'] ];
 			$eid = $repo->create( array(
 				'user_id'     => $m['user_id'],
-				'partnership_id'   => $partnership_id,
+				'cycle_id'   => $cycle_id,
 				'roles'       => array( 'mentor' ),
 				'status'      => 'active',
 				'school_id'   => $school_id,
@@ -1193,7 +1193,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$uid = $users['district_leader'];
 		$eid = $repo->create( array(
 			'user_id'     => $uid,
-			'partnership_id'   => $partnership_id,
+			'cycle_id'   => $cycle_id,
 			'roles'       => array( 'district_leader' ),
 			'status'      => 'active',
 			'district_id' => $did,
@@ -1208,14 +1208,14 @@ class HL_CLI_Seed_Palm_Beach {
 	// Step 7: Teams
 	// ------------------------------------------------------------------
 
-	private function seed_teams( $partnership_id, $orgunits, $enrollments ) {
+	private function seed_teams( $cycle_id, $orgunits, $enrollments ) {
 		$svc       = new HL_Team_Service();
 		$c         = $orgunits['schools'];
 		$team_ids  = array();
 		$mem_count = 0;
 
 		// WPB Team Alpha: mentor 1, first 13 WPB teachers (indices 0-12).
-		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Alpha', 'partnership_id' => $partnership_id, 'school_id' => $c['wpb'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Alpha', 'cycle_id' => $cycle_id, 'school_id' => $c['wpb'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['wpb_alpha'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][0]['enrollment_id'], 'mentor' );
@@ -1229,7 +1229,7 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 
 		// WPB Team Beta: mentor 2, remaining WPB teachers (indices 13-24).
-		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Beta', 'partnership_id' => $partnership_id, 'school_id' => $c['wpb'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'WPB Team Beta', 'cycle_id' => $cycle_id, 'school_id' => $c['wpb'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['wpb_beta'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][1]['enrollment_id'], 'mentor' );
@@ -1243,7 +1243,7 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 
 		// Jupiter Team: mentor 3, all Jupiter teachers (indices 25-31).
-		$team_id = $svc->create_team( array( 'team_name' => 'Jupiter Team', 'partnership_id' => $partnership_id, 'school_id' => $c['jupiter'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'Jupiter Team', 'cycle_id' => $cycle_id, 'school_id' => $c['jupiter'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['jupiter'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][2]['enrollment_id'], 'mentor' );
@@ -1257,7 +1257,7 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 
 		// South Bay Team: mentor 4, all South Bay teachers (indices 32-37).
-		$team_id = $svc->create_team( array( 'team_name' => 'South Bay Team', 'partnership_id' => $partnership_id, 'school_id' => $c['south_bay'] ) );
+		$team_id = $svc->create_team( array( 'team_name' => 'South Bay Team', 'cycle_id' => $cycle_id, 'school_id' => $c['south_bay'] ) );
 		if ( ! is_wp_error( $team_id ) ) {
 			$team_ids['south_bay'] = $team_id;
 			$svc->add_member( $team_id, $enrollments['mentors'][3]['enrollment_id'], 'mentor' );
@@ -1345,35 +1345,35 @@ class HL_CLI_Seed_Palm_Beach {
 	// Step 10: Pathways & Components
 	// ------------------------------------------------------------------
 
-	private function seed_pathways( $partnership_id, $instruments ) {
+	private function seed_pathways( $cycle_id, $instruments ) {
 		$svc = new HL_Pathway_Service();
 
 		// --- Teacher Pathway ---
 		$tp_id = $svc->create_pathway( array(
 			'pathway_name'  => 'Teacher Pathway',
-			'partnership_id'     => $partnership_id,
+			'cycle_id'     => $cycle_id,
 			'target_roles'  => array( 'teacher' ),
 			'active_status' => 1,
 		) );
 
 		$ta = array();
-		$ta['ld_course'] = $svc->create_component( array( 'title' => 'Foundations of Early Learning', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'component_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99901 ) ) ) );
-		$ta['pre_self']  = $svc->create_component( array( 'title' => 'Pre Self-Assessment', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'component_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e_pre'], 'phase' => 'pre' ) ) ) );
-		$ta['post_self'] = $svc->create_component( array( 'title' => 'Post Self-Assessment', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'component_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 3, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e_post'], 'phase' => 'post' ) ) ) );
-		$ta['children']  = $svc->create_component( array( 'title' => 'Child Assessment', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'component_type' => 'child_assessment', 'weight' => 2.0, 'ordering_hint' => 4, 'external_ref' => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ) ) );
-		$ta['coaching']  = $svc->create_component( array( 'title' => 'Coaching Attendance', 'pathway_id' => $tp_id, 'partnership_id' => $partnership_id, 'component_type' => 'coaching_session_attendance', 'weight' => 1.0, 'ordering_hint' => 5, 'external_ref' => wp_json_encode( (object) array() ) ) );
+		$ta['ld_course'] = $svc->create_component( array( 'title' => 'Foundations of Early Learning', 'pathway_id' => $tp_id, 'cycle_id' => $cycle_id, 'component_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99901 ) ) ) );
+		$ta['pre_self']  = $svc->create_component( array( 'title' => 'Pre Self-Assessment', 'pathway_id' => $tp_id, 'cycle_id' => $cycle_id, 'component_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e_pre'], 'phase' => 'pre' ) ) ) );
+		$ta['post_self'] = $svc->create_component( array( 'title' => 'Post Self-Assessment', 'pathway_id' => $tp_id, 'cycle_id' => $cycle_id, 'component_type' => 'teacher_self_assessment', 'weight' => 1.0, 'ordering_hint' => 3, 'external_ref' => wp_json_encode( array( 'teacher_instrument_id' => $instruments['teacher_b2e_post'], 'phase' => 'post' ) ) ) );
+		$ta['children']  = $svc->create_component( array( 'title' => 'Child Assessment', 'pathway_id' => $tp_id, 'cycle_id' => $cycle_id, 'component_type' => 'child_assessment', 'weight' => 2.0, 'ordering_hint' => 4, 'external_ref' => wp_json_encode( array( 'instrument_id' => $instruments['infant'] ) ) ) );
+		$ta['coaching']  = $svc->create_component( array( 'title' => 'Coaching Attendance', 'pathway_id' => $tp_id, 'cycle_id' => $cycle_id, 'component_type' => 'coaching_session_attendance', 'weight' => 1.0, 'ordering_hint' => 5, 'external_ref' => wp_json_encode( (object) array() ) ) );
 
 		// --- Mentor Pathway ---
 		$mp_id = $svc->create_pathway( array(
 			'pathway_name'  => 'Mentor Pathway',
-			'partnership_id'     => $partnership_id,
+			'cycle_id'     => $cycle_id,
 			'target_roles'  => array( 'mentor' ),
 			'active_status' => 1,
 		) );
 
 		$ma = array();
-		$ma['ld_course']    = $svc->create_component( array( 'title' => 'Mentor Training Course', 'pathway_id' => $mp_id, 'partnership_id' => $partnership_id, 'component_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99902 ) ) ) );
-		$ma['observation']  = $svc->create_component( array( 'title' => 'Teacher Observations', 'pathway_id' => $mp_id, 'partnership_id' => $partnership_id, 'component_type' => 'observation', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'form_plugin' => 'jetformbuilder', 'form_id' => 99903, 'required_count' => 2 ) ) ) );
+		$ma['ld_course']    = $svc->create_component( array( 'title' => 'Mentor Training Course', 'pathway_id' => $mp_id, 'cycle_id' => $cycle_id, 'component_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99902 ) ) ) );
+		$ma['observation']  = $svc->create_component( array( 'title' => 'Teacher Observations', 'pathway_id' => $mp_id, 'cycle_id' => $cycle_id, 'component_type' => 'observation', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'form_plugin' => 'jetformbuilder', 'form_id' => 99903, 'required_count' => 2 ) ) ) );
 
 		WP_CLI::log( '  [10/17] Pathways created: 2 (teacher=' . count( $ta ) . ' components, mentor=' . count( $ma ) . ' components)' );
 
@@ -1522,7 +1522,7 @@ class HL_CLI_Seed_Palm_Beach {
 	// Step 16: Coach Assignments
 	// ------------------------------------------------------------------
 
-	private function seed_coach_assignments( $partnership_id, $orgunits, $teams, $users ) {
+	private function seed_coach_assignments( $cycle_id, $orgunits, $teams, $users ) {
 		$service       = new HL_Coach_Assignment_Service();
 		$c             = $orgunits['schools'];
 		$coach_user_id = $users['coach'];
@@ -1539,7 +1539,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'coach_user_id'  => $coach_user_id,
 				'scope_type'     => 'school',
 				'scope_id'       => $c[ $ck ],
-				'partnership_id'      => $partnership_id,
+				'cycle_id'      => $cycle_id,
 				'effective_from' => '2026-01-01',
 			) );
 			if ( ! is_wp_error( $result ) ) {
@@ -1553,7 +1553,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'coach_user_id'  => $coach_user_id,
 				'scope_type'     => 'team',
 				'scope_id'       => $teams['wpb_alpha'],
-				'partnership_id'      => $partnership_id,
+				'cycle_id'      => $cycle_id,
 				'effective_from' => '2026-01-15',
 			) );
 			if ( ! is_wp_error( $result ) ) {
@@ -1568,7 +1568,7 @@ class HL_CLI_Seed_Palm_Beach {
 	// Step 17: Coaching Sessions
 	// ------------------------------------------------------------------
 
-	private function seed_coaching_sessions( $partnership_id, $enrollments, $users ) {
+	private function seed_coaching_sessions( $cycle_id, $enrollments, $users ) {
 		$service       = new HL_Coaching_Service();
 		$coach_user_id = $users['coach'];
 		$count         = 0;
@@ -1581,7 +1581,7 @@ class HL_CLI_Seed_Palm_Beach {
 		// WPB teacher 1 (index 0): attended session (past).
 		if ( isset( $enrollments['teachers'][0] ) ) {
 			$result = $service->create_session( array(
-				'partnership_id'            => $partnership_id,
+				'cycle_id'            => $cycle_id,
 				'mentor_enrollment_id' => $enrollments['teachers'][0]['enrollment_id'],
 				'coach_user_id'        => $coach_user_id,
 				'session_title'        => 'Coaching Session 1',
@@ -1597,7 +1597,7 @@ class HL_CLI_Seed_Palm_Beach {
 		// WPB teacher 2 (index 1): scheduled session (upcoming).
 		if ( isset( $enrollments['teachers'][1] ) ) {
 			$result = $service->create_session( array(
-				'partnership_id'            => $partnership_id,
+				'cycle_id'            => $cycle_id,
 				'mentor_enrollment_id' => $enrollments['teachers'][1]['enrollment_id'],
 				'coach_user_id'        => $coach_user_id,
 				'session_title'        => 'Coaching Session 1',
@@ -1612,7 +1612,7 @@ class HL_CLI_Seed_Palm_Beach {
 		// WPB teacher 3 (index 2): missed session (past).
 		if ( isset( $enrollments['teachers'][2] ) ) {
 			$result = $service->create_session( array(
-				'partnership_id'            => $partnership_id,
+				'cycle_id'            => $cycle_id,
 				'mentor_enrollment_id' => $enrollments['teachers'][2]['enrollment_id'],
 				'coach_user_id'        => $coach_user_id,
 				'session_title'        => 'Coaching Session 1',
@@ -1627,7 +1627,7 @@ class HL_CLI_Seed_Palm_Beach {
 		// Jupiter teacher 1 (index 25): scheduled session (upcoming).
 		if ( isset( $enrollments['teachers'][25] ) ) {
 			$result = $service->create_session( array(
-				'partnership_id'            => $partnership_id,
+				'cycle_id'            => $cycle_id,
 				'mentor_enrollment_id' => $enrollments['teachers'][25]['enrollment_id'],
 				'coach_user_id'        => $coach_user_id,
 				'session_title'        => 'Coaching Session 1',
@@ -1642,7 +1642,7 @@ class HL_CLI_Seed_Palm_Beach {
 		// South Bay teacher 1 (index 32): attended session (past).
 		if ( isset( $enrollments['teachers'][32] ) ) {
 			$result = $service->create_session( array(
-				'partnership_id'            => $partnership_id,
+				'cycle_id'            => $cycle_id,
 				'mentor_enrollment_id' => $enrollments['teachers'][32]['enrollment_id'],
 				'coach_user_id'        => $coach_user_id,
 				'session_title'        => 'Coaching Session 1',
@@ -1665,21 +1665,21 @@ class HL_CLI_Seed_Palm_Beach {
 	/**
 	 * Seed the Lutheran Services Florida control group.
 	 *
-	 * Creates a cohort (container), a control partnership, assessment-only pathway,
+	 * Creates a cohort (container), a control cycle, assessment-only pathway,
 	 * control participants, and submitted PRE assessments.
 	 *
-	 * @param int   $program_partnership_id The Palm Beach program partnership ID.
+	 * @param int   $program_cycle_id The Palm Beach program cycle ID.
 	 * @param array $instruments       Instrument IDs keyed by type.
 	 * @return array|null Control group data or null on failure.
 	 */
-	private function seed_control_group( $program_partnership_id, $instruments ) {
+	private function seed_control_group( $program_cycle_id, $instruments ) {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 
-		// Ensure is_control_group column exists on hl_partnership.
+		// Ensure is_control_group column exists on hl_cycle.
 		$col_check = $wpdb->get_var( $wpdb->prepare(
 			"SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
-			$prefix . 'hl_partnership',
+			$prefix . 'hl_cycle',
 			'is_control_group'
 		) );
 		if ( ! $col_check ) {
@@ -1708,24 +1708,24 @@ class HL_CLI_Seed_Palm_Beach {
 			return null;
 		}
 
-		// Assign the ELC Palm Beach partnership to this cohort.
+		// Assign the ELC Palm Beach cycle to this cohort.
 		$wpdb->update(
-			$prefix . 'hl_partnership',
+			$prefix . 'hl_cycle',
 			array( 'cohort_id' => $cohort_id ),
-			array( 'partnership_id' => $program_partnership_id )
+			array( 'cycle_id' => $program_cycle_id )
 		);
 
-		// Step 19: Create the Lutheran control partnership.
-		$control_partnership_id = $wpdb->get_var( $wpdb->prepare(
-			"SELECT partnership_id FROM {$prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
+		// Step 19: Create the Lutheran control cycle.
+		$control_cycle_id = $wpdb->get_var( $wpdb->prepare(
+			"SELECT cycle_id FROM {$prefix}hl_cycle WHERE cycle_code = %s LIMIT 1",
 			'LSF-CTRL-2026'
 		) );
 
-		if ( ! $control_partnership_id ) {
-			$repo = new HL_Partnership_Repository();
-			$control_partnership_id = $repo->create( array(
-				'partnership_name'       => 'Lutheran Services Florida — Control Group',
-				'partnership_code'       => 'LSF-CTRL-2026',
+		if ( ! $control_cycle_id ) {
+			$repo = new HL_Cycle_Repository();
+			$control_cycle_id = $repo->create( array(
+				'cycle_name'       => 'Lutheran Services Florida — Control Group',
+				'cycle_code'       => 'LSF-CTRL-2026',
 				'is_control_group' => 1,
 				'cohort_id'        => $cohort_id,
 				'status'           => 'active',
@@ -1734,19 +1734,19 @@ class HL_CLI_Seed_Palm_Beach {
 			) );
 		}
 
-		if ( ! $control_partnership_id ) {
-			WP_CLI::log( '  [19/20] ERROR: Could not create control partnership. DB error: ' . $wpdb->last_error );
+		if ( ! $control_cycle_id ) {
+			WP_CLI::log( '  [19/20] ERROR: Could not create control cycle. DB error: ' . $wpdb->last_error );
 			return null;
 		}
 
-		WP_CLI::log( "  [18/20] Cohort id={$cohort_id} (B2E-EVAL), control partnership id={$control_partnership_id} (LSF-CTRL-2026)" );
+		WP_CLI::log( "  [18/20] Cohort id={$cohort_id} (B2E-EVAL), control cycle id={$control_cycle_id} (LSF-CTRL-2026)" );
 
 		// Create assessment-only pathway.
 		$svc = new HL_Pathway_Service();
 
 		$ctrl_pathway_id = $svc->create_pathway( array(
 			'pathway_name'  => 'Control Assessment Pathway',
-			'partnership_id'     => $control_partnership_id,
+			'cycle_id'     => $control_cycle_id,
 			'target_roles'  => array( 'teacher' ),
 			'active_status' => 1,
 		) );
@@ -1757,7 +1757,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$pre_component_id = $svc->create_component( array(
 			'title'         => 'Pre Self-Assessment',
 			'pathway_id'    => $ctrl_pathway_id,
-			'partnership_id'     => $control_partnership_id,
+			'cycle_id'     => $control_cycle_id,
 			'component_type' => 'teacher_self_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 1,
@@ -1770,7 +1770,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$svc->create_component( array(
 			'title'         => 'Post Self-Assessment',
 			'pathway_id'    => $ctrl_pathway_id,
-			'partnership_id'     => $control_partnership_id,
+			'cycle_id'     => $control_cycle_id,
 			'component_type' => 'teacher_self_assessment',
 			'weight'        => 1.0,
 			'ordering_hint' => 2,
@@ -1805,7 +1805,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 			$eid = $enrollment_repo->create( array(
 				'user_id'             => $uid,
-				'partnership_id'           => $control_partnership_id,
+				'cycle_id'           => $control_cycle_id,
 				'roles'               => array( 'teacher' ),
 				'status'              => 'active',
 				'assigned_pathway_id' => $ctrl_pathway_id,
@@ -1836,7 +1836,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 			$wpdb->insert( $prefix . 'hl_teacher_assessment_instance', array(
 				'instance_uuid'      => wp_generate_uuid4(),
-				'partnership_id'          => $control_partnership_id,
+				'cycle_id'          => $control_cycle_id,
 				'enrollment_id'      => $eid,
 				'phase'              => 'pre',
 				'instrument_id'      => $teacher_pre_instrument_id,
@@ -1858,11 +1858,11 @@ class HL_CLI_Seed_Palm_Beach {
 			$pre_submitted++;
 		}
 
-		// Also submit PRE assessments for the ELC program partnership teachers.
+		// Also submit PRE assessments for the ELC program cycle teachers.
 		$program_teacher_enrollments = $wpdb->get_results( $wpdb->prepare(
 			"SELECT enrollment_id FROM {$prefix}hl_enrollment
-			 WHERE partnership_id = %d AND status = 'active' AND roles LIKE %s",
-			$program_partnership_id,
+			 WHERE cycle_id = %d AND status = 'active' AND roles LIKE %s",
+			$program_cycle_id,
 			'%"teacher"%'
 		), ARRAY_A );
 
@@ -1872,8 +1872,8 @@ class HL_CLI_Seed_Palm_Beach {
 
 			$existing = $wpdb->get_var( $wpdb->prepare(
 				"SELECT instance_id FROM {$prefix}hl_teacher_assessment_instance
-				 WHERE enrollment_id = %d AND partnership_id = %d AND phase = 'pre'",
-				$eid, $program_partnership_id
+				 WHERE enrollment_id = %d AND cycle_id = %d AND phase = 'pre'",
+				$eid, $program_cycle_id
 			) );
 
 			if ( $existing ) {
@@ -1900,7 +1900,7 @@ class HL_CLI_Seed_Palm_Beach {
 			$responses = $this->generate_program_responses( $instrument_sections );
 			$wpdb->insert( $prefix . 'hl_teacher_assessment_instance', array(
 				'instance_uuid'      => wp_generate_uuid4(),
-				'partnership_id'          => $program_partnership_id,
+				'cycle_id'          => $program_cycle_id,
 				'enrollment_id'      => $eid,
 				'phase'              => 'pre',
 				'instrument_id'      => $teacher_pre_instrument_id,
@@ -1924,7 +1924,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 		return array(
 			'cohort_id'         => $cohort_id,
-			'partnership_id'          => $control_partnership_id,
+			'cycle_id'          => $control_cycle_id,
 			'participant_count' => count( $ctrl_enrollment_ids ),
 		);
 	}

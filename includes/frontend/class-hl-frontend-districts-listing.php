@@ -41,7 +41,7 @@ class HL_Frontend_Districts_Listing {
 
         // Pre-compute counts.
         $school_counts = $this->get_school_counts();
-        $partnership_counts = $this->get_active_partnership_counts();
+        $cycle_counts = $this->get_active_cycle_counts();
 
         $district_page_url = $this->find_shortcode_page_url( 'hl_district_page' );
 
@@ -59,7 +59,7 @@ class HL_Frontend_Districts_Listing {
                     <?php foreach ( $districts as $district ) :
                         $did          = $district->orgunit_id;
                         $num_schools  = isset( $school_counts[ $did ] ) ? $school_counts[ $did ] : 0;
-                        $num_tracks  = isset( $partnership_counts[ $did ] ) ? $partnership_counts[ $did ] : 0;
+                        $num_tracks  = isset( $cycle_counts[ $did ] ) ? $cycle_counts[ $did ] : 0;
                         $detail_url   = $district_page_url
                             ? add_query_arg( 'id', $did, $district_page_url )
                             : '';
@@ -131,21 +131,21 @@ class HL_Frontend_Districts_Listing {
     /**
      * Count active tracks per district.
      *
-     * A track is linked to a district when it has schools (via hl_partnership_school)
+     * A track is linked to a district when it has schools (via hl_cycle_school)
      * whose parent_orgunit_id is the district.
      *
      * @return array [ district_orgunit_id => count ]
      */
-    private function get_active_partnership_counts() {
+    private function get_active_cycle_counts() {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
         $results = $wpdb->get_results(
             "SELECT ou.parent_orgunit_id AS district_id,
-                    COUNT(DISTINCT cs.partnership_id) AS cnt
-             FROM {$prefix}hl_partnership_school cs
+                    COUNT(DISTINCT cs.cycle_id) AS cnt
+             FROM {$prefix}hl_cycle_school cs
              INNER JOIN {$prefix}hl_orgunit ou ON cs.school_id = ou.orgunit_id
-             INNER JOIN {$prefix}hl_partnership t ON cs.partnership_id = t.partnership_id
+             INNER JOIN {$prefix}hl_cycle t ON cs.cycle_id = t.cycle_id
              WHERE ou.parent_orgunit_id IS NOT NULL
                AND t.status = 'active'
              GROUP BY ou.parent_orgunit_id",

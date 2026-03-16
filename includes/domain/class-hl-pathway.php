@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 class HL_Pathway {
     public $pathway_id;
     public $pathway_uuid;
-    public $partnership_id;
+    public $cycle_id;
     public $pathway_name;
     public $pathway_code;
     public $target_roles;

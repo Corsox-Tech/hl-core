@@ -14,8 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class HL_CLI_Seed_Demo {
 
-    /** Demo partnership code used to identify seeded data. */
-    const DEMO_PARTNERSHIP_CODE = 'DEMO-2026';
+    /** Demo cycle code used to identify seeded data. */
+    const DEMO_CYCLE_CODE = 'DEMO-2026';
 
     /** Email domain pattern for demo users. */
     const DEMO_EMAIL_DOMAIN = 'example.com';
@@ -69,8 +69,8 @@ class HL_CLI_Seed_Demo {
         // Step 1: Org Structure
         list( $district_id, $school_a_id, $school_b_id ) = $this->seed_orgunits();
 
-        // Step 2: Partnership
-        $partnership_id = $this->seed_partnership( $district_id, $school_a_id, $school_b_id );
+        // Step 2: Cycle
+        $cycle_id = $this->seed_cycle( $district_id, $school_a_id, $school_b_id );
 
         // Step 3: Classrooms
         $classrooms = $this->seed_classrooms( $school_a_id, $school_b_id );
@@ -82,10 +82,10 @@ class HL_CLI_Seed_Demo {
         $users = $this->seed_users();
 
         // Step 6: Enrollments
-        $enrollments = $this->seed_enrollments( $users, $partnership_id, $school_a_id, $school_b_id, $district_id );
+        $enrollments = $this->seed_enrollments( $users, $cycle_id, $school_a_id, $school_b_id, $district_id );
 
         // Step 7: Teams
-        $teams = $this->seed_teams( $partnership_id, $school_a_id, $school_b_id, $enrollments );
+        $teams = $this->seed_teams( $cycle_id, $school_a_id, $school_b_id, $enrollments );
 
         // Step 8: Teaching Assignments
         $this->seed_teaching_assignments( $enrollments, $classrooms );
@@ -93,12 +93,12 @@ class HL_CLI_Seed_Demo {
         // Step 9: Children
         $this->seed_children( $classrooms, $school_a_id, $school_b_id );
 
-        // Step 9b: Freeze child age groups for this partnership
-        $frozen = HL_Child_Snapshot_Service::freeze_age_groups( $partnership_id );
+        // Step 9b: Freeze child age groups for this cycle
+        $frozen = HL_Child_Snapshot_Service::freeze_age_groups( $cycle_id );
         WP_CLI::log( "  [9b/17] Frozen age group snapshots: {$frozen}" );
 
         // Step 10: Pathways & Components
-        $pathways = $this->seed_pathways( $partnership_id, $instruments );
+        $pathways = $this->seed_pathways( $cycle_id, $instruments );
 
         // Step 11: Update Enrollment assigned_pathway_id
         $this->assign_pathways( $enrollments, $pathways );
@@ -116,16 +116,16 @@ class HL_CLI_Seed_Demo {
         $this->seed_rollups( $enrollments );
 
         // Step 16: Coach Assignments
-        $this->seed_coach_assignments( $partnership_id, $school_a_id, $school_b_id, $teams, $users );
+        $this->seed_coach_assignments( $cycle_id, $school_a_id, $school_b_id, $teams, $users );
 
         // Step 17: Coaching Sessions
-        $this->seed_coaching_sessions( $partnership_id, $enrollments, $users );
+        $this->seed_coaching_sessions( $cycle_id, $enrollments, $users );
 
         WP_CLI::line( '' );
         WP_CLI::success( 'Demo data seeded successfully!' );
         WP_CLI::line( '' );
         WP_CLI::line( 'Summary:' );
-        WP_CLI::line( "  Partnership:  {$partnership_id} (code: " . self::DEMO_PARTNERSHIP_CODE . ')' );
+        WP_CLI::line( "  Cycle:  {$cycle_id} (code: " . self::DEMO_CYCLE_CODE . ')' );
         WP_CLI::line( "  District:     {$district_id}" );
         WP_CLI::line( "  Schools:      {$school_a_id}, {$school_b_id}" );
         WP_CLI::line( '  Classrooms:   ' . count( $classrooms ) );
@@ -148,8 +148,8 @@ class HL_CLI_Seed_Demo {
         global $wpdb;
         $row = $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT partnership_id FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
-                self::DEMO_PARTNERSHIP_CODE
+                "SELECT cycle_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_code = %s LIMIT 1",
+                self::DEMO_CYCLE_CODE
             )
         );
         return ! empty( $row );
@@ -163,22 +163,22 @@ class HL_CLI_Seed_Demo {
 
         WP_CLI::line( 'Cleaning demo data...' );
 
-        // 1. Find demo partnership.
-        $partnership_id = $wpdb->get_var(
+        // 1. Find demo cycle.
+        $cycle_id = $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT partnership_id FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = %s LIMIT 1",
-                self::DEMO_PARTNERSHIP_CODE
+                "SELECT cycle_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_code = %s LIMIT 1",
+                self::DEMO_CYCLE_CODE
             )
         );
 
-        if ( $partnership_id ) {
+        if ( $cycle_id ) {
             // Delete dependent data in reverse dependency order.
 
             // Component states & rollups via enrollments.
             $enrollment_ids = $wpdb->get_col(
                 $wpdb->prepare(
-                    "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d",
-                    $partnership_id
+                    "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE cycle_id = %d",
+                    $cycle_id
                 )
             );
 
@@ -205,14 +205,14 @@ class HL_CLI_Seed_Demo {
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in_ids})" );
 
                 // Observations.
-                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE partnership_id = {$partnership_id}" );
+                $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_observation WHERE cycle_id = {$cycle_id}" );
             }
 
             // Components and related rules.
             $component_ids = $wpdb->get_col(
                 $wpdb->prepare(
-                    "SELECT component_id FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d",
-                    $partnership_id
+                    "SELECT component_id FROM {$wpdb->prefix}hl_component WHERE cycle_id = %d",
+                    $cycle_id
                 )
             );
             if ( ! empty( $component_ids ) ) {
@@ -228,43 +228,43 @@ class HL_CLI_Seed_Demo {
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_prereq_group WHERE component_id IN ({$in_comp})" );
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_component_drip_rule WHERE component_id IN ({$in_comp})" );
             }
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d", $partnership_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_component WHERE cycle_id = %d", $cycle_id ) );
 
             // Pathways.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d", $partnership_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE cycle_id = %d", $cycle_id ) );
 
             // Teams.
             $team_ids = $wpdb->get_col(
                 $wpdb->prepare(
-                    "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE partnership_id = %d",
-                    $partnership_id
+                    "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE cycle_id = %d",
+                    $cycle_id
                 )
             );
             if ( ! empty( $team_ids ) ) {
                 $in_teams = implode( ',', array_map( 'intval', $team_ids ) );
                 $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_team_membership WHERE team_id IN ({$in_teams})" );
             }
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_team WHERE partnership_id = %d", $partnership_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_team WHERE cycle_id = %d", $cycle_id ) );
 
             // Enrollments.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d", $partnership_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE cycle_id = %d", $cycle_id ) );
 
-            // Partnership-school links.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_partnership_school WHERE partnership_id = %d", $partnership_id ) );
+            // Cycle-school links.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cycle_school WHERE cycle_id = %d", $cycle_id ) );
 
             // Coach assignments.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE partnership_id = %d", $partnership_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coach_assignment WHERE cycle_id = %d", $cycle_id ) );
 
             // Coaching sessions.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE partnership_id = %d", $partnership_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_coaching_session WHERE cycle_id = %d", $cycle_id ) );
 
-            // Child partnership snapshots.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_partnership_snapshot WHERE partnership_id = %d", $partnership_id ) );
+            // Child cycle snapshots.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_cycle_snapshot WHERE cycle_id = %d", $cycle_id ) );
 
-            // Partnership.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d", $partnership_id ) );
+            // Cycle.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d", $cycle_id ) );
 
-            WP_CLI::log( "  Deleted partnership {$partnership_id} and all related records." );
+            WP_CLI::log( "  Deleted cycle {$cycle_id} and all related records." );
         }
 
         // 2. Handle demo users — only delete those we CREATED; preserve pre-existing (tagged 'found').
@@ -319,9 +319,9 @@ class HL_CLI_Seed_Demo {
         $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_orgunit WHERE name LIKE 'Demo %'" );
         WP_CLI::log( '  Deleted demo org units.' );
 
-        // 6. Clean up audit log entries for the demo partnership.
-        if ( $partnership_id ) {
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE partnership_id = %d", $partnership_id ) );
+        // 6. Clean up audit log entries for the demo cycle.
+        if ( $cycle_id ) {
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_audit_log WHERE cycle_id = %d", $cycle_id ) );
             WP_CLI::log( '  Deleted demo audit log entries.' );
         }
     }
@@ -361,44 +361,44 @@ class HL_CLI_Seed_Demo {
     }
 
     // ------------------------------------------------------------------
-    // Step 2: Partnership
+    // Step 2: Cycle
     // ------------------------------------------------------------------
 
     /**
-     * Seed partnership and link to schools.
+     * Seed cycle and link to schools.
      *
      * @param int $district_id  District orgunit ID.
      * @param int $school_a_id  School A orgunit ID.
      * @param int $school_b_id  School B orgunit ID.
-     * @return int Partnership ID.
+     * @return int Cycle ID.
      */
-    private function seed_partnership( $district_id, $school_a_id, $school_b_id ) {
+    private function seed_cycle( $district_id, $school_a_id, $school_b_id ) {
         global $wpdb;
 
-        $repo = new HL_Partnership_Repository();
+        $repo = new HL_Cycle_Repository();
 
-        $partnership_id = $repo->create( array(
-            'partnership_name' => 'Demo Partnership 2026',
-            'partnership_code' => self::DEMO_PARTNERSHIP_CODE,
+        $cycle_id = $repo->create( array(
+            'cycle_name' => 'Demo Cycle 2026',
+            'cycle_code' => self::DEMO_CYCLE_CODE,
             'district_id' => $district_id,
             'status'      => 'active',
             'start_date'  => '2026-01-01',
             'end_date'    => '2026-12-31',
         ) );
 
-        // Link partnership to both schools.
-        $wpdb->insert( $wpdb->prefix . 'hl_partnership_school', array(
-            'partnership_id' => $partnership_id,
+        // Link cycle to both schools.
+        $wpdb->insert( $wpdb->prefix . 'hl_cycle_school', array(
+            'cycle_id' => $cycle_id,
             'school_id' => $school_a_id,
         ) );
-        $wpdb->insert( $wpdb->prefix . 'hl_partnership_school', array(
-            'partnership_id' => $partnership_id,
+        $wpdb->insert( $wpdb->prefix . 'hl_cycle_school', array(
+            'cycle_id' => $cycle_id,
             'school_id' => $school_b_id,
         ) );
 
-        WP_CLI::log( "  [2/17] Partnership created: id={$partnership_id}, code=" . self::DEMO_PARTNERSHIP_CODE );
+        WP_CLI::log( "  [2/17] Cycle created: id={$cycle_id}, code=" . self::DEMO_CYCLE_CODE );
 
-        return $partnership_id;
+        return $cycle_id;
     }
 
     // ------------------------------------------------------------------
@@ -657,13 +657,13 @@ class HL_CLI_Seed_Demo {
      * Seed enrollments for all users except coach.
      *
      * @param array $users        User arrays.
-     * @param int   $partnership_id    Partnership ID.
+     * @param int   $cycle_id    Cycle ID.
      * @param int   $school_a_id  School A.
      * @param int   $school_b_id  School B.
      * @param int   $district_id  District ID.
      * @return array Enrollment data.
      */
-    private function seed_enrollments( $users, $partnership_id, $school_a_id, $school_b_id, $district_id ) {
+    private function seed_enrollments( $users, $cycle_id, $school_a_id, $school_b_id, $district_id ) {
         $repo = new HL_Enrollment_Repository();
 
         $enrollments = array(
@@ -680,7 +680,7 @@ class HL_CLI_Seed_Demo {
             $school = ( $idx < 5 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
-                'partnership_id' => $partnership_id,
+                'cycle_id' => $cycle_id,
                 'roles'     => array( 'teacher' ),
                 'status'    => 'active',
                 'school_id' => $school,
@@ -700,7 +700,7 @@ class HL_CLI_Seed_Demo {
             $school = ( $idx === 0 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
-                'partnership_id' => $partnership_id,
+                'cycle_id' => $cycle_id,
                 'roles'     => array( 'mentor' ),
                 'status'    => 'active',
                 'school_id' => $school,
@@ -715,7 +715,7 @@ class HL_CLI_Seed_Demo {
             $school = ( $idx === 0 ) ? $school_a_id : $school_b_id;
             $eid    = $repo->create( array(
                 'user_id'   => $uid,
-                'partnership_id' => $partnership_id,
+                'cycle_id' => $cycle_id,
                 'roles'     => array( 'school_leader' ),
                 'status'    => 'active',
                 'school_id' => $school,
@@ -729,7 +729,7 @@ class HL_CLI_Seed_Demo {
         $uid = $users['district_leader'];
         $eid = $repo->create( array(
             'user_id'   => $uid,
-            'partnership_id' => $partnership_id,
+            'cycle_id' => $cycle_id,
             'roles'     => array( 'district_leader' ),
             'status'    => 'active',
             'district_id' => $district_id,
@@ -749,13 +749,13 @@ class HL_CLI_Seed_Demo {
     /**
      * Seed teams with mentor + teacher members.
      *
-     * @param int   $partnership_id    Partnership ID.
+     * @param int   $cycle_id    Cycle ID.
      * @param int   $school_a_id  School A.
      * @param int   $school_b_id  School B.
      * @param array $enrollments  Enrollment data.
      * @return array Team IDs: ['team_a' => id, 'team_b' => id].
      */
-    private function seed_teams( $partnership_id, $school_a_id, $school_b_id, $enrollments ) {
+    private function seed_teams( $cycle_id, $school_a_id, $school_b_id, $enrollments ) {
         $svc = new HL_Team_Service();
 
         $team_ids = array( 'team_a' => 0, 'team_b' => 0 );
@@ -763,7 +763,7 @@ class HL_CLI_Seed_Demo {
         // Team A at School A.
         $team_a = $svc->create_team( array(
             'team_name' => 'Demo Team A',
-            'partnership_id' => $partnership_id,
+            'cycle_id' => $cycle_id,
             'school_id' => $school_a_id,
         ) );
 
@@ -780,7 +780,7 @@ class HL_CLI_Seed_Demo {
         // Team B at School B.
         $team_b = $svc->create_team( array(
             'team_name' => 'Demo Team B',
-            'partnership_id' => $partnership_id,
+            'cycle_id' => $cycle_id,
             'school_id' => $school_b_id,
         ) );
 
@@ -920,17 +920,17 @@ class HL_CLI_Seed_Demo {
     /**
      * Seed pathways and components.
      *
-     * @param int   $partnership_id   Partnership ID.
+     * @param int   $cycle_id   Cycle ID.
      * @param array $instruments Instrument IDs keyed by age band.
      * @return array Pathway data with component IDs.
      */
-    private function seed_pathways( $partnership_id, $instruments ) {
+    private function seed_pathways( $cycle_id, $instruments ) {
         $svc = new HL_Pathway_Service();
 
         // --- Teacher Pathway ---
         $tp_id = $svc->create_pathway( array(
             'pathway_name' => 'Teacher Pathway',
-            'partnership_id'    => $partnership_id,
+            'cycle_id'    => $cycle_id,
             'target_roles' => array( 'teacher' ),
             'active_status' => 1,
         ) );
@@ -941,7 +941,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_component( array(
             'title'         => 'Foundations of Early Learning',
             'pathway_id'    => $tp_id,
-            'partnership_id'     => $partnership_id,
+            'cycle_id'     => $cycle_id,
             'component_type' => 'learndash_course',
             'weight'        => 2.0,
             'ordering_hint' => 1,
@@ -953,7 +953,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_component( array(
             'title'         => 'Pre Self-Assessment',
             'pathway_id'    => $tp_id,
-            'partnership_id'     => $partnership_id,
+            'cycle_id'     => $cycle_id,
             'component_type' => 'teacher_self_assessment',
             'weight'        => 1.0,
             'ordering_hint' => 2,
@@ -968,7 +968,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_component( array(
             'title'         => 'Post Self-Assessment',
             'pathway_id'    => $tp_id,
-            'partnership_id'     => $partnership_id,
+            'cycle_id'     => $cycle_id,
             'component_type' => 'teacher_self_assessment',
             'weight'        => 1.0,
             'ordering_hint' => 3,
@@ -983,7 +983,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_component( array(
             'title'         => 'Child Assessment',
             'pathway_id'    => $tp_id,
-            'partnership_id'     => $partnership_id,
+            'cycle_id'     => $cycle_id,
             'component_type' => 'child_assessment',
             'weight'        => 2.0,
             'ordering_hint' => 4,
@@ -995,7 +995,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_component( array(
             'title'         => 'Coaching Attendance',
             'pathway_id'    => $tp_id,
-            'partnership_id'     => $partnership_id,
+            'cycle_id'     => $cycle_id,
             'component_type' => 'coaching_session_attendance',
             'weight'        => 1.0,
             'ordering_hint' => 5,
@@ -1006,7 +1006,7 @@ class HL_CLI_Seed_Demo {
         // --- Mentor Pathway ---
         $mp_id = $svc->create_pathway( array(
             'pathway_name' => 'Mentor Pathway',
-            'partnership_id'    => $partnership_id,
+            'cycle_id'    => $cycle_id,
             'target_roles' => array( 'mentor' ),
             'active_status' => 1,
         ) );
@@ -1017,7 +1017,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_component( array(
             'title'         => 'Mentor Training Course',
             'pathway_id'    => $mp_id,
-            'partnership_id'     => $partnership_id,
+            'cycle_id'     => $cycle_id,
             'component_type' => 'learndash_course',
             'weight'        => 2.0,
             'ordering_hint' => 1,
@@ -1029,7 +1029,7 @@ class HL_CLI_Seed_Demo {
         $a_id = $svc->create_component( array(
             'title'         => 'Teacher Observations',
             'pathway_id'    => $mp_id,
-            'partnership_id'     => $partnership_id,
+            'cycle_id'     => $cycle_id,
             'component_type' => 'observation',
             'weight'        => 1.0,
             'ordering_hint' => 2,
@@ -1270,13 +1270,13 @@ class HL_CLI_Seed_Demo {
     /**
      * Seed coach assignments: school-level for both schools, team-level for Team A.
      *
-     * @param int   $partnership_id   Partnership ID.
+     * @param int   $cycle_id   Cycle ID.
      * @param int   $school_a_id School A.
      * @param int   $school_b_id School B.
      * @param array $teams       Team IDs.
      * @param array $users       User data.
      */
-    private function seed_coach_assignments( $partnership_id, $school_a_id, $school_b_id, $teams, $users ) {
+    private function seed_coach_assignments( $cycle_id, $school_a_id, $school_b_id, $teams, $users ) {
         $service = new HL_Coach_Assignment_Service();
         $count   = 0;
 
@@ -1291,7 +1291,7 @@ class HL_CLI_Seed_Demo {
             'coach_user_id'  => $coach_user_id,
             'scope_type'     => 'school',
             'scope_id'       => $school_a_id,
-            'partnership_id'      => $partnership_id,
+            'cycle_id'      => $cycle_id,
             'effective_from' => '2026-01-01',
         ) );
         if ( ! is_wp_error( $result ) ) {
@@ -1303,7 +1303,7 @@ class HL_CLI_Seed_Demo {
             'coach_user_id'  => $coach_user_id,
             'scope_type'     => 'school',
             'scope_id'       => $school_b_id,
-            'partnership_id'      => $partnership_id,
+            'cycle_id'      => $cycle_id,
             'effective_from' => '2026-01-01',
         ) );
         if ( ! is_wp_error( $result ) ) {
@@ -1316,7 +1316,7 @@ class HL_CLI_Seed_Demo {
                 'coach_user_id'  => $coach_user_id,
                 'scope_type'     => 'team',
                 'scope_id'       => $teams['team_a'],
-                'partnership_id'      => $partnership_id,
+                'cycle_id'      => $cycle_id,
                 'effective_from' => '2026-01-15',
             ) );
             if ( ! is_wp_error( $result ) ) {
@@ -1340,11 +1340,11 @@ class HL_CLI_Seed_Demo {
      * - Teacher 3: missed session (past)
      * - Teacher 4: cancelled + rescheduled session
      *
-     * @param int   $partnership_id   Partnership ID.
+     * @param int   $cycle_id   Cycle ID.
      * @param array $enrollments Enrollment data.
      * @param array $users       User data.
      */
-    private function seed_coaching_sessions( $partnership_id, $enrollments, $users ) {
+    private function seed_coaching_sessions( $cycle_id, $enrollments, $users ) {
         $service = new HL_Coaching_Service();
         $count   = 0;
 
@@ -1358,7 +1358,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_a'][0] ) ) {
             $eid    = $enrollments['teachers_a'][0]['enrollment_id'];
             $result = $service->create_session( array(
-                'partnership_id'            => $partnership_id,
+                'cycle_id'            => $cycle_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1375,7 +1375,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_a'][1] ) ) {
             $eid    = $enrollments['teachers_a'][1]['enrollment_id'];
             $result = $service->create_session( array(
-                'partnership_id'            => $partnership_id,
+                'cycle_id'            => $cycle_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1391,7 +1391,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_a'][2] ) ) {
             $eid    = $enrollments['teachers_a'][2]['enrollment_id'];
             $result = $service->create_session( array(
-                'partnership_id'            => $partnership_id,
+                'cycle_id'            => $cycle_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1409,7 +1409,7 @@ class HL_CLI_Seed_Demo {
 
             // Original session (will be rescheduled).
             $orig = $service->create_session( array(
-                'partnership_id'            => $partnership_id,
+                'cycle_id'            => $cycle_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',
@@ -1434,7 +1434,7 @@ class HL_CLI_Seed_Demo {
         if ( isset( $enrollments['teachers_b'][0] ) ) {
             $eid    = $enrollments['teachers_b'][0]['enrollment_id'];
             $result = $service->create_session( array(
-                'partnership_id'            => $partnership_id,
+                'cycle_id'            => $cycle_id,
                 'mentor_enrollment_id' => $eid,
                 'coach_user_id'        => $coach_user_id,
                 'session_title'        => 'Coaching Session 1',

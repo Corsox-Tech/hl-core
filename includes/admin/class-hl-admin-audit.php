@@ -50,7 +50,7 @@ class HL_Admin_Audit {
     public function render_page_content() {
         global $wpdb;
 
-        $filter_partnership       = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
+        $filter_cycle       = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
         $filter_action_type = isset($_GET['action_type']) ? sanitize_text_field($_GET['action_type']) : '';
 
         $per_page     = 50;
@@ -60,9 +60,9 @@ class HL_Admin_Audit {
         $where_clauses = array();
         $prepare_args  = array();
 
-        if ($filter_partnership) {
-            $where_clauses[] = 'al.partnership_id = %d';
-            $prepare_args[]  = $filter_partnership;
+        if ($filter_cycle) {
+            $where_clauses[] = 'al.cycle_id = %d';
+            $prepare_args[]  = $filter_cycle;
         }
 
         if (!empty($filter_action_type)) {
@@ -81,10 +81,10 @@ class HL_Admin_Audit {
                      : (int) $wpdb->get_var($count_sql);
         $total_pages = ceil($total_items / $per_page);
 
-        $sql = "SELECT al.*, t.partnership_name, u.display_name AS actor_name
+        $sql = "SELECT al.*, t.cycle_name, u.display_name AS actor_name
                 FROM {$wpdb->prefix}hl_audit_log al
                 LEFT JOIN {$wpdb->users} u ON al.actor_user_id = u.ID
-                LEFT JOIN {$wpdb->prefix}hl_partnership t ON al.partnership_id = t.partnership_id
+                LEFT JOIN {$wpdb->prefix}hl_cycle t ON al.cycle_id = t.cycle_id
                 {$where}
                 ORDER BY al.created_at DESC
                 LIMIT %d OFFSET %d";
@@ -96,8 +96,8 @@ class HL_Admin_Audit {
             "SELECT DISTINCT action_type FROM {$wpdb->prefix}hl_audit_log ORDER BY action_type ASC"
         );
 
-        $partnerships = $wpdb->get_results(
-            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
+        $cycles = $wpdb->get_results(
+            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle ORDER BY cycle_name ASC"
         );
 
         echo '<h1>' . esc_html__('Audit Log', 'hl-core') . '</h1>';
@@ -107,12 +107,12 @@ class HL_Admin_Audit {
         echo '<input type="hidden" name="page" value="hl-settings" />';
         echo '<input type="hidden" name="tab" value="audit" />';
 
-        echo '<label><strong>' . esc_html__('Partnership:', 'hl-core') . '</strong> </label>';
-        echo '<select name="partnership_id">';
+        echo '<label><strong>' . esc_html__('Cycle:', 'hl-core') . '</strong> </label>';
+        echo '<select name="cycle_id">';
         echo '<option value="">' . esc_html__('All', 'hl-core') . '</option>';
-        if ($partnerships) {
-            foreach ($partnerships as $coh) {
-                echo '<option value="' . esc_attr($coh->partnership_id) . '"' . selected($filter_partnership, $coh->partnership_id, false) . '>' . esc_html($coh->partnership_name) . '</option>';
+        if ($cycles) {
+            foreach ($cycles as $coh) {
+                echo '<option value="' . esc_attr($coh->cycle_id) . '"' . selected($filter_cycle, $coh->cycle_id, false) . '>' . esc_html($coh->cycle_name) . '</option>';
             }
         }
         echo '</select> ';
@@ -147,7 +147,7 @@ class HL_Admin_Audit {
         echo '<th>' . esc_html__('Actor', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Action', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Entity', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Partnership', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Cycle', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Details', 'hl-core') . '</th>';
         echo '</tr></thead>';
         echo '<tbody>';
@@ -177,7 +177,7 @@ class HL_Admin_Audit {
             echo '<td>' . esc_html($log->actor_name ? $log->actor_name : __('System', 'hl-core')) . '</td>';
             echo '<td><code>' . esc_html($log->action_type) . '</code></td>';
             echo '<td>' . esc_html($entity_display) . '</td>';
-            echo '<td>' . esc_html($log->partnership_name ? $log->partnership_name : '') . '</td>';
+            echo '<td>' . esc_html($log->cycle_name ? $log->cycle_name : '') . '</td>';
             echo '<td>' . esc_html($details) . '</td>';
             echo '</tr>';
         }
@@ -188,8 +188,8 @@ class HL_Admin_Audit {
         if ($total_pages > 1) {
             echo '<div class="tablenav bottom"><div class="tablenav-pages">';
             $base_url = admin_url('admin.php?page=hl-settings&tab=audit');
-            if ($filter_partnership) {
-                $base_url = add_query_arg('partnership_id', $filter_partnership, $base_url);
+            if ($filter_cycle) {
+                $base_url = add_query_arg('cycle_id', $filter_cycle, $base_url);
             }
             if (!empty($filter_action_type)) {
                 $base_url = add_query_arg('action_type', $filter_action_type, $base_url);

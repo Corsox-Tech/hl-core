@@ -15,8 +15,8 @@ class HL_Frontend_My_Programs {
     /** @var HL_Enrollment_Repository */
     private $enrollment_repo;
 
-    /** @var HL_Partnership_Repository */
-    private $partnership_repo;
+    /** @var HL_Cycle_Repository */
+    private $cycle_repo;
 
     /** @var HL_Pathway_Repository */
     private $pathway_repo;
@@ -35,7 +35,7 @@ class HL_Frontend_My_Programs {
 
     public function __construct() {
         $this->enrollment_repo = new HL_Enrollment_Repository();
-        $this->partnership_repo     = new HL_Partnership_Repository();
+        $this->cycle_repo     = new HL_Cycle_Repository();
         $this->pathway_repo    = new HL_Pathway_Repository();
         $this->component_repo  = new HL_Component_Repository();
         $this->rules_engine    = new HL_Rules_Engine_Service();
@@ -83,8 +83,8 @@ class HL_Frontend_My_Programs {
                 continue;
             }
 
-            $partnership = $this->partnership_repo->get_by_id($enrollment->partnership_id);
-            if (!$partnership) {
+            $cycle = $this->cycle_repo->get_by_id($enrollment->cycle_id);
+            if (!$cycle) {
                 continue;
             }
 
@@ -144,7 +144,7 @@ class HL_Frontend_My_Programs {
             $cards[] = array(
                 'enrollment'  => $enrollment,
                 'pathway'     => $pathway,
-                'partnership'       => $partnership,
+                'cycle'       => $cycle,
                 'percent'     => $overall_percent,
             );
             } // end foreach assigned_pathways
@@ -153,7 +153,7 @@ class HL_Frontend_My_Programs {
         // Check if all enrollments are control group — if so, skip coach widget.
         $all_control = !empty($cards);
         foreach ($cards as $card) {
-            if (empty($card['partnership']->is_control_group)) {
+            if (empty($card['cycle']->is_control_group)) {
                 $all_control = false;
                 break;
             }
@@ -164,7 +164,7 @@ class HL_Frontend_My_Programs {
         if (!$all_control && !empty($enrollments)) {
             $coach_service = new HL_Coach_Assignment_Service();
             foreach ($enrollments as $e) {
-                $coach = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->partnership_id);
+                $coach = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->cycle_id);
                 if ($coach) break;
             }
         }
@@ -203,7 +203,7 @@ class HL_Frontend_My_Programs {
      */
     private function render_program_card($card) {
         $pathway    = $card['pathway'];
-        $partnership      = $card['partnership'];
+        $cycle      = $card['cycle'];
         $enrollment = $card['enrollment'];
         $percent    = (int) $card['percent'];
 
@@ -252,8 +252,8 @@ class HL_Frontend_My_Programs {
             </div>
             <div class="hl-program-card-body">
                 <h3 class="hl-program-card-title"><?php echo esc_html($pathway->pathway_name); ?></h3>
-                <p class="hl-program-card-partnership">
-                    <?php echo esc_html($partnership->partnership_name); ?>
+                <p class="hl-program-card-cycle">
+                    <?php echo esc_html($cycle->cycle_name); ?>
                 </p>
                 <div class="hl-program-card-progress">
                     <div class="hl-progress-bar-container">

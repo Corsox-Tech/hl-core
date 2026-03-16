@@ -10,11 +10,11 @@ class HL_Import_Service {
         'e_mail'         => 'email',
         'correo'         => 'email',
 
-        'partnership_roles'   => 'partnership_roles',
-        'partnership_role'    => 'partnership_roles',
-        'role'           => 'partnership_roles',
-        'roles'          => 'partnership_roles',
-        'rol'            => 'partnership_roles',
+        'cycle_roles'   => 'cycle_roles',
+        'cycle_role'    => 'cycle_roles',
+        'role'           => 'cycle_roles',
+        'roles'          => 'cycle_roles',
+        'rol'            => 'cycle_roles',
 
         'school_name'    => 'school_name',
         'school'         => 'school_name',
@@ -71,7 +71,7 @@ class HL_Import_Service {
         'district_leader' => 'District Leader',
     );
 
-    /** @var string[] Valid partnership roles */
+    /** @var string[] Valid cycle roles */
     private static $valid_roles = array('Teacher', 'Mentor', 'School Leader', 'District Leader');
 
     /** @var int Maximum rows per import */
@@ -81,16 +81,16 @@ class HL_Import_Service {
     const MAX_FILE_SIZE = 2097152;
 
     /**
-     * Get import runs for a partnership
+     * Get import runs for a cycle
      */
-    public function get_runs($partnership_id = null) {
+    public function get_runs($cycle_id = null) {
         global $wpdb;
-        $sql = "SELECT ir.*, u.display_name AS actor_name, t.partnership_name
+        $sql = "SELECT ir.*, u.display_name AS actor_name, t.cycle_name
                 FROM {$wpdb->prefix}hl_import_run ir
                 LEFT JOIN {$wpdb->users} u ON ir.actor_user_id = u.ID
-                LEFT JOIN {$wpdb->prefix}hl_partnership t ON ir.partnership_id = t.partnership_id";
-        if ($partnership_id) {
-            $sql = $wpdb->prepare($sql . " WHERE ir.partnership_id = %d", $partnership_id);
+                LEFT JOIN {$wpdb->prefix}hl_cycle t ON ir.cycle_id = t.cycle_id";
+        if ($cycle_id) {
+            $sql = $wpdb->prepare($sql . " WHERE ir.cycle_id = %d", $cycle_id);
         }
         $sql .= " ORDER BY ir.created_at DESC LIMIT 50";
         return $wpdb->get_results($sql, ARRAY_A) ?: array();
@@ -99,17 +99,17 @@ class HL_Import_Service {
     /**
      * Create a new import run record
      *
-     * @param int    $partnership_id
+     * @param int    $cycle_id
      * @param string $import_type
      * @param string $file_name
      * @return int run_id
      */
-    public function create_run($partnership_id, $import_type, $file_name) {
+    public function create_run($cycle_id, $import_type, $file_name) {
         global $wpdb;
         $wpdb->insert($wpdb->prefix . 'hl_import_run', array(
             'run_uuid'      => HL_DB_Utils::generate_uuid(),
             'actor_user_id' => get_current_user_id(),
-            'partnership_id'     => $partnership_id,
+            'cycle_id'     => $cycle_id,
             'import_type'   => $import_type,
             'file_name'     => $file_name,
             'status'        => 'preview',
@@ -236,10 +236,10 @@ class HL_Import_Service {
      * Validate and match participant rows against database
      *
      * @param array $parsed_rows Array of associative arrays
-     * @param int   $partnership_id
+     * @param int   $cycle_id
      * @return array Preview rows
      */
-    public function validate_participant_rows($parsed_rows, $partnership_id) {
+    public function validate_participant_rows($parsed_rows, $cycle_id) {
         $enrollment_repo = new HL_Enrollment_Repository();
         $preview_rows = array();
         $seen_emails = array();
@@ -296,9 +296,9 @@ class HL_Import_Service {
             $seen_emails[$email] = $index;
 
             // Parse and validate roles
-            $raw_roles = isset($row['partnership_roles']) ? $row['partnership_roles'] : '';
+            $raw_roles = isset($row['cycle_roles']) ? $row['cycle_roles'] : '';
             if (empty($raw_roles)) {
-                $preview['validation_messages'][] = __('Missing required field: partnership_roles', 'hl-core');
+                $preview['validation_messages'][] = __('Missing required field: cycle_roles', 'hl-core');
                 $preview_rows[] = $preview;
                 continue;
             }
@@ -383,7 +383,7 @@ class HL_Import_Service {
                 $preview['matched_user_id'] = $wp_user->ID;
 
                 // Check existing enrollment
-                $existing = $enrollment_repo->get_by_partnership_and_user($partnership_id, $wp_user->ID);
+                $existing = $enrollment_repo->get_by_cycle_and_user($cycle_id, $wp_user->ID);
 
                 if ($existing) {
                     $preview['existing_enrollment_id'] = $existing->enrollment_id;
@@ -421,7 +421,7 @@ class HL_Import_Service {
                     // User exists but not enrolled
                     $preview['status'] = 'CREATE';
                     $preview['proposed_actions'][] = sprintf(
-                        __('Enroll existing user (%s) into partnership', 'hl-core'),
+                        __('Enroll existing user (%s) into cycle', 'hl-core'),
                         $wp_user->display_name
                     );
                     $preview['selected'] = true;
@@ -433,7 +433,7 @@ class HL_Import_Service {
                     __('Create WP user (%s)', 'hl-core'),
                     $email
                 );
-                $preview['proposed_actions'][] = __('Enroll into partnership', 'hl-core');
+                $preview['proposed_actions'][] = __('Enroll into cycle', 'hl-core');
                 $preview['selected'] = true;
             }
 
@@ -459,10 +459,10 @@ class HL_Import_Service {
      * Validate and match children rows against database
      *
      * @param array $parsed_rows Array of associative arrays
-     * @param int   $partnership_id   (used for context; children belong to schools, not partnerships directly)
+     * @param int   $cycle_id   (used for context; children belong to schools, not cycles directly)
      * @return array Preview rows
      */
-    public function validate_children_rows($parsed_rows, $partnership_id) {
+    public function validate_children_rows($parsed_rows, $cycle_id) {
         $child_repo = new HL_Child_Repository();
         $preview_rows = array();
 
@@ -637,7 +637,7 @@ class HL_Import_Service {
         }
 
         $preview_rows = $run['preview_data'];
-        $partnership_id = (int) $run['partnership_id'];
+        $cycle_id = (int) $run['cycle_id'];
         $child_repo = new HL_Child_Repository();
         $classroom_service = new HL_Classroom_Service();
 
@@ -680,7 +680,7 @@ class HL_Import_Service {
                 }
 
                 HL_Audit_Service::log('import.child_created', array(
-                    'partnership_id'   => $partnership_id,
+                    'cycle_id'   => $cycle_id,
                     'entity_type' => 'child',
                     'entity_id'   => $child_id,
                     'after_data'  => $child_data,
@@ -721,7 +721,7 @@ class HL_Import_Service {
                 $child_repo->update($child_id, $update_data);
 
                 HL_Audit_Service::log('import.child_updated', array(
-                    'partnership_id'   => $partnership_id,
+                    'cycle_id'   => $cycle_id,
                     'entity_type' => 'child',
                     'entity_id'   => $child_id,
                     'after_data'  => $update_data,
@@ -765,7 +765,7 @@ class HL_Import_Service {
         );
 
         HL_Audit_Service::log('import.committed', array(
-            'partnership_id'   => $partnership_id,
+            'cycle_id'   => $cycle_id,
             'entity_type' => 'import_run',
             'entity_id'   => $run_id,
             'after_data'  => $results_summary,
@@ -782,10 +782,10 @@ class HL_Import_Service {
      * Validate classroom rows against database
      *
      * @param array $parsed_rows Array of associative arrays
-     * @param int   $partnership_id   (for context/audit)
+     * @param int   $cycle_id   (for context/audit)
      * @return array Preview rows
      */
-    public function validate_classroom_rows($parsed_rows, $partnership_id) {
+    public function validate_classroom_rows($parsed_rows, $cycle_id) {
         global $wpdb;
         $preview_rows = array();
 
@@ -905,7 +905,7 @@ class HL_Import_Service {
         }
 
         $preview_rows = $run['preview_data'];
-        $partnership_id = (int) $run['partnership_id'];
+        $cycle_id = (int) $run['cycle_id'];
         $classroom_service = new HL_Classroom_Service();
 
         $selected_set = array_flip($selected_row_indices);
@@ -957,7 +957,7 @@ class HL_Import_Service {
             }
 
             HL_Audit_Service::log('import.classroom_created', array(
-                'partnership_id'   => $partnership_id,
+                'cycle_id'   => $cycle_id,
                 'entity_type' => 'classroom',
                 'entity_id'   => $result,
                 'after_data'  => $data,
@@ -991,7 +991,7 @@ class HL_Import_Service {
         );
 
         HL_Audit_Service::log('import.committed', array(
-            'partnership_id'   => $partnership_id,
+            'cycle_id'   => $cycle_id,
             'entity_type' => 'import_run',
             'entity_id'   => $run_id,
             'after_data'  => $results_summary,
@@ -1008,10 +1008,10 @@ class HL_Import_Service {
      * Validate teaching assignment rows against database
      *
      * @param array $parsed_rows Array of associative arrays
-     * @param int   $partnership_id
+     * @param int   $cycle_id
      * @return array Preview rows
      */
-    public function validate_teaching_assignment_rows($parsed_rows, $partnership_id) {
+    public function validate_teaching_assignment_rows($parsed_rows, $cycle_id) {
         global $wpdb;
         $enrollment_repo = new HL_Enrollment_Repository();
         $preview_rows = array();
@@ -1020,13 +1020,13 @@ class HL_Import_Service {
         $schools = $this->load_schools_lookup();
         $classrooms_by_school = $this->load_classrooms_by_school();
 
-        // Pre-load existing teaching assignments for this partnership for duplicate detection
+        // Pre-load existing teaching assignments for this cycle for duplicate detection
         $existing_assignments = $wpdb->get_results($wpdb->prepare(
             "SELECT ta.enrollment_id, ta.classroom_id, ta.assignment_id
              FROM {$wpdb->prefix}hl_teaching_assignment ta
              JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
-             WHERE e.partnership_id = %d",
-            $partnership_id
+             WHERE e.cycle_id = %d",
+            $cycle_id
         ));
         $assignment_lookup = array();
         foreach ($existing_assignments as $ta) {
@@ -1125,7 +1125,7 @@ class HL_Import_Service {
                 continue;
             }
 
-            // Match teacher: WP user by email, then enrollment in partnership
+            // Match teacher: WP user by email, then enrollment in cycle
             $wp_user = get_user_by('email', $email);
             if (!$wp_user) {
                 $preview['validation_messages'][] = sprintf(
@@ -1137,10 +1137,10 @@ class HL_Import_Service {
             }
             $preview['matched_user_id'] = $wp_user->ID;
 
-            $enrollment = $enrollment_repo->get_by_partnership_and_user($partnership_id, $wp_user->ID);
+            $enrollment = $enrollment_repo->get_by_cycle_and_user($cycle_id, $wp_user->ID);
             if (!$enrollment) {
                 $preview['validation_messages'][] = sprintf(
-                    __('User %s is not enrolled in this partnership', 'hl-core'),
+                    __('User %s is not enrolled in this cycle', 'hl-core'),
                     $email
                 );
                 $preview_rows[] = $preview;
@@ -1192,7 +1192,7 @@ class HL_Import_Service {
         }
 
         $preview_rows = $run['preview_data'];
-        $partnership_id = (int) $run['partnership_id'];
+        $cycle_id = (int) $run['cycle_id'];
         $classroom_service = new HL_Classroom_Service();
 
         $selected_set = array_flip($selected_row_indices);
@@ -1231,7 +1231,7 @@ class HL_Import_Service {
             }
 
             HL_Audit_Service::log('import.teaching_assignment_created', array(
-                'partnership_id'   => $partnership_id,
+                'cycle_id'   => $cycle_id,
                 'entity_type' => 'teaching_assignment',
                 'entity_id'   => $result,
                 'after_data'  => $assignment_data,
@@ -1265,7 +1265,7 @@ class HL_Import_Service {
         );
 
         HL_Audit_Service::log('import.committed', array(
-            'partnership_id'   => $partnership_id,
+            'cycle_id'   => $cycle_id,
             'entity_type' => 'import_run',
             'entity_id'   => $run_id,
             'after_data'  => $results_summary,
@@ -1332,7 +1332,7 @@ class HL_Import_Service {
         }
 
         $preview_rows = $run['preview_data'];
-        $partnership_id = (int) $run['partnership_id'];
+        $cycle_id = (int) $run['cycle_id'];
         $enrollment_repo = new HL_Enrollment_Repository();
 
         $selected_set = array_flip($selected_row_indices);
@@ -1392,7 +1392,7 @@ class HL_Import_Service {
                     }
 
                     HL_Audit_Service::log('import.user_created', array(
-                        'partnership_id'   => $partnership_id,
+                        'cycle_id'   => $cycle_id,
                         'entity_type' => 'user',
                         'entity_id'   => $user_id,
                         'after_data'  => array('email' => $email, 'roles' => $roles),
@@ -1402,7 +1402,7 @@ class HL_Import_Service {
 
                 // Create enrollment
                 $enrollment_id = $enrollment_repo->create(array(
-                    'partnership_id'   => $partnership_id,
+                    'cycle_id'   => $cycle_id,
                     'user_id'     => $user_id,
                     'roles'       => $roles,
                     'school_id'   => $school_id,
@@ -1423,7 +1423,7 @@ class HL_Import_Service {
                 }
 
                 HL_Audit_Service::log('import.enrollment_created', array(
-                    'partnership_id'   => $partnership_id,
+                    'cycle_id'   => $cycle_id,
                     'entity_type' => 'enrollment',
                     'entity_id'   => $enrollment_id,
                     'after_data'  => array('user_id' => $user_id, 'roles' => $roles, 'school_id' => $school_id),
@@ -1460,7 +1460,7 @@ class HL_Import_Service {
                 $enrollment_repo->update($enrollment_id, $update_data);
 
                 HL_Audit_Service::log('import.enrollment_updated', array(
-                    'partnership_id'   => $partnership_id,
+                    'cycle_id'   => $cycle_id,
                     'entity_type' => 'enrollment',
                     'entity_id'   => $enrollment_id,
                     'before_data' => $before_data,
@@ -1498,7 +1498,7 @@ class HL_Import_Service {
 
         // Log run-level audit
         HL_Audit_Service::log('import.committed', array(
-            'partnership_id'   => $partnership_id,
+            'cycle_id'   => $cycle_id,
             'entity_type' => 'import_run',
             'entity_id'   => $run_id,
             'after_data'  => $results_summary,
@@ -1544,7 +1544,7 @@ class HL_Import_Service {
         fputcsv($handle, array(
             'Row Number',
             'Email',
-            'Partnership Roles',
+            'Cycle Roles',
             'School',
             'District',
             'Status',
@@ -1575,7 +1575,7 @@ class HL_Import_Service {
             fputcsv($handle, array(
                 $row['row_index'] + 1,
                 isset($raw['email']) ? $raw['email'] : '',
-                isset($raw['partnership_roles']) ? $raw['partnership_roles'] : '',
+                isset($raw['cycle_roles']) ? $raw['cycle_roles'] : '',
                 isset($raw['school_name']) ? $raw['school_name'] : (isset($raw['school_code']) ? $raw['school_code'] : ''),
                 isset($raw['district_name']) ? $raw['district_name'] : (isset($raw['district_code']) ? $raw['district_code'] : ''),
                 $row['status'],
@@ -1772,7 +1772,7 @@ class HL_Import_Service {
         if (stripos($messages, 'Invalid email') !== false) {
             $suggestions[] = 'Check that the email address is correctly formatted.';
         }
-        if (stripos($messages, 'Missing required field: partnership_roles') !== false) {
+        if (stripos($messages, 'Missing required field: cycle_roles') !== false) {
             $suggestions[] = 'Add a role (Teacher, Mentor, School Leader, or District Leader).';
         }
         if (stripos($messages, 'Unrecognized role') !== false) {
@@ -1814,8 +1814,8 @@ class HL_Import_Service {
         if (stripos($messages, 'No WordPress user found') !== false) {
             $suggestions[] = 'Import the participant first, then re-run this teaching assignment import.';
         }
-        if (stripos($messages, 'not enrolled in this partnership') !== false) {
-            $suggestions[] = 'Enroll the user in the partnership first, then re-run this import.';
+        if (stripos($messages, 'not enrolled in this cycle') !== false) {
+            $suggestions[] = 'Enroll the user in the cycle first, then re-run this import.';
         }
 
         return implode(' ', $suggestions);

@@ -57,12 +57,12 @@ class HL_Pathway_Assignment_Service {
 
         if (class_exists('HL_Audit_Service')) {
             $enrollment = $wpdb->get_row($wpdb->prepare(
-                "SELECT partnership_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d", $enrollment_id
+                "SELECT cycle_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d", $enrollment_id
             ));
             HL_Audit_Service::log(
                 'pathway_assigned',
                 get_current_user_id(),
-                $enrollment ? $enrollment->partnership_id : null,
+                $enrollment ? $enrollment->cycle_id : null,
                 null,
                 $assignment_id,
                 sprintf('Pathway #%d assigned to enrollment #%d (%s)', $pathway_id, $enrollment_id, $type)
@@ -96,12 +96,12 @@ class HL_Pathway_Assignment_Service {
 
         if (class_exists('HL_Audit_Service')) {
             $enrollment = $wpdb->get_row($wpdb->prepare(
-                "SELECT partnership_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d", absint($enrollment_id)
+                "SELECT cycle_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d", absint($enrollment_id)
             ));
             HL_Audit_Service::log(
                 'pathway_unassigned',
                 get_current_user_id(),
-                $enrollment ? $enrollment->partnership_id : null,
+                $enrollment ? $enrollment->cycle_id : null,
                 null,
                 absint($enrollment_id),
                 sprintf('Pathway #%d unassigned from enrollment #%d', $pathway_id, $enrollment_id)
@@ -188,7 +188,7 @@ class HL_Pathway_Assignment_Service {
 
         // Fallback: role-based matching.
         $enrollment = $wpdb->get_row($wpdb->prepare(
-            "SELECT partnership_id, roles FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+            "SELECT cycle_id, roles FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
             $enrollment_id
         ));
 
@@ -201,10 +201,10 @@ class HL_Pathway_Assignment_Service {
             return array();
         }
 
-        // Get all active pathways for this partnership.
+        // Get all active pathways for this cycle.
         $pathways = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d AND active_status = 1 ORDER BY pathway_name ASC",
-            $enrollment->partnership_id
+            "SELECT * FROM {$wpdb->prefix}hl_pathway WHERE cycle_id = %d AND active_status = 1 ORDER BY pathway_name ASC",
+            $enrollment->cycle_id
         ), ARRAY_A);
 
         $matched = array();
@@ -251,58 +251,58 @@ class HL_Pathway_Assignment_Service {
     }
 
     /**
-     * Get enrollments in a partnership NOT assigned to a specific pathway.
+     * Get enrollments in a cycle NOT assigned to a specific pathway.
      *
      * @param int $pathway_id
-     * @param int $partnership_id
+     * @param int $cycle_id
      * @return array
      */
-    public function get_unassigned_enrollments($pathway_id, $partnership_id) {
+    public function get_unassigned_enrollments($pathway_id, $cycle_id) {
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
             "SELECT e.enrollment_id, e.user_id, e.roles, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.partnership_id = %d AND e.status = 'active'
+             WHERE e.cycle_id = %d AND e.status = 'active'
                AND e.enrollment_id NOT IN (
                    SELECT enrollment_id FROM {$wpdb->prefix}hl_pathway_assignment WHERE pathway_id = %d
                )
              ORDER BY u.display_name ASC",
-            absint($partnership_id), absint($pathway_id)
+            absint($cycle_id), absint($pathway_id)
         ), ARRAY_A) ?: array();
     }
 
     /**
-     * Sync role-based default assignments for a partnership.
+     * Sync role-based default assignments for a cycle.
      *
      * Creates role_default assignments for enrollments that have no explicit
      * assignments, based on pathway target_roles matching enrollment roles.
      *
-     * @param int $partnership_id
+     * @param int $cycle_id
      * @return array Results with 'created' count.
      */
-    public function sync_role_defaults($partnership_id) {
+    public function sync_role_defaults($cycle_id) {
         global $wpdb;
 
-        $partnership_id = absint($partnership_id);
+        $cycle_id = absint($cycle_id);
         $created = 0;
 
         // Get all active enrollments without any pathway assignments.
         $enrollments = $wpdb->get_results($wpdb->prepare(
             "SELECT e.enrollment_id, e.roles
              FROM {$wpdb->prefix}hl_enrollment e
-             WHERE e.partnership_id = %d AND e.status = 'active'
+             WHERE e.cycle_id = %d AND e.status = 'active'
                AND e.enrollment_id NOT IN (
                    SELECT enrollment_id FROM {$wpdb->prefix}hl_pathway_assignment
                )",
-            $partnership_id
+            $cycle_id
         ), ARRAY_A);
 
-        // Get all active pathways for this partnership.
+        // Get all active pathways for this cycle.
         $pathways = $wpdb->get_results($wpdb->prepare(
-            "SELECT pathway_id, target_roles FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d AND active_status = 1",
-            $partnership_id
+            "SELECT pathway_id, target_roles FROM {$wpdb->prefix}hl_pathway WHERE cycle_id = %d AND active_status = 1",
+            $cycle_id
         ), ARRAY_A);
 
         $role_map = array(
