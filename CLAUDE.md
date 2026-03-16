@@ -42,22 +42,16 @@ These files are project configuration, not development targets. Do NOT modify th
 - Exception: If the user explicitly asks to update a reference file.
 
 ### 7. Terminology
-Three-level hierarchy: **Cohort** (optional container) → **Track** (full program engagement) → **Phase** (time period within Track). Pathways belong to Phases.
-- **Track** = full program engagement (spans all Phases/years), NOT a single phase. Stored in `hl_track`.
-- **Phase** = time period within a Track. Stored in `hl_phase`.
-- **Cohort** = optional container grouping Tracks. Stored in `hl_cohort`.
+Hierarchy: **Partnership** (full program engagement) → **Cycle** (time period within Partnership). Pathways belong to Cycles.
+- **Partnership** = full program engagement (spans all Cycles/years). Stored in `hl_partnership`. Has `partnership_type`: `program` (full B2E) or `course` (simple institutional access).
+- **Cycle** = time period within a Partnership. Stored in `hl_cycle`.
+- **Cohort** = optional container grouping Partnerships. Stored in `hl_cohort`. Hidden from all UI — retained in DB only.
 - **Learning Plan** = client-facing term for Pathway. Three plans: Teacher, Mentor, Leader.
-- **Track Type** = `program` (full B2E) or `course` (simple institutional access).
 
-### UI Label Remapping
-Code/DB uses internal terms; UI displays client-friendly labels via `HL_Label_Remap` gettext filter.
-
-| Code / DB | UI Display | Why |
-|---|---|---|
-| `Track`, `track_id`, `hl_track` | **Partnership** | Client preference |
-| `Activity`, `activity_id`, `hl_activity` | **Component** | Avoids confusion |
-
-**NEVER rename PHP variables/classes/DB columns to match display labels.** Use internal terms in `__()` calls — the remap handles display. Full details: `.claude/skills/architecture.md`.
+### Naming (Post-Rename V2)
+Code, DB, and UI all use the same terms now — no remapping layer needed.
+- `HL_Label_Remap` still exists in code but is **legacy — pending removal**. Do not add new remap entries.
+- `HL_JFB_Integration` still exists but is **legacy — pending full removal**. All forms are now built in PHP. Do not add new JFB references.
 
 ## Code Conventions
 - **PHP 7.4+** with WordPress coding standards
@@ -68,7 +62,8 @@ Code/DB uses internal terms; UI displays client-friendly labels via `HL_Label_Re
 
 ## Plugin Dependencies
 - **WordPress 6.0+**, **PHP 7.4+**, **LearnDash** (required)
-- **JetFormBuilder** (observation forms only) — **BuddyBoss Theme + Platform** (optional, degrades gracefully)
+- **BuddyBoss Theme + Platform** (optional, degrades gracefully)
+- ~~JetFormBuilder~~ — legacy integration still loaded; pending full removal. Do not add new JFB code.
 
 ## Environment
 Local files = editing workspace only (no PHP locally). Default target: **test server** (AWS Lightsail).
