@@ -39,13 +39,13 @@ WP_CLI::log("Maria user ID: $maria_id");
 // ── 3. Find the Demo Track ───────────────────────────────────
 $cycle_id = $wpdb->get_var("SELECT cycle_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_code = 'DEMO-2026' LIMIT 1");
 if (!$cycle_id) {
-    // Fallback: use any active track
+    // Fallback: use any active cycle
     $cycle_id = $wpdb->get_var("SELECT cycle_id FROM {$wpdb->prefix}hl_cycle LIMIT 1");
 }
 if (!$cycle_id) {
-    WP_CLI::error("No track found. Run seed-demo first.");
+    WP_CLI::error("No cycle found. Run seed-demo first.");
 }
-WP_CLI::log("Using track ID: $cycle_id");
+WP_CLI::log("Using cycle ID: $cycle_id");
 
 // ── Helper functions ─────────────────────────────────────────
 function ensure_enrollment($wpdb, $user_id, $cycle_id) {
@@ -193,7 +193,7 @@ WP_CLI::log("Added 5 children to Maria's classroom.");
 if (class_exists('HL_Child_Snapshot_Service')) {
     $snapshot_service = new HL_Child_Snapshot_Service();
     $snapshot_service->freeze_age_groups($cycle_id);
-    WP_CLI::log("Froze age groups for track $cycle_id.");
+    WP_CLI::log("Froze age groups for cycle $cycle_id.");
 }
 
 // ── 11. Assign teacher pathway ───────────────────────────────

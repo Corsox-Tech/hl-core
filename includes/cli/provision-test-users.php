@@ -9,7 +9,7 @@
  * - 1 test school under LSF district
  * - 2 classrooms (mixed age groups for thorough testing)
  * - 8 fake children across 4 age groups
- * - 2 enrollments in the Lutheran control track
+ * - 2 enrollments in the Lutheran control cycle
  * - Teaching assignments, component states, pathway assignments
  * - TSA + CA assessment instances
  *
@@ -29,7 +29,7 @@ $cycle_id       = 1;
 $pathway_id     = 1;
 $district_id    = 1; // LSF_PALM_BEACH
 
-// Components (from the Lutheran track)
+// Components (from the Lutheran cycle)
 $act_tsa_pre_id  = 1; // Teacher Self-Assessment (Pre)
 $act_ca_pre_id   = 2; // Child Assessment (Pre)
 $act_tsa_post_id = 3; // Teacher Self-Assessment (Post)
@@ -133,7 +133,7 @@ if (!$school_id) {
     echo "  Test school already exists: ID {$school_id}\n";
 }
 
-// Link school to track
+// Link school to cycle
 $link_exists = $wpdb->get_var($wpdb->prepare(
     "SELECT COUNT(*) FROM {$wpdb->prefix}hl_cycle_school WHERE cycle_id = %d AND orgunit_id = %d",
     $cycle_id, $school_id
@@ -143,7 +143,7 @@ if (!$link_exists) {
         'cycle_id'   => $cycle_id,
         'orgunit_id' => $school_id,
     ));
-    echo "  Linked test school to track\n";
+    echo "  Linked test school to cycle\n";
 }
 
 // ── Step 3: Create 2 Classrooms ──────────────────────────────────────

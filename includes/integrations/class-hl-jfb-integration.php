@@ -90,9 +90,9 @@ class HL_JFB_Integration {
         // Extract required hidden fields
         $enrollment_id = isset($request['hl_enrollment_id']) ? absint($request['hl_enrollment_id']) : 0;
         $component_id  = isset($request['hl_component_id'])   ? absint($request['hl_component_id'])  : 0;
-        $track_id      = isset($request['hl_track_id'])      ? absint($request['hl_track_id'])      : 0;
+        $cycle_id      = isset($request['hl_cycle_id'])      ? absint($request['hl_cycle_id'])      : 0;
 
-        if (!$enrollment_id || !$component_id || !$track_id) {
+        if (!$enrollment_id || !$component_id || !$cycle_id) {
             // Missing required context — cannot process
             return;
         }
@@ -123,14 +123,14 @@ class HL_JFB_Integration {
         switch ($component->component_type) {
             case 'teacher_self_assessment':
                 $this->handle_teacher_assessment_submission(
-                    $enrollment_id, $component_id, $track_id, $component, $jfb_record_id, $now
+                    $enrollment_id, $component_id, $cycle_id, $component, $jfb_record_id, $now
                 );
                 break;
 
             case 'observation':
                 $observation_id = isset($request['hl_observation_id']) ? absint($request['hl_observation_id']) : 0;
                 $this->handle_observation_submission(
-                    $enrollment_id, $component_id, $track_id, $observation_id, $component, $jfb_record_id, $now
+                    $enrollment_id, $component_id, $cycle_id, $observation_id, $component, $jfb_record_id, $now
                 );
                 break;
         }
@@ -145,7 +145,7 @@ class HL_JFB_Integration {
         HL_Audit_Service::log('jfb_form.submitted', array(
             'entity_type' => 'component',
             'entity_id'   => $component_id,
-            'track_id'    => $track_id,
+            'cycle_id'    => $cycle_id,
             'after_data'  => array(
                 'enrollment_id'  => $enrollment_id,
                 'component_type' => $component->component_type,
@@ -157,7 +157,7 @@ class HL_JFB_Integration {
     /**
      * Handle teacher self-assessment JFB submission
      */
-    private function handle_teacher_assessment_submission($enrollment_id, $component_id, $track_id, $component, $jfb_record_id, $now) {
+    private function handle_teacher_assessment_submission($enrollment_id, $component_id, $cycle_id, $component, $jfb_record_id, $now) {
         global $wpdb;
 
         // Determine phase from external_ref
@@ -181,8 +181,8 @@ class HL_JFB_Integration {
         // Find or create the teacher assessment instance
         $instance = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instance
-             WHERE track_id = %d AND enrollment_id = %d AND phase = %s",
-            $track_id, $enrollment_id, $phase
+             WHERE cycle_id = %d AND enrollment_id = %d AND phase = %s",
+            $cycle_id, $enrollment_id, $phase
         ));
 
         if ($instance) {
@@ -201,7 +201,7 @@ class HL_JFB_Integration {
             // Create a new instance and mark as submitted
             $wpdb->insert($wpdb->prefix . 'hl_teacher_assessment_instance', array(
                 'instance_uuid' => HL_DB_Utils::generate_uuid(),
-                'track_id'      => $track_id,
+                'cycle_id'      => $cycle_id,
                 'enrollment_id' => $enrollment_id,
                 'phase'         => $phase,
                 'jfb_form_id'   => $jfb_form_id,
@@ -215,7 +215,7 @@ class HL_JFB_Integration {
     /**
      * Handle observation JFB submission
      */
-    private function handle_observation_submission($enrollment_id, $component_id, $track_id, $observation_id, $component, $jfb_record_id, $now) {
+    private function handle_observation_submission($enrollment_id, $component_id, $cycle_id, $observation_id, $component, $jfb_record_id, $now) {
         global $wpdb;
 
         if (!$observation_id) {
