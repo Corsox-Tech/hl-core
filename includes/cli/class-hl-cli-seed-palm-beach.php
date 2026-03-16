@@ -64,9 +64,8 @@ class HL_CLI_Seed_Palm_Beach {
 		// Step 1: Org Structure.
 		$orgunits = $this->seed_orgunits();
 
-		// Step 2: Partnership + Cycle.
+		// Step 2: Partnership.
 		$partnership_id = $this->seed_partnership( $orgunits );
-		$this->seed_cycle( $partnership_id );
 
 		// Step 3: Classrooms.
 		$classrooms = $this->seed_classrooms( $orgunits );
@@ -679,7 +678,6 @@ class HL_CLI_Seed_Palm_Beach {
 			}
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d", $partnership_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d", $partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cycle WHERE partnership_id = %d", $partnership_id ) );
 
 			$team_ids = $wpdb->get_col(
 				$wpdb->prepare( "SELECT team_id FROM {$wpdb->prefix}hl_team WHERE partnership_id = %d", $partnership_id )
@@ -721,7 +719,6 @@ class HL_CLI_Seed_Palm_Beach {
 			}
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_component WHERE partnership_id = %d", $control_partnership_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d", $control_partnership_id ) );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cycle WHERE partnership_id = %d", $control_partnership_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE partnership_id = %d", $control_partnership_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_child_partnership_snapshot WHERE partnership_id = %d", $control_partnership_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d", $control_partnership_id ) );
@@ -862,25 +859,6 @@ class HL_CLI_Seed_Palm_Beach {
 
 		WP_CLI::log( "  [2/17] Partnership created: id={$partnership_id}, code=" . self::PARTNERSHIP_CODE );
 		return $partnership_id;
-	}
-
-	/**
-	 * Seed a default Cycle for the ELC Palm Beach partnership.
-	 *
-	 * @param int $partnership_id Partnership ID.
-	 */
-	private function seed_cycle( $partnership_id ) {
-		$cycle_svc = new HL_Cycle_Service();
-		$cycle_id = $cycle_svc->create_cycle( array(
-			'partnership_id'     => $partnership_id,
-			'cycle_name'   => 'Cycle 1',
-			'cycle_number' => 1,
-			'start_date'   => '2026-01-01',
-			'end_date'     => '2026-12-31',
-			'status'       => 'active',
-		) );
-
-		WP_CLI::log( "  [2b/17] Cycle created: id={$cycle_id}" );
 	}
 
 	// ------------------------------------------------------------------
@@ -1762,17 +1740,6 @@ class HL_CLI_Seed_Palm_Beach {
 		}
 
 		WP_CLI::log( "  [18/20] Cohort id={$cohort_id} (B2E-EVAL), control partnership id={$control_partnership_id} (LSF-CTRL-2026)" );
-
-		// Create Cycle for control partnership.
-		$ctrl_cycle_svc = new HL_Cycle_Service();
-		$ctrl_cycle_svc->create_cycle( array(
-			'partnership_id'     => $control_partnership_id,
-			'cycle_name'   => 'Cycle 1',
-			'cycle_number' => 1,
-			'start_date'   => '2026-01-01',
-			'end_date'     => '2026-12-31',
-			'status'       => 'active',
-		) );
 
 		// Create assessment-only pathway.
 		$svc = new HL_Pathway_Service();

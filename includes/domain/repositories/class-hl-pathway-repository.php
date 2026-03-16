@@ -9,21 +9,15 @@ class HL_Pathway_Repository {
     }
 
     /**
-     * Get all pathways, optionally filtered by partnership and/or cycle.
+     * Get all pathways, optionally filtered by partnership.
      *
      * @param int|null $partnership_id
-     * @param int|null $cycle_id
      * @return HL_Pathway[]
      */
-    public function get_all($partnership_id = null, $cycle_id = null) {
+    public function get_all($partnership_id = null) {
         global $wpdb;
 
-        if ($cycle_id) {
-            $rows = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$this->table()} WHERE cycle_id = %d ORDER BY pathway_name ASC",
-                $cycle_id
-            ), ARRAY_A);
-        } elseif ($partnership_id) {
+        if ($partnership_id) {
             $rows = $wpdb->get_results($wpdb->prepare(
                 "SELECT * FROM {$this->table()} WHERE partnership_id = %d ORDER BY pathway_name ASC",
                 $partnership_id
@@ -35,16 +29,6 @@ class HL_Pathway_Repository {
             );
         }
         return array_map(function($row) { return new HL_Pathway($row); }, $rows ?: array());
-    }
-
-    /**
-     * Get pathways for a specific cycle.
-     *
-     * @param int $cycle_id
-     * @return HL_Pathway[]
-     */
-    public function get_by_cycle($cycle_id) {
-        return $this->get_all(null, $cycle_id);
     }
 
     public function get_by_id($pathway_id) {

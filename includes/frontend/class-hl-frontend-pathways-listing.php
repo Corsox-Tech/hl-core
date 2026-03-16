@@ -77,9 +77,6 @@ class HL_Frontend_Pathways_Listing {
                                 <h3 class="hl-crm-card-title"><?php echo esc_html( $pw['pathway_name'] ); ?></h3>
                                 <div class="hl-crm-card-subtitle">
                                     <?php echo esc_html( $pw['partnership_name'] ); ?>
-                                    <?php if ( ! empty( $pw['cycle_name'] ) ) : ?>
-                                        <span class="hl-crm-card-cycle">&mdash; <?php echo esc_html( $pw['cycle_name'] ); ?></span>
-                                    <?php endif; ?>
                                 </div>
                                 <div class="hl-crm-card-meta">
                                     <span class="hl-crm-card-stat">
@@ -153,11 +150,9 @@ class HL_Frontend_Pathways_Listing {
         $sql = "SELECT p.pathway_id, p.pathway_name, p.partnership_id, p.target_roles,
                        p.featured_image_id, p.avg_completion_time,
                        tr.partnership_name,
-                       ph.cycle_name,
                        COALESCE(ac.activity_count, 0) AS activity_count
                 FROM {$prefix}hl_pathway p
                 LEFT JOIN {$prefix}hl_partnership tr ON p.partnership_id = tr.partnership_id
-                LEFT JOIN {$prefix}hl_cycle ph ON p.cycle_id = ph.cycle_id
                 LEFT JOIN (
                     SELECT pathway_id, COUNT(*) AS activity_count
                     FROM {$prefix}hl_component

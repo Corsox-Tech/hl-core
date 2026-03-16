@@ -240,7 +240,6 @@ class HL_Admin_Pathways {
             'pathway_name'        => sanitize_text_field($_POST['pathway_name']),
             'pathway_code'        => sanitize_text_field($_POST['pathway_code']),
             'partnership_id'            => absint($_POST['partnership_id']),
-            'cycle_id'            => !empty($_POST['cycle_id']) ? absint($_POST['cycle_id']) : null,
             'target_roles'        => wp_json_encode($target_roles),
             'description'         => $description,
             'objectives'          => $objectives,
@@ -1348,24 +1347,6 @@ class HL_Admin_Pathways {
             }
             echo '</select></td>';
         }
-        echo '</tr>';
-
-        // Cycle (dropdown populated from the selected partnership's cycles)
-        $cycle_repo = new HL_Cycle_Repository();
-        $current_cycle = $is_edit && isset($pathway->cycle_id) ? $pathway->cycle_id : '';
-        $cycle_options = array();
-        if ($current_partnership) {
-            $cycle_options = $cycle_repo->get_by_partnership(absint($current_partnership));
-        }
-        echo '<tr>';
-        echo '<th scope="row"><label for="cycle_id">' . esc_html__('Cycle', 'hl-core') . '</label></th>';
-        echo '<td><select id="cycle_id" name="cycle_id">';
-        echo '<option value="">' . esc_html__('-- Default Cycle --', 'hl-core') . '</option>';
-        foreach ($cycle_options as $cy) {
-            echo '<option value="' . esc_attr($cy->cycle_id) . '"' . selected($current_cycle, $cy->cycle_id, false) . '>' . esc_html($cy->cycle_name) . '</option>';
-        }
-        echo '</select>';
-        echo '<p class="description">' . esc_html__('Which cycle this pathway belongs to. Leave as default for single-cycle partnerships.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
         // Target Roles

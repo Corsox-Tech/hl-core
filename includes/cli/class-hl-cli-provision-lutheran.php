@@ -111,10 +111,7 @@ class HL_CLI_Provision_Lutheran {
 		// Step 3: Partnership.
 		$partnership_id = $this->provision_partnership( $district_id );
 
-		// Step 4: Cycle.
-		$cycle_id = $this->provision_cycle( $partnership_id );
-
-		// Step 5: Partnership-School links.
+		// Step 4: Partnership-School links.
 		$this->provision_partnership_schools( $partnership_id, $school_map );
 
 		// Step 6: Cohort container.
@@ -323,46 +320,7 @@ class HL_CLI_Provision_Lutheran {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 4: Phase
-	// ------------------------------------------------------------------
-
-	private function provision_cycle( $partnership_id ) {
-		global $wpdb;
-		$prefix = $wpdb->prefix;
-
-		if ( ! $partnership_id ) {
-			WP_CLI::log( '  [4] Cycle: SKIP (no partnership in dry run)' );
-			return null;
-		}
-
-		$id = $this->find_or_create(
-			'Cycle',
-			function () use ( $wpdb, $prefix, $partnership_id ) {
-				return $wpdb->get_var( $wpdb->prepare(
-					"SELECT cycle_id FROM {$prefix}hl_cycle WHERE partnership_id = %d AND cycle_number = 1 LIMIT 1",
-					$partnership_id
-				) );
-			},
-			function () use ( $partnership_id ) {
-				$svc = new HL_Cycle_Service();
-				return $svc->create_cycle( array(
-					'partnership_id'     => $partnership_id,
-					'cycle_name'   => 'Cycle 1',
-					'cycle_number' => 1,
-					'start_date'   => '2026-02-15',
-					'end_date'     => '2026-07-31',
-					'status'       => 'active',
-				) );
-			}
-		);
-
-		$status = $this->counters['Cycle']['found'] > 0 ? 'FOUND' : ( $this->dry_run ? 'WOULD CREATE' : 'CREATED' );
-		WP_CLI::log( "  [4] Cycle: {$status}" . ( $id ? " (id={$id})" : '' ) );
-		return $id;
-	}
-
-	// ------------------------------------------------------------------
-	// Step 5: Partnership-School links
+	// Step 4: Partnership-School links
 	// ------------------------------------------------------------------
 
 	private function provision_partnership_schools( $partnership_id, $school_map ) {

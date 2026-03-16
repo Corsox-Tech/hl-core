@@ -69,9 +69,8 @@ class HL_CLI_Seed_Demo {
         // Step 1: Org Structure
         list( $district_id, $school_a_id, $school_b_id ) = $this->seed_orgunits();
 
-        // Step 2: Partnership + Cycle
+        // Step 2: Partnership
         $partnership_id = $this->seed_partnership( $district_id, $school_a_id, $school_b_id );
-        $this->seed_cycle( $partnership_id );
 
         // Step 3: Classrooms
         $classrooms = $this->seed_classrooms( $school_a_id, $school_b_id );
@@ -233,9 +232,6 @@ class HL_CLI_Seed_Demo {
 
             // Pathways.
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE partnership_id = %d", $partnership_id ) );
-
-            // Cycles.
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}hl_cycle WHERE partnership_id = %d", $partnership_id ) );
 
             // Teams.
             $team_ids = $wpdb->get_col(
@@ -403,25 +399,6 @@ class HL_CLI_Seed_Demo {
         WP_CLI::log( "  [2/17] Partnership created: id={$partnership_id}, code=" . self::DEMO_PARTNERSHIP_CODE );
 
         return $partnership_id;
-    }
-
-    /**
-     * Seed a default Cycle for the demo partnership.
-     *
-     * @param int $partnership_id Partnership ID.
-     */
-    private function seed_cycle( $partnership_id ) {
-        $cycle_svc = new HL_Cycle_Service();
-        $cycle_id = $cycle_svc->create_cycle( array(
-            'partnership_id'     => $partnership_id,
-            'cycle_name'   => 'Cycle 1',
-            'cycle_number' => 1,
-            'start_date'   => '2026-01-01',
-            'end_date'     => '2026-12-31',
-            'status'       => 'active',
-        ) );
-
-        WP_CLI::log( "  [2b/17] Cycle created: id={$cycle_id}" );
     }
 
     // ------------------------------------------------------------------

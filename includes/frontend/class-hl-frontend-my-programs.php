@@ -141,26 +141,11 @@ class HL_Frontend_My_Programs {
                 ? round(($weighted_done / $total_weight) * 100)
                 : 0;
 
-            // Resolve cycle name if pathway has a cycle.
-            $cycle_name = '';
-            if (!empty($pathway->cycle_id)) {
-                $cycle_repo = new HL_Cycle_Repository();
-                $cycle = $cycle_repo->get_by_id($pathway->cycle_id);
-                if ($cycle) {
-                    // Only show cycle name if track has multiple cycles.
-                    $cycles_for_partnership = $cycle_repo->get_by_partnership($partnership->partnership_id);
-                    if (count($cycles_for_partnership) > 1) {
-                        $cycle_name = $cycle->cycle_name;
-                    }
-                }
-            }
-
             $cards[] = array(
                 'enrollment'  => $enrollment,
                 'pathway'     => $pathway,
                 'partnership'       => $partnership,
                 'percent'     => $overall_percent,
-                'cycle_name'  => $cycle_name,
             );
             } // end foreach assigned_pathways
         }
@@ -269,9 +254,6 @@ class HL_Frontend_My_Programs {
                 <h3 class="hl-program-card-title"><?php echo esc_html($pathway->pathway_name); ?></h3>
                 <p class="hl-program-card-partnership">
                     <?php echo esc_html($partnership->partnership_name); ?>
-                    <?php if (!empty($card['cycle_name'])) : ?>
-                        <span class="hl-program-card-cycle">&mdash; <?php echo esc_html($card['cycle_name']); ?></span>
-                    <?php endif; ?>
                 </p>
                 <div class="hl-program-card-progress">
                     <div class="hl-progress-bar-container">
