@@ -551,7 +551,7 @@ All data comes from HL Core custom tables and services:
 - Teams: `hl_team` + `hl_team_membership` via TeamService
 - Staff/Participants: `hl_enrollment` via EnrollmentService
 - Pathways & Components: `hl_pathway` + `hl_component` via PathwayService
-- Component states: `hl_activity_state` via ActivityStateService
+- Component states: `hl_component_state` via component state queries
 - Completion rollups: `hl_completion_rollup` via ReportingService
 - Classrooms: `hl_classroom` + `hl_child_classroom_current` via ClassroomService
 - Children: `hl_child` via ClassroomService
