@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 10_FRONTEND_PAGES_NAVIGATION_UX.md
-Version: 3.0
-Last Updated: 2026-02-27
+Version: 4.0 (V3 Rename)
+Last Updated: 2026-03-17
 Timezone: America/Bogota
 
 ---
@@ -10,12 +10,12 @@ Timezone: America/Bogota
 
 This document specifies the front-end (participant-facing) pages that HL Core must provide. These are WordPress pages rendered via shortcodes, visible to enrolled participants and staff based on role and scope.
 
-Admin management pages (Cohorts CRUD, Org Units CRUD, Pathway configuration, Import wizard, Audit log, etc.) live in WP Admin and are NOT covered here.
+Admin management pages (Partnerships CRUD, Org Units CRUD, Pathway configuration, Import wizard, Audit log, etc.) live in WP Admin and are NOT covered here.
 
 **Key design principle:** The front-end has TWO separate concerns:
 
-1. **Track Workspace (operational, time-bound):** Where daily work happens — pathways, progress, reports, teams. Everything scoped to ONE track. This is what teachers, mentors, and leaders use.
-2. **Organizational Directory (CRM-like, permanent):** Districts and Schools exist across tracks. This is the admin/coach view for managing the organization and navigating between tracks.
+1. **Cycle Workspace (operational, time-bound):** Where daily work happens — pathways, progress, reports, teams. Everything scoped to ONE cycle. This is what teachers, mentors, and leaders use.
+2. **Organizational Directory (CRM-like, permanent):** Districts and Schools exist across cycles. This is the admin/coach view for managing the organization and navigating between cycles.
 
 ---
 
@@ -26,9 +26,9 @@ The internal data model uses technical terms. The front-end uses participant-fri
 | Internal Model | Front-End Label | Notes |
 |----------------|----------------|-------|
 | Pathway | Program | "My Programs" page, "Program" in cards/headers |
-| Activity | Activity or Step | Contextual — "Activity" in reports, "Step" acceptable in pathway view |
-| Track | Track | The time-bounded run — used in workspace and listing pages |
-| Cohort | Cohort | The container entity — used for cross-track aggregation and comparison |
+| Component | Activity or Step | Contextual — "Activity" in reports, "Step" acceptable in pathway view |
+| Cycle | Cycle | The time-bounded run — used in workspace and listing pages |
+| Partnership | Partnership | The container entity — used for cross-cycle aggregation and comparison |
 | OrgUnit (district) | School District | |
 | OrgUnit (school) | Institution / School | Use whichever the client prefers; currently "Institution" in production |
 | Enrollment | (not shown) | Internal concept, never surfaced to participants |
@@ -42,8 +42,8 @@ The internal data model uses technical terms. The front-end uses participant-fri
 ```
 Dashboard (role-aware home page — replaces Elementor LMS home)
   ├─ Welcome banner (all users)
-  ├─ Participant cards: My Programs, My Classrooms, My Coaching*, My Team*, My Track*
-  └─ Staff Administration cards: Tracks, Institutions, Learners, Pathways, Coaching Hub, Reports
+  ├─ Participant cards: My Programs, My Classrooms, My Coaching*, My Team*, My Cycle*
+  └─ Staff Administration cards: Cycles, Institutions, Learners, Pathways, Coaching Hub, Reports
 ```
 
 *Cards shown/hidden based on enrollment roles and control group status.
@@ -52,14 +52,14 @@ Dashboard (role-aware home page — replaces Elementor LMS home)
 
 ```
 My Programs (list of assigned pathways)
-  └─ Program Page (pathway detail + activity cards with progress)
-       └─ Activity Page (JFB form, child assessment, or redirect to LearnDash course)
+  └─ Program Page (pathway detail + component cards with progress)
+       └─ Component Page (JFB form, child assessment, or redirect to LearnDash course)
 ```
 
 ## 2.2 Leader Pages (School Leaders, District Leaders)
 
 ```
-My Track (auto-scoped track workspace)
+My Cycle (auto-scoped cycle workspace)
   ├─ Tab: Teams
   ├─ Tab: Staff
   ├─ Tab: Reports (with drill-down and export)
@@ -72,13 +72,13 @@ Leaders land directly in their scoped view — a School Leader sees their school
 
 ```
 Districts Listing
-  └─ District Page (info, tracks in this district, schools)
-       └─ Track Workspace (full operational view for one track)
+  └─ District Page (info, cycles in this district, schools)
+       └─ Cycle Workspace (full operational view for one cycle)
 
 Schools Listing
-  └─ School Page (info, tracks, classrooms, staff)
+  └─ School Page (info, cycles, classrooms, staff)
 
-Track Workspace (the "command center" for one track)
+Cycle Workspace (the "command center" for one cycle)
   ├─ Tab: Teams
   ├─ Tab: Staff
   ├─ Tab: Reports
@@ -109,12 +109,12 @@ All front-end pages require the user to be logged in.
 | My Programs | Any enrolled participant (sees only their own pathways) |
 | Program Page | The enrolled participant viewing their own pathway |
 | Activity Page | The enrolled participant (if activity is unlocked) |
-| My Track | School Leader (scoped to their school), District Leader (scoped to their district) |
+| My Cycle | School Leader (scoped to their school), District Leader (scoped to their district) |
 | Districts Listing | Housman Admin, Coach |
 | Schools Listing | Housman Admin, Coach |
 | District Page | Housman Admin, Coach, District Leader(s) enrolled in that District |
 | School Page | Housman Admin, Coach, School Leader(s) of that School, District Leader(s) of parent District |
-| Track Workspace | Housman Admin, Coach, plus leaders scoped to their org unit within that track |
+| Cycle Workspace | Housman Admin, Coach, plus leaders scoped to their org unit within that cycle |
 | Classroom Page | Housman Admin, Coach, School Leader(s), District Leader(s), Teacher(s) assigned to that Classroom |
 | Team Page | Housman Admin, Coach, School Leader(s), District Leader(s), Mentor(s) of that Team |
 | My Coaching | Any enrolled participant (sees only their own sessions) |
@@ -145,19 +145,19 @@ Cards shown based on enrollment roles and control group status:
 | My Coaching | Has at least one non-control-group enrollment | `[hl_my_coaching]` |
 | My Team | Has mentor role in any enrollment | `[hl_my_team]` |
 | Coaching Hub | Has mentor role in any enrollment | `[hl_coaching_hub]` |
-| My Track | Has school_leader or district_leader role | `[hl_my_cohort]` |
+| My Cycle | Has school_leader or district_leader role | `[hl_my_cycle]` |
 | My Courses | Has active individual enrollment(s) | Individual enrollment course cards |
 
 Control group teachers (all enrollments are `is_control_group`) see only My Programs + My Classrooms — no coaching, team, or mentor cards.
 
-**My Courses section** (below the Track-based participant cards): Shows individual enrollment course cards for standalone purchases. Each card: course name, completion %, "Continue Course" button → LD course URL. Expired enrollments show "Access Expired" badge. Only shown if user has entries in `hl_individual_enrollment` with status='active'.
+**My Courses section** (below the Cycle-based participant cards): Shows individual enrollment course cards for standalone purchases. Each card: course name, completion %, "Continue Course" button → LD course URL. Expired enrollments show "Access Expired" badge. Only shown if user has entries in `hl_individual_enrollment` with status='active'.
 
 ### Administration Section (shown if user has `manage_hl_core` capability)
 Staff/admin cards:
 
 | Card | Links To |
 |------|----------|
-| Tracks | `[hl_cohorts_listing]` |
+| Cycles | `[hl_cycles_listing]` |
 | Institutions | `[hl_institutions_listing]` |
 | Learners | `[hl_learners]` |
 | Pathways | `[hl_pathways_listing]` |
@@ -183,8 +183,7 @@ Content:
 - Each card shows:
   - Pathway featured image (or placeholder)
   - Pathway name (front-end label: "Program name")
-  - Track name (subtitle)
-  - Phase name (e.g., "Phase 1" or "Year 1") if the Track has multiple Phases
+  - Cycle name (subtitle)
   - Overall completion % with progress bar
   - Status badge: Not Started / In Progress / Completed
   - "Continue" or "View Program" button → navigates to Program Page
@@ -198,13 +197,13 @@ Content:
 ### Header Section
 - Pathway featured image (hero banner or sidebar image)
 - Pathway name (large heading)
-- Track name (subtitle)
+- Cycle name (subtitle)
 - Pathway description (rich text — admin-editable)
 
 ### Sidebar (or collapsible panel)
 - **Program Details:**
   - Average Completion Time (admin-editable field)
-  - Time to Complete / Expiration Date (from track or pathway end date)
+  - Time to Complete / Expiration Date (from cycle or pathway end date)
   - Status: Active / Expired / Upcoming
 - **Progress:** Overall completion % with visual indicator (progress ring or bar)
 - **Certificate:** Link to certificate if pathway is 100% complete (future feature)
@@ -214,23 +213,23 @@ Content:
 - Program Syllabus link (URL — admin-editable, optional)
 - Any other introductory content the admin wants to display
 
-### Main Content: Activities Section
+### Main Content: Components Section
 - Heading: "Program Steps" or "Activities"
-- Grid or list of activity cards, ordered by sequence
-- Each activity card shows:
-  - Activity title
-  - Activity type icon (course, self-assessment, child assessment, coaching, observation)
+- Grid or list of component cards, ordered by sequence
+- Each component card shows:
+  - Component title
+  - Component type icon (course, self-assessment, child assessment, coaching, observation)
   - Completion status: progress bar (0-100%)
   - Status badge:
     - **Completed** (green) — shows completion date
     - **In Progress** (blue/yellow) — shows "Continue" button
     - **Available** (default) — shows "Start" button
-    - **Locked** (gray, lock icon) — shows reason: "Requires [prereq activity name]" or "Available on [drip date]"
+    - **Locked** (gray, lock icon) — shows reason: "Requires [prereq component name]" or "Available on [drip date]"
   - Click action based on type and status:
     - **Locked:** No click action. Shows lock icon + unlock requirements
     - **LearnDash course:** "Start" / "Continue" button → redirects to LearnDash course URL
-    - **JFB-powered activity** (self-assessment, observation): "Start" button → navigates to Activity Page with embedded JFB form
-    - **Child Assessment:** "Start" button → navigates to Activity Page with custom matrix form
+    - **JFB-powered component** (self-assessment, observation): "Start" button → navigates to Component Page with embedded JFB form
+    - **Child Assessment:** "Start" button → navigates to Component Page with custom matrix form
     - **Coaching Attendance:** Shows attendance status (attended/missed/pending). No click action for participant
     - **Completed:** Shows completion date. No re-submission. Optionally "View" if viewing past responses is allowed
 
@@ -241,22 +240,22 @@ These fields need to be added to the `hl_pathway` table or stored as pathway met
 - `syllabus_url` (varchar) — optional link to syllabus document
 - `featured_image_id` (bigint) — WordPress attachment ID for featured image
 - `avg_completion_time` (varchar) — display string like "4 hours 30 minutes"
-- `expiration_date` (date, nullable) — when the pathway expires (can also inherit from track end date)
+- `expiration_date` (date, nullable) — when the pathway expires (can also inherit from cycle end date)
 
 ---
 
-## 4.3 Activity Page
-**Shortcode:** `[hl_activity_page]` with URL parameter `activity_id` and `enrollment_id`
+## 4.3 Component Page
+**Shortcode:** `[hl_component_page]` with URL parameter `component_id` and `enrollment_id`
 **Purpose:** Renders the actual form or assessment for the participant to complete.
 
-This page's content depends entirely on the activity type:
+This page's content depends entirely on the component type:
 
-### JFB-Powered Activities (teacher self-assessment, observation)
-- Page header: Activity title, pathway breadcrumb ("← Back to [Pathway Name]")
+### JFB-Powered Components (teacher self-assessment, observation)
+- Page header: Component title, pathway breadcrumb ("← Back to [Pathway Name]")
 - Embedded JFB form with hidden fields pre-populated:
   - `hl_enrollment_id`
-  - `hl_activity_id`
-  - `hl_track_id`
+  - `hl_component_id`
+  - `hl_cycle_id`
   - `hl_instance_id` (for observations: `hl_observation_id`)
 - On submit: JFB fires `hl_core_form_submitted` hook → HL Core updates activity_state
 - After submit: redirect back to Program Page with success message
@@ -266,7 +265,7 @@ This page's content depends entirely on the activity type:
 - Instructions section explaining assessment purpose
 - Behavior key legend: explains each rating level (Never through Almost Always) with age-appropriate example behaviors
 - Custom PHP form rendered by `HL_Instrument_Renderer` with age-group sections:
-  - Children grouped by frozen_age_group from `hl_child_track_snapshot`
+  - Children grouped by frozen_age_group from `hl_child_cycle_snapshot`
   - Each section: header (e.g., "Infant (3 children)"), behavior key, question text, transposed Likert matrix
   - Transposed layout: children as columns, rating levels as rows, radio buttons at intersections
   - Per-child "Not in my classroom" checkbox with skip reason dropdown
@@ -278,33 +277,33 @@ This page's content depends entirely on the activity type:
 - After submit: redirect back to Program Page with success message
 
 ### LearnDash Course
-- This type does NOT render on the Activity Page
+- This type does NOT render on the Component Page
 - Instead, the Program Page "Start/Continue" button links directly to the LearnDash course URL
 - LearnDash handles its own completion → HL Core picks it up via LearnDash hooks
 
-### Locked Activity
-- If someone navigates directly to a locked activity URL, show:
-  - Activity title
-  - Lock icon + reason ("This activity requires [prereq] to be completed first" or "Available on [date]")
+### Locked Component
+- If someone navigates directly to a locked component URL, show:
+  - Component title
+  - Lock icon + reason ("This component requires [prereq] to be completed first" or "Available on [date]")
   - "← Back to [Pathway Name]" link
 
 ---
 
 # 5) Page Specifications — Leader Pages
 
-## 5.1 My Track Page
-**Shortcode:** `[hl_my_track]`
-**Purpose:** Auto-scoped track workspace for School Leaders and District Leaders.
+## 5.1 My Cycle Page
+**Shortcode:** `[hl_my_cycle]`
+**Purpose:** Auto-scoped cycle workspace for School Leaders and District Leaders.
 
 This page automatically detects the logged-in user's enrollment and scopes the view:
-- School Leader → sees data for their school within the track
-- District Leader → sees data for their entire district within the track
-- If user is enrolled in multiple tracks, show a track switcher dropdown at the top
+- School Leader → sees data for their school within the cycle
+- District Leader → sees data for their entire district within the cycle
+- If user is enrolled in multiple cycles, show a cycle switcher dropdown at the top
 
 ### Header
-- Track name
+- Cycle name
 - Org unit scope indicator: "Showing data for [School/District Name]"
-- Track status: Active / Completed / Upcoming
+- Cycle status: Active / Completed / Upcoming
 
 ### Tab: Teams
 - List/grid of Teams within the leader's scope
@@ -321,9 +320,9 @@ This page automatically detects the logged-in user's enrollment and scopes the v
 ### Tab: Reports
 - Completion report table for all participants in scope
 - Columns: #, Name, Team, Role, Institution, Age Groups, Completed %, Details
-- "View Details" button expands inline accordion showing per-activity breakdown:
-  - Activity/Course name, Percentage, Status (not_started / in_progress / completed)
-- Filters: Phase dropdown (for program-type Tracks with multiple Phases), Institution dropdown (for District Leaders), Team dropdown, Age Groups dropdown, Role dropdown
+- "View Details" button expands inline accordion showing per-component breakdown:
+  - Component/Course name, Percentage, Status (not_started / in_progress / completed)
+- Filters: Institution dropdown (for District Leaders), Team dropdown, Age Groups dropdown, Role dropdown
 - Search box (filter by name)
 - "Download Report" button → XLSX or CSV export of the filtered view
 
@@ -342,7 +341,7 @@ This page automatically detects the logged-in user's enrollment and scopes the v
 
 Content:
 - Grid of District cards
-- Each card shows: District name, # of Schools, # of active Tracks
+- Each card shows: District name, # of Schools, # of active Cycles
 - Click → navigates to District Page
 
 ## 6.2 Schools Listing Page
@@ -351,21 +350,21 @@ Content:
 
 Content:
 - Grid of School cards
-- Each card shows: School name, Parent District, School Leader name(s), # of Teams (across tracks)
+- Each card shows: School name, Parent District, School Leader name(s), # of Teams (across cycles)
 - Click → navigates to School Page
 
 ## 6.3 District Page
 **Shortcode:** `[hl_district_page]` with URL parameter `id`
-**Purpose:** District-level CRM view showing all tracks and schools in a district.
+**Purpose:** District-level CRM view showing all cycles and schools in a district.
 
 ### Header
 - District name
 - District logo/image (if available via meta, otherwise placeholder)
 
-### Section: Active Tracks
-- List of tracks that include this district (via `hl_track_school` → parent district)
-- Each shows: Track name, status (active/completed/upcoming), date range, participant count
-- "Open Track" button → navigates to Track Workspace filtered to this district
+### Section: Active Cycles
+- List of cycles that include this district (via `hl_cycle_school` → parent district)
+- Each shows: Cycle name, status (active/completed/upcoming), date range, participant count
+- "Open Cycle" button → navigates to Cycle Workspace filtered to this district
 
 ### Section: Schools
 - Grid of School cards within this District
@@ -373,7 +372,7 @@ Content:
 - Click → navigates to School Page
 
 ### Section: Overview Stats (simple v1)
-- Total participants across all active tracks
+- Total participants across all active cycles
 - Total schools
 
 ## 6.4 School Page
@@ -385,51 +384,51 @@ Content:
 - School logo/image (if available, otherwise placeholder)
 - Parent District name (linked to District Page)
 
-### Section: Active Tracks
-- List of tracks this school participates in
-- Each shows: Track name, status, participant count at this school
-- "Open Track" button → navigates to Track Workspace filtered to this school
+### Section: Active Cycles
+- List of cycles this school participates in
+- Each shows: Cycle name, status, participant count at this school
+- "Open Cycle" button → navigates to Cycle Workspace filtered to this school
 
 ### Section: Classrooms
-- Table of classrooms at this school (across all tracks, or filtered by selected track)
+- Table of classrooms at this school (across all cycles, or filtered by selected cycle)
 - Columns: Classroom name, Age Band, # Children, Teacher(s) assigned
 - Click → navigates to Classroom Page
 
 ### Section: Staff
-- Table of all users associated with this school (across tracks)
-- Columns: Name, Email, Role, Track
+- Table of all users associated with this school (across cycles)
+- Columns: Name, Email, Role, Cycle
 - Click → BuddyBoss profile (future) or inline detail
 
-## 6.5 Track Workspace
-**Shortcode:** `[hl_track_workspace]` with URL parameter `track_id` and optional `orgunit_id`
-**Purpose:** The operational "command hub" for one track. Staff/admin sees everything; when accessed from a District/School page, auto-filters to that org unit.
+## 6.5 Cycle Workspace
+**Shortcode:** `[hl_cycle_workspace]` with URL parameter `cycle_id` and optional `orgunit_id`
+**Purpose:** The operational "command hub" for one cycle. Staff/admin sees everything; when accessed from a District/School page, auto-filters to that org unit.
 
 ### Header
-- Track name, status, date range
+- Cycle name, status, date range
 - Scope indicator: "All" or "Filtered to [Org Unit Name]"
 - Org unit filter dropdown (for staff who want to narrow scope)
 
 ### Tab: Dashboard (v1 — start simple)
-- Overall track completion % (average across all participants in scope)
+- Overall cycle completion % (average across all participants in scope)
 - Participant counts by status:
-  - **On Track:** Has completed all activities that are currently unlocked
-  - **Behind:** Has unlocked activities that are not yet complete
-  - **Not Started:** 0% completion on all activities
+  - **On Track:** Has completed all components that are currently unlocked
+  - **Behind:** Has unlocked components that are not yet complete
+  - **Not Started:** 0% completion on all components
 - Staff counts: # Teachers, # Mentors, # Schools (in scope)
 - Simple bar or progress indicators (no complex charts for v1)
 
 ### Tab: Teams
-- Same as My Track → Teams tab (section 5.1)
+- Same as My Cycle → Teams tab (section 5.1)
 
 ### Tab: Staff
-- Same as My Track → Staff tab (section 5.1) but with broader scope for admin/coach
+- Same as My Cycle → Staff tab (section 5.1) but with broader scope for admin/coach
 
 ### Tab: Reports
-- Same as My Track → Reports tab (section 5.1) but with broader scope
-- Additional filter: School/Institution dropdown (when viewing full track)
+- Same as My Cycle → Reports tab (section 5.1) but with broader scope
+- Additional filter: School/Institution dropdown (when viewing full cycle)
 
 ### Tab: Classrooms
-- Same as My Track → Classrooms tab (section 5.1) but with broader scope
+- Same as My Cycle → Classrooms tab (section 5.1) but with broader scope
 
 ---
 
@@ -437,12 +436,12 @@ Content:
 
 ## 7.1 Team Page
 **Shortcode:** `[hl_team_page]` with URL parameter `team_id`
-**Purpose:** Team detail view, accessible from track workspace or My Track.
+**Purpose:** Team detail view, accessible from cycle workspace or My Cycle.
 
 ### Header
 - Team name
 - School name (linked to School Page)
-- Breadcrumb: "← Back to [Track Name]" or "← Back to My Track"
+- Breadcrumb: "← Back to [Cycle Name]" or "← Back to My Cycle"
 
 ### Tab: Team Members
 - Table of team members
@@ -452,7 +451,7 @@ Content:
 
 ### Tab: Report
 - Completion report for team members only
-- Same columns and expand behavior as Track Reports tab
+- Same columns and expand behavior as Cycle Reports tab
 - "Download Report" button → XLSX or CSV
 
 ## 7.2 Classroom Page
@@ -481,11 +480,11 @@ Content:
 ## 8.1 Breadcrumbs
 Every detail page includes a breadcrumb link back to its parent:
 - Program Page → "← Back to My Programs"
-- Activity Page → "← Back to [Program Name]"
-- Team Page → "← Back to [Track/source]"
+- Component Page → "← Back to [Program Name]"
+- Team Page → "← Back to [Cycle/source]"
 - Classroom Page → "← Back to [source]"
 - School Page → "← Back to [District Name]" (for staff)
-- Track Workspace → "← Back to [District/School Name]" (when accessed from CRM)
+- Cycle Workspace → "← Back to [District/School Name]" (when accessed from CRM)
 
 ## 8.2 Sidebar Menu Integration
 The following items should appear in the BuddyBoss sidebar menu under "HOUSMAN LEARNING" (or similar section), conditional on user role:
@@ -495,13 +494,13 @@ The following items should appear in the BuddyBoss sidebar menu under "HOUSMAN L
 
 **School Leaders, District Leaders:**
 - My Programs
-- My Track
+- My Cycle
 
 **Admin, Coach:**
 - My Programs (if enrolled)
 - School Districts
 - Institutions
-- (Individual track workspaces accessed via Districts/Schools, not from sidebar)
+- (Individual cycle workspaces accessed via Districts/Schools, not from sidebar)
 
 ---
 
@@ -514,16 +513,16 @@ Use WordPress pages with URL parameters. Recommended slugs:
 | Dashboard | `/dashboard/` | none |
 | My Programs | `/my-programs/` | none |
 | Program Page | `/program/` | `?id=X` (pathway_id) |
-| Activity Page | `/activity/` | `?id=X&enrollment=Y` |
-| My Track | `/my-track/` | optional `?track_id=X` for switcher |
+| Component Page | `/component/` | `?id=X&enrollment=Y` |
+| My Cycle | `/my-cycle/` | optional `?cycle_id=X` for switcher |
 | Districts Listing | `/districts/` | none |
 | District Page | `/district/` | `?id=X` |
 | Schools Listing | `/institutions/` | none |
 | School Page | `/institution/` | `?id=X` |
-| Track Workspace | `/track/` | `?id=X` and optional `&orgunit=Y` |
+| Cycle Workspace | `/cycle/` | `?id=X` and optional `&orgunit=Y` |
 | Team Page | `/team/` | `?id=X` |
 | Classroom Page | `/classroom/` | `?id=X` |
-| My Coaching | `/my-coaching/` | optional `?track_id=X` |
+| My Coaching | `/my-coaching/` | optional `?cycle_id=X` |
 
 For v1, URL parameters are simplest. Pretty permalinks (e.g., `/program/begin-to-ecsel/`) can be added later via rewrite rules.
 
@@ -538,8 +537,8 @@ For v1, URL parameters are simplest. Pretty permalinks (e.g., `/program/begin-to
 - "View Details" expand in reports: inline accordion, not a new page
 - Download Report buttons: prominent, primary color (green)
 - Progress percentages: color-coded — green (80-100%), yellow (40-79%), red (0-39%)
-- Activity status badges: Completed (green), In Progress (blue), Available (default/white), Locked (gray)
-- Activity type icons: use dashicons or simple SVG icons to differentiate course vs assessment vs coaching
+- Component status badges: Completed (green), In Progress (blue), Available (default/white), Locked (gray)
+- Component type icons: use dashicons or simple SVG icons to differentiate course vs assessment vs coaching
 
 ---
 
@@ -547,17 +546,18 @@ For v1, URL parameters are simplest. Pretty permalinks (e.g., `/program/begin-to
 
 All data comes from HL Core custom tables and services:
 - Districts/Schools: `hl_orgunit` via OrgService
-- Cohorts (containers): `hl_cohort` via CohortService
-- Tracks (runs): `hl_track` + `hl_track_school` via TrackService
+- Partnerships (containers): `hl_partnership` via PartnershipService
+- Cycles (runs): `hl_cycle` + `hl_cycle_school` via CycleService
 - Teams: `hl_team` + `hl_team_membership` via TeamService
 - Staff/Participants: `hl_enrollment` via EnrollmentService
-- Pathways & Activities: `hl_pathway` + `hl_activity` via PathwayService
-- Activity states: `hl_activity_state` via ActivityStateService
+- Pathways & Components: `hl_pathway` + `hl_component` via PathwayService
+- Component states: `hl_activity_state` via ActivityStateService
 - Completion rollups: `hl_completion_rollup` via ReportingService
 - Classrooms: `hl_classroom` + `hl_child_classroom_current` via ClassroomService
 - Children: `hl_child` via ClassroomService
 - Unlock logic: RulesEngineService (prereqs, drip, overrides)
 - Coach assignments: `hl_coach_assignment` via CoachAssignmentService (resolution: enrollment → team → school)
+- Child cycle snapshots: `hl_child_cycle_snapshot` via ClassroomService
 - Coaching sessions: `hl_coaching_session` via CoachingService
 
 Scope filtering must use `HL_Security::assert_can()` and enrollment-based scope resolution.
@@ -569,10 +569,10 @@ Scope filtering must use `HL_Security::assert_can()` and enrollment-based scope 
 - Implement as WordPress shortcodes registered in HL Core
 - Each shortcode checks user capabilities and scope before rendering
 - Use show/hide with JS for tab switching (simplest for v1; AJAX optional for large datasets)
-- Reports table: implement pagination for large tracks (50+ participants)
+- Reports table: implement pagination for large cycles (50+ participants)
 - XLSX export: use PhpSpreadsheet or lightweight library (CSV as fallback)
 - Reuse existing HL Core services — do NOT write raw SQL in shortcode renderers
-- The existing `[hl_my_progress]`, `[hl_team_progress]`, and `[hl_track_dashboard]` shortcodes should be replaced by the new page shortcodes defined here
+- The existing `[hl_my_progress]`, `[hl_team_progress]`, and `[hl_cycle_dashboard]` shortcodes should be replaced by the new page shortcodes defined here
 - New pathway fields (section 4.2) require a DB migration and admin UI update
 
 ---
@@ -588,18 +588,18 @@ coach_assignment_id  bigint PK AUTO_INCREMENT
 coach_user_id        bigint NOT NULL (FK → wp_users)
 scope_type           enum('school', 'team', 'enrollment') NOT NULL
 scope_id             bigint NOT NULL — school_id, team_id, or enrollment_id
-track_id             bigint NOT NULL (FK → hl_track)
+cycle_id             bigint NOT NULL (FK → hl_cycle)
 effective_from       date NOT NULL
 effective_to         date NULL — NULL = currently active
 created_at           datetime
 updated_at           datetime
 ```
 
-Indexes: `(track_id, scope_type, scope_id)`, `(coach_user_id)`, `(track_id, coach_user_id)`
+Indexes: `(cycle_id, scope_type, scope_id)`, `(coach_user_id)`, `(cycle_id, coach_user_id)`
 
 ## 13.2 Resolution Logic (Most Specific Wins)
 
-To determine "who is User X's coach in Track Y":
+To determine "who is User X's coach in Cycle Y":
 1. Check for active `enrollment``school`-level assignment where `scope_id` = user's enrollment_id → if found, return that coach
 2. Check for active `team``school`-level assignment where `scope_id` = user's team_id → if found, return that coach
 3. Check for active `school`-level assignment where `scope_id` = user's school_id → if found, return that coach
@@ -622,7 +622,7 @@ Coach assignment is managed in these existing admin/front-end pages:
 - **Team Page (admin):** "Coach" dropdown — creates/updates team`school`-level assignment (overrides school default)
 - **Enrollment detail / BuddyBoss profile (future):** "Coach Override" — creates enrollment`school`-level assignment
 
-Alternatively, a dedicated "Coach Assignments" admin page under HL Core menu showing all current assignments with filter by track.
+Alternatively, a dedicated "Coach Assignments" admin page under HL Core menu showing all current assignments with filter by cycle.
 
 ---
 
@@ -638,7 +638,7 @@ New columns:
 - `session_status` enum('scheduled', 'attended', 'missed', 'cancelled', 'rescheduled') NOT NULL DEFAULT 'scheduled'
 - `cancelled_at` datetime NULL
 - `rescheduled_from_session_id` bigint NULL — links to the original session if this is a reschedule
-- `cancellation_allowed` — NOT stored here; controlled at track level via `hl_track.settings` JSON (key: `coaching_allow_cancellation`, default: true)
+- `cancellation_allowed` — NOT stored here; controlled at cycle level via `hl_cycle.settings` JSON (key: `coaching_allow_cancellation`, default: true)
 
 Deprecate: `attendance_status` column is replaced by `session_status`. Migration should map: 'attended' → 'attended', 'missed' → 'missed', 'unknown' → 'scheduled'.
 
@@ -687,7 +687,7 @@ If no coach assigned: show "No coach assigned yet. Contact your administrator."
   - Meeting link button (if `meeting_url` is set): "Join Meeting"
   - Action buttons:
     - "Reschedule" → opens reschedule flow (Phase A: date-time picker; Phase B: MS365 availability)
-    - "Cancel" → confirmation dialog → sets status to cancelled (ONLY shown if `coaching_allow_cancellation` is true for the track)
+    - "Cancel" → confirmation dialog → sets status to cancelled (ONLY shown if `coaching_allow_cancellation` is true for the cycle)
 
 ### Section: Past Sessions
 - List of sessions with `session_datetime < now` OR terminal status
@@ -733,39 +733,39 @@ On the Program Page, coaching_session_attendance activities should show enhanced
 
 # 16) Sidebar Navigation & Role-Based Menu
 
-The BuddyBoss sidebar menu must be fully role-aware. Menu items shown depend on the user's WP capabilities AND their track enrollment roles. Each menu item links to an existing shortcode page.
+The BuddyBoss sidebar menu must be fully role-aware. Menu items shown depend on the user's WP capabilities AND their cycle enrollment roles. Each menu item links to an existing shortcode page.
 
 ## 16.1 Menu Structure by Role
 
 ### Admin (manage_hl_core + administrator)
 | Menu Item | Target Shortcode | Notes |
 |---|---|---|
-| Tracks | `[hl_tracks_listing]` | All tracks, searchable. Default: active + future |
+| Cycles | `[hl_cycles_listing]` | All cycles, searchable. Default: active + future |
 | Institutions | `[hl_institutions_listing]` | Combined districts + schools, searchable |
 | Coaching | `[hl_coaching_hub]` | All coaching sessions, searchable/filterable |
-| Classrooms | `[hl_classrooms_listing]` | All classrooms in active/future tracks |
+| Classrooms | `[hl_classrooms_listing]` | All classrooms in active/future cycles |
 | Learners | `[hl_learners]` | All participants, searchable, name links to profile |
 | Programs | `[hl_pathways_listing]` | All pathways across platform, searchable |
 | Reports | `[hl_reports_hub]` | Hub of front-end reports (placeholder for now) |
 
 ### Coach (manage_hl_core, coach WP role)
-Same as Admin but scoped to tracks where they are assigned as coach:
+Same as Admin but scoped to cycles where they are assigned as coach:
 | Menu Item | Target Shortcode | Scope |
 |---|---|---|
-| Tracks | `[hl_tracks_listing]` | Tracks where user is assigned coach |
+| Cycles | `[hl_cycles_listing]` | Cycles where user is assigned coach |
 | Institutions | `[hl_institutions_listing]` | Districts/schools where user is assigned coach |
-| Coaching | `[hl_coaching_hub]` | Own coaching sessions across all tracks |
-| Classrooms | `[hl_classrooms_listing]` | Classrooms in tracks where coach |
-| Learners | `[hl_learners]` | Participants in tracks where coach |
+| Coaching | `[hl_coaching_hub]` | Own coaching sessions across all cycles |
+| Classrooms | `[hl_classrooms_listing]` | Classrooms in cycles where coach |
+| Learners | `[hl_learners]` | Participants in cycles where coach |
 | Programs | `[hl_pathways_listing]` | All pathways (same as admin) |
-| Reports | `[hl_reports_hub]` | Scoped to coach's tracks |
+| Reports | `[hl_reports_hub]` | Scoped to coach's cycles |
 
 ### District Leader (enrollment role 'district_leader')
 | Menu Item | Target Shortcode | Scope |
 |---|---|---|
-| My Track | `[hl_my_track]` | Auto-navigates to active track |
+| My Cycle | `[hl_my_cycle]` | Auto-navigates to active cycle |
 | My Institutions | `[hl_institutions_listing]` | Districts/schools in their scope |
-| Coaching | `[hl_coaching_hub]` | Sessions in tracks where district leader |
+| Coaching | `[hl_coaching_hub]` | Sessions in cycles where district leader |
 | Classrooms | `[hl_classrooms_listing]` | Classrooms in their scope |
 | Learners | `[hl_learners]` | Participants in their scope |
 | My Programs | `[hl_my_programs]` | Own pathways. Future pathways shown as inactive with countdown |
@@ -775,7 +775,7 @@ Same as Admin but scoped to tracks where they are assigned as coach:
 | Menu Item | Target Shortcode | Scope |
 |---|---|---|
 | My Institution | `[hl_institutions_listing]` | Own school(s) |
-| Coaching | `[hl_coaching_hub]` | Sessions in tracks where school leader |
+| Coaching | `[hl_coaching_hub]` | Sessions in cycles where school leader |
 | Classrooms | `[hl_classrooms_listing]` | Classrooms in their school(s) |
 | Learners | `[hl_learners]` | Participants in their school(s) |
 | My Programs | `[hl_my_programs]` | Own pathways. Future pathways inactive with countdown |
@@ -802,7 +802,7 @@ Same as Admin but scoped to tracks where they are assigned as coach:
 - Non-staff users: query `hl_enrollment.roles` JSON for the current user
 - A user with multiple roles sees the union of all their role menus (no duplicates)
 - Highlight the current/active page in the sidebar
-- Detail pages (Program, Activity, Team, Classroom detail) are NOT in the menu — they are navigated to from listing pages
+- Detail pages (Program, Component, Team, Classroom detail) are NOT in the menu — they are navigated to from listing pages
 
 ---
 
@@ -810,20 +810,20 @@ Same as Admin but scoped to tracks where they are assigned as coach:
 
 These pages serve both the sidebar navigation and provide comprehensive browseable views.
 
-## 17.1 Tracks Listing — `[hl_tracks_listing]`
-**Purpose:** Browse all tracks the user has access to.
+## 17.1 Cycles Listing — `[hl_cycles_listing]`
+**Purpose:** Browse all cycles the user has access to.
 
 **Layout:**
-- Search bar (filters by track name or code)
+- Search bar (filters by cycle name or code)
 - Status filter: Active (default checked), Future (default checked), Paused, Archived
-- Card grid or table: track name, code, status badge, start/end dates, participant count, school count
-- Click → Track Workspace (`[hl_track_workspace]?id=X`)
+- Card grid or table: cycle name, code, status badge, start/end dates, participant count, school count
+- Click → Cycle Workspace (`[hl_cycle_workspace]?id=X`)
 
 **Scope:**
-- Admin: all tracks
-- Coach: tracks where assigned as coach (via `hl_coach_assignment`)
-- District Leader: tracks where enrolled as district_leader
-- School Leader: tracks where enrolled as school_leader
+- Admin: all cycles
+- Coach: cycles where assigned as coach (via `hl_coach_assignment`)
+- District Leader: cycles where enrolled as district_leader
+- School Leader: cycles where enrolled as school_leader
 
 ## 17.2 Institutions Listing — `[hl_institutions_listing]`
 **Purpose:** Combined view of districts and schools. Replaces the separate `[hl_districts_listing]` and `[hl_schools_listing]` for the sidebar.
@@ -831,7 +831,7 @@ These pages serve both the sidebar navigation and provide comprehensive browseab
 **Layout:**
 - Search bar
 - Toggle: "Districts" / "Schools" / "All" (default: All)
-- **Districts section:** Card grid — district name, # schools, # active tracks → click to District Page
+- **Districts section:** Card grid — district name, # schools, # active cycles → click to District Page
 - **Schools section:** Card grid — school name, parent district, school leader names → click to School Page
 
 **Scope:**
@@ -845,29 +845,29 @@ These pages serve both the sidebar navigation and provide comprehensive browseab
 
 **Layout:**
 - Search bar (by participant name, coach name, session title)
-- Filters: Status (Scheduled/Attended/Missed/Cancelled/Rescheduled), Track, Date range
+- Filters: Status (Scheduled/Attended/Missed/Cancelled/Rescheduled), Cycle, Date range
 - Table: Session title, Participant name (link to profile), Coach name, Date/time, Status badge, Meeting link, Actions (reschedule/cancel for scheduled sessions)
 - "Schedule New Session" button for staff/coaches
 
 **Scope:**
-- Admin: all sessions across all tracks
+- Admin: all sessions across all cycles
 - Coach: own sessions (where coach_user_id = current user)
-- District Leader: sessions in tracks where enrolled, scoped to district
-- School Leader: sessions in tracks where enrolled, scoped to school
+- District Leader: sessions in cycles where enrolled, scoped to district
+- School Leader: sessions in cycles where enrolled, scoped to school
 - Mentor: own sessions only (where mentor_enrollment_id matches)
 
 ## 17.4 Classrooms Listing — `[hl_classrooms_listing]`
-**Purpose:** Browse classrooms across active/future tracks.
+**Purpose:** Browse classrooms across active/future cycles.
 
 **Layout:**
 - Search bar (by classroom name, school name, teacher name)
-- Filter: School, Age Band, Track
-- Table: Classroom name, School, Age band, # children, Teacher names, Track(s)
+- Filter: School, Age Band, Cycle
+- Table: Classroom name, School, Age band, # children, Teacher names, Cycle(s)
 - Click → Classroom Page (`[hl_classroom_page]?id=X`)
 
 **Scope:**
 - Admin: all classrooms
-- Coach: classrooms in tracks where assigned as coach
+- Coach: classrooms in cycles where assigned as coach
 - District Leader: classrooms in schools under their district
 - School Leader: classrooms in their school(s)
 - Teacher: classrooms where they have teaching assignments
@@ -877,13 +877,13 @@ These pages serve both the sidebar navigation and provide comprehensive browseab
 
 **Layout:**
 - Search bar (by name, email)
-- Filters: Track, School, Team, Role (teacher/mentor/school_leader/district_leader), Status
-- Table: Name (link to BuddyBoss profile or user page), Email, Role(s), School, Team, Track, Completion %
+- Filters: Cycle, School, Team, Role (teacher/mentor/school_leader/district_leader), Status
+- Table: Name (link to BuddyBoss profile or user page), Email, Role(s), School, Team, Cycle, Completion %
 - Pagination (25 per page)
 
 **Scope:**
 - Admin: all participants
-- Coach: participants in tracks where assigned as coach
+- Coach: participants in cycles where assigned as coach
 - District Leader: participants in their district scope
 - School Leader: participants in their school scope
 - Mentor: team members only
@@ -893,8 +893,8 @@ These pages serve both the sidebar navigation and provide comprehensive browseab
 
 **Layout:**
 - Search bar (by pathway name)
-- Filters: Track, Target Role, Status (active/inactive)
-- Card grid: Pathway name, track name, target roles, # activities, featured image, avg completion time
+- Filters: Cycle, Target Role, Status (active/inactive)
+- Card grid: Pathway name, cycle name, target roles, # components, featured image, avg completion time
 - Click → Program Page (`[hl_program_page]?id=X`) or admin edit page
 
 **Scope:**
@@ -906,7 +906,7 @@ These pages serve both the sidebar navigation and provide comprehensive browseab
 
 **Layout:**
 - Card grid of available report types:
-  - Completion Report (link to track workspace reports tab or standalone)
+  - Completion Report (link to cycle workspace reports tab or standalone)
   - Coaching Report (link to coaching hub filtered)
   - Assessment Report (future)
 - Each card: title, description, icon, link
@@ -936,7 +936,7 @@ Original Phases A-C are complete (Phases 7-9 in README build queue).
 3. Admin UI updates — Coach assignment management (school/team/enrollment level). Coaching session form updates (status, meeting_url, title, reschedule/cancel actions).
 4. `[hl_my_coaching]` — Participant coaching page with session history, upcoming sessions, schedule/reschedule/cancel buttons (functional with date-time pickers)
 5. My Coach widget — on My Programs page
-6. Program Page coaching activity enhancement — show session status and scheduling link
+6. Program Page coaching component enhancement — show session status and scheduling link
 
 **Phase E: MS365 Calendar Integration (future)**
 7. Azure AD app registration + OAuth flow for coach calendar consent

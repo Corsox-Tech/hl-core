@@ -1,7 +1,9 @@
 # Documentation Update Instructions
 
+**Status:** COMPLETED (March 2026). All docs updated through V3 Grand Rename. This file is retained for historical context only.
+
 **Source of Truth:** `B2E_MASTER_REFERENCE.md` (March 2026 planning session)
-**Purpose:** File-by-file instructions for updating all 11 spec docs, CLAUDE.md, and README.md to reflect the new architecture.
+**Purpose:** File-by-file instructions for updating all 11 spec docs, CLAUDE.md, and README.md to reflect the new architecture. These instructions were written for V2 (Phase entity, Track Types). V3 Grand Rename subsequently changed all entity names: Track→Cycle, Cohort→Partnership, Activity→Component, Phase entity deleted.
 
 > **RULE:** When B2E_MASTER_REFERENCE.md conflicts with existing docs, the MASTER REFERENCE WINS.
 

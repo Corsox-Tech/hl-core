@@ -11,15 +11,15 @@ Timezone: America/Bogota
 This document specifies:
 - What reports exist
 - Who can view what (scope)
-- How completion is calculated for every activity type
-- How track-level completion % is computed
+- How completion is calculated for every component type
+- How cycle-level completion % is computed
 - Export requirements (CSV minimum)
 - Rules for hiding assessment responses (staff-only)
 
 Rules:
-- Reporting must be based on Enrollment (User ↔ Track).
+- Reporting must be based on Enrollment (User ↔ Cycle).
 - Non-staff roles must never see assessment responses for Teacher/Child assessments.
-- LearnDash course completion % is read from LearnDash; other activities are binary 0/100.
+- LearnDash course completion % is read from LearnDash; other components are binary 0/100.
 
 ---
 
@@ -27,14 +27,14 @@ Rules:
 
 HL Core must provide at minimum:
 
-1) **Track Dashboard (Staff)**
+1) **Cycle Dashboard (Staff)**
 2) **District Report (District Leader + Staff)**
 3) **School Report (School Leader + Staff)**
 4) **Team Report (Mentor + Staff)**
 5) **Participant Report (Teacher/Mentor self + Staff)**
-6) **Cohort Summary (Staff + District Leader)** — Cross-track aggregation within a Cohort (container)
-7) **Program vs Control Comparison (Staff)** — Side-by-side assessment outcome comparison when a Cohort contains both program and control tracks
-8) **Program Progress Matrix (Staff + Leaders)** — Course-by-course completion grid for all participants in a Track. Rows = participants, Columns = all B2E courses (TC0–TC8, MC1–MC4). Values: ✓ (completed), X% (in progress), empty (not started), – (not applicable for role/pathway). Filters: Phase, School, Team, Role. Export: CSV. See B2E_MASTER_REFERENCE.md §8.1.
+6) **Partnership Summary (Staff + District Leader)** — Cross-cycle aggregation within a Partnership (container)
+7) **Program vs Control Comparison (Staff)** — Side-by-side assessment outcome comparison when a Partnership contains both program and control cycles
+8) **Program Progress Matrix (Staff + Leaders)** — Course-by-course completion grid for all participants in a Cycle. Rows = participants, Columns = all B2E courses (TC0–TC8, MC1–MC4). Values: completed, X% (in progress), empty (not started), - (not applicable for role/pathway). Filters: School, Team, Role. Export: CSV. See B2E_MASTER_REFERENCE.md §8.1.
 
 Each report must support:
 - On-screen table view
@@ -46,12 +46,12 @@ Each report must support:
 
 Reference: 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md
 
-- Housman Admin: all tracks, all scopes
-- Coach: all tracks, all scopes (as staff)
-- District Leader: district scope within enrolled track(s)
-- School Leader: school scope within enrolled track(s)
-- Mentor: team scope within enrolled track(s)
-- Teacher: self scope within enrolled track(s)
+- Housman Admin: all cycles, all scopes
+- Coach: all cycles, all scopes (as staff)
+- District Leader: district scope within enrolled cycle(s)
+- School Leader: school scope within enrolled cycle(s)
+- Mentor: team scope within enrolled cycle(s)
+- Teacher: self scope within enrolled cycle(s)
 
 Non-negotiable:
 - Teacher Self-Assessment responses and Child Assessment responses visible ONLY to staff.
@@ -59,21 +59,18 @@ Non-negotiable:
 
 ---
 
-## 2.1 Phase-Aware Reporting
+## 2.1 Cycle-Level Reporting
 
-All reports that operate at the Track level should support a **Phase filter**:
-- "Show me Phase 2 progress" → filter to Phase 2 pathways and activities
-- "Show me full program" → aggregate across all Phases
-- Default view: currently active Phase
+All reports operate at the Cycle level. Pathways belong directly to Cycles (no Phase entity). Reports filter by Cycle, and within a Cycle by pathway, school, team, or role.
 
-Phase filtering applies to: Track Dashboard, District Report, School Report, Team Report, Participant Report, and the Program Progress Matrix.
+Cycle filtering applies to: Cycle Dashboard, District Report, School Report, Team Report, Participant Report, and the Program Progress Matrix.
 
 ---
 
 # 3) Completion Metrics
 
-## 3.1 Activity Completion Output (per Enrollment, per Activity)
-Every activity must yield:
+## 3.1 Component Completion Output (per Enrollment, per Component)
+Every component must yield:
 
 - completion_percent: integer 0..100
 - completion_status: enum { "not_started", "in_progress", "complete" }
@@ -82,9 +79,9 @@ Every activity must yield:
 
 ---
 
-## 3.2 Completion by Activity Type
+## 3.2 Completion by Component Type
 
-### 3.2.1 LearnDash Course Activity
+### 3.2.1 LearnDash Course Component
 - Source of truth: LearnDash
 - completion_percent = LearnDash progress percent (0..100)
 - completion_status:
@@ -100,7 +97,7 @@ Display:
 
 ---
 
-### 3.2.2 Teacher Self-Assessment Activity (PRE or POST)
+### 3.2.2 Teacher Self-Assessment Component (PRE or POST)
 - completion_percent = 0 if required instance not submitted
 - completion_percent = 100 if submitted
 - completion_status:
@@ -117,11 +114,11 @@ Display for staff:
 
 ---
 
-### 3.2.3 Child Assessment Activity
-Child assessments are required per (Track, Classroom, Teacher).
+### 3.2.3 Child Assessment Component
+Child assessments are required per (Cycle, Classroom, Teacher).
 
 For a given teacher Enrollment:
-- Determine required instances = all ChildAssessmentInstances for that teacher in the Track
+- Determine required instances = all ChildAssessmentInstances for that teacher in the Cycle
   (computed from TeachingAssignments)
 
 Completion:
@@ -129,7 +126,7 @@ Completion:
 - otherwise completion_percent = 0
 
 Display:
-- Show a rollup status for the activity: Complete / Incomplete
+- Show a rollup status for the component: Complete / Incomplete
 - Optionally show counts:
   - "Submitted X of Y classroom assessments"
 
@@ -141,15 +138,15 @@ Staff visibility:
 
 ---
 
-### 3.2.4 Coaching Session Attendance Activity
+### 3.2.4 Coaching Session Attendance Component
 Completion is binary.
 
-If the activity represents a required count of sessions:
+If the component represents a required count of sessions:
 - completion_percent = 100 if attended_count >= required_count
 - else 0
 
 Default v1:
-- required_count configurable per Track / Pathway
+- required_count configurable per Cycle / Pathway
 - attendance is marked by Coach or Admin only
 
 Non-staff visibility:
@@ -163,7 +160,7 @@ If observations are configured as a parallel requirement (recommended v1):
 - they appear on Mentor dashboards (and staff dashboards)
 - they can still contribute to an overall "Mentor Requirements" area
 
-If observations are modeled as an activity:
+If observations are modeled as a component:
 - completion becomes binary based on a required count N:
   - completion_percent = 100 if submitted_observations >= N
   - else 0
@@ -174,40 +171,40 @@ In either case:
 
 ---
 
-# 4) Track Completion Percentage
+# 4) Cycle Completion Percentage
 
 ## 4.1 Definition
 For an Enrollment's assigned Pathway:
-- pathway_completion_percent = weighted average across all activities in that pathway
+- pathway_completion_percent = weighted average across all components in that pathway
 
 Formula:
-- For each activity i:
+- For each component i:
   - weight_i (default 1)
   - percent_i (0..100)
 - completion_percent = sum(weight_i * percent_i) / sum(weight_i)
 
 Rules:
-- If no activities assigned, completion_percent = 0 by default (or N/A if preferred)
-- Binary activities still participate (0 or 100)
+- If no components assigned, completion_percent = 0 by default (or N/A if preferred)
+- Binary components still participate (0 or 100)
 
-## 4.2 Track Completion % (Overall)
+## 4.2 Cycle Completion % (Overall)
 Default v1:
-- track_completion_percent = pathway_completion_percent (primary assigned pathway)
+- cycle_completion_percent = pathway_completion_percent (primary assigned pathway)
 
 If future version supports multiple pathways per enrollment:
-- track_completion_percent = weighted average across all assigned pathways.
+- cycle_completion_percent = weighted average across all assigned pathways.
 
 ---
 
 # 5) Report Views (Minimum Tables)
 
-## 5.1 Track Dashboard (Staff)
+## 5.1 Cycle Dashboard (Staff)
 Audience:
 - Housman Admin, Coach
 
 Must include:
 - filters:
-  - Track
+  - Cycle
   - District (if present)
   - School
   - Team
@@ -215,16 +212,16 @@ Must include:
   - Status (active/inactive enrollments)
 - metrics:
   - participant count
-  - average track completion %
-  - activity completion distribution (optional)
+  - average cycle completion %
+  - component completion distribution (optional)
 - table:
   - participant name
   - email
   - role(s)
   - school
   - team
-  - track completion %
-  - key activity columns (configurable)
+  - cycle completion %
+  - key component columns (configurable)
 
 Exports:
 - CSV for the table with the applied filters
@@ -240,13 +237,13 @@ Audience:
 - District Leader, Staff
 
 Scope:
-- All schools in the district for the Track
+- All schools in the district for the Cycle
 
 Must include:
 - school list with:
   - number of participants
   - average completion %
-  - key activity completion rates (optional)
+  - key component completion rates (optional)
 - participant table (optional detail view):
   - same columns as staff but limited to district scope
 
@@ -265,7 +262,7 @@ Scope:
 Must include:
 - team summary (if teams exist)
 - participant table:
-  - name, email, role(s), team, completion %, activity columns
+  - name, email, role(s), team, completion %, component columns
 
 Exports:
 - CSV
@@ -283,7 +280,7 @@ Must include:
 - mentee table:
   - name, email
   - completion %
-  - activity completion status/percent for each activity
+  - component completion status/percent for each component
   - "blocked" indicators (optional: locked by prereq/drip)
 - mentor-specific parallel requirements:
   - observation tasks/requirements
@@ -300,30 +297,30 @@ Audience:
 
 Must include:
 - pathway completion %
-- list of activities with:
+- list of components with:
   - status (locked/available/complete)
   - completion percent
   - reason if locked (prereq/drip)
-  - link to activity (LearnDash course link or assessment form)
+  - link to component (LearnDash course link or assessment form)
 - no assessment responses visible after submission (unless staff)
 
 ---
 
-## 5.6 Cohort Summary (Staff + District Leader)
+## 5.6 Partnership Summary (Staff + District Leader)
 Audience:
-- Housman Admin, Coach, District Leader (for cohorts in their scope)
+- Housman Admin, Coach, District Leader (for partnerships in their scope)
 
 Scope:
-- All tracks within the selected Cohort (container)
+- All cycles within the selected Partnership (container)
 
 Must include:
-- Cohort filter dropdown in reporting UI
-- Summary metrics: total participants across tracks, average completion per track
-- Per-track row: name, code, status, participant count, avg completion %
+- Partnership filter dropdown in reporting UI
+- Summary metrics: total participants across cycles, average completion per cycle
+- Per-cycle row: name, code, status, participant count, avg completion %
 - Aggregate metrics: overall participant count, weighted avg completion
 
 Exports:
-- CSV with per-track summary rows
+- CSV with per-cycle summary rows
 
 ---
 
@@ -332,13 +329,13 @@ Audience:
 - Housman Admin, Coach only
 
 Availability:
-- Only appears when a selected Cohort contains BOTH program tracks (is_control_group=false) AND control tracks (is_control_group=true)
+- Only appears when a selected Partnership contains BOTH program cycles (is_control_group=false) AND control cycles (is_control_group=true)
 
 Purpose:
 - Measures program effectiveness by comparing pre-to-post assessment change between program and control groups
 
 Must include:
-- Info cards: program track name + participant count, control track name + participant count
+- Info cards: program cycle name + participant count, control cycle name + participant count
 - Per-section comparison table (for teacher self-assessment):
   - Section name
   - Program: PRE mean, POST mean, change
@@ -353,7 +350,7 @@ Must include:
 
 Data source:
 - Aggregates `responses_json` from `hl_teacher_assessment_instance` for all submitted instances
-- Groups by track.is_control_group and phase (pre/post)
+- Groups by cycle.is_control_group and phase (pre/post)
 - Computes mean, standard deviation, and pooled SD per section and per item
 
 Cohen's d calculation:
@@ -363,7 +360,7 @@ Cohen's d calculation:
 Exports:
 - CSV with per-item rows: section, item_id, item_text, program_pre_mean, program_post_mean, program_change, control_pre_mean, control_post_mean, control_change, cohens_d
 
-**Primary analysis workflow:** The critical path for research comparison is CSV export → Stata. The in-app comparison report is a supplementary convenience view. The control Track does NOT need to be in the same Cohort as the program Track for the CSV export workflow to function — the control group exists as an independent research asset.
+**Primary analysis workflow:** The critical path for research comparison is CSV export → Stata. The in-app comparison report is a supplementary convenience view. The control Cycle does NOT need to be in the same Partnership as the program Cycle for the CSV export workflow to function — the control group exists as an independent research asset.
 
 ---
 
@@ -383,21 +380,21 @@ Mentors and teachers benefit from knowing why something is locked.
 CSV.
 
 Exports must include:
-- track_code
-- track_name
+- cycle_code
+- cycle_name
 - district/school/team identifiers (where applicable)
 - user name + email
 - role(s)
-- track completion %
-- activity completion columns:
+- cycle completion %
+- component completion columns:
   - LearnDash courses as percent
-  - other activities as 0 or 100
+  - other components as 0 or 100
 
 ## 7.2 Assessment Response Exports (Staff-only)
 Separate export endpoints for:
 - Teacher Self-Assessments (pre/post)
 - Child Assessments (infant/toddler/preschool)
-- Program vs Control Comparison (when Cohort filter active; includes Cohen's d)
+- Program vs Control Comparison (when Partnership filter active; includes Cohen's d)
 
 These exports may include:
 - question-level responses

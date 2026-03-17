@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md
-Version: 2.0
-Last Updated: 2026-02-25
+Version: 3.0
+Last Updated: 2026-03-17
 Timezone: America/Bogota
 
 ---
@@ -9,7 +9,7 @@ Timezone: America/Bogota
 # 0) Purpose
 
 This document defines the **authorization model** for HL Core:
-- Roles (system-level and track-level)
+- Roles (system-level and cycle-level)
 - Scopes (district / school / team / self)
 - Exactly what each role can read/write
 - Report visibility rules
@@ -18,14 +18,14 @@ This document defines the **authorization model** for HL Core:
 Rules:
 - All permission checks MUST be enforced server-side.
 - Never rely on UI-only hiding.
-- Track participation and roles are stored on Enrollment (User ↔ Track).
+- Cycle participation and roles are stored on Enrollment (User ↔ Cycle).
 
 ---
 
 # 1) Role Types
 
 ## 1.1 System Roles (Global / WP-level)
-These reflect Housman internal staff access. They are not tied to a Track.
+These reflect Housman internal staff access. They are not tied to a Cycle.
 
 ### Housman Admin
 - WordPress admin
@@ -33,54 +33,54 @@ These reflect Housman internal staff access. They are not tied to a Track.
 
 ### Coach
 - Housman staff (not necessarily WP admin)
-- Elevated permissions across Tracks, within staff rules defined below
+- Elevated permissions across Cycles, within staff rules defined below
 
 ---
 
-## 1.2 Track Roles (Enrollment-level)
-These are roles assigned per Enrollment within a Track.
+## 1.2 Cycle Roles (Enrollment-level)
+These are roles assigned per Enrollment within a Cycle.
 
-Allowed Track Roles:
+Allowed Cycle Roles:
 - Teacher
 - Mentor
 - School Leader
 - District Leader
 
 Notes:
-- A User can have different roles in different Tracks.
-- A User may hold multiple Track Roles in the same Track (rare; allowed).
+- A User can have different roles in different Cycles.
+- A User may hold multiple Cycle Roles in the same Cycle (rare; allowed).
 - Leaders are few and manual assignment is acceptable.
 
 ---
 
 # 2) Scopes (Where permissions apply)
 
-Scopes are evaluated relative to a specific Track.
+Scopes are evaluated relative to a specific Cycle.
 
 ## 2.1 Self Scope
 - Data for the current user's own Enrollment only.
 
 ## 2.2 Team Scope
-- Data for Enrollments belonging to the same Team in the Track.
+- Data for Enrollments belonging to the same Team in the Cycle.
 - Mentor visibility is based on TeamMembership.
 
 ## 2.3 School Scope
-- Data for Enrollments assigned to a specific School in the Track.
+- Data for Enrollments assigned to a specific School in the Cycle.
 - School Leaders see School scope reports.
 
 ## 2.4 District Scope
-- Data for all Schools under a District (OrgUnit hierarchy) within the Track.
+- Data for all Schools under a District (OrgUnit hierarchy) within the Cycle.
 - District Leaders see District scope reports.
 
 ## 2.5 Staff Scope
-- All Tracks and all scopes.
+- All Cycles and all scopes.
 
 ---
 
 # 3) Core Security Rules (Non-negotiable)
 
 ## 3.1 Enrollment-based authorization
-- If a user is not enrolled in a Track, they have no Track access unless they are Staff.
+- If a user is not enrolled in a Cycle, they have no Cycle access unless they are Staff.
 
 ## 3.2 Assessment response privacy
 Raw responses for:
@@ -96,8 +96,8 @@ Non-staff roles may see only:
 
 ## 3.3 User management restrictions for client roles
 Client leaders have limited user creation abilities:
-- District Leaders can create users within their Track + District scope only
-- School Leaders can create users within their Track + School scope only
+- District Leaders can create users within their Cycle + District scope only
+- School Leaders can create users within their Cycle + School scope only
 Client leaders cannot:
 - edit existing users
 - delete or deactivate users
@@ -109,15 +109,14 @@ Client leaders cannot:
 
 Use these canonical capability names in code and docs.
 
-## 4.1 Track & Configuration
-- track.view
-- track.create
-- track.edit
-- track.archive
-- track.manage_settings
-- phase.manage
+## 4.1 Cycle & Configuration
+- cycle.view
+- cycle.create
+- cycle.edit
+- cycle.archive
+- cycle.manage_settings
 - pathway.manage
-- activity.manage
+- component.manage
 - unlock_rules.manage
 - overrides.apply
 
@@ -179,7 +178,7 @@ Legend:
 
 ### Coach (Housman staff)
 Allowed:
-- track.view
+- cycle.view
 - orgunit.view
 - enrollment.view
 - enrollment.create (create WP users + enroll)
@@ -189,11 +188,11 @@ Allowed:
 - observation.view
 - coaching.manage
 - coaching.mark_attendance
-- overrides.apply (exempt activities only)
+- overrides.apply (exempt components only)
 
 Not allowed by default (may be enabled if desired):
-- track.create / edit / archive
-- pathway.manage / activity.manage / unlock_rules.manage
+- cycle.create / edit / archive
+- pathway.manage / component.manage / unlock_rules.manage
 - manual unlock overrides (if reserved for Admin only)
 
 Note:
@@ -202,11 +201,11 @@ Note:
 
 ---
 
-## 5.2 Track Roles (Enrollment-level)
+## 5.2 Cycle Roles (Enrollment-level)
 
 ### Teacher
 Allowed:
-- track.view (only tracks where enrolled)
+- cycle.view (only cycles where enrolled)
 - reports.view (self scope only)
 - assessment.submit (teacher self-assessment; child assessment; if assigned)
 - assessment.view_completion (self completion only)
@@ -223,7 +222,7 @@ Scope:
 
 ### Mentor
 Allowed:
-- track.view (enrolled tracks only)
+- cycle.view (enrolled cycles only)
 - reports.view (team scope)
 - reports.export (team scope) [optional; enable if desired]
 - observation.submit (mentor forms)
@@ -232,7 +231,7 @@ Allowed:
 Not allowed:
 - assessment.view_responses
 - user management
-- track configuration
+- cycle configuration
 
 Scope:
 - Team.
@@ -241,15 +240,15 @@ Scope:
 
 ### School Leader
 Allowed:
-- track.view (enrolled tracks only)
+- cycle.view (enrolled cycles only)
 - reports.view (school scope)
 - reports.export (school scope)
-- users.create (create-only; within track + school scope)
-- enrollment.create (enroll newly created users into same track + school)
+- users.create (create-only; within cycle + school scope)
+- enrollment.create (enroll newly created users into same cycle + school)
 Not allowed:
 - users.edit / deactivate / reset_password
 - assessment.view_responses
-- track/pathway configuration
+- cycle/pathway configuration
 
 Scope:
 - School.
@@ -258,15 +257,15 @@ Scope:
 
 ### District Leader
 Allowed:
-- track.view (enrolled tracks only)
+- cycle.view (enrolled cycles only)
 - reports.view (district scope)
 - reports.export (district scope)
-- users.create (create-only; within track + district scope)
-- enrollment.create (enroll newly created users into same track + district/school mapping)
+- users.create (create-only; within cycle + district scope)
+- enrollment.create (enroll newly created users into same cycle + district/school mapping)
 Not allowed:
 - users.edit / deactivate / reset_password
 - assessment.view_responses
-- track/pathway configuration
+- cycle/pathway configuration
 
 Scope:
 - District.
@@ -275,23 +274,23 @@ Scope:
 
 # 6) Scope Enforcement Rules (Must implement)
 
-## 6.1 Track access
-Non-staff users can only access a Track if they have an Enrollment for that Track.
+## 6.1 Cycle access
+Non-staff users can only access a Cycle if they have an Enrollment for that Cycle.
 
 ## 6.2 District scope resolution
 District Leader can view/report enrollments where:
-- enrollment.track_id matches AND
+- enrollment.cycle_id matches AND
 - enrollment.school_id is a child school of the leader's district OR
 - enrollment has district_id matching (implementation dependent)
 
 ## 6.3 School scope resolution
 School Leader can view/report enrollments where:
-- enrollment.track_id matches AND
+- enrollment.cycle_id matches AND
 - enrollment.school_id matches their school(s)
 
 ## 6.4 Team scope resolution
 Mentor can view/report enrollments where:
-- enrollment.track_id matches AND
+- enrollment.cycle_id matches AND
 - enrollment is in the same team as the mentor (TeamMembership join)
 
 ## 6.5 Self scope resolution
@@ -307,7 +306,7 @@ Teacher can view/report only their own enrollment record.
 - Staff can see responses and export
 
 ## 7.2 Child Assessment
-- Required per (Track, Classroom, Teacher assignment)
+- Required per (Cycle, Classroom, Teacher assignment)
 - Teacher can submit for assigned classrooms
 - Non-staff can see completion only
 - Staff can see responses and export
@@ -321,26 +320,26 @@ Client leader user creation is restricted.
 ## 8.1 District Leader create-only
 District Leaders may:
 - create a WP user with email + name (minimum)
-- immediately enroll that user in the same Track
+- immediately enroll that user in the same Cycle
 - assign that enrollment to an allowed school within their district
 
 District Leaders may NOT:
 - edit existing users
 - deactivate users
 - reset passwords
-- create users outside their Track or outside their district scope
+- create users outside their Cycle or outside their district scope
 
 ## 8.2 School Leader create-only
 School Leaders may:
 - create a WP user with email + name (minimum)
-- immediately enroll that user in the same Track
+- immediately enroll that user in the same Cycle
 - assign that enrollment to their school
 
 School Leaders may NOT:
 - edit existing users
 - deactivate users
 - reset passwords
-- create users outside their Track or outside their school scope
+- create users outside their Cycle or outside their school scope
 
 Implementation note:
 - If a user email already exists, leaders should not modify the existing user.
@@ -353,7 +352,7 @@ Implementation note:
 Log these events with:
 - actor_user_id
 - timestamp
-- track_id (if applicable)
+- cycle_id (if applicable)
 - affected entity IDs
 - before/after (where possible)
 

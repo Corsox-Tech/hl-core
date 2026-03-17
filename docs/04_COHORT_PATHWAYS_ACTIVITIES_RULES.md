@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
-## File: 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md
-Version: 2.0
-Last Updated: 2026-02-25
+## File: 04_PARTNERSHIPS_PATHWAYS_COMPONENTS_RULES.md
+Version: 3.0
+Last Updated: 2026-03-17
 Timezone: America/Bogota
 
 ---
@@ -9,14 +9,14 @@ Timezone: America/Bogota
 # 0) Purpose
 
 This document specifies how HL Core represents and configures:
-- Pathways (per Track)
-- Activities (per Pathway)
-- Activity completion rules
+- Pathways (per Cycle)
+- Components (per Pathway)
+- Component completion rules
 - Role-to-pathway assignment rules
 - How "parallel requirements" (Observations, Coaching) are handled
 
 Rules:
-- Tracks must be configurable per client and may differ across Tracks.
+- Cycles must be configurable per client and may differ across Cycles.
 - Leaders are few; manual configuration is acceptable.
 - HL Core reads LearnDash course progress but does not re-implement an LMS.
 
@@ -24,64 +24,61 @@ Rules:
 
 # 1) Configuration Overview
 
-## 1.1 Track Configuration Layers
-HL Core configuration for learning requirements exists at the Track level:
+## 1.1 Cycle Configuration Layers
+HL Core configuration for learning requirements exists at the Cycle level:
 
-1) Track
-2) **Phases within the Track** (time-bounded periods, e.g., Year 1, Year 2)
-3) Pathways within each Phase
-4) Activities within each Pathway
-5) Unlock rules (Prereqs + Drip) applied to Activities (see doc 05)
+1) Cycle
+2) Pathways within the Cycle
+3) Components within each Pathway
+4) Unlock rules (Prereqs + Drip) applied to Components (see doc 05)
 
-A Phase typically has 3 Pathways:
+A Cycle typically has 3 Pathways:
 - Teacher Pathway
 - Mentor Pathway
 - (Optional) Leader Pathway (Streamlined) — manual use only
 
-For course-type Tracks (`track_type = 'course'`), the Phase/Pathway/Activity are auto-generated.
+For course-type Cycles (`cycle_type = 'course'`), the Pathway/Component structure is auto-generated.
 
 ---
 
 # 2) Pathway
 
 ## 2.1 Definition
-**Pathway** is a configurable set/graph of required Activities assigned to Participants. Pathways belong to a Phase (not directly to a Track).
+**Pathway** is a configurable set/graph of required Components assigned to Participants. Pathways belong directly to a Cycle.
 
 A Pathway is defined by:
 - pathway_id (internal)
-- phase_id (FK → hl_phase; Phase belongs to Track)
-- pathway_name (e.g., "Teacher Pathway - Phase 1")
-- pathway_code (unique within Track)
+- cycle_id (FK → hl_cycle)
+- pathway_name (e.g., "Teacher Pathway - Year 1")
+- pathway_code (unique within Cycle)
 - target_roles (optional convenience metadata; not a permission system)
 - active_status
-
-Note: Pathways no longer belong directly to a Track — they belong to a Phase. To get all pathways for a Track: join Phase → Pathway.
 
 ## 2.2 Pathway Assignment
 Participants receive Pathways via Enrollment.
 
 Default v1 assignment rules:
-- If Enrollment has Track Role Teacher → assign configured Teacher Pathway (default)
-- If Enrollment has Track Role Mentor → assign configured Mentor Pathway (default)
+- If Enrollment has Cycle Role Teacher → assign configured Teacher Pathway (default)
+- If Enrollment has Cycle Role Mentor → assign configured Mentor Pathway (default)
 - Leaders: manual assignment by Housman Admin (and/or Coach if permitted)
 
 Manual overrides allowed:
 - Admin can set a participant's assigned Pathway explicitly.
 
 Important:
-- A participant can hold multiple Track Roles, but v1 assumes **one primary assigned Pathway**.
+- A participant can hold multiple Cycle Roles, but v1 assumes **one primary assigned Pathway**.
 - If a leader is also a mentor, Admin may assign Mentor Pathway as primary.
 
 ---
 
-# 3) Activity
+# 3) Component
 
 ## 3.1 Definition
-An **Activity** is a single requirement in a Pathway.
+A **Component** is a single requirement in a Pathway.
 
-Activity has:
-- activity_id (internal)
-- track_id
+Component has:
+- component_id (internal)
+- cycle_id
 - pathway_id
 - activity_type (enumeration; below)
 - title (display)
@@ -92,9 +89,11 @@ Activity has:
 - weight (integer or float; default=1; used for completion % aggregation)
 - external_ref (JSON; stores type-specific configuration — see each type below)
 
-## 3.2 Supported Activity Types (v1)
+Note: The DB column is `activity_type` and `activity_state` — these column names are retained for backward compatibility. The entity is called "Component" in code and UI.
 
-### 3.2.1 LearnDash Course Activity
+## 3.2 Supported Component Types (v1)
+
+### 3.2.1 LearnDash Course Component
 - activity_type = "learndash_course"
 - external_ref: `{"course_id": <LearnDash post ID>}`
 
@@ -107,10 +106,12 @@ Notes:
 
 ---
 
-### 3.2.2 Teacher Self-Assessment Activity (Custom PHP Instrument System)
+### 3.2.2 Teacher Self-Assessment Component (Custom PHP Instrument System)
 - activity_type = "teacher_self_assessment"
 - external_ref: `{"teacher_instrument_id": <HL instrument ID>, "phase": "pre"|"post"}`
 - Legacy fallback: `{"form_plugin": "jetformbuilder", "form_id": <JFB form ID>, "phase": "pre"|"post"}`
+
+Note: The "phase" field in external_ref refers to the pre/post assessment phase enum, not a deleted entity.
 
 Rendered by HL Core's custom `HL_Teacher_Assessment_Renderer` using structured instrument definitions from `hl_teacher_assessment_instrument`. Responses are stored as structured JSON in `hl_teacher_assessment_instance.responses_json`.
 
@@ -119,7 +120,7 @@ Rendered by HL Core's custom `HL_Teacher_Assessment_Renderer` using structured i
 
 Admin workflow:
 1. Admin creates/edits the instrument in HL Core's Instruments admin page (visual editor for sections, items, scales, instructions, display styles)
-2. Admin creates an Activity in the Pathway, selects activity_type = "teacher_self_assessment", picks the instrument, and selects phase (pre or post)
+2. Admin creates a Component in the Pathway, selects activity_type = "teacher_self_assessment", picks the instrument, and selects phase (pre or post)
 
 Completion:
 - 0% until instance.status = submitted
@@ -130,23 +131,23 @@ Privacy:
 - Non-staff participants see only completion status (0/100) and submitted timestamps.
 
 Instance tracking:
-- HL Core maintains `hl_teacher_assessment_instance` for each (track, enrollment, phase) to track status, responses_json, and submitted_at.
+- HL Core maintains `hl_teacher_assessment_instance` for each (cycle, enrollment, phase) to track status, responses_json, and submitted_at.
 
-PRE and POST are separate activities, each independent 0/100.
+PRE and POST are separate components, each independent 0/100.
 
-**Legacy JFB support:** Activities can still reference JFB forms via `external_ref.form_id` for backward compatibility. The system checks for `teacher_instrument_id` first (custom) and falls back to `jfb_form_id` (legacy).
+**Legacy JFB support:** Components can still reference JFB forms via `external_ref.form_id` for backward compatibility. The system checks for `teacher_instrument_id` first (custom) and falls back to `jfb_form_id` (legacy). JFB integration is legacy and pending removal.
 
 ---
 
-### 3.2.3 Child Assessment Activity (Custom PHP — NOT JetFormBuilder)
+### 3.2.3 Child Assessment Component (Custom PHP — NOT JetFormBuilder)
 - activity_type = "child_assessment"
 - external_ref: `{"instrument_id": <HL instrument ID>}`
 
-This activity type uses a custom PHP form because it is inherently dynamic: the form renders one row per child in the teacher's assigned classroom, using questions from the HL Core instrument definition.
+This component type uses a custom PHP form because it is inherently dynamic: the form renders one row per child in the teacher's assigned classroom, using questions from the HL Core instrument definition.
 
 Important assignment rule:
-- Child assessment instances are generated per (Track, Classroom, Teacher assignment).
-- This Activity represents the requirement category, while completion is computed from required instances.
+- Child assessment instances are generated per (Cycle, Classroom, Teacher assignment).
+- This Component represents the requirement category, while completion is computed from required instances.
 - Completion for a teacher is 100% only when all required classroom instances are submitted.
 
 Completion:
@@ -162,7 +163,7 @@ See doc 06 for full details on instance generation rules and the child assessmen
 
 ---
 
-### 3.2.4 Coaching Session Attendance Activity
+### 3.2.4 Coaching Session Attendance Component
 - activity_type = "coaching_session_attendance"
 Completion:
 - 0% until a Coach marks attendance/complete for the required session(s)
@@ -170,7 +171,7 @@ Completion:
 
 Notes:
 - Coaching sessions are typically for Mentors.
-- This activity can represent:
+- This component can represent:
   - one required session, or
   - N required sessions (configurable)
 - See doc 06 for coaching session records and linking to observations.
@@ -180,16 +181,16 @@ Notes:
 ### 3.2.5 Observation Requirement (JetFormBuilder-powered, Parallel)
 Observations are required artifacts for mentorship workflow.
 
-The observation form itself is created and managed in JetFormBuilder. HL Core tracks the observation record (who observed whom, which classroom) and links it to coaching sessions.
+The observation form itself is created and managed in JetFormBuilder (legacy — pending removal). HL Core tracks the observation record (who observed whom, which classroom) and links it to coaching sessions.
 
 Two valid v1 approaches:
 
 **Approach A (Recommended)**: Treat observation requirements as a "parallel requirement"
-- Not listed as a pathway activity visible to participants
+- Not listed as a pathway component visible to participants
 - Still tracked for completion and reporting (Mentor + Staff dashboards)
 - Mentor submits observation via JFB form; HL Core creates `hl_observation` record and listens for the JFB hook to mark it submitted
 
-**Approach B**: Model as an Activity
+**Approach B**: Model as a Component
 - activity_type = "observation"
 - external_ref: `{"form_plugin": "jetformbuilder", "form_id": <JFB form ID>, "required_count": N}`
 - completion based on "N observations submitted"
@@ -202,25 +203,26 @@ Default v1 choice:
 
 # 4) Completion Model
 
-## 4.1 Activity Completion Output Format (for reporting)
-Every activity must produce:
+## 4.1 Component Completion Output Format (for reporting)
+Every component must produce:
 - completion_percent (0..100)
 - completion_status ∈ { "not_started", "in_progress", "complete" }
 - completed_at (timestamp when it reached 100%, if applicable)
 
 Rules:
 - LearnDash Course: use LearnDash percent
-- JFB-powered activities (teacher self-assessment, observations): 0 or 100 (binary, based on form submission)
+- Teacher self-assessment: 0 or 100 (binary, based on form submission)
 - Child Assessment: computed 0/100 across required classroom instances
 - Coaching attendance: 0 or 100
+- Observations: 0 or 100
 
-## 4.2 Track/Pathway Completion Percent
-For a participant in a Track:
-- pathway_completion_percent = weighted average of assigned Activities (default weight=1)
-- track_completion_percent = same as pathway_completion_percent for the participant's assigned Pathway(s)
+## 4.2 Cycle/Pathway Completion Percent
+For a participant in a Cycle:
+- pathway_completion_percent = weighted average of assigned Components (default weight=1)
+- cycle_completion_percent = same as pathway_completion_percent for the participant's assigned Pathway(s)
 
 If multiple pathways are ever assigned in the future:
-- track_completion_percent = weighted average across all assigned pathways (optional v2)
+- cycle_completion_percent = weighted average across all assigned pathways (optional v2)
 
 ---
 
@@ -230,18 +232,18 @@ Leaders (District Leader, School Leader) are few and can be configured manually.
 
 Leader learning requirements:
 - Leaders may be assigned a Leader Pathway (streamlined) OR no pathway.
-- Leader reporting access is granted by Track Role and scope (doc 03).
+- Leader reporting access is granted by Cycle Role and scope (doc 03).
 - If a leader is also mentoring a team, Admin can assign Mentor Pathway.
 
 Leader configuration UX should support:
-- manual assignment of Track Roles (leader roles)
+- manual assignment of Cycle Roles (leader roles)
 - manual pathway assignment and overrides
 
 ---
 
-# 6) Activity Assignment Rules (Role → Pathway defaults)
+# 6) Component Assignment Rules (Role → Pathway defaults)
 
-Defaults per Track configuration:
+Defaults per Cycle configuration:
 - Teacher role → default Teacher Pathway
 - Mentor role → default Mentor Pathway
 - Leaders → manual (optional leader pathway)
@@ -252,7 +254,7 @@ Admin must be able to override per Enrollment.
 
 # 7) Relationship to Unlocking Logic (Doc 05)
 
-Activities may be gated by:
+Components may be gated by:
 - prerequisites (graph dependencies)
 - drip rules (fixed date and/or completion-based delay)
 
@@ -263,17 +265,13 @@ HL Core must keep unlock logic independent of ordering_hint.
 # 8) Data Needed by the AI Implementer (No code)
 
 To implement this cleanly, the plugin must support:
-- CRUD for Phases (per Track)
-- CRUD for Pathways (per Phase)
-- Phase → Pathway relationship management
-- Auto-Phase creation for course-type Tracks
-- CRUD for Activities (per Pathway)
-- Mapping LearnDash course_id into LearnDash Course Activities
-- Mapping JetFormBuilder form_id into JFB-powered Activities (teacher self-assessment, observations)
-- Mapping HL Core instrument_id into Child Assessment Activities
-- JFB form dropdown in Activity admin UI (queries available JFB forms)
-- Computation of completion outputs for each activity type
-- Aggregation into pathway/track completion percentages
+- CRUD for Pathways (per Cycle)
+- CRUD for Components (per Pathway)
+- Mapping LearnDash course_id into LearnDash Course Components
+- Mapping HL Core instrument_id into Teacher Self-Assessment Components
+- Mapping HL Core instrument_id into Child Assessment Components
+- Computation of completion outputs for each component type
+- Aggregation into pathway/cycle completion percentages
 - Observation parallel requirement tracking (Mentor/Staff dashboards)
 - Coaching session records linked to mentors and observations
 

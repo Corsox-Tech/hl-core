@@ -29,11 +29,11 @@ HL Core uses a **primarily custom PHP approach** for assessments:
 **Rationale for the change from JFB to custom (teacher assessments):**
 - The POST version requires a unique dual-column retrospective format (PRE responses shown as disabled radios alongside new "Now" ratings) that JFB cannot natively support
 - Structured response data (`responses_json`) is needed for research export, control group comparison, and Cohen's d effect size calculations
-- Pre/post logic must integrate tightly with the activity system and pathway drip rules
+- Pre/post logic must integrate tightly with the component system and pathway drip rules
 - Separate PRE and POST instrument definitions allow different item counts, instructions, and section behavior per phase
 - Admin-customizable display styles (`styles_json`) allow font-size and color adjustments without developer intervention
 
-**Legacy JFB support:** Teacher self-assessment activities can still reference JFB forms via `external_ref.form_id` for backward compatibility. The system checks for `teacher_instrument_id` first (custom) and falls back to `jfb_form_id` (legacy). New deployments should use the custom instrument system exclusively.
+**Legacy JFB support:** Teacher self-assessment components can still reference JFB forms via `external_ref.form_id` for backward compatibility. The system checks for `teacher_instrument_id` first (custom) and falls back to `jfb_form_id` (legacy). New deployments should use the custom instrument system exclusively.
 
 ---
 
@@ -124,9 +124,9 @@ Stores the instrument definition as structured JSON. **Separate instruments are 
 
 ### hl_teacher_assessment_instance
 - instance_id (PK)
-- track_id
+- cycle_id
 - enrollment_id (teacher enrollment)
-- activity_id (FK to hl_activity) — links to the pathway activity
+- component_id (FK to hl_component) — links to the pathway component
 - instrument_id (FK to hl_teacher_assessment_instrument; NULL for legacy JFB)
 - phase (enum: pre, post)
 - status (enum: not_started, draft, submitted)
@@ -138,7 +138,7 @@ Stores the instrument definition as structured JSON. **Separate instruments are 
 - created_at, updated_at
 
 Constraints:
-- unique(track_id, enrollment_id, phase) — or unique(enrollment_id, activity_id)
+- unique(cycle_id, enrollment_id, phase) — or unique(enrollment_id, component_id)
 
 ### Response JSON format:
 ```json
@@ -214,26 +214,26 @@ Admins configure these via a "Display Styles" panel in the instrument edit form 
 ## 2.5 Frontend Integration
 
 Shortcode: `[hl_teacher_assessment]` (class-hl-frontend-teacher-assessment.php)
-- URL params: activity_id (required)
+- URL params: component_id (required)
 - Logic:
   1. Get current user's enrollment
-  2. Get or create teacher_assessment_instance for this activity
-  3. Determine phase from activity's external_ref
+  2. Get or create teacher_assessment_instance for this component
+  3. Determine phase from component's external_ref
   4. Load instrument via teacher_instrument_id
   5. Render form via HL_Teacher_Assessment_Renderer
   6. Handle POST for draft save and final submit
-  7. On submit: update hl_activity_state to completed, trigger rollup
+  7. On submit: update hl_component_state to completed, trigger rollup
 
-## 2.6 Activity Routing
+## 2.6 Component Routing
 When `activity_type = 'teacher_self_assessment'`:
 - Check `external_ref` for `teacher_instrument_id` -> route to custom form
 - Fall back to `jfb_form_id` -> route to JFB form (legacy)
-- Activity page, my-progress, and program page all respect this routing
+- Component page, my-progress, and program page all respect this routing
 
 ## 2.7 Completion Rule
 - 0% if instance.status != submitted
 - 100% when instance.status == submitted
-- PRE and POST are separate activities, each independent 0/100
+- PRE and POST are separate components, each independent 0/100
 
 ---
 
@@ -243,8 +243,8 @@ When `activity_type = 'teacher_self_assessment'`:
 Child assessments measure social-emotional development of children in a teacher's classrooms.
 
 Key requirement:
-- A teacher completes ONE child assessment activity per assessment period (pre or post)
-- That single activity covers ALL children in the teacher's assigned classrooms
+- A teacher completes ONE child assessment component per assessment period (pre or post)
+- That single component covers ALL children in the teacher's assigned classrooms
 - The form lists each child with their age band and the age-appropriate question + rating scale
 - Children no longer in the classroom can be marked "No longer enrolled" (skipped)
 
@@ -252,20 +252,20 @@ Key requirement:
 
 ## 3.2 Per-Child Age Group Assignment (Frozen Snapshots)
 
-Each child's age group is determined per-child (not per-classroom) and frozen for the duration of the track via `hl_child_track_snapshot`.
+Each child's age group is determined per-child (not per-classroom) and frozen for the duration of the cycle via `hl_child_cycle_snapshot`.
 
 **How age groups are determined:**
-1. When children are associated with a Track (via instance generation or teacher add), the system reads each child's DOB from `hl_child`
+1. When children are associated with a Cycle (via instance generation or teacher add), the system reads each child's DOB from `hl_child`
 2. Age in months is calculated relative to current date at freeze time
 3. Age-to-band mapping (from `HL_Age_Group_Helper`):
    - 0-11 months → infant
    - 12-35 months → toddler
    - 36-59 months → preschool
    - 60+ months → k2
-4. The resulting age group is stored as `frozen_age_group` in `hl_child_track_snapshot`
+4. The resulting age group is stored as `frozen_age_group` in `hl_child_cycle_snapshot`
 5. Once frozen, the age group does NOT change even if the child ages past a boundary
 
-**Why frozen:** Research integrity requires PRE and POST assessments to use the same instrument per child. If the age group changed mid-track, the pre/post comparison would use different questions.
+**Why frozen:** Research integrity requires PRE and POST assessments to use the same instrument per child. If the age group changed mid-cycle, the pre/post comparison would use different questions.
 
 **Mixed-age classrooms:** A single classroom may contain children of different age groups. The form renders age-group sections within one form, each section using its age-group-specific instrument and question text.
 
@@ -301,7 +301,7 @@ The `hl_instrument` and `hl_teacher_assessment_instrument` tables are **excluded
 ### hl_child_assessment_instance
 - instance_id (PK)
 - enrollment_id (teacher enrollment)
-- activity_id (FK to hl_activity)
+- component_id (FK to hl_component)
 - phase (enum: pre, post)
 - status (enum: not_started, draft, submitted)
 - responses_json (longtext) — per-child responses
@@ -327,7 +327,7 @@ Per-child response rows stored in a dedicated table for structured access:
 - answers_json (per-child answers)
 - status (enum: active, skipped, not_in_classroom, stale_at_submit) — tracks child's state at submission time
 - skip_reason (varchar, nullable) — reason for skip (left_school, moved_classroom)
-- frozen_age_group (varchar) — copied from hl_child_track_snapshot at save time
+- frozen_age_group (varchar) — copied from hl_child_cycle_snapshot at save time
 - instrument_id (int, nullable) — which instrument was used for this child's age group
 
 ## 3.6 Form Rendering
@@ -343,20 +343,20 @@ The child assessment form:
 - Read-only submitted summary grouped by age group
 
 ## 3.7 Admin: Generate Child Assessment Instances
-Admin can generate assessment instances for all teachers in a track with one click:
-- Calls `freeze_age_groups($track_id)` first to create `hl_child_track_snapshot` records
-- For each teacher enrollment in the track
+Admin can generate assessment instances for all teachers in a cycle with one click:
+- Calls `freeze_age_groups($cycle_id)` first to create `hl_child_cycle_snapshot` records
+- For each teacher enrollment in the cycle
 - Find their classrooms (via hl_teaching_assignment)
 - If classrooms have children, create child_assessment instances
 - Instance instrument_id is nullable (resolved per-child from frozen_age_group at render time)
-- Create corresponding hl_activity_state records
+- Create corresponding hl_component_state records
 
 This can be done via admin button or WP-CLI command.
 
 ## 3.8 Completion Rule
 - 0% if instance.status != submitted
 - 100% when instance.status == submitted
-- PRE and POST are separate activities, each independent 0/100
+- PRE and POST are separate components, each independent 0/100
 
 ---
 
@@ -376,19 +376,19 @@ Observations are used by Coaches to prepare for Coaching Sessions.
 
 ### Form setup (done once by admin in JetFormBuilder):
 1. Create the form in JFB with desired fields, layout, and conditional logic
-2. Add hidden fields: `hl_enrollment_id`, `hl_activity_id`, `hl_track_id`, `hl_observation_id`
+2. Add hidden fields: `hl_enrollment_id`, `hl_component_id`, `hl_cycle_id`, `hl_observation_id`
 3. Add "Call Hook" post-submit action with hook name: `hl_core_form_submitted`
 
 ### Submission handling (automatic):
 1. Mentor fills out and submits the form
 2. JFB fires the `hl_core_form_submitted` hook
-3. HL Core's hook listener updates observation status, activity_state, and triggers rollup
+3. HL Core's hook listener updates observation status, component_state, and triggers rollup
 
 ## 4.3 Object Model
 
 ### hl_observation
 - observation_id
-- track_id
+- cycle_id
 - mentor_enrollment_id
 - teacher_enrollment_id (optional)
 - school_id (optional)
@@ -423,7 +423,7 @@ This is an admin-side CRUD workflow, not a user-facing questionnaire.
 
 ### hl_coaching_session
 - session_id
-- track_id
+- cycle_id
 - coach_user_id (WP User; staff)
 - mentor_enrollment_id
 - session_title
@@ -458,31 +458,31 @@ This is an admin-side CRUD workflow, not a user-facing questionnaire.
 
 ## 6.1 Purpose
 
-**Important clarification:** The control group is NOT tied to one specific client/program. It exists as an independent research asset that can be compared against ANY or MULTIPLE program Tracks. The statistical comparison (Cohen's d) happens in **Stata**, not in WordPress. HL Core's job is to store control group assessment data and export it as CSV. The Cohort-based comparison reports (§6.3) are a nice-to-have convenience, not the critical path for research.
+**Important clarification:** The control group is NOT tied to one specific client/program. It exists as an independent research asset that can be compared against ANY or MULTIPLE program Cycles. The statistical comparison (Cohen's d) happens in **Stata**, not in WordPress. HL Core's job is to store control group assessment data and export it as CSV. The Partnership-based comparison reports (§6.3) are a nice-to-have convenience, not the critical path for research.
 
-Control group tracks use an assessment-only pathway. Teachers in the control group complete:
+Control group cycles use an assessment-only pathway. Teachers in the control group complete:
 1. Teacher Self-Assessment (Pre) — available immediately
 2. Child Assessment (Pre) — available immediately
 3. Teacher Self-Assessment (Post) — locked until end-of-program date via drip rule
 4. Child Assessment (Post) — locked until end-of-program date via drip rule
 
-No courses, coaching, observations, or mentorship activities are included.
+No courses, coaching, observations, or mentorship components are included.
 
 ## 6.2 Pathway Structure
-The control group pathway contains exactly 4 activities:
-- Activity 1: teacher_self_assessment, phase=pre, sort_order=1, no drip rule
-- Activity 2: child_assessment, phase=pre, sort_order=2, no drip rule
-- Activity 3: teacher_self_assessment, phase=post, sort_order=3, drip: fixed_date
-- Activity 4: child_assessment, phase=post, sort_order=4, drip: fixed_date
+The control group pathway contains exactly 4 components:
+- Component 1: teacher_self_assessment, phase=pre, sort_order=1, no drip rule
+- Component 2: child_assessment, phase=pre, sort_order=2, no drip rule
+- Component 3: teacher_self_assessment, phase=post, sort_order=3, drip: fixed_date
+- Component 4: child_assessment, phase=post, sort_order=4, drip: fixed_date
 
 ## 6.3 Comparison Reporting
-When a Cohort contains both program and control tracks:
+When a Partnership contains both program and control cycles:
 - ReportingService aggregates `responses_json` from teacher assessment instances
 - Per-section, per-item mean/n/sd for both PRE and POST phases
 - Cohen's d effect size = (program_change - control_change) / pooled_sd
 - CSV export with per-item means, change values, and effect sizes
 
-**Primary research workflow:** Assessment data is exported as CSV from HL Core → imported into Stata for statistical analysis (Cohen's d, etc.). The in-app comparison report is supplementary. The control Track does NOT need to be in the same Cohort as the program Track for this workflow.
+**Primary research workflow:** Assessment data is exported as CSV from HL Core → imported into Stata for statistical analysis (Cohen's d, etc.). The in-app comparison report is supplementary. The control Cycle does NOT need to be in the same Partnership as the program Cycle for this workflow.
 
 ---
 
@@ -495,7 +495,7 @@ HL Core provides staff workflows for:
 - Reviewing observations: staff can view observation records and access JFB Form Records
 - Creating coaching sessions linked to observations
 - Marking coaching attendance + notes
-- Program vs Control comparison reporting (when Cohort contains both program and control tracks)
+- Program vs Control comparison reporting (when Partnership contains both program and control cycles)
 
 Non-staff workflows:
 - Teachers submit their self-assessment (custom form at `[hl_teacher_assessment]`)
@@ -507,7 +507,7 @@ Non-staff workflows:
 # 8) Audit Log Requirements (Assessment-related)
 
 Log:
-- assessment instance submitted (who, when, which track/classroom)
+- assessment instance submitted (who, when, which cycle/classroom)
 - staff view of assessment responses (who accessed, when)
 - exports generated (who exported, filters used)
 - observation submitted (who, when, JFB record ID)

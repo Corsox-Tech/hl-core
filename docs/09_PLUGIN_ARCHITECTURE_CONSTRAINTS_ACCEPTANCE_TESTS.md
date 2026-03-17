@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 09_PLUGIN_ARCHITECTURE_CONSTRAINTS_ACCEPTANCE_TESTS.md
-Version: 3.0
-Last Updated: 2026-02-27
+Version: 4.0 (V3 Rename)
+Last Updated: 2026-03-17
 Timezone: America/Bogota
 
 ---
@@ -44,15 +44,13 @@ The plugin should be organized into modules/services. Suggested folder map:
   hl-core.php           (plugin bootstrap)
 
 Core services to implement:
-- CohortService (container management)
-- TrackService (Track management, track_type handling, auto-create Phase for course-type Tracks)
-- PhaseService (Phase CRUD, get_phases_for_track, get_active_phase, auto-create for course Tracks)
-- IndividualEnrollmentService (CRUD, expiration checks, LearnDash progress queries)
+- PartnershipService (container management)
+- CycleService (Cycle management, cycle_type handling)
 - OrgService (OrgUnit, District/School hierarchy)
 - EnrollmentService (roles, scope binding, status)
 - TeamService (teams + teammembership enforcement)
 - ClassroomService (classrooms, teaching assignments, children)
-- PathwayService (pathways, activities)
+- PathwayService (pathways, components)
 - RulesEngineService (prereq + drip + availability)
 - AssessmentService (child assessments — custom forms; teacher assessment instance tracking for JFB)
 - ObservationService (observation record management — JFB handles the form)
@@ -76,12 +74,11 @@ Using post_meta/user_meta would become brittle and slow.
 ## 2.2 Minimum tables (conceptual)
 This is the minimum set required by the domain model:
 
-Org + Cohort + Track:
+Org + Partnership + Cycle:
 - hl_orgunit
-- hl_cohort (optional container)
-- hl_track (full program engagement; has track_type column: program/course)
-- hl_track_school (track ↔ school)
-- hl_phase (Phase within Track — groups Pathways by time period)
+- hl_partnership (optional container)
+- hl_cycle (full program engagement; has cycle_type column: program/course)
+- hl_cycle_school (cycle ↔ school)
 
 Participation:
 - hl_enrollment
@@ -99,24 +96,24 @@ Classrooms + children:
 - hl_child_classroom_current
 - hl_child_classroom_history (optional)
 
-Individual Enrollments:
+Individual Enrollments (PLANNED):
 - hl_individual_enrollment (user ↔ LearnDash course for standalone purchases; supports per-person expiration)
 
 Learning config:
-- hl_pathway (now has phase_id FK → hl_phase instead of direct track_id)
-- hl_activity
-- hl_activity_prereq_group
-- hl_activity_prereq_item
-- hl_activity_drip_rule
-- hl_activity_override
+- hl_pathway (has cycle_id FK → hl_cycle)
+- hl_component
+- hl_component_prereq_group
+- hl_component_prereq_item
+- hl_component_drip_rule
+- hl_component_override
 
 State/rollups:
-- hl_activity_state (per enrollment/activity computed or cached)
+- hl_activity_state (per enrollment/component computed or cached)
 - hl_completion_rollup (per enrollment overall percent, cached)
 
 Instruments:
 - hl_instrument (child assessment instrument definitions: infant/toddler/preschool/k2 with questions JSON, instructions, behavior_key, styles_json)
-- hl_teacher_assessment_instrument (teacher self-assessment instrument definitions with structured sections JSON, scale_labels, instructions, styles_json — separate PRE and POST instruments per phase)
+- hl_teacher_assessment_instrument (teacher self-assessment instrument definitions with structured sections JSON, scale_labels, instructions, styles_json — separate PRE and POST instruments per assessment phase)
 
 Note: Both instrument tables are **protected from the nuke command** by default (admin customizations survive nuke+reseed). Pass `--include-instruments` to the nuke command to truncate them.
 
@@ -152,14 +149,14 @@ Notes:
 
 ## 3.1 Users
 - Use WP users for identity.
-- Do NOT store track roles as WP roles.
+- Do NOT store cycle roles as WP roles.
 - Staff roles:
   - Housman Admin = WP admin (existing)
   - Coach = WP role or capability set (recommended: custom WP role "coach")
 
 ## 3.2 LearnDash
 - HL Core must read course progress and completion %.
-- HL Core stores LearnDash activity references by course_id.
+- HL Core stores LearnDash component references by course_id.
 - HL Core should avoid per-row slow calls; batch progress reads where possible.
 
 ## 3.3 JetFormBuilder
@@ -169,7 +166,7 @@ Notes:
 - HL Core provides:
   - A hook listener (`jet-form-builder/custom-action/hl_core_form_submitted`) that processes submissions
   - A form embedding helper that renders JFB forms on front-end pages with pre-populated hidden fields
-  - An admin UI dropdown for linking JFB forms to Activities (queries available JFB forms)
+  - An admin UI dropdown for linking JFB forms to Components (queries available JFB forms)
 - HL Core does NOT modify or create JFB forms programmatically. Admins manage forms in JFB's native editor.
 - Response data lives in JFB Form Records. HL Core may query these for export/reporting but does not duplicate storage.
 - HL Core should check that JetFormBuilder is active and show an admin notice if it's not.
@@ -185,37 +182,37 @@ Notes:
 
 Minimum WP Admin pages:
 
-1) Cohorts (Container)
-- list/create/edit Cohort (status, description)
-- view tracks within the cohort
+1) Partnerships (Container)
+- list/create/edit Partnership (status, description)
+- view cycles within the partnership
 
-2) Tracks (Run)
-- list/create/edit Track (status, start date, end date)
+2) Cycles (Run)
+- list/create/edit Cycle (status, start date, end date)
 - attach schools/district (if applicable)
-- track settings (timezone)
-- assign to a Cohort (container)
+- cycle settings (timezone)
+- assign to a Partnership (container)
 
 3) Org Units
 - manage districts/schools hierarchy
 - manage classrooms per school (optional; can be imports-driven)
 
 4) Enrollments
-- view participants in a track
-- assign track roles
+- view participants in a cycle
+- assign cycle roles
 - manual pathway assignment overrides (esp leaders)
 
-5) Pathways & Activities
-- create/edit pathways per track
-- create/edit activities per pathway (type, ref, weight)
+5) Pathways & Components
+- create/edit pathways per cycle
+- create/edit components per pathway (type, ref, weight)
 - for JFB-powered types: dropdown to select a JetFormBuilder form
 - for child assessment type: dropdown to select an hl_instrument
 - for LearnDash course type: dropdown/field to select a LearnDash course
 - configure prereqs and drip rules
 
 6) Teams
-- create teams per school within track
+- create teams per school within cycle
 - assign mentors and members
-- enforce 1 team per enrollment per track
+- enforce 1 team per enrollment per cycle
 
 7) Imports
 - run import wizard (participants, classrooms, children, teaching assignments)
@@ -234,18 +231,13 @@ Minimum WP Admin pages:
 - teacher self-assessment: link to JFB Form Records for response viewing (or embed JFB's viewer)
 
 10) Reporting
-- staff track dashboards + filters
+- staff cycle dashboards + filters
 - scoped views for district/school/team if accessed by those roles
 
 11) Audit Logs
-- searchable audit log by track/user/action
+- searchable audit log by cycle/user/action
 
-12) Phases (within Track editor, for program-type Tracks)
-- List phases with name, number, dates, status
-- Click into Phase to see/edit its Pathways
-- Course-type Tracks skip this — Phase is auto-managed
-
-13) Individual Enrollments (2 pages)
+12) Individual Enrollments (2 pages)
 - Course List: shows LearnDash courses that have individual enrollments, with counts (Total, Active, Expired, Avg Completion %)
 - Course Detail: enrollment table with Add Enrollment, Edit Expiration, Revoke actions; bulk CSV import (email + optional expiration)
 
@@ -255,7 +247,7 @@ Minimum WP Admin pages:
 
 HL Core should provide at least:
 - Dashboard (role-aware LMS home page with enrollment-based card visibility)
-- Participant Progress page (self) — shows pathway with activities, click to open custom forms or JFB forms
+- Participant Progress page (self) — shows pathway with components, click to open custom forms or JFB forms
 - Mentor Team Progress page (team scope) — includes "New Observation" flow (select teacher → JFB form)
 - Teacher Self-Assessment form page — custom PHP renderer with PRE (single-column) and POST (dual-column retrospective) modes
 - Child Assessment form page — custom PHP form with per-child matrix grouped by frozen age group
@@ -276,7 +268,7 @@ All controllers (admin and REST) must call a security layer:
 Security::assert_can($capability, $context)
 
 Context includes:
-- track_id
+- cycle_id
 - enrollment_id (if relevant)
 - requested scope (district/school/team/self)
 
@@ -286,7 +278,7 @@ For JFB-powered forms: responses are in JFB Form Records (WP admin only). HL Cor
 Non-staff can only see completion status (binary + timestamps).
 
 ## 6.3 Client leader create-only enforcement
-District/School leaders can create users only within scope and only within their Track.
+District/School leaders can create users only within scope and only within their Cycle.
 They cannot edit existing users or reset passwords.
 
 ## 6.4 Audit sensitive access
@@ -301,7 +293,7 @@ Log:
 # 7) Rules Engine Implementation Notes
 
 - Store prerequisite rules as grouped sets (ALL_OF groups) rather than only edges.
-- Store drip rules per activity (fixed date, completion delay).
+- Store drip rules per component (fixed date, completion delay).
 - Provide a function to compute:
   - availability_status (locked/available/completed)
   - locked_reason (prereq/drip/manual_lock)
@@ -313,11 +305,11 @@ Log:
 
 # 8) Reporting Implementation Notes
 
-- Represent activity completion in a consistent output model:
+- Represent component completion in a consistent output model:
   - percent 0..100
   - status
   - completed_at
-- Compute pathway/track completion % using weights.
+- Compute pathway/cycle completion % using weights.
 - Prefer precomputing rollups (hl_completion_rollup) and updating on events:
   - LearnDash course completion update hooks (if available)
   - JFB form submissions (via hl_core_form_submitted hook)
@@ -333,32 +325,32 @@ Log:
 These are the required behaviors. The implementation must pass them.
 
 ## 9.1 Enrollment & Roles
-1) If a user is enrolled in Track A as Teacher and in Track B as Mentor, reports for Track A show Teacher, and reports for Track B show Mentor.
-2) A non-enrolled user cannot view any Track data (unless staff).
+1) If a user is enrolled in Cycle A as Teacher and in Cycle B as Mentor, reports for Cycle A show Teacher, and reports for Cycle B show Mentor.
+2) A non-enrolled user cannot view any Cycle data (unless staff).
 
 ## 9.2 Team Constraints
-3) In a Track, a participant cannot be assigned to two different Teams. Attempt must be blocked with an error.
+3) In a Cycle, a participant cannot be assigned to two different Teams. Attempt must be blocked with an error.
 4) A Team can have up to 2 mentors; adding a 3rd mentor must be blocked or require explicit override.
 
 ## 9.3 Teaching Assignments & Child Assessments
-5) If a teacher is assigned to two classrooms in the same Track, two separate child assessment instances are required.
+5) If a teacher is assigned to two classrooms in the same Cycle, two separate child assessment instances are required.
 6) Child assessment completion for a teacher is 100% only when all required classroom instances are submitted.
 
 ## 9.4 Unlocking Logic
-7) If prerequisites are incomplete, an activity stays locked even if the drip date has passed.
-8) If prerequisites are complete but drip date is in the future, activity stays locked until the drip date.
-9) If both fixed date and completion-delay drip rules exist, the activity becomes available only after BOTH are satisfied.
+7) If prerequisites are incomplete, a component stays locked even if the drip date has passed.
+8) If prerequisites are complete but drip date is in the future, component stays locked until the drip date.
+9) If both fixed date and completion-delay drip rules exist, the component becomes available only after BOTH are satisfied.
 
 ## 9.5 Overrides
-10) Coach can exempt an activity, causing it to show 100% complete for that participant.
-11) Only Admin can manual-unlock an activity (if implemented).
+10) Coach can exempt a component, causing it to show 100% complete for that participant.
+11) Only Admin can manual-unlock a component (if implemented).
 12) Overrides must be recorded in audit logs.
 
 ## 9.6 Reporting Visibility
 13) Teacher can only view their own progress.
-14) Mentor can view only their Team's participants.
-15) School Leader can view only their School's participants.
-16) District Leader can view only their District's participants.
+14) Mentor can view only their team's participants.
+15) School Leader can view only their school's participants.
+16) District Leader can view only their district's participants.
 17) Staff can view all.
 
 ## 9.7 Assessment Privacy
@@ -377,9 +369,9 @@ These are the required behaviors. The implementation must pass them.
 26) Coaching attendance can be marked and reflected as 0/100 completion for the coaching attendance activity (when used).
 
 ## 9.10 JetFormBuilder Integration
-27) When a teacher submits a self-assessment via JFB, the corresponding activity in their pathway shows 100% complete within the same page load or on next refresh.
+27) When a teacher submits a self-assessment via JFB, the corresponding component in their pathway shows 100% complete within the same page load or on next refresh.
 28) When a mentor submits an observation via JFB, the observation record in HL Core is marked as "submitted".
-29) If JetFormBuilder is deactivated, HL Core shows an admin notice and JFB-powered activities display a "form unavailable" message instead of breaking.
+29) If JetFormBuilder is deactivated, HL Core shows an admin notice and JFB-powered components display a "form unavailable" message instead of breaking.
 
 ---
 
@@ -390,9 +382,10 @@ These are the required behaviors. The implementation must pass them.
 - Do not assume SCORM standalone.
 - Do not expose assessment responses to non-staff.
 - Do not implement messaging (BuddyBoss provides it).
-- Do not treat WP user roles as track roles.
+- Do not treat WP user roles as cycle roles.
 - Teacher self-assessments now use custom PHP rendering (HL_Teacher_Assessment_Renderer) with structured instrument definitions — NOT JFB. Only observations remain JFB-powered.
 - Teacher self-assessment responses are stored in `hl_teacher_assessment_instance.responses_json`. Observation responses remain in JFB Form Records.
+- Phase is NOT a DB entity. Pathways belong directly to Cycles. "Phase 1"/"Phase 2" are business terms for Year 1/Year 2 handled via pathway naming and configuration.
 - DO build custom form rendering for child assessments (JFB cannot handle the dynamic per-child matrix).
 
 ---
