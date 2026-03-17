@@ -108,7 +108,7 @@ Learning config:
 - hl_component_override
 
 State/rollups:
-- hl_activity_state (per enrollment/component computed or cached)
+- hl_component_state (per enrollment/component computed or cached)
 - hl_completion_rollup (per enrollment overall percent, cached)
 
 Instruments:

@@ -17,7 +17,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
 - **Classrooms:** `hl_classroom`, `hl_teaching_assignment`, `hl_child`, `hl_child_classroom_current`, `hl_child_classroom_history`
 - **Learning Config:** `hl_pathway`, `hl_pathway_assignment`, `hl_component`, `hl_component_prereq_group`, `hl_component_prereq_item`, `hl_component_drip_rule`, `hl_component_override`
-- **State/Rollups:** `hl_activity_state`, `hl_completion_rollup`
+- **State/Rollups:** `hl_component_state`, `hl_completion_rollup`
 - **Instruments:** `hl_instrument` (child assessment instruments with `instructions` + `behavior_key` + `styles_json` columns for admin-customizable content and display styles), `hl_teacher_assessment_instrument` (custom teacher self-assessment instruments with structured sections JSON + `instructions` + `styles_json` columns for per-instrument rich text instructions and admin-customizable display styles)
 - **Assessments:** `hl_teacher_assessment_instance` (completion tracking + responses_json for custom instruments), `hl_teacher_assessment_response` (DEPRECATED), `hl_child_assessment_instance`, `hl_child_assessment_childrow`
 - **Observations:** `hl_observation`, `hl_observation_response` (DEPRECATED), `hl_observation_attachment`

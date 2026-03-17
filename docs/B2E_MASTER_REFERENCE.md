@@ -492,7 +492,7 @@ The README.md has a 31+ phase build queue that mixes completed work with future 
 **Removed entities:**
 - **Phase** — No longer a DB entity. "Phase 1" / "Phase 2" are business terms for Year 1 / Year 2, handled via pathway naming and configuration.
 
-**Note:** `hl_activity_state` and `activity_type` / `activity_state` column names are kept as-is in the DB.
+**Note:** Table is now `hl_component_state`. Column `component_type` replaced `activity_type`. The `activity_state` column name is no longer used.
 
 ---
 
@@ -516,7 +516,7 @@ The README.md has a 31+ phase build queue that mixes completed work with future 
 | `hl_cycle.cycle_type` | COLUMN | ENUM('program','course') DEFAULT 'program' |
 | New `hl_individual_enrollment` | NEW TABLE | user_id, course_id, enrolled_at, expires_at, status |
 
-**Kept as-is:** `hl_activity_state` table name, `activity_type` and `activity_state` column names.
+**Renamed in V2:** `hl_activity_state` → `hl_component_state`, `activity_type` → `component_type`.
 
 ### 12.2 Service Layer Changes
 
