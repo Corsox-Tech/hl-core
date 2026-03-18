@@ -133,6 +133,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **`wp hl-core seed-docs [--clean]`** — Seeds ~22 documentation articles across 7 categories + ~15 glossary terms for the in-site documentation system. Uses `hl_doc` CPT and `hl_doc_category` taxonomy. Skip-if-exists by slug. `--clean` deletes all existing doc articles before seeding.
 - **`wp hl-core create-pages`** — Creates all 28 WordPress pages for HL Core shortcodes (personal, directory, hub, detail, assessment, dashboard, and documentation pages). Skips pages that already exist. `--force` to recreate. `--status=draft` for staging.
 - **`wp hl-core import-elcpb-children [--dry-run] [--clean]`** — Imports ELCPB Year 1 child assessment data from WPForms entries. Creates teaching assignments (teacher→classroom from WPForms user_id), children (261 with DOBs from form data), child instruments (3 age groups), and assessment instances + childrows (45 instances, 494 rows). Idempotent — skips existing records. `--dry-run` to preview. `--clean` removes all ELCPB child data. Requires `import-elcpb` to have run first.
+- **`wp hl-core setup-elcpb-y2 [--clean]`** — Creates ELCPB Year 2 (2026) cycle and all 8 pathways with components. Cycle `ELCPB-Y2-2026` linked to Partnership `ELCPB-B2E-2025`, dates 2026-03-30 to 2026-09-12, same 6 schools as Year 1. Pathways: Teacher Phase 1 (15 cmp), Teacher Phase 2 (14), Mentor Phase 1 (9), Mentor Phase 2 (16), Mentor Transition (16), Mentor Completion (2), Streamlined Phase 1 (9), Streamlined Phase 2 (8). Phase 2 pathways include observation and coaching components. `--clean` removes Year 2 cycle + pathways + components. Requires `import-elcpb` to have run first.
 
 ### REST API
 - `GET /wp-json/hl-core/v1/cycles`
@@ -193,7 +194,7 @@ See `STATUS.md` for the current build queue and task tracking.
     class-hl-installer.php       # DB schema + activation
     /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (9 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component)
-    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children) + data files
+    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children, setup-elcpb-y2) + data files
     /services/                   # Business logic (17 services incl. HL_Scope_Service, HL_Pathway_Assignment_Service, HL_Cycle_Service, HL_Partnership_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder (legacy) + BuddyBoss (3 classes)

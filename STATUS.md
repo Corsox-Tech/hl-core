@@ -12,7 +12,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Fix admin menu duplicate** — Rename auto-generated "HL Core" submenu to "Cycles", remove duplicate entry.
 - [x] **Link ELCPB Partnership ↔ Cycle** — Set `partnership_id` on Year 1 Cycle to point to ELCPB Partnership.
 - [~] **Import ELCPB Year 1 remaining data** — TSA complete (52 pre, 40 post). Child assessments imported from WPForms: 261 children, 27 teaching assignments, 45 instances, 494 childrows. 4 Life Span teachers (311/315/317/321) have no enrollment — child assessment entries skipped. Life Span VPK classroom has no form.
-- [ ] **Create ELCPB Year 2 Cycle + Pathways** — New cycle linked to Partnership, Phase 1 + Phase 2 pathways.
+- [x] **Create ELCPB Year 2 Cycle + Pathways** — Cycle `ELCPB-Y2-2026` (id=5) linked to Partnership 4, 2026-03-30 to 2026-09-12. 8 pathways: Teacher Phase 1 (15 cmp), Teacher Phase 2 (14), Mentor Phase 1 (9), Mentor Phase 2 (16), Mentor Transition (16), Mentor Completion (2), Streamlined Phase 1 (9), Streamlined Phase 2 (8). CLI: `wp hl-core setup-elcpb-y2`.
 - [ ] **Migrate short course teachers from LearnDash** — Discovery-first: list LD courses, create course-type Cycles, enroll teachers.
 
 ### Phase 33: Individual Enrollments (B2E Master Reference)
