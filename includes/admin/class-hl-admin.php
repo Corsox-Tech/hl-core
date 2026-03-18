@@ -108,9 +108,13 @@ class HL_Admin {
         // Top-level menu — "HL Core" with dashicon
         add_menu_page('HL Core', 'HL Core', 'manage_hl_core', 'hl-cycles', array(HL_Admin_Cycles::instance(), 'render_page'), 'dashicons-welcome-learn-more', 30);
 
+        // Rename the auto-generated first submenu from "HL Core" to "Cycles"
+        // (WordPress duplicates the parent label as the first submenu item)
+        global $submenu;
+        $submenu['hl-cycles'][0][0] = 'Cycles';
+
         // ── Primary entities (hierarchical order) ────────────────────
         add_submenu_page('hl-cycles', 'Partnerships', 'Partnerships', 'manage_hl_core', 'hl-partnerships', array(HL_Admin_Partnerships::instance(), 'render_page'));
-        add_submenu_page('hl-cycles', 'Cycles', 'Cycles', 'manage_hl_core', 'hl-cycles', array(HL_Admin_Cycles::instance(), 'render_page'));
         add_submenu_page('hl-cycles', 'Org Units', 'Org Units', 'manage_hl_core', 'hl-orgunits', array(HL_Admin_OrgUnits::instance(), 'render_page'));
         add_submenu_page('hl-cycles', 'Enrollments', 'Enrollments', 'manage_hl_core', 'hl-enrollments', array(HL_Admin_Enrollments::instance(), 'render_page'));
 

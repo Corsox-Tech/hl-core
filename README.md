@@ -78,6 +78,8 @@ Full CRUD admin pages with WordPress-styled tables and forms:
   - Assessment phase section headers (PRE/POST grouping with counts), clickable teacher names (link to WP user edit), dev-only switch-to-user feature (gated by `HL_DEV_TOOLS` constant). **Dual CSV exports per type:** "Export Completion CSV" (metadata only) and "Export Responses CSV" (full scored response data). Teacher responses export reads `responses_json` from instances with instrument-derived column headers (section: item_key). Child responses export outputs one row per child with answer columns, excluding skipped children.
 - **Reports** - Full reporting dashboard: scope-based filtering (cycle/school/district/team/role + partnership), summary cards, school/team summary tables, participant completion table with progress bars, enrollment detail drill-down with component-level status, **program vs control group comparison section** (per-section/per-item tables with color-coded change values when partnership filter contains both program and control cycles), CSV exports (completion, school summary, team summary, teacher assessments, child assessments, comparison CSV with Cohen's d), rollup recompute action
 
+**Admin menu:** Top-level "HL Core" menu first submenu item renamed from duplicate "HL Core" to "Cycles" (matches the parent page). Menu order: Cycles, Partnerships, Org Units, Enrollments, Pathways, Teams, Classrooms, Coaching Hub, Assessments, Reports, Settings.
+
 **Admin fix:** All admin pages use `admin_init` dispatcher for POST saves and GET deletes (redirect-before-output pattern), preventing blank pages after form submissions.
 
 ### Front-End Pages (Shortcodes)

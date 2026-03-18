@@ -8,6 +8,13 @@
 
 Pick up from the first unchecked `[ ]` item each session.
 
+### ELCPB Data & Operations (Active — March 2026)
+- [x] **Fix admin menu duplicate** — Rename auto-generated "HL Core" submenu to "Cycles", remove duplicate entry.
+- [x] **Link ELCPB Partnership ↔ Cycle** — Set `partnership_id` on Year 1 Cycle to point to ELCPB Partnership.
+- [ ] **Import ELCPB Year 1 remaining data** — WPForms assessment entries + spreadsheet data (child assessments, TSA responses).
+- [ ] **Create ELCPB Year 2 Cycle + Pathways** — New cycle linked to Partnership, Phase 1 + Phase 2 pathways.
+- [ ] **Migrate short course teachers from LearnDash** — Discovery-first: list LD courses, create course-type Cycles, enroll teachers.
+
 ### Phase 33: Individual Enrollments (B2E Master Reference)
 - [ ] **33.1 — DB: `hl_individual_enrollment` table** — Create table with user_id, course_id, enrolled_at, expires_at, status, enrolled_by, notes.
 - [ ] **33.2 — Individual Enrollment Service** — CRUD, expiration checks, LearnDash progress queries.
