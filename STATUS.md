@@ -11,7 +11,7 @@ Pick up from the first unchecked `[ ]` item each session.
 ### ELCPB Data & Operations (Active — March 2026)
 - [x] **Fix admin menu duplicate** — Rename auto-generated "HL Core" submenu to "Cycles", remove duplicate entry.
 - [x] **Link ELCPB Partnership ↔ Cycle** — Set `partnership_id` on Year 1 Cycle to point to ELCPB Partnership.
-- [ ] **Import ELCPB Year 1 remaining data** — WPForms assessment entries + spreadsheet data (child assessments, TSA responses).
+- [~] **Import ELCPB Year 1 remaining data** — TSA complete (52 pre, 40 post). Child assessments imported from WPForms: 261 children, 27 teaching assignments, 45 instances, 494 childrows. 4 Life Span teachers (311/315/317/321) have no enrollment — child assessment entries skipped. Life Span VPK classroom has no form.
 - [ ] **Create ELCPB Year 2 Cycle + Pathways** — New cycle linked to Partnership, Phase 1 + Phase 2 pathways.
 - [ ] **Migrate short course teachers from LearnDash** — Discovery-first: list LD courses, create course-type Cycles, enroll teachers.
 

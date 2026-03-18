@@ -186,6 +186,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-create-pages.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-docs.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-import-elcpb.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-import-elcpb-children.php';
         }
     }
     
@@ -253,6 +254,7 @@ class HL_Core {
             HL_CLI_Create_Pages::register();
             HL_CLI_Seed_Docs::register();
             HL_CLI_Import_ELCPB::register();
+            HL_CLI_Import_ELCPB_Children::register();
         }
 
         do_action('hl_core_init');

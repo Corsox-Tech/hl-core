@@ -132,6 +132,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **`wp hl-core nuke --confirm="DELETE ALL DATA" [--include-instruments]`** — **DESTRUCTIVE: Deletes ALL HL Core data.** Dynamically discovers all `hl_*` tables via `SHOW TABLES LIKE`, shows per-table row counts before truncating, removes seeded WP users (but protects user ID 1 and the current CLI user), resets auto-increment, clears HL Core transients (`_transient_hl_%`). Safety gate: only runs on sites with URL containing `staging.academy.housmanlearning.com`, `test.academy.housmanlearning.com`, or `.local`. **By default, skips `hl_instrument` and `hl_teacher_assessment_instrument` tables** to preserve admin customizations (instructions, questions, styles). Pass `--include-instruments` to truncate instrument tables as well.
 - **`wp hl-core seed-docs [--clean]`** — Seeds ~22 documentation articles across 7 categories + ~15 glossary terms for the in-site documentation system. Uses `hl_doc` CPT and `hl_doc_category` taxonomy. Skip-if-exists by slug. `--clean` deletes all existing doc articles before seeding.
 - **`wp hl-core create-pages`** — Creates all 28 WordPress pages for HL Core shortcodes (personal, directory, hub, detail, assessment, dashboard, and documentation pages). Skips pages that already exist. `--force` to recreate. `--status=draft` for staging.
+- **`wp hl-core import-elcpb-children [--dry-run] [--clean]`** — Imports ELCPB Year 1 child assessment data from WPForms entries. Creates teaching assignments (teacher→classroom from WPForms user_id), children (261 with DOBs from form data), child instruments (3 age groups), and assessment instances + childrows (45 instances, 494 rows). Idempotent — skips existing records. `--dry-run` to preview. `--clean` removes all ELCPB child data. Requires `import-elcpb` to have run first.
 
 ### REST API
 - `GET /wp-json/hl-core/v1/cycles`
@@ -192,7 +193,7 @@ See `STATUS.md` for the current build queue and task tracking.
     class-hl-installer.php       # DB schema + activation
     /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (9 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component)
-    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb) + data files
+    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children) + data files
     /services/                   # Business logic (17 services incl. HL_Scope_Service, HL_Pathway_Assignment_Service, HL_Cycle_Service, HL_Partnership_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + JetFormBuilder (legacy) + BuddyBoss (3 classes)
