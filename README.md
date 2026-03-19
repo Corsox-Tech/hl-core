@@ -89,7 +89,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Child Assessment** `[hl_child_assessment]` - Teacher's child assessment workflow: instance list, branded assessment form (Housman logo, teacher/school/classroom info, instructions, age-band-specific Key & Example Behavior table, transposed Likert matrix with Never→Almost Always labels mapped from 0-4 numeric values), draft save, final submit, branded read-only submitted summary with answer dots
 - **Observations** `[hl_observations]` - Mentor observation workflow: observation list, new observation (select teacher from team + optional classroom), submitted summary view
 - **My Programs** `[hl_my_programs]` - Participant's program cards grid: featured image, program name, cycle name, completion %, status badge (Not Started/In Progress/Completed), "Continue"/"Start" button linking to Program Page. Uses PathwayAssignmentService for explicit/role-based pathway resolution with legacy fallback. Auto-discovers `[hl_program_page]` page URL. Empty state for no enrollments. My Coach widget: avatar, name, email, "Schedule a Session" button via CoachAssignmentService resolution.
-- **Program Page** `[hl_program_page]` - Single program detail page (via `?id=X&enrollment=Y`): hero image, pathway name, description, cycle name, progress ring, details panel (avg time, expiration, status), objectives, syllabus link, component cards with per-component status/progress/actions. Component actions route to Component Page, LD course permalink, or child assessment page. Breadcrumb back to My Programs.
+- **Program Page** `[hl_program_page]` - Single program detail page (via `?id=X&enrollment=Y`): hero image, pathway name, description, cycle name, progress ring, details panel (avg time, expiration, status), objectives, resource card (styled card with accent border for pathways with `syllabus_url` — "Curriculum Materials" link), component cards with per-component status/progress/actions. Component actions route to Component Page, LD course permalink, or child assessment page. Breadcrumb back to My Programs.
 - **Component Page** `[hl_component_page]` - Single component page (via `?id=X&enrollment=Y`): renders form for self-assessments/observations, links to child assessment page, redirects to LD course, shows managed-by-coach notice for coaching. Locked/completed guards with reason display. Breadcrumb back to Program Page.
 - **My Cycle** `[hl_my_cycle]` - Auto-scoped cycle workspace for School Leaders and District Leaders. Cycle switcher for multi-enrollment users. Scope auto-detection (school_leader → school, district_leader → district, staff → all). Four tabs: Teams (cards with mentor names, member count, avg completion, progress bar, "View Team" link), Staff (searchable table with name/email/team/role/completion), Reports (filterable completion table with institution/team/name filters, expandable per-component detail rows, CSV download), Classrooms (table with school/age band/child count/teacher names, links to classroom page).
 - **Team Page** `[hl_team_page]` - Team detail page (via `?id=X`): dark gradient header with team name, school, cycle, member count, mentor names, avg completion metric. Two tabs: Team Members (searchable table with name, email, role badge, completion progress bar), Report (completion report table with per-component detail expansion and CSV export). Access control: staff, team members, school/district leaders with matching scope. Breadcrumb back to My Cycle.
@@ -134,6 +134,8 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **`wp hl-core create-pages`** — Creates all 28 WordPress pages for HL Core shortcodes (personal, directory, hub, detail, assessment, dashboard, and documentation pages). Skips pages that already exist. `--force` to recreate. `--status=draft` for staging.
 - **`wp hl-core import-elcpb-children [--dry-run] [--clean]`** — Imports ELCPB Year 1 child assessment data from WPForms entries. Creates teaching assignments (teacher→classroom from WPForms user_id), children (261 with DOBs from form data), child instruments (3 age groups), and assessment instances + childrows (45 instances, 494 rows). Idempotent — skips existing records. `--dry-run` to preview. `--clean` removes all ELCPB child data. Requires `import-elcpb` to have run first.
 - **`wp hl-core setup-elcpb-y2 [--clean]`** — Creates ELCPB Year 2 (2026) cycle and all 8 pathways with components. Cycle `ELCPB-Y2-2026` linked to Partnership `ELCPB-B2E-2025`, dates 2026-03-30 to 2026-09-12, same 6 schools as Year 1. Pathways: Teacher Phase 1 (15 cmp), Teacher Phase 2 (14), Mentor Phase 1 (9), Mentor Phase 2 (16), Mentor Transition (16), Mentor Completion (2), Streamlined Phase 1 (9), Streamlined Phase 2 (8). Phase 2 pathways include observation and coaching components. `--clean` removes Year 2 cycle + pathways + components. Requires `import-elcpb` to have run first.
+- **`wp hl-core setup-ea [--clean] [--dry-run]`** — Creates ECSELent Adventures program: Partnership `EA-2025`, Cycle `EA-TRAINING-2025` (program type), 2 pathways (Preschool/Pre-K + K-2) with `syllabus_url` from LD courses 36066/30756, 3 shared training course components each (LD 35858/35867/35875). Enrollment discovery from LD Group 35859, pathway assignment by materials group membership (LD Groups 37870/37872), completion import from LD activity. `--clean` removes all EA data. `--dry-run` previews without writing.
+- **`wp hl-core setup-short-courses [--clean] [--dry-run]`** — Creates 3 standalone short-course cycles (`cycle_type='course'`, no Partnership): Educators' Emotional Well-Being (SC-EEW, LD 30476), Reflective Practice (SC-RP, LD 30399), Making the Most of Storytime (SC-MMST, LD 30586). Each: 1 pathway + 1 component. Enrollment discovery from `wp_learndash_user_activity`, pathway auto-assignment, completion import. `--clean` removes all SC-* cycles. `--dry-run` previews without writing.
 
 ### REST API
 - `GET /wp-json/hl-core/v1/cycles`
@@ -171,13 +173,6 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Login page fix** — Suppresses BuddyBoss `bpnoaccess` error message and shake animation on wp-login.php via `bp_wp_login_error`, `shake_error_codes`, and `login_message` filters. Shows friendly "Welcome to Housman Learning Academy. Please log in to continue." message instead of red error styling.
 - **Page header with docs link** — All HL Core admin pages use `HL_Admin::render_page_header()` which renders the page title with an inline "Docs" link to `/documentation/`. Replaces the old `in_admin_header` hook approach that was hidden behind the Screen Options drawer.
 
-### JetFormBuilder Integration (Legacy — pending removal)
-- **HL_JFB_Integration** service (`includes/integrations/class-hl-jfb-integration.php`)
-- Hook listener for `hl_core_form_submitted` custom action — processes observation submissions
-- Front-end form rendering helper with hidden field pre-population
-- Admin notice when JetFormBuilder is inactive
-- Available forms query for admin dropdowns
-
 ---
 
 ## Build Queue
@@ -194,10 +189,10 @@ See `STATUS.md` for the current build queue and task tracking.
     class-hl-installer.php       # DB schema + activation
     /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (9 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component)
-    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children, setup-elcpb-y2) + data files
+    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children, setup-elcpb-y2, setup-ea, setup-short-courses) + data files
     /services/                   # Business logic (17 services incl. HL_Scope_Service, HL_Pathway_Assignment_Service, HL_Cycle_Service, HL_Partnership_Service)
     /security/                   # Capabilities + authorization
-    /integrations/               # LearnDash + JetFormBuilder (legacy) + BuddyBoss (3 classes)
+    /integrations/               # LearnDash + BuddyBoss (3 classes)
     /admin/                      # WP admin pages (17 controllers incl. Partnerships, Cycles, Assessment Hub)
     /frontend/                   # Shortcode renderers (28 pages incl. dashboard + documentation + instrument renderer + teacher assessment renderer)
     /api/                        # REST API routes
@@ -210,7 +205,7 @@ See `STATUS.md` for the current build queue and task tracking.
 ```
 
 ## Key Design Decisions
-- **Custom-first assessment architecture:** Teacher Self-Assessments use a custom PHP instrument system (structured JSON definitions in `hl_teacher_assessment_instrument`, responses in `hl_teacher_assessment_instance.responses_json`) because the POST version requires a dual-column retrospective format and structured data is needed for research comparison. Child Assessments use custom PHP (dynamic per-child matrix from classroom roster). Observations are the only remaining JFB-powered form type (legacy — admins need to customize observation questions without a developer). Coaching Sessions are custom PHP admin CRUD. See CLAUDE.md and doc 06 for details.
+- **Custom-first assessment architecture:** Teacher Self-Assessments use a custom PHP instrument system (structured JSON definitions in `hl_teacher_assessment_instrument`, responses in `hl_teacher_assessment_instance.responses_json`) because the POST version requires a dual-column retrospective format and structured data is needed for research comparison. Child Assessments use custom PHP (dynamic per-child matrix from classroom roster). Observations use custom PHP. Coaching Sessions are custom PHP admin CRUD. See CLAUDE.md and doc 06 for details.
 - Cycle roles stored on Enrollment, NOT WP user roles
 - Custom database tables for all core domain data (no post_meta abuse)
 - Teacher self-assessment responses stored in `hl_teacher_assessment_instance.responses_json` (custom system); HL Core tracks completion status, instance metadata, and structured response data for research comparison
@@ -230,7 +225,6 @@ See `STATUS.md` for the current build queue and task tracking.
 - **PHP 7.4+**
 - **LearnDash** (required for course progress tracking)
 - **BuddyBoss** (optional, for profile navigation integration)
-- ~~JetFormBuilder~~ — legacy integration still loaded; pending full removal. Do not add new JFB code.
 
 ## Activation
 1. Ensure LearnDash is installed and active

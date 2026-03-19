@@ -1574,6 +1574,42 @@ button.hl-btn-danger:hover,
     margin: 0 0 12px;
 }
 
+/* --- Program Resources Card --- */
+.hl-program-resources {
+    margin-bottom: 28px;
+}
+
+.hl-resource-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-left: 4px solid var(--hl-accent);
+    border-radius: 10px;
+    padding: 20px 24px;
+}
+
+.hl-resource-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.hl-resource-content strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+    margin-bottom: 2px;
+}
+
+.hl-resource-content p {
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
 /* =====================================================
    30. COMPONENT PAGE
    ===================================================== */

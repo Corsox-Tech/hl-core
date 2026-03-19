@@ -188,6 +188,8 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-import-elcpb.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-import-elcpb-children.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-elcpb-y2.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-short-courses.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-ea.php';
         }
     }
     
@@ -257,6 +259,8 @@ class HL_Core {
             HL_CLI_Import_ELCPB::register();
             HL_CLI_Import_ELCPB_Children::register();
             HL_CLI_Setup_ELCPB_Y2::register();
+            HL_CLI_Setup_Short_Courses::register();
+            HL_CLI_Setup_EA::register();
         }
 
         do_action('hl_core_init');

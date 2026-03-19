@@ -260,10 +260,16 @@ class HL_Frontend_Program_Page {
                 </div>
             <?php endif; ?>
 
-            <!-- Syllabus link -->
+            <!-- Program Resources -->
             <?php if (!empty($pathway->syllabus_url)) : ?>
-                <div class="hl-component-action">
-                    <a href="<?php echo esc_url($pathway->syllabus_url); ?>" target="_blank" class="hl-btn hl-btn-secondary"><?php esc_html_e('View Syllabus', 'hl-core'); ?></a>
+                <div class="hl-program-resources">
+                    <div class="hl-resource-card">
+                        <div class="hl-resource-content">
+                            <strong><?php esc_html_e('Curriculum Materials', 'hl-core'); ?></strong>
+                            <p><?php esc_html_e('Access your program materials and resources.', 'hl-core'); ?></p>
+                        </div>
+                        <a href="<?php echo esc_url($pathway->syllabus_url); ?>" target="_blank" class="hl-btn hl-btn-secondary"><?php esc_html_e('Access Materials', 'hl-core'); ?> &rarr;</a>
+                    </div>
                 </div>
             <?php endif; ?>
 
