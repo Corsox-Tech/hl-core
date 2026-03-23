@@ -896,6 +896,93 @@ class HL_Coaching_Service {
         ));
     }
 
+    // =========================================================================
+    // Form Submissions
+    // =========================================================================
+
+    /**
+     * Save or submit a coaching session form (Action Plan or RP Notes).
+     * Upserts based on unique constraint (session_id, role_in_session).
+     *
+     * @param int    $session_id
+     * @param int    $user_id
+     * @param int    $instrument_id
+     * @param string $role           'supervisor' or 'supervisee'
+     * @param string $responses_json
+     * @param string $status         'draft' or 'submitted'
+     * @return int submission_id
+     */
+    public function submit_form($session_id, $user_id, $instrument_id, $role, $responses_json, $status = 'draft') {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_coaching_session_submission';
+
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT submission_id FROM {$table} WHERE session_id = %d AND role_in_session = %s",
+            $session_id, $role
+        ), ARRAY_A);
+
+        $data = array(
+            'session_id'           => $session_id,
+            'submitted_by_user_id' => $user_id,
+            'instrument_id'        => $instrument_id,
+            'role_in_session'      => $role,
+            'responses_json'       => $responses_json,
+            'status'               => $status,
+            'updated_at'           => current_time('mysql'),
+        );
+
+        if ($status === 'submitted') {
+            $data['submitted_at'] = current_time('mysql');
+        }
+
+        if ($existing) {
+            $wpdb->update($table, $data, array('submission_id' => $existing['submission_id']));
+            return (int) $existing['submission_id'];
+        }
+
+        $data['submission_uuid'] = wp_generate_uuid4();
+        $data['created_at']      = current_time('mysql');
+        $wpdb->insert($table, $data);
+        return (int) $wpdb->insert_id;
+    }
+
+    /**
+     * Get all form submissions for a coaching session.
+     *
+     * @param int $session_id
+     * @return array
+     */
+    public function get_submissions($session_id) {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT sub.*, u.display_name AS submitted_by_name
+             FROM {$wpdb->prefix}hl_coaching_session_submission sub
+             LEFT JOIN {$wpdb->users} u ON sub.submitted_by_user_id = u.ID
+             WHERE sub.session_id = %d ORDER BY sub.role_in_session ASC",
+            $session_id
+        ), ARRAY_A) ?: array();
+    }
+
+    /**
+     * Get previous coaching action plan submissions for a mentor in a cycle.
+     *
+     * @param int $mentor_enrollment_id
+     * @param int $cycle_id
+     * @return array
+     */
+    public function get_previous_coaching_action_plans($mentor_enrollment_id, $cycle_id) {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT sub.responses_json, sub.submitted_at, cs.session_title, cs.session_datetime
+             FROM {$wpdb->prefix}hl_coaching_session_submission sub
+             JOIN {$wpdb->prefix}hl_coaching_session cs ON sub.session_id = cs.session_id
+             WHERE cs.mentor_enrollment_id = %d AND cs.cycle_id = %d
+               AND sub.role_in_session = 'supervisee' AND sub.status = 'submitted'
+             ORDER BY sub.submitted_at DESC",
+            $mentor_enrollment_id, $cycle_id
+        ), ARRAY_A) ?: array();
+    }
+
     /**
      * Render a session status badge (HTML).
      *
