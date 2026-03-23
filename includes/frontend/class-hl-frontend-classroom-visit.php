@@ -200,42 +200,53 @@ class HL_Frontend_Classroom_Visit {
 
         $visit_id      = isset($visit_entity['classroom_visit_id']) ? (int) $visit_entity['classroom_visit_id'] : 0;
         $instrument_id = (int) $instrument->instrument_id;
+        $user          = wp_get_current_user();
+        $visit_date    = isset($visit_entity['visit_date']) ? $visit_entity['visit_date'] : '';
+        $teacher_name  = isset($teacher_info['display_name']) ? $teacher_info['display_name'] : '—';
 
+        self::render_form_styles();
         ?>
-        <div class="hl-form hl-classroom-visit-form">
-            <h3><?php esc_html_e('Classroom Visit Form', 'hl-core'); ?></h3>
+        <div class="hlcv-form-wrapper">
+
+            <!-- Hero header -->
+            <div class="hlcv-hero">
+                <div class="hlcv-hero-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="hlcv-hero-title"><?php esc_html_e('B2E Classroom Visit & Self-Reflection Tool', 'hl-core'); ?></h2>
+                    <p class="hlcv-hero-sub"><?php esc_html_e('ECSEL Domains & Indicators Assessment', 'hl-core'); ?></p>
+                </div>
+            </div>
 
             <?php if ($is_readonly) : ?>
-                <div class="hl-notice hl-notice-info">
-                    <p><?php esc_html_e('This form has been submitted and is read-only.', 'hl-core'); ?></p>
+                <div class="hlcv-alert hlcv-alert-info">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    <?php esc_html_e('This form has been submitted and is read-only.', 'hl-core'); ?>
                 </div>
             <?php endif; ?>
 
-            <!-- Auto-populated header -->
-            <div class="hl-fieldset hl-auto-populated">
-                <h4><?php esc_html_e('Visit Information', 'hl-core'); ?></h4>
-                <div class="hl-info-grid">
-                    <div class="hl-info-item">
-                        <span class="hl-info-label"><?php esc_html_e('Teacher:', 'hl-core'); ?></span>
-                        <span class="hl-info-value"><?php echo esc_html(isset($teacher_info['display_name']) ? $teacher_info['display_name'] : '—'); ?></span>
+            <!-- Visit info card -->
+            <div class="hlcv-info-card">
+                <div class="hlcv-info-row">
+                    <div class="hlcv-info-cell">
+                        <span class="hlcv-info-label"><?php esc_html_e('Teacher', 'hl-core'); ?></span>
+                        <span class="hlcv-info-value"><?php echo esc_html($teacher_name); ?></span>
                     </div>
-                    <div class="hl-info-item">
-                        <span class="hl-info-label"><?php esc_html_e('Classroom Visitor:', 'hl-core'); ?></span>
-                        <span class="hl-info-value"><?php
-                            $user = wp_get_current_user();
-                            echo esc_html($user->display_name);
-                        ?></span>
+                    <div class="hlcv-info-cell">
+                        <span class="hlcv-info-label"><?php esc_html_e('Classroom Visitor', 'hl-core'); ?></span>
+                        <span class="hlcv-info-value"><?php echo esc_html($user->display_name); ?></span>
                     </div>
-                    <div class="hl-info-item">
-                        <span class="hl-info-label"><?php esc_html_e('Date:', 'hl-core'); ?></span>
-                        <span class="hl-info-value"><?php
-                            $visit_date = isset($visit_entity['visit_date']) ? $visit_entity['visit_date'] : '';
-                            echo esc_html($visit_date ? date_i18n(get_option('date_format'), strtotime($visit_date)) : date_i18n(get_option('date_format')));
-                        ?></span>
+                    <div class="hlcv-info-cell">
+                        <span class="hlcv-info-label"><?php esc_html_e('Date', 'hl-core'); ?></span>
+                        <span class="hlcv-info-value"><?php echo esc_html($visit_date ? date_i18n(get_option('date_format'), strtotime($visit_date)) : date_i18n(get_option('date_format'))); ?></span>
                     </div>
-                    <div class="hl-info-item">
-                        <span class="hl-info-label"><?php esc_html_e('Visit #:', 'hl-core'); ?></span>
-                        <span class="hl-info-value"><?php echo esc_html(isset($visit_entity['visit_number']) ? $visit_entity['visit_number'] : '—'); ?></span>
+                    <div class="hlcv-info-cell">
+                        <span class="hlcv-info-label"><?php esc_html_e('Visit #', 'hl-core'); ?></span>
+                        <span class="hlcv-info-value hlcv-visit-num"><?php echo esc_html(isset($visit_entity['visit_number']) ? $visit_entity['visit_number'] : '1'); ?></span>
                     </div>
                 </div>
             </div>
@@ -248,18 +259,17 @@ class HL_Frontend_Classroom_Visit {
                     <input type="hidden" name="hl_cv_form_type" value="classroom_visit">
                 <?php endif; ?>
 
-                <?php
-                // Render context and domain sections
-                self::render_visit_form_sections($sections, $responses, $is_readonly, 'hl_cv');
-                ?>
+                <?php self::render_visit_form_sections($sections, $responses, $is_readonly, 'hl_cv'); ?>
 
                 <?php if (!$is_readonly) : ?>
-                    <div class="hl-form-actions">
-                        <button type="submit" name="hl_cv_action" value="draft" class="hl-btn hl-btn-secondary">
+                    <div class="hlcv-actions">
+                        <button type="submit" name="hl_cv_action" value="draft" class="hlcv-btn hlcv-btn-draft">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                             <?php esc_html_e('Save Draft', 'hl-core'); ?>
                         </button>
-                        <button type="submit" name="hl_cv_action" value="submit" class="hl-btn hl-btn-primary">
-                            <?php esc_html_e('Submit', 'hl-core'); ?>
+                        <button type="submit" name="hl_cv_action" value="submit" class="hlcv-btn hlcv-btn-submit">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            <?php esc_html_e('Submit Observation', 'hl-core'); ?>
                         </button>
                     </div>
                 <?php endif; ?>
@@ -270,6 +280,96 @@ class HL_Frontend_Classroom_Visit {
         <?php
 
         return ob_get_clean();
+    }
+
+    /**
+     * Modern form styles (inline to avoid external CSS dependency).
+     */
+    private static function render_form_styles() {
+        static $rendered = false;
+        if ($rendered) return;
+        $rendered = true;
+        ?>
+        <style>
+        .hlcv-form-wrapper{max-width:820px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+        .hlcv-hero{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;padding:28px 32px;border-radius:16px;margin-bottom:24px}
+        .hlcv-hero-icon{background:rgba(255,255,255,.15);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center}
+        .hlcv-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px}
+        .hlcv-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0}
+        .hlcv-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;margin-bottom:20px}
+        .hlcv-alert-info{background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef}
+        .hlcv-info-card{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:28px}
+        .hlcv-info-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
+        .hlcv-info-cell{display:flex;flex-direction:column;gap:4px}
+        .hlcv-info-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6}
+        .hlcv-info-value{font-size:15px;font-weight:600;color:#1e293b}
+        .hlcv-visit-num{display:inline-flex;align-items:center;justify-content:center;background:#1e3a5f;color:#fff;width:28px;height:28px;border-radius:8px;font-size:14px}
+
+        /* Context pills */
+        .hlcv-context{margin-bottom:28px}
+        .hlcv-context-title{font-size:14px;font-weight:600;color:#475569;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+        .hlcv-pills{display:flex;flex-wrap:wrap;gap:10px}
+        .hlcv-pill{position:relative}
+        .hlcv-pill input{position:absolute;opacity:0;pointer-events:none}
+        .hlcv-pill-label{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:2px solid #e2e8f0;border-radius:50px;font-size:14px;font-weight:500;color:#64748b;cursor:pointer;transition:all .2s ease;background:#fff;user-select:none}
+        .hlcv-pill-label:hover{border-color:#94a3b8;color:#334155}
+        .hlcv-pill input:checked+.hlcv-pill-label{background:#1e3a5f;border-color:#1e3a5f;color:#fff;box-shadow:0 2px 8px rgba(30,58,95,.25)}
+        .hlcv-pill-dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1;transition:background .2s}
+        .hlcv-pill input:checked+.hlcv-pill-label .hlcv-pill-dot{background:#6ee7b7}
+
+        /* Domain sections */
+        .hlcv-domain{background:#fff;border:1px solid #e2e8f0;border-radius:14px;margin-bottom:16px;overflow:hidden;transition:box-shadow .2s}
+        .hlcv-domain:hover{box-shadow:0 2px 12px rgba(0,0,0,.06)}
+        .hlcv-domain-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;cursor:pointer;background:#fafbfc;border-bottom:1px solid transparent;transition:all .2s}
+        .hlcv-domain.open .hlcv-domain-header{border-bottom-color:#e2e8f0;background:#f1f5f9}
+        .hlcv-domain-name{font-size:15px;font-weight:600;color:#1e293b;display:flex;align-items:center;gap:10px}
+        .hlcv-domain-num{background:#e2e8f0;color:#64748b;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center}
+        .hlcv-domain-chevron{transition:transform .3s ease;color:#94a3b8}
+        .hlcv-domain.open .hlcv-domain-chevron{transform:rotate(180deg)}
+        .hlcv-domain-body{max-height:0;overflow:hidden;transition:max-height .4s ease}
+        .hlcv-domain.open .hlcv-domain-body{max-height:3000px}
+        .hlcv-domain-inner{padding:16px 22px}
+
+        /* Indicator items */
+        .hlcv-indicator{background:#f8f9fb;border:1px solid #eef1f6;border-radius:10px;padding:16px 18px;margin-bottom:12px;transition:border-color .2s}
+        .hlcv-indicator:last-child{margin-bottom:0}
+        .hlcv-indicator:hover{border-color:#cbd5e1}
+        .hlcv-ind-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+        .hlcv-ind-label{font-size:14px;color:#334155;flex:1;line-height:1.5}
+        .hlcv-toggle-group{display:flex;gap:0;border-radius:8px;overflow:hidden;border:2px solid #e2e8f0;flex-shrink:0}
+        .hlcv-toggle-group label{margin:0}
+        .hlcv-toggle-group input{position:absolute;opacity:0;pointer-events:none}
+        .hlcv-toggle-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;background:#fff;color:#94a3b8;user-select:none;border:none}
+        .hlcv-toggle-group input[value="1"]:checked+.hlcv-toggle-btn{background:#059669;color:#fff}
+        .hlcv-toggle-group input[value="0"]:checked+.hlcv-toggle-btn{background:#e2e8f0;color:#64748b}
+        .hlcv-ind-desc{margin-top:12px;animation:hlcvSlideDown .3s ease}
+        .hlcv-ind-desc textarea{width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;transition:border-color .2s;background:#fff;box-sizing:border-box}
+        .hlcv-ind-desc textarea:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1)}
+        .hlcv-ind-desc textarea::placeholder{color:#94a3b8}
+        @keyframes hlcvSlideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+        /* Action buttons */
+        .hlcv-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:32px;padding-top:24px;border-top:1px solid #e2e8f0}
+        .hlcv-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:inherit}
+        .hlcv-btn-draft{background:#f1f5f9;color:#475569;border:2px solid #e2e8f0}
+        .hlcv-btn-draft:hover{background:#e2e8f0;border-color:#cbd5e1}
+        .hlcv-btn-submit{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:2px solid transparent;box-shadow:0 4px 14px rgba(30,58,95,.3)}
+        .hlcv-btn-submit:hover{box-shadow:0 6px 20px rgba(30,58,95,.4);transform:translateY(-1px)}
+
+        /* Read-only badges */
+        .hlcv-ro-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:50px;font-size:12px;font-weight:600}
+        .hlcv-ro-yes{background:#d1fae5;color:#065f46}
+        .hlcv-ro-no{background:#f1f5f9;color:#64748b}
+
+        @media(max-width:600px){
+            .hlcv-hero{flex-direction:column;text-align:center;padding:24px 20px}
+            .hlcv-info-row{grid-template-columns:1fr 1fr}
+            .hlcv-ind-top{flex-direction:column;align-items:flex-start}
+            .hlcv-actions{flex-direction:column}
+            .hlcv-btn{justify-content:center}
+        }
+        </style>
+        <?php
     }
 
     /**
@@ -343,103 +443,112 @@ class HL_Frontend_Classroom_Visit {
         }
 
         ?>
-        <fieldset class="hl-fieldset">
-            <legend><?php esc_html_e('Context', 'hl-core'); ?></legend>
-            <p class="hl-field-hint"><?php esc_html_e('Select all activities observed during the visit.', 'hl-core'); ?></p>
+        <div class="hlcv-context">
+            <div class="hlcv-context-title"><?php esc_html_e('Context — Activities Observed', 'hl-core'); ?></div>
             <?php if ($is_readonly) : ?>
-                <div class="hl-field-value">
-                    <?php if (!empty($selected)) : ?>
-                        <?php
-                        $labels = array();
-                        foreach ($selected as $key) {
-                            $labels[] = isset($options[$key]) ? $options[$key] : $key;
-                        }
-                        echo esc_html(implode(', ', $labels));
-                        ?>
-                    <?php else : ?>
-                        <span class="hl-muted"><?php esc_html_e('None selected', 'hl-core'); ?></span>
+                <div class="hlcv-pills">
+                    <?php foreach ($options as $key => $label) : ?>
+                        <?php if (in_array($key, $selected, true)) : ?>
+                            <span class="hlcv-ro-badge hlcv-ro-yes"><?php echo esc_html($label); ?></span>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                    <?php if (empty($selected)) : ?>
+                        <span style="color:#94a3b8;font-size:14px"><?php esc_html_e('None selected', 'hl-core'); ?></span>
                     <?php endif; ?>
                 </div>
             <?php else : ?>
-                <div class="hl-checkbox-group">
+                <div class="hlcv-pills">
                     <?php foreach ($options as $key => $label) : ?>
-                        <label class="hl-checkbox-label">
+                        <label class="hlcv-pill">
                             <input type="checkbox" name="<?php echo esc_attr($prefix); ?>[context_activities][]"
                                    value="<?php echo esc_attr($key); ?>"
                                    <?php checked(in_array($key, $selected, true)); ?>>
-                            <?php echo esc_html($label); ?>
+                            <span class="hlcv-pill-label">
+                                <span class="hlcv-pill-dot"></span>
+                                <?php echo esc_html($label); ?>
+                            </span>
                         </label>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
-        </fieldset>
+        </div>
         <?php
     }
 
     /**
      * Render a domain indicator checklist section.
      */
+    private static $domain_counter = 0;
+
     private static function render_indicator_section($section, $responses, $is_readonly, $prefix) {
+        self::$domain_counter++;
         $domain_key  = $section['key'];
         $indicators  = isset($section['indicators']) ? $section['indicators'] : array();
         $domain_data = isset($responses[$domain_key]) && is_array($responses[$domain_key]) ? $responses[$domain_key] : array();
+        $dom_id      = 'hlcv-domain-' . self::$domain_counter;
 
         ?>
-        <fieldset class="hl-fieldset hl-indicator-section">
-            <legend>
-                <button type="button" class="hl-accordion-toggle" onclick="this.closest('.hl-indicator-section').classList.toggle('hl-accordion-open')">
+        <div class="hlcv-domain" id="<?php echo esc_attr($dom_id); ?>">
+            <div class="hlcv-domain-header" onclick="document.getElementById('<?php echo esc_attr($dom_id); ?>').classList.toggle('open')">
+                <span class="hlcv-domain-name">
+                    <span class="hlcv-domain-num"><?php echo esc_html(self::$domain_counter); ?></span>
                     <?php echo esc_html($section['title']); ?>
-                    <span class="hl-accordion-icon">&#9660;</span>
-                </button>
-            </legend>
-            <div class="hl-accordion-content">
-                <?php foreach ($indicators as $idx => $indicator_label) :
-                    $indicator_key = 'indicator_' . $idx;
-                    $ind_data      = isset($domain_data[$indicator_key]) && is_array($domain_data[$indicator_key]) ? $domain_data[$indicator_key] : array();
-                    $observed      = !empty($ind_data['observed']);
-                    $description   = isset($ind_data['description']) ? $ind_data['description'] : '';
-                    $field_name    = $prefix . '[' . $domain_key . '][' . $indicator_key . ']';
-                ?>
-                    <div class="hl-indicator-item" data-indicator="<?php echo esc_attr($domain_key . '_' . $idx); ?>">
-                        <div class="hl-indicator-label">
-                            <span><?php echo esc_html($indicator_label); ?></span>
-                        </div>
+                </span>
+                <svg class="hlcv-domain-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="hlcv-domain-body">
+                <div class="hlcv-domain-inner">
+                    <?php foreach ($indicators as $idx => $indicator_label) :
+                        $indicator_key = 'indicator_' . $idx;
+                        $ind_data      = isset($domain_data[$indicator_key]) && is_array($domain_data[$indicator_key]) ? $domain_data[$indicator_key] : array();
+                        $observed      = !empty($ind_data['observed']);
+                        $description   = isset($ind_data['description']) ? $ind_data['description'] : '';
+                        $field_name    = $prefix . '[' . $domain_key . '][' . $indicator_key . ']';
+                        $uid           = $domain_key . '_' . $idx;
+                    ?>
+                        <div class="hlcv-indicator">
+                            <div class="hlcv-ind-top">
+                                <div class="hlcv-ind-label"><?php echo esc_html($indicator_label); ?></div>
 
-                        <?php if ($is_readonly) : ?>
-                            <div class="hl-indicator-response">
-                                <span class="hl-badge hl-badge-<?php echo $observed ? 'green' : 'gray'; ?>">
-                                    <?php echo esc_html($observed ? __('Yes', 'hl-core') : __('No', 'hl-core')); ?>
-                                </span>
-                                <?php if ($observed && !empty($description)) : ?>
-                                    <div class="hl-field-value"><?php echo wp_kses_post($description); ?></div>
+                                <?php if ($is_readonly) : ?>
+                                    <span class="hlcv-ro-badge <?php echo $observed ? 'hlcv-ro-yes' : 'hlcv-ro-no'; ?>">
+                                        <?php echo esc_html($observed ? __('Yes', 'hl-core') : __('No', 'hl-core')); ?>
+                                    </span>
+                                <?php else : ?>
+                                    <div class="hlcv-toggle-group">
+                                        <label>
+                                            <input type="radio" name="<?php echo esc_attr($field_name); ?>[observed]" value="1"
+                                                   class="hl-indicator-radio" data-target="<?php echo esc_attr($uid); ?>"
+                                                   <?php checked($observed); ?>>
+                                            <span class="hlcv-toggle-btn"><?php esc_html_e('Yes', 'hl-core'); ?></span>
+                                        </label>
+                                        <label>
+                                            <input type="radio" name="<?php echo esc_attr($field_name); ?>[observed]" value="0"
+                                                   class="hl-indicator-radio" data-target="<?php echo esc_attr($uid); ?>"
+                                                   <?php checked(!$observed); ?>>
+                                            <span class="hlcv-toggle-btn"><?php esc_html_e('No', 'hl-core'); ?></span>
+                                        </label>
+                                    </div>
                                 <?php endif; ?>
                             </div>
-                        <?php else : ?>
-                            <div class="hl-indicator-toggle">
-                                <label class="hl-toggle-btn">
-                                    <input type="radio" name="<?php echo esc_attr($field_name); ?>[observed]" value="1"
-                                           class="hl-indicator-radio" data-target="<?php echo esc_attr($domain_key . '_' . $idx); ?>"
-                                           <?php checked($observed); ?>>
-                                    <span class="hl-btn hl-btn-small hl-btn-toggle-yes"><?php esc_html_e('Yes', 'hl-core'); ?></span>
-                                </label>
-                                <label class="hl-toggle-btn">
-                                    <input type="radio" name="<?php echo esc_attr($field_name); ?>[observed]" value="0"
-                                           class="hl-indicator-radio" data-target="<?php echo esc_attr($domain_key . '_' . $idx); ?>"
-                                           <?php checked(!$observed); ?>>
-                                    <span class="hl-btn hl-btn-small hl-btn-toggle-no"><?php esc_html_e('No', 'hl-core'); ?></span>
-                                </label>
-                            </div>
-                            <div class="hl-indicator-description" id="hl-desc-<?php echo esc_attr($domain_key . '_' . $idx); ?>"
-                                 style="<?php echo $observed ? '' : 'display:none;'; ?>">
-                                <textarea name="<?php echo esc_attr($field_name); ?>[description]" rows="3" class="hl-textarea"
-                                          placeholder="<?php esc_attr_e('Describe what you observed...', 'hl-core'); ?>"
-                                ><?php echo esc_textarea($description); ?></textarea>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                <?php endforeach; ?>
+
+                            <?php if ($is_readonly && $observed && !empty($description)) : ?>
+                                <div class="hlcv-ind-desc" style="margin-top:10px">
+                                    <div style="background:#f1f5f9;padding:10px 14px;border-radius:8px;font-size:14px;color:#334155"><?php echo wp_kses_post($description); ?></div>
+                                </div>
+                            <?php elseif (!$is_readonly) : ?>
+                                <div class="hlcv-ind-desc" id="hl-desc-<?php echo esc_attr($uid); ?>"
+                                     style="<?php echo $observed ? '' : 'display:none;'; ?>">
+                                    <textarea name="<?php echo esc_attr($field_name); ?>[description]" rows="3"
+                                              placeholder="<?php esc_attr_e('Describe what you observed...', 'hl-core'); ?>"
+                                    ><?php echo esc_textarea($description); ?></textarea>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
-        </fieldset>
+        </div>
         <?php
     }
 
