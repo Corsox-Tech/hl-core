@@ -1277,18 +1277,53 @@ class HL_Admin_Cycles {
     // =========================================================================
 
     private function render_tab_coaching($cycle) {
-        global $wpdb;
         $cycle_id = $cycle->cycle_id;
+        $coaching_subtab = isset($_GET['coaching_sub']) ? sanitize_text_field($_GET['coaching_sub']) : 'sessions';
 
-        // Coach assignments.
-        $assignments = $wpdb->get_results($wpdb->prepare(
-            "SELECT ca.*, u.display_name AS coach_name
-             FROM {$wpdb->prefix}hl_coach_assignment ca
-             LEFT JOIN {$wpdb->users} u ON ca.coach_user_id = u.ID
-             WHERE ca.cycle_id = %d
-             ORDER BY ca.effective_from DESC",
-            $cycle_id
-        ));
+        $subtabs = array(
+            'sessions'         => __('Coaching Sessions', 'hl-core'),
+            'assignments'      => __('Assignments', 'hl-core'),
+            'rp_sessions'      => __('RP Sessions', 'hl-core'),
+            'classroom_visits' => __('Classroom Visits', 'hl-core'),
+        );
+
+        $base_url = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $cycle_id . '&tab=coaching');
+
+        echo '<ul class="subsubsub" style="margin-bottom:15px; width:100%;">';
+        $links = array();
+        foreach ($subtabs as $slug => $label) {
+            $url   = add_query_arg('coaching_sub', $slug, $base_url);
+            $class = ($slug === $coaching_subtab) ? 'current' : '';
+            $links[] = '<li><a href="' . esc_url($url) . '" class="' . esc_attr($class) . '">' . esc_html($label) . '</a></li>';
+        }
+        echo implode(' | ', $links);
+        echo '</ul><div class="clear"></div>';
+
+        switch ($coaching_subtab) {
+            case 'assignments':
+                $this->render_coaching_assignments_subtab($cycle_id);
+                break;
+            case 'rp_sessions':
+                $this->render_rp_sessions_subtab($cycle_id);
+                break;
+            case 'classroom_visits':
+                $this->render_classroom_visits_subtab($cycle_id);
+                break;
+            default:
+                $this->render_coaching_sessions_subtab($cycle_id);
+                break;
+        }
+    }
+
+    /**
+     * Coaching Sessions subtab (original coaching tab content — sessions portion).
+     */
+    private function render_coaching_sessions_subtab($cycle_id) {
+        global $wpdb;
+
+        echo '<div style="margin-bottom:15px; display:flex; gap:8px;">';
+        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-coaching&cycle_id=' . $cycle_id)) . '" class="button button-primary">' . esc_html__('All Coaching Sessions', 'hl-core') . '</a>';
+        echo '</div>';
 
         // Coaching sessions (latest 20).
         $sessions = $wpdb->get_results($wpdb->prepare(
@@ -1303,12 +1338,60 @@ class HL_Admin_Cycles {
             $cycle_id
         ));
 
-        echo '<div style="margin-bottom:15px; display:flex; gap:8px;">';
+        echo '<h3>' . esc_html__('Recent Coaching Sessions', 'hl-core') . '</h3>';
+        if (empty($sessions)) {
+            echo '<p>' . esc_html__('No coaching sessions for this cycle.', 'hl-core') . '</p>';
+        } else {
+            echo '<table class="widefat striped">';
+            echo '<thead><tr>';
+            echo '<th>' . esc_html__('Title', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Participant', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Coach', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Date/Time', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
+            echo '</tr></thead><tbody>';
+
+            foreach ($sessions as $s) {
+                $dt = $s->session_datetime ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($s->session_datetime)) : '-';
+
+                echo '<tr>';
+                echo '<td><a href="' . esc_url(admin_url('admin.php?page=hl-coaching&action=edit&id=' . $s->session_id)) . '">' . esc_html($s->session_title ?: '#' . $s->session_id) . '</a></td>';
+                echo '<td>' . esc_html($s->mentor_name) . '</td>';
+                echo '<td>' . esc_html($s->coach_name) . '</td>';
+                echo '<td>' . esc_html($dt) . '</td>';
+                echo '<td>';
+                if (class_exists('HL_Coaching_Service')) {
+                    echo HL_Coaching_Service::render_status_badge($s->session_status);
+                } else {
+                    echo esc_html(ucfirst($s->session_status));
+                }
+                echo '</td>';
+                echo '</tr>';
+            }
+
+            echo '</tbody></table>';
+        }
+    }
+
+    /**
+     * Assignments subtab within coaching tab.
+     */
+    private function render_coaching_assignments_subtab($cycle_id) {
+        global $wpdb;
+
+        echo '<div style="margin-bottom:15px;">';
         echo '<a href="' . esc_url(admin_url('admin.php?page=hl-coaching&tab=assignments&cycle_id=' . $cycle_id)) . '" class="button button-primary">' . esc_html__('Manage Coach Assignments', 'hl-core') . '</a>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-coaching&cycle_id=' . $cycle_id)) . '" class="button">' . esc_html__('All Coaching Sessions', 'hl-core') . '</a>';
         echo '</div>';
 
-        // Assignments table.
+        $assignments = $wpdb->get_results($wpdb->prepare(
+            "SELECT ca.*, u.display_name AS coach_name
+             FROM {$wpdb->prefix}hl_coach_assignment ca
+             LEFT JOIN {$wpdb->users} u ON ca.coach_user_id = u.ID
+             WHERE ca.cycle_id = %d
+             ORDER BY ca.effective_from DESC",
+            $cycle_id
+        ));
+
         echo '<h3>' . esc_html__('Coach Assignments', 'hl-core') . '</h3>';
         if (empty($assignments)) {
             echo '<p>' . esc_html__('No coach assignments for this cycle.', 'hl-core') . '</p>';
@@ -1343,41 +1426,82 @@ class HL_Admin_Cycles {
 
             echo '</tbody></table>';
         }
+    }
 
-        // Recent sessions.
-        echo '<h3 style="margin-top:20px;">' . esc_html__('Recent Coaching Sessions', 'hl-core') . '</h3>';
+    /**
+     * RP Sessions subtab — list all RP sessions for this cycle.
+     */
+    private function render_rp_sessions_subtab($cycle_id) {
+        $rp_service = new HL_RP_Session_Service();
+        $sessions = $rp_service->get_by_cycle($cycle_id);
+
+        echo '<h3>' . esc_html__('Reflective Practice Sessions', 'hl-core') . '</h3>';
+
         if (empty($sessions)) {
-            echo '<p>' . esc_html__('No coaching sessions for this cycle.', 'hl-core') . '</p>';
-        } else {
-            echo '<table class="widefat striped">';
-            echo '<thead><tr>';
-            echo '<th>' . esc_html__('Title', 'hl-core') . '</th>';
-            echo '<th>' . esc_html__('Participant', 'hl-core') . '</th>';
-            echo '<th>' . esc_html__('Coach', 'hl-core') . '</th>';
-            echo '<th>' . esc_html__('Date/Time', 'hl-core') . '</th>';
-            echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
-            echo '</tr></thead><tbody>';
-
-            foreach ($sessions as $s) {
-                $dt = $s->session_datetime ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($s->session_datetime)) : '-';
-
-                echo '<tr>';
-                echo '<td><a href="' . esc_url(admin_url('admin.php?page=hl-coaching&action=edit&id=' . $s->session_id)) . '">' . esc_html($s->session_title ?: '#' . $s->session_id) . '</a></td>';
-                echo '<td>' . esc_html($s->mentor_name) . '</td>';
-                echo '<td>' . esc_html($s->coach_name) . '</td>';
-                echo '<td>' . esc_html($dt) . '</td>';
-                echo '<td>';
-                if (class_exists('HL_Coaching_Service')) {
-                    echo HL_Coaching_Service::render_status_badge($s->session_status);
-                } else {
-                    echo esc_html(ucfirst($s->session_status));
-                }
-                echo '</td>';
-                echo '</tr>';
-            }
-
-            echo '</tbody></table>';
+            echo '<p>' . esc_html__('No RP sessions for this cycle.', 'hl-core') . '</p>';
+            return;
         }
+
+        echo '<table class="widefat striped">';
+        echo '<thead><tr>';
+        echo '<th>' . esc_html__('Mentor', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Teacher', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Session #', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Date', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
+        echo '</tr></thead><tbody>';
+
+        foreach ($sessions as $s) {
+            $dt = !empty($s['session_date']) ? date_i18n(get_option('date_format'), strtotime($s['session_date'])) : '-';
+
+            echo '<tr>';
+            echo '<td>' . esc_html($s['mentor_name'] ?? '-') . '</td>';
+            echo '<td>' . esc_html($s['teacher_name'] ?? '-') . '</td>';
+            echo '<td>' . esc_html($s['session_number']) . '</td>';
+            echo '<td>' . esc_html($dt) . '</td>';
+            echo '<td><span class="hl-status-badge ' . esc_attr($s['status']) . '">' . esc_html(ucfirst($s['status'])) . '</span></td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table>';
+    }
+
+    /**
+     * Classroom Visits subtab — list all classroom visits for this cycle.
+     */
+    private function render_classroom_visits_subtab($cycle_id) {
+        $cv_service = new HL_Classroom_Visit_Service();
+        $visits = $cv_service->get_by_cycle($cycle_id);
+
+        echo '<h3>' . esc_html__('Classroom Visits', 'hl-core') . '</h3>';
+
+        if (empty($visits)) {
+            echo '<p>' . esc_html__('No classroom visits for this cycle.', 'hl-core') . '</p>';
+            return;
+        }
+
+        echo '<table class="widefat striped">';
+        echo '<thead><tr>';
+        echo '<th>' . esc_html__('Leader', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Teacher', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Visit #', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Date', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
+        echo '</tr></thead><tbody>';
+
+        foreach ($visits as $v) {
+            $dt = !empty($v['visit_date']) ? date_i18n(get_option('date_format'), strtotime($v['visit_date'])) : '-';
+
+            echo '<tr>';
+            echo '<td>' . esc_html($v['leader_name'] ?? '-') . '</td>';
+            echo '<td>' . esc_html($v['teacher_name'] ?? '-') . '</td>';
+            echo '<td>' . esc_html($v['visit_number']) . '</td>';
+            echo '<td>' . esc_html($dt) . '</td>';
+            echo '<td><span class="hl-status-badge ' . esc_attr($v['status']) . '">' . esc_html(ucfirst($v['status'])) . '</span></td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table>';
     }
 
     // =========================================================================
