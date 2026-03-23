@@ -124,7 +124,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 21;
+        $current_revision = 22;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -137,6 +137,11 @@ class HL_Installer {
             // Rev 17: Add track_type ENUM to hl_track (dbDelta can't add ENUMs reliably).
             if ( (int) $stored < 17 ) {
                 self::migrate_track_type_enum();
+            }
+
+            // Rev 22: Add new component types for cross-pathway events.
+            if ( (int) $stored < 22 ) {
+                self::migrate_add_event_component_types();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -1744,6 +1749,107 @@ class HL_Installer {
             KEY cycle_id (cycle_id)
         ) $charset_collate;";
 
+        // RP Session table (Reflective Practice sessions linking mentor + teacher)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_rp_session (
+            rp_session_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            rp_session_uuid char(36) NOT NULL,
+            cycle_id bigint(20) unsigned NOT NULL,
+            mentor_enrollment_id bigint(20) unsigned NOT NULL,
+            teacher_enrollment_id bigint(20) unsigned NOT NULL,
+            session_number tinyint unsigned NOT NULL DEFAULT 1,
+            status varchar(20) NOT NULL DEFAULT 'pending',
+            session_date datetime DEFAULT NULL,
+            notes text DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (rp_session_id),
+            UNIQUE KEY rp_session_uuid (rp_session_uuid),
+            KEY idx_cycle (cycle_id),
+            KEY idx_mentor (mentor_enrollment_id),
+            KEY idx_teacher (teacher_enrollment_id)
+        ) $charset_collate;";
+
+        // RP Session Submission table (form responses for RP sessions)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_rp_session_submission (
+            submission_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            submission_uuid char(36) NOT NULL,
+            rp_session_id bigint(20) unsigned NOT NULL,
+            submitted_by_user_id bigint(20) unsigned NOT NULL,
+            instrument_id bigint(20) unsigned NOT NULL,
+            role_in_session varchar(20) NOT NULL,
+            responses_json longtext DEFAULT NULL,
+            status varchar(20) NOT NULL DEFAULT 'draft',
+            submitted_at datetime DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (submission_id),
+            UNIQUE KEY submission_uuid (submission_uuid),
+            UNIQUE KEY uq_session_role (rp_session_id, role_in_session),
+            KEY idx_rp_session (rp_session_id),
+            KEY idx_user (submitted_by_user_id)
+        ) $charset_collate;";
+
+        // Classroom Visit table (leader observes teacher's classroom)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_classroom_visit (
+            classroom_visit_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            classroom_visit_uuid char(36) NOT NULL,
+            cycle_id bigint(20) unsigned NOT NULL,
+            leader_enrollment_id bigint(20) unsigned NOT NULL,
+            teacher_enrollment_id bigint(20) unsigned NOT NULL,
+            classroom_id bigint(20) unsigned DEFAULT NULL,
+            visit_number tinyint unsigned NOT NULL DEFAULT 1,
+            status varchar(20) NOT NULL DEFAULT 'pending',
+            visit_date datetime DEFAULT NULL,
+            notes text DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (classroom_visit_id),
+            UNIQUE KEY classroom_visit_uuid (classroom_visit_uuid),
+            KEY idx_cycle (cycle_id),
+            KEY idx_leader (leader_enrollment_id),
+            KEY idx_teacher (teacher_enrollment_id)
+        ) $charset_collate;";
+
+        // Classroom Visit Submission table (form responses for classroom visits)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_classroom_visit_submission (
+            submission_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            submission_uuid char(36) NOT NULL,
+            classroom_visit_id bigint(20) unsigned NOT NULL,
+            submitted_by_user_id bigint(20) unsigned NOT NULL,
+            instrument_id bigint(20) unsigned NOT NULL,
+            role_in_visit varchar(20) NOT NULL,
+            responses_json longtext DEFAULT NULL,
+            status varchar(20) NOT NULL DEFAULT 'draft',
+            submitted_at datetime DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (submission_id),
+            UNIQUE KEY submission_uuid (submission_uuid),
+            UNIQUE KEY uq_visit_role (classroom_visit_id, role_in_visit),
+            KEY idx_visit (classroom_visit_id),
+            KEY idx_user (submitted_by_user_id)
+        ) $charset_collate;";
+
+        // Coaching Session Submission table (form responses for coaching sessions)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_coaching_session_submission (
+            submission_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            submission_uuid char(36) NOT NULL,
+            session_id bigint(20) unsigned NOT NULL,
+            submitted_by_user_id bigint(20) unsigned NOT NULL,
+            instrument_id bigint(20) unsigned NOT NULL,
+            role_in_session varchar(20) NOT NULL,
+            responses_json longtext DEFAULT NULL,
+            status varchar(20) NOT NULL DEFAULT 'draft',
+            submitted_at datetime DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (submission_id),
+            UNIQUE KEY submission_uuid (submission_uuid),
+            UNIQUE KEY uq_session_role (session_id, role_in_session),
+            KEY idx_session (session_id),
+            KEY idx_user (submitted_by_user_id)
+        ) $charset_collate;";
+
         return $tables;
     }
 
@@ -1815,6 +1921,25 @@ class HL_Installer {
         if ( empty( $col ) ) {
             $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `track_type` varchar(20) NOT NULL DEFAULT 'program' AFTER `is_control_group`" );
         }
+    }
+
+    /**
+     * Rev 22: Add new component types for cross-pathway events.
+     * Extends the component_type ENUM on hl_component.
+     */
+    private static function migrate_add_event_component_types() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_component';
+
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return;
+        }
+
+        $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN component_type
+            ENUM('learndash_course','teacher_self_assessment','child_assessment',
+                 'coaching_session_attendance','observation',
+                 'reflective_practice_session','classroom_visit','self_reflection')
+            NOT NULL DEFAULT 'learndash_course'" );
     }
 
     /**
