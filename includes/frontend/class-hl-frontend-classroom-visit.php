@@ -383,6 +383,7 @@ class HL_Frontend_Classroom_Visit {
      * @param string $prefix      Form field name prefix ('hl_cv' or 'hl_sr')
      */
     public static function render_visit_form_sections($sections, $responses, $is_readonly, $prefix) {
+        self::$domain_counter = 0; // Reset for each form render
         foreach ($sections as $section) {
             $type = isset($section['type']) ? $section['type'] : '';
             $key  = isset($section['key']) ? $section['key'] : '';
@@ -632,14 +633,14 @@ class HL_Frontend_Classroom_Visit {
             ? array_map('sanitize_text_field', $raw['context_activities'])
             : array();
 
-        // Domain indicator data
-        $domains = HL_RP_Session_Service::get_ecsel_domains();
-        foreach (array_keys($domains) as $domain_key) {
-            if (!isset($raw[$domain_key]) || !is_array($raw[$domain_key])) {
+        // Domain indicator data — collect any key matching domain_* pattern
+        foreach ($raw as $key => $value) {
+            if (strpos($key, 'domain_') !== 0 || !is_array($value)) {
                 continue;
             }
+            $domain_key = sanitize_key($key);
             $responses[$domain_key] = array();
-            foreach ($raw[$domain_key] as $indicator_key => $indicator_data) {
+            foreach ($value as $indicator_key => $indicator_data) {
                 if (!is_array($indicator_data)) continue;
                 $responses[$domain_key][sanitize_key($indicator_key)] = array(
                     'observed'    => !empty($indicator_data['observed']) ? 1 : 0,
