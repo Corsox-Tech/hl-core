@@ -204,6 +204,38 @@ class HL_Frontend_Classroom_Visit {
         $visit_date    = isset($visit_entity['visit_date']) ? $visit_entity['visit_date'] : '';
         $teacher_name  = isset($teacher_info['display_name']) ? $teacher_info['display_name'] : '—';
 
+        // Resolve school and age group from classroom
+        $school_name = '—';
+        $age_group   = '—';
+        $classroom_id = isset($visit_entity['classroom_id']) ? (int) $visit_entity['classroom_id'] : 0;
+        if ($classroom_id) {
+            global $wpdb;
+            $cl = $wpdb->get_row($wpdb->prepare(
+                "SELECT c.age_band, o.orgunit_name FROM {$wpdb->prefix}hl_classroom c
+                 LEFT JOIN {$wpdb->prefix}hl_orgunit o ON c.school_id = o.orgunit_id
+                 WHERE c.classroom_id = %d", $classroom_id
+            ), ARRAY_A);
+            if ($cl) {
+                $school_name = $cl['orgunit_name'] ?: '—';
+                $age_group   = $cl['age_band'] ? ucwords(str_replace('_', ' ', $cl['age_band'])) : '—';
+            }
+        }
+        if ($school_name === '—' && isset($visit_entity['teacher_enrollment_id'])) {
+            // Fallback: get school from teaching assignment
+            global $wpdb;
+            $fallback = $wpdb->get_row($wpdb->prepare(
+                "SELECT o.orgunit_name, cl.age_band FROM {$wpdb->prefix}hl_teaching_assignment ta
+                 JOIN {$wpdb->prefix}hl_classroom cl ON ta.classroom_id = cl.classroom_id
+                 LEFT JOIN {$wpdb->prefix}hl_orgunit o ON cl.school_id = o.orgunit_id
+                 WHERE ta.enrollment_id = %d LIMIT 1",
+                (int) $visit_entity['teacher_enrollment_id']
+            ), ARRAY_A);
+            if ($fallback) {
+                $school_name = $fallback['orgunit_name'] ?: '—';
+                $age_group   = $fallback['age_band'] ? ucwords(str_replace('_', ' ', $fallback['age_band'])) : '—';
+            }
+        }
+
         self::render_form_styles();
         ?>
         <div class="hlcv-form-wrapper">
@@ -233,6 +265,10 @@ class HL_Frontend_Classroom_Visit {
             <div class="hlcv-info-card">
                 <div class="hlcv-info-row">
                     <div class="hlcv-info-cell">
+                        <span class="hlcv-info-label"><?php esc_html_e('Center / School', 'hl-core'); ?></span>
+                        <span class="hlcv-info-value"><?php echo esc_html($school_name); ?></span>
+                    </div>
+                    <div class="hlcv-info-cell">
                         <span class="hlcv-info-label"><?php esc_html_e('Teacher', 'hl-core'); ?></span>
                         <span class="hlcv-info-value"><?php echo esc_html($teacher_name); ?></span>
                     </div>
@@ -240,9 +276,15 @@ class HL_Frontend_Classroom_Visit {
                         <span class="hlcv-info-label"><?php esc_html_e('Classroom Visitor', 'hl-core'); ?></span>
                         <span class="hlcv-info-value"><?php echo esc_html($user->display_name); ?></span>
                     </div>
+                </div>
+                <div class="hlcv-info-row" style="margin-top:12px">
                     <div class="hlcv-info-cell">
                         <span class="hlcv-info-label"><?php esc_html_e('Date', 'hl-core'); ?></span>
                         <span class="hlcv-info-value"><?php echo esc_html($visit_date ? date_i18n(get_option('date_format'), strtotime($visit_date)) : date_i18n(get_option('date_format'))); ?></span>
+                    </div>
+                    <div class="hlcv-info-cell">
+                        <span class="hlcv-info-label"><?php esc_html_e('Age Group', 'hl-core'); ?></span>
+                        <span class="hlcv-info-value"><?php echo esc_html($age_group); ?></span>
                     </div>
                     <div class="hlcv-info-cell">
                         <span class="hlcv-info-label"><?php esc_html_e('Visit #', 'hl-core'); ?></span>
