@@ -401,35 +401,32 @@ class HL_Frontend_Classroom_Visit {
         .hlcv-pill-dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1;transition:background .2s}
         .hlcv-pill input:checked+.hlcv-pill-label .hlcv-pill-dot{background:#6ee7b7}
 
-        /* Domain sections */
-        .hlcv-domain{background:#fff;border:1px solid #e2e8f0;border-radius:14px;margin-bottom:16px;overflow:hidden;transition:box-shadow .2s}
-        .hlcv-domain:hover{box-shadow:0 2px 12px rgba(0,0,0,.06)}
-        .hlcv-domain-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;cursor:pointer;background:#fafbfc;border-bottom:1px solid transparent;transition:all .2s}
-        .hlcv-domain.open .hlcv-domain-header{border-bottom-color:#e2e8f0;background:#f1f5f9}
-        .hlcv-domain-name{font-size:15px;font-weight:600;color:#1e293b;display:flex;align-items:center;gap:10px}
-        .hlcv-domain-num{background:#e2e8f0;color:#64748b;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center}
-        .hlcv-domain-chevron{transition:transform .3s ease;color:#94a3b8}
-        .hlcv-domain.open .hlcv-domain-chevron{transform:rotate(180deg)}
-        .hlcv-domain-body{max-height:0;overflow:hidden;transition:max-height .4s ease}
-        .hlcv-domain.open .hlcv-domain-body{max-height:3000px}
-        .hlcv-domain-inner{padding:16px 22px}
+        /* Domain sections — flat, no accordion */
+        .hlcv-domain-flat{background:#fff;border:1px solid #e2e8f0;border-radius:14px;margin-bottom:20px;overflow:hidden}
+        .hlcv-domain-flat-header{display:flex;align-items:center;gap:10px;padding:16px 20px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-bottom:1px solid #e2e8f0}
+        .hlcv-domain-flat-title{font-size:15px;font-weight:600;color:#1e293b}
+        .hlcv-domain-num{background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
 
-        /* Indicator items */
-        .hlcv-indicator{background:#f8f9fb;border:1px solid #eef1f6;border-radius:10px;padding:16px 18px;margin-bottom:12px;transition:border-color .2s}
-        .hlcv-indicator:last-child{margin-bottom:0}
-        .hlcv-indicator:hover{border-color:#cbd5e1}
-        .hlcv-ind-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-        .hlcv-ind-label{font-size:14px;color:#334155;flex:1;line-height:1.5}
+        /* Indicator rows — compact */
+        .hlcv-indicators-grid{padding:4px 20px}
+        .hlcv-ind-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid #f1f5f9}
+        .hlcv-ind-row:last-child{border-bottom:none}
+        .hlcv-ind-label{font-size:14px;color:#334155;flex:1;line-height:1.4}
         .hlcv-toggle-group{display:flex;gap:0;border-radius:8px;overflow:hidden;border:2px solid #e2e8f0;flex-shrink:0}
         .hlcv-toggle-group label{margin:0}
         .hlcv-toggle-group input{position:absolute;opacity:0;pointer-events:none}
-        .hlcv-toggle-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;background:#fff;color:#94a3b8;user-select:none;border:none}
+        .hlcv-toggle-btn{display:inline-flex;align-items:center;justify-content:center;padding:7px 18px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;background:#fff;color:#94a3b8;user-select:none;border:none}
         .hlcv-toggle-group input[value="1"]:checked+.hlcv-toggle-btn{background:#059669;color:#fff}
         .hlcv-toggle-group input[value="0"]:checked+.hlcv-toggle-btn{background:#e2e8f0;color:#64748b}
-        .hlcv-ind-desc{margin-top:12px;animation:hlcvSlideDown .3s ease}
-        .hlcv-ind-desc textarea{width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;transition:border-color .2s;background:#fff;box-sizing:border-box}
-        .hlcv-ind-desc textarea:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1)}
-        .hlcv-ind-desc textarea::placeholder{color:#94a3b8}
+
+        /* One description per domain */
+        .hlcv-domain-desc{padding:0 20px 16px;animation:hlcvSlideDown .3s ease}
+        .hlcv-domain-desc textarea{width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:14px;font-family:inherit;resize:vertical;min-height:70px;transition:border-color .2s;background:#fafbfc;box-sizing:border-box}
+        .hlcv-domain-desc textarea:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1);background:#fff}
+        .hlcv-domain-desc textarea::placeholder{color:#94a3b8}
+        .hlcv-domain-desc-ro{padding:8px 20px 16px}
+        .hlcv-domain-desc-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6;margin-bottom:6px}
+        .hlcv-domain-desc-text{background:#f1f5f9;padding:10px 14px;border-radius:8px;font-size:14px;color:#334155;line-height:1.5}
         @keyframes hlcvSlideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 
         /* Action buttons */
@@ -572,67 +569,74 @@ class HL_Frontend_Classroom_Visit {
         $domain_data = isset($responses[$domain_key]) && is_array($responses[$domain_key]) ? $responses[$domain_key] : array();
         $dom_id      = 'hlcv-domain-' . self::$domain_counter;
 
+        // Check if ANY indicator in this domain has observed=1 (for showing the shared description)
+        $any_yes = false;
+        $domain_description = isset($domain_data['description']) ? $domain_data['description'] : '';
+        foreach ($indicators as $idx => $label) {
+            $ik = 'indicator_' . $idx;
+            if (isset($domain_data[$ik]) && !empty($domain_data[$ik]['observed'])) {
+                $any_yes = true;
+                // Migrate old per-indicator descriptions into domain description if needed
+                if (empty($domain_description) && !empty($domain_data[$ik]['description'])) {
+                    $domain_description = $domain_data[$ik]['description'];
+                }
+            }
+        }
+
         ?>
-        <div class="hlcv-domain" id="<?php echo esc_attr($dom_id); ?>">
-            <div class="hlcv-domain-header" onclick="document.getElementById('<?php echo esc_attr($dom_id); ?>').classList.toggle('open')">
-                <span class="hlcv-domain-name">
-                    <span class="hlcv-domain-num"><?php echo esc_html(self::$domain_counter); ?></span>
-                    <?php echo esc_html($section['title']); ?>
-                </span>
-                <svg class="hlcv-domain-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        <div class="hlcv-domain-flat" id="<?php echo esc_attr($dom_id); ?>">
+            <div class="hlcv-domain-flat-header">
+                <span class="hlcv-domain-num"><?php echo esc_html(self::$domain_counter); ?></span>
+                <span class="hlcv-domain-flat-title"><?php echo esc_html($section['title']); ?></span>
             </div>
-            <div class="hlcv-domain-body">
-                <div class="hlcv-domain-inner">
-                    <?php foreach ($indicators as $idx => $indicator_label) :
-                        $indicator_key = 'indicator_' . $idx;
-                        $ind_data      = isset($domain_data[$indicator_key]) && is_array($domain_data[$indicator_key]) ? $domain_data[$indicator_key] : array();
-                        $observed      = !empty($ind_data['observed']);
-                        $description   = isset($ind_data['description']) ? $ind_data['description'] : '';
-                        $field_name    = $prefix . '[' . $domain_key . '][' . $indicator_key . ']';
-                        $uid           = $domain_key . '_' . $idx;
-                    ?>
-                        <div class="hlcv-indicator">
-                            <div class="hlcv-ind-top">
-                                <div class="hlcv-ind-label"><?php echo esc_html($indicator_label); ?></div>
 
-                                <?php if ($is_readonly) : ?>
-                                    <span class="hlcv-ro-badge <?php echo $observed ? 'hlcv-ro-yes' : 'hlcv-ro-no'; ?>">
-                                        <?php echo esc_html($observed ? __('Yes', 'hl-core') : __('No', 'hl-core')); ?>
-                                    </span>
-                                <?php else : ?>
-                                    <div class="hlcv-toggle-group">
-                                        <label>
-                                            <input type="radio" name="<?php echo esc_attr($field_name); ?>[observed]" value="1"
-                                                   class="hl-indicator-radio" data-target="<?php echo esc_attr($uid); ?>"
-                                                   <?php checked($observed); ?>>
-                                            <span class="hlcv-toggle-btn"><?php esc_html_e('Yes', 'hl-core'); ?></span>
-                                        </label>
-                                        <label>
-                                            <input type="radio" name="<?php echo esc_attr($field_name); ?>[observed]" value="0"
-                                                   class="hl-indicator-radio" data-target="<?php echo esc_attr($uid); ?>"
-                                                   <?php checked(!$observed); ?>>
-                                            <span class="hlcv-toggle-btn"><?php esc_html_e('No', 'hl-core'); ?></span>
-                                        </label>
-                                    </div>
-                                <?php endif; ?>
+            <div class="hlcv-indicators-grid">
+                <?php foreach ($indicators as $idx => $indicator_label) :
+                    $indicator_key = 'indicator_' . $idx;
+                    $ind_data      = isset($domain_data[$indicator_key]) && is_array($domain_data[$indicator_key]) ? $domain_data[$indicator_key] : array();
+                    $observed      = !empty($ind_data['observed']);
+                    $field_name    = $prefix . '[' . $domain_key . '][' . $indicator_key . ']';
+                ?>
+                    <div class="hlcv-ind-row">
+                        <div class="hlcv-ind-label"><?php echo esc_html($indicator_label); ?></div>
+                        <?php if ($is_readonly) : ?>
+                            <span class="hlcv-ro-badge <?php echo $observed ? 'hlcv-ro-yes' : 'hlcv-ro-no'; ?>">
+                                <?php echo esc_html($observed ? __('Yes', 'hl-core') : __('No', 'hl-core')); ?>
+                            </span>
+                        <?php else : ?>
+                            <div class="hlcv-toggle-group">
+                                <label>
+                                    <input type="radio" name="<?php echo esc_attr($field_name); ?>[observed]" value="1"
+                                           class="hlcv-domain-radio" data-domain="<?php echo esc_attr($dom_id); ?>"
+                                           <?php checked($observed); ?>>
+                                    <span class="hlcv-toggle-btn"><?php esc_html_e('Yes', 'hl-core'); ?></span>
+                                </label>
+                                <label>
+                                    <input type="radio" name="<?php echo esc_attr($field_name); ?>[observed]" value="0"
+                                           class="hlcv-domain-radio" data-domain="<?php echo esc_attr($dom_id); ?>"
+                                           <?php checked(!$observed); ?>>
+                                    <span class="hlcv-toggle-btn"><?php esc_html_e('No', 'hl-core'); ?></span>
+                                </label>
                             </div>
-
-                            <?php if ($is_readonly && $observed && !empty($description)) : ?>
-                                <div class="hlcv-ind-desc" style="margin-top:10px">
-                                    <div style="background:#f1f5f9;padding:10px 14px;border-radius:8px;font-size:14px;color:#334155"><?php echo wp_kses_post($description); ?></div>
-                                </div>
-                            <?php elseif (!$is_readonly) : ?>
-                                <div class="hlcv-ind-desc" id="hl-desc-<?php echo esc_attr($uid); ?>"
-                                     style="<?php echo $observed ? '' : 'display:none;'; ?>">
-                                    <textarea name="<?php echo esc_attr($field_name); ?>[description]" rows="3"
-                                              placeholder="<?php esc_attr_e('Describe what you observed...', 'hl-core'); ?>"
-                                    ><?php echo esc_textarea($description); ?></textarea>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
             </div>
+
+            <?php // One shared description per domain ?>
+            <?php if ($is_readonly && $any_yes && !empty($domain_description)) : ?>
+                <div class="hlcv-domain-desc-ro">
+                    <div class="hlcv-domain-desc-label"><?php esc_html_e('Description', 'hl-core'); ?></div>
+                    <div class="hlcv-domain-desc-text"><?php echo wp_kses_post($domain_description); ?></div>
+                </div>
+            <?php elseif (!$is_readonly) : ?>
+                <div class="hlcv-domain-desc" id="hl-domdesc-<?php echo esc_attr($dom_id); ?>"
+                     style="<?php echo $any_yes ? '' : 'display:none;'; ?>">
+                    <textarea name="<?php echo esc_attr($prefix . '[' . $domain_key . '][description]'); ?>" rows="3"
+                              placeholder="<?php esc_attr_e('Describe specific examples of what you observed for this domain...', 'hl-core'); ?>"
+                    ><?php echo esc_textarea($domain_description); ?></textarea>
+                </div>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -645,11 +649,21 @@ class HL_Frontend_Classroom_Visit {
         <script>
         (function(){
             document.addEventListener('change', function(e) {
-                if (!e.target.classList.contains('hl-indicator-radio')) return;
-                var target = e.target.getAttribute('data-target');
-                var descEl = document.getElementById('hl-desc-' + target);
-                if (!descEl) return;
-                descEl.style.display = (e.target.value === '1') ? '' : 'none';
+                if (!e.target.classList.contains('hlcv-domain-radio')) return;
+                var domId = e.target.getAttribute('data-domain');
+                if (!domId) return;
+                var container = document.getElementById(domId);
+                if (!container) return;
+                // Check if ANY radio with value=1 is checked in this domain
+                var radios = container.querySelectorAll('.hlcv-domain-radio[value="1"]');
+                var anyYes = false;
+                for (var i = 0; i < radios.length; i++) {
+                    if (radios[i].checked) { anyYes = true; break; }
+                }
+                var descEl = document.getElementById('hl-domdesc-' + domId);
+                if (descEl) {
+                    descEl.style.display = anyYes ? '' : 'none';
+                }
             });
         })();
         </script>
@@ -729,11 +743,18 @@ class HL_Frontend_Classroom_Visit {
             }
             $domain_key = sanitize_key($key);
             $responses[$domain_key] = array();
+
+            // Domain-level shared description
+            if (isset($value['description']) && is_string($value['description'])) {
+                $responses[$domain_key]['description'] = wp_kses_post($value['description']);
+            }
+
+            // Per-indicator observed values
             foreach ($value as $indicator_key => $indicator_data) {
+                if ($indicator_key === 'description') continue; // already handled
                 if (!is_array($indicator_data)) continue;
                 $responses[$domain_key][sanitize_key($indicator_key)] = array(
-                    'observed'    => !empty($indicator_data['observed']) ? 1 : 0,
-                    'description' => isset($indicator_data['description']) ? wp_kses_post($indicator_data['description']) : '',
+                    'observed' => !empty($indicator_data['observed']) ? 1 : 0,
                 );
             }
         }
