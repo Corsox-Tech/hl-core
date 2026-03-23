@@ -39,6 +39,14 @@ class HL_Frontend_Coaching_Hub {
                 <?php endif; ?>
             </div>
 
+            <?php $this->render_coaches_section(); ?>
+
+            <!-- View toggle -->
+            <div class="hl-view-toggle">
+                <button type="button" class="hl-btn hl-btn-sm hl-btn-primary" id="hl-view-table-btn"><?php esc_html_e( 'Table', 'hl-core' ); ?></button>
+                <button type="button" class="hl-btn hl-btn-sm hl-btn-secondary" id="hl-view-calendar-btn"><?php esc_html_e( 'Calendar', 'hl-core' ); ?></button>
+            </div>
+
             <!-- Filters -->
             <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-coaching-search"
@@ -113,12 +121,32 @@ class HL_Frontend_Coaching_Hub {
                     </table>
                 </div>
 
+                <?php $this->render_calendar_view( $sessions ); ?>
+
                 <div class="hl-empty-state hl-no-results">
                     <p><?php esc_html_e( 'No sessions match your filters.', 'hl-core' ); ?></p>
                 </div>
             <?php endif; ?>
 
         </div>
+
+        <style>
+        .hl-coaches-section { margin-bottom: 24px; }
+        .hl-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+        .hl-coach-card { display: flex; align-items: center; gap: 12px; padding: 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; }
+        .hl-coach-card .hl-coach-info { display: flex; flex-direction: column; gap: 2px; }
+        .hl-coach-card .hl-coach-info span { font-size: 13px; color: #666; }
+        .hl-view-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
+        .hl-hub-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .hl-hub-calendar-view .hl-calendar-header { margin-bottom: 8px; font-weight: 600; }
+        .hl-hub-calendar-view .hl-calendar-dow { padding: 4px; text-align: center; font-weight: 600; font-size: 12px; color: #666; }
+        .hl-hub-calendar-view .hl-calendar-day { padding: 8px; min-height: 60px; border: 1px solid #eee; border-radius: 4px; font-size: 14px; }
+        .hl-hub-calendar-view .hl-calendar-today { background: #f0f7ff; }
+        .hl-hub-calendar-view .hl-calendar-empty { border: none; }
+        .hl-cal-day-num { display: block; font-weight: 600; margin-bottom: 4px; }
+        .hl-cal-dots { display: flex; gap: 3px; flex-wrap: wrap; }
+        .hl-cal-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        </style>
 
         <script>
         (function($){
@@ -145,11 +173,131 @@ class HL_Frontend_Coaching_Hub {
 
             $('#hl-coaching-search').on('input', filterRows);
             $('#hl-coaching-status-filter, #hl-coaching-track-filter').on('change', filterRows);
+
+            // View toggle: table vs calendar.
+            var $tableView = $('.hl-table-container');
+            var $calView = $('.hl-hub-calendar-view');
+            var $tableBtn = $('#hl-view-table-btn');
+            var $calBtn = $('#hl-view-calendar-btn');
+
+            $tableBtn.on('click', function() {
+                $tableView.show();
+                $calView.hide();
+                $tableBtn.removeClass('hl-btn-secondary').addClass('hl-btn-primary');
+                $calBtn.removeClass('hl-btn-primary').addClass('hl-btn-secondary');
+            });
+
+            $calBtn.on('click', function() {
+                $tableView.hide();
+                $calView.show();
+                $calBtn.removeClass('hl-btn-secondary').addClass('hl-btn-primary');
+                $tableBtn.removeClass('hl-btn-primary').addClass('hl-btn-secondary');
+            });
         })(jQuery);
         </script>
         <?php
 
         return ob_get_clean();
+    }
+
+    // =========================================================================
+    // Sub-renders
+    // =========================================================================
+
+    /**
+     * Render coaches card grid.
+     */
+    private function render_coaches_section() {
+        $coaches = get_users( array( 'role' => 'coach' ) );
+        if ( empty( $coaches ) ) {
+            return;
+        }
+        ?>
+        <div class="hl-section hl-coaches-section">
+            <h3><?php esc_html_e( 'Coaches', 'hl-core' ); ?></h3>
+            <div class="hl-card-grid">
+                <?php foreach ( $coaches as $coach ) : ?>
+                    <div class="hl-card hl-coach-card">
+                        <div class="hl-coach-avatar"><?php echo get_avatar( $coach->ID, 64 ); ?></div>
+                        <div class="hl-coach-info">
+                            <strong><?php echo esc_html( $coach->display_name ); ?></strong>
+                            <span><?php echo esc_html( $coach->user_email ); ?></span>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render a calendar month view with session dots.
+     */
+    private function render_calendar_view( $sessions ) {
+        $month = (int) date( 'n' );
+        $year  = (int) date( 'Y' );
+        $days_in_month = (int) date( 't', mktime( 0, 0, 0, $month, 1, $year ) );
+        $first_day     = (int) date( 'w', mktime( 0, 0, 0, $month, 1, $year ) );
+        $today         = date( 'Y-m-d' );
+
+        // Group sessions by date.
+        $by_date = array();
+        foreach ( $sessions as $s ) {
+            $date = ! empty( $s['session_datetime'] ) ? substr( $s['session_datetime'], 0, 10 ) : '';
+            if ( $date ) {
+                $by_date[ $date ][] = $s;
+            }
+        }
+
+        $status_colors = array(
+            'attended'    => '#4caf50',
+            'scheduled'   => '#2196f3',
+            'missed'      => '#f44336',
+            'cancelled'   => '#9e9e9e',
+            'rescheduled' => '#ff9800',
+        );
+
+        ?>
+        <div class="hl-hub-calendar-view" style="display:none;">
+            <div class="hl-calendar-header">
+                <span class="hl-calendar-title"><?php echo esc_html( date( 'F Y', mktime( 0, 0, 0, $month, 1, $year ) ) ); ?></span>
+            </div>
+            <div class="hl-calendar-grid hl-hub-calendar-grid">
+                <div class="hl-calendar-dow">Sun</div>
+                <div class="hl-calendar-dow">Mon</div>
+                <div class="hl-calendar-dow">Tue</div>
+                <div class="hl-calendar-dow">Wed</div>
+                <div class="hl-calendar-dow">Thu</div>
+                <div class="hl-calendar-dow">Fri</div>
+                <div class="hl-calendar-dow">Sat</div>
+                <?php for ( $i = 0; $i < $first_day; $i++ ) : ?>
+                    <div class="hl-calendar-day hl-calendar-empty"></div>
+                <?php endfor; ?>
+                <?php for ( $d = 1; $d <= $days_in_month; $d++ ) :
+                    $date_val = sprintf( '%04d-%02d-%02d', $year, $month, $d );
+                    $day_sessions = isset( $by_date[ $date_val ] ) ? $by_date[ $date_val ] : array();
+                    $classes = 'hl-calendar-day';
+                    if ( $date_val === $today ) {
+                        $classes .= ' hl-calendar-today';
+                    }
+                ?>
+                    <div class="<?php echo esc_attr( $classes ); ?>">
+                        <span class="hl-cal-day-num"><?php echo $d; ?></span>
+                        <?php if ( ! empty( $day_sessions ) ) : ?>
+                            <div class="hl-cal-dots">
+                                <?php foreach ( $day_sessions as $ds ) :
+                                    $s_status = $ds['session_status'] ?: 'scheduled';
+                                    $color = isset( $status_colors[ $s_status ] ) ? $status_colors[ $s_status ] : '#999';
+                                ?>
+                                    <span class="hl-cal-dot" style="background:<?php echo esc_attr( $color ); ?>;" title="<?php echo esc_attr( $ds['session_title'] ?: __( 'Session', 'hl-core' ) ); ?>"></span>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endfor; ?>
+            </div>
+        </div>
+        <?php
     }
 
     // =========================================================================
