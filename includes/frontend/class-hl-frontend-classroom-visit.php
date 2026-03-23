@@ -31,12 +31,35 @@ class HL_Frontend_Classroom_Visit {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['hl_cv_nonce'])) {
             $result = self::handle_submission();
             if ($result && !is_wp_error($result)) {
-                $redirect = add_query_arg('message', $result['message']);
-                wp_safe_redirect($redirect);
+                // Redirect back to same page with teacher param preserved
+                $redirect_url = remove_query_arg('message');
+                $redirect_url = add_query_arg('message', $result['message'], $redirect_url);
+                if (!empty($_POST['hl_cv_teacher_enrollment_id'])) {
+                    $redirect_url = add_query_arg('teacher', absint($_POST['hl_cv_teacher_enrollment_id']), $redirect_url);
+                }
+                wp_safe_redirect($redirect_url);
                 exit;
             }
             if (is_wp_error($result)) {
                 echo '<div class="hl-notice hl-notice-error"><p>' . esc_html($result->get_error_message()) . '</p></div>';
+            }
+        }
+
+        // Show success/saved message after redirect
+        if (isset($_GET['message'])) {
+            $msg = sanitize_text_field($_GET['message']);
+            if ($msg === 'submitted') {
+                self::render_form_styles();
+                echo '<div class="hlcv-alert" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
+                echo '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+                echo '<strong>' . esc_html__('Classroom visit submitted successfully!', 'hl-core') . '</strong>';
+                echo '</div>';
+            } elseif ($msg === 'saved') {
+                self::render_form_styles();
+                echo '<div class="hlcv-alert" style="background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
+                echo '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>';
+                echo '<strong>' . esc_html__('Draft saved.', 'hl-core') . '</strong>';
+                echo '</div>';
             }
         }
 
@@ -284,7 +307,25 @@ class HL_Frontend_Classroom_Visit {
                     </div>
                     <div class="hlcv-info-cell">
                         <span class="hlcv-info-label"><?php esc_html_e('Age Group', 'hl-core'); ?></span>
-                        <span class="hlcv-info-value"><?php echo esc_html($age_group); ?></span>
+                        <?php if ($age_group !== '—' || $is_readonly) : ?>
+                            <span class="hlcv-info-value"><?php echo esc_html($age_group); ?></span>
+                        <?php else :
+                            $saved_ag = isset($responses['age_group']) ? $responses['age_group'] : '';
+                            $ag_options = array(
+                                ''           => __('— Select —', 'hl-core'),
+                                'infant'     => __('Infant', 'hl-core'),
+                                'toddler'    => __('Toddler', 'hl-core'),
+                                'preschool'  => __('Preschool', 'hl-core'),
+                                'pre_k'      => __('Pre-K', 'hl-core'),
+                                'k_2nd'      => __('K-2nd', 'hl-core'),
+                            );
+                        ?>
+                            <select name="hl_cv[age_group]" style="padding:6px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:600;color:#1e293b;background:#fff;font-family:inherit;margin-top:2px">
+                                <?php foreach ($ag_options as $val => $label) : ?>
+                                    <option value="<?php echo esc_attr($val); ?>" <?php selected($saved_ag, $val); ?>><?php echo esc_html($label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        <?php endif; ?>
                     </div>
                     <div class="hlcv-info-cell">
                         <span class="hlcv-info-label"><?php esc_html_e('Visit #', 'hl-core'); ?></span>
@@ -299,6 +340,7 @@ class HL_Frontend_Classroom_Visit {
                     <input type="hidden" name="hl_cv_visit_id" value="<?php echo esc_attr($visit_id); ?>">
                     <input type="hidden" name="hl_cv_instrument_id" value="<?php echo esc_attr($instrument_id); ?>">
                     <input type="hidden" name="hl_cv_form_type" value="classroom_visit">
+                    <input type="hidden" name="hl_cv_teacher_enrollment_id" value="<?php echo esc_attr(isset($visit_entity['teacher_enrollment_id']) ? $visit_entity['teacher_enrollment_id'] : ''); ?>">
                 <?php endif; ?>
 
                 <?php self::render_visit_form_sections($sections, $responses, $is_readonly, 'hl_cv'); ?>
@@ -669,6 +711,11 @@ class HL_Frontend_Classroom_Visit {
     public static function collect_visit_responses($prefix) {
         $raw = isset($_POST[$prefix]) && is_array($_POST[$prefix]) ? $_POST[$prefix] : array();
         $responses = array();
+
+        // Age group (manual selection fallback)
+        if (!empty($raw['age_group'])) {
+            $responses['age_group'] = sanitize_text_field($raw['age_group']);
+        }
 
         // Context activities
         $responses['context_activities'] = isset($raw['context_activities']) && is_array($raw['context_activities'])
