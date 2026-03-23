@@ -150,16 +150,25 @@ class HL_Frontend_Component_Page {
                 ?></a>
             <?php endif; ?>
 
-            <h1 class="hl-cycle-title"><?php echo esc_html($component->title); ?></h1>
-            <p class="hl-component-type-badge"><?php echo esc_html($type_label); ?></p>
+            <?php
+            // New form types render their own hero header — suppress the wrapper title/badge
+            $self_rendering_types = array('reflective_practice_session', 'classroom_visit', 'self_reflection');
+            $has_own_header = in_array($component->component_type, $self_rendering_types, true);
+            ?>
 
-            <?php if (!empty($component->description)) : ?>
-                <p class="hl-inline-form-description"><?php echo esc_html($component->description); ?></p>
+            <?php if (!$has_own_header) : ?>
+                <h1 class="hl-cycle-title"><?php echo esc_html($component->title); ?></h1>
+                <p class="hl-component-type-badge"><?php echo esc_html($type_label); ?></p>
+
+                <?php if (!empty($component->description)) : ?>
+                    <p class="hl-inline-form-description"><?php echo esc_html($component->description); ?></p>
+                <?php endif; ?>
             <?php endif; ?>
 
             <?php
             // Flash messages (e.g. after assessment submission redirect).
-            if (!empty($_GET['message'])) {
+            // Skip for self-rendering types — they handle their own messages
+            if (!$has_own_header && !empty($_GET['message'])) {
                 $msg_key = sanitize_text_field($_GET['message']);
                 if ($msg_key === 'submitted') {
                     echo '<div class="hl-notice hl-notice-success"><p>' . esc_html__('Assessment submitted successfully.', 'hl-core') . '</p></div>';
