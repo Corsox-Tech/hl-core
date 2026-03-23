@@ -13,6 +13,86 @@ if (!defined('ABSPATH')) exit;
 class HL_Frontend_Self_Reflection {
 
     /**
+     * Render from the component page dispatcher.
+     *
+     * Called by HL_Frontend_Component_Page::render_available_view() with
+     * ($component, $enrollment, $cycle_id). Resolves visit entities and
+     * instruments, then delegates to render_form().
+     *
+     * @param object $component  Component domain object
+     * @param object $enrollment Enrollment domain object
+     * @param int    $cycle_id
+     * @return string HTML
+     */
+    public function render($component, $enrollment, $cycle_id) {
+        ob_start();
+        global $wpdb;
+
+        // Handle form submissions first
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['hl_sr_nonce'])) {
+            $result = self::handle_submission();
+            if ($result && !is_wp_error($result)) {
+                $redirect = add_query_arg('message', $result['message']);
+                wp_safe_redirect($redirect);
+                exit;
+            }
+            if (is_wp_error($result)) {
+                echo '<div class="hl-notice hl-notice-error"><p>' . esc_html($result->get_error_message()) . '</p></div>';
+            }
+        }
+
+        $external_ref  = $component->get_external_ref_array();
+        $visit_number  = isset($external_ref['visit_number']) ? (int) $external_ref['visit_number'] : 1;
+        $enrollment_id = (int) $enrollment->enrollment_id;
+
+        // Load instrument
+        $instrument = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s AND status = 'active'",
+            'self_reflection_form'
+        ));
+
+        if (!$instrument) {
+            echo '<div class="hl-notice hl-notice-warning">' . esc_html__('Self-Reflection instrument not found.', 'hl-core') . '</div>';
+            return ob_get_clean();
+        }
+
+        // Find if there's a matching classroom visit for this teacher
+        $cv_service = new HL_Classroom_Visit_Service();
+        $visit = $cv_service->get_most_recent_for_teacher($enrollment_id, $cycle_id);
+
+        // Build a visit entity (real or synthetic)
+        $visit_entity = null;
+        if ($visit && (int) ($visit['visit_number'] ?? 0) === $visit_number) {
+            $visit_entity = $visit;
+        }
+
+        if (!$visit_entity) {
+            $visit_entity = array(
+                'classroom_visit_id' => 0,
+                'visit_number'       => $visit_number,
+                'status'             => 'pending',
+                'visit_date'         => null,
+            );
+        }
+
+        // Load existing submission
+        $existing = null;
+        if (!empty($visit_entity['classroom_visit_id'])) {
+            $submissions = $cv_service->get_submissions((int) $visit_entity['classroom_visit_id']);
+            foreach ($submissions as $sub) {
+                if ($sub['role_in_visit'] === 'self_reflector') {
+                    $existing = $sub;
+                    break;
+                }
+            }
+        }
+
+        echo $this->render_form($visit_entity, $enrollment, $instrument, $existing);
+
+        return ob_get_clean();
+    }
+
+    /**
      * Render the Self-Reflection form.
      *
      * @param array       $visit_entity        Visit row from hl_classroom_visit (or synthetic row for standalone)
@@ -21,7 +101,7 @@ class HL_Frontend_Self_Reflection {
      * @param array|null  $existing_submission Existing submission row, or null
      * @return string HTML
      */
-    public function render($visit_entity, $enrollment, $instrument, $existing_submission = null) {
+    public function render_form($visit_entity, $enrollment, $instrument, $existing_submission = null) {
         ob_start();
 
         $sections    = json_decode($instrument->sections, true) ?: array();

@@ -12,6 +12,176 @@ if (!defined('ABSPATH')) exit;
 class HL_Frontend_Classroom_Visit {
 
     /**
+     * Render from the component page dispatcher.
+     *
+     * Called by HL_Frontend_Component_Page::render_available_view() with
+     * ($component, $enrollment, $cycle_id). Resolves visit entities and
+     * instruments, then delegates to render_form().
+     *
+     * @param object $component  Component domain object
+     * @param object $enrollment Enrollment domain object
+     * @param int    $cycle_id
+     * @return string HTML
+     */
+    public function render($component, $enrollment, $cycle_id) {
+        ob_start();
+        global $wpdb;
+
+        // Handle form submissions first
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['hl_cv_nonce'])) {
+            $result = self::handle_submission();
+            if ($result && !is_wp_error($result)) {
+                $redirect = add_query_arg('message', $result['message']);
+                wp_safe_redirect($redirect);
+                exit;
+            }
+            if (is_wp_error($result)) {
+                echo '<div class="hl-notice hl-notice-error"><p>' . esc_html($result->get_error_message()) . '</p></div>';
+            }
+        }
+
+        $external_ref  = $component->get_external_ref_array();
+        $visit_number  = isset($external_ref['visit_number']) ? (int) $external_ref['visit_number'] : 1;
+        $enrollment_id = (int) $enrollment->enrollment_id;
+
+        $cv_service = new HL_Classroom_Visit_Service();
+
+        // Load instrument
+        $instrument = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s AND status = 'active'",
+            'classroom_visit_form'
+        ));
+
+        if (!$instrument) {
+            echo '<div class="hl-notice hl-notice-warning">' . esc_html__('Classroom Visit instrument not found.', 'hl-core') . '</div>';
+            return ob_get_clean();
+        }
+
+        // Leader sees list of teachers to visit
+        $teachers = $cv_service->get_teachers_for_leader($enrollment_id, $cycle_id);
+        $selected_teacher_id = isset($_GET['teacher']) ? absint($_GET['teacher']) : 0;
+
+        if ($selected_teacher_id) {
+            // Find or create visit
+            $visit = $this->find_or_create_visit($cv_service, $cycle_id, $enrollment_id, $selected_teacher_id, $visit_number);
+            if ($visit && !is_wp_error($visit)) {
+                $submissions = $cv_service->get_submissions((int) $visit['classroom_visit_id']);
+                $existing = null;
+                foreach ($submissions as $sub) {
+                    if ($sub['role_in_visit'] === 'observer') {
+                        $existing = $sub;
+                        break;
+                    }
+                }
+
+                $teacher_info = array('display_name' => isset($visit['teacher_name']) ? $visit['teacher_name'] : '—');
+                $back_url = remove_query_arg('teacher');
+                echo '<a href="' . esc_url($back_url) . '" class="hl-back-link">&larr; ' . esc_html__('Back to Teacher List', 'hl-core') . '</a>';
+                echo $this->render_form($visit, $enrollment, $instrument, $teacher_info, $existing);
+            } else {
+                echo '<div class="hl-notice hl-notice-error">' . esc_html__('Unable to load classroom visit.', 'hl-core') . '</div>';
+            }
+        } else {
+            // Show teacher list
+            $this->render_teacher_list($teachers, $cycle_id, $visit_number, $cv_service);
+        }
+
+        return ob_get_clean();
+    }
+
+    /**
+     * Show list of teachers for the leader to visit.
+     */
+    private function render_teacher_list($teachers, $cycle_id, $visit_number, $cv_service) {
+        ?>
+        <div class="hl-classroom-visit-list">
+            <h3><?php printf(esc_html__('Classroom Visit #%d', 'hl-core'), $visit_number); ?></h3>
+            <p class="hl-field-hint"><?php esc_html_e('Select a teacher to complete the classroom visit form.', 'hl-core'); ?></p>
+
+            <?php if (empty($teachers)) : ?>
+                <div class="hl-empty-state">
+                    <p><?php esc_html_e('No teachers found in your school(s).', 'hl-core'); ?></p>
+                </div>
+            <?php else : ?>
+                <table class="hl-table widefat striped">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e('Teacher', 'hl-core'); ?></th>
+                            <th><?php esc_html_e('Status', 'hl-core'); ?></th>
+                            <th><?php esc_html_e('Action', 'hl-core'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($teachers as $teacher) :
+                            $teacher_eid = (int) $teacher['enrollment_id'];
+                            $visits = $cv_service->get_by_teacher($teacher_eid);
+                            $matching = null;
+                            foreach ($visits as $v) {
+                                if ((int) $v['visit_number'] === $visit_number && (int) $v['cycle_id'] === $cycle_id) {
+                                    $matching = $v;
+                                    break;
+                                }
+                            }
+                            $status = $matching ? $matching['status'] : 'not_started';
+                            $status_class = ($status === 'completed') ? 'green' : 'gray';
+                            $detail_url = add_query_arg('teacher', $teacher_eid);
+                        ?>
+                            <tr>
+                                <td>
+                                    <strong><?php echo esc_html($teacher['display_name']); ?></strong>
+                                    <?php if (!empty($teacher['user_email'])) : ?>
+                                        <br><small class="hl-muted"><?php echo esc_html($teacher['user_email']); ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <span class="hl-badge hl-badge-<?php echo esc_attr($status_class); ?>">
+                                        <?php echo esc_html(ucfirst(str_replace('_', ' ', $status))); ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="<?php echo esc_url($detail_url); ?>" class="hl-btn hl-btn-small hl-btn-primary">
+                                        <?php echo esc_html($status === 'completed' ? __('View', 'hl-core') : __('Open Visit', 'hl-core')); ?>
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Find an existing classroom visit or create one.
+     *
+     * @return array|WP_Error
+     */
+    private function find_or_create_visit($cv_service, $cycle_id, $leader_enrollment_id, $teacher_enrollment_id, $visit_number) {
+        $visits = $cv_service->get_by_leader($leader_enrollment_id);
+        foreach ($visits as $v) {
+            if ((int) $v['teacher_enrollment_id'] === $teacher_enrollment_id
+                && (int) $v['visit_number'] === $visit_number
+                && (int) $v['cycle_id'] === $cycle_id) {
+                return $v;
+            }
+        }
+
+        $result = $cv_service->create_visit(array(
+            'cycle_id'              => $cycle_id,
+            'leader_enrollment_id'  => $leader_enrollment_id,
+            'teacher_enrollment_id' => $teacher_enrollment_id,
+            'visit_number'          => $visit_number,
+        ));
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return $cv_service->get_visit($result);
+    }
+
+    /**
      * Render the Classroom Visit form.
      *
      * @param array       $visit_entity        Visit row from hl_classroom_visit
@@ -21,7 +191,7 @@ class HL_Frontend_Classroom_Visit {
      * @param array|null  $existing_submission Existing submission row, or null
      * @return string HTML
      */
-    public function render($visit_entity, $enrollment, $instrument, $teacher_info, $existing_submission = null) {
+    public function render_form($visit_entity, $enrollment, $instrument, $teacher_info, $existing_submission = null) {
         ob_start();
 
         $sections    = json_decode($instrument->sections, true) ?: array();
