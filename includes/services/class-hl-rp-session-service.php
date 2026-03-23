@@ -378,4 +378,314 @@ class HL_RP_Session_Service {
 
         do_action('hl_core_recompute_rollups', $enrollment_id);
     }
+
+    // ─── Instrument Definitions ─────────────────────────────────────
+
+    /**
+     * Get the 6 domain definitions used across Action Plan, Classroom Visit,
+     * and Self-Reflection instruments.
+     *
+     * @return array
+     */
+    public static function get_ecsel_domains() {
+        return array(
+            'emotional_climate' => array(
+                'label'      => 'Emotional Climate & Teacher Presence',
+                'skills'     => array(
+                    'Demonstrate calm, emotionally regulated presence',
+                    'Model attentive, engaged, and supportive behavior',
+                ),
+                'indicators' => array(
+                    'Teacher demonstrates a calm, emotionally regulated presence',
+                    'Teacher models attentive, engaged, and supportive behavior',
+                    'Teacher creates a warm, welcoming classroom atmosphere',
+                    'Teacher responds to children\'s emotions with empathy',
+                    'Teacher maintains composure during challenging moments',
+                    'Teacher uses a warm, encouraging tone of voice',
+                ),
+            ),
+            'ecsel_language' => array(
+                'label'      => 'ECSEL Language & Emotional Communication',
+                'skills'     => array(
+                    'Consistently use emotion language to label/validate feelings',
+                    'Use Causal Talk (CT) to connect emotions, behavior, experiences',
+                ),
+                'indicators' => array(
+                    'Teacher uses emotion language to label and validate feelings',
+                    'Teacher uses Causal Talk (CT) to connect emotions, behavior, and experiences',
+                    'Teacher encourages children to express emotions verbally',
+                    'Teacher validates children\'s emotional experiences',
+                ),
+            ),
+            'co_regulation' => array(
+                'label'      => 'Co-Regulation & Emotional Support',
+                'skills'     => array(
+                    'Use Causal Talk in Emotional Experience (CTEE) for heightened emotions',
+                    'Guide children toward regulation before problem-solving',
+                ),
+                'indicators' => array(
+                    'Teacher uses CTEE strategies during heightened emotional moments',
+                    'Teacher guides children toward regulation before problem-solving',
+                    'Teacher provides physical comfort and proximity when appropriate',
+                    'Teacher helps children identify and use calming strategies',
+                ),
+            ),
+            'social_skills' => array(
+                'label'      => 'Social Skills, Empathy & Inclusion',
+                'skills'     => array(
+                    'Model/encourage empathy, cooperation, respect',
+                    'Classroom interactions reflect inclusion and respect',
+                    'Guide children through conflict resolution steps',
+                ),
+                'indicators' => array(
+                    'Teacher models and encourages empathy, cooperation, and respect',
+                    'Classroom interactions reflect inclusion and respect for all children',
+                    'Teacher guides children through conflict resolution steps',
+                    'Teacher facilitates positive peer interactions',
+                ),
+            ),
+            'ecsel_tools' => array(
+                'label'      => 'Use of Developmentally-Appropriate ECSEL Tools',
+                'skills'     => array(
+                    'ECSEL tools visible, accessible, intentionally placed',
+                    'Use tools appropriately for emotion knowledge/conflict resolution',
+                ),
+                'indicators' => array(
+                    'ECSEL tools are visible, accessible, and intentionally placed',
+                    'Teacher uses ECSEL tools appropriately for emotion knowledge',
+                    'Teacher uses ECSEL tools for conflict resolution',
+                    'Teacher introduces and references tools during daily activities',
+                ),
+            ),
+            'daily_integration' => array(
+                'label'      => 'Integration into Daily Learning',
+                'skills'     => array(
+                    'Embed tools, language, strategies in play/routines/learning',
+                    'Use emotional moments as learning opportunities',
+                ),
+                'indicators' => array(
+                    'Teacher embeds ECSEL tools, language, and strategies in play and routines',
+                    'Teacher uses emotional moments as learning opportunities',
+                    'Teacher integrates SEL into daily classroom activities',
+                    'Teacher connects ECSEL practices to curriculum goals',
+                ),
+            ),
+        );
+    }
+
+    /**
+     * Get Action Plan instrument sections JSON array.
+     *
+     * @return array
+     */
+    public static function get_action_plan_sections() {
+        $domains = self::get_ecsel_domains();
+
+        $domain_options = array();
+        $skills_by_domain = array();
+        foreach ($domains as $key => $domain) {
+            $domain_options[$key] = $domain['label'];
+            $skills_by_domain[$key] = $domain['skills'];
+        }
+
+        return array(
+            array(
+                'key'    => 'planning',
+                'title'  => 'Planning',
+                'fields' => array(
+                    array(
+                        'key'     => 'domain',
+                        'type'    => 'select',
+                        'label'   => 'Domain',
+                        'options' => $domain_options,
+                    ),
+                    array(
+                        'key'               => 'skills',
+                        'type'              => 'multiselect',
+                        'label'             => 'Skills/Strategy',
+                        'conditional_on'    => 'domain',
+                        'options_by_domain' => $skills_by_domain,
+                    ),
+                    array('key' => 'how', 'type' => 'textarea', 'label' => 'Describe HOW you will practice the skill(s)'),
+                    array('key' => 'what', 'type' => 'textarea', 'label' => 'WHAT behaviors will you track to know this is effective?'),
+                ),
+            ),
+            array(
+                'key'    => 'results',
+                'title'  => 'Results',
+                'fields' => array(
+                    array('key' => 'practice_reflection', 'type' => 'textarea', 'label' => 'From your perspective, how has your practice gone?'),
+                    array(
+                        'key'   => 'success_degree',
+                        'type'  => 'likert',
+                        'label' => 'Degree of success',
+                        'scale' => array(
+                            1 => 'Not at all Successful',
+                            2 => 'Slightly Successful',
+                            3 => 'Moderately Successful',
+                            4 => 'Very Successful',
+                            5 => 'Extremely Successful',
+                        ),
+                    ),
+                    array('key' => 'impact_observations', 'type' => 'textarea', 'label' => 'Observations of impact on students'),
+                    array('key' => 'what_learned', 'type' => 'textarea', 'label' => 'What you learned'),
+                    array('key' => 'still_wondering', 'type' => 'textarea', 'label' => 'What you\'re still wondering'),
+                ),
+            ),
+        );
+    }
+
+    /**
+     * Get RP Notes instrument sections JSON array.
+     *
+     * @return array
+     */
+    public static function get_rp_notes_sections() {
+        return array(
+            array(
+                'key'    => 'personal_notes',
+                'title'  => 'Personal Notes',
+                'fields' => array(
+                    array('key' => 'personal_notes', 'type' => 'richtext', 'label' => 'Personal Notes (not shared with supervisee)'),
+                ),
+            ),
+            array(
+                'key'    => 'session_notes',
+                'title'  => 'RP Session Notes',
+                'fields' => array(
+                    array('key' => 'successes', 'type' => 'richtext', 'label' => 'Successes'),
+                    array('key' => 'challenges', 'type' => 'richtext', 'label' => 'Challenges / Areas of Growth'),
+                    array('key' => 'supports_needed', 'type' => 'richtext', 'label' => 'Supports Needed'),
+                    array('key' => 'next_steps', 'type' => 'richtext', 'label' => 'Next Steps'),
+                    array('key' => 'next_session_date', 'type' => 'date', 'label' => 'Next Session Date'),
+                ),
+            ),
+        );
+    }
+
+    /**
+     * Get Classroom Visit / Self-Reflection instrument sections JSON array.
+     *
+     * @param string $perspective 'observer' for Classroom Visit, 'self' for Self-Reflection
+     * @return array
+     */
+    public static function get_visit_form_sections($perspective = 'observer') {
+        $domains = self::get_ecsel_domains();
+        $sections = array();
+
+        $sections[] = array(
+            'key'    => 'context',
+            'title'  => 'Context',
+            'fields' => array(
+                array(
+                    'key'     => 'context_activities',
+                    'type'    => 'multiselect',
+                    'label'   => 'Activities observed',
+                    'options' => array(
+                        'free_play'      => 'Free Play',
+                        'formal_group'   => 'Formal Group Activities',
+                        'transition'     => 'Transition',
+                        'routine'        => 'Routine',
+                    ),
+                ),
+            ),
+        );
+
+        foreach ($domains as $key => $domain) {
+            $indicators = array();
+            foreach ($domain['indicators'] as $indicator) {
+                if ($perspective === 'self') {
+                    $indicator = str_replace('Teacher ', 'I ', $indicator);
+                    $indicator = str_replace('teacher ', 'I ', $indicator);
+                    $indicator = preg_replace('/\bTeacher\'s\b/', 'My', $indicator);
+                }
+                $indicators[] = $indicator;
+            }
+
+            $sections[] = array(
+                'key'        => $key,
+                'title'      => $domain['label'],
+                'type'       => 'indicator_checklist',
+                'indicators' => $indicators,
+            );
+        }
+
+        return $sections;
+    }
+
+    /**
+     * Seed the 6 new instruments into the DB. Idempotent.
+     *
+     * Called by the ELCPB Y2 CLI setup command (Session 4).
+     *
+     * @return array Map of instrument_key => instrument_id
+     */
+    public static function seed_instruments() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_teacher_assessment_instrument';
+        $ids   = array();
+
+        $instruments = array(
+            array(
+                'instrument_name'    => 'Coaching RP Notes',
+                'instrument_key'     => 'coaching_rp_notes',
+                'instrument_version' => '1.0',
+                'sections'           => wp_json_encode(self::get_rp_notes_sections()),
+                'status'             => 'active',
+            ),
+            array(
+                'instrument_name'    => 'Mentoring RP Notes',
+                'instrument_key'     => 'mentoring_rp_notes',
+                'instrument_version' => '1.0',
+                'sections'           => wp_json_encode(self::get_rp_notes_sections()),
+                'status'             => 'active',
+            ),
+            array(
+                'instrument_name'    => 'Coaching Action Plan & Results',
+                'instrument_key'     => 'coaching_action_plan',
+                'instrument_version' => '1.0',
+                'sections'           => wp_json_encode(self::get_action_plan_sections()),
+                'status'             => 'active',
+            ),
+            array(
+                'instrument_name'    => 'Mentoring Action Plan & Results',
+                'instrument_key'     => 'mentoring_action_plan',
+                'instrument_version' => '1.0',
+                'sections'           => wp_json_encode(self::get_action_plan_sections()),
+                'status'             => 'active',
+            ),
+            array(
+                'instrument_name'    => 'Classroom Visit Form',
+                'instrument_key'     => 'classroom_visit_form',
+                'instrument_version' => '1.0',
+                'sections'           => wp_json_encode(self::get_visit_form_sections('observer')),
+                'status'             => 'active',
+            ),
+            array(
+                'instrument_name'    => 'Self-Reflection Form',
+                'instrument_key'     => 'self_reflection_form',
+                'instrument_version' => '1.0',
+                'sections'           => wp_json_encode(self::get_visit_form_sections('self')),
+                'status'             => 'active',
+            ),
+        );
+
+        foreach ($instruments as $inst) {
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT instrument_id FROM {$table} WHERE instrument_key = %s LIMIT 1",
+                $inst['instrument_key']
+            ));
+
+            if ($existing) {
+                $ids[$inst['instrument_key']] = (int) $existing;
+                continue;
+            }
+
+            $inst['created_at'] = current_time('mysql');
+            $wpdb->insert($table, $inst);
+            $ids[$inst['instrument_key']] = (int) $wpdb->insert_id;
+        }
+
+        return $ids;
+    }
 }
