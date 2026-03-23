@@ -284,6 +284,37 @@ class HL_Frontend_Classroom_Visit {
                 </div>
             <?php endif; ?>
 
+            <!-- Instructions -->
+            <div class="hlcv-instructions">
+                <div class="hlcv-instr-section">
+                    <div class="hlcv-instr-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    </div>
+                    <div>
+                        <div class="hlcv-instr-heading"><?php esc_html_e('What this is', 'hl-core'); ?></div>
+                        <p><?php esc_html_e('The information collected by this form is used to celebrate areas of success and recognize areas of growth. This tool provides a snapshot of skills demonstrated during a classroom visit. It is expected and appropriate that not all skills will appear in every visit.', 'hl-core'); ?></p>
+                    </div>
+                </div>
+                <div class="hlcv-instr-section">
+                    <div class="hlcv-instr-icon hlcv-instr-icon-warn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    </div>
+                    <div>
+                        <div class="hlcv-instr-heading"><?php esc_html_e("What this isn't", 'hl-core'); ?></div>
+                        <p><?php esc_html_e('This checklist is not designed or intended to formally evaluate individual performance. It should not be interpreted as a summative assessment, and it is not expected or required that every skill listed be demonstrated or identified within a single classroom visit.', 'hl-core'); ?></p>
+                    </div>
+                </div>
+                <div class="hlcv-instr-section hlcv-instr-highlight">
+                    <div class="hlcv-instr-icon hlcv-instr-icon-how">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    </div>
+                    <div>
+                        <div class="hlcv-instr-heading"><?php esc_html_e('Instructions', 'hl-core'); ?></div>
+                        <p><?php esc_html_e('Select "Yes" if you observe an indicator in practice during the classroom visit. Select "No" if the indicator is not observed. In the Description field, describe specific examples, teacher or student behaviors, and any relevant context to support your rating.', 'hl-core'); ?></p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Visit info card -->
             <div class="hlcv-info-card">
                 <div class="hlcv-info-row">
@@ -344,6 +375,21 @@ class HL_Frontend_Classroom_Visit {
                 <?php endif; ?>
 
                 <?php self::render_visit_form_sections($sections, $responses, $is_readonly, 'hl_cv'); ?>
+
+                <!-- Notes -->
+                <div class="hlcv-notes">
+                    <div class="hlcv-notes-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <?php esc_html_e('Notes for Clarification', 'hl-core'); ?>
+                    </div>
+                    <ul class="hlcv-notes-list">
+                        <li><?php esc_html_e('Items marked with an asterisk (*) are defined in the Glossary.', 'hl-core'); ?></li>
+                        <li><?php echo wp_kses(
+                            __('The <em>begin to ECSEL Support Manual</em> for the Classroom Visit & Self-Reflection Tool includes the Glossary and the Reference Guide to Scoring.', 'hl-core'),
+                            array('em' => array())
+                        ); ?></li>
+                    </ul>
+                </div>
 
                 <?php if (!$is_readonly) : ?>
                     <div class="hlcv-actions">
@@ -441,6 +487,23 @@ class HL_Frontend_Classroom_Visit {
         .hlcv-ro-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:50px;font-size:12px;font-weight:600}
         .hlcv-ro-yes{background:#d1fae5;color:#065f46}
         .hlcv-ro-no{background:#f1f5f9;color:#64748b}
+
+        /* Instructions */
+        .hlcv-instructions{margin-bottom:28px;display:flex;flex-direction:column;gap:12px}
+        .hlcv-instr-section{display:flex;gap:14px;padding:16px 18px;background:#f8f9fb;border:1px solid #e2e8f0;border-radius:12px}
+        .hlcv-instr-highlight{background:#eef6ff;border-color:#bfdbfe}
+        .hlcv-instr-icon{flex-shrink:0;width:36px;height:36px;border-radius:10px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#64748b}
+        .hlcv-instr-icon-warn{background:#fef3c7;color:#d97706}
+        .hlcv-instr-icon-how{background:#dbeafe;color:#2563eb}
+        .hlcv-instr-heading{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569;margin-bottom:4px}
+        .hlcv-instr-section p{font-size:14px;line-height:1.6;color:#475569;margin:0}
+
+        /* Notes */
+        .hlcv-notes{background:#fafbfc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-top:24px;margin-bottom:8px}
+        .hlcv-notes-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#64748b;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+        .hlcv-notes-list{margin:0;padding-left:18px;font-size:13px;color:#64748b;line-height:1.7}
+        .hlcv-notes-list li{margin-bottom:4px}
+        .hlcv-notes-list em{font-style:italic;color:#475569}
 
         @media(max-width:600px){
             .hlcv-hero{flex-direction:column;text-align:center;padding:24px 20px}
