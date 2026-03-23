@@ -1352,7 +1352,7 @@ class HL_Installer {
             component_uuid char(36) NOT NULL,
             cycle_id bigint(20) unsigned NOT NULL,
             pathway_id bigint(20) unsigned NOT NULL,
-            component_type enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','observation') NOT NULL,
+            component_type enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','observation','reflective_practice_session','classroom_visit','self_reflection') NOT NULL,
             title varchar(255) NOT NULL,
             description text NULL,
             ordering_hint int NOT NULL DEFAULT 0,
@@ -2286,7 +2286,7 @@ class HL_Installer {
                 $wpdb->query( "ALTER TABLE `{$new_component}` CHANGE `activity_uuid` `component_uuid` char(36) NOT NULL" );
             }
             if ( $column_exists( $new_component, 'activity_type' ) ) {
-                $wpdb->query( "ALTER TABLE `{$new_component}` CHANGE `activity_type` `component_type` enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','observation') NOT NULL" );
+                $wpdb->query( "ALTER TABLE `{$new_component}` CHANGE `activity_type` `component_type` enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','observation','reflective_practice_session','classroom_visit','self_reflection') NOT NULL" );
             }
             // Drop old indexes — dbDelta will recreate with correct names.
             if ( $index_exists( $new_component, 'activity_uuid' ) ) {

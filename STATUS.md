@@ -26,7 +26,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Cycle Editor subtabs** — RP Sessions + Classroom Visits subtabs in Coaching tab.
 - [x] **6 instruments seeded** — coaching_rp_notes, mentoring_rp_notes, coaching_action_plan, mentoring_action_plan, classroom_visit_form, self_reflection_form.
 - [x] **ELCPB Y2 CLI rebuild** — `setup-elcpb-y2-v2` with correct 8 pathways, new component types, prerequisites, demo coach (Lauren Orf).
-- [~] **Integration testing** — Pending Session 5 deployment and verification.
+- [x] **Integration testing** — Deployed to test server 2026-03-23. DB tables, ENUM types, 8 pathways, 6 instruments, demo coach all verified. Fixed ENUM schema definition in get_schema() to include 3 new types (prevents dbDelta regression). Manual browser testing pending (Tasks 5.3-5.5).
 
 ### Phase 33: Individual Enrollments (B2E Master Reference)
 - [ ] **33.1 — DB: `hl_individual_enrollment` table** — Create table with user_id, course_id, enrolled_at, expires_at, status, enrolled_by, notes.
