@@ -490,6 +490,22 @@ class HL_Frontend_Program_Page {
             return $this->get_coaching_action_html($enrollment);
         }
 
+        // New event component types: link to Component Page.
+        if (in_array($type, array('reflective_practice_session', 'classroom_visit', 'self_reflection'), true)) {
+            $component_page_url = $this->get_component_page_url($component->component_id, $enrollment->enrollment_id);
+            if (!empty($component_page_url)) {
+                $labels = array(
+                    'reflective_practice_session' => __('Open Session', 'hl-core'),
+                    'classroom_visit'             => __('Start Visit', 'hl-core'),
+                    'self_reflection'             => __('Start Reflection', 'hl-core'),
+                );
+                $label = $labels[$type];
+                return '<a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
+                    . esc_html($label) . '</a>';
+            }
+            return '';
+        }
+
         return '';
     }
 
@@ -635,6 +651,14 @@ class HL_Frontend_Program_Page {
                 $ca_url = add_query_arg('component_id', $component->component_id, $ca_url);
                 return '<a href="' . esc_url($ca_url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
                     . esc_html__('View Responses', 'hl-core') . '</a>';
+            }
+        }
+
+        if (in_array($type, array('reflective_practice_session', 'classroom_visit', 'self_reflection'), true)) {
+            $component_page_url = $this->get_component_page_url($component->component_id, $enrollment->enrollment_id);
+            if (!empty($component_page_url)) {
+                return '<a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
+                    . esc_html__('View Submission', 'hl-core') . '</a>';
             }
         }
 
