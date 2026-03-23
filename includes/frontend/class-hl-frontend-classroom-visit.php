@@ -284,11 +284,37 @@ class HL_Frontend_Classroom_Visit {
      */
     public static function render_visit_form_sections($sections, $responses, $is_readonly, $prefix) {
         foreach ($sections as $section) {
-            if ($section['key'] === 'context') {
+            $type = isset($section['type']) ? $section['type'] : '';
+            $key  = isset($section['key']) ? $section['key'] : '';
+            $stitle = isset($section['title']) ? strtolower($section['title']) : '';
+
+            // Context section (checkboxes)
+            if ($key === 'context' || $type === 'checkboxes' || $stitle === 'context') {
                 self::render_context_section($section, $responses, $is_readonly, $prefix);
-            } elseif (isset($section['type']) && $section['type'] === 'indicator_checklist') {
-                self::render_indicator_section($section, $responses, $is_readonly, $prefix);
             }
+            // Domain indicators section
+            elseif ($type === 'indicator_checklist' || $type === 'domain_indicators') {
+                self::render_domain_indicators_section($section, $responses, $is_readonly, $prefix);
+            }
+        }
+    }
+
+    /**
+     * Render domain/indicator sections from the domain_indicators JSON format.
+     * JSON shape: { title, type: "domain_indicators", domains: [{ name, skills: [...] }] }
+     */
+    private static function render_domain_indicators_section($section, $responses, $is_readonly, $prefix) {
+        $domains = isset($section['domains']) ? $section['domains'] : array();
+        foreach ($domains as $d_idx => $domain) {
+            $domain_key  = 'domain_' . $d_idx;
+            $domain_name = isset($domain['name']) ? $domain['name'] : '';
+            $indicators  = isset($domain['skills']) ? $domain['skills'] : array();
+            $fake_section = array(
+                'key'        => $domain_key,
+                'title'      => $domain_name,
+                'indicators' => $indicators,
+            );
+            self::render_indicator_section($fake_section, $responses, $is_readonly, $prefix);
         }
     }
 
@@ -300,10 +326,19 @@ class HL_Frontend_Classroom_Visit {
             ? $responses['context_activities']
             : array();
 
+        // Support both formats: flat "options" array or nested "fields" with key
         $options = array();
-        foreach ($section['fields'] as $field) {
-            if ($field['key'] === 'context_activities' && !empty($field['options'])) {
-                $options = $field['options'];
+        if (!empty($section['options']) && is_array($section['options'])) {
+            // Flat format: ["Free Play", "Formal Group Activities", ...]
+            foreach ($section['options'] as $opt) {
+                $key = sanitize_title($opt);
+                $options[$key] = $opt;
+            }
+        } elseif (!empty($section['fields'])) {
+            foreach ($section['fields'] as $field) {
+                if (isset($field['key']) && $field['key'] === 'context_activities' && !empty($field['options'])) {
+                    $options = $field['options'];
+                }
             }
         }
 
