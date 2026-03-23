@@ -50,6 +50,11 @@ class HL_Admin_Coaching {
             return;
         }
 
+        if ($tab === 'coaches') {
+            $this->handle_coaches_actions();
+            return;
+        }
+
         $this->handle_post_actions();
 
         if (isset($_GET['action']) && $_GET['action'] === 'delete') {
@@ -68,6 +73,8 @@ class HL_Admin_Coaching {
 
         if ($tab === 'assignments') {
             HL_Admin_Coach_Assignments::instance()->render_page_content();
+        } elseif ($tab === 'coaches') {
+            $this->render_coaches_content();
         } else {
             $this->render_sessions_content();
         }
@@ -84,6 +91,7 @@ class HL_Admin_Coaching {
         $tabs = array(
             'sessions'    => __('Sessions', 'hl-core'),
             'assignments' => __('Assignments', 'hl-core'),
+            'coaches'     => __('Coaches', 'hl-core'),
         );
         $base_url = admin_url('admin.php?page=hl-coaching');
 
@@ -1027,5 +1035,131 @@ class HL_Admin_Coaching {
         })(typeof jQuery !== 'undefined' ? jQuery : undefined);
         </script>
         <?php
+    }
+
+    // =========================================================================
+    // Coaches Tab
+    // =========================================================================
+
+    /**
+     * Handle POST/GET actions for the Coaches tab (redirect-before-output).
+     */
+    private function handle_coaches_actions() {
+        // Add coach
+        if (isset($_POST['hl_add_coach']) && wp_verify_nonce($_POST['_wpnonce'], 'hl_add_coach')) {
+            if (!current_user_can('manage_hl_core')) {
+                wp_die(__('You do not have permission to perform this action.', 'hl-core'));
+            }
+
+            $email = sanitize_email($_POST['coach_email'] ?? '');
+            $name  = sanitize_text_field($_POST['coach_name'] ?? '');
+
+            if ($email) {
+                $existing = get_user_by('email', $email);
+                if ($existing) {
+                    $existing->add_role('coach');
+                } else {
+                    $user_id = wp_insert_user(array(
+                        'user_login'   => $email,
+                        'user_email'   => $email,
+                        'display_name' => $name ? $name : $email,
+                        'role'         => 'coach',
+                        'user_pass'    => wp_generate_password(),
+                    ));
+                    if (!is_wp_error($user_id)) {
+                        wp_new_user_notification($user_id, null, 'user');
+                    }
+                }
+            }
+
+            wp_redirect(admin_url('admin.php?page=hl-coaching&tab=coaches&message=coach_added'));
+            exit;
+        }
+
+        // Remove coach role
+        if (isset($_GET['action']) && $_GET['action'] === 'remove_coach' && isset($_GET['user_id'])) {
+            if (!wp_verify_nonce($_GET['_wpnonce'] ?? '', 'hl_remove_coach')) {
+                wp_die(__('Security check failed.', 'hl-core'));
+            }
+            if (!current_user_can('manage_hl_core')) {
+                wp_die(__('You do not have permission to perform this action.', 'hl-core'));
+            }
+
+            $user = get_user_by('id', absint($_GET['user_id']));
+            if ($user) {
+                $user->remove_role('coach');
+            }
+
+            wp_redirect(admin_url('admin.php?page=hl-coaching&tab=coaches&message=coach_removed'));
+            exit;
+        }
+    }
+
+    /**
+     * Render the Coaches tab content: list + add form.
+     */
+    private function render_coaches_content() {
+        $this->render_coaches_messages();
+
+        $coaches = get_users(array('role' => 'coach'));
+
+        echo '<h2>' . esc_html__('Coaches', 'hl-core') . '</h2>';
+
+        // --- Coaches table ---
+        echo '<table class="wp-list-table widefat fixed striped">';
+        echo '<thead><tr>';
+        echo '<th>' . esc_html__('Name', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Email', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
+        echo '</tr></thead>';
+        echo '<tbody>';
+
+        if (empty($coaches)) {
+            echo '<tr><td colspan="3">' . esc_html__('No coaches found.', 'hl-core') . '</td></tr>';
+        } else {
+            foreach ($coaches as $coach) {
+                $remove_url = wp_nonce_url(
+                    admin_url('admin.php?page=hl-coaching&tab=coaches&action=remove_coach&user_id=' . $coach->ID),
+                    'hl_remove_coach'
+                );
+                echo '<tr>';
+                echo '<td>' . esc_html($coach->display_name) . '</td>';
+                echo '<td>' . esc_html($coach->user_email) . '</td>';
+                echo '<td><a href="' . esc_url($remove_url) . '" class="button button-small" onclick="return confirm(\'' . esc_js(__('Remove Coach role from this user?', 'hl-core')) . '\')">' . esc_html__('Remove Coach', 'hl-core') . '</a></td>';
+                echo '</tr>';
+            }
+        }
+
+        echo '</tbody></table>';
+
+        // --- Add Coach form ---
+        echo '<h3 style="margin-top:20px;">' . esc_html__('Add Coach', 'hl-core') . '</h3>';
+        echo '<form method="post">';
+        wp_nonce_field('hl_add_coach');
+        echo '<table class="form-table">';
+        echo '<tr>';
+        echo '<th scope="row"><label for="coach_name">' . esc_html__('Name', 'hl-core') . '</label></th>';
+        echo '<td><input type="text" id="coach_name" name="coach_name" class="regular-text" /></td>';
+        echo '</tr>';
+        echo '<tr>';
+        echo '<th scope="row"><label for="coach_email">' . esc_html__('Email', 'hl-core') . '</label></th>';
+        echo '<td><input type="email" id="coach_email" name="coach_email" class="regular-text" required /></td>';
+        echo '</tr>';
+        echo '</table>';
+        echo '<p class="submit"><input type="submit" name="hl_add_coach" class="button button-primary" value="' . esc_attr__('Add Coach', 'hl-core') . '" /></p>';
+        echo '</form>';
+        echo '<p class="description">' . esc_html__('If the email matches an existing user, the Coach role will be added. Otherwise a new user will be created and notified.', 'hl-core') . '</p>';
+    }
+
+    /**
+     * Render success/error messages for the Coaches tab.
+     */
+    private function render_coaches_messages() {
+        $message = isset($_GET['message']) ? sanitize_text_field($_GET['message']) : '';
+        if ($message === 'coach_added') {
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Coach added successfully.', 'hl-core') . '</p></div>';
+        } elseif ($message === 'coach_removed') {
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Coach role removed.', 'hl-core') . '</p></div>';
+        }
     }
 }
