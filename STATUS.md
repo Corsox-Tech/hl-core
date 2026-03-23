@@ -17,6 +17,17 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Short courses migration** — 3 course-type Cycles (SC-EEW, SC-RP, SC-MMST), each with 1 pathway + 1 component, enrollment discovery from LD activity, completion import. CLI: `wp hl-core setup-short-courses`.
 - [x] **Frontend: Resource card for syllabus_url** — Enhanced rendering on Program Page: styled card with accent border instead of plain link. Generic for any pathway with syllabus_url.
 
+### Cross-Pathway Events, Forms & Coaching (Active — March 2026)
+- [x] **DB: 5 new tables** — `hl_rp_session`, `hl_rp_session_submission`, `hl_classroom_visit`, `hl_classroom_visit_submission`, `hl_coaching_session_submission`. ENUM migration adds 3 component types.
+- [x] **3 new services** — `HL_RP_Session_Service`, `HL_Classroom_Visit_Service`, `HL_Session_Prep_Service` + coaching service enhancements for form submissions.
+- [x] **5 new frontend renderers** — RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session page controller with role-based views.
+- [x] **Component Page dispatchers** — 3 new component type branches (`self_reflection`, `reflective_practice_session`, `classroom_visit`).
+- [x] **Coaching Hub enhancements** — Coaches tab (admin), coaches grid + calendar view (frontend), calendar widget on My Coaching.
+- [x] **Cycle Editor subtabs** — RP Sessions + Classroom Visits subtabs in Coaching tab.
+- [x] **6 instruments seeded** — coaching_rp_notes, mentoring_rp_notes, coaching_action_plan, mentoring_action_plan, classroom_visit_form, self_reflection_form.
+- [x] **ELCPB Y2 CLI rebuild** — `setup-elcpb-y2-v2` with correct 8 pathways, new component types, prerequisites, demo coach (Lauren Orf).
+- [~] **Integration testing** — Pending Session 5 deployment and verification.
+
 ### Phase 33: Individual Enrollments (B2E Master Reference)
 - [ ] **33.1 — DB: `hl_individual_enrollment` table** — Create table with user_id, course_id, enrolled_at, expires_at, status, enrolled_by, notes.
 - [ ] **33.2 — Individual Enrollment Service** — CRUD, expiration checks, LearnDash progress queries.
