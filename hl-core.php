@@ -113,6 +113,9 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scope-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-pathway-assignment-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-child-snapshot-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-rp-session-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-classroom-visit-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-session-prep-service.php';
         
         // Integrations
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-learndash-integration.php';
@@ -172,6 +175,11 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-my-team.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-dashboard.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-docs.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-rp-session.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-classroom-visit.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-self-reflection.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-action-plan.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-rp-notes.php';
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';
@@ -190,6 +198,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-elcpb-y2.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-short-courses.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-ea.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-elcpb-y2-v2.php';
         }
     }
     
@@ -261,6 +270,7 @@ class HL_Core {
             HL_CLI_Setup_ELCPB_Y2::register();
             HL_CLI_Setup_Short_Courses::register();
             HL_CLI_Setup_EA::register();
+            HL_CLI_Setup_ELCPB_Y2_V2::register();
         }
 
         do_action('hl_core_init');
