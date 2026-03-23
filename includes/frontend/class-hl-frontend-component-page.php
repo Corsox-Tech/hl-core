@@ -41,8 +41,11 @@ class HL_Frontend_Component_Page {
         'learndash_course'             => 'Course',
         'teacher_self_assessment'      => 'Self-Assessment',
         'child_assessment'          => 'Child Assessment',
-        'coaching_session_attendance'  => 'Coaching Session',
-        'observation'                  => 'Observation',
+        'coaching_session_attendance'      => 'Coaching Session',
+        'observation'                      => 'Observation',
+        'reflective_practice_session'      => 'Reflective Practice Session',
+        'classroom_visit'                  => 'Classroom Visit',
+        'self_reflection'                  => 'Self-Reflection',
     );
 
     public function __construct() {
@@ -252,6 +255,27 @@ class HL_Frontend_Component_Page {
         // Coaching session attendance.
         if ($type === 'coaching_session_attendance') {
             echo '<div class="hl-notice hl-notice-info">' . esc_html__('This component is managed by your coach. Attendance will be recorded during your coaching session.', 'hl-core') . '</div>';
+            return;
+        }
+
+        // Reflective Practice Session.
+        if ($type === 'reflective_practice_session') {
+            $renderer = new HL_Frontend_RP_Session();
+            echo $renderer->render($component, $enrollment, (int) $enrollment->cycle_id);
+            return;
+        }
+
+        // Classroom Visit.
+        if ($type === 'classroom_visit') {
+            $renderer = new HL_Frontend_Classroom_Visit();
+            echo $renderer->render($component, $enrollment, (int) $enrollment->cycle_id);
+            return;
+        }
+
+        // Self-Reflection.
+        if ($type === 'self_reflection') {
+            $renderer = new HL_Frontend_Self_Reflection();
+            echo $renderer->render($component, $enrollment, (int) $enrollment->cycle_id);
             return;
         }
 
