@@ -92,6 +92,47 @@ class HL_Frontend_My_Coaching {
             <h3><?php esc_html_e('Schedule New Session', 'hl-core'); ?></h3>
             <?php $this->render_schedule_form($enrollment_id, $cycle_id, $coach); ?>
         </div>
+
+        <style>
+        .hl-calendar-picker { margin-bottom: 12px; }
+        .hl-calendar-header { margin-bottom: 8px; font-weight: 600; }
+        .hl-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .hl-calendar-dow { padding: 4px; text-align: center; font-weight: 600; font-size: 12px; color: #666; }
+        .hl-calendar-day { padding: 8px; text-align: center; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        .hl-calendar-day:hover { background: #e8f4fd; }
+        .hl-calendar-day.selected { background: #0073aa; color: #fff; }
+        .hl-calendar-day.hl-calendar-today { font-weight: 700; border: 1px solid #0073aa; }
+        .hl-calendar-day.hl-calendar-empty { cursor: default; }
+        .hl-inline-action-plan { margin-top: 12px; padding: 12px 16px; background: #f8f9fa; border-left: 3px solid #0073aa; border-radius: 4px; }
+        .hl-inline-action-plan h4 { margin: 0 0 8px; font-size: 14px; }
+        .hl-action-plan-field { margin-bottom: 4px; font-size: 13px; }
+        .hl-action-plan-label { font-weight: 600; }
+        .hl-action-plan-date { margin-top: 8px; font-size: 12px; }
+        </style>
+
+        <script>
+        function hlSelectDate(el) {
+            document.querySelectorAll('.hl-calendar-day.selected').forEach(function(d) { d.classList.remove('selected'); });
+            el.classList.add('selected');
+            document.getElementById('hl-selected-date').value = el.getAttribute('data-date');
+        }
+        (function() {
+            var form = document.querySelector('.hl-schedule-form form');
+            if (form) {
+                form.addEventListener('submit', function() {
+                    var dateVal = document.getElementById('hl-selected-date').value || '';
+                    var timeEl = document.getElementById('hl-session-time');
+                    var timeVal = timeEl ? timeEl.value : '';
+                    var dtField = document.getElementById('hl-session-datetime');
+                    if (dtField && dateVal && timeVal) {
+                        dtField.value = dateVal + ' ' + timeVal + ':00';
+                    } else if (dtField && dateVal) {
+                        dtField.value = dateVal + ' 00:00:00';
+                    }
+                });
+            }
+        })();
+        </script>
         <?php
 
         return ob_get_clean();
@@ -382,6 +423,8 @@ class HL_Frontend_My_Coaching {
             return;
         }
 
+        $coaching_service = new HL_Coaching_Service();
+
         echo '<div class="hl-sessions-list">';
 
         foreach ($sessions as $session) {
@@ -405,7 +448,55 @@ class HL_Frontend_My_Coaching {
             }
             echo '</div>';
 
+            // Inline Action Plan for attended sessions.
+            $status = $session['session_status'] ?? '';
+            if ( $status === 'attended' ) {
+                $session_id = isset( $session['session_id'] ) ? (int) $session['session_id'] : ( isset( $session['coaching_session_id'] ) ? (int) $session['coaching_session_id'] : 0 );
+                if ( $session_id ) {
+                    $submissions = $coaching_service->get_submissions( $session_id );
+                    if ( ! empty( $submissions ) ) {
+                        foreach ( $submissions as $sub ) {
+                            if ( $sub['role_in_session'] === 'supervisee' && ! empty( $sub['responses_json'] ) ) {
+                                $this->render_inline_action_plan( $sub );
+                            }
+                        }
+                    }
+                }
+            }
+
             echo '</div>'; // session card
+        }
+
+        echo '</div>';
+    }
+
+    /**
+     * Render an inline read-only action plan from a submission.
+     */
+    private function render_inline_action_plan( $submission ) {
+        $responses = json_decode( $submission['responses_json'], true );
+        if ( empty( $responses ) || ! is_array( $responses ) ) {
+            return;
+        }
+
+        echo '<div class="hl-inline-action-plan">';
+        echo '<h4>' . esc_html__( 'Action Plan', 'hl-core' ) . '</h4>';
+
+        foreach ( $responses as $key => $value ) {
+            if ( is_array( $value ) ) {
+                continue;
+            }
+            $label = ucwords( str_replace( '_', ' ', $key ) );
+            echo '<div class="hl-action-plan-field">';
+            echo '<span class="hl-action-plan-label">' . esc_html( $label ) . ':</span> ';
+            echo '<span class="hl-action-plan-value">' . esc_html( $value ) . '</span>';
+            echo '</div>';
+        }
+
+        if ( ! empty( $submission['submitted_at'] ) ) {
+            echo '<p class="hl-text-muted hl-action-plan-date">'
+                . esc_html( sprintf( __( 'Submitted %s', 'hl-core' ), date_i18n( get_option( 'date_format' ), strtotime( $submission['submitted_at'] ) ) ) )
+                . '</p>';
         }
 
         echo '</div>';
@@ -427,11 +518,20 @@ class HL_Frontend_My_Coaching {
         echo '<input type="text" id="hl-session-title" name="session_title" value="' . esc_attr($suggested_title) . '" class="hl-input" />';
         echo '</div>';
 
-        // Date/Time.
+        // Date picker: calendar widget + time input.
         echo '<div class="hl-form-group">';
-        echo '<label for="hl-session-datetime" class="hl-label">' . esc_html__('Date and Time', 'hl-core') . '</label>';
-        echo '<input type="datetime-local" id="hl-session-datetime" name="session_datetime" required class="hl-input" />';
+        echo '<label class="hl-label">' . esc_html__('Date', 'hl-core') . '</label>';
+        $this->render_calendar_picker();
         echo '</div>';
+
+        // Time.
+        echo '<div class="hl-form-group">';
+        echo '<label for="hl-session-time" class="hl-label">' . esc_html__('Time', 'hl-core') . '</label>';
+        echo '<input type="time" id="hl-session-time" name="session_time" required class="hl-input" />';
+        echo '</div>';
+
+        // Hidden field that combines date + time for submission.
+        echo '<input type="hidden" id="hl-session-datetime" name="session_datetime" />';
 
         // Meeting URL.
         echo '<div class="hl-form-group">';
@@ -445,6 +545,54 @@ class HL_Frontend_My_Coaching {
 
         echo '</form>';
         echo '</div>';
+    }
+
+    /**
+     * Render a simple month calendar date picker.
+     */
+    private function render_calendar_picker( $selected_date = '' ) {
+        $month = $selected_date ? (int) date( 'n', strtotime( $selected_date ) ) : (int) date( 'n' );
+        $year  = $selected_date ? (int) date( 'Y', strtotime( $selected_date ) ) : (int) date( 'Y' );
+        $days_in_month = (int) date( 't', mktime( 0, 0, 0, $month, 1, $year ) );
+        $first_day     = (int) date( 'w', mktime( 0, 0, 0, $month, 1, $year ) );
+        $today         = date( 'Y-m-d' );
+
+        ?>
+        <div class="hl-calendar-picker" data-month="<?php echo $month; ?>" data-year="<?php echo $year; ?>">
+            <div class="hl-calendar-header">
+                <span class="hl-calendar-title"><?php echo esc_html( date( 'F Y', mktime( 0, 0, 0, $month, 1, $year ) ) ); ?></span>
+            </div>
+            <div class="hl-calendar-grid">
+                <div class="hl-calendar-dow">Sun</div>
+                <div class="hl-calendar-dow">Mon</div>
+                <div class="hl-calendar-dow">Tue</div>
+                <div class="hl-calendar-dow">Wed</div>
+                <div class="hl-calendar-dow">Thu</div>
+                <div class="hl-calendar-dow">Fri</div>
+                <div class="hl-calendar-dow">Sat</div>
+                <?php for ( $i = 0; $i < $first_day; $i++ ) : ?>
+                    <div class="hl-calendar-day hl-calendar-empty"></div>
+                <?php endfor; ?>
+                <?php for ( $d = 1; $d <= $days_in_month; $d++ ) :
+                    $date_val = sprintf( '%04d-%02d-%02d', $year, $month, $d );
+                    $classes  = 'hl-calendar-day';
+                    if ( $date_val === $today ) {
+                        $classes .= ' hl-calendar-today';
+                    }
+                    if ( $date_val === $selected_date ) {
+                        $classes .= ' selected';
+                    }
+                ?>
+                    <div class="<?php echo esc_attr( $classes ); ?>"
+                         data-date="<?php echo esc_attr( $date_val ); ?>"
+                         onclick="hlSelectDate(this)">
+                        <?php echo $d; ?>
+                    </div>
+                <?php endfor; ?>
+            </div>
+            <input type="hidden" name="session_date" id="hl-selected-date" value="<?php echo esc_attr( $selected_date ); ?>">
+        </div>
+        <?php
     }
 
     /**
