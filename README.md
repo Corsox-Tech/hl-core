@@ -3,7 +3,7 @@
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, LearnDash
 **Status:** v1 complete — Phases 1-32 + 35 done. **Deployed to production** (March 2026). Cross-pathway events, forms & coaching enhancements complete (5 new DB tables, 3 new component types, 3 new services, 6 instruments, 5 form renderers). Architecture expansion in progress: Individual Enrollments (hl_individual_enrollment), Program Progress Matrix report — see B2E_MASTER_REFERENCE.md and Build Queue Phases 33-34.
-(28 shortcode pages incl. dashboard + documentation, 12 admin pages, 44 DB tables, 20 services, Cycle entity (hl_cycle) with cycle_type (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, **Coaching Hub** with Sessions+Assignments+Coaches tabs, **Settings hub** with Imports+Audit Log+Doc Articles tabs, **Assessment Hub** with vertical sidebar nav (Teacher/Child Assessments + Child/Teacher Instruments), **Admin CSS design system** with modern card layout + status badges + design tokens, **BuddyBoss login fix** suppressing bpnoaccess error/shake, **Cross-pathway events** with 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session controller) + 3 new component types + 6 instruments)
+(28 shortcode pages incl. dashboard + documentation, 12 admin pages, 43 DB tables, 20 services, Cycle entity (hl_cycle) with cycle_type (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, **Coaching Hub** with Sessions+Assignments+Coaches tabs, **Settings hub** with Imports+Audit Log+Doc Articles tabs, **Assessment Hub** with vertical sidebar nav (Teacher/Child Assessments + Child/Teacher Instruments), **Admin CSS design system** with modern card layout + status badges + design tokens, **BuddyBoss login fix** suppressing bpnoaccess error/shake, **Cross-pathway events** with 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session controller) + 3 new component types + 6 instruments)
 
 ## Overview
 
@@ -11,19 +11,19 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 
 ## What's Implemented
 
-### Database Schema (44 custom tables + 1 planned)
+### Database Schema (43 custom tables + 1 planned)
 - **Org & Partnership/Cycle:** `hl_orgunit`, `hl_cycle` (with `is_control_group` flag + `cycle_type` column: program/course), `hl_cycle_school`, `hl_partnership` (program-level container)
 - **Individual Enrollments (PLANNED):** `hl_individual_enrollment` (user_id, course_id, enrolled_at, expires_at, status) — for standalone course purchases
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
-- **Classrooms:** `hl_classroom`, `hl_teaching_assignment`, `hl_child`, `hl_child_classroom_current`, `hl_child_classroom_history`
+- **Classrooms:** `hl_classroom`, `hl_teaching_assignment`, `hl_child`, `hl_child_classroom_current`, `hl_child_classroom_history`, `hl_child_cycle_snapshot` (child age group freeze per cycle)
 - **Learning Config:** `hl_pathway`, `hl_pathway_assignment`, `hl_component`, `hl_component_prereq_group`, `hl_component_prereq_item`, `hl_component_drip_rule`, `hl_component_override`
 - **State/Rollups:** `hl_component_state`, `hl_completion_rollup`
 - **Instruments:** `hl_instrument` (child assessment instruments with `instructions` + `behavior_key` + `styles_json` columns for admin-customizable content and display styles), `hl_teacher_assessment_instrument` (custom teacher self-assessment instruments with structured sections JSON + `instructions` + `styles_json` columns for per-instrument rich text instructions and admin-customizable display styles)
 - **Assessments:** `hl_teacher_assessment_instance` (completion tracking + responses_json for custom instruments), `hl_teacher_assessment_response` (DEPRECATED), `hl_child_assessment_instance`, `hl_child_assessment_childrow`
 - **Observations:** `hl_observation`, `hl_observation_response` (DEPRECATED), `hl_observation_attachment`
-- **Coaching:** `hl_coaching_session`, `hl_coaching_session_observation`, `hl_coaching_attachment`, `hl_coaching_session_submission`
+- **Coaching:** `hl_coaching_session`, `hl_coaching_session_observation`, `hl_coaching_attachment`, `hl_coaching_session_submission`, `hl_coach_assignment` (coach scope assignments)
 - **Cross-Pathway Events:** `hl_rp_session`, `hl_rp_session_submission`, `hl_classroom_visit`, `hl_classroom_visit_submission`
-- **System:** `hl_import_run`, `hl_audit_log`
+- **System:** `hl_import_run`, `hl_audit_log`, `hl_cycle_email_log` (cycle email tracking)
 
 ### Domain Models & Repositories
 All 10 core entities have domain model classes with proper properties and repository classes with full CRUD:
@@ -207,7 +207,7 @@ See `STATUS.md` for the current build queue and task tracking.
   /assets/
     /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css
     /js/                         # admin-import-wizard.js, admin-teacher-editor.js, frontend.js, frontend-docs.js
-  /docs/                         # AI library (11 spec documents + B2E_MASTER_REFERENCE.md + DOC_UPDATE_INSTRUCTIONS.md)
+  /docs/                         # AI library (11 spec documents + B2E_MASTER_REFERENCE.md)
 ```
 
 ## Key Design Decisions

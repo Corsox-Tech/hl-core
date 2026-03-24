@@ -20,7 +20,7 @@ description: Domain model, roles, coach assignment, partnerships, cycle types, s
 | 09_PLUGIN_ARCHITECTURE_CONSTRAINTS_ACCEPTANCE_TESTS.md | Architecture, constraints, acceptance criteria |
 | 10_FRONTEND_PAGES_NAVIGATION_UX.md | Front-end pages, sidebar navigation (§16), listing page specs (§17), coach assignment model (§13-15) |
 | B2E_MASTER_REFERENCE.md | **Authoritative** — Product catalog, revised architecture (Partnership, Cycle Types, Individual Enrollments), control group clarification |
-| DOC_UPDATE_INSTRUCTIONS.md | File-by-file instructions for updating all docs to match B2E Master Reference. **PENDING** — these updates have NOT been applied to docs 00-10 yet |
+| *(archived)* DOC_UPDATE_INSTRUCTIONS.md | Moved to `docs/archive/`. File-by-file instructions for updating docs to match B2E Master Reference. |
 
 ## Terminology (Post-Rename V3)
 
@@ -150,7 +150,7 @@ Cross-pathway events are activities that span multiple participants across a cyc
 |---|---|---|---|
 | **Reflective Practice Session** | `reflective_practice_session` | Mentor + Teacher | `hl_rp_session`, `hl_rp_session_submission` |
 | **Classroom Visit** | `classroom_visit` | Leader + Teacher | `hl_classroom_visit`, `hl_classroom_visit_submission` |
-| **Self-Reflection** | `self_reflection` | Teacher (solo) | Reuses `hl_rp_session_submission` |
+| **Self-Reflection** | `self_reflection` | Teacher (solo) | Reuses `hl_classroom_visit` / `hl_classroom_visit_submission` |
 
 A shared **`hl_coaching_session_submission`** table stores form responses for coaching sessions (Action Plan forms submitted during coaching).
 
@@ -258,7 +258,7 @@ Housman measures program impact by comparing:
     /Lutheran - Control Group/   # Lutheran spreadsheets (.xlsx)
   /docs/                         # Spec documents (11 files, read-only reference)
   /includes/
-    class-hl-installer.php       # DB schema (44 tables) + activation + migrations
+    class-hl-installer.php       # DB schema (43 tables) + activation + migrations
     /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (9 classes)
     /cli/                        # WP-CLI commands (13 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses) + data files
