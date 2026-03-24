@@ -1,0 +1,39 @@
+name: Deploy to Test Server
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create tarball
+        run: |
+          tar --exclude='.git' --exclude='data' --exclude='vendor' --exclude='node_modules' \
+            -czf /tmp/hl-core.tar.gz -C . .
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.TEST_SSH_KEY }}" > ~/.ssh/key.pem
+          chmod 600 ~/.ssh/key.pem
+          ssh-keyscan -H 44.221.6.201 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Upload and extract
+        run: |
+          scp -i ~/.ssh/key.pem /tmp/hl-core.tar.gz bitnami@44.221.6.201:/tmp/hl-core.tar.gz
+          ssh -i ~/.ssh/key.pem bitnami@44.221.6.201 '
+            cd /opt/bitnami/wordpress/wp-content/plugins &&
+            sudo rm -rf hl-core &&
+            sudo mkdir hl-core &&
+            sudo tar -xzf /tmp/hl-core.tar.gz -C hl-core &&
+            sudo chown -R bitnami:daemon hl-core &&
+            rm /tmp/hl-core.tar.gz
+          '
+
+      - name: Verify
+        run: |
+          ssh -i ~/.ssh/key.pem bitnami@44.221.6.201 'export PATH=/opt/bitnami/php/bin:$PATH && wp --path=/opt/bitnami/wordpress plugin status hl-core'
