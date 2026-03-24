@@ -6,6 +6,8 @@ Timezone: America/Bogota
 
 ---
 
+> **Note:** This file was originally named for Cohorts/Activities (pre-V3 terms). Content uses current terminology: Partnership/Cycle, Component/Component Type.
+
 # 0) Purpose
 
 This document specifies how HL Core represents and configures:
@@ -80,21 +82,20 @@ Component has:
 - component_id (internal)
 - cycle_id
 - pathway_id
-- activity_type (enumeration; below)
+- component_type (enumeration; below)
 - title (display)
 - description (optional)
 - ordering_hint (optional; UI ordering only; does not define prerequisite logic)
-- completion_rule (depends on type)
 - visibility (who sees it; usually enrolled participants; some artifacts may be staff-only)
 - weight (integer or float; default=1; used for completion % aggregation)
 - external_ref (JSON; stores type-specific configuration — see each type below)
 
-Note: The DB column is `activity_type` and `activity_state` — these column names are retained for backward compatibility. The entity is called "Component" in code and UI.
+Note: The DB column is `component_type` and `component_state`.
 
 ## 3.2 Supported Component Types (v1)
 
 ### 3.2.1 LearnDash Course Component
-- activity_type = "learndash_course"
+- component_type = "learndash_course"
 - external_ref: `{"course_id": <LearnDash post ID>}`
 
 Completion:
@@ -107,7 +108,7 @@ Notes:
 ---
 
 ### 3.2.2 Teacher Self-Assessment Component (Custom PHP Instrument System)
-- activity_type = "teacher_self_assessment"
+- component_type = "teacher_self_assessment"
 - external_ref: `{"teacher_instrument_id": <HL instrument ID>, "phase": "pre"|"post"}`
 - Legacy fallback: `{"form_plugin": "jetformbuilder", "form_id": <JFB form ID>, "phase": "pre"|"post"}`
 
@@ -120,7 +121,7 @@ Rendered by HL Core's custom `HL_Teacher_Assessment_Renderer` using structured i
 
 Admin workflow:
 1. Admin creates/edits the instrument in HL Core's Instruments admin page (visual editor for sections, items, scales, instructions, display styles)
-2. Admin creates a Component in the Pathway, selects activity_type = "teacher_self_assessment", picks the instrument, and selects phase (pre or post)
+2. Admin creates a Component in the Pathway, selects component_type = "teacher_self_assessment", picks the instrument, and selects phase (pre or post)
 
 Completion:
 - 0% until instance.status = submitted
@@ -140,7 +141,7 @@ PRE and POST are separate components, each independent 0/100.
 ---
 
 ### 3.2.3 Child Assessment Component (Custom PHP — NOT JetFormBuilder)
-- activity_type = "child_assessment"
+- component_type = "child_assessment"
 - external_ref: `{"instrument_id": <HL instrument ID>}`
 
 This component type uses a custom PHP form because it is inherently dynamic: the form renders one row per child in the teacher's assigned classroom, using questions from the HL Core instrument definition.
@@ -164,7 +165,7 @@ See doc 06 for full details on instance generation rules and the child assessmen
 ---
 
 ### 3.2.4 Coaching Session Attendance Component
-- activity_type = "coaching_session_attendance"
+- component_type = "coaching_session_attendance"
 Completion:
 - 0% until a Coach marks attendance/complete for the required session(s)
 - 100% after completion
@@ -191,7 +192,7 @@ Two valid v1 approaches:
 - Mentor submits observation via JFB form; HL Core creates `hl_observation` record and listens for the JFB hook to mark it submitted
 
 **Approach B**: Model as a Component
-- activity_type = "observation"
+- component_type = "observation"
 - external_ref: `{"form_plugin": "jetformbuilder", "form_id": <JFB form ID>, "required_count": N}`
 - completion based on "N observations submitted"
 - visibility can be restricted to Mentors + Staff
