@@ -124,7 +124,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 22;
+        $current_revision = 23;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -1848,6 +1848,19 @@ class HL_Installer {
             UNIQUE KEY uq_session_role (session_id, role_in_session),
             KEY idx_session (session_id),
             KEY idx_user (submitted_by_user_id)
+        ) $charset_collate;";
+
+        // Coach availability (recurring weekly schedule).
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_coach_availability (
+            availability_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            coach_user_id bigint(20) unsigned NOT NULL,
+            day_of_week tinyint(1) unsigned NOT NULL COMMENT '0=Sun, 6=Sat',
+            start_time time NOT NULL,
+            end_time time NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (availability_id),
+            KEY coach_user_id (coach_user_id),
+            KEY coach_day (coach_user_id, day_of_week)
         ) $charset_collate;";
 
         return $tables;
