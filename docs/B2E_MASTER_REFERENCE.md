@@ -175,11 +175,33 @@ Cycle: "ELCPB B2E Mastery 2025-2027" (cycle_type: program)
   │     ├── Mentor Pathway    (TC0, TC1, MC1, TC2, TC3, MC2, TC4, TSA, CA, Coaching)
   │     └── Leader Pathway    (TC0, TC1(S), MC1(S), TC2(S), TC3(S), MC2(S), TC4(S), TSA, CA)
   │
-  └── Year 2 Pathways (named "Phase 2" in UI)
-        ├── Teacher Pathway   (TC5-TC8, TSA Pre/Post, CA Pre/Post)
-        ├── Mentor Pathway    (TC5, MC3, TC6, TC7, MC4, TC8, TSA, CA, Coaching)
-        └── Leader Pathway    (TC5(S), MC3(S), TC6(S), TC7(S), MC4(S), TC8(S), TSA, CA)
+  └── Year 2 Pathways (named "Phase 2" in UI) — 8 pathways
+        ├── Teacher Phase 1   (TSA Pre, CA Pre, TC0, TC1, SR#1, RP#1, TC2, SR#2, RP#2,
+        │                      TC3, SR#3, RP#3, TC4, SR#4, RP#4, CA Post, TSA Post)
+        ├── Teacher Phase 2   (TSA Pre, CA Pre, TC5, SR#1, RP#1, TC6, SR#2, RP#2,
+        │                      TC7, SR#3, RP#3, TC8, SR#4, RP#4, CA Post, TSA Post)
+        ├── Mentor Phase 1    (TSA Pre, CA Pre, TC0, TC1, CS#1, MC1, RP#1, TC2, CS#2,
+        │                      RP#2, TC3, CS#3, MC2, RP#3, TC4, CS#4, RP#4, CA Post, TSA Post)
+        ├── Mentor Phase 2    (TSA Pre, CA Pre, TC5, CS#1, MC3, RP#1, TC6, CS#2, RP#2,
+        │                      TC7, CS#3, MC4, RP#3, TC8, CS#4, RP#4, CA Post, TSA Post)
+        ├── Mentor Transition (TC0, TC1, CS#1, MC1, RP#1, TC2, CS#2, RP#2,
+        │                      TC3, CS#3, MC2, RP#3, TC4, CS#4, RP#4)
+        ├── Mentor Completion (MC3, MC4)
+        ├── Streamlined Ph 1  (TC0, TC1(S), MC1(S), CV#1, TC2(S), CV#2, TC3(S), CV#3,
+        │                      TC4(S), MC2(S), CV#4)
+        └── Streamlined Ph 2  (TC5(S), MC3(S), CV#1, TC6(S), CV#2, TC7(S), CV#3,
+                               TC8(S), MC4(S), CV#4)
+
+Legend: SR=Self-Reflection, RP=Reflective Practice Session, CS=Coaching Session,
+        CV=Classroom Visit, TSA=Teacher Self-Assessment, CA=Child Assessment
 ```
+
+**Key Y2 additions:**
+- **Self-Reflection (SR):** Teacher pathways include a self-reflection form after each course
+- **Reflective Practice Session (RP):** Structured mentor-teacher reflection sessions, interleaved with courses in Teacher, Mentor, and Transition pathways
+- **Classroom Visit (CV):** Leader/Streamlined pathways include classroom visits (leader observes teacher) instead of RP sessions
+- **Mentor Transition:** New pathway for mentors entering Year 2 who need to catch up on Phase 1 content
+- **Mentor Completion:** Minimal pathway for mentors who only need remaining mentor courses
 
 Key principles:
 - **Enrollment stays at Cycle level** (User ↔ Cycle, unique per user per cycle)
@@ -553,7 +575,7 @@ The README.md has a 31+ phase build queue that mixes completed work with future 
 - Team stays at Cycle level (can span years)
 - School/District/Classroom hierarchy — no change
 - Assessment system (TSA, Child Assessment) — no change
-- Coaching system — no change
+- Coaching system — enhanced with `hl_coaching_session_submission` for structured form responses (RP Notes, Action Plan)
 - Control group design — no change (just clarified)
 - Import system — no change
 - Security/Scope model — no change (scope still derives from Cycle enrollment)
@@ -587,7 +609,7 @@ A direct user-to-LearnDash-course association managed by HL Core for individual 
 A classification on `hl_cycle` distinguishing between full program Cycles (`program`) and simple single-course institutional Cycles (`course`). Course-type Cycles auto-generate a single Pathway + Component.
 
 **Component**
-An individual requirement within a Pathway. Stored in `hl_component` (was `hl_activity`). Each component has a type (LearnDash course, self-assessment, child assessment, coaching session, observation). The DB columns `activity_type` and `activity_state` are kept as-is.
+An individual requirement within a Pathway. Stored in `hl_component` (was `hl_activity`). Each component has a type: LearnDash course, self-assessment, child assessment, coaching session, observation, self-reflection, reflective practice session, or classroom visit. The DB column is `component_type` (ENUM with 8 values).
 
 ### Core Entity Definitions
 
