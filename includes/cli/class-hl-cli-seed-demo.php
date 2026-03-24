@@ -14,6 +14,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class HL_CLI_Seed_Demo {
 
+    /** Demo partnership code used to identify seeded data. */
+    const DEMO_PARTNERSHIP_CODE = 'DEMO-PARTNERSHIP';
+
     /** Demo cycle code used to identify seeded data. */
     const DEMO_CYCLE_CODE = 'DEMO-2026';
 
@@ -69,63 +72,67 @@ class HL_CLI_Seed_Demo {
         // Step 1: Org Structure
         list( $district_id, $school_a_id, $school_b_id ) = $this->seed_orgunits();
 
-        // Step 2: Cycle
-        $cycle_id = $this->seed_cycle( $district_id, $school_a_id, $school_b_id );
+        // Step 2: Partnership
+        $partnership_id = $this->seed_partnership();
 
-        // Step 3: Classrooms
+        // Step 3: Cycle (linked to Partnership)
+        $cycle_id = $this->seed_cycle( $district_id, $school_a_id, $school_b_id, $partnership_id );
+
+        // Step 4: Classrooms
         $classrooms = $this->seed_classrooms( $school_a_id, $school_b_id );
 
-        // Step 4: Instruments
+        // Step 5: Instruments
         $instruments = $this->seed_instruments();
 
-        // Step 5: WP Users
+        // Step 6: WP Users
         $users = $this->seed_users();
 
-        // Step 6: Enrollments
+        // Step 7: Enrollments
         $enrollments = $this->seed_enrollments( $users, $cycle_id, $school_a_id, $school_b_id, $district_id );
 
-        // Step 7: Teams
+        // Step 8: Teams
         $teams = $this->seed_teams( $cycle_id, $school_a_id, $school_b_id, $enrollments );
 
-        // Step 8: Teaching Assignments
+        // Step 9: Teaching Assignments
         $this->seed_teaching_assignments( $enrollments, $classrooms );
 
-        // Step 9: Children
+        // Step 10: Children
         $this->seed_children( $classrooms, $school_a_id, $school_b_id );
 
-        // Step 9b: Freeze child age groups for this cycle
+        // Step 10b: Freeze child age groups for this cycle
         $frozen = HL_Child_Snapshot_Service::freeze_age_groups( $cycle_id );
-        WP_CLI::log( "  [9b/17] Frozen age group snapshots: {$frozen}" );
+        WP_CLI::log( "  [10b/18] Frozen age group snapshots: {$frozen}" );
 
-        // Step 10: Pathways & Components
+        // Step 11: Pathways & Components
         $pathways = $this->seed_pathways( $cycle_id, $instruments );
 
-        // Step 11: Update Enrollment assigned_pathway_id
+        // Step 12: Update Enrollment assigned_pathway_id
         $this->assign_pathways( $enrollments, $pathways );
 
-        // Step 12: Prereq Rule
+        // Step 13: Prereq Rule
         $this->seed_prereq_rules( $pathways );
 
-        // Step 13: Drip Rule
+        // Step 14: Drip Rule
         $this->seed_drip_rules( $pathways );
 
-        // Step 14: Component States
+        // Step 15: Component States
         $this->seed_component_states( $enrollments, $pathways );
 
-        // Step 15: Completion Rollups
+        // Step 16: Completion Rollups
         $this->seed_rollups( $enrollments );
 
-        // Step 16: Coach Assignments
+        // Step 17: Coach Assignments
         $this->seed_coach_assignments( $cycle_id, $school_a_id, $school_b_id, $teams, $users );
 
-        // Step 17: Coaching Sessions
+        // Step 18: Coaching Sessions
         $this->seed_coaching_sessions( $cycle_id, $enrollments, $users );
 
         WP_CLI::line( '' );
         WP_CLI::success( 'Demo data seeded successfully!' );
         WP_CLI::line( '' );
         WP_CLI::line( 'Summary:' );
-        WP_CLI::line( "  Cycle:  {$cycle_id} (code: " . self::DEMO_CYCLE_CODE . ')' );
+        WP_CLI::line( "  Partnership:  {$partnership_id} (code: " . self::DEMO_PARTNERSHIP_CODE . ')' );
+        WP_CLI::line( "  Cycle:        {$cycle_id} (code: " . self::DEMO_CYCLE_CODE . ')' );
         WP_CLI::line( "  District:     {$district_id}" );
         WP_CLI::line( "  Schools:      {$school_a_id}, {$school_b_id}" );
         WP_CLI::line( '  Classrooms:   ' . count( $classrooms ) );
@@ -267,6 +274,15 @@ class HL_CLI_Seed_Demo {
             WP_CLI::log( "  Deleted cycle {$cycle_id} and all related records." );
         }
 
+        // Delete demo partnership.
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->prefix}hl_partnership WHERE partnership_code = %s",
+                self::DEMO_PARTNERSHIP_CODE
+            )
+        );
+        WP_CLI::log( '  Deleted demo partnership.' );
+
         // 2. Handle demo users — only delete those we CREATED; preserve pre-existing (tagged 'found').
         $demo_rows = $wpdb->get_results(
             "SELECT user_id, meta_value FROM {$wpdb->usermeta} WHERE meta_key = '" . self::DEMO_META_KEY . "'"
@@ -355,35 +371,61 @@ class HL_CLI_Seed_Demo {
             'parent_orgunit_id' => $district_id,
         ) );
 
-        WP_CLI::log( "  [1/17] Org units created: district={$district_id}, schools={$school_a_id},{$school_b_id}" );
+        WP_CLI::log( "  [1/18] Org units created: district={$district_id}, schools={$school_a_id},{$school_b_id}" );
 
         return array( $district_id, $school_a_id, $school_b_id );
     }
 
     // ------------------------------------------------------------------
-    // Step 2: Cycle
+    // Step 2: Partnership
+    // ------------------------------------------------------------------
+
+    /**
+     * Seed a Partnership container for the demo Cycle.
+     *
+     * @return int Partnership ID.
+     */
+    private function seed_partnership() {
+        $repo = new HL_Partnership_Repository();
+
+        $partnership_id = $repo->create( array(
+            'partnership_name' => 'Demo Partnership',
+            'partnership_code' => self::DEMO_PARTNERSHIP_CODE,
+            'description'      => 'Demo partnership created by seed-demo.',
+            'status'           => 'active',
+        ) );
+
+        WP_CLI::log( "  [2/18] Partnership created: id={$partnership_id}, code=" . self::DEMO_PARTNERSHIP_CODE );
+
+        return $partnership_id;
+    }
+
+    // ------------------------------------------------------------------
+    // Step 3: Cycle
     // ------------------------------------------------------------------
 
     /**
      * Seed cycle and link to schools.
      *
-     * @param int $district_id  District orgunit ID.
-     * @param int $school_a_id  School A orgunit ID.
-     * @param int $school_b_id  School B orgunit ID.
+     * @param int $district_id    District orgunit ID.
+     * @param int $school_a_id    School A orgunit ID.
+     * @param int $school_b_id    School B orgunit ID.
+     * @param int $partnership_id Partnership ID.
      * @return int Cycle ID.
      */
-    private function seed_cycle( $district_id, $school_a_id, $school_b_id ) {
+    private function seed_cycle( $district_id, $school_a_id, $school_b_id, $partnership_id ) {
         global $wpdb;
 
         $repo = new HL_Cycle_Repository();
 
         $cycle_id = $repo->create( array(
-            'cycle_name' => 'Demo Cycle 2026',
-            'cycle_code' => self::DEMO_CYCLE_CODE,
-            'district_id' => $district_id,
-            'status'      => 'active',
-            'start_date'  => '2026-01-01',
-            'end_date'    => '2026-12-31',
+            'cycle_name'     => 'Demo Cycle 2026',
+            'cycle_code'     => self::DEMO_CYCLE_CODE,
+            'district_id'    => $district_id,
+            'partnership_id' => $partnership_id,
+            'status'         => 'active',
+            'start_date'     => '2026-01-01',
+            'end_date'       => '2026-12-31',
         ) );
 
         // Link cycle to both schools.
@@ -396,13 +438,13 @@ class HL_CLI_Seed_Demo {
             'school_id' => $school_b_id,
         ) );
 
-        WP_CLI::log( "  [2/17] Cycle created: id={$cycle_id}, code=" . self::DEMO_CYCLE_CODE );
+        WP_CLI::log( "  [3/18] Cycle created: id={$cycle_id}, code=" . self::DEMO_CYCLE_CODE );
 
         return $cycle_id;
     }
 
     // ------------------------------------------------------------------
-    // Step 3: Classrooms
+    // Step 4: Classrooms
     // ------------------------------------------------------------------
 
     /**
@@ -433,13 +475,13 @@ class HL_CLI_Seed_Demo {
             $classrooms[] = array_merge( $def, array( 'classroom_id' => $id ) );
         }
 
-        WP_CLI::log( '  [3/17] Classrooms created: ' . count( $classrooms ) );
+        WP_CLI::log( '  [4/18] Classrooms created: ' . count( $classrooms ) );
 
         return $classrooms;
     }
 
     // ------------------------------------------------------------------
-    // Step 4: Instruments
+    // Step 5: Instruments
     // ------------------------------------------------------------------
 
     /**
@@ -548,13 +590,13 @@ class HL_CLI_Seed_Demo {
             $instruments['teacher_b2e_post'] = $wpdb->insert_id;
         }
 
-        WP_CLI::log( '  [4/17] Instruments created: ' . count( $instruments ) );
+        WP_CLI::log( '  [5/18] Instruments created: ' . count( $instruments ) );
 
         return $instruments;
     }
 
     // ------------------------------------------------------------------
-    // Step 5: WP Users
+    // Step 6: WP Users
     // ------------------------------------------------------------------
 
     /**
@@ -603,7 +645,7 @@ class HL_CLI_Seed_Demo {
 
         $total = count( $users['teachers'] ) + count( $users['mentors'] )
                + count( $users['school_leaders'] ) + 2; // +district_leader +coach
-        WP_CLI::log( "  [5/17] WP users created: {$total}" );
+        WP_CLI::log( "  [6/18] WP users created: {$total}" );
 
         return $users;
     }
@@ -650,7 +692,7 @@ class HL_CLI_Seed_Demo {
     }
 
     // ------------------------------------------------------------------
-    // Step 6: Enrollments
+    // Step 7: Enrollments
     // ------------------------------------------------------------------
 
     /**
@@ -737,13 +779,13 @@ class HL_CLI_Seed_Demo {
         $enrollments['district_leader'] = array( 'enrollment_id' => $eid, 'user_id' => $uid );
         $enrollments['all'][]           = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'role' => 'district_leader' );
 
-        WP_CLI::log( '  [6/17] Enrollments created: ' . count( $enrollments['all'] ) );
+        WP_CLI::log( '  [7/18] Enrollments created: ' . count( $enrollments['all'] ) );
 
         return $enrollments;
     }
 
     // ------------------------------------------------------------------
-    // Step 7: Teams
+    // Step 8: Teams
     // ------------------------------------------------------------------
 
     /**
@@ -795,13 +837,13 @@ class HL_CLI_Seed_Demo {
         }
 
         $member_count = count( $enrollments['teachers_a'] ) + count( $enrollments['teachers_b'] ) + 2;
-        WP_CLI::log( "  [7/17] Teams created: 2 (with {$member_count} memberships)" );
+        WP_CLI::log( "  [8/18] Teams created: 2 (with {$member_count} memberships)" );
 
         return $team_ids;
     }
 
     // ------------------------------------------------------------------
-    // Step 8: Teaching Assignments
+    // Step 9: Teaching Assignments
     // ------------------------------------------------------------------
 
     /**
@@ -845,11 +887,11 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        WP_CLI::log( "  [8/17] Teaching assignments created: {$count}" );
+        WP_CLI::log( "  [9/18] Teaching assignments created: {$count}" );
     }
 
     // ------------------------------------------------------------------
-    // Step 9: Children
+    // Step 10: Children
     // ------------------------------------------------------------------
 
     /**
@@ -890,7 +932,7 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        WP_CLI::log( "  [9/17] Children created and assigned: {$total}" );
+        WP_CLI::log( "  [10/18] Children created and assigned: {$total}" );
     }
 
     /**
@@ -914,7 +956,7 @@ class HL_CLI_Seed_Demo {
     }
 
     // ------------------------------------------------------------------
-    // Step 10: Pathways & Components
+    // Step 11: Pathways & Components
     // ------------------------------------------------------------------
 
     /**
@@ -1043,7 +1085,7 @@ class HL_CLI_Seed_Demo {
 
         $t_comp_count = count( $teacher_components );
         $m_comp_count = count( $mentor_components );
-        WP_CLI::log( "  [10/17] Pathways created: 2 (teacher={$t_comp_count} components, mentor={$m_comp_count} components)" );
+        WP_CLI::log( "  [11/18] Pathways created: 2 (teacher={$t_comp_count} components, mentor={$m_comp_count} components)" );
 
         return array(
             'teacher_pathway_id'  => $tp_id,
@@ -1054,7 +1096,7 @@ class HL_CLI_Seed_Demo {
     }
 
     // ------------------------------------------------------------------
-    // Step 11: Assign Pathways to Enrollments
+    // Step 12: Assign Pathways to Enrollments
     // ------------------------------------------------------------------
 
     /**
@@ -1083,11 +1125,11 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        WP_CLI::log( "  [11/17] Pathway assignments updated: {$count}" );
+        WP_CLI::log( "  [12/18] Pathway assignments updated: {$count}" );
     }
 
     // ------------------------------------------------------------------
-    // Step 12: Prereq Rule
+    // Step 13: Prereq Rule
     // ------------------------------------------------------------------
 
     /**
@@ -1154,11 +1196,11 @@ class HL_CLI_Seed_Demo {
             'prerequisite_component_id' => $children,
         ) );
 
-        WP_CLI::log( '  [12/17] Prereq rules created: ALL_OF (Post Self <- Pre Self), ANY_OF (Children <- LD|Pre), N_OF_M (Coaching <- 2 of 3)' );
+        WP_CLI::log( '  [13/18] Prereq rules created: ALL_OF (Post Self <- Pre Self), ANY_OF (Children <- LD|Pre), N_OF_M (Coaching <- 2 of 3)' );
     }
 
     // ------------------------------------------------------------------
-    // Step 13: Drip Rule
+    // Step 14: Drip Rule
     // ------------------------------------------------------------------
 
     /**
@@ -1177,11 +1219,11 @@ class HL_CLI_Seed_Demo {
             'release_at_date' => gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) ),
         ) );
 
-        WP_CLI::log( '  [13/17] Drip rule created: Post Self-Assessment released 30 days ago' );
+        WP_CLI::log( '  [14/18] Drip rule created: Post Self-Assessment released 30 days ago' );
     }
 
     // ------------------------------------------------------------------
-    // Step 14: Component States (partial completion)
+    // Step 15: Component States (partial completion)
     // ------------------------------------------------------------------
 
     /**
@@ -1234,11 +1276,11 @@ class HL_CLI_Seed_Demo {
         $eid = $enrollments['mentors'][0]['enrollment_id'];
         $insert_state( $eid, $ma['ld_course'], 100, 'complete', $now );
 
-        WP_CLI::log( "  [14/17] Component states created: {$count}" );
+        WP_CLI::log( "  [15/18] Component states created: {$count}" );
     }
 
     // ------------------------------------------------------------------
-    // Step 15: Completion Rollups
+    // Step 16: Completion Rollups
     // ------------------------------------------------------------------
 
     /**
@@ -1260,11 +1302,11 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        WP_CLI::log( "  [15/17] Completion rollups computed: {$count}" . ( $errors ? " ({$errors} errors)" : '' ) );
+        WP_CLI::log( "  [16/18] Completion rollups computed: {$count}" . ( $errors ? " ({$errors} errors)" : '' ) );
     }
 
     // ------------------------------------------------------------------
-    // Step 16: Coach Assignments
+    // Step 17: Coach Assignments
     // ------------------------------------------------------------------
 
     /**
@@ -1324,11 +1366,11 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        WP_CLI::log( "  [16/17] Coach assignments created: {$count}" );
+        WP_CLI::log( "  [17/18] Coach assignments created: {$count}" );
     }
 
     // ------------------------------------------------------------------
-    // Step 17: Coaching Sessions
+    // Step 18: Coaching Sessions
     // ------------------------------------------------------------------
 
     /**
@@ -1446,7 +1488,7 @@ class HL_CLI_Seed_Demo {
             }
         }
 
-        WP_CLI::log( "  [17/17] Coaching sessions created: {$count}" );
+        WP_CLI::log( "  [18/18] Coaching sessions created: {$count}" );
     }
 
     // ==========================================================================
