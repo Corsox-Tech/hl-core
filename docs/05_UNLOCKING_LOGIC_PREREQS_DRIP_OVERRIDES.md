@@ -40,8 +40,7 @@ Note: Components belong to Pathways, which belong to Cycles. Availability is eva
 Availability is controlled by gates:
 1) Prerequisite Gate
 2) Drip Gate(s)
-3) Manual Lock Gate (optional)
-4) Override Gate(s)
+3) Override Gate(s)
 
 All gates must pass for "Available", unless an override explicitly bypasses certain gates.
 
@@ -162,16 +161,15 @@ For each Component, compute:
 
 ## 4.2 Gates (in order)
 1) If Component is completed → status = Completed (no need to unlock)
-2) If Manual Lock exists (optional) and not bypassed → status = Locked (reason=manual_lock)
-3) Evaluate Prereq Gate:
+2) Evaluate Prereq Gate:
    - if not satisfied → status = Locked (reason=prereq; blockers list)
-4) Evaluate Drip Gate(s):
+3) Evaluate Drip Gate(s):
    - if any drip rule not satisfied → status = Locked (reason=drip; next_available_at)
-5) If reached here → status = Available
+4) If reached here → status = Available
 
 ## 4.3 Output fields
 - availability_status ∈ { "locked", "available", "completed" }
-- locked_reason ∈ { "prereq", "drip", "manual_lock", null }
+- locked_reason ∈ { "prereq", "drip", null }
 - blockers (list of component_ids) when prereq locked
 - next_available_at (datetime optional) when drip locked and computable
 
@@ -291,7 +289,7 @@ Admin must be able to:
 Log events:
 - prerequisite rule created/updated/deleted
 - drip rule created/updated/deleted
-- component manually locked/unlocked
+- component manually unlocked
 - override applied (exempt/manual unlock/grace unlock)
 Each log entry includes:
 - actor_user_id
