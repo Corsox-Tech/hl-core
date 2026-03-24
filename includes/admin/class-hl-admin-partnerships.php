@@ -477,7 +477,7 @@ class HL_Admin_Partnerships {
             $partnership_id
         ), ARRAY_A);
 
-        $add_url = admin_url('admin.php?page=hl-cycles&action=add&partnership_id=' . $partnership_id);
+        $add_url = admin_url('admin.php?page=hl-cycles&action=new&partnership_id=' . $partnership_id);
         ?>
         <div class="hlp-card">
             <div class="hlp-card-header">
