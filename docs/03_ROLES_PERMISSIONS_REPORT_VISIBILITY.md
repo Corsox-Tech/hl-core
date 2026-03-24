@@ -109,58 +109,22 @@ Client leaders cannot:
 
 Use these canonical capability names in code and docs.
 
-## 4.1 Cycle & Configuration
-- cycle.view
-- cycle.create
-- cycle.edit
-- cycle.archive
-- cycle.manage_settings
-- pathway.manage
-- component.manage
-- unlock_rules.manage
-- overrides.apply
+## 4.1 WordPress Capabilities (Registered in Code)
 
-## 4.2 Org Structure (District/School/Classroom)
-- orgunit.view
-- orgunit.create
-- orgunit.edit
-- orgunit.archive
-- classroom.manage
-- team.manage
+HL Core registers these 8 WP capabilities:
 
-## 4.3 Enrollment & Participation
-- enrollment.view
-- enrollment.create
-- enrollment.edit_roles
-- enrollment.deactivate
-- teammembership.manage
-- teachingassignment.manage
+- `manage_hl_core` — full admin access (granted to administrators)
+- `hl_view_partnerships` — view Partnership list / detail
+- `hl_edit_partnerships` — create / edit Partnerships
+- `hl_view_enrollments` — view Enrollment data
+- `hl_edit_enrollments` — create / edit Enrollments
+- `hl_view_assessments` — view assessment completion status
+- `hl_view_assessment_responses` — view raw assessment response data (staff only)
+- `hl_edit_assessments` — manage assessment instruments and configuration
 
-## 4.4 Assessments & Artifacts
-- assessment.view_completion
-- assessment.view_responses
-- assessment.export_responses
-- assessment.submit (participant submitting their own)
-- observation.submit
-- observation.view
-- coaching.manage
-- coaching.mark_attendance
+## 4.2 Role-Based Access via HL_Scope_Service
 
-## 4.5 Imports
-- import.run
-- import.preview
-- import.commit
-- import.download_errors
-
-## 4.6 Reporting
-- reports.view
-- reports.export
-
-## 4.7 User Management (WP Users)
-- users.create
-- users.reset_password
-- users.edit (staff only)
-- users.deactivate (staff only)
+Most access control is **not** done via WP capabilities. Instead, `HL_Scope_Service` detects the user's role from `hl_enrollment.roles` JSON and applies scope-based filtering (self / team / school / district / staff). The WP capabilities above gate admin-page access; the scope service gates data visibility within those pages.
 
 ---
 
