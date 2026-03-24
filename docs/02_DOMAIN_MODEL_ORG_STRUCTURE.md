@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 02_DOMAIN_MODEL_ORG_STRUCTURE.md
-Version: 3.0
-Last Updated: 2026-03-17
+Version: 4.0
+Last Updated: 2026-03-24
 Timezone: America/Bogota
 
 ---
@@ -264,7 +264,108 @@ Fields:
 
 ---
 
-## 1.15 IndividualEnrollment
+## 1.15 RPSession
+Reflective Practice session linking a Mentor and a Teacher within a Cycle.
+
+RPSession relationships:
+- RPSession.cycle_id → Cycle
+- RPSession.mentor_enrollment_id → Enrollment
+- RPSession.teacher_enrollment_id → Enrollment
+- RPSession.component_id → Component (nullable)
+
+RPSession fields:
+- rp_session_id (PK)
+- rp_session_uuid
+- session_number (int)
+- session_status ∈ { "pending", "in_progress", "completed" }
+- scheduled_at, completed_at, created_at, updated_at
+
+**Table**: `hl_rp_session`
+
+---
+
+## 1.16 RPSessionSubmission
+Form response for an RP Session (RP Notes or Action Plan).
+
+RPSessionSubmission relationships:
+- RPSessionSubmission.rp_session_id → RPSession
+- RPSessionSubmission.submitted_by_user_id → WP User
+- RPSessionSubmission.instrument_id → hl_instrument
+
+RPSessionSubmission fields:
+- submission_id (PK), submission_uuid
+- role_in_session ∈ { "coach", "mentor" }
+- responses_json (longtext)
+- status ∈ { "draft", "submitted" }
+- submitted_at, created_at, updated_at
+
+**Table**: `hl_rp_session_submission`
+Unique constraint: `(rp_session_id, role_in_session)`
+
+---
+
+## 1.17 ClassroomVisit
+A classroom observation conducted by a Leader (School Leader or District Leader).
+
+ClassroomVisit relationships:
+- ClassroomVisit.cycle_id → Cycle
+- ClassroomVisit.leader_enrollment_id → Enrollment (the visiting leader)
+- ClassroomVisit.teacher_enrollment_id → Enrollment (the visited teacher)
+- ClassroomVisit.school_id → OrgUnit(type=school) (optional)
+- ClassroomVisit.classroom_id → Classroom (optional)
+- ClassroomVisit.component_id → Component (nullable)
+
+ClassroomVisit fields:
+- classroom_visit_id (PK), classroom_visit_uuid
+- visit_number (int)
+- visit_status ∈ { "pending", "in_progress", "completed" }
+- scheduled_at, completed_at, created_at, updated_at
+
+**Table**: `hl_classroom_visit`
+
+---
+
+## 1.18 ClassroomVisitSubmission
+Form response for a Classroom Visit.
+
+ClassroomVisitSubmission relationships:
+- ClassroomVisitSubmission.classroom_visit_id → ClassroomVisit
+- ClassroomVisitSubmission.submitted_by_user_id → WP User
+- ClassroomVisitSubmission.instrument_id → hl_instrument
+
+ClassroomVisitSubmission fields:
+- submission_id (PK), submission_uuid
+- role_in_visit ∈ { "leader", "teacher" }
+- responses_json (longtext)
+- status ∈ { "draft", "submitted" }
+- submitted_at, created_at, updated_at
+
+**Table**: `hl_classroom_visit_submission`
+Unique constraint: `(classroom_visit_id, role_in_visit)`
+
+---
+
+## 1.19 CoachingSessionSubmission
+Form response for a Coaching Session (RP Notes or Action Plan).
+
+CoachingSessionSubmission relationships:
+- CoachingSessionSubmission.session_id → CoachingSession
+- CoachingSessionSubmission.submitted_by_user_id → WP User
+- CoachingSessionSubmission.instrument_id → hl_instrument
+
+CoachingSessionSubmission fields:
+- submission_id (PK), submission_uuid
+- role_in_session ∈ { "coach", "mentor" }
+- responses_json (longtext)
+- status ∈ { "draft", "submitted" }
+- submitted_at, created_at, updated_at
+
+**Table**: `hl_coaching_session_submission`
+Unique constraint: `(session_id, role_in_session)`
+
+---
+
+## 1.20 IndividualEnrollment
 Direct user-to-LearnDash-course association for standalone individual purchases (not institutional).
 
 IndividualEnrollment relationships:
@@ -318,7 +419,12 @@ Cycle (within a Partnership or standalone; cycle_type: program or course)
   ├── Teacher Self-Assessments (see doc 06)
   ├── Child Assessments (see doc 06)
   ├── Observation [0..n]
-  └── CoachingSession [0..n]
+  ├── CoachingSession [0..n]
+  │     └── CoachingSessionSubmission [0..2] (RP Notes, Action Plan)
+  ├── RPSession [0..n] (Mentor ↔ Teacher reflective practice)
+  │     └── RPSessionSubmission [0..2] (RP Notes, Action Plan)
+  └── ClassroomVisit [0..n] (Leader ↔ Teacher classroom observation)
+        └── ClassroomVisitSubmission [0..2] (form responses)
 
 IndividualEnrollment (User ↔ LearnDash Course, standalone, no Cycle)
 

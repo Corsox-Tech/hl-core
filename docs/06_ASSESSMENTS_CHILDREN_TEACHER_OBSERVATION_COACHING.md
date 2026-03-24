@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md
-Version: 4.0
-Last Updated: 2026-02-27
+Version: 5.0
+Last Updated: 2026-03-24
 Timezone: America/Bogota
 
 ---
@@ -12,16 +12,22 @@ This document specifies HL Core data structures and rules for:
 - Teacher Self-Assessments (pre/post) — **Custom PHP instrument system**
 - Child Assessments (per teacher, covering all assigned children) — **Custom PHP instrument system**
 - Observations (mentor-submitted) — **JetFormBuilder-powered**
-- Coaching Sessions (coach-submitted; linked to observations) — **Custom PHP admin CRUD**
+- Coaching Sessions (coach-submitted; linked to observations) — **Custom PHP admin CRUD + form submissions**
+- Reflective Practice (RP) Sessions — **Custom PHP with role-based views and form submissions**
+- Classroom Visits (leader-initiated) — **Custom PHP form**
+- Self-Reflections (teacher-submitted) — **Custom PHP form**
 
 ## 0.1 Forms Architecture
 
-HL Core uses a **primarily custom PHP approach** for assessments:
+HL Core uses a **primarily custom PHP approach** for assessments and event forms:
 
 **HL Core custom PHP handles:**
 - **Teacher Self-Assessments** — structured instrument definitions stored as JSON in `hl_teacher_assessment_instrument`, responses stored as JSON in `hl_teacher_assessment_instance.responses_json`. Custom renderer supports PRE (single-column) and POST (dual-column retrospective) modes.
 - **Child Assessments** — dynamic per-child form generated from classroom roster + instrument definition. Rendered from `hl_instrument.questions` JSON.
-- **Coaching Sessions** — admin CRUD workflow (attendance, notes, observation links, attachments). Not a questionnaire.
+- **Coaching Sessions** — admin CRUD workflow (attendance, notes, observation links, attachments) + structured form submissions (RP Notes, Action Plan) stored in `hl_coaching_session_submission`.
+- **Reflective Practice Sessions** — RP session page with role-based views (coach/mentor/teacher), auto-populated session prep data, and RP Notes + Action Plan form submissions stored in `hl_rp_session_submission`.
+- **Classroom Visits** — Leader-initiated classroom observation forms stored in `hl_classroom_visit` (visit record) and `hl_classroom_visit_submission` (form responses).
+- **Self-Reflections** — Teacher post-course self-reflection forms rendered by `HL_Frontend_Self_Reflection`.
 
 **JetFormBuilder handles:**
 - **Observations only** — Mentor-submitted observation forms about a teacher's classroom practice. JFB provides the visual form editor so Housman admins can customize observation questions without a developer.
@@ -448,9 +454,175 @@ This is an admin-side CRUD workflow, not a user-facing questionnaire.
 - mime_type
 - created_at
 
-## 5.3 Completion Rule
+## 5.3 Coaching Session Submissions
+
+Coaches and mentors can submit structured form responses during coaching sessions. Submissions are stored in a dedicated table.
+
+### hl_coaching_session_submission
+- submission_id (PK)
+- submission_uuid (char 36, unique)
+- session_id (FK → hl_coaching_session)
+- submitted_by_user_id (FK → WP User)
+- instrument_id (FK → hl_instrument — references coaching_rp_notes, mentoring_rp_notes, coaching_action_plan, or mentoring_action_plan instrument)
+- role_in_session (enum: 'coach', 'mentor') — who submitted this form
+- responses_json (longtext) — structured form responses
+- status (enum: 'draft', 'submitted')
+- submitted_at (datetime, nullable)
+- created_at, updated_at
+
+Unique constraint: `(session_id, role_in_session)` — one submission per role per session.
+
+### Instrument references:
+- `coaching_rp_notes` — RP Notes form filled by coach during coaching session
+- `mentoring_rp_notes` — RP Notes form filled by mentor during RP session
+- `coaching_action_plan` — Action Plan form filled by coach during coaching session
+- `mentoring_action_plan` — Action Plan form filled by mentor during RP session
+
+## 5.4 Completion Rule
 - completion is binary: 0% or 100%
 - set to 100% when coach marks session_status = "attended"
+
+---
+
+# 5.5) Reflective Practice (RP) Sessions
+
+## 5.5.1 Purpose
+RP sessions are structured reflective practice events between a **Mentor** and a **Teacher** within a Cycle. They are interleaved with courses in both Teacher and Mentor pathways. Each RP session provides guided reflection on classroom practice after a course is completed.
+
+## 5.5.2 Object Model
+
+### hl_rp_session
+- rp_session_id (PK)
+- rp_session_uuid (char 36, unique)
+- cycle_id (FK → hl_cycle)
+- mentor_enrollment_id (FK → hl_enrollment)
+- teacher_enrollment_id (FK → hl_enrollment)
+- component_id (FK → hl_component, nullable)
+- session_number (int)
+- session_status (enum: 'pending', 'in_progress', 'completed')
+- scheduled_at (datetime, nullable)
+- completed_at (datetime, nullable)
+- created_at, updated_at
+
+### hl_rp_session_submission
+- submission_id (PK)
+- submission_uuid (char 36, unique)
+- rp_session_id (FK → hl_rp_session)
+- submitted_by_user_id (FK → WP User)
+- instrument_id (FK → hl_instrument)
+- role_in_session (enum: 'coach', 'mentor') — who submitted this form
+- responses_json (longtext) — structured form responses
+- status (enum: 'draft', 'submitted')
+- submitted_at (datetime, nullable)
+- created_at, updated_at
+
+Unique constraint: `(rp_session_id, role_in_session)` — one submission per role per session.
+
+## 5.5.3 Frontend Rendering (HL_Frontend_RP_Session)
+
+The RP session page provides **role-based views**:
+
+**Coach view:**
+- Session prep notes auto-populated by `HL_Session_Prep_Service` (pathway progress, previous action plans, recent classroom visits)
+- Classroom Visit & Self-Reflection review section
+- Editable RP Notes form (uses `coaching_rp_notes` instrument)
+- Editable Action Plan form (uses `coaching_action_plan` instrument)
+
+**Mentor view:**
+- Editable RP Notes form (uses `mentoring_rp_notes` instrument)
+- Editable Action Plan form (uses `mentoring_action_plan` instrument)
+
+**Teacher view:**
+- Read-only view of completed RP Notes and Action Plan submissions
+
+## 5.5.4 Completion Rule
+- 0% until required form submissions are complete
+- 100% when the session is marked completed
+
+---
+
+# 5.6) Classroom Visits
+
+## 5.6.1 Purpose
+Classroom Visits are structured classroom observations conducted by **Leaders** (School Leaders or District Leaders) visiting a teacher's classroom. Unlike Observations (which are mentor-submitted via JFB), Classroom Visits use a custom PHP form and are initiated by leaders.
+
+Classroom Visits are present only in Leader/Streamlined pathways, where they replace the Observation/RP Session components used in Teacher and Mentor pathways.
+
+## 5.6.2 Object Model
+
+### hl_classroom_visit
+- classroom_visit_id (PK)
+- classroom_visit_uuid (char 36, unique)
+- cycle_id (FK → hl_cycle)
+- leader_enrollment_id (FK → hl_enrollment — the leader performing the visit)
+- teacher_enrollment_id (FK → hl_enrollment — the teacher being visited)
+- school_id (FK → hl_orgunit, nullable)
+- classroom_id (FK → hl_classroom, nullable)
+- component_id (FK → hl_component, nullable)
+- visit_number (int)
+- visit_status (enum: 'pending', 'in_progress', 'completed')
+- scheduled_at (datetime, nullable)
+- completed_at (datetime, nullable)
+- created_at, updated_at
+
+### hl_classroom_visit_submission
+- submission_id (PK)
+- submission_uuid (char 36, unique)
+- classroom_visit_id (FK → hl_classroom_visit)
+- submitted_by_user_id (FK → WP User)
+- instrument_id (FK → hl_instrument — references `classroom_visit_form` instrument)
+- role_in_visit (enum: 'leader', 'teacher') — who submitted this form
+- responses_json (longtext) — structured form responses
+- status (enum: 'draft', 'submitted')
+- submitted_at (datetime, nullable)
+- created_at, updated_at
+
+Unique constraint: `(classroom_visit_id, role_in_visit)` — one submission per role per visit.
+
+## 5.6.3 Frontend Rendering (HL_Frontend_Classroom_Visit)
+Custom PHP form rendered from the `classroom_visit_form` instrument. Auto-populates header fields (school, teacher name, date, visitor name, age group).
+
+## 5.6.4 Completion Rule
+- 0% until the visit form is submitted
+- 100% when submitted
+
+---
+
+# 5.7) Self-Reflections
+
+## 5.7.1 Purpose
+Self-Reflections are structured self-reflection forms completed by **Teachers** after each course. They provide an opportunity for teachers to reflect on how they are applying course concepts in their classroom.
+
+Self-Reflections are interleaved with courses in Teacher pathways (e.g., Self-Reflection #1 follows TC1). They are NOT present in Leader/Streamlined pathways.
+
+## 5.7.2 Component Model
+- component_type = "self_reflection"
+- external_ref: `{"visit_number": N}` — identifies which self-reflection in the sequence
+- Uses the `self_reflection_form` instrument for form structure
+
+## 5.7.3 Frontend Rendering (HL_Frontend_Self_Reflection)
+Custom PHP form rendered from the `self_reflection_form` instrument. Auto-populates header fields (school, teacher name, date, age group).
+
+## 5.7.4 Completion Rule
+- 0% until the self-reflection form is submitted
+- 100% when submitted
+
+---
+
+# 5.8) Event Instruments (Seeded)
+
+The following instruments are seeded by the `setup-elcpb-y2-v2` CLI command for the event component types:
+
+| Instrument Key | Name | Used By |
+|---|---|---|
+| `coaching_rp_notes` | Coaching RP Notes | Coach during coaching sessions |
+| `mentoring_rp_notes` | Mentoring RP Notes | Mentor during RP sessions |
+| `coaching_action_plan` | Coaching Action Plan | Coach during coaching sessions |
+| `mentoring_action_plan` | Mentoring Action Plan | Mentor during RP sessions |
+| `classroom_visit_form` | Classroom Visit Form | Leader during classroom visits |
+| `self_reflection_form` | Self-Reflection Form | Teacher after each course |
+
+These instruments have structured `sections` JSON defining auto-populated headers, editable form fields, and visibility rules. They are stored in the `hl_instrument` table alongside child assessment instruments.
 
 ---
 
