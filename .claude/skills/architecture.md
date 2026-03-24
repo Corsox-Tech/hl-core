@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: Domain model, roles, coach assignment, partnerships, cycle types, scope service, forms, control groups, directory tree
+description: Domain model, roles, coach assignment, partnerships, cycle types, scope service, forms, control groups, cross-pathway events, component types, instruments, form renderer pattern, directory tree
 ---
 
 # HL Core Domain Architecture Reference
@@ -140,6 +140,94 @@ Teacher self-assessment components can still reference JFB forms via `external_r
 3. **HL Core renders the JFB form** on the observations page with hidden fields pre-populated
 4. **On submit:** JFB fires hook → HL Core updates observation status → updates activity_state → triggers rollup
 
+## Cross-Pathway Events
+
+Cross-pathway events are activities that span multiple participants across a cycle, loosely coupled to the component/pathway system via `component_type` dispatch on the Component Page.
+
+### 3 Event Types
+
+| Event Type | component_type ENUM | Participants | DB Tables |
+|---|---|---|---|
+| **Reflective Practice Session** | `reflective_practice_session` | Mentor + Teacher | `hl_rp_session`, `hl_rp_session_submission` |
+| **Classroom Visit** | `classroom_visit` | Leader + Teacher | `hl_classroom_visit`, `hl_classroom_visit_submission` |
+| **Self-Reflection** | `self_reflection` | Teacher (solo) | Reuses `hl_rp_session_submission` |
+
+A shared **`hl_coaching_session_submission`** table stores form responses for coaching sessions (Action Plan forms submitted during coaching).
+
+### Loose Coupling Model
+
+Events are **not tightly bound** to a single component. The flow:
+1. Pathway contains a component with `component_type = 'reflective_practice_session'` (or `classroom_visit`, `self_reflection`)
+2. Component Page dispatches to the appropriate renderer class based on `component_type`
+3. Renderer creates or finds the event entity (RP Session, Classroom Visit) and renders the form
+4. Form submission stores responses in the event's submission table with `instrument_id` reference
+5. Component state updates to `completed` after successful submission
+
+### 5 New DB Tables
+
+- **`hl_rp_session`** — Links mentor + teacher enrollments within a cycle. Tracks session number, status, date, notes.
+- **`hl_rp_session_submission`** — Form responses per RP session. Keyed by `(rp_session_id, role_in_session)`. Stores `instrument_id` + `responses_json`.
+- **`hl_classroom_visit`** — Links leader + teacher enrollments within a cycle. Tracks visit number, status, date, optional classroom_id.
+- **`hl_classroom_visit_submission`** — Form responses per visit. Keyed by `(classroom_visit_id, role_in_visit)`. Stores `instrument_id` + `responses_json`.
+- **`hl_coaching_session_submission`** — Form responses per coaching session. Keyed by `(session_id, role_in_session)`. Stores `instrument_id` + `responses_json`.
+
+### 3 New Services
+
+- **`HL_RP_Session_Service`** — RP session entity CRUD, form submission with upsert, component state updates, previous action plan queries
+- **`HL_Classroom_Visit_Service`** — Classroom visit entity CRUD, form submission with upsert, component state updates
+- **`HL_Session_Prep_Service`** — Auto-populated data helper: pathway progress, previous action plans, recent visit/self-reflection data. Used by RP Notes forms to pre-populate session prep sections.
+
+## Component Types (ENUM)
+
+The `hl_component.component_type` ENUM defines all possible component types:
+
+| Type | Usage | Frontend Renderer |
+|---|---|---|
+| `learndash_course` | LearnDash course completion | Redirects to LD course |
+| `teacher_self_assessment` | Teacher self-assessment (PRE/POST) | `HL_Frontend_Teacher_Assessment` |
+| `child_assessment` | Child assessment per classroom | `HL_Frontend_Child_Assessment` |
+| `coaching_session_attendance` | Coaching session (managed by coach) | Managed-by-coach notice |
+| `observation` | Mentor observation | `HL_Frontend_Observations` |
+| `reflective_practice_session` | RP session (mentor+teacher forms) | `HL_Frontend_RP_Session` (role-based: mentor→RP Notes, teacher→Action Plan) |
+| `classroom_visit` | Leader classroom visit | `HL_Frontend_Classroom_Visit` |
+| `self_reflection` | Teacher self-reflection | `HL_Frontend_Self_Reflection` |
+
+## Cross-Pathway Instruments
+
+6 instruments stored in `hl_teacher_assessment_instrument` with structured `sections_json`:
+
+| Key | Name | Used By |
+|---|---|---|
+| `coaching_rp_notes` | Coaching RP Notes | Mentor in coaching RP sessions |
+| `mentoring_rp_notes` | Mentoring RP Notes | Mentor in mentoring RP sessions |
+| `coaching_action_plan` | Coaching Action Plan | Teacher in coaching RP sessions |
+| `mentoring_action_plan` | Mentoring Action Plan | Teacher in mentoring RP sessions |
+| `classroom_visit_form` | Classroom Visit Form | Leader during classroom visits |
+| `self_reflection_form` | Self-Reflection Form | Teacher for self-reflection |
+
+Instruments are seeded by the `setup-elcpb-y2-v2` CLI command. Each contains structured sections with items, rendered by the form renderers using the instrument's `sections_json` definition.
+
+## Form Renderer Pattern (Cross-Pathway Forms)
+
+All cross-pathway forms follow the same custom PHP + inline CSS pattern:
+
+### Design Pattern
+1. **Hero header** — Gradient background with form title, participant names, session/visit number, date
+2. **Flat domain layout** — One description per domain section, no accordions
+3. **Pill indicator checkboxes** — Styled radio/checkbox inputs with CSS-only pill appearance
+4. **Inline CSS** — All styles embedded in the renderer output (no external stylesheet dependency)
+5. **Instrument-driven** — Form fields generated from `sections_json` in `hl_teacher_assessment_instrument`
+
+### 5 Frontend Renderers
+- **`HL_Frontend_RP_Notes`** — Mentor's RP Notes form (session prep + domain ratings + notes)
+- **`HL_Frontend_Action_Plan`** — Teacher's Action Plan form (goals + strategies + timeline)
+- **`HL_Frontend_Self_Reflection`** — Teacher's Self-Reflection form (domain self-ratings + notes)
+- **`HL_Frontend_Classroom_Visit`** — Leader's Classroom Visit form (domain observations + notes)
+- **`HL_Frontend_RP_Session`** — Page controller that dispatches to RP Notes (mentor) or Action Plan (teacher) based on the current user's enrollment role
+
+### No JFB
+These forms are 100% custom PHP. They do NOT use JetFormBuilder. This follows the same rationale as teacher self-assessments: structured `responses_json` storage, tight integration with the component system, and modern UI requirements that JFB cannot satisfy.
+
 ## Control Group Research Design
 
 ### Purpose
@@ -170,18 +258,18 @@ Housman measures program impact by comparing:
     /Lutheran - Control Group/   # Lutheran spreadsheets (.xlsx)
   /docs/                         # Spec documents (11 files, read-only reference)
   /includes/
-    class-hl-installer.php       # DB schema (37+ tables) + activation + migrations
-    /domain/                     # Entity models (9+ classes incl. Teacher_Assessment_Instrument)
-    /domain/repositories/        # CRUD repositories (8 classes)
-    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages)
-    /services/                   # Business logic (14+ services incl. HL_Scope_Service, HL_Pathway_Assignment_Service)
+    class-hl-installer.php       # DB schema (44 tables) + activation + migrations
+    /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
+    /domain/repositories/        # CRUD repositories (9 classes)
+    /cli/                        # WP-CLI commands (13 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses) + data files
+    /services/                   # Business logic (20 services incl. HL_RP_Session_Service, HL_Classroom_Visit_Service, HL_Session_Prep_Service)
     /security/                   # Capabilities + authorization
-    /integrations/               # LearnDash + JetFormBuilder + BuddyBoss (3 classes)
-    /admin/                      # WP admin pages (15+ controllers incl. Partnerships, Cycles, Instruments)
-    /frontend/                   # Shortcode renderers (26+ pages + instrument renderer + teacher assessment renderer)
+    /integrations/               # LearnDash + BuddyBoss (3 classes, JFB legacy)
+    /admin/                      # WP admin pages (17 controllers incl. Coaching Hub with Coaches tab)
+    /frontend/                   # 28 shortcode page renderers + 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + instrument/teacher-assessment renderers
     /api/                        # REST API routes
-    /utils/                      # DB, date, normalization helpers
+    /utils/                      # DB, date, normalization, age group helpers + label remap (legacy)
   /assets/
-    /css/                        # admin.css, admin-import-wizard.css, frontend.css (with CSS custom properties design system)
-    /js/                         # admin-import-wizard.js, frontend.js
+    /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css
+    /js/                         # admin-import-wizard.js, admin-teacher-editor.js, frontend.js, frontend-docs.js
 ```
