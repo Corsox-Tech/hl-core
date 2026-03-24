@@ -430,7 +430,7 @@ Exports must include:
 ## 7.2 Assessment Response Exports (Staff-only)
 Separate export endpoints for:
 - Teacher Self-Assessments (pre/post)
-- Child Assessments (infant/toddler/preschool)
+- Child Assessments (infant/toddler/preschool/k2)
 - Program vs Control Comparison (when Partnership filter active; includes Cohen's d)
 
 These exports may include:
