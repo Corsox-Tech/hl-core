@@ -1,6 +1,6 @@
 <?php
 /**
- * Cycle domain model (a time-bounded run within a Cycle)
+ * Cycle domain model (a time-bounded run within a Partnership)
  *
  * @package HL_Core
  */

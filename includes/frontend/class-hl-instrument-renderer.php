@@ -84,7 +84,7 @@ class HL_Instrument_Renderer {
      * age group, loads per-age-group instruments.
      *
      * @param int   $classroom_id     Classroom ID.
-     * @param int   $cycle_id         Track ID.
+     * @param int   $cycle_id         Cycle ID.
      * @param int   $instance_id      Instance ID.
      * @param array $existing_answers Existing answer rows keyed by child_id.
      * @param array $instance         Full instance data.
