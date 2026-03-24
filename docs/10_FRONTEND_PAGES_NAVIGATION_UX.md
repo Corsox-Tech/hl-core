@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 10_FRONTEND_PAGES_NAVIGATION_UX.md
-Version: 4.0 (V3 Rename)
-Last Updated: 2026-03-17
+Version: 5.0
+Last Updated: 2026-03-24
 Timezone: America/Bogota
 
 ---
@@ -218,7 +218,7 @@ Content:
 - Grid or list of component cards, ordered by sequence
 - Each component card shows:
   - Component title
-  - Component type icon (course, self-assessment, child assessment, coaching, observation)
+  - Component type icon (course, self-assessment, child assessment, coaching, observation, self-reflection, reflective practice session, classroom visit)
   - Completion status: progress bar (0-100%)
   - Status badge:
     - **Completed** (green) — shows completion date
@@ -280,6 +280,33 @@ This page's content depends entirely on the component type:
 - This type does NOT render on the Component Page
 - Instead, the Program Page "Start/Continue" button links directly to the LearnDash course URL
 - LearnDash handles its own completion → HL Core picks it up via LearnDash hooks
+
+### Self-Reflection
+- Page header: Component title (e.g., "Self-Reflection #1"), pathway breadcrumb
+- Auto-populated header fields: school, teacher name, date, age group
+- Custom PHP form rendered by `HL_Frontend_Self_Reflection` using the `self_reflection_form` instrument
+- Structured editable sections with text areas and rating fields
+- "Save as Draft" and "Submit" buttons
+- On submit: updates component_state to completed
+- After submit: read-only summary view
+
+### Reflective Practice Session
+- Page header: Component title (e.g., "Reflective Practice Session #1"), pathway breadcrumb
+- Custom PHP page rendered by `HL_Frontend_RP_Session` with **role-based views**:
+  - **Coach view**: session prep notes (auto-populated by `HL_Session_Prep_Service` with pathway progress, previous action plans, recent classroom visits), Classroom Visit & Self-Reflection review, editable RP Notes form (`coaching_rp_notes`), editable Action Plan form (`coaching_action_plan`)
+  - **Mentor view**: editable RP Notes form (`mentoring_rp_notes`), editable Action Plan form (`mentoring_action_plan`)
+  - **Teacher view**: read-only view of completed submissions
+- Form submissions stored in `hl_rp_session_submission`
+- On submit: updates session status and component_state
+
+### Classroom Visit
+- Page header: Component title (e.g., "Classroom Visit #1"), pathway breadcrumb
+- Auto-populated header fields: school, teacher name, date, visitor name, age group
+- Custom PHP form rendered by `HL_Frontend_Classroom_Visit` using the `classroom_visit_form` instrument
+- Structured observation form with domain-based indicators and notes
+- "Save as Draft" and "Submit" buttons
+- On submit: creates/updates `hl_classroom_visit` record and `hl_classroom_visit_submission`, updates component_state
+- After submit: read-only summary view
 
 ### Locked Component
 - If someone navigates directly to a locked component URL, show:
@@ -558,7 +585,10 @@ All data comes from HL Core custom tables and services:
 - Unlock logic: RulesEngineService (prereqs, drip, overrides)
 - Coach assignments: `hl_coach_assignment` via CoachAssignmentService (resolution: enrollment → team → school)
 - Child cycle snapshots: `hl_child_cycle_snapshot` via ClassroomService
-- Coaching sessions: `hl_coaching_session` via CoachingService
+- Coaching sessions: `hl_coaching_session` + `hl_coaching_session_submission` via CoachingService
+- RP sessions: `hl_rp_session` + `hl_rp_session_submission` via HL_RP_Session_Service
+- Classroom visits: `hl_classroom_visit` + `hl_classroom_visit_submission` via HL_Classroom_Visit_Service
+- Session prep data: via HL_Session_Prep_Service (auto-populates pathway progress, action plans, classroom visit history)
 
 Scope filtering must use `HL_Security::assert_can()` and enrollment-based scope resolution.
 

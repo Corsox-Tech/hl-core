@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 08_REPORTING_METRICS_VIEWS_EXPORTS.md
-Version: 2.0
-Last Updated: 2026-02-25
+Version: 3.0
+Last Updated: 2026-03-24
 Timezone: America/Bogota
 
 ---
@@ -168,6 +168,43 @@ If observations are modeled as a component:
 In either case:
 - observations should be available in reporting for staff
 - mentors may see their own
+
+---
+
+### 3.2.6 Self-Reflection Component
+Completion is binary.
+
+- completion_percent = 0 if form not submitted
+- completion_percent = 100 when form submitted
+
+Display:
+- Show "Complete" / "Not complete" + submission date
+- Self-reflection form responses visible to teacher and staff
+
+---
+
+### 3.2.7 Reflective Practice Session Component
+Completion is binary.
+
+- completion_percent = 0 until the RP session is marked completed (required form submissions done)
+- completion_percent = 100 when session completed
+
+Display:
+- Show session status (Pending / In Progress / Completed)
+- For mentors/teachers: link to RP session page for their role-based view
+
+---
+
+### 3.2.8 Classroom Visit Component
+Completion is binary.
+
+- completion_percent = 0 if visit form not submitted
+- completion_percent = 100 when visit form submitted
+
+Display:
+- Show "Complete" / "Not complete" + visit date
+- For leaders: link to classroom visit form
+- Classroom visit responses visible to the visiting leader and staff
 
 ---
 

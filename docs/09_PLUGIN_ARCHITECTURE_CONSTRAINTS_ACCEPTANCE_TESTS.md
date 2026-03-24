@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 09_PLUGIN_ARCHITECTURE_CONSTRAINTS_ACCEPTANCE_TESTS.md
-Version: 4.0 (V3 Rename)
-Last Updated: 2026-03-17
+Version: 5.0
+Last Updated: 2026-03-24
 Timezone: America/Bogota
 
 ---
@@ -20,7 +20,7 @@ Rules:
 - Enforce server-side authorization checks on all reads/writes that expose scoped data.
 - Store core domain data in custom tables (recommended).
 - Do not depend on legacy JetEngine/Automator CPT/meta setup.
-- Use custom PHP instrument system for teacher self-assessments and child assessments; use JetFormBuilder for observations only (mentor-submitted forms); use custom PHP admin CRUD for coaching sessions.
+- Use custom PHP instrument system for teacher self-assessments, child assessments, self-reflections, classroom visits, and RP session forms; use JetFormBuilder for observations only (mentor-submitted forms); use custom PHP admin CRUD for coaching sessions (with submission table for structured form responses).
 
 ---
 
@@ -56,6 +56,9 @@ Core services to implement:
 - ObservationService (observation record management — JFB handles the form)
 - CoachingService (custom admin CRUD)
 - JFBIntegrationService (hook listener for JFB form submissions, form embedding helper)
+- RPSessionService (RP session CRUD, submission management, session status flow)
+- ClassroomVisitService (classroom visit CRUD, submission management, visit status flow)
+- SessionPrepService (auto-populates session prep data — pathway progress, previous action plans, recent classroom visits — for coaching and RP session forms)
 - ImportService (preview/commit)
 - ReportingService (completion rollups + exports)
 - AuditService (write-only logger)
@@ -127,7 +130,14 @@ Observations + coaching:
 - hl_observation_attachment (optional; only if managing attachments outside JFB)
 - hl_coaching_session
 - hl_coaching_session_observation
+- hl_coaching_session_submission (structured form responses — RP Notes and Action Plan — submitted by coach or mentor during coaching sessions)
 - hl_coaching_attachment
+
+Cross-pathway events:
+- hl_rp_session (Reflective Practice sessions linking mentor + teacher within a Cycle)
+- hl_rp_session_submission (form responses — RP Notes and Action Plan — for RP sessions)
+- hl_classroom_visit (leader-initiated classroom observations; tracks leader, teacher, school, classroom)
+- hl_classroom_visit_submission (form responses for classroom visits)
 
 Imports + audit:
 - hl_import_run
