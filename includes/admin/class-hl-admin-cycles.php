@@ -552,6 +552,7 @@ class HL_Admin_Cycles {
     // =========================================================================
 
     private function render_details_form($cycle, $districts) {
+        global $wpdb;
         $is_edit = ($cycle !== null);
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-cycles')) . '">';
@@ -567,6 +568,18 @@ class HL_Admin_Cycles {
         $current_district = $is_edit ? $cycle->district_id : '';
         $current_type     = $is_edit && isset($cycle->cycle_type) ? $cycle->cycle_type : 'program';
         $is_control       = $is_edit ? (int) $cycle->is_control_group : 0;
+
+        // Partnership: from cycle (edit), URL param (new from partnership page), or empty.
+        $current_partnership = $is_edit && isset($cycle->partnership_id) ? $cycle->partnership_id : '';
+        if (!$current_partnership && !$is_edit && isset($_GET['partnership_id'])) {
+            $current_partnership = absint($_GET['partnership_id']);
+        }
+
+        // Load partnerships for dropdown.
+        $partnerships = $wpdb->get_results(
+            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership WHERE status = 'active' ORDER BY partnership_name ASC",
+            ARRAY_A
+        );
 
         $timezones = array(
             'America/Bogota'      => 'America/Bogota (COT)',
@@ -648,6 +661,19 @@ class HL_Admin_Cycles {
         if ($districts) {
             foreach ($districts as $d) {
                 echo '<option value="' . esc_attr($d['orgunit_id']) . '"' . selected($current_district, $d['orgunit_id'], false) . '>' . esc_html($d['name']) . '</option>';
+            }
+        }
+        echo '</select>';
+        echo '</div>';
+
+        // Partnership (half)
+        echo '<div class="hl-field">';
+        echo '<label for="partnership_id">' . esc_html__('Partnership', 'hl-core') . '</label>';
+        echo '<select id="partnership_id" name="partnership_id">';
+        echo '<option value="">' . esc_html__('-- None --', 'hl-core') . '</option>';
+        if ($partnerships) {
+            foreach ($partnerships as $p) {
+                echo '<option value="' . esc_attr($p['partnership_id']) . '"' . selected($current_partnership, $p['partnership_id'], false) . '>' . esc_html($p['partnership_name']) . '</option>';
             }
         }
         echo '</select>';

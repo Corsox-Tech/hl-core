@@ -270,45 +270,79 @@ class HL_Admin_Partnerships {
         echo '<h1>' . ($is_edit ? esc_html__('Edit Partnership', 'hl-core') : esc_html__('Add New Partnership', 'hl-core')) . '</h1>';
         echo '<a href="' . esc_url(admin_url('admin.php?page=hl-partnerships')) . '">&larr; ' . esc_html__('Back to Partnerships', 'hl-core') . '</a>';
 
-        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-partnerships')) . '">';
-        wp_nonce_field('hl_save_partnership', 'hl_partnership_nonce');
-
         if ($is_edit) {
+            // Compact inline layout for edit mode.
+            $current_status = $partnership['status'];
+            $status_colors = array('active' => '#00a32a', 'archived' => '#8c8f94');
+            $sc = isset($status_colors[$current_status]) ? $status_colors[$current_status] : '#666';
+            ?>
+            <style>
+                .hl-partnership-header{display:flex;align-items:center;gap:16px;margin:12px 0 8px;flex-wrap:wrap}
+                .hl-partnership-header .hl-ph-name{font-size:15px;font-weight:600;flex:1;min-width:200px}
+                .hl-partnership-header .hl-ph-code{font-family:monospace;font-size:13px;background:#f0f0f1;padding:3px 8px;border-radius:4px;color:#50575e}
+                .hl-partnership-header .hl-ph-status{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;background:#f6f7f7}
+                .hl-partnership-header .hl-ph-status-dot{width:8px;height:8px;border-radius:50%}
+                .hl-partnership-compact{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;margin:0 0 6px}
+                .hl-partnership-compact .hl-pc-field label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#646970;margin-bottom:3px}
+                .hl-partnership-compact .hl-pc-field input{width:100%;padding:5px 8px}
+                .hl-partnership-compact .hl-pc-field select{padding:5px 8px}
+                .hl-partnership-desc{margin:0 0 6px}
+                .hl-partnership-desc label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#646970;margin-bottom:3px}
+                .hl-partnership-desc textarea{width:100%;padding:5px 8px;min-height:40px;resize:vertical}
+                .hl-partnership-save-row{display:flex;align-items:center;gap:12px;margin:0 0 16px}
+                .hl-partnership-save-row .button{margin:0!important}
+                @media(max-width:782px){.hl-partnership-compact{grid-template-columns:1fr}}
+            </style>
+            <?php
+            echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-partnerships')) . '">';
+            wp_nonce_field('hl_save_partnership', 'hl_partnership_nonce');
             echo '<input type="hidden" name="partnership_id" value="' . esc_attr($partnership['partnership_id']) . '" />';
-        }
 
-        echo '<table class="form-table">';
+            echo '<div class="hl-partnership-compact">';
+            echo '<div class="hl-pc-field"><label for="partnership_name">' . esc_html__('Name', 'hl-core') . '</label>';
+            echo '<input type="text" id="partnership_name" name="partnership_name" value="' . esc_attr($partnership['partnership_name']) . '" required /></div>';
+            echo '<div class="hl-pc-field"><label for="partnership_code">' . esc_html__('Code', 'hl-core') . '</label>';
+            echo '<input type="text" id="partnership_code" name="partnership_code" value="' . esc_attr($partnership['partnership_code']) . '" /></div>';
+            echo '<div class="hl-pc-field"><label for="status">' . esc_html__('Status', 'hl-core') . '</label>';
+            echo '<select id="status" name="status">';
+            foreach (array('active', 'archived') as $s) {
+                echo '<option value="' . esc_attr($s) . '"' . selected($current_status, $s, false) . '>' . esc_html(ucfirst($s)) . '</option>';
+            }
+            echo '</select></div>';
+            echo '</div>';
 
-        // Name
-        echo '<tr><th scope="row"><label for="partnership_name">' . esc_html__('Partnership Name', 'hl-core') . '</label></th>';
-        echo '<td><input type="text" id="partnership_name" name="partnership_name" value="' . esc_attr($is_edit ? $partnership['partnership_name'] : '') . '" class="regular-text" required /></td></tr>';
+            echo '<div class="hl-partnership-desc"><label for="description">' . esc_html__('Description', 'hl-core') . '</label>';
+            echo '<textarea id="description" name="description" rows="2">' . esc_textarea($partnership['description'] ?: '') . '</textarea></div>';
 
-        // Code
-        echo '<tr><th scope="row"><label for="partnership_code">' . esc_html__('Partnership Code', 'hl-core') . '</label></th>';
-        echo '<td><input type="text" id="partnership_code" name="partnership_code" value="' . esc_attr($is_edit ? $partnership['partnership_code'] : '') . '" class="regular-text" />';
-        echo '<p class="description">' . esc_html__('Leave blank to auto-generate from name.', 'hl-core') . '</p></td></tr>';
+            echo '<div class="hl-partnership-save-row">';
+            submit_button(__('Update Partnership', 'hl-core'), 'primary', 'submit', false);
+            echo '</div>';
+            echo '</form>';
 
-        // Status
-        $current_status = $is_edit ? $partnership['status'] : 'active';
-        echo '<tr><th scope="row"><label for="status">' . esc_html__('Status', 'hl-core') . '</label></th>';
-        echo '<td><select id="status" name="status">';
-        foreach (array('active', 'archived') as $s) {
-            echo '<option value="' . esc_attr($s) . '"' . selected($current_status, $s, false) . '>' . esc_html(ucfirst($s)) . '</option>';
-        }
-        echo '</select></td></tr>';
-
-        // Description
-        echo '<tr><th scope="row"><label for="description">' . esc_html__('Description', 'hl-core') . '</label></th>';
-        echo '<td><textarea id="description" name="description" rows="4" class="large-text">' . esc_textarea($is_edit ? ($partnership['description'] ?: '') : '') . '</textarea></td></tr>';
-
-        echo '</table>';
-
-        submit_button($is_edit ? __('Update Partnership', 'hl-core') : __('Create Partnership', 'hl-core'));
-        echo '</form>';
-
-        // If editing, show linked cycles.
-        if ($is_edit) {
             $this->render_linked_cycles($partnership['partnership_id']);
+        } else {
+            // Add new — use standard form-table layout.
+            echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-partnerships')) . '">';
+            wp_nonce_field('hl_save_partnership', 'hl_partnership_nonce');
+
+            echo '<table class="form-table">';
+            echo '<tr><th scope="row"><label for="partnership_name">' . esc_html__('Partnership Name', 'hl-core') . '</label></th>';
+            echo '<td><input type="text" id="partnership_name" name="partnership_name" value="" class="regular-text" required /></td></tr>';
+            echo '<tr><th scope="row"><label for="partnership_code">' . esc_html__('Partnership Code', 'hl-core') . '</label></th>';
+            echo '<td><input type="text" id="partnership_code" name="partnership_code" value="" class="regular-text" />';
+            echo '<p class="description">' . esc_html__('Leave blank to auto-generate from name.', 'hl-core') . '</p></td></tr>';
+            echo '<tr><th scope="row"><label for="status">' . esc_html__('Status', 'hl-core') . '</label></th>';
+            echo '<td><select id="status" name="status">';
+            foreach (array('active', 'archived') as $s) {
+                echo '<option value="' . esc_attr($s) . '">' . esc_html(ucfirst($s)) . '</option>';
+            }
+            echo '</select></td></tr>';
+            echo '<tr><th scope="row"><label for="description">' . esc_html__('Description', 'hl-core') . '</label></th>';
+            echo '<td><textarea id="description" name="description" rows="3" class="large-text"></textarea></td></tr>';
+            echo '</table>';
+
+            submit_button(__('Create Partnership', 'hl-core'));
+            echo '</form>';
         }
     }
 
@@ -328,10 +362,13 @@ class HL_Admin_Partnerships {
             $partnership_id
         ), ARRAY_A);
 
-        echo '<hr>';
-        echo '<h2>' . esc_html__('Linked Cycles', 'hl-core') . ' ';
+        echo '<hr style="margin:12px 0 8px">';
+        echo '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+        echo '<h2 style="margin:0">' . esc_html__('Linked Cycles', 'hl-core') . ' ';
         echo '<span class="count">(' . count($cycles) . ')</span></h2>';
-        echo '<p class="description">' . esc_html__('To add a cycle to this partnership, edit the cycle and select this partnership from the Partnership dropdown on the Details tab.', 'hl-core') . '</p>';
+        $add_cycle_url = admin_url('admin.php?page=hl-cycles&action=add&partnership_id=' . $partnership_id);
+        echo '<a href="' . esc_url($add_cycle_url) . '" class="button button-primary">' . esc_html__('+ Add Cycle', 'hl-core') . '</a>';
+        echo '</div>';
 
         if (empty($cycles)) {
             echo '<p>' . esc_html__('No cycles are linked to this partnership yet.', 'hl-core') . '</p>';
