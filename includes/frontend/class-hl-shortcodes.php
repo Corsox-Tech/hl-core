@@ -20,6 +20,9 @@ class HL_Shortcodes {
         add_action('template_redirect', array('HL_Frontend_Cycle_Workspace', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_My_Coaching', 'handle_post_actions'));
         add_action('template_redirect', array('HL_Frontend_Classroom_Page', 'handle_post_actions'));
+        add_action('template_redirect', array('HL_Frontend_Coach_Mentor_Detail', 'handle_export'));
+        add_action('template_redirect', array('HL_Frontend_Coach_Reports', 'handle_export'));
+        add_action('template_redirect', array('HL_Frontend_Coach_Availability', 'handle_post_actions'));
     }
 
     public function register_shortcodes() {
@@ -51,6 +54,11 @@ class HL_Shortcodes {
         add_shortcode('hl_my_team', array($this, 'render_my_team'));
         add_shortcode('hl_dashboard', array($this, 'render_dashboard'));
         add_shortcode('hl_docs', array($this, 'render_docs'));
+        add_shortcode('hl_coach_dashboard', array($this, 'render_coach_dashboard'));
+        add_shortcode('hl_coach_mentors', array($this, 'render_coach_mentors'));
+        add_shortcode('hl_coach_mentor_detail', array($this, 'render_coach_mentor_detail'));
+        add_shortcode('hl_coach_reports', array($this, 'render_coach_reports'));
+        add_shortcode('hl_coach_availability', array($this, 'render_coach_availability'));
     }
 
     public function enqueue_assets() {
@@ -84,7 +92,12 @@ class HL_Shortcodes {
             || has_shortcode($post->post_content, 'hl_reports_hub')
             || has_shortcode($post->post_content, 'hl_my_team')
             || has_shortcode($post->post_content, 'hl_dashboard')
-            || has_shortcode($post->post_content, 'hl_docs');
+            || has_shortcode($post->post_content, 'hl_docs')
+            || has_shortcode($post->post_content, 'hl_coach_dashboard')
+            || has_shortcode($post->post_content, 'hl_coach_mentors')
+            || has_shortcode($post->post_content, 'hl_coach_mentor_detail')
+            || has_shortcode($post->post_content, 'hl_coach_reports')
+            || has_shortcode($post->post_content, 'hl_coach_availability');
 
         if ($has_shortcode) {
             wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
@@ -476,6 +489,71 @@ class HL_Shortcodes {
         $this->ensure_frontend_assets();
         $atts = shortcode_atts(array(), $atts, 'hl_docs');
         $renderer = HL_Frontend_Docs::instance();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_coach_dashboard] - Coach landing page
+     */
+    public function render_coach_dashboard($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view your dashboard.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_coach_dashboard');
+        $renderer = new HL_Frontend_Coach_Dashboard();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_coach_mentors] - Coach's mentor roster
+     */
+    public function render_coach_mentors($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_coach_mentors');
+        $renderer = new HL_Frontend_Coach_Mentors();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_coach_mentor_detail] - Mentor detail with tabs
+     */
+    public function render_coach_mentor_detail($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_coach_mentor_detail');
+        $renderer = new HL_Frontend_Coach_Mentor_Detail();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_coach_reports] - Coach aggregated reports
+     */
+    public function render_coach_reports($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_coach_reports');
+        $renderer = new HL_Frontend_Coach_Reports();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_coach_availability] - Coach weekly schedule
+     */
+    public function render_coach_availability($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_coach_availability');
+        $renderer = new HL_Frontend_Coach_Availability();
         return $renderer->render($atts);
     }
 

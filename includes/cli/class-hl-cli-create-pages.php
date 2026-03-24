@@ -151,6 +151,13 @@ class HL_CLI_Create_Pages {
 
             // Documentation
             array( 'title' => 'Documentation',             'shortcode' => 'hl_docs' ),
+
+            // Coach pages
+            array( 'title' => 'Coach Dashboard',     'shortcode' => 'hl_coach_dashboard' ),
+            array( 'title' => 'My Mentors',           'shortcode' => 'hl_coach_mentors' ),
+            array( 'title' => 'Mentor Detail',        'shortcode' => 'hl_coach_mentor_detail' ),
+            array( 'title' => 'Coach Reports',        'shortcode' => 'hl_coach_reports' ),
+            array( 'title' => 'Coach Availability',   'shortcode' => 'hl_coach_availability' ),
         );
     }
 

@@ -116,6 +116,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-rp-session-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-classroom-visit-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-session-prep-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-dashboard-service.php';
         
         // Integrations
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-learndash-integration.php';
@@ -180,6 +181,11 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-self-reflection.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-action-plan.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-rp-notes.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-coach-dashboard.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-coach-mentors.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-coach-mentor-detail.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-coach-reports.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-coach-availability.php';
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';

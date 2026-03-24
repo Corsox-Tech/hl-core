@@ -754,8 +754,10 @@ class HL_BuddyBoss_Integration {
         $roles       = $this->get_user_hl_roles($user_id);
         $has_enrollment = !empty($roles);
 
+        $is_coach = in_array('coach', (array) wp_get_current_user()->roles, true);
+
         // Users without staff cap AND without active HL enrollments see nothing.
-        if (!$is_staff && !$has_enrollment) {
+        if (!$has_enrollment && !$is_staff && !$is_coach) {
             $cached = array();
             return $cached;
         }
@@ -808,6 +810,7 @@ class HL_BuddyBoss_Integration {
                    || in_array('district_leader', $roles, true);
         $is_mentor  = in_array('mentor', $roles, true);
         $is_teacher = in_array('teacher', $roles, true);
+        $is_coach   = in_array('coach', (array) wp_get_current_user()->roles, true);
 
         // Define all possible menu items with their visibility rules.
         // Each entry: [ slug, shortcode, label, icon, show_condition ]
@@ -825,6 +828,10 @@ class HL_BuddyBoss_Integration {
             // --- Staff tools ---
             array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       'dashicons-randomize',            $is_staff),
             array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   'dashicons-format-chat',          $is_staff || $is_mentor),
+            // --- Coach tools ---
+            array('coach-dashboard', 'hl_coach_dashboard',   __('Coach Dashboard', 'hl-core'), 'dashicons-dashboard',    $is_coach),
+            array('coach-mentors',   'hl_coach_mentors',     __('My Mentors', 'hl-core'),      'dashicons-groups',       $is_coach),
+            array('coach-reports',   'hl_coach_reports',     __('Coach Reports', 'hl-core'),   'dashicons-chart-bar',    $is_coach),
             array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'dashicons-chart-bar',            $is_staff || $is_leader),
             // --- Documentation (admin only) ---
             array('documentation', 'hl_docs',                 __('Documentation', 'hl-core'),  'dashicons-media-document',       current_user_can('manage_options')),
