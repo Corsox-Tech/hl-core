@@ -271,14 +271,12 @@ RPSession relationships:
 - RPSession.cycle_id → Cycle
 - RPSession.mentor_enrollment_id → Enrollment
 - RPSession.teacher_enrollment_id → Enrollment
-- RPSession.component_id → Component (nullable)
-
 RPSession fields:
 - rp_session_id (PK)
 - rp_session_uuid
 - session_number (int)
-- session_status ∈ { "pending", "in_progress", "completed" }
-- scheduled_at, completed_at, created_at, updated_at
+- status ∈ { "pending", "scheduled", "attended", "missed", "cancelled" }
+- session_date (datetime, nullable), notes (text), created_at, updated_at
 
 **Table**: `hl_rp_session`
 
@@ -290,14 +288,16 @@ Form response for an RP Session (RP Notes or Action Plan).
 RPSessionSubmission relationships:
 - RPSessionSubmission.rp_session_id → RPSession
 - RPSessionSubmission.submitted_by_user_id → WP User
-- RPSessionSubmission.instrument_id → hl_instrument
+- RPSessionSubmission.instrument_id → hl_teacher_assessment_instrument
 
 RPSessionSubmission fields:
 - submission_id (PK), submission_uuid
-- role_in_session ∈ { "coach", "mentor" }
+- role_in_session ∈ { "supervisor", "supervisee" }
 - responses_json (longtext)
 - status ∈ { "draft", "submitted" }
 - submitted_at, created_at, updated_at
+
+Note: The teacher views the completed RP Notes and Action Plan read-only (no submission of their own).
 
 **Table**: `hl_rp_session_submission`
 Unique constraint: `(rp_session_id, role_in_session)`
@@ -311,15 +311,13 @@ ClassroomVisit relationships:
 - ClassroomVisit.cycle_id → Cycle
 - ClassroomVisit.leader_enrollment_id → Enrollment (the visiting leader)
 - ClassroomVisit.teacher_enrollment_id → Enrollment (the visited teacher)
-- ClassroomVisit.school_id → OrgUnit(type=school) (optional)
 - ClassroomVisit.classroom_id → Classroom (optional)
-- ClassroomVisit.component_id → Component (nullable)
 
 ClassroomVisit fields:
 - classroom_visit_id (PK), classroom_visit_uuid
 - visit_number (int)
-- visit_status ∈ { "pending", "in_progress", "completed" }
-- scheduled_at, completed_at, created_at, updated_at
+- status ∈ { "pending", "completed" }
+- visit_date (datetime, nullable), notes (text), created_at, updated_at
 
 **Table**: `hl_classroom_visit`
 
@@ -331,7 +329,7 @@ Form response for a Classroom Visit.
 ClassroomVisitSubmission relationships:
 - ClassroomVisitSubmission.classroom_visit_id → ClassroomVisit
 - ClassroomVisitSubmission.submitted_by_user_id → WP User
-- ClassroomVisitSubmission.instrument_id → hl_instrument
+- ClassroomVisitSubmission.instrument_id → hl_teacher_assessment_instrument
 
 ClassroomVisitSubmission fields:
 - submission_id (PK), submission_uuid
