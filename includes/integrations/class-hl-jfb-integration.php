@@ -69,7 +69,7 @@ class HL_JFB_Integration {
 
         echo '<div class="notice notice-warning is-dismissible">';
         echo '<p><strong>' . esc_html__('HL Core:', 'hl-core') . '</strong> ';
-        echo esc_html__('JetFormBuilder is not active. Teacher self-assessment and observation forms require JetFormBuilder to be installed and activated.', 'hl-core');
+        echo esc_html__('JetFormBuilder is not active. Observation forms require JetFormBuilder to be installed and activated.', 'hl-core');
         echo '</p></div>';
     }
 
