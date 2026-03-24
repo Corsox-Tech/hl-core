@@ -2,8 +2,8 @@
 
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, LearnDash
-**Status:** v1 complete — Phases 1-32 done. **Deployed to production** (March 2026). Architecture expansion in progress: Individual Enrollments (hl_individual_enrollment), Program Progress Matrix report — see B2E_MASTER_REFERENCE.md and Build Queue Phases 33-34.
-(28 shortcode pages incl. dashboard + documentation, 12 admin pages, 44 DB tables, Cycle entity (hl_cycle) with cycle_type (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, **Coaching Hub** with Sessions+Assignments tabs, **Settings hub** with Imports+Audit Log+Doc Articles tabs, **Assessment Hub** with vertical sidebar nav (Teacher/Child Assessments + Child/Teacher Instruments), **Admin CSS design system** with modern card layout + status badges + design tokens, **BuddyBoss login fix** suppressing bpnoaccess error/shake)
+**Status:** v1 complete — Phases 1-32 + 35 done. **Deployed to production** (March 2026). Cross-pathway events, forms & coaching enhancements complete (5 new DB tables, 3 new component types, 3 new services, 6 instruments, 5 form renderers). Architecture expansion in progress: Individual Enrollments (hl_individual_enrollment), Program Progress Matrix report — see B2E_MASTER_REFERENCE.md and Build Queue Phases 33-34.
+(28 shortcode pages incl. dashboard + documentation, 12 admin pages, 44 DB tables, 20 services, Cycle entity (hl_cycle) with cycle_type (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, **Coaching Hub** with Sessions+Assignments+Coaches tabs, **Settings hub** with Imports+Audit Log+Doc Articles tabs, **Assessment Hub** with vertical sidebar nav (Teacher/Child Assessments + Child/Teacher Instruments), **Admin CSS design system** with modern card layout + status badges + design tokens, **BuddyBoss login fix** suppressing bpnoaccess error/shake, **Cross-pathway events** with 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session controller) + 3 new component types + 6 instruments)
 
 ## Overview
 
@@ -11,7 +11,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 
 ## What's Implemented
 
-### Database Schema (42 custom tables + 1 planned)
+### Database Schema (44 custom tables + 1 planned)
 - **Org & Partnership/Cycle:** `hl_orgunit`, `hl_cycle` (with `is_control_group` flag + `cycle_type` column: program/course), `hl_cycle_school`, `hl_partnership` (program-level container)
 - **Individual Enrollments (PLANNED):** `hl_individual_enrollment` (user_id, course_id, enrolled_at, expires_at, status) — for standalone course purchases
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
@@ -192,15 +192,15 @@ See `STATUS.md` for the current build queue and task tracking.
 /hl-core/
   hl-core.php                    # Plugin bootstrap (singleton)
   /includes/
-    class-hl-installer.php       # DB schema + activation
+    class-hl-installer.php       # DB schema (44 tables) + activation + migrations
     /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (9 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component)
-    /cli/                        # WP-CLI commands (seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children, setup-elcpb-y2, setup-ea, setup-short-courses) + data files
-    /services/                   # Business logic (17 services incl. HL_Scope_Service, HL_Pathway_Assignment_Service, HL_Cycle_Service, HL_Partnership_Service)
+    /cli/                        # WP-CLI commands (13 commands: seed-demo, seed-lutheran, seed-palm-beach, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children, setup-elcpb-y2, setup-elcpb-y2-v2, setup-ea, setup-short-courses) + data files
+    /services/                   # Business logic (20 services incl. HL_Scope_Service, HL_RP_Session_Service, HL_Classroom_Visit_Service, HL_Session_Prep_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss (3 classes)
-    /admin/                      # WP admin pages (17 controllers incl. Partnerships, Cycles, Assessment Hub)
-    /frontend/                   # Shortcode renderers (28 pages incl. dashboard + documentation + instrument renderer + teacher assessment renderer)
+    /admin/                      # WP admin pages (17 controllers incl. Partnerships, Cycles, Assessment Hub, Coaching Hub with Coaches tab)
+    /frontend/                   # 28 shortcode page renderers + 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + instrument renderer + teacher assessment renderer
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, age group helpers + label remap (legacy)
   /data/                         # Private data files (gitignored)
