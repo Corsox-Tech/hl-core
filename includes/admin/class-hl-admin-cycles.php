@@ -749,7 +749,11 @@ class HL_Admin_Cycles {
             }
         }
 
-        // Available schools (not yet linked).
+        // Available schools (not yet linked), filtered by cycle's district if set.
+        $district_filter = '';
+        if ( ! empty( $cycle->district_id ) ) {
+            $district_filter = $wpdb->prepare( ' AND o.parent_orgunit_id = %d', $cycle->district_id );
+        }
         $available = $wpdb->get_results($wpdb->prepare(
             "SELECT o.orgunit_id, o.name
              FROM {$wpdb->prefix}hl_orgunit o
@@ -757,6 +761,7 @@ class HL_Admin_Cycles {
                AND o.orgunit_id NOT IN (
                    SELECT school_id FROM {$wpdb->prefix}hl_cycle_school WHERE cycle_id = %d
                )
+               {$district_filter}
              ORDER BY o.name ASC",
             $cycle_id
         ));
