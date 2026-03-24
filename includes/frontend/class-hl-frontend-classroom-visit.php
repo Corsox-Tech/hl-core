@@ -116,10 +116,33 @@ class HL_Frontend_Classroom_Visit {
      * Show list of teachers for the leader to visit.
      */
     private function render_teacher_list($teachers, $cycle_id, $visit_number, $cv_service) {
+        self::render_form_styles();
         ?>
         <div class="hl-classroom-visit-list">
             <h3><?php printf(esc_html__('Classroom Visit #%d', 'hl-core'), $visit_number); ?></h3>
             <p class="hl-field-hint"><?php esc_html_e('Select a teacher to complete the classroom visit form.', 'hl-core'); ?></p>
+
+            <!-- What this is / isn't — shown on the list page -->
+            <div class="hlcv-instructions" style="margin-bottom:24px">
+                <div class="hlcv-instr-section">
+                    <div class="hlcv-instr-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    </div>
+                    <div>
+                        <div class="hlcv-instr-heading"><?php esc_html_e('What this is', 'hl-core'); ?></div>
+                        <p><?php esc_html_e('The information collected by this form is used to celebrate areas of success and recognize areas of growth. This tool provides a snapshot of skills demonstrated during a classroom visit. It is expected and appropriate that not all skills will appear in every visit.', 'hl-core'); ?></p>
+                    </div>
+                </div>
+                <div class="hlcv-instr-section">
+                    <div class="hlcv-instr-icon hlcv-instr-icon-warn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    </div>
+                    <div>
+                        <div class="hlcv-instr-heading"><?php esc_html_e("What this isn't", 'hl-core'); ?></div>
+                        <p><?php esc_html_e('This checklist is not designed or intended to formally evaluate individual performance. It should not be interpreted as a summative assessment, and it is not expected or required that every skill listed be demonstrated or identified within a single classroom visit.', 'hl-core'); ?></p>
+                    </div>
+                </div>
+            </div>
 
             <?php if (empty($teachers)) : ?>
                 <div class="hl-empty-state">
@@ -284,26 +307,8 @@ class HL_Frontend_Classroom_Visit {
                 </div>
             <?php endif; ?>
 
-            <!-- Instructions -->
+            <!-- Instructions + Notes (What this is/isn't moved to teacher list page) -->
             <div class="hlcv-instructions">
-                <div class="hlcv-instr-section">
-                    <div class="hlcv-instr-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                    </div>
-                    <div>
-                        <div class="hlcv-instr-heading"><?php esc_html_e('What this is', 'hl-core'); ?></div>
-                        <p><?php esc_html_e('The information collected by this form is used to celebrate areas of success and recognize areas of growth. This tool provides a snapshot of skills demonstrated during a classroom visit. It is expected and appropriate that not all skills will appear in every visit.', 'hl-core'); ?></p>
-                    </div>
-                </div>
-                <div class="hlcv-instr-section">
-                    <div class="hlcv-instr-icon hlcv-instr-icon-warn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    </div>
-                    <div>
-                        <div class="hlcv-instr-heading"><?php esc_html_e("What this isn't", 'hl-core'); ?></div>
-                        <p><?php esc_html_e('This checklist is not designed or intended to formally evaluate individual performance. It should not be interpreted as a summative assessment, and it is not expected or required that every skill listed be demonstrated or identified within a single classroom visit.', 'hl-core'); ?></p>
-                    </div>
-                </div>
                 <div class="hlcv-instr-section hlcv-instr-highlight">
                     <div class="hlcv-instr-icon hlcv-instr-icon-how">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -312,6 +317,19 @@ class HL_Frontend_Classroom_Visit {
                         <div class="hlcv-instr-heading"><?php esc_html_e('Instructions', 'hl-core'); ?></div>
                         <p><?php esc_html_e('Select "Yes" if you observe an indicator in practice during the classroom visit. Select "No" if the indicator is not observed. In the Description field, describe specific examples, teacher or student behaviors, and any relevant context to support your rating.', 'hl-core'); ?></p>
                     </div>
+                </div>
+                <div class="hlcv-notes" style="margin-top:0;margin-bottom:0">
+                    <div class="hlcv-notes-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <?php esc_html_e('Notes for Clarification', 'hl-core'); ?>
+                    </div>
+                    <ul class="hlcv-notes-list">
+                        <li><?php esc_html_e('Items marked with an asterisk (*) are defined in the Glossary.', 'hl-core'); ?></li>
+                        <li><?php echo wp_kses(
+                            __('The <em>begin to ECSEL Support Manual</em> for the Classroom Visit & Self-Reflection Tool includes the Glossary and the Reference Guide to Scoring. <a href="https://www.housmanlearning.com/ecsel-support-manual" target="_blank" rel="noopener noreferrer">Open Support Manual</a>', 'hl-core'),
+                            array('em' => array(), 'a' => array('href' => array(), 'target' => array(), 'rel' => array()))
+                        ); ?></li>
+                    </ul>
                 </div>
             </div>
 
@@ -376,21 +394,6 @@ class HL_Frontend_Classroom_Visit {
 
                 <?php self::render_visit_form_sections($sections, $responses, $is_readonly, 'hl_cv'); ?>
 
-                <!-- Notes -->
-                <div class="hlcv-notes">
-                    <div class="hlcv-notes-title">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        <?php esc_html_e('Notes for Clarification', 'hl-core'); ?>
-                    </div>
-                    <ul class="hlcv-notes-list">
-                        <li><?php esc_html_e('Items marked with an asterisk (*) are defined in the Glossary.', 'hl-core'); ?></li>
-                        <li><?php echo wp_kses(
-                            __('The <em>begin to ECSEL Support Manual</em> for the Classroom Visit & Self-Reflection Tool includes the Glossary and the Reference Guide to Scoring.', 'hl-core'),
-                            array('em' => array())
-                        ); ?></li>
-                    </ul>
-                </div>
-
                 <?php if (!$is_readonly) : ?>
                     <div class="hlcv-actions">
                         <button type="submit" name="hl_cv_action" value="draft" class="hlcv-btn hlcv-btn-draft">
@@ -422,10 +425,11 @@ class HL_Frontend_Classroom_Visit {
         ?>
         <style>
         .hlcv-form-wrapper{max-width:820px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
-        .hlcv-hero{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;padding:28px 32px;border-radius:16px;margin-bottom:24px;position:relative;z-index:1;overflow:visible}
+        .hlcv-hero{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff !important;padding:28px 32px;border-radius:16px;margin-bottom:24px;position:relative;z-index:1;overflow:visible}
+        .hlcv-hero *{color:#fff !important}
         .hlcv-hero-icon{background:rgba(255,255,255,.15);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center}
-        .hlcv-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px}
-        .hlcv-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0}
+        .hlcv-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px;color:#fff !important}
+        .hlcv-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0;color:rgba(255,255,255,.8) !important}
         .hlcv-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;margin-bottom:20px}
         .hlcv-alert-info{background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef}
         .hlcv-info-card{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:28px}
