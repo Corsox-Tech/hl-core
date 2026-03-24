@@ -122,7 +122,7 @@ class HL_Admin_Imports {
                 </p>
                 <div id="hl-import-column-hints">
                     <p class="description" data-type="participants">
-                        <?php esc_html_e('Required columns: email, track_roles, school_name (or school_code). Optional: first_name, last_name, district_name, district_code.', 'hl-core'); ?>
+                        <?php esc_html_e('Required columns: email, cycle_roles, school_name (or school_code). Optional: first_name, last_name, district_name, district_code.', 'hl-core'); ?>
                     </p>
                     <p class="description" data-type="children" style="display:none;">
                         <?php esc_html_e('Required columns: first_name (and/or last_name), school_name (or school_code). Optional: date_of_birth, child_identifier, classroom_name.', 'hl-core'); ?>
