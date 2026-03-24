@@ -255,7 +255,7 @@ class HL_Admin_Partnerships {
 
         $partnership_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
         $partnership    = null;
-        $is_edit   = false;
+        $is_edit        = false;
 
         if ($partnership_id) {
             $partnership = $wpdb->get_row($wpdb->prepare(
@@ -267,87 +267,202 @@ class HL_Admin_Partnerships {
             }
         }
 
-        echo '<h1>' . ($is_edit ? esc_html__('Edit Partnership', 'hl-core') : esc_html__('Add New Partnership', 'hl-core')) . '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-partnerships')) . '">&larr; ' . esc_html__('Back to Partnerships', 'hl-core') . '</a>';
+        $this->render_partnership_styles();
 
         if ($is_edit) {
-            // Compact inline layout for edit mode.
-            $current_status = $partnership['status'];
-            $status_colors = array('active' => '#00a32a', 'archived' => '#8c8f94');
-            $sc = isset($status_colors[$current_status]) ? $status_colors[$current_status] : '#666';
-            ?>
-            <style>
-                .hl-partnership-header{display:flex;align-items:center;gap:16px;margin:12px 0 8px;flex-wrap:wrap}
-                .hl-partnership-header .hl-ph-name{font-size:15px;font-weight:600;flex:1;min-width:200px}
-                .hl-partnership-header .hl-ph-code{font-family:monospace;font-size:13px;background:#f0f0f1;padding:3px 8px;border-radius:4px;color:#50575e}
-                .hl-partnership-header .hl-ph-status{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;background:#f6f7f7}
-                .hl-partnership-header .hl-ph-status-dot{width:8px;height:8px;border-radius:50%}
-                .hl-partnership-compact{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;margin:0 0 6px}
-                .hl-partnership-compact .hl-pc-field label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#646970;margin-bottom:3px}
-                .hl-partnership-compact .hl-pc-field input{width:100%;padding:5px 8px}
-                .hl-partnership-compact .hl-pc-field select{padding:5px 8px}
-                .hl-partnership-desc{margin:0 0 6px}
-                .hl-partnership-desc label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#646970;margin-bottom:3px}
-                .hl-partnership-desc textarea{width:100%;padding:5px 8px;min-height:40px;resize:vertical}
-                .hl-partnership-save-row{display:flex;align-items:center;gap:12px;margin:0 0 16px}
-                .hl-partnership-save-row .button{margin:0!important}
-                @media(max-width:782px){.hl-partnership-compact{grid-template-columns:1fr}}
-            </style>
-            <?php
-            echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-partnerships')) . '">';
-            wp_nonce_field('hl_save_partnership', 'hl_partnership_nonce');
-            echo '<input type="hidden" name="partnership_id" value="' . esc_attr($partnership['partnership_id']) . '" />';
-
-            echo '<div class="hl-partnership-compact">';
-            echo '<div class="hl-pc-field"><label for="partnership_name">' . esc_html__('Name', 'hl-core') . '</label>';
-            echo '<input type="text" id="partnership_name" name="partnership_name" value="' . esc_attr($partnership['partnership_name']) . '" required /></div>';
-            echo '<div class="hl-pc-field"><label for="partnership_code">' . esc_html__('Code', 'hl-core') . '</label>';
-            echo '<input type="text" id="partnership_code" name="partnership_code" value="' . esc_attr($partnership['partnership_code']) . '" /></div>';
-            echo '<div class="hl-pc-field"><label for="status">' . esc_html__('Status', 'hl-core') . '</label>';
-            echo '<select id="status" name="status">';
-            foreach (array('active', 'archived') as $s) {
-                echo '<option value="' . esc_attr($s) . '"' . selected($current_status, $s, false) . '>' . esc_html(ucfirst($s)) . '</option>';
-            }
-            echo '</select></div>';
-            echo '</div>';
-
-            echo '<div class="hl-partnership-desc"><label for="description">' . esc_html__('Description', 'hl-core') . '</label>';
-            echo '<textarea id="description" name="description" rows="2">' . esc_textarea($partnership['description'] ?: '') . '</textarea></div>';
-
-            echo '<div class="hl-partnership-save-row">';
-            submit_button(__('Update Partnership', 'hl-core'), 'primary', 'submit', false);
-            echo '</div>';
-            echo '</form>';
-
-            $this->render_linked_cycles($partnership['partnership_id']);
+            $this->render_edit_form($partnership);
         } else {
-            // Add new — use standard form-table layout.
-            echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-partnerships')) . '">';
-            wp_nonce_field('hl_save_partnership', 'hl_partnership_nonce');
-
-            echo '<table class="form-table">';
-            echo '<tr><th scope="row"><label for="partnership_name">' . esc_html__('Partnership Name', 'hl-core') . '</label></th>';
-            echo '<td><input type="text" id="partnership_name" name="partnership_name" value="" class="regular-text" required /></td></tr>';
-            echo '<tr><th scope="row"><label for="partnership_code">' . esc_html__('Partnership Code', 'hl-core') . '</label></th>';
-            echo '<td><input type="text" id="partnership_code" name="partnership_code" value="" class="regular-text" />';
-            echo '<p class="description">' . esc_html__('Leave blank to auto-generate from name.', 'hl-core') . '</p></td></tr>';
-            echo '<tr><th scope="row"><label for="status">' . esc_html__('Status', 'hl-core') . '</label></th>';
-            echo '<td><select id="status" name="status">';
-            foreach (array('active', 'archived') as $s) {
-                echo '<option value="' . esc_attr($s) . '">' . esc_html(ucfirst($s)) . '</option>';
-            }
-            echo '</select></td></tr>';
-            echo '<tr><th scope="row"><label for="description">' . esc_html__('Description', 'hl-core') . '</label></th>';
-            echo '<td><textarea id="description" name="description" rows="3" class="large-text"></textarea></td></tr>';
-            echo '</table>';
-
-            submit_button(__('Create Partnership', 'hl-core'));
-            echo '</form>';
+            $this->render_new_form();
         }
     }
 
     /**
-     * Render the cycles linked to this partnership.
+     * Inline styles for the modern Partnership admin page.
+     */
+    private function render_partnership_styles() {
+        static $done = false;
+        if ($done) return;
+        $done = true;
+        ?>
+        <style>
+        /* Page wrapper — override WP admin defaults */
+        .hlp-wrap{max-width:960px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+        .hlp-back{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:#2271b1;text-decoration:none;margin-bottom:16px}
+        .hlp-back:hover{color:#135e96}
+
+        /* Title bar */
+        .hlp-title-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+        .hlp-title{font-size:22px;font-weight:600;color:#1d2327;margin:0;line-height:1.3}
+        .hlp-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;line-height:1}
+        .hlp-badge-active{background:#d1fae5;color:#065f46}
+        .hlp-badge-archived{background:#f1f5f9;color:#64748b}
+        .hlp-badge-draft{background:#fef3c7;color:#92400e}
+        .hlp-badge-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+        .hlp-badge-active .hlp-badge-dot{background:#059669}
+        .hlp-badge-archived .hlp-badge-dot{background:#94a3b8}
+        .hlp-badge-draft .hlp-badge-dot{background:#d97706}
+
+        /* Cards */
+        .hlp-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;margin-bottom:20px}
+        .hlp-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+        .hlp-card-title{font-size:14px;font-weight:600;color:#1e293b;text-transform:uppercase;letter-spacing:.5px;margin:0}
+
+        /* Form grid */
+        .hlp-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        .hlp-grid-3{display:grid;grid-template-columns:1fr 1fr auto;gap:16px;align-items:end}
+        .hlp-full{grid-column:1/-1}
+        .hlp-field label{display:block;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+        .hlp-field input[type="text"],
+        .hlp-field textarea,
+        .hlp-field select{width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;color:#1e293b;background:#fff;font-family:inherit;transition:border-color .15s,box-shadow .15s;box-sizing:border-box}
+        .hlp-field input:focus,
+        .hlp-field textarea:focus,
+        .hlp-field select:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+        .hlp-field textarea{resize:vertical;min-height:52px}
+        .hlp-field select{appearance:auto}
+        .hlp-field .description{font-size:12px;color:#94a3b8;margin-top:4px}
+        .hlp-actions{display:flex;gap:10px;margin-top:4px;padding-top:16px;border-top:1px solid #f1f5f9}
+        .hlp-actions .button{margin:0!important}
+
+        /* Cycle cards */
+        .hlp-cycle-list{display:flex;flex-direction:column;gap:10px}
+        .hlp-cycle-row{display:flex;align-items:center;gap:16px;padding:14px 18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;transition:border-color .15s,box-shadow .15s}
+        .hlp-cycle-row:hover{border-color:#cbd5e1;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+        .hlp-cycle-name{font-size:14px;font-weight:600;color:#1e293b;flex:1;min-width:0}
+        .hlp-cycle-name a{color:#1e293b;text-decoration:none}
+        .hlp-cycle-name a:hover{color:#2563eb}
+        .hlp-cycle-code{font-family:"SF Mono",Monaco,Consolas,monospace;font-size:12px;color:#64748b;background:#e2e8f0;padding:3px 8px;border-radius:6px;white-space:nowrap}
+        .hlp-cycle-date{font-size:13px;color:#64748b;white-space:nowrap}
+        .hlp-cycle-action .button{border-radius:6px}
+        .hlp-empty{text-align:center;padding:32px 16px;color:#94a3b8;font-size:14px}
+        .hlp-btn-add{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .15s}
+        .hlp-btn-add:hover,.hlp-btn-add:focus{background:#1d4ed8;color:#fff}
+
+        @media(max-width:782px){
+            .hlp-grid,.hlp-grid-3{grid-template-columns:1fr}
+            .hlp-title-bar{flex-direction:column;align-items:flex-start}
+            .hlp-cycle-row{flex-wrap:wrap}
+        }
+        </style>
+        <?php
+    }
+
+    /**
+     * Render the edit form (modern card layout).
+     */
+    private function render_edit_form($partnership) {
+        $current_status = $partnership['status'];
+        $badge_class    = 'hlp-badge-' . $current_status;
+        ?>
+        <div class="hlp-wrap">
+            <a href="<?php echo esc_url(admin_url('admin.php?page=hl-partnerships')); ?>" class="hlp-back">&larr; <?php esc_html_e('Partnerships', 'hl-core'); ?></a>
+
+            <div class="hlp-title-bar">
+                <h1 class="hlp-title"><?php echo esc_html($partnership['partnership_name']); ?></h1>
+                <span class="hlp-badge <?php echo esc_attr($badge_class); ?>">
+                    <span class="hlp-badge-dot"></span>
+                    <?php echo esc_html(ucfirst($current_status)); ?>
+                </span>
+            </div>
+
+            <!-- Partnership Details Card -->
+            <div class="hlp-card">
+                <div class="hlp-card-header">
+                    <h2 class="hlp-card-title"><?php esc_html_e('Details', 'hl-core'); ?></h2>
+                </div>
+                <form method="post" action="<?php echo esc_url(admin_url('admin.php?page=hl-partnerships')); ?>">
+                    <?php wp_nonce_field('hl_save_partnership', 'hl_partnership_nonce'); ?>
+                    <input type="hidden" name="partnership_id" value="<?php echo esc_attr($partnership['partnership_id']); ?>" />
+
+                    <div class="hlp-grid-3">
+                        <div class="hlp-field">
+                            <label for="partnership_name"><?php esc_html_e('Partnership Name', 'hl-core'); ?></label>
+                            <input type="text" id="partnership_name" name="partnership_name" value="<?php echo esc_attr($partnership['partnership_name']); ?>" required />
+                        </div>
+                        <div class="hlp-field">
+                            <label for="partnership_code"><?php esc_html_e('Code', 'hl-core'); ?></label>
+                            <input type="text" id="partnership_code" name="partnership_code" value="<?php echo esc_attr($partnership['partnership_code']); ?>" />
+                        </div>
+                        <div class="hlp-field">
+                            <label for="status"><?php esc_html_e('Status', 'hl-core'); ?></label>
+                            <select id="status" name="status">
+                                <?php foreach (array('active', 'archived') as $s) : ?>
+                                    <option value="<?php echo esc_attr($s); ?>" <?php selected($current_status, $s); ?>><?php echo esc_html(ucfirst($s)); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="hlp-field hlp-full" style="margin-top:12px">
+                        <label for="description"><?php esc_html_e('Description', 'hl-core'); ?></label>
+                        <textarea id="description" name="description" rows="2"><?php echo esc_textarea($partnership['description'] ?: ''); ?></textarea>
+                    </div>
+
+                    <div class="hlp-actions">
+                        <?php submit_button(__('Save Changes', 'hl-core'), 'primary', 'submit', false); ?>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Linked Cycles Card -->
+            <?php $this->render_linked_cycles($partnership['partnership_id']); ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the "Add New" form (same modern card style).
+     */
+    private function render_new_form() {
+        ?>
+        <div class="hlp-wrap">
+            <a href="<?php echo esc_url(admin_url('admin.php?page=hl-partnerships')); ?>" class="hlp-back">&larr; <?php esc_html_e('Partnerships', 'hl-core'); ?></a>
+
+            <div class="hlp-title-bar">
+                <h1 class="hlp-title"><?php esc_html_e('New Partnership', 'hl-core'); ?></h1>
+            </div>
+
+            <div class="hlp-card">
+                <form method="post" action="<?php echo esc_url(admin_url('admin.php?page=hl-partnerships')); ?>">
+                    <?php wp_nonce_field('hl_save_partnership', 'hl_partnership_nonce'); ?>
+
+                    <div class="hlp-grid">
+                        <div class="hlp-field">
+                            <label for="partnership_name"><?php esc_html_e('Partnership Name', 'hl-core'); ?></label>
+                            <input type="text" id="partnership_name" name="partnership_name" value="" required />
+                        </div>
+                        <div class="hlp-field">
+                            <label for="partnership_code"><?php esc_html_e('Code', 'hl-core'); ?></label>
+                            <input type="text" id="partnership_code" name="partnership_code" value="" />
+                            <p class="description"><?php esc_html_e('Leave blank to auto-generate.', 'hl-core'); ?></p>
+                        </div>
+                    </div>
+
+                    <div class="hlp-grid" style="margin-top:12px">
+                        <div class="hlp-field">
+                            <label for="status"><?php esc_html_e('Status', 'hl-core'); ?></label>
+                            <select id="status" name="status">
+                                <option value="active"><?php esc_html_e('Active', 'hl-core'); ?></option>
+                                <option value="archived"><?php esc_html_e('Archived', 'hl-core'); ?></option>
+                            </select>
+                        </div>
+                        <div class="hlp-field">
+                            <label for="description"><?php esc_html_e('Description', 'hl-core'); ?></label>
+                            <textarea id="description" name="description" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="hlp-actions">
+                        <?php submit_button(__('Create Partnership', 'hl-core'), 'primary', 'submit', false); ?>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render linked cycles as modern card rows.
      *
      * @param int $partnership_id
      */
@@ -358,48 +473,41 @@ class HL_Admin_Partnerships {
             "SELECT cycle_id, cycle_name, cycle_code, status, start_date
              FROM {$wpdb->prefix}hl_cycle
              WHERE partnership_id = %d
-             ORDER BY cycle_name ASC",
+             ORDER BY start_date DESC, cycle_name ASC",
             $partnership_id
         ), ARRAY_A);
 
-        echo '<hr style="margin:12px 0 8px">';
-        echo '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
-        echo '<h2 style="margin:0">' . esc_html__('Linked Cycles', 'hl-core') . ' ';
-        echo '<span class="count">(' . count($cycles) . ')</span></h2>';
-        $add_cycle_url = admin_url('admin.php?page=hl-cycles&action=add&partnership_id=' . $partnership_id);
-        echo '<a href="' . esc_url($add_cycle_url) . '" class="button button-primary">' . esc_html__('+ Add Cycle', 'hl-core') . '</a>';
-        echo '</div>';
+        $add_url = admin_url('admin.php?page=hl-cycles&action=add&partnership_id=' . $partnership_id);
+        ?>
+        <div class="hlp-card">
+            <div class="hlp-card-header">
+                <h2 class="hlp-card-title"><?php echo esc_html__('Cycles', 'hl-core') . ' (' . count($cycles) . ')'; ?></h2>
+                <a href="<?php echo esc_url($add_url); ?>" class="hlp-btn-add">+ <?php esc_html_e('Add Cycle', 'hl-core'); ?></a>
+            </div>
 
-        if (empty($cycles)) {
-            echo '<p>' . esc_html__('No cycles are linked to this partnership yet.', 'hl-core') . '</p>';
-            return;
-        }
-
-        echo '<table class="widefat striped">';
-        echo '<thead><tr>';
-        echo '<th>' . esc_html__('Cycle Name', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Code', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Start Date', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
-        echo '</tr></thead><tbody>';
-
-        foreach ($cycles as $t) {
-            $status_colors = array(
-                'active' => '#00a32a', 'draft' => '#996800',
-                'paused' => '#b32d2e', 'archived' => '#8c8f94',
-            );
-            $sc = isset($status_colors[$t['status']]) ? $status_colors[$t['status']] : '#666';
-
-            echo '<tr>';
-            echo '<td><strong><a href="' . esc_url(admin_url('admin.php?page=hl-cycles&action=edit&id=' . $t['cycle_id'])) . '">' . esc_html($t['cycle_name']) . '</a></strong></td>';
-            echo '<td><code>' . esc_html($t['cycle_code']) . '</code></td>';
-            echo '<td><span style="color:' . esc_attr($sc) . '; font-weight:600;">' . esc_html(ucfirst($t['status'])) . '</span></td>';
-            echo '<td>' . esc_html($t['start_date']) . '</td>';
-            echo '<td><a href="' . esc_url(admin_url('admin.php?page=hl-cycles&action=edit&id=' . $t['cycle_id'])) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a></td>';
-            echo '</tr>';
-        }
-
-        echo '</tbody></table>';
+            <?php if (empty($cycles)) : ?>
+                <div class="hlp-empty"><?php esc_html_e('No cycles yet. Click "Add Cycle" to create one.', 'hl-core'); ?></div>
+            <?php else : ?>
+                <div class="hlp-cycle-list">
+                    <?php foreach ($cycles as $c) :
+                        $badge_class = 'hlp-badge-' . $c['status'];
+                        $edit_url = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $c['cycle_id']);
+                        $date_display = $c['start_date'] ? date_i18n('M j, Y', strtotime($c['start_date'])) : '—';
+                    ?>
+                        <div class="hlp-cycle-row">
+                            <div class="hlp-cycle-name"><a href="<?php echo esc_url($edit_url); ?>"><?php echo esc_html($c['cycle_name']); ?></a></div>
+                            <span class="hlp-cycle-code"><?php echo esc_html($c['cycle_code']); ?></span>
+                            <span class="hlp-badge <?php echo esc_attr($badge_class); ?>">
+                                <span class="hlp-badge-dot"></span>
+                                <?php echo esc_html(ucfirst($c['status'])); ?>
+                            </span>
+                            <span class="hlp-cycle-date"><?php echo esc_html($date_display); ?></span>
+                            <span class="hlp-cycle-action"><a href="<?php echo esc_url($edit_url); ?>" class="button button-small"><?php esc_html_e('Edit', 'hl-core'); ?></a></span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
     }
 }
