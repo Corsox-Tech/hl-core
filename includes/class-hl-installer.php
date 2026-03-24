@@ -1623,6 +1623,7 @@ class HL_Installer {
             cycle_id bigint(20) unsigned NOT NULL,
             coach_user_id bigint(20) unsigned NOT NULL,
             mentor_enrollment_id bigint(20) unsigned NOT NULL,
+            session_number tinyint unsigned NULL,
             session_title varchar(255) NULL,
             meeting_url varchar(500) NULL,
             session_status enum('scheduled','attended','missed','cancelled','rescheduled') NOT NULL DEFAULT 'scheduled',

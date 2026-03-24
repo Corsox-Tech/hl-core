@@ -439,6 +439,7 @@ class HL_Coaching_Service {
             'cycle_id'                   => absint($data['cycle_id']),
             'coach_user_id'               => $coach_user_id,
             'mentor_enrollment_id'        => absint($data['mentor_enrollment_id']),
+            'session_number'              => !empty($data['session_number']) ? absint($data['session_number']) : null,
             'session_title'               => !empty($data['session_title']) ? sanitize_text_field($data['session_title']) : null,
             'meeting_url'                 => !empty($data['meeting_url']) ? esc_url_raw($data['meeting_url']) : null,
             'session_status'              => 'scheduled',
