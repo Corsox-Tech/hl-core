@@ -1,6 +1,6 @@
 # STATUS.md — HL Core Build Status
 
-**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 28 shortcode pages, 15+ admin pages, 39 DB tables, 15+ services. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools).
+**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 33 shortcode pages, 15+ admin pages, 40 DB tables, 16+ services. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools).
 
 ---
 
@@ -27,6 +27,16 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **6 instruments seeded** — coaching_rp_notes, mentoring_rp_notes, coaching_action_plan, mentoring_action_plan, classroom_visit_form, self_reflection_form.
 - [x] **ELCPB Y2 CLI rebuild** — `setup-elcpb-y2-v2` with correct 8 pathways, new component types, prerequisites, demo coach (Lauren Orf).
 - [x] **Integration testing** — Deployed to test server 2026-03-23. DB tables, ENUM types, 8 pathways, 6 instruments, demo coach all verified. Fixed ENUM schema definition in get_schema() to include 3 new types (prevents dbDelta regression). Manual browser testing pending (Tasks 5.3-5.5).
+
+### Coach Frontend Pages (Active — March 2026)
+- [x] **Coach Dashboard Service** — Data queries for stats, mentor roster, availability CRUD. `HL_Coach_Dashboard_Service`.
+- [x] **DB: hl_coach_availability table** — Weekly recurring schedule blocks for coaches. Schema revision 22→23.
+- [x] **Coach Dashboard [hl_coach_dashboard]** — Welcome hero, stats cards, quick links. Coach role only.
+- [x] **My Mentors [hl_coach_mentors]** — Card grid of assigned mentors with search/filter.
+- [x] **Mentor Detail [hl_coach_mentor_detail]** — 4-tab mentor profile (sessions, team, RP, reports + CSV).
+- [x] **Coach Reports [hl_coach_reports]** — Aggregated completion table with cycle/school filters, CSV export.
+- [x] **Coach Availability [hl_coach_availability]** — Weekly schedule grid with 30-min toggle blocks.
+- [x] **Wiring** — 5 shortcodes registered, 5 pages in create-pages CLI, 3 BuddyBoss sidebar items for Coach role.
 
 ### Phase 33: Individual Enrollments (B2E Master Reference)
 - [ ] **33.1 — DB: `hl_individual_enrollment` table** — Create table with user_id, course_id, enrolled_at, expires_at, status, enrolled_by, notes.
