@@ -289,7 +289,7 @@ Each variant includes example behaviors per scale point (from the B2E Child Asse
 The `hl_instrument` table stores child assessment instrument definitions:
 - instrument_id
 - name
-- instrument_type in { "children_infant", "children_toddler", "children_preschool", "children_k2" }
+- instrument_type — varchar(50), values: "children_infant", "children_toddler", "children_preschool", "children_k2"
 - version
 - questions (JSON array)
 - instructions (longtext NULL) — admin-editable rich text instructions displayed above the form; blank falls back to hard-coded default
@@ -297,7 +297,7 @@ The `hl_instrument` table stores child assessment instrument definitions:
 - styles_json (longtext NULL) — admin-customizable display styles JSON (font sizes, colors for instructions, behavior key, items, scale labels)
 - effective_from / effective_to (optional)
 
-Note: These are the ONLY instrument types in `hl_instrument`. Teacher self-assessment instruments are in a separate table (`hl_teacher_assessment_instrument`).
+Note: These are the ONLY instrument types in `hl_instrument`. Teacher self-assessment instruments and event instruments (RP Notes, Action Plans, Classroom Visit form, Self-Reflection form) are in a separate table (`hl_teacher_assessment_instrument`).
 
 ### Instrument Nuke Protection
 The `hl_instrument` and `hl_teacher_assessment_instrument` tables are **excluded from the nuke command by default** to preserve admin customizations (instructions, questions, behavior keys, display styles). The `--include-instruments` flag must be passed explicitly to truncate these tables. All seeders use skip-if-exists logic (check by `name` for child instruments, by `instrument_key` for teacher instruments) so nuke+reseed cycles recreate enrollments and instances pointing to existing instrument IDs.
@@ -463,7 +463,7 @@ Coaches and mentors can submit structured form responses during coaching session
 - submission_uuid (char 36, unique)
 - session_id (FK → hl_coaching_session)
 - submitted_by_user_id (FK → WP User)
-- instrument_id (FK → hl_instrument — references coaching_rp_notes, mentoring_rp_notes, coaching_action_plan, or mentoring_action_plan instrument)
+- instrument_id (FK → hl_teacher_assessment_instrument — references coaching_rp_notes, mentoring_rp_notes, coaching_action_plan, or mentoring_action_plan instrument)
 - role_in_session (enum: 'coach', 'mentor') — who submitted this form
 - responses_json (longtext) — structured form responses
 - status (enum: 'draft', 'submitted')
@@ -497,11 +497,10 @@ RP sessions are structured reflective practice events between a **Mentor** and a
 - cycle_id (FK → hl_cycle)
 - mentor_enrollment_id (FK → hl_enrollment)
 - teacher_enrollment_id (FK → hl_enrollment)
-- component_id (FK → hl_component, nullable)
 - session_number (int)
-- session_status (enum: 'pending', 'in_progress', 'completed')
-- scheduled_at (datetime, nullable)
-- completed_at (datetime, nullable)
+- status (varchar 20: 'pending', 'scheduled', 'attended', 'missed', 'cancelled')
+- session_date (datetime, nullable)
+- notes (text, nullable)
 - created_at, updated_at
 
 ### hl_rp_session_submission
@@ -509,7 +508,7 @@ RP sessions are structured reflective practice events between a **Mentor** and a
 - submission_uuid (char 36, unique)
 - rp_session_id (FK → hl_rp_session)
 - submitted_by_user_id (FK → WP User)
-- instrument_id (FK → hl_instrument)
+- instrument_id (FK → hl_teacher_assessment_instrument)
 - role_in_session (enum: 'coach', 'mentor') — who submitted this form
 - responses_json (longtext) — structured form responses
 - status (enum: 'draft', 'submitted')
@@ -556,13 +555,11 @@ Classroom Visits are present only in Leader/Streamlined pathways, where they rep
 - cycle_id (FK → hl_cycle)
 - leader_enrollment_id (FK → hl_enrollment — the leader performing the visit)
 - teacher_enrollment_id (FK → hl_enrollment — the teacher being visited)
-- school_id (FK → hl_orgunit, nullable)
 - classroom_id (FK → hl_classroom, nullable)
-- component_id (FK → hl_component, nullable)
 - visit_number (int)
-- visit_status (enum: 'pending', 'in_progress', 'completed')
-- scheduled_at (datetime, nullable)
-- completed_at (datetime, nullable)
+- status (varchar 20: 'pending', 'completed')
+- visit_date (datetime, nullable)
+- notes (text, nullable)
 - created_at, updated_at
 
 ### hl_classroom_visit_submission
@@ -570,7 +567,7 @@ Classroom Visits are present only in Leader/Streamlined pathways, where they rep
 - submission_uuid (char 36, unique)
 - classroom_visit_id (FK → hl_classroom_visit)
 - submitted_by_user_id (FK → WP User)
-- instrument_id (FK → hl_instrument — references `classroom_visit_form` instrument)
+- instrument_id (FK → hl_teacher_assessment_instrument — references `classroom_visit_form` instrument)
 - role_in_visit (enum: 'leader', 'teacher') — who submitted this form
 - responses_json (longtext) — structured form responses
 - status (enum: 'draft', 'submitted')
@@ -622,7 +619,7 @@ The following instruments are seeded by the `setup-elcpb-y2-v2` CLI command for 
 | `classroom_visit_form` | Classroom Visit Form | Leader during classroom visits |
 | `self_reflection_form` | Self-Reflection Form | Teacher after each course |
 
-These instruments have structured `sections` JSON defining auto-populated headers, editable form fields, and visibility rules. They are stored in the `hl_instrument` table alongside child assessment instruments.
+These instruments have structured `sections` JSON defining auto-populated headers, editable form fields, and visibility rules. They are stored in the `hl_teacher_assessment_instrument` table (not `hl_instrument`, which holds only child assessment instruments).
 
 ---
 
