@@ -361,7 +361,14 @@ class HL_Admin_Cycles {
         );
 
         echo '<h1>' . esc_html__('Add New Cycle', 'hl-core') . '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-cycles')) . '">&larr; ' . esc_html__('Back to Cycles', 'hl-core') . '</a>';
+        if ( ! empty( $_GET['partnership_id'] ) ) {
+            $back_url   = admin_url( 'admin.php?page=hl-partnerships&action=edit&id=' . absint( $_GET['partnership_id'] ) );
+            $back_label = __( 'Back to Partnership', 'hl-core' );
+        } else {
+            $back_url   = admin_url( 'admin.php?page=hl-cycles' );
+            $back_label = __( 'Back to Cycles', 'hl-core' );
+        }
+        echo '<a href="' . esc_url( $back_url ) . '">&larr; ' . esc_html( $back_label ) . '</a>';
 
         $this->render_details_form(null, $districts);
     }
