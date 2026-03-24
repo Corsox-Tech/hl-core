@@ -286,7 +286,7 @@ class HL_Admin_Partnerships {
         ?>
         <style>
         /* Page wrapper — override WP admin defaults */
-        .hlp-wrap{max-width:960px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+        .hlp-wrap{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
         .hlp-back{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:#2271b1;text-decoration:none;margin-bottom:16px}
         .hlp-back:hover{color:#135e96}
 
