@@ -1011,6 +1011,15 @@ class HL_CLI_Seed_Beginnings {
 		$t     = $wpdb->prefix;
 		$count = 0;
 
+		// Need cycle_id for the rollup table.
+		$cycle_id = 0;
+		if ( ! empty( $enrollments['all'] ) ) {
+			$first_eid = $enrollments['all'][0]['enrollment_id'];
+			$cycle_id  = (int) $wpdb->get_var( $wpdb->prepare(
+				"SELECT cycle_id FROM {$t}hl_enrollment WHERE enrollment_id = %d", $first_eid
+			) );
+		}
+
 		foreach ( $enrollments['all'] as $e ) {
 			$eid = $e['enrollment_id'];
 
@@ -1023,12 +1032,13 @@ class HL_CLI_Seed_Beginnings {
 			) );
 
 			if ( $total > 0 && $completed === $total ) {
+				$pct = 100.00;
 				$wpdb->insert( $t . 'hl_completion_rollup', array(
-					'enrollment_id' => $eid,
-					'total'         => $total,
-					'completed'     => $completed,
-					'pct'           => 100.0,
-					'rolled_at'     => current_time( 'mysql' ),
+					'enrollment_id'              => $eid,
+					'cycle_id'                   => $cycle_id,
+					'pathway_completion_percent'  => $pct,
+					'cycle_completion_percent'    => $pct,
+					'last_computed_at'           => current_time( 'mysql' ),
 				) );
 				$count++;
 			}
