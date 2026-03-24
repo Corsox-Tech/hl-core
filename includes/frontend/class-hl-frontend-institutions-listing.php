@@ -106,7 +106,7 @@ class HL_Frontend_Institutions_Listing {
                                             </span>
                                             <span class="hl-crm-card-stat">
                                                 <strong><?php echo esc_html( $num_tracks ); ?></strong>
-                                                <?php echo esc_html( _n( 'Active Track', 'Active Tracks', $num_tracks, 'hl-core' ) ); ?>
+                                                <?php echo esc_html( _n( 'Active Cycle', 'Active Cycles', $num_tracks, 'hl-core' ) ); ?>
                                             </span>
                                         </div>
                                     </div>

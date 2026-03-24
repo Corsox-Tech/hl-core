@@ -217,7 +217,7 @@ class HL_Frontend_School_Page {
                             </div>
                             <?php if ( $track_url ) : ?>
                                 <a href="<?php echo esc_url( $track_url ); ?>" class="hl-btn hl-btn-sm hl-btn-primary">
-                                    <?php esc_html_e( 'Open Track', 'hl-core' ); ?>
+                                    <?php esc_html_e( 'Open Cycle', 'hl-core' ); ?>
                                 </a>
                             <?php endif; ?>
                         </div>
@@ -309,7 +309,7 @@ class HL_Frontend_School_Page {
                             <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Email', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Role', 'hl-core' ); ?></th>
-                            <th><?php esc_html_e( 'Track', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Cycle', 'hl-core' ); ?></th>
                         </tr>
                     </thead>
                     <tbody>

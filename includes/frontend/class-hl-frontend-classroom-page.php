@@ -221,14 +221,14 @@ class HL_Frontend_Classroom_Page {
         // Children.
         $children = $this->classroom_service->get_children_in_classroom( $classroom_id );
 
-        // Breadcrumb URL — control group teachers go to My Programs instead of My Track.
+        // Breadcrumb URL — control group teachers go to My Programs instead of My Cycle.
         $is_control = $this->is_control_group_classroom( $user_id, $classroom_id );
         if ( $is_control ) {
             $back_url   = $this->find_shortcode_page_url( 'hl_my_programs' );
             $back_label = __( 'Back to My Programs', 'hl-core' );
         } else {
             $back_url   = $this->build_back_url();
-            $back_label = __( 'Back to My Track', 'hl-core' );
+            $back_label = __( 'Back to My Cycle', 'hl-core' );
         }
 
         // Success/error notices.

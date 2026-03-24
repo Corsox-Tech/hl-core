@@ -180,7 +180,7 @@ class HL_Frontend_District_Page {
                             </div>
                             <?php if ( $track_url ) : ?>
                                 <a href="<?php echo esc_url( $track_url ); ?>" class="hl-btn hl-btn-sm hl-btn-primary">
-                                    <?php esc_html_e( 'Open Track', 'hl-core' ); ?>
+                                    <?php esc_html_e( 'Open Cycle', 'hl-core' ); ?>
                                 </a>
                             <?php endif; ?>
                         </div>

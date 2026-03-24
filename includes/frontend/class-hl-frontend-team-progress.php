@@ -352,7 +352,7 @@ class HL_Frontend_Team_Progress {
                 <div class="hl-team-header-info">
                     <h2 class="hl-team-title"><?php echo esc_html($team->team_name); ?></h2>
                     <div class="hl-track-meta">
-                        <span class="hl-meta-item"><strong><?php esc_html_e('Track:', 'hl-core'); ?></strong> <?php echo esc_html($cycle->cycle_code . ' - ' . $this->format_year($cycle->start_date)); ?></span>
+                        <span class="hl-meta-item"><strong><?php esc_html_e('Cycle:', 'hl-core'); ?></strong> <?php echo esc_html($cycle->cycle_code . ' - ' . $this->format_year($cycle->start_date)); ?></span>
                         <?php if (!empty($school_name)) : ?>
                         <span class="hl-meta-item"><strong><?php esc_html_e('School:', 'hl-core'); ?></strong> <?php echo esc_html($school_name); ?></span>
                         <?php endif; ?>

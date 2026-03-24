@@ -313,7 +313,7 @@ class HL_Frontend_Child_Assessment {
                 <table class="hl-table widefat striped">
                     <thead>
                         <tr>
-                            <th><?php esc_html_e( 'Track', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Cycle', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Classroom', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Age Band', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>

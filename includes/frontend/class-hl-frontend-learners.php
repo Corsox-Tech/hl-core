@@ -86,7 +86,7 @@ class HL_Frontend_Learners {
                                 <th><?php esc_html_e( 'Email', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Role(s)', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'School', 'hl-core' ); ?></th>
-                                <th><?php esc_html_e( 'Track', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'Cycle', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Completion', 'hl-core' ); ?></th>
                             </tr>
                         </thead>

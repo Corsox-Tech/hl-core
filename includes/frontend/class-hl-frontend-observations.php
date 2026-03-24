@@ -124,7 +124,7 @@ class HL_Frontend_Observations {
                             <th><?php esc_html_e( 'Date', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Teacher', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Classroom', 'hl-core' ); ?></th>
-                            <th><?php esc_html_e( 'Track', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Cycle', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Action', 'hl-core' ); ?></th>
                         </tr>
@@ -255,11 +255,11 @@ class HL_Frontend_Observations {
                     <?php if ( count( $mentor_enrollments ) > 1 ) : ?>
                         <tr>
                             <th scope="row">
-                                <label for="mentor_enrollment_id"><?php esc_html_e( 'Track', 'hl-core' ); ?></label>
+                                <label for="mentor_enrollment_id"><?php esc_html_e( 'Cycle', 'hl-core' ); ?></label>
                             </th>
                             <td>
                                 <select name="mentor_enrollment_id" id="mentor_enrollment_id" required class="hl-select">
-                                    <option value=""><?php esc_html_e( '-- Select Track --', 'hl-core' ); ?></option>
+                                    <option value=""><?php esc_html_e( '-- Select Cycle --', 'hl-core' ); ?></option>
                                     <?php foreach ( $mentor_enrollments as $me ) : ?>
                                         <option value="<?php echo esc_attr( $me['enrollment_id'] ); ?>"
                                             <?php selected( $selected_enrollment_id, absint( $me['enrollment_id'] ) ); ?>>
@@ -539,7 +539,7 @@ class HL_Frontend_Observations {
                         <?php echo esc_html( ! empty( $observation['classroom_name'] ) ? $observation['classroom_name'] : __( 'N/A', 'hl-core' ) ); ?>
                     </span>
                     <span class="hl-meta-item">
-                        <strong><?php esc_html_e( 'Track:', 'hl-core' ); ?></strong>
+                        <strong><?php esc_html_e( 'Cycle:', 'hl-core' ); ?></strong>
                         <?php echo esc_html( ! empty( $observation['cycle_name'] ) ? $observation['cycle_name'] : __( 'N/A', 'hl-core' ) ); ?>
                     </span>
                     <span class="hl-meta-item">
@@ -658,7 +658,7 @@ class HL_Frontend_Observations {
                         <td><?php echo esc_html( ! empty( $observation['classroom_name'] ) ? $observation['classroom_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
                     </tr>
                     <tr>
-                        <th scope="row"><?php esc_html_e( 'Track', 'hl-core' ); ?></th>
+                        <th scope="row"><?php esc_html_e( 'Cycle', 'hl-core' ); ?></th>
                         <td><?php echo esc_html( ! empty( $observation['cycle_name'] ) ? $observation['cycle_name'] : __( 'N/A', 'hl-core' ) ); ?></td>
                     </tr>
                     <tr>

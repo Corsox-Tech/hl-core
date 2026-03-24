@@ -140,7 +140,7 @@ class HL_Frontend_Team_Page {
                     if ( $cycle ) {
                         printf( esc_html__( 'Back to %s', 'hl-core' ), esc_html( $cycle->cycle_name ) );
                     } else {
-                        esc_html_e( 'Back to My Track', 'hl-core' );
+                        esc_html_e( 'Back to My Cycle', 'hl-core' );
                     }
                 ?></a>
             <?php endif; ?>
@@ -267,7 +267,7 @@ class HL_Frontend_Team_Page {
                 <div class="hl-track-meta">
                     <?php if ( $cycle ) : ?>
                         <span class="hl-meta-item">
-                            <strong><?php esc_html_e( 'Track:', 'hl-core' ); ?></strong>
+                            <strong><?php esc_html_e( 'Cycle:', 'hl-core' ); ?></strong>
                             <?php echo esc_html( $cycle->cycle_name ); ?>
                         </span>
                     <?php endif; ?>
@@ -363,7 +363,7 @@ class HL_Frontend_Team_Page {
     private function render_report_tab( $team, $cycle ) {
         if ( ! $cycle ) {
             echo '<div class="hl-empty-state"><p>'
-                . esc_html__( 'Track data unavailable.', 'hl-core' )
+                . esc_html__( 'Cycle data unavailable.', 'hl-core' )
                 . '</p></div>';
             return;
         }
