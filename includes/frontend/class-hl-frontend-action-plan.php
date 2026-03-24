@@ -62,13 +62,29 @@ class HL_Frontend_Action_Plan {
         $selected_domain = isset($responses['domain']) ? $responses['domain'] : '';
         $selected_skills = isset($responses['skills']) && is_array($responses['skills']) ? $responses['skills'] : array();
 
+        self::render_styles();
         ?>
-        <div class="hl-form hl-action-plan-form">
-            <h3><?php esc_html_e('Action Plan & Results', 'hl-core'); ?></h3>
+        <div class="hlap-form-wrapper">
+
+            <!-- Hero header -->
+            <div class="hlap-hero">
+                <div class="hlap-hero-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="6"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="hlap-hero-title"><?php esc_html_e('Action Plan & Results', 'hl-core'); ?></h2>
+                    <p class="hlap-hero-sub"><?php printf(esc_html__('ECSEL Skill Development — %s Context', 'hl-core'), esc_html(ucfirst($context))); ?></p>
+                </div>
+            </div>
 
             <?php if ($is_readonly) : ?>
-                <div class="hl-notice hl-notice-info">
-                    <p><?php esc_html_e('This form has been submitted and is read-only.', 'hl-core'); ?></p>
+                <div class="hlap-alert hlap-alert-info">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    <?php esc_html_e('This form has been submitted and is read-only.', 'hl-core'); ?>
                 </div>
             <?php endif; ?>
 
@@ -81,162 +97,198 @@ class HL_Frontend_Action_Plan {
                 <?php endif; ?>
 
                 <!-- Planning Section -->
-                <fieldset class="hl-fieldset">
-                    <legend><?php esc_html_e('Planning', 'hl-core'); ?></legend>
-
-                    <!-- Domain -->
-                    <div class="hl-field-group">
-                        <label for="hl-ap-domain"><?php esc_html_e('Domain', 'hl-core'); ?></label>
-                        <?php if ($is_readonly) : ?>
-                            <div class="hl-field-value"><?php echo esc_html(isset($domain_options[$selected_domain]) ? $domain_options[$selected_domain] : $selected_domain); ?></div>
-                        <?php else : ?>
-                            <select name="hl_ap[domain]" id="hl-ap-domain" class="hl-select">
-                                <option value=""><?php esc_html_e('— Select a domain —', 'hl-core'); ?></option>
-                                <?php foreach ($domain_options as $key => $label) : ?>
-                                    <option value="<?php echo esc_attr($key); ?>" <?php selected($selected_domain, $key); ?>>
-                                        <?php echo esc_html($label); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        <?php endif; ?>
+                <div class="hlap-section">
+                    <div class="hlap-section-header">
+                        <span class="hlap-section-num">1</span>
+                        <span class="hlap-section-title"><?php esc_html_e('Planning', 'hl-core'); ?></span>
                     </div>
+                    <div class="hlap-section-body">
 
-                    <!-- Skills/Strategy (conditional on domain) -->
-                    <div class="hl-field-group" id="hl-ap-skills-group" style="<?php echo empty($selected_domain) ? 'display:none;' : ''; ?>">
-                        <label><?php esc_html_e('Skills/Strategy', 'hl-core'); ?></label>
-                        <?php if ($is_readonly) : ?>
-                            <div class="hl-field-value">
-                                <?php if (!empty($selected_skills)) : ?>
-                                    <ul class="hl-list">
+                        <!-- Domain -->
+                        <div class="hlap-field">
+                            <label class="hlap-field-label" for="hl-ap-domain"><?php esc_html_e('Domain', 'hl-core'); ?></label>
+                            <?php if ($is_readonly) : ?>
+                                <div class="hlap-readonly-value">
+                                    <span class="hlap-domain-badge"><?php echo esc_html(isset($domain_options[$selected_domain]) ? $domain_options[$selected_domain] : $selected_domain); ?></span>
+                                </div>
+                            <?php else : ?>
+                                <select name="hl_ap[domain]" id="hl-ap-domain" class="hlap-select">
+                                    <option value=""><?php esc_html_e('— Select a domain —', 'hl-core'); ?></option>
+                                    <?php foreach ($domain_options as $key => $label) : ?>
+                                        <option value="<?php echo esc_attr($key); ?>" <?php selected($selected_domain, $key); ?>>
+                                            <?php echo esc_html($label); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Skills/Strategy (conditional on domain) -->
+                        <div class="hlap-field" id="hl-ap-skills-group" style="<?php echo empty($selected_domain) ? 'display:none;' : ''; ?>">
+                            <label class="hlap-field-label"><?php esc_html_e('Skills / Strategy', 'hl-core'); ?></label>
+                            <?php if ($is_readonly) : ?>
+                                <div class="hlap-pills-ro">
+                                    <?php if (!empty($selected_skills)) : ?>
                                         <?php foreach ($selected_skills as $skill) : ?>
-                                            <li><?php echo esc_html($skill); ?></li>
+                                            <span class="hlap-pill-ro"><?php echo esc_html($skill); ?></span>
                                         <?php endforeach; ?>
-                                    </ul>
-                                <?php else : ?>
-                                    <span class="hl-muted"><?php esc_html_e('None selected', 'hl-core'); ?></span>
-                                <?php endif; ?>
-                            </div>
-                        <?php else : ?>
-                            <?php foreach ($skills_by_domain as $domain_key => $skills) : ?>
-                                <div class="hl-skills-options" data-domain="<?php echo esc_attr($domain_key); ?>"
-                                     style="<?php echo ($selected_domain !== $domain_key) ? 'display:none;' : ''; ?>">
-                                    <?php foreach ($skills as $idx => $skill) : ?>
-                                        <label class="hl-checkbox-label">
-                                            <input type="checkbox"
-                                                   name="hl_ap[skills][]"
-                                                   value="<?php echo esc_attr($skill); ?>"
-                                                   <?php checked(in_array($skill, $selected_skills, true)); ?>>
-                                            <?php echo esc_html($skill); ?>
+                                    <?php else : ?>
+                                        <span class="hlap-muted"><?php esc_html_e('None selected', 'hl-core'); ?></span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php else : ?>
+                                <?php foreach ($skills_by_domain as $domain_key => $skills) : ?>
+                                    <div class="hlap-pills" data-domain="<?php echo esc_attr($domain_key); ?>"
+                                         style="<?php echo ($selected_domain !== $domain_key) ? 'display:none;' : ''; ?>">
+                                        <?php foreach ($skills as $idx => $skill) : ?>
+                                            <label class="hlap-pill">
+                                                <input type="checkbox"
+                                                       name="hl_ap[skills][]"
+                                                       value="<?php echo esc_attr($skill); ?>"
+                                                       <?php checked(in_array($skill, $selected_skills, true)); ?>>
+                                                <span class="hlap-pill-label">
+                                                    <span class="hlap-pill-dot"></span>
+                                                    <?php echo esc_html($skill); ?>
+                                                </span>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- HOW -->
+                        <div class="hlap-field">
+                            <label class="hlap-field-label" for="hl-ap-how"><?php esc_html_e('Describe HOW you will practice the skill(s)', 'hl-core'); ?></label>
+                            <?php if ($is_readonly) : ?>
+                                <div class="hlap-readonly-value"><?php echo wp_kses_post(isset($responses['how']) ? $responses['how'] : ''); ?></div>
+                            <?php else : ?>
+                                <textarea name="hl_ap[how]" id="hl-ap-how" rows="4" class="hlap-textarea"
+                                          placeholder="<?php esc_attr_e('Describe the specific activities and strategies you plan to use...', 'hl-core'); ?>"
+                                ><?php echo esc_textarea(isset($responses['how']) ? $responses['how'] : ''); ?></textarea>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- WHAT -->
+                        <div class="hlap-field">
+                            <label class="hlap-field-label" for="hl-ap-what"><?php esc_html_e('WHAT behaviors will you track to know this is effective?', 'hl-core'); ?></label>
+                            <?php if ($is_readonly) : ?>
+                                <div class="hlap-readonly-value"><?php echo wp_kses_post(isset($responses['what']) ? $responses['what'] : ''); ?></div>
+                            <?php else : ?>
+                                <textarea name="hl_ap[what]" id="hl-ap-what" rows="4" class="hlap-textarea"
+                                          placeholder="<?php esc_attr_e('What observable changes will indicate success?', 'hl-core'); ?>"
+                                ><?php echo esc_textarea(isset($responses['what']) ? $responses['what'] : ''); ?></textarea>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div class="hlap-section">
+                    <div class="hlap-section-header">
+                        <span class="hlap-section-num">2</span>
+                        <span class="hlap-section-title"><?php esc_html_e('Results', 'hl-core'); ?></span>
+                    </div>
+                    <div class="hlap-section-body">
+
+                        <!-- Practice Reflection -->
+                        <div class="hlap-field">
+                            <label class="hlap-field-label" for="hl-ap-practice-reflection"><?php esc_html_e('From your perspective, how has your practice gone?', 'hl-core'); ?></label>
+                            <?php if ($is_readonly) : ?>
+                                <div class="hlap-readonly-value"><?php echo wp_kses_post(isset($responses['practice_reflection']) ? $responses['practice_reflection'] : ''); ?></div>
+                            <?php else : ?>
+                                <textarea name="hl_ap[practice_reflection]" id="hl-ap-practice-reflection" rows="4" class="hlap-textarea"
+                                          placeholder="<?php esc_attr_e('Reflect on your experience implementing the plan...', 'hl-core'); ?>"
+                                ><?php echo esc_textarea(isset($responses['practice_reflection']) ? $responses['practice_reflection'] : ''); ?></textarea>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Degree of Success (Likert) -->
+                        <div class="hlap-field">
+                            <label class="hlap-field-label"><?php esc_html_e('Degree of Success', 'hl-core'); ?></label>
+                            <?php
+                            $scale = array(
+                                1 => __('Not at all Successful', 'hl-core'),
+                                2 => __('Slightly Successful', 'hl-core'),
+                                3 => __('Moderately Successful', 'hl-core'),
+                                4 => __('Very Successful', 'hl-core'),
+                                5 => __('Extremely Successful', 'hl-core'),
+                            );
+                            $current_rating = isset($responses['success_degree']) ? (int) $responses['success_degree'] : 0;
+                            ?>
+                            <?php if ($is_readonly) : ?>
+                                <div class="hlap-readonly-value">
+                                    <?php if (isset($scale[$current_rating])) : ?>
+                                        <span class="hlap-likert-badge hlap-likert-<?php echo esc_attr($current_rating); ?>">
+                                            <?php echo esc_html($scale[$current_rating]); ?>
+                                        </span>
+                                    <?php else : ?>
+                                        <span class="hlap-muted"><?php esc_html_e('Not rated', 'hl-core'); ?></span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php else : ?>
+                                <div class="hlap-likert">
+                                    <?php foreach ($scale as $value => $label) : ?>
+                                        <label class="hlap-likert-option">
+                                            <input type="radio" name="hl_ap[success_degree]" value="<?php echo esc_attr($value); ?>"
+                                                <?php checked($current_rating, $value); ?>>
+                                            <span class="hlap-likert-btn">
+                                                <span class="hlap-likert-num"><?php echo esc_html($value); ?></span>
+                                                <span class="hlap-likert-text"><?php echo esc_html($label); ?></span>
+                                            </span>
                                         </label>
                                     <?php endforeach; ?>
                                 </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
+                            <?php endif; ?>
+                        </div>
 
-                    <!-- HOW -->
-                    <div class="hl-field-group">
-                        <label for="hl-ap-how"><?php esc_html_e('Describe HOW you will practice the skill(s)', 'hl-core'); ?></label>
-                        <?php if ($is_readonly) : ?>
-                            <div class="hl-field-value"><?php echo wp_kses_post(isset($responses['how']) ? $responses['how'] : ''); ?></div>
-                        <?php else : ?>
-                            <textarea name="hl_ap[how]" id="hl-ap-how" rows="4" class="hl-textarea"><?php echo esc_textarea(isset($responses['how']) ? $responses['how'] : ''); ?></textarea>
-                        <?php endif; ?>
-                    </div>
+                        <!-- Impact Observations -->
+                        <div class="hlap-field">
+                            <label class="hlap-field-label" for="hl-ap-impact"><?php esc_html_e('Observations of impact on students', 'hl-core'); ?></label>
+                            <?php if ($is_readonly) : ?>
+                                <div class="hlap-readonly-value"><?php echo wp_kses_post(isset($responses['impact_observations']) ? $responses['impact_observations'] : ''); ?></div>
+                            <?php else : ?>
+                                <textarea name="hl_ap[impact_observations]" id="hl-ap-impact" rows="4" class="hlap-textarea"
+                                          placeholder="<?php esc_attr_e('What changes did you notice in student behavior or engagement?', 'hl-core'); ?>"
+                                ><?php echo esc_textarea(isset($responses['impact_observations']) ? $responses['impact_observations'] : ''); ?></textarea>
+                            <?php endif; ?>
+                        </div>
 
-                    <!-- WHAT -->
-                    <div class="hl-field-group">
-                        <label for="hl-ap-what"><?php esc_html_e('WHAT behaviors will you track to know this is effective?', 'hl-core'); ?></label>
-                        <?php if ($is_readonly) : ?>
-                            <div class="hl-field-value"><?php echo wp_kses_post(isset($responses['what']) ? $responses['what'] : ''); ?></div>
-                        <?php else : ?>
-                            <textarea name="hl_ap[what]" id="hl-ap-what" rows="4" class="hl-textarea"><?php echo esc_textarea(isset($responses['what']) ? $responses['what'] : ''); ?></textarea>
-                        <?php endif; ?>
-                    </div>
-                </fieldset>
+                        <!-- What Learned -->
+                        <div class="hlap-field">
+                            <label class="hlap-field-label" for="hl-ap-learned"><?php esc_html_e('What you learned', 'hl-core'); ?></label>
+                            <?php if ($is_readonly) : ?>
+                                <div class="hlap-readonly-value"><?php echo wp_kses_post(isset($responses['what_learned']) ? $responses['what_learned'] : ''); ?></div>
+                            <?php else : ?>
+                                <textarea name="hl_ap[what_learned]" id="hl-ap-learned" rows="4" class="hlap-textarea"
+                                          placeholder="<?php esc_attr_e('Key takeaways from implementing your plan...', 'hl-core'); ?>"
+                                ><?php echo esc_textarea(isset($responses['what_learned']) ? $responses['what_learned'] : ''); ?></textarea>
+                            <?php endif; ?>
+                        </div>
 
-                <!-- Results Section -->
-                <fieldset class="hl-fieldset">
-                    <legend><?php esc_html_e('Results', 'hl-core'); ?></legend>
-
-                    <!-- Practice Reflection -->
-                    <div class="hl-field-group">
-                        <label for="hl-ap-practice-reflection"><?php esc_html_e('From your perspective, how has your practice gone?', 'hl-core'); ?></label>
-                        <?php if ($is_readonly) : ?>
-                            <div class="hl-field-value"><?php echo wp_kses_post(isset($responses['practice_reflection']) ? $responses['practice_reflection'] : ''); ?></div>
-                        <?php else : ?>
-                            <textarea name="hl_ap[practice_reflection]" id="hl-ap-practice-reflection" rows="4" class="hl-textarea"><?php echo esc_textarea(isset($responses['practice_reflection']) ? $responses['practice_reflection'] : ''); ?></textarea>
-                        <?php endif; ?>
+                        <!-- Still Wondering -->
+                        <div class="hlap-field">
+                            <label class="hlap-field-label" for="hl-ap-wondering"><?php esc_html_e('What you\'re still wondering', 'hl-core'); ?></label>
+                            <?php if ($is_readonly) : ?>
+                                <div class="hlap-readonly-value"><?php echo wp_kses_post(isset($responses['still_wondering']) ? $responses['still_wondering'] : ''); ?></div>
+                            <?php else : ?>
+                                <textarea name="hl_ap[still_wondering]" id="hl-ap-wondering" rows="4" class="hlap-textarea"
+                                          placeholder="<?php esc_attr_e('Questions or areas you want to explore further...', 'hl-core'); ?>"
+                                ><?php echo esc_textarea(isset($responses['still_wondering']) ? $responses['still_wondering'] : ''); ?></textarea>
+                            <?php endif; ?>
+                        </div>
                     </div>
-
-                    <!-- Degree of Success (Likert) -->
-                    <div class="hl-field-group">
-                        <label><?php esc_html_e('Degree of success', 'hl-core'); ?></label>
-                        <?php
-                        $scale = array(
-                            1 => __('Not at all Successful', 'hl-core'),
-                            2 => __('Slightly Successful', 'hl-core'),
-                            3 => __('Moderately Successful', 'hl-core'),
-                            4 => __('Very Successful', 'hl-core'),
-                            5 => __('Extremely Successful', 'hl-core'),
-                        );
-                        $current_rating = isset($responses['success_degree']) ? (int) $responses['success_degree'] : 0;
-                        ?>
-                        <?php if ($is_readonly) : ?>
-                            <div class="hl-field-value">
-                                <?php echo esc_html(isset($scale[$current_rating]) ? $scale[$current_rating] : '—'); ?>
-                            </div>
-                        <?php else : ?>
-                            <div class="hl-likert-scale">
-                                <?php foreach ($scale as $value => $label) : ?>
-                                    <label class="hl-likert-option">
-                                        <input type="radio" name="hl_ap[success_degree]" value="<?php echo esc_attr($value); ?>"
-                                            <?php checked($current_rating, $value); ?>>
-                                        <span class="hl-likert-label"><?php echo esc_html($label); ?></span>
-                                    </label>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-
-                    <!-- Impact Observations -->
-                    <div class="hl-field-group">
-                        <label for="hl-ap-impact"><?php esc_html_e('Observations of impact on students', 'hl-core'); ?></label>
-                        <?php if ($is_readonly) : ?>
-                            <div class="hl-field-value"><?php echo wp_kses_post(isset($responses['impact_observations']) ? $responses['impact_observations'] : ''); ?></div>
-                        <?php else : ?>
-                            <textarea name="hl_ap[impact_observations]" id="hl-ap-impact" rows="4" class="hl-textarea"><?php echo esc_textarea(isset($responses['impact_observations']) ? $responses['impact_observations'] : ''); ?></textarea>
-                        <?php endif; ?>
-                    </div>
-
-                    <!-- What Learned -->
-                    <div class="hl-field-group">
-                        <label for="hl-ap-learned"><?php esc_html_e('What you learned', 'hl-core'); ?></label>
-                        <?php if ($is_readonly) : ?>
-                            <div class="hl-field-value"><?php echo wp_kses_post(isset($responses['what_learned']) ? $responses['what_learned'] : ''); ?></div>
-                        <?php else : ?>
-                            <textarea name="hl_ap[what_learned]" id="hl-ap-learned" rows="4" class="hl-textarea"><?php echo esc_textarea(isset($responses['what_learned']) ? $responses['what_learned'] : ''); ?></textarea>
-                        <?php endif; ?>
-                    </div>
-
-                    <!-- Still Wondering -->
-                    <div class="hl-field-group">
-                        <label for="hl-ap-wondering"><?php esc_html_e('What you\'re still wondering', 'hl-core'); ?></label>
-                        <?php if ($is_readonly) : ?>
-                            <div class="hl-field-value"><?php echo wp_kses_post(isset($responses['still_wondering']) ? $responses['still_wondering'] : ''); ?></div>
-                        <?php else : ?>
-                            <textarea name="hl_ap[still_wondering]" id="hl-ap-wondering" rows="4" class="hl-textarea"><?php echo esc_textarea(isset($responses['still_wondering']) ? $responses['still_wondering'] : ''); ?></textarea>
-                        <?php endif; ?>
-                    </div>
-                </fieldset>
+                </div>
 
                 <?php if (!$is_readonly) : ?>
-                    <div class="hl-form-actions">
-                        <button type="submit" name="hl_action_plan_action" value="draft" class="hl-btn hl-btn-secondary">
+                    <div class="hlap-actions">
+                        <button type="submit" name="hl_action_plan_action" value="draft" class="hlap-btn hlap-btn-draft">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                             <?php esc_html_e('Save Draft', 'hl-core'); ?>
                         </button>
-                        <button type="submit" name="hl_action_plan_action" value="submit" class="hl-btn hl-btn-primary">
-                            <?php esc_html_e('Submit', 'hl-core'); ?>
+                        <button type="submit" name="hl_action_plan_action" value="submit" class="hlap-btn hlap-btn-submit">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            <?php esc_html_e('Submit Action Plan', 'hl-core'); ?>
                         </button>
                     </div>
                 <?php endif; ?>
@@ -253,7 +305,7 @@ class HL_Frontend_Action_Plan {
             function updateSkills() {
                 var val = domainSelect.value;
                 skillsGroup.style.display = val ? '' : 'none';
-                var blocks = skillsGroup.querySelectorAll('.hl-skills-options');
+                var blocks = skillsGroup.querySelectorAll('.hlap-pills');
                 for (var i = 0; i < blocks.length; i++) {
                     blocks[i].style.display = (blocks[i].getAttribute('data-domain') === val) ? '' : 'none';
                     if (blocks[i].getAttribute('data-domain') !== val) {
@@ -270,6 +322,99 @@ class HL_Frontend_Action_Plan {
         <?php
 
         return ob_get_clean();
+    }
+
+    /**
+     * Inline styles for the Action Plan form.
+     */
+    private static function render_styles() {
+        static $rendered = false;
+        if ($rendered) return;
+        $rendered = true;
+        ?>
+        <style>
+        .hlap-form-wrapper{max-width:820px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+        .hlap-hero{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;padding:28px 32px;border-radius:16px;margin-bottom:24px;position:relative;z-index:1;overflow:visible}
+        .hlap-hero-icon{background:rgba(255,255,255,.15);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center}
+        .hlap-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px}
+        .hlap-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0}
+
+        .hlap-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;margin-bottom:20px}
+        .hlap-alert-info{background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef}
+
+        /* Sections */
+        .hlap-section{background:#fff;border:1px solid #e2e8f0;border-radius:14px;margin-bottom:20px;overflow:hidden}
+        .hlap-section-header{display:flex;align-items:center;gap:12px;padding:16px 20px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-bottom:1px solid #e2e8f0}
+        .hlap-section-num{background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+        .hlap-section-title{font-size:15px;font-weight:600;color:#1e293b}
+        .hlap-section-body{padding:20px}
+
+        /* Fields */
+        .hlap-field{margin-bottom:20px}
+        .hlap-field:last-child{margin-bottom:0}
+        .hlap-field-label{display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;letter-spacing:.3px}
+        .hlap-readonly-value{background:#f1f5f9;padding:12px 16px;border-radius:10px;font-size:14px;color:#334155;line-height:1.6;min-height:20px}
+        .hlap-muted{color:#94a3b8;font-size:14px}
+
+        /* Select */
+        .hlap-select{width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-weight:500;color:#1e293b;background:#fff;font-family:inherit;transition:border-color .2s;appearance:auto}
+        .hlap-select:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1)}
+
+        /* Textarea */
+        .hlap-textarea{width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;transition:border-color .2s;background:#fafbfc;box-sizing:border-box}
+        .hlap-textarea:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1);background:#fff}
+        .hlap-textarea::placeholder{color:#94a3b8}
+
+        /* Domain badge (read-only) */
+        .hlap-domain-badge{display:inline-flex;padding:6px 16px;border-radius:50px;font-size:14px;font-weight:600;background:#1e3a5f;color:#fff}
+
+        /* Pill checkboxes for skills */
+        .hlap-pills{display:flex;flex-wrap:wrap;gap:10px}
+        .hlap-pill{position:relative}
+        .hlap-pill input{position:absolute;opacity:0;pointer-events:none}
+        .hlap-pill-label{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:2px solid #e2e8f0;border-radius:50px;font-size:14px;font-weight:500;color:#64748b;cursor:pointer;transition:all .2s ease;background:#fff;user-select:none}
+        .hlap-pill-label:hover{border-color:#94a3b8;color:#334155}
+        .hlap-pill input:checked+.hlap-pill-label{background:#1e3a5f;border-color:#1e3a5f;color:#fff;box-shadow:0 2px 8px rgba(30,58,95,.25)}
+        .hlap-pill-dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1;transition:background .2s}
+        .hlap-pill input:checked+.hlap-pill-label .hlap-pill-dot{background:#6ee7b7}
+        .hlap-pills-ro{display:flex;flex-wrap:wrap;gap:8px}
+        .hlap-pill-ro{display:inline-flex;padding:6px 14px;border-radius:50px;font-size:13px;font-weight:600;background:#d1fae5;color:#065f46}
+
+        /* Likert scale */
+        .hlap-likert{display:flex;flex-direction:column;gap:8px}
+        .hlap-likert-option{display:block;cursor:pointer}
+        .hlap-likert-option input{position:absolute;opacity:0;pointer-events:none}
+        .hlap-likert-btn{display:flex;align-items:center;gap:12px;padding:12px 16px;border:2px solid #e2e8f0;border-radius:10px;transition:all .2s;background:#fff}
+        .hlap-likert-option:hover .hlap-likert-btn{border-color:#94a3b8}
+        .hlap-likert-option input:checked+.hlap-likert-btn{border-color:#1e3a5f;background:#f0f4f8;box-shadow:0 2px 8px rgba(30,58,95,.1)}
+        .hlap-likert-num{width:28px;height:28px;border-radius:50%;background:#e2e8f0;color:#64748b;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+        .hlap-likert-option input:checked+.hlap-likert-btn .hlap-likert-num{background:#1e3a5f;color:#fff}
+        .hlap-likert-text{font-size:14px;font-weight:500;color:#475569}
+        .hlap-likert-badge{display:inline-flex;padding:6px 14px;border-radius:50px;font-size:13px;font-weight:600}
+        .hlap-likert-1{background:#fee2e2;color:#991b1b}
+        .hlap-likert-2{background:#fef3c7;color:#92400e}
+        .hlap-likert-3{background:#fef9c3;color:#854d0e}
+        .hlap-likert-4{background:#d1fae5;color:#065f46}
+        .hlap-likert-5{background:#a7f3d0;color:#064e3b}
+
+        /* Action buttons */
+        .hlap-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:32px;padding-top:24px;border-top:1px solid #e2e8f0}
+        .hlap-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:inherit}
+        .hlap-btn-draft{background:#f1f5f9;color:#475569;border:2px solid #e2e8f0}
+        .hlap-btn-draft:hover{background:#e2e8f0;border-color:#cbd5e1}
+        .hlap-btn-submit{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:2px solid transparent;box-shadow:0 4px 14px rgba(30,58,95,.3)}
+        .hlap-btn-submit:hover{box-shadow:0 6px 20px rgba(30,58,95,.4);transform:translateY(-1px)}
+
+        @media(max-width:600px){
+            .hlap-hero{flex-direction:column;text-align:center;padding:24px 20px}
+            .hlap-pills{gap:6px}
+            .hlap-pill-label{padding:8px 14px;font-size:13px}
+            .hlap-likert-btn{padding:10px 12px;gap:8px}
+            .hlap-actions{flex-direction:column}
+            .hlap-btn{justify-content:center}
+        }
+        </style>
+        <?php
     }
 
     /**

@@ -415,7 +415,7 @@ class HL_Frontend_Classroom_Visit {
     /**
      * Modern form styles (inline to avoid external CSS dependency).
      */
-    private static function render_form_styles() {
+    public static function render_form_styles() {
         static $rendered = false;
         if ($rendered) return;
         $rendered = true;

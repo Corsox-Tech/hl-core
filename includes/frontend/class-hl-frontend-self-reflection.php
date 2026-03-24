@@ -41,6 +41,23 @@ class HL_Frontend_Self_Reflection {
             }
         }
 
+        // Show success/saved message after redirect
+        if (isset($_GET['message'])) {
+            HL_Frontend_Classroom_Visit::render_form_styles();
+            $msg = sanitize_text_field($_GET['message']);
+            if ($msg === 'submitted') {
+                echo '<div class="hlcv-alert" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
+                echo '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+                echo '<strong>' . esc_html__('Self-reflection submitted successfully!', 'hl-core') . '</strong>';
+                echo '</div>';
+            } elseif ($msg === 'saved') {
+                echo '<div class="hlcv-alert" style="background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
+                echo '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>';
+                echo '<strong>' . esc_html__('Draft saved.', 'hl-core') . '</strong>';
+                echo '</div>';
+            }
+        }
+
         $external_ref  = $component->get_external_ref_array();
         $visit_number  = isset($external_ref['visit_number']) ? (int) $external_ref['visit_number'] : 1;
         $enrollment_id = (int) $enrollment->enrollment_id;
@@ -113,40 +130,79 @@ class HL_Frontend_Self_Reflection {
 
         $user = wp_get_current_user();
 
+        // Load the shared hlcv styles (domain sections, toggles, etc.)
+        HL_Frontend_Classroom_Visit::render_form_styles();
         ?>
-        <div class="hl-form hl-self-reflection-form">
-            <h3><?php esc_html_e('Self-Reflection', 'hl-core'); ?></h3>
+        <div class="hlcv-form-wrapper">
+
+            <!-- Hero header -->
+            <div class="hlcv-hero">
+                <div class="hlcv-hero-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M12 16v-4"></path>
+                        <path d="M12 8h.01"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="hlcv-hero-title"><?php esc_html_e('Self-Reflection Tool', 'hl-core'); ?></h2>
+                    <p class="hlcv-hero-sub"><?php esc_html_e('ECSEL Domains & Indicators — Teacher Self-Assessment', 'hl-core'); ?></p>
+                </div>
+            </div>
 
             <?php if ($is_readonly) : ?>
-                <div class="hl-notice hl-notice-info">
-                    <p><?php esc_html_e('This form has been submitted and is read-only.', 'hl-core'); ?></p>
+                <div class="hlcv-alert hlcv-alert-info">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    <?php esc_html_e('This form has been submitted and is read-only.', 'hl-core'); ?>
                 </div>
             <?php endif; ?>
 
-            <!-- Auto-populated header -->
-            <div class="hl-fieldset hl-auto-populated">
-                <h4><?php esc_html_e('Self-Reflection Information', 'hl-core'); ?></h4>
-                <div class="hl-info-grid">
-                    <div class="hl-info-item">
-                        <span class="hl-info-label"><?php esc_html_e('Teacher:', 'hl-core'); ?></span>
-                        <span class="hl-info-value"><?php echo esc_html($user->display_name); ?></span>
+            <!-- Instructions -->
+            <div class="hlcv-instructions">
+                <div class="hlcv-instr-section">
+                    <div class="hlcv-instr-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
                     </div>
-                    <div class="hl-info-item">
-                        <span class="hl-info-label"><?php esc_html_e('Date:', 'hl-core'); ?></span>
-                        <span class="hl-info-value"><?php echo esc_html(date_i18n(get_option('date_format'))); ?></span>
+                    <div>
+                        <div class="hlcv-instr-heading"><?php esc_html_e('What this is', 'hl-core'); ?></div>
+                        <p><?php esc_html_e('This self-reflection complements the classroom visit observation. It provides an opportunity to reflect on your own practice and identify areas of success and growth from your perspective.', 'hl-core'); ?></p>
                     </div>
-                    <div class="hl-info-item">
-                        <span class="hl-info-label"><?php esc_html_e('Visit #:', 'hl-core'); ?></span>
-                        <span class="hl-info-value"><?php echo esc_html(isset($visit_entity['visit_number']) ? $visit_entity['visit_number'] : '—'); ?></span>
-                    </div>
-                    <?php
-                    // Show indicator if a leader has visited
-                    if (!empty($visit_entity['status']) && $visit_entity['status'] === 'completed') : ?>
-                        <div class="hl-info-item">
-                            <span class="hl-badge hl-badge-green"><?php esc_html_e('Your leader has visited your classroom', 'hl-core'); ?></span>
-                        </div>
-                    <?php endif; ?>
                 </div>
+                <div class="hlcv-instr-section hlcv-instr-highlight">
+                    <div class="hlcv-instr-icon hlcv-instr-icon-how">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    </div>
+                    <div>
+                        <div class="hlcv-instr-heading"><?php esc_html_e('Instructions', 'hl-core'); ?></div>
+                        <p><?php esc_html_e('Select "Yes" for skills you feel you demonstrated during your teaching. Select "No" if you did not demonstrate or are unsure about a skill. Use the Description field to note specific examples or reflections.', 'hl-core'); ?></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info card -->
+            <div class="hlcv-info-card">
+                <div class="hlcv-info-row">
+                    <div class="hlcv-info-cell">
+                        <span class="hlcv-info-label"><?php esc_html_e('Teacher', 'hl-core'); ?></span>
+                        <span class="hlcv-info-value"><?php echo esc_html($user->display_name); ?></span>
+                    </div>
+                    <div class="hlcv-info-cell">
+                        <span class="hlcv-info-label"><?php esc_html_e('Date', 'hl-core'); ?></span>
+                        <span class="hlcv-info-value"><?php echo esc_html(date_i18n(get_option('date_format'))); ?></span>
+                    </div>
+                    <div class="hlcv-info-cell">
+                        <span class="hlcv-info-label"><?php esc_html_e('Visit #', 'hl-core'); ?></span>
+                        <span class="hlcv-info-value hlcv-visit-num"><?php echo esc_html(isset($visit_entity['visit_number']) ? $visit_entity['visit_number'] : '1'); ?></span>
+                    </div>
+                </div>
+                <?php if (!empty($visit_entity['status']) && $visit_entity['status'] === 'completed') : ?>
+                    <div style="margin-top:12px">
+                        <span class="hlcv-ro-badge hlcv-ro-yes">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            <?php esc_html_e('Your leader has visited your classroom', 'hl-core'); ?>
+                        </span>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <form method="post" id="hl-self-reflection-form">
@@ -162,13 +218,30 @@ class HL_Frontend_Self_Reflection {
                 HL_Frontend_Classroom_Visit::render_visit_form_sections($sections, $responses, $is_readonly, 'hl_sr');
                 ?>
 
+                <!-- Notes -->
+                <div class="hlcv-notes">
+                    <div class="hlcv-notes-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <?php esc_html_e('Notes for Clarification', 'hl-core'); ?>
+                    </div>
+                    <ul class="hlcv-notes-list">
+                        <li><?php esc_html_e('Items marked with an asterisk (*) are defined in the Glossary.', 'hl-core'); ?></li>
+                        <li><?php echo wp_kses(
+                            __('The <em>begin to ECSEL Support Manual</em> for the Classroom Visit & Self-Reflection Tool includes the Glossary and the Reference Guide to Scoring.', 'hl-core'),
+                            array('em' => array())
+                        ); ?></li>
+                    </ul>
+                </div>
+
                 <?php if (!$is_readonly) : ?>
-                    <div class="hl-form-actions">
-                        <button type="submit" name="hl_sr_action" value="draft" class="hl-btn hl-btn-secondary">
+                    <div class="hlcv-actions">
+                        <button type="submit" name="hl_sr_action" value="draft" class="hlcv-btn hlcv-btn-draft">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                             <?php esc_html_e('Save Draft', 'hl-core'); ?>
                         </button>
-                        <button type="submit" name="hl_sr_action" value="submit" class="hl-btn hl-btn-primary">
-                            <?php esc_html_e('Submit', 'hl-core'); ?>
+                        <button type="submit" name="hl_sr_action" value="submit" class="hlcv-btn hlcv-btn-submit">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            <?php esc_html_e('Submit Self-Reflection', 'hl-core'); ?>
                         </button>
                     </div>
                 <?php endif; ?>
