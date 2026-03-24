@@ -90,11 +90,11 @@ Participation:
 
 Teams:
 - hl_team
-- hl_teammembership
+- hl_team_membership
 
 Classrooms + children:
 - hl_classroom
-- hl_teachingassignment
+- hl_teaching_assignment
 - hl_child
 - hl_child_classroom_current
 - hl_child_classroom_history (optional)
@@ -136,8 +136,13 @@ Observations + coaching:
 Cross-pathway events:
 - hl_rp_session (Reflective Practice sessions linking mentor + teacher within a Cycle)
 - hl_rp_session_submission (form responses — RP Notes and Action Plan — for RP sessions)
-- hl_classroom_visit (leader-initiated classroom observations; tracks leader, teacher, school, classroom)
+- hl_classroom_visit (leader-initiated classroom observations; tracks leader, teacher, classroom)
 - hl_classroom_visit_submission (form responses for classroom visits)
+
+Assignments + email:
+- hl_coach_assignment (coach ↔ enrollment scope mapping)
+- hl_pathway_assignment (enrollment ↔ pathway assignment)
+- hl_cycle_email_log (tracks emails sent per cycle)
 
 Imports + audit:
 - hl_import_run
@@ -379,7 +384,7 @@ These are the required behaviors. The implementation must pass them.
 26) Coaching attendance can be marked and reflected as 0/100 completion for the coaching attendance activity (when used).
 
 ## 9.10 JetFormBuilder Integration
-27) When a teacher submits a self-assessment via JFB, the corresponding component in their pathway shows 100% complete within the same page load or on next refresh.
+27) When a teacher submits a self-assessment via the custom form, the corresponding component in their pathway shows 100% complete within the same page load or on next refresh.
 28) When a mentor submits an observation via JFB, the observation record in HL Core is marked as "submitted".
 29) If JetFormBuilder is deactivated, HL Core shows an admin notice and JFB-powered components display a "form unavailable" message instead of breaking.
 
