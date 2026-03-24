@@ -184,9 +184,10 @@ Cycle: "ELCPB B2E Mastery 2025-2027" (cycle_type: program)
         │                      RP#2, TC3, CS#3, MC2, RP#3, TC4, CS#4, RP#4, CA Post, TSA Post)
         ├── Mentor Phase 2    (TSA Pre, CA Pre, TC5, CS#1, MC3, RP#1, TC6, CS#2, RP#2,
         │                      TC7, CS#3, MC4, RP#3, TC8, CS#4, RP#4, CA Post, TSA Post)
-        ├── Mentor Transition (TC0, TC1, CS#1, MC1, RP#1, TC2, CS#2, RP#2,
-        │                      TC3, CS#3, MC2, RP#3, TC4, CS#4, RP#4)
-        ├── Mentor Completion (MC3, MC4)
+        ├── Mentor Transition (TSA Pre, CA Pre, TC5, CS#1, MC1, RP#1, TC6, CS#2,
+        │                      RP#2, TC7, CS#3, MC2, RP#3, TC8, CS#4, RP#4,
+        │                      CA Post, TSA Post)  — 18 components
+        ├── Mentor Completion (TSA Pre, MC3, MC4, TSA Post)  — 4 components
         ├── Streamlined Ph 1  (TC0, TC1(S), MC1(S), CV#1, TC2(S), CV#2, TC3(S), CV#3,
         │                      TC4(S), MC2(S), CV#4)
         └── Streamlined Ph 2  (TC5(S), MC3(S), CV#1, TC6(S), CV#2, TC7(S), CV#3,
