@@ -27,9 +27,11 @@ jobs:
           scp -i ~/.ssh/key.pem /tmp/hl-core.tar.gz bitnami@44.221.6.201:/tmp/hl-core.tar.gz
           ssh -i ~/.ssh/key.pem bitnami@44.221.6.201 '
             cd /opt/bitnami/wordpress/wp-content/plugins &&
+            if [ -d hl-core/data ]; then sudo mv hl-core/data /tmp/hl-core-data-backup; fi &&
             sudo rm -rf hl-core &&
             sudo mkdir hl-core &&
             sudo tar -xzf /tmp/hl-core.tar.gz -C hl-core &&
+            if [ -d /tmp/hl-core-data-backup ]; then sudo mv /tmp/hl-core-data-backup hl-core/data; fi &&
             sudo chown -R bitnami:daemon hl-core &&
             rm /tmp/hl-core.tar.gz
           '
