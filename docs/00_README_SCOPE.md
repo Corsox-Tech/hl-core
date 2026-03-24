@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 00_README_SCOPE.md
-Version: 2.0
-Last Updated: 2026-03-17
+Version: 3.0
+Last Updated: 2026-03-24
 Timezone: America/Bogota
 
 ---
@@ -15,8 +15,8 @@ The plugin must manage:
 - People and cycle participation: Users enrolled into a Cycle with Cycle Roles
 - Teams within Schools for mentorship structure
 - Cycle learning configuration: Pathways and Components with prerequisite + drip rules
-- Assessments: Teacher Self-Assessment (via JetFormBuilder) and Child Assessment (custom PHP)
-- Mentorship workflow: Observations (via JetFormBuilder, submitted by Mentors) and Coaching Sessions (custom admin CRUD, logged by Coaches)
+- Assessments: Teacher Self-Assessment (custom PHP instrument system) and Child Assessment (custom PHP)
+- Mentorship workflow: Observations (via JetFormBuilder, submitted by Mentors), Coaching Sessions (custom admin CRUD, logged by Coaches), Reflective Practice Sessions (mentor-teacher RP events with RP Notes + Action Plan forms), Self-Reflections (teacher self-reflection after each course), and Classroom Visits (leader observations of teacher classrooms)
 - Imports: roster + children + classroom relationships (CSV/XLS/XLSX) with preview + validation
 - Reporting: progress/completion by scope (Cycle / District / School / Team / User), export to CSV
 - Audit logs: key state changes and overrides
@@ -138,8 +138,8 @@ HL Core should not rely on scattered post_meta/user_meta as the primary database
 
 Use WP Users as the identity layer only.
 
-## 6.2 Use JetFormBuilder for form response storage where applicable
-For teacher self-assessments and observations, form responses are stored in JFB Form Records. HL Core stores only orchestration data (instance status, submission timestamps, JFB record references).
+## 6.2 Use JetFormBuilder for observation form response storage
+For observations (the only remaining JFB-powered form type), responses are stored in JFB Form Records. Teacher self-assessments use HL Core's custom instrument system (`hl_teacher_assessment_instance.responses_json`). RP sessions, classroom visits, and self-reflections store responses in their own HL Core tables (`hl_rp_session_submission`, `hl_classroom_visit_submission`, `hl_coaching_session_submission`).
 
 ## 6.3 Keep "Org Structure" independent from "Cycle Runs"
 Districts and Schools persist over time.

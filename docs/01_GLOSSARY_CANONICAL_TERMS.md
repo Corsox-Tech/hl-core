@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 01_GLOSSARY_CANONICAL_TERMS.md
-Version: 3.0
-Last Updated: 2026-03-17
+Version: 4.0
+Last Updated: 2026-03-24
 Timezone: America/Bogota
 
 ---
@@ -332,12 +332,15 @@ Properties:
 ## 6.2 Component
 **Definition**: A single requirement in a Pathway.
 
-Supported Component types (v1):
+Supported Component types:
 - LearnDash Course (progress percent from LearnDash)
 - Teacher Self-Assessment (Custom PHP form via HL Core instrument system; completion 0/100)
 - Child Assessment (Custom PHP form via HL Core instrument system; completion 0/100)
 - Coaching Session Attendance (HL Core record; completion 0/100, set by Coach/Admin)
 - Observation (JFB form; parallel requirement; may be excluded from pathway UI)
+- Self-Reflection (Custom PHP form submitted by teachers after each course; completion 0/100)
+- Reflective Practice Session (Custom PHP RP session page with role-based views and form submissions for RP Notes + Action Plan; completion 0/100)
+- Classroom Visit (Custom PHP form submitted by leaders visiting a teacher's classroom; completion 0/100)
 
 ---
 
@@ -420,9 +423,45 @@ Privacy:
 **Definition**: A session logged by a Coach for a Mentor.
 - Includes attendance (complete/incomplete) + notes + attachments.
 - Links to one or more Observations for context/prep.
+- Coaches and mentors can submit structured form responses (RP Notes + Action Plan) stored in `hl_coaching_session_submission`.
 
 Privacy:
 - Coach/Admin visible by default; mentor visibility configurable but not required in v1.
+
+---
+
+## 7.5 Reflective Practice (RP) Session
+**Definition**: A structured reflective practice session between a Mentor and a Teacher within a Cycle. RP sessions are pathway components that facilitate guided reflection on classroom practice after each course.
+
+The RP session page provides role-based views:
+- **Coach view**: session prep notes (auto-populated from pathway progress, previous action plans, recent classroom visits), editable RP Notes + Action Plan forms
+- **Mentor view**: editable RP Notes + Action Plan forms for mentoring context
+- **Teacher view**: read-only view of completed RP Notes and Action Plan submissions
+
+Form responses (RP Notes and Action Plan) are stored in `hl_rp_session_submission` with instrument-based structure.
+
+Privacy:
+- RP session data is visible to Staff (Admin/Coach) and the participating Mentor and Teacher.
+
+---
+
+## 7.6 Classroom Visit
+**Definition**: A structured classroom observation conducted by a **Leader** (School Leader or District Leader) who visits a teacher's classroom. Unlike Observations (which are mentor-submitted via JFB), Classroom Visits use a custom PHP form and are initiated by leaders.
+
+Stored in `hl_classroom_visit`. Form responses stored in `hl_classroom_visit_submission`.
+
+Privacy:
+- Visible to Staff, the visiting leader, and optionally the visited teacher.
+
+---
+
+## 7.7 Self-Reflection
+**Definition**: A self-reflection form completed by a **Teacher** after each course. Provides structured self-assessment of how they are applying course concepts in their classroom.
+
+Rendered by `HL_Frontend_Self_Reflection` using a custom PHP form. Self-reflection is a pathway component (component_type = `self_reflection`).
+
+Privacy:
+- Visible to the submitting teacher and Staff.
 
 ---
 

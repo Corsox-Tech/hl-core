@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 04_PARTNERSHIPS_PATHWAYS_COMPONENTS_RULES.md
-Version: 3.0
-Last Updated: 2026-03-17
+Version: 4.0
+Last Updated: 2026-03-24
 Timezone: America/Bogota
 
 ---
@@ -201,6 +201,61 @@ Default v1 choice:
 
 ---
 
+### 3.2.6 Self-Reflection Component
+- component_type = "self_reflection"
+- external_ref: `{"visit_number": N}` — identifies which self-reflection in the sequence
+
+A structured self-reflection form completed by **Teachers** after each course. Uses a custom PHP form rendered by `HL_Frontend_Self_Reflection`.
+
+Completion:
+- 0% until form is submitted
+- 100% when submitted
+
+Notes:
+- Interleaved with courses in Teacher and Mentor pathways (e.g., Self-Reflection #1 follows TC1)
+- Not present in Leader/Streamlined pathways
+- Uses the `self_reflection_form` instrument for form structure
+
+---
+
+### 3.2.7 Reflective Practice Session Component
+- component_type = "reflective_practice_session"
+- external_ref: `{"session_number": N}` — identifies which RP session in the sequence
+
+A structured reflective practice session between a Mentor and a Teacher. The RP session page (`HL_Frontend_RP_Session`) provides role-based views with auto-populated session prep data and editable RP Notes + Action Plan forms.
+
+Form submissions (RP Notes and Action Plan) are stored in `hl_rp_session_submission` with instrument references (`coaching_rp_notes`, `mentoring_rp_notes`, `coaching_action_plan`, `mentoring_action_plan`).
+
+Completion:
+- 0% until required form submissions are complete
+- 100% when all required submissions for the session are submitted
+
+Notes:
+- Present in all pathway types: Teacher pathways (paired with Self-Reflection), Mentor pathways (after mentor courses), Leader/Streamlined pathways (not present — leaders have Classroom Visits instead)
+- RP sessions link a `mentor_enrollment_id` and `teacher_enrollment_id` in `hl_rp_session`
+
+---
+
+### 3.2.8 Classroom Visit Component
+- component_type = "classroom_visit"
+- external_ref: `{"visit_number": N}` — identifies which visit in the sequence
+
+A structured classroom observation conducted by a **Leader** (School Leader or District Leader) visiting a teacher's classroom. Uses a custom PHP form rendered by `HL_Frontend_Classroom_Visit`.
+
+Unlike Observations (mentor-submitted via JFB), Classroom Visits are leader-initiated and use the `classroom_visit_form` instrument.
+
+Stored in `hl_classroom_visit` (visit record) and `hl_classroom_visit_submission` (form responses).
+
+Completion:
+- 0% until the visit form is submitted
+- 100% when submitted
+
+Notes:
+- Present only in Leader/Streamlined pathways (replaces Observations/RP Sessions)
+- The `hl_classroom_visit` table tracks `leader_enrollment_id`, `teacher_enrollment_id`, school, classroom, and visit status
+
+---
+
 # 4) Completion Model
 
 ## 4.1 Component Completion Output Format (for reporting)
@@ -215,6 +270,9 @@ Rules:
 - Child Assessment: computed 0/100 across required classroom instances
 - Coaching attendance: 0 or 100
 - Observations: 0 or 100
+- Self-Reflection: 0 or 100 (binary, based on form submission)
+- Reflective Practice Session: 0 or 100 (binary, based on required form submissions)
+- Classroom Visit: 0 or 100 (binary, based on form submission)
 
 ## 4.2 Cycle/Pathway Completion Percent
 For a participant in a Cycle:
