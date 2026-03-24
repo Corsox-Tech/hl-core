@@ -250,14 +250,21 @@ These fields need to be added to the `hl_pathway` table or stored as pathway met
 
 This page's content depends entirely on the component type:
 
-### JFB-Powered Components (teacher self-assessment, observation)
+### Teacher Self-Assessment
+- Page header: Component title, pathway breadcrumb ("← Back to [Pathway Name]")
+- Custom PHP form rendered by `HL_Teacher_Assessment_Renderer` via `[hl_teacher_assessment]` shortcode
+- Structured instrument with sections, scale labels, and instructions from `hl_teacher_assessment_instrument`
+- "Save as Draft" and "Submit" buttons
+- On submit: HL Core validates, saves to `hl_teacher_assessment_instance.responses_json`, updates component_state
+
+### JFB-Powered Components (observation only)
 - Page header: Component title, pathway breadcrumb ("← Back to [Pathway Name]")
 - Embedded JFB form with hidden fields pre-populated:
   - `hl_enrollment_id`
   - `hl_component_id`
   - `hl_cycle_id`
-  - `hl_instance_id` (for observations: `hl_observation_id`)
-- On submit: JFB fires `hl_core_form_submitted` hook → HL Core updates activity_state
+  - `hl_observation_id`
+- On submit: JFB fires `hl_core_form_submitted` hook → HL Core updates component_state
 - After submit: redirect back to Program Page with success message
 
 ### Child Assessment
@@ -272,7 +279,7 @@ This page's content depends entirely on the component type:
 - "Missing a child?" link at bottom — AJAX auto-saves draft before navigating to Classroom Page
 - Render-time reconciliation: new children added, removed children hidden, stale drafts handled
 - "Save as Draft" and "Submit" buttons
-- On submit: HL Core validates, saves childrows with frozen_age_group/instrument_id/status, updates activity_state
+- On submit: HL Core validates, saves childrows with frozen_age_group/instrument_id/status, updates component_state
 - After submit: read-only summary grouped by age group with skip badges
 - After submit: redirect back to Program Page with success message
 
