@@ -200,6 +200,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-ea.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-elcpb-y2-v2.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-beginnings.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-beginnings-y2.php';
         }
     }
     
@@ -273,6 +274,7 @@ class HL_Core {
             HL_CLI_Setup_EA::register();
             HL_CLI_Setup_ELCPB_Y2_V2::register();
             HL_CLI_Seed_Beginnings::register();
+            HL_CLI_Seed_Beginnings_Y2::register();
         }
 
         do_action('hl_core_init');
