@@ -242,21 +242,34 @@ class HL_CLI_Seed_Beginnings_Y2 {
 		}
 		WP_CLI::log( "  [8] Teams created: {$team_count}" );
 
-		// 9. Assign pathways.
+		// 9. Assign pathways (both assigned_pathway_id AND hl_pathway_assignment row).
 		$pathway_name_map = array();
 		foreach ( $pathways as $name => $info ) {
 			$pathway_name_map[ $name ] = $info['pathway_id'];
 		}
 
 		$assigned = 0;
+		$admin_id = get_current_user_id() ?: 1;
 		foreach ( $enrollments as $e ) {
 			$pw_name = $e['pathway'];
 			if ( isset( $pathway_name_map[ $pw_name ] ) ) {
+				$pw_id = $pathway_name_map[ $pw_name ];
+
+				// Set on enrollment row (legacy field).
 				$wpdb->update(
 					$t . 'hl_enrollment',
-					array( 'assigned_pathway_id' => $pathway_name_map[ $pw_name ] ),
+					array( 'assigned_pathway_id' => $pw_id ),
 					array( 'enrollment_id' => $e['enrollment_id'] )
 				);
+
+				// Insert into pathway_assignment table (authoritative source).
+				$wpdb->insert( $t . 'hl_pathway_assignment', array(
+					'enrollment_id'      => $e['enrollment_id'],
+					'pathway_id'         => $pw_id,
+					'assigned_by_user_id' => $admin_id,
+					'assignment_type'    => 'explicit',
+				) );
+
 				$assigned++;
 			} else {
 				WP_CLI::warning( "Pathway not found: {$pw_name} for {$e['email']}" );
@@ -326,7 +339,6 @@ class HL_CLI_Seed_Beginnings_Y2 {
 		$pw['Mentor Phase 1']      = $this->create_mentor_phase1( $svc, $cid );
 		$pw['Mentor Phase 2']      = $this->create_mentor_phase2( $svc, $cid );
 		$pw['Mentor Transition']   = $this->create_mentor_transition( $svc, $cid );
-		$pw['Mentor Completion']   = $this->create_mentor_completion( $svc, $cid );
 		$pw['Streamlined Phase 2'] = $this->create_streamlined_phase2( $svc, $cid );
 
 		return $pw;
