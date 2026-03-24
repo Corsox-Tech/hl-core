@@ -979,16 +979,20 @@ class HL_CLI_Seed_Beginnings {
 					$days_offset = (int) round( ( $i / max( $total, 1 ) ) * 200 );
 					$completed_at = gmdate( 'Y-m-d H:i:s', strtotime( $base_date . " +{$days_offset} days" ) );
 					$wpdb->insert( $t . 'hl_component_state', array(
-						'enrollment_id' => $eid,
-						'component_id'  => $comp_id,
-						'status'        => 'completed',
-						'completed_at'  => $completed_at,
+						'enrollment_id'     => $eid,
+						'component_id'      => $comp_id,
+						'completion_status'  => 'complete',
+						'completion_percent' => 100,
+						'completed_at'      => $completed_at,
+						'last_computed_at'  => $completed_at,
 					) );
 				} else {
 					$wpdb->insert( $t . 'hl_component_state', array(
-						'enrollment_id' => $eid,
-						'component_id'  => $comp_id,
-						'status'        => 'available',
+						'enrollment_id'     => $eid,
+						'component_id'      => $comp_id,
+						'completion_status'  => 'not_started',
+						'completion_percent' => 0,
+						'last_computed_at'  => current_time( 'mysql' ),
 					) );
 				}
 				$count++;
@@ -1015,7 +1019,7 @@ class HL_CLI_Seed_Beginnings {
 				"SELECT COUNT(*) FROM {$t}hl_component_state WHERE enrollment_id = %d", $eid
 			) );
 			$completed = (int) $wpdb->get_var( $wpdb->prepare(
-				"SELECT COUNT(*) FROM {$t}hl_component_state WHERE enrollment_id = %d AND status = 'completed'", $eid
+				"SELECT COUNT(*) FROM {$t}hl_component_state WHERE enrollment_id = %d AND completion_status = 'complete'", $eid
 			) );
 
 			if ( $total > 0 && $completed === $total ) {
