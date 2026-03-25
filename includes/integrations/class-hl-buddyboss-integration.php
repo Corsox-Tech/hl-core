@@ -814,27 +814,31 @@ class HL_BuddyBoss_Integration {
 
         // Define all possible menu items with their visibility rules.
         // Each entry: [ slug, shortcode, label, icon, show_condition ]
+        // Role matrix approved 2026-03-25:
+        //   Teacher: My Programs, My Team, Classrooms
+        //   Mentor:  My Programs, My Coaching, My Team, Classrooms
+        //   Leader:  My Programs, Cycles, Classrooms, Reports
+        //   Coach:   Coach Dashboard, My Mentors, Coach Reports, Classrooms, Reports, Documentation
+        //   Admin:   My Programs, Classrooms, Cycles, Institutions, Learners, Pathways, Coaching Hub, Reports, Documentation
         $menu_def = array(
             // --- Personal (require active enrollment) ---
             array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment),
-            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $has_enrollment && !$is_control_only),
-            array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor),
-            array('my-cycle', 'hl_my_cycle',       __('My Cycle', 'hl-core'), 'dashicons-networking',           $is_leader || $is_mentor),
+            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $is_mentor && !$is_control_only),
+            array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor || $is_teacher),
             // --- Directories / Management ---
-            array('cycles',   'hl_cycles_listing', __('Cycles', 'hl-core'),   'dashicons-groups',               $is_staff || $is_leader),
-            array('institutions',   'hl_institutions_listing', __('Institutions', 'hl-core'),   'dashicons-building',             $is_staff || $is_leader),
-            array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'dashicons-welcome-learn-more',   $is_staff || $is_leader || $is_teacher),
-            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'dashicons-id-alt',               $is_staff || $is_leader || $is_mentor),
+            array('cycles',         'hl_cycles_listing',       __('Cycles', 'hl-core'),         'dashicons-groups',               $is_staff || $is_leader),
+            array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'dashicons-welcome-learn-more',   $is_staff || $is_leader || $is_teacher || $is_mentor || $is_coach),
+            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'dashicons-id-alt',               $is_staff),
             // --- Staff tools ---
             array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       'dashicons-randomize',            $is_staff),
-            array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   'dashicons-format-chat',          $is_staff || $is_mentor),
+            array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   'dashicons-format-chat',          $is_staff),
             // --- Coach tools ---
             array('coach-dashboard', 'hl_coach_dashboard',   __('Coach Dashboard', 'hl-core'), 'dashicons-dashboard',    $is_coach),
             array('coach-mentors',   'hl_coach_mentors',     __('My Mentors', 'hl-core'),      'dashicons-groups',       $is_coach),
             array('coach-reports',   'hl_coach_reports',     __('Coach Reports', 'hl-core'),   'dashicons-chart-bar',    $is_coach),
-            array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'dashicons-chart-bar',            $is_staff || $is_leader),
-            // --- Documentation (admin only) ---
-            array('documentation', 'hl_docs',                 __('Documentation', 'hl-core'),  'dashicons-media-document',       current_user_can('manage_options')),
+            array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'dashicons-chart-bar',            $is_staff || $is_leader || $is_coach),
+            // --- Documentation ---
+            array('documentation', 'hl_docs',                 __('Documentation', 'hl-core'),  'dashicons-media-document',       current_user_can('manage_options') || $is_coach),
         );
 
         $items = array();

@@ -150,7 +150,7 @@ class HL_Frontend_My_Programs {
             } // end foreach assigned_pathways
         }
 
-        // Check if all enrollments are control group — if so, skip coach widget.
+        // Check if all enrollments are control group — if so, skip guide widget.
         $all_control = !empty($cards);
         foreach ($cards as $card) {
             if (empty($card['cycle']->is_control_group)) {
@@ -159,13 +159,38 @@ class HL_Frontend_My_Programs {
             }
         }
 
-        // Resolve coach for the first enrollment (shows one coach card).
-        $coach = null;
+        // Determine user's enrollment roles for widget display.
+        $user_hl_roles = array();
+        foreach ($enrollments as $e) {
+            $e_roles = json_decode($e->roles ?? '[]', true);
+            if (is_array($e_roles)) {
+                $user_hl_roles = array_merge($user_hl_roles, $e_roles);
+            }
+        }
+        $user_hl_roles = array_unique($user_hl_roles);
+        $is_mentor  = in_array('mentor', $user_hl_roles, true);
+        $is_teacher = in_array('teacher', $user_hl_roles, true);
+
+        // Resolve guide person based on role:
+        // - Mentor sees "My Coach" (from coach assignment)
+        // - Teacher sees "My Mentor" (from team membership)
+        // - School Leader sees neither
+        $guide_data = null;
+        $guide_type = null; // 'coach' or 'mentor'
         if (!$all_control && !empty($enrollments)) {
-            $coach_service = new HL_Coach_Assignment_Service();
-            foreach ($enrollments as $e) {
-                $coach = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->cycle_id);
-                if ($coach) break;
+            if ($is_mentor) {
+                $guide_type = 'coach';
+                $coach_service = new HL_Coach_Assignment_Service();
+                foreach ($enrollments as $e) {
+                    $coach = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->cycle_id);
+                    if ($coach) {
+                        $guide_data = $coach;
+                        break;
+                    }
+                }
+            } elseif ($is_teacher) {
+                $guide_type = 'mentor';
+                $guide_data = $this->resolve_mentor_for_teacher($user_id, $enrollments);
             }
         }
 
@@ -174,8 +199,8 @@ class HL_Frontend_My_Programs {
         <div class="hl-dashboard hl-my-programs">
             <h2><?php esc_html_e('My Programs', 'hl-core'); ?></h2>
 
-            <?php if (!$all_control) : ?>
-                <?php $this->render_coach_widget($coach); ?>
+            <?php if (!$all_control && $guide_type) : ?>
+                <?php $this->render_guide_widget($guide_data, $guide_type); ?>
             <?php endif; ?>
 
             <?php if (empty($cards)) : ?>
@@ -264,7 +289,15 @@ class HL_Frontend_My_Programs {
                 <div class="hl-program-card-footer">
                     <span class="hl-badge <?php echo esc_attr($badge_class); ?>"><?php echo esc_html($badge_text); ?></span>
                     <a href="<?php echo esc_url($continue_url); ?>" class="hl-btn hl-btn-sm hl-btn-primary">
-                        <?php echo $percent > 0 ? esc_html__('Continue', 'hl-core') : esc_html__('Start', 'hl-core'); ?>
+                        <?php
+                        if ($percent >= 100) {
+                            esc_html_e('View', 'hl-core');
+                        } elseif ($percent > 0) {
+                            esc_html_e('Continue', 'hl-core');
+                        } else {
+                            esc_html_e('Start', 'hl-core');
+                        }
+                        ?>
                     </a>
                 </div>
             </div>
@@ -273,36 +306,102 @@ class HL_Frontend_My_Programs {
     }
 
     /**
-     * Render the "My Coach" widget.
+     * Render the guide widget — "My Coach" for mentors, "My Mentor" for teachers.
      *
-     * @param array|null $coach Coach data from CoachAssignmentService or null.
+     * @param array|null $guide Guide person data or null.
+     * @param string     $type  'coach' or 'mentor'.
      */
-    private function render_coach_widget($coach) {
-        $coaching_page_url = $this->find_shortcode_page_url('hl_my_coaching');
+    private function render_guide_widget($guide, $type) {
+        $is_coach_type = ($type === 'coach');
+        $label         = $is_coach_type ? __('My Coach', 'hl-core') : __('My Mentor', 'hl-core');
+        $no_assign_msg = $is_coach_type
+            ? __('No coach assigned yet. Contact your administrator.', 'hl-core')
+            : __('No mentor assigned yet. Contact your administrator.', 'hl-core');
+
+        $person_name  = '';
+        $person_email = '';
+        $person_id    = 0;
+        if ($guide) {
+            if ($is_coach_type) {
+                $person_name  = $guide['coach_name'] ?? '';
+                $person_email = $guide['coach_email'] ?? '';
+                $person_id    = $guide['coach_user_id'] ?? 0;
+            } else {
+                $person_name  = $guide['display_name'] ?? '';
+                $person_email = $guide['user_email'] ?? '';
+                $person_id    = $guide['user_id'] ?? 0;
+            }
+        }
 
         ?>
         <div class="hl-coach-widget">
-            <?php if ($coach) : ?>
-                <div class="hl-coach-avatar"><?php echo get_avatar($coach['coach_user_id'], 56); ?></div>
+            <?php if ($guide && $person_name) : ?>
+                <div class="hl-coach-avatar"><?php echo get_avatar($person_id, 56); ?></div>
                 <div class="hl-coach-widget-info">
-                    <strong><?php esc_html_e('My Coach', 'hl-core'); ?></strong>
-                    <?php echo esc_html($coach['coach_name']); ?> &middot;
-                    <a href="mailto:<?php echo esc_attr($coach['coach_email']); ?>"><?php echo esc_html($coach['coach_email']); ?></a>
+                    <strong><?php echo esc_html($label); ?></strong>
+                    <?php echo esc_html($person_name); ?> &middot;
+                    <a href="mailto:<?php echo esc_attr($person_email); ?>"><?php echo esc_html($person_email); ?></a>
                 </div>
-                <?php if ($coaching_page_url) : ?>
-                    <a href="<?php echo esc_url($coaching_page_url); ?>" class="hl-btn hl-btn-sm hl-btn-primary">
-                        <?php esc_html_e('Schedule a Session', 'hl-core'); ?>
-                    </a>
+                <?php if ($is_coach_type) :
+                    $coaching_page_url = $this->find_shortcode_page_url('hl_my_coaching');
+                    if ($coaching_page_url) : ?>
+                        <a href="<?php echo esc_url($coaching_page_url); ?>" class="hl-btn hl-btn-sm hl-btn-primary">
+                            <?php esc_html_e('Schedule a Session', 'hl-core'); ?>
+                        </a>
+                    <?php endif; ?>
                 <?php endif; ?>
             <?php else : ?>
                 <div class="hl-coach-avatar-placeholder">?</div>
                 <div class="hl-coach-widget-info">
-                    <strong><?php esc_html_e('My Coach', 'hl-core'); ?></strong>
-                    <span class="hl-text-muted"><?php esc_html_e('No coach assigned yet. Contact your administrator.', 'hl-core'); ?></span>
+                    <strong><?php echo esc_html($label); ?></strong>
+                    <span class="hl-text-muted"><?php echo esc_html($no_assign_msg); ?></span>
                 </div>
             <?php endif; ?>
         </div>
         <?php
+    }
+
+    /**
+     * Resolve the mentor for a teacher via team membership.
+     *
+     * Finds the team the teacher belongs to, then looks for a member with
+     * the 'mentor' role in that same team.
+     *
+     * @param int   $user_id     Teacher's WP user ID.
+     * @param array $enrollments Teacher's active enrollments.
+     * @return array|null { user_id, display_name, user_email } or null.
+     */
+    private function resolve_mentor_for_teacher($user_id, $enrollments) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        foreach ($enrollments as $e) {
+            // Find the team this teacher belongs to.
+            $team_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT tm.team_id FROM {$prefix}hl_team_membership tm
+                 JOIN {$prefix}hl_team t ON tm.team_id = t.team_id
+                 WHERE tm.enrollment_id = %d AND t.cycle_id = %d LIMIT 1",
+                $e->enrollment_id, $e->cycle_id
+            ));
+
+            if (!$team_id) continue;
+
+            // Find a mentor in the same team.
+            $mentor = $wpdb->get_row($wpdb->prepare(
+                "SELECT u.ID AS user_id, u.display_name, u.user_email
+                 FROM {$prefix}hl_team_membership tm
+                 JOIN {$prefix}hl_enrollment en ON tm.enrollment_id = en.enrollment_id
+                 JOIN {$wpdb->users} u ON en.user_id = u.ID
+                 WHERE tm.team_id = %d AND en.status = 'active'
+                   AND en.roles LIKE %s
+                 LIMIT 1",
+                $team_id, '%"mentor"%'
+            ), ARRAY_A);
+
+            if ($mentor) return $mentor;
+        }
+
+        return null;
     }
 
     /**

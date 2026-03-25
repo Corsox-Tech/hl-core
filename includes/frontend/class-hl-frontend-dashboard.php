@@ -183,46 +183,34 @@ class HL_Frontend_Dashboard {
 
             <?php if ( ! $context['all_control'] ) : ?>
 
-                <?php if ( $context['has_program_track'] ) : ?>
+                <?php if ( $context['is_mentor'] ) : ?>
                     <?php
-                    // My Coaching — program participants (not control group).
+                    // My Coaching — mentors only.
                     $this->render_nav_card(
                         'hl_my_coaching',
                         __( 'My Coaching', 'hl-core' ),
                         __( 'View your coaching sessions and schedule.', 'hl-core' ),
                         'dashicons-format-chat'
                     );
-                    ?>
-                <?php endif; ?>
 
-                <?php if ( $context['is_mentor'] ) : ?>
-                    <?php
-                    // My Team — mentors only.
+                    // My Team — mentors.
                     $this->render_nav_card(
                         'hl_my_team',
                         __( 'My Team', 'hl-core' ),
                         __( 'View your team members and their progress.', 'hl-core' ),
                         'dashicons-admin-users'
                     );
-
-                    // Coaching Hub — mentors.
-                    $this->render_nav_card(
-                        'hl_coaching_hub',
-                        __( 'Coaching Hub', 'hl-core' ),
-                        __( 'Manage coaching sessions for your team.', 'hl-core' ),
-                        'dashicons-clipboard'
-                    );
                     ?>
                 <?php endif; ?>
 
-                <?php if ( $context['is_leader'] ) : ?>
+                <?php if ( $context['is_teacher'] && ! $context['is_mentor'] ) : ?>
                     <?php
-                    // My Cycle — leaders.
+                    // My Team — teachers (skip if already shown for mentor).
                     $this->render_nav_card(
-                        'hl_my_cycle',
-                        __( 'My Cycle', 'hl-core' ),
-                        __( 'View your cycle overview and team performance.', 'hl-core' ),
-                        'dashicons-chart-bar'
+                        'hl_my_team',
+                        __( 'My Team', 'hl-core' ),
+                        __( 'View your team members and their progress.', 'hl-core' ),
+                        'dashicons-admin-users'
                     );
                     ?>
                 <?php endif; ?>
