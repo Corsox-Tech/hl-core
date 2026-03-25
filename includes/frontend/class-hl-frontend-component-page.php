@@ -178,9 +178,14 @@ class HL_Frontend_Component_Page {
             }
 
             // Route to per-type rendering.
+            // Form-based types render their own read-only view when submitted,
+            // so always delegate to render_available_view() for them.
+            $form_types = array('classroom_visit', 'self_reflection', 'reflective_practice_session');
+            $is_form_type = in_array($component->component_type, $form_types, true);
+
             if ($avail_status === 'locked') {
                 $this->render_locked_view($availability);
-            } elseif ($avail_status === 'completed') {
+            } elseif ($avail_status === 'completed' && !$is_form_type) {
                 $this->render_completed_view($component);
             } else {
                 $this->render_available_view($component, $enrollment);
@@ -261,9 +266,10 @@ class HL_Frontend_Component_Page {
             return;
         }
 
-        // Coaching session attendance.
+        // Coaching session attendance — scheduling UI.
         if ($type === 'coaching_session_attendance') {
-            echo '<div class="hl-notice hl-notice-info">' . esc_html__('This component is managed by your coach. Attendance will be recorded during your coaching session.', 'hl-core') . '</div>';
+            $renderer = new HL_Frontend_Schedule_Session();
+            $renderer->render($component, $enrollment, (int) $enrollment->cycle_id);
             return;
         }
 
