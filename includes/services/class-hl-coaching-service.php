@@ -227,6 +227,11 @@ class HL_Coaching_Service {
             'meeting_url'                  => $new_meeting_url ?: ($session['meeting_url'] ?? null),
             'session_datetime'             => $new_datetime,
             'rescheduled_from_session_id'  => $session_id,
+            'component_id'                 => $session['component_id'] ?? null,
+            'session_number'               => $session['session_number'] ?? null,
+            'mentor_timezone'              => $session['mentor_timezone'] ?? null,
+            'coach_timezone'               => $session['coach_timezone'] ?? null,
+            'booked_by_user_id'            => get_current_user_id(),
         );
 
         return $this->create_session($new_data);
@@ -447,9 +452,28 @@ class HL_Coaching_Service {
             'session_datetime'            => !empty($data['session_datetime']) ? sanitize_text_field($data['session_datetime']) : null,
             'notes_richtext'              => !empty($data['notes_richtext']) ? wp_kses_post($data['notes_richtext']) : null,
             'rescheduled_from_session_id' => !empty($data['rescheduled_from_session_id']) ? absint($data['rescheduled_from_session_id']) : null,
+            'component_id'                => !empty($data['component_id']) ? absint($data['component_id']) : null,
+            'zoom_meeting_id'             => !empty($data['zoom_meeting_id']) ? absint($data['zoom_meeting_id']) : null,
+            'outlook_event_id'            => !empty($data['outlook_event_id']) ? sanitize_text_field($data['outlook_event_id']) : null,
+            'booked_by_user_id'           => !empty($data['booked_by_user_id']) ? absint($data['booked_by_user_id']) : null,
+            'mentor_timezone'             => !empty($data['mentor_timezone']) ? sanitize_text_field($data['mentor_timezone']) : null,
+            'coach_timezone'              => !empty($data['coach_timezone']) ? sanitize_text_field($data['coach_timezone']) : null,
             'created_at'                  => current_time('mysql'),
             'updated_at'                  => current_time('mysql'),
         );
+
+        // Enforce one scheduled session per component per enrollment.
+        if (!empty($insert_data['component_id'])) {
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT session_id FROM {$wpdb->prefix}hl_coaching_session
+                 WHERE component_id = %d AND mentor_enrollment_id = %d AND session_status = 'scheduled'",
+                $insert_data['component_id'], $insert_data['mentor_enrollment_id']
+            ));
+            if ($existing) {
+                return new WP_Error('duplicate_session',
+                    __('A scheduled session already exists for this component.', 'hl-core'));
+            }
+        }
 
         $result = $wpdb->insert($wpdb->prefix . 'hl_coaching_session', $insert_data);
 
