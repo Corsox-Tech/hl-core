@@ -117,6 +117,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-classroom-visit-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-session-prep-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-dashboard-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scheduling-email-service.php';
         
         // Integrations
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-learndash-integration.php';
