@@ -107,7 +107,7 @@ class HL_Frontend_RP_Notes {
                         <span class="hlrn-info-value"><?php
                             $date_field = ($context === 'coaching') ? 'session_datetime' : 'session_date';
                             $date_val = isset($session_entity[$date_field]) ? $session_entity[$date_field] : '';
-                            echo esc_html($date_val ? date_i18n(get_option('date_format'), strtotime($date_val)) : '—');
+                            echo esc_html($date_val ? date_i18n(get_option('date_format'), strtotime($date_val)) : date_i18n(get_option('date_format')));
                         ?></span>
                     </div>
                 </div>
@@ -265,34 +265,30 @@ class HL_Frontend_RP_Notes {
                                             ? __('Classroom Visit', 'hl-core')
                                             : __('Self-Reflection', 'hl-core');
                                         $status_color = ($sub['status'] === 'submitted') ? '#d1fae5;color:#065f46' : '#f1f5f9;color:#64748b';
+
+                                        // Load instrument sections for full read-only rendering.
+                                        $instrument_key = ($sub['role_in_visit'] === 'observer')
+                                            ? 'classroom_visit_form'
+                                            : 'self_reflection_form';
+                                        $instrument_sections = $this->get_instrument_sections($instrument_key);
                                     ?>
                                         <div class="hlrn-cv-sub">
                                             <div class="hlrn-cv-sub-header">
                                                 <strong><?php echo esc_html($role_label); ?></strong>
                                                 <span class="hlrn-badge" style="background:<?php echo esc_attr($status_color); ?>"><?php echo esc_html($sub['status']); ?></span>
                                             </div>
-                                            <?php if ($sub_data && is_array($sub_data)) :
-                                                $domains = HL_RP_Session_Service::get_ecsel_domains();
-                                                foreach ($domains as $dk => $domain) :
-                                                    if (!isset($sub_data[$dk])) continue;
-                                                    $domain_data = $sub_data[$dk];
-                                            ?>
-                                                <div class="hlrn-cv-domain">
-                                                    <div class="hlrn-cv-domain-name"><?php echo esc_html($domain['label']); ?></div>
-                                                    <?php if (is_array($domain_data)) : ?>
-                                                        <div class="hlrn-cv-indicators">
-                                                            <?php foreach ($domain_data as $indicator_key => $indicator_val) :
-                                                                if (!is_array($indicator_val)) continue;
-                                                                $observed = !empty($indicator_val['observed']);
-                                                            ?>
-                                                                <span class="hlrn-badge <?php echo $observed ? 'hlrn-badge-yes' : 'hlrn-badge-no'; ?>">
-                                                                    <?php echo esc_html($observed ? __('Yes', 'hl-core') : __('No', 'hl-core')); ?>
-                                                                </span>
-                                                            <?php endforeach; ?>
-                                                        </div>
-                                                    <?php endif; ?>
+                                            <?php if ($sub_data && is_array($sub_data) && $instrument_sections) : ?>
+                                                <div class="hlrn-cv-full-data">
+                                                    <?php HL_Frontend_Classroom_Visit::render_visit_form_sections(
+                                                        $instrument_sections,
+                                                        $sub_data,
+                                                        true, // read-only
+                                                        ($sub['role_in_visit'] === 'observer') ? 'hl_cv' : 'hl_sr'
+                                                    ); ?>
                                                 </div>
-                                            <?php endforeach; endif; ?>
+                                            <?php elseif ($sub_data && is_array($sub_data)) : ?>
+                                                <p class="hlrn-muted"><?php esc_html_e('Form data available but instrument template not found.', 'hl-core'); ?></p>
+                                            <?php endif; ?>
                                         </div>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
@@ -357,17 +353,6 @@ class HL_Frontend_RP_Notes {
                     </div>
                 </div>
 
-                <!-- RP Steps Guide -->
-                <div class="hlrn-section">
-                    <div class="hlrn-section-header">
-                        <span class="hlrn-section-num">5</span>
-                        <span class="hlrn-section-title"><?php esc_html_e('RP Steps Guide', 'hl-core'); ?></span>
-                    </div>
-                    <div class="hlrn-section-body">
-                        <?php self::render_rp_guide_steps(); ?>
-                    </div>
-                </div>
-
                 <?php if (!$is_readonly) : ?>
                     <div class="hlrn-actions">
                         <button type="submit" name="hl_rp_notes_action" value="draft" class="hlrn-btn hlrn-btn-draft">
@@ -382,6 +367,39 @@ class HL_Frontend_RP_Notes {
                 <?php endif; ?>
             </form>
         </div>
+
+        <!-- RP Steps Guide floating drawer -->
+        <button type="button" id="hlrn-guide-toggle" class="hlrn-guide-fab" title="<?php esc_attr_e('RP Steps Guide', 'hl-core'); ?>">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span><?php esc_html_e('RP Guide', 'hl-core'); ?></span>
+        </button>
+
+        <div id="hlrn-guide-drawer" class="hlrn-guide-drawer" style="display:none">
+            <div class="hlrn-guide-drawer-header">
+                <h3 class="hlrn-guide-drawer-title"><?php esc_html_e('RP Steps Guide', 'hl-core'); ?></h3>
+                <p class="hlrn-guide-drawer-sub"><?php esc_html_e('Use these guiding questions throughout your session', 'hl-core'); ?></p>
+                <button type="button" id="hlrn-guide-close" class="hlrn-guide-close">&times;</button>
+            </div>
+            <div class="hlrn-guide-drawer-body">
+                <?php self::render_rp_guide_steps(); ?>
+            </div>
+        </div>
+        <div id="hlrn-guide-overlay" class="hlrn-guide-overlay" style="display:none"></div>
+
+        <script>
+        (function(){
+            var toggle = document.getElementById('hlrn-guide-toggle');
+            var drawer = document.getElementById('hlrn-guide-drawer');
+            var overlay = document.getElementById('hlrn-guide-overlay');
+            var close = document.getElementById('hlrn-guide-close');
+            if (!toggle || !drawer) return;
+            function open() { drawer.style.display = ''; overlay.style.display = ''; document.body.style.overflow = 'hidden'; }
+            function shut() { drawer.style.display = 'none'; overlay.style.display = 'none'; document.body.style.overflow = ''; }
+            toggle.addEventListener('click', open);
+            close.addEventListener('click', shut);
+            overlay.addEventListener('click', shut);
+        })();
+        </script>
         <?php
 
         return ob_get_clean();
@@ -392,12 +410,33 @@ class HL_Frontend_RP_Notes {
      */
     private static function render_rp_guide_steps() {
         $steps = array(
-            array('icon' => 'eye',      'title' => __('Description', 'hl-core'),   'content' => __('What happened? What did you observe? Describe the situation or event without judgment.', 'hl-core')),
-            array('icon' => 'heart',    'title' => __('Feelings', 'hl-core'),      'content' => __('What were you feeling during and after the event? What do you think the children were feeling?', 'hl-core')),
-            array('icon' => 'check',    'title' => __('Evaluation', 'hl-core'),    'content' => __('What went well? What didn\'t go so well? What was positive or negative about the experience?', 'hl-core')),
-            array('icon' => 'search',   'title' => __('Analysis', 'hl-core'),      'content' => __('Why did things go the way they did? What contributed to the outcome? What could you have done differently?', 'hl-core')),
-            array('icon' => 'star',     'title' => __('Conclusion', 'hl-core'),    'content' => __('What did you learn from this experience? What would you do differently next time?', 'hl-core')),
-            array('icon' => 'target',   'title' => __('Action Plan', 'hl-core'),   'content' => __('What specific steps will you take going forward? How will you implement what you\'ve learned?', 'hl-core')),
+            array('icon' => 'eye',      'title' => __('Description', 'hl-core'),   'questions' => array(
+                __('What happened?', 'hl-core'),
+                __('What did you observe?', 'hl-core'),
+                __('Describe the situation or event without judgment.', 'hl-core'),
+            )),
+            array('icon' => 'heart',    'title' => __('Feelings', 'hl-core'),      'questions' => array(
+                __('What were you feeling during and after the event?', 'hl-core'),
+                __('What do you think the children were feeling?', 'hl-core'),
+            )),
+            array('icon' => 'check',    'title' => __('Evaluation', 'hl-core'),    'questions' => array(
+                __('What went well?', 'hl-core'),
+                __('What didn\'t go so well?', 'hl-core'),
+                __('What was positive or negative about the experience?', 'hl-core'),
+            )),
+            array('icon' => 'search',   'title' => __('Analysis', 'hl-core'),      'questions' => array(
+                __('Why did things go the way they did?', 'hl-core'),
+                __('What contributed to the outcome?', 'hl-core'),
+                __('What could you have done differently?', 'hl-core'),
+            )),
+            array('icon' => 'star',     'title' => __('Conclusion', 'hl-core'),    'questions' => array(
+                __('What did you learn from this experience?', 'hl-core'),
+                __('What would you do differently next time?', 'hl-core'),
+            )),
+            array('icon' => 'target',   'title' => __('Action Plan', 'hl-core'),   'questions' => array(
+                __('What specific steps will you take going forward?', 'hl-core'),
+                __('How will you implement what you\'ve learned?', 'hl-core'),
+            )),
         );
 
         $icons = array(
@@ -416,7 +455,11 @@ class HL_Frontend_RP_Notes {
             echo '<div class="hlrn-rp-step-icon">' . $icons[$step['icon']] . '</div>';
             echo '<div>';
             echo '<div class="hlrn-rp-step-title">' . esc_html($num . '. ' . $step['title']) . '</div>';
-            echo '<p class="hlrn-rp-step-text">' . esc_html($step['content']) . '</p>';
+            echo '<ul class="hlrn-rp-step-questions">';
+            foreach ($step['questions'] as $q) {
+                echo '<li>' . esc_html($q) . '</li>';
+            }
+            echo '</ul>';
             echo '</div>';
             echo '</div>';
         }
@@ -433,10 +476,11 @@ class HL_Frontend_RP_Notes {
         ?>
         <style>
         .hlrn-form-wrapper{max-width:820px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
-        .hlrn-hero{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;padding:28px 32px;border-radius:16px;margin-bottom:24px;position:relative;z-index:1;overflow:visible}
+        .hlrn-hero{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff !important;padding:28px 32px;border-radius:16px;margin-bottom:24px;position:relative;z-index:1;overflow:visible}
+        .hlrn-hero *{color:#fff !important}
         .hlrn-hero-icon{background:rgba(255,255,255,.15);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center}
-        .hlrn-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px}
-        .hlrn-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0}
+        .hlrn-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px;color:#fff !important}
+        .hlrn-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0;color:rgba(255,255,255,.8) !important}
 
         .hlrn-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;margin-bottom:20px}
         .hlrn-alert-info{background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef}
@@ -496,12 +540,35 @@ class HL_Frontend_RP_Notes {
         .hlrn-cv-domain-name{font-size:12px;font-weight:600;color:#475569;margin-bottom:4px}
         .hlrn-cv-indicators{display:flex;flex-wrap:wrap;gap:4px}
 
-        /* RP Steps Guide */
-        .hlrn-rp-steps{display:flex;flex-direction:column;gap:10px}
-        .hlrn-rp-step{display:flex;gap:12px;padding:12px 14px;background:#f8f9fb;border:1px solid #e2e8f0;border-radius:10px}
+        /* RP Steps Guide — drawer */
+        .hlrn-guide-fab{position:fixed;bottom:24px;right:24px;z-index:9998;display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:50px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;box-shadow:0 4px 20px rgba(30,58,95,.4);transition:all .2s}
+        .hlrn-guide-fab:hover{box-shadow:0 6px 28px rgba(30,58,95,.5);transform:translateY(-2px)}
+        .hlrn-guide-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998}
+        .hlrn-guide-drawer{position:fixed;top:0;right:0;bottom:0;width:420px;max-width:90vw;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,.15);display:flex;flex-direction:column;overflow:hidden}
+        .hlrn-guide-drawer-header{padding:24px 24px 16px;border-bottom:1px solid #e2e8f0;position:relative}
+        .hlrn-guide-drawer-title{font-size:20px;font-weight:700;color:#1e293b;margin:0}
+        .hlrn-guide-drawer-sub{font-size:13px;color:#64748b;margin:6px 0 0}
+        .hlrn-guide-close{position:absolute;top:16px;right:16px;background:none;border:none;font-size:28px;color:#94a3b8;cursor:pointer;line-height:1;padding:4px}
+        .hlrn-guide-close:hover{color:#1e293b}
+        .hlrn-guide-drawer-body{padding:20px 24px;overflow-y:auto;flex:1}
+        .hlrn-rp-steps{display:flex;flex-direction:column;gap:12px}
+        .hlrn-rp-step{display:flex;gap:12px;padding:14px 16px;background:#f8f9fb;border:1px solid #e2e8f0;border-radius:10px}
         .hlrn-rp-step-icon{flex-shrink:0;width:32px;height:32px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#64748b}
-        .hlrn-rp-step-title{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:2px}
-        .hlrn-rp-step-text{font-size:13px;color:#64748b;margin:0;line-height:1.5}
+        .hlrn-rp-step-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:6px}
+        .hlrn-rp-step-questions{margin:0;padding-left:18px;list-style:disc}
+        .hlrn-rp-step-questions li{font-size:13px;color:#64748b;line-height:1.5;margin-bottom:6px}
+        .hlrn-rp-step-questions li:last-child{margin-bottom:0}
+
+        /* TinyMCE toolbar fix — prevent theme from darkening icons */
+        .hlrn-form-wrapper .mce-toolbar .mce-btn{background:transparent !important;border-color:transparent !important}
+        .hlrn-form-wrapper .mce-toolbar .mce-btn button{background-color:transparent !important;color:#555 !important}
+        .hlrn-form-wrapper .mce-toolbar .mce-btn:hover,.hlrn-form-wrapper .mce-toolbar .mce-btn.mce-active{background:#e2e8f0 !important}
+        .hlrn-form-wrapper .mce-ico{color:#555 !important}
+        .hlrn-form-wrapper .mce-toolbar .mce-btn-group{background:transparent !important}
+        .hlrn-form-wrapper .mce-panel{background:#f8f9fb !important;border-color:#e2e8f0 !important}
+        .hlrn-form-wrapper .mce-edit-area{border-color:#e2e8f0 !important}
+        .hlrn-form-wrapper .mce-edit-area iframe{min-height:80px}
+        .hlrn-form-wrapper .wp-editor-container{border:2px solid #e2e8f0;border-radius:10px;overflow:hidden}
 
         /* Action buttons */
         .hlrn-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:32px;padding-top:24px;border-top:1px solid #e2e8f0}
@@ -575,5 +642,23 @@ class HL_Frontend_RP_Notes {
             'status'        => $status,
             'message'       => ($status === 'submitted') ? 'submitted' : 'saved',
         );
+    }
+
+    /**
+     * Load instrument sections by instrument_key.
+     *
+     * @param string $instrument_key E.g. 'classroom_visit_form' or 'self_reflection_form'.
+     * @return array|null Sections array or null if not found.
+     */
+    private function get_instrument_sections($instrument_key) {
+        global $wpdb;
+        $sections_json = $wpdb->get_var($wpdb->prepare(
+            "SELECT sections FROM {$wpdb->prefix}hl_teacher_assessment_instrument
+             WHERE instrument_key = %s AND status = 'active' LIMIT 1",
+            $instrument_key
+        ));
+        if (!$sections_json) return null;
+        $sections = json_decode($sections_json, true);
+        return is_array($sections) ? $sections : null;
     }
 }
