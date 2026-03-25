@@ -1358,6 +1358,7 @@ class HL_Installer {
             ordering_hint int NOT NULL DEFAULT 0,
             weight decimal(5,2) NOT NULL DEFAULT 1.00,
             external_ref longtext NULL COMMENT 'JSON - course_id/instrument_id etc',
+            complete_by date DEFAULT NULL COMMENT 'Suggested completion date (not enforced)',
             visibility enum('all','staff_only') NOT NULL DEFAULT 'all',
             status enum('active','removed') NOT NULL DEFAULT 'active',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
