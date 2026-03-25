@@ -170,53 +170,83 @@ class HL_Frontend_RP_Session {
 
         // Back link
         $back_url = remove_query_arg('teacher');
+
+        // Determine active tab from URL param (default: rp-notes)
+        $active_tab = isset($_GET['tab']) && $_GET['tab'] === 'action-plan' ? 'action-plan' : 'rp-notes';
         ?>
-        <div class="hl-rp-session-detail">
-            <a href="<?php echo esc_url($back_url); ?>" class="hl-back-link">&larr; <?php esc_html_e('Back to Teacher List', 'hl-core'); ?></a>
+        <style>
+        .hl-rp-tabs{display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:20px}
+        .hl-rp-tab{padding:10px 20px;font-size:14px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;white-space:nowrap}
+        .hl-rp-tab:hover{color:#475569}
+        .hl-rp-tab.active{color:#1e3a5f;border-bottom-color:#1e3a5f}
+        .hl-rp-tab-panel{display:none}
+        .hl-rp-tab-panel.active{display:block}
+        </style>
+        <div class="hl-rp-session-detail" style="max-width:860px;margin:0 auto">
+            <a href="<?php echo esc_url($back_url); ?>" class="hl-back-link" style="display:block;margin-bottom:8px">&larr; <?php esc_html_e('Back to Teacher List', 'hl-core'); ?></a>
 
-            <h3><?php printf(esc_html__('RP Session #%d', 'hl-core'), $session_number); ?></h3>
-
-            <div class="hl-side-by-side">
-                <!-- RP Notes (Mentor fills) -->
-                <div class="hl-side-by-side-panel">
-                    <?php
-                    if ($mentor_instrument) {
-                        $rp_notes_renderer = new HL_Frontend_RP_Notes();
-                        echo $rp_notes_renderer->render(
-                            'mentoring',
-                            $session,
-                            $enrollment,
-                            $mentor_instrument,
-                            $teacher_enrollment_id,
-                            $cycle_id,
-                            $mentor_submission
-                        );
-                    } else {
-                        echo '<div class="hl-notice hl-notice-warning">' . esc_html__('RP Notes instrument not found. Please run the instrument seeder.', 'hl-core') . '</div>';
-                    }
-                    ?>
-                </div>
-
-                <!-- Action Plan (Teacher filled, read-only for mentor) -->
-                <div class="hl-side-by-side-panel">
-                    <?php
-                    if ($teacher_instrument && $teacher_submission) {
-                        $ap_renderer = new HL_Frontend_Action_Plan();
-                        echo $ap_renderer->render(
-                            'mentoring',
-                            $session,
-                            $enrollment,
-                            $teacher_instrument,
-                            $teacher_submission
-                        );
-                    } elseif ($teacher_submission) {
-                        echo '<div class="hl-notice hl-notice-info">' . esc_html__('Teacher has submitted their Action Plan.', 'hl-core') . '</div>';
-                    } else {
-                        echo '<div class="hl-notice hl-notice-info">' . esc_html__('Teacher has not yet submitted their Action Plan for this session.', 'hl-core') . '</div>';
-                    }
-                    ?>
-                </div>
+            <!-- Tabs -->
+            <div class="hl-rp-tabs">
+                <button type="button" class="hl-rp-tab <?php echo $active_tab === 'rp-notes' ? 'active' : ''; ?>" data-target="hl-rp-panel-notes">
+                    <?php esc_html_e('RP Notes', 'hl-core'); ?>
+                </button>
+                <button type="button" class="hl-rp-tab <?php echo $active_tab === 'action-plan' ? 'active' : ''; ?>" data-target="hl-rp-panel-ap">
+                    <?php esc_html_e('Action Plan & Results', 'hl-core'); ?>
+                </button>
             </div>
+
+            <!-- RP Notes panel -->
+            <div class="hl-rp-tab-panel <?php echo $active_tab === 'rp-notes' ? 'active' : ''; ?>" id="hl-rp-panel-notes">
+                <?php
+                if ($mentor_instrument) {
+                    $rp_notes_renderer = new HL_Frontend_RP_Notes();
+                    echo $rp_notes_renderer->render(
+                        'mentoring',
+                        $session,
+                        $enrollment,
+                        $mentor_instrument,
+                        $teacher_enrollment_id,
+                        $cycle_id,
+                        $mentor_submission
+                    );
+                } else {
+                    echo '<div class="hl-notice hl-notice-warning">' . esc_html__('RP Notes instrument not found. Please run the instrument seeder.', 'hl-core') . '</div>';
+                }
+                ?>
+            </div>
+
+            <!-- Action Plan panel -->
+            <div class="hl-rp-tab-panel <?php echo $active_tab === 'action-plan' ? 'active' : ''; ?>" id="hl-rp-panel-ap">
+                <?php
+                if ($teacher_instrument) {
+                    $ap_renderer = new HL_Frontend_Action_Plan();
+                    echo $ap_renderer->render(
+                        'mentoring',
+                        $session,
+                        $enrollment,
+                        $teacher_instrument,
+                        $teacher_submission
+                    );
+                } else {
+                    echo '<div class="hl-notice hl-notice-warning">' . esc_html__('Action Plan instrument not found. Please run the instrument seeder.', 'hl-core') . '</div>';
+                }
+                ?>
+            </div>
+
+            <script>
+            (function(){
+                document.querySelectorAll('.hl-rp-tab').forEach(function(tab){
+                    tab.addEventListener('click', function(){
+                        var container = this.closest('.hl-rp-session-detail');
+                        container.querySelectorAll('.hl-rp-tab').forEach(function(t){ t.classList.remove('active'); });
+                        container.querySelectorAll('.hl-rp-tab-panel').forEach(function(p){ p.classList.remove('active'); });
+                        this.classList.add('active');
+                        var target = document.getElementById(this.getAttribute('data-target'));
+                        if (target) target.classList.add('active');
+                    });
+                });
+            })();
+            </script>
         </div>
         <?php
     }
@@ -250,6 +280,22 @@ class HL_Frontend_RP_Session {
             return;
         }
 
+        // Auto-create session if none exists (find teacher's mentor)
+        if (!$session) {
+            $mentor_eid = $rp_service->get_mentor_for_teacher($enrollment_id);
+            if ($mentor_eid) {
+                $result = $rp_service->create_session(array(
+                    'cycle_id'              => $cycle_id,
+                    'mentor_enrollment_id'  => (int) $mentor_eid,
+                    'teacher_enrollment_id' => $enrollment_id,
+                    'session_number'        => $session_number,
+                ));
+                if (!is_wp_error($result)) {
+                    $session = $rp_service->get_session($result);
+                }
+            }
+        }
+
         ?>
         <div class="hl-rp-session-teacher-view">
             <h3><?php printf(esc_html__('Reflective Practice Session #%d — Action Plan', 'hl-core'), $session_number); ?></h3>
@@ -275,22 +321,10 @@ class HL_Frontend_RP_Session {
                 $ap_renderer = new HL_Frontend_Action_Plan();
                 echo $ap_renderer->render('mentoring', $session, $enrollment, $instrument, $existing);
             else : ?>
-                <div class="hl-notice hl-notice-info">
-                    <p><?php esc_html_e('Your mentor has not yet created an RP session for this session number. Please check back after your mentor sets up the session.', 'hl-core'); ?></p>
+                <div class="hl-notice hl-notice-warning">
+                    <p><?php esc_html_e('Unable to create an RP session. Please ensure you are assigned to a mentor team.', 'hl-core'); ?></p>
                 </div>
-
-                <?php if ($instrument) :
-                    // Allow teacher to fill Action Plan even without a session entity
-                    // Create a placeholder session entity with minimal info
-                    $placeholder_session = array(
-                        'rp_session_id'  => 0,
-                        'session_number' => $session_number,
-                        'status'         => 'pending',
-                    );
-
-                    echo '<div class="hl-notice hl-notice-warning">' . esc_html__('You can start filling your Action Plan below. It will be linked to your RP session once your mentor creates it.', 'hl-core') . '</div>';
-                endif;
-            endif; ?>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -307,7 +341,8 @@ class HL_Frontend_RP_Session {
             if ((int) $s['teacher_enrollment_id'] === $teacher_enrollment_id
                 && (int) $s['session_number'] === $session_number
                 && (int) $s['cycle_id'] === $cycle_id) {
-                return $s;
+                // get_by_mentor only JOINs teacher_name; use get_session for full data
+                return $rp_service->get_session((int) $s['rp_session_id']);
             }
         }
 

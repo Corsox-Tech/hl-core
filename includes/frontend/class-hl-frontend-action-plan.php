@@ -27,16 +27,19 @@ class HL_Frontend_Action_Plan {
 
         $sections    = json_decode($instrument->sections, true) ?: array();
         $responses   = $existing_submission ? json_decode($existing_submission['responses_json'], true) : array();
-        $is_readonly = ($existing_submission && $existing_submission['status'] === 'submitted');
+        // Teachers (mentoring context) can always edit their Action Plan
+        $is_readonly = ($context !== 'mentoring') && ($existing_submission && $existing_submission['status'] === 'submitted');
         $is_draft    = ($existing_submission && $existing_submission['status'] === 'draft');
 
-        // Build domain/skills maps from instrument sections
+        // Build domain/skills maps from instrument sections.
+        // Sections may use 'key' or 'title' (lowercased) for identification.
         $planning_section = null;
         $results_section  = null;
         foreach ($sections as $section) {
-            if ($section['key'] === 'planning') {
+            $section_id = isset($section['key']) ? $section['key'] : strtolower($section['title'] ?? '');
+            if ($section_id === 'planning') {
                 $planning_section = $section;
-            } elseif ($section['key'] === 'results') {
+            } elseif ($section_id === 'results') {
                 $results_section = $section;
             }
         }
@@ -46,10 +49,25 @@ class HL_Frontend_Action_Plan {
         if ($planning_section) {
             foreach ($planning_section['fields'] as $field) {
                 if ($field['key'] === 'domain' && !empty($field['options'])) {
-                    $domain_options = $field['options'];
+                    // Handle flat array (["Label1", "Label2"]) → keyed map (slug => label)
+                    if (isset($field['options'][0]) && is_string($field['options'][0])) {
+                        foreach ($field['options'] as $label) {
+                            $domain_options[sanitize_title($label)] = $label;
+                        }
+                    } else {
+                        $domain_options = $field['options'];
+                    }
                 }
-                if ($field['key'] === 'skills' && !empty($field['options_by_domain'])) {
-                    $skills_by_domain = $field['options_by_domain'];
+                if ($field['key'] === 'skills') {
+                    if (!empty($field['options_by_domain'])) {
+                        $skills_by_domain = $field['options_by_domain'];
+                    } elseif (!empty($field['options_map'])) {
+                        // Convert [{name, skills}] → {slug => [skills]}
+                        foreach ($field['options_map'] as $entry) {
+                            $key = sanitize_title($entry['name']);
+                            $skills_by_domain[$key] = $entry['skills'];
+                        }
+                    }
                 }
             }
         }
@@ -336,7 +354,7 @@ class HL_Frontend_Action_Plan {
         .hlap-form-wrapper{max-width:820px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
         .hlap-hero{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;padding:28px 32px;border-radius:16px;margin-bottom:24px;position:relative;z-index:1;overflow:visible}
         .hlap-hero-icon{background:rgba(255,255,255,.15);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center}
-        .hlap-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px}
+        .hlap-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px;color:#fff}
         .hlap-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0}
 
         .hlap-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;margin-bottom:20px}
