@@ -123,6 +123,9 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-jfb-integration.php';
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-buddyboss-integration.php';
 
+        // Scheduling & Integrations (loaded outside is_admin for AJAX support)
+        require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-scheduling-settings.php';
+
         // Admin
         if (is_admin()) {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin.php';

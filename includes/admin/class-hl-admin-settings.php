@@ -33,6 +33,12 @@ class HL_Admin_Settings {
                 // Audit Log has no early actions.
                 break;
 
+            case 'scheduling':
+                if (isset($_POST['hl_scheduling_settings_nonce'])) {
+                    HL_Admin_Scheduling_Settings::instance()->handle_save();
+                }
+                break;
+
             default:
                 // Imports early actions are AJAX-based (no handle_early_actions needed).
                 break;
@@ -63,6 +69,10 @@ class HL_Admin_Settings {
                 $this->render_docs_tab();
                 break;
 
+            case 'scheduling':
+                HL_Admin_Scheduling_Settings::instance()->render_page_content();
+                break;
+
             default:
                 HL_Admin_Imports::instance()->render_page_content();
                 break;
@@ -78,9 +88,10 @@ class HL_Admin_Settings {
      */
     private function render_tabs($active_tab) {
         $tabs = array(
-            'imports' => __('Imports', 'hl-core'),
-            'audit'   => __('Audit Log', 'hl-core'),
-            'docs'    => __('Doc Articles', 'hl-core'),
+            'imports'    => __('Imports', 'hl-core'),
+            'audit'      => __('Audit Log', 'hl-core'),
+            'docs'       => __('Doc Articles', 'hl-core'),
+            'scheduling' => __('Scheduling & Integrations', 'hl-core'),
         );
         $base_url = admin_url('admin.php?page=hl-settings');
 
