@@ -18,6 +18,9 @@ class HL_Frontend_Schedule_Session {
     public function render($component, $enrollment, $cycle_id) {
         global $wpdb;
 
+        // Handle form submissions (Action Plan / RP Notes) before rendering.
+        $this->handle_post_submissions();
+
         $component_id  = (int) $component->component_id;
         $enrollment_id = (int) $enrollment->enrollment_id;
         $user_id       = get_current_user_id();
@@ -558,39 +561,133 @@ class HL_Frontend_Schedule_Session {
     // =========================================================================
 
     private function render_session_forms($session, $enrollment) {
-        $session_id       = (int) $session['session_id'];
+        global $wpdb;
+
+        $session_id  = (int) $session['session_id'];
+        $user_id     = get_current_user_id();
+        $is_admin    = current_user_can('manage_hl_core');
+        $is_coach    = ($user_id === (int) $session['coach_user_id']);
+        $is_mentor   = ($user_id === (int) $enrollment->user_id);
+
+        // Load instruments.
+        $action_plan_instrument = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s AND status = 'active'",
+            'coaching_action_plan'
+        ));
+        $rp_notes_instrument = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument WHERE instrument_key = %s AND status = 'active'",
+            'coaching_rp_notes'
+        ));
+
+        // Load existing submissions.
         $coaching_service = new HL_Coaching_Service();
         $submissions      = $coaching_service->get_submissions($session_id);
+        $supervisee_sub   = null;
+        $supervisor_sub   = null;
+        foreach ($submissions as $sub) {
+            if ($sub['role_in_session'] === 'supervisee') $supervisee_sub = $sub;
+            if ($sub['role_in_session'] === 'supervisor') $supervisor_sub = $sub;
+        }
 
-        if (empty($submissions)) {
+        // Determine which form to show based on role.
+        if ($is_mentor) {
+            // Mentor sees Action Plan form.
+            if ($action_plan_instrument) {
+                $renderer = new HL_Frontend_Action_Plan();
+                echo $renderer->render('coaching', $session, $enrollment, $action_plan_instrument, $supervisee_sub);
+            } else {
+                echo '<div class="hls-empty-forms">';
+                echo '<p>' . esc_html__('Action Plan instrument not configured. Please contact your administrator.', 'hl-core') . '</p>';
+                echo '</div>';
+            }
+        } elseif ($is_coach) {
+            // Coach sees RP Notes form + read-only Action Plan.
+            if ($rp_notes_instrument) {
+                $mentor_enrollment_id = (int) $session['mentor_enrollment_id'];
+                $cycle_id = (int) $session['cycle_id'];
+                $renderer = new HL_Frontend_RP_Notes();
+                echo $renderer->render('coaching', $session, $enrollment, $rp_notes_instrument, $mentor_enrollment_id, $cycle_id, $supervisor_sub);
+            }
+            if ($action_plan_instrument && $supervisee_sub) {
+                echo '<div style="margin-top:24px;">';
+                echo '<h4 style="font-size:15px;font-weight:700;color:#334155;margin:0 0 12px;">' . esc_html__('Mentor\'s Action Plan', 'hl-core') . '</h4>';
+                $renderer = new HL_Frontend_Action_Plan();
+                echo $renderer->render('coaching', $session, $enrollment, $action_plan_instrument, $supervisee_sub);
+                echo '</div>';
+            }
+        } elseif ($is_admin) {
+            // Admin sees both read-only.
+            if ($rp_notes_instrument) {
+                echo '<h4 style="font-size:15px;font-weight:700;color:#334155;margin:0 0 12px;">' . esc_html__('Coach RP Notes', 'hl-core') . '</h4>';
+                if ($supervisor_sub) {
+                    $this->render_submission_readonly($supervisor_sub);
+                } else {
+                    echo '<p style="color:#94a3b8;font-size:14px;margin-bottom:24px;">' . esc_html__('Not yet submitted.', 'hl-core') . '</p>';
+                }
+            }
+            if ($action_plan_instrument) {
+                echo '<h4 style="font-size:15px;font-weight:700;color:#334155;margin:0 0 12px;">' . esc_html__('Mentor Action Plan', 'hl-core') . '</h4>';
+                if ($supervisee_sub) {
+                    $this->render_submission_readonly($supervisee_sub);
+                } else {
+                    echo '<p style="color:#94a3b8;font-size:14px;">' . esc_html__('Not yet submitted.', 'hl-core') . '</p>';
+                }
+            }
+        } else {
             echo '<div class="hls-empty-forms">';
-            echo '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
-            echo '<p>' . esc_html__('Action plan and session notes will appear here once submitted.', 'hl-core') . '</p>';
+            echo '<p>' . esc_html__('You do not have permission to view forms for this session.', 'hl-core') . '</p>';
             echo '</div>';
+        }
+    }
+
+    /**
+     * Render a submission as read-only key-value display.
+     */
+    private function render_submission_readonly($sub) {
+        if (empty($sub['responses_json'])) {
+            return;
+        }
+        $data = json_decode($sub['responses_json'], true);
+        if (!is_array($data)) {
+            return;
+        }
+        echo '<div class="hls-form-card">';
+        foreach ($data as $key => $value) {
+            echo '<div class="hls-form-row"><span class="hls-form-label">' . esc_html(ucwords(str_replace('_', ' ', $key))) . '</span>';
+            echo '<span class="hls-form-value">' . esc_html(is_array($value) ? implode(', ', $value) : $value) . '</span></div>';
+        }
+        echo '</div>';
+    }
+
+    // =========================================================================
+    // Form Submission Handler
+    // =========================================================================
+
+    private function handle_post_submissions() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             return;
         }
 
-        foreach ($submissions as $sub) {
-            $role_label = ucwords(str_replace('_', ' ', $sub['role_in_session'] ?? 'submission'));
-            $submitted_by = $sub['submitted_by_name'] ?? '';
-            echo '<div class="hls-form-card">';
-            echo '<div class="hls-form-title">' . esc_html($role_label) . '</div>';
-            if ($submitted_by) {
-                echo '<div style="font-size:13px;color:#64748b;margin-bottom:10px;">Submitted by ' . esc_html($submitted_by) . '</div>';
-            }
-            if (!empty($sub['responses_json'])) {
-                $data = json_decode($sub['responses_json'], true);
-                if (is_array($data)) {
-                    foreach ($data as $key => $value) {
-                        if (is_array($value)) {
-                            $value = implode(', ', $value);
-                        }
-                        echo '<div class="hls-form-row"><span class="hls-form-label">' . esc_html(ucwords(str_replace('_', ' ', $key))) . '</span>';
-                        echo '<span class="hls-form-value">' . esc_html($value) . '</span></div>';
-                    }
-                }
-            }
-            echo '</div>';
+        $result = null;
+
+        // RP Notes submission (coach).
+        if (!empty($_POST['hl_rp_notes_nonce'])) {
+            $result = HL_Frontend_RP_Notes::handle_submission('coaching');
+        }
+
+        // Action Plan submission (mentor).
+        if (!empty($_POST['hl_action_plan_nonce'])) {
+            $result = HL_Frontend_Action_Plan::handle_submission('coaching');
+        }
+
+        if ($result && !is_wp_error($result)) {
+            $redirect = add_query_arg(array('message' => $result['message'], 'tab' => 'forms'));
+            wp_safe_redirect($redirect);
+            exit;
+        }
+
+        if (is_wp_error($result)) {
+            echo '<div class="hl-notice hl-notice-error"><p>' . esc_html($result->get_error_message()) . '</p></div>';
         }
     }
 
