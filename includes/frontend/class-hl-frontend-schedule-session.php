@@ -505,7 +505,7 @@ class HL_Frontend_Schedule_Session {
     private function render_session_forms($session, $enrollment) {
         $session_id       = (int) $session['session_id'];
         $coaching_service = new HL_Coaching_Service();
-        $submissions      = $coaching_service->get_submissions_for_session($session_id);
+        $submissions      = $coaching_service->get_submissions($session_id);
 
         if (empty($submissions)) {
             echo '<div class="hls-empty-forms">';
@@ -516,14 +516,22 @@ class HL_Frontend_Schedule_Session {
         }
 
         foreach ($submissions as $sub) {
+            $role_label = ucwords(str_replace('_', ' ', $sub['role_in_session'] ?? 'submission'));
+            $submitted_by = $sub['submitted_by_name'] ?? '';
             echo '<div class="hls-form-card">';
-            echo '<div class="hls-form-title">' . esc_html($sub['form_type'] ?? 'Submission') . '</div>';
-            if (!empty($sub['submitted_data'])) {
-                $data = is_string($sub['submitted_data']) ? json_decode($sub['submitted_data'], true) : $sub['submitted_data'];
+            echo '<div class="hls-form-title">' . esc_html($role_label) . '</div>';
+            if ($submitted_by) {
+                echo '<div style="font-size:13px;color:#64748b;margin-bottom:10px;">Submitted by ' . esc_html($submitted_by) . '</div>';
+            }
+            if (!empty($sub['responses_json'])) {
+                $data = json_decode($sub['responses_json'], true);
                 if (is_array($data)) {
                     foreach ($data as $key => $value) {
+                        if (is_array($value)) {
+                            $value = implode(', ', $value);
+                        }
                         echo '<div class="hls-form-row"><span class="hls-form-label">' . esc_html(ucwords(str_replace('_', ' ', $key))) . '</span>';
-                        echo '<span class="hls-form-value">' . esc_html(is_array($value) ? implode(', ', $value) : $value) . '</span></div>';
+                        echo '<span class="hls-form-value">' . esc_html($value) . '</span></div>';
                     }
                 }
             }
