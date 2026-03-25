@@ -200,6 +200,30 @@ class HL_Frontend_Coach_Mentor_Detail {
                  TAB 1: Coaching Sessions
                  ================================================================ -->
             <div id="hlcmd-panel-sessions" class="hlcmd-tab-panel" style="display:block;">
+                <?php
+                // "Schedule Next Session" button — links to the next unscheduled coaching component.
+                $next_component = $this->get_next_unscheduled_component($enrollment_id, $mentor);
+                if ($next_component) :
+                    $comp_page_url = $this->find_shortcode_page_url('hl_component_page');
+                    if ($comp_page_url) :
+                        $schedule_url = add_query_arg(array(
+                            'id'         => $next_component['component_id'],
+                            'enrollment' => $enrollment_id,
+                        ), $comp_page_url);
+                ?>
+                    <div style="margin-bottom:16px;">
+                        <a href="<?php echo esc_url($schedule_url); ?>" class="hlcmd-btn-schedule">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <?php printf(esc_html__('Schedule Next Session: %s', 'hl-core'), esc_html($next_component['title'])); ?>
+                        </a>
+                    </div>
+                <?php endif; ?>
+                <?php elseif (!empty($coaching_sessions)) : ?>
+                    <div style="margin-bottom:16px;padding:10px 16px;background:#d1fae5;border-radius:8px;font-size:14px;color:#065f46;font-weight:500;">
+                        <?php esc_html_e('All coaching sessions are scheduled or completed.', 'hl-core'); ?>
+                    </div>
+                <?php endif; ?>
+
                 <?php if (empty($coaching_sessions)) : ?>
                     <div class="hlcmd-panel-empty">
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -506,6 +530,8 @@ class HL_Frontend_Coach_Mentor_Detail {
         .hlcmd-panel-empty p{font-size:15px;margin:0}
 
         /* ---- TAB 1: Coaching Sessions ---- */
+        .hlcmd-btn-schedule{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s}
+        .hlcmd-btn-schedule:hover{background:#1d4ed8;color:#fff}
         .hlcmd-sessions-list{display:flex;flex-direction:column;gap:12px}
         .hlcmd-session-row{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 24px;transition:box-shadow .25s ease}
         .hlcmd-session-row:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}
@@ -593,6 +619,67 @@ class HL_Frontend_Coach_Mentor_Detail {
      * @param string $shortcode Shortcode tag (without brackets).
      * @return string Page permalink or empty string.
      */
+    /**
+     * Find the next unscheduled coaching session component for this mentor.
+     *
+     * @param int   $enrollment_id
+     * @param array $mentor Mentor detail array (needs assigned_pathway_id or pathway lookup).
+     * @return array|null Component row or null if all scheduled/completed.
+     */
+    private function get_next_unscheduled_component($enrollment_id, $mentor) {
+        global $wpdb;
+
+        $pathway_id = !empty($mentor['pathway_id']) ? (int) $mentor['pathway_id'] : 0;
+        if (!$pathway_id) {
+            // Try to resolve from enrollment.
+            $pathway_id = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT pa.pathway_id
+                 FROM {$wpdb->prefix}hl_pathway_assignment pa
+                 WHERE pa.enrollment_id = %d
+                 ORDER BY pa.created_at DESC LIMIT 1",
+                $enrollment_id
+            ));
+        }
+        if (!$pathway_id) {
+            return null;
+        }
+
+        // Get all coaching components for this pathway.
+        $components = $wpdb->get_results($wpdb->prepare(
+            "SELECT component_id, title FROM {$wpdb->prefix}hl_component
+             WHERE pathway_id = %d AND component_type = 'coaching_session_attendance' AND status = 'active'
+             ORDER BY ordering_hint ASC",
+            $pathway_id
+        ), ARRAY_A);
+
+        if (empty($components)) {
+            return null;
+        }
+
+        // Get component_ids that already have a scheduled or attended session.
+        $comp_ids     = array_map(function ($c) { return (int) $c['component_id']; }, $components);
+        $placeholders = implode(',', array_fill(0, count($comp_ids), '%d'));
+        $params       = array_merge($comp_ids, array($enrollment_id));
+
+        $scheduled_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT component_id FROM {$wpdb->prefix}hl_coaching_session
+             WHERE component_id IN ($placeholders)
+               AND mentor_enrollment_id = %d
+               AND session_status IN ('scheduled', 'attended')",
+            ...$params
+        ));
+        $scheduled_set = array_map('intval', $scheduled_ids);
+
+        // Return the first component without a session.
+        foreach ($components as $comp) {
+            if (!in_array((int) $comp['component_id'], $scheduled_set, true)) {
+                return $comp;
+            }
+        }
+
+        return null;
+    }
+
     private function find_shortcode_page_url($shortcode) {
         global $wpdb;
         $page_id = $wpdb->get_var($wpdb->prepare(
