@@ -102,6 +102,9 @@ class HL_Installer {
         // Rename V3: Corrective rename — swap cohort↔partnership, delete Phase entity.
         self::migrate_v3_grand_rename();
 
+        // Rev 24: Add scheduling integration columns to hl_coaching_session.
+        self::migrate_coaching_scheduling_columns();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -124,7 +127,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 23;
+        $current_revision = 24;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -142,6 +145,11 @@ class HL_Installer {
             // Rev 22: Add new component types for cross-pathway events.
             if ( (int) $stored < 22 ) {
                 self::migrate_add_event_component_types();
+            }
+
+            // Rev 24: Add scheduling integration columns to hl_coaching_session.
+            if ( (int) $stored < 24 ) {
+                self::migrate_coaching_scheduling_columns();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -1633,13 +1641,21 @@ class HL_Installer {
             notes_richtext longtext NULL,
             cancelled_at datetime NULL,
             rescheduled_from_session_id bigint(20) unsigned NULL,
+            component_id bigint(20) unsigned NULL COMMENT 'Links to hl_component for specific coaching component',
+            zoom_meeting_id bigint(20) unsigned NULL COMMENT 'Zoom meeting ID for API update/delete',
+            outlook_event_id varchar(255) NULL COMMENT 'Microsoft Graph calendar event ID',
+            booked_by_user_id bigint(20) unsigned NULL COMMENT 'User who created the booking',
+            mentor_timezone varchar(100) NULL COMMENT 'IANA timezone at booking time',
+            coach_timezone varchar(100) NULL COMMENT 'IANA timezone at booking time',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (session_id),
             UNIQUE KEY session_uuid (session_uuid),
             KEY cycle_id (cycle_id),
             KEY coach_user_id (coach_user_id),
-            KEY mentor_enrollment_id (mentor_enrollment_id)
+            KEY mentor_enrollment_id (mentor_enrollment_id),
+            KEY component_id (component_id),
+            KEY booked_by_user_id (booked_by_user_id)
         ) $charset_collate;";
 
         // Coaching Session Observation link table
@@ -1955,6 +1971,61 @@ class HL_Installer {
                  'coaching_session_attendance','observation',
                  'reflective_practice_session','classroom_visit','self_reflection')
             NOT NULL DEFAULT 'learndash_course'" );
+    }
+
+    /**
+     * Rev 24: Add scheduling integration columns to hl_coaching_session.
+     * Idempotent — safe to run multiple times.
+     */
+    private static function migrate_coaching_scheduling_columns() {
+        global $wpdb;
+        $table = "{$wpdb->prefix}hl_coaching_session";
+
+        $table_exists = $wpdb->get_var( $wpdb->prepare(
+            'SHOW TABLES LIKE %s', $table
+        ) ) === $table;
+        if ( ! $table_exists ) {
+            return;
+        }
+
+        $column_exists = function ( $column ) use ( $wpdb, $table ) {
+            return ! empty( $wpdb->get_row( $wpdb->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                $table, $column
+            ) ) );
+        };
+
+        $columns = array(
+            'component_id'      => "ADD COLUMN component_id bigint(20) unsigned NULL COMMENT 'Links to hl_component' AFTER rescheduled_from_session_id",
+            'zoom_meeting_id'   => "ADD COLUMN zoom_meeting_id bigint(20) unsigned NULL COMMENT 'Zoom meeting ID' AFTER component_id",
+            'outlook_event_id'  => "ADD COLUMN outlook_event_id varchar(255) NULL COMMENT 'Graph event ID' AFTER zoom_meeting_id",
+            'booked_by_user_id' => "ADD COLUMN booked_by_user_id bigint(20) unsigned NULL COMMENT 'Booking creator' AFTER outlook_event_id",
+            'mentor_timezone'   => "ADD COLUMN mentor_timezone varchar(100) NULL COMMENT 'IANA timezone' AFTER booked_by_user_id",
+            'coach_timezone'    => "ADD COLUMN coach_timezone varchar(100) NULL COMMENT 'IANA timezone' AFTER mentor_timezone",
+        );
+
+        foreach ( $columns as $col => $alter ) {
+            if ( ! $column_exists( $col ) ) {
+                $wpdb->query( "ALTER TABLE `{$table}` {$alter}" );
+            }
+        }
+
+        // Add indexes if missing.
+        $index_exists = function ( $index_name ) use ( $wpdb, $table ) {
+            return ! empty( $wpdb->get_row( $wpdb->prepare(
+                "SELECT INDEX_NAME FROM information_schema.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s",
+                $table, $index_name
+            ) ) );
+        };
+
+        if ( ! $index_exists( 'component_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD KEY component_id (component_id)" );
+        }
+        if ( ! $index_exists( 'booked_by_user_id' ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD KEY booked_by_user_id (booked_by_user_id)" );
+        }
     }
 
     /**
