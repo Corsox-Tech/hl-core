@@ -50,10 +50,22 @@ Pick up from the first unchecked `[ ]` item each session.
 - [ ] **34.2 — Admin report view** — Course-by-course grid with Cycle/School/Team/Role filters.
 - [ ] **34.3 — CSV export** — Export the matrix as CSV.
 
+### Coaching Session Scheduling Integration (Active — March 2026)
+- [x] **DB: 6 new columns on hl_coaching_session** — component_id, zoom_meeting_id, outlook_event_id, booked_by_user_id, mentor_timezone, coach_timezone. Schema revision 23→24.
+- [x] **Admin Settings: Scheduling & Integrations tab** — Scheduling rules (duration, lead times, cancel window), Microsoft 365 credentials (AES-256-CBC encrypted), Zoom credentials, Test Connection buttons.
+- [x] **Microsoft Graph API client** — `HL_Microsoft_Graph`: client credentials OAuth2, calendar CRUD, token caching, coach email resolution.
+- [x] **Zoom S2S OAuth client** — `HL_Zoom_Integration`: S2S OAuth, meeting CRUD, token caching, coach email resolution.
+- [x] **Scheduling Email Service** — `HL_Scheduling_Email_Service`: branded HTML emails for booked/rescheduled/cancelled + API failure fallbacks.
+- [x] **Scheduling Orchestration Service** — `HL_Scheduling_Service`: slot calculation (availability - Outlook conflicts - existing sessions), book/reschedule/cancel with Zoom + Outlook + email, 4 AJAX endpoints.
+- [x] **Coaching Service updates** — `create_session()` accepts scheduling columns + uniqueness check, `reschedule_session()` forwards component/timezone data.
+- [x] **Frontend: Component Page scheduling UI** — Date picker, AJAX slot loading, booking, two-state view (schedule vs details+action plan), drip rule locking, reschedule/cancel flows.
+- [x] **Frontend: My Coaching rewrite** — Component-based sessions hub with status badges, drip rule locking, complete_by dates, multi-cycle grouping.
+- [x] **Coach Mentor Detail: Schedule Next Session** — Button links to next unscheduled coaching component for streamlined coach-initiated scheduling.
+- [x] **Deployed to test** — Schema revision 24 verified, all 6 columns present. Manual browser testing pending (API credentials needed for end-to-end Zoom/Outlook tests).
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
-- [ ] MS365 Calendar Integration (requires Azure AD infrastructure)
 - [ ] BuddyBoss Profile Tab (out of scope for v1)
 - [ ] Frontend CSS redesign (modernize all 25+ shortcode pages)
 
