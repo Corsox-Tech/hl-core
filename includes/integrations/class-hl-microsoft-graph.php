@@ -286,7 +286,7 @@ class HL_Microsoft_Graph {
      * @param array|null $body    JSON body (for POST/PATCH).
      * @return array|WP_Error Decoded JSON response or WP_Error.
      */
-    private function api_request($method, $url, $body = null) {
+    private function api_request($method, $url, $body = null, $is_retry = false) {
         $token = $this->get_access_token();
         if (is_wp_error($token)) {
             return $token;
@@ -315,6 +315,12 @@ class HL_Microsoft_Graph {
 
         $code         = wp_remote_retrieve_response_code($response);
         $response_body = wp_remote_retrieve_body($response);
+
+        // 401: token may have been revoked server-side — force-refresh and retry once.
+        if ($code === 401 && !$is_retry) {
+            delete_transient(self::TRANSIENT);
+            return $this->api_request($method, $url, $body, true);
+        }
 
         // DELETE returns 204 No Content on success.
         if ($method === 'DELETE' && $code === 204) {
