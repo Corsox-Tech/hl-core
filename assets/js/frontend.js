@@ -122,3 +122,27 @@
     });
 
 })(jQuery);
+
+/**
+ * Program Page v2 — toggle expandable panels.
+ */
+function hlTogglePanel(panelId, btn) {
+    var panel = document.getElementById(panelId);
+    if (!panel) return;
+
+    var isOpen = panel.classList.contains('show');
+
+    // Close all panels and deactivate all toggles.
+    document.querySelectorAll('.hl-pp-panel').forEach(function(p) {
+        p.classList.remove('show');
+    });
+    document.querySelectorAll('.hl-pp-toggle-btn').forEach(function(b) {
+        b.classList.remove('active');
+    });
+
+    // If it wasn't open, open it.
+    if (!isOpen) {
+        panel.classList.add('show');
+        btn.classList.add('active');
+    }
+}
