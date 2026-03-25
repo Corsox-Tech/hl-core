@@ -243,15 +243,49 @@ class HL_Frontend_RP_Notes {
                         <?php if (empty($cv_review)) : ?>
                             <p class="hlrn-muted"><?php esc_html_e('No classroom visit data available.', 'hl-core'); ?></p>
                         <?php else : ?>
+                            <?php // Inline styles for classroom visit form components rendered in RP Notes context. ?>
+                            <style>
+                            .hlrn-cv-full-data .hlcv-context{margin:12px 0 16px;padding:14px 18px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0}
+                            .hlrn-cv-full-data .hlcv-context-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569;margin-bottom:10px}
+                            .hlrn-cv-full-data .hlcv-pills{display:flex;flex-wrap:wrap;gap:8px}
+                            .hlrn-cv-full-data .hlcv-ro-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:500}
+                            .hlrn-cv-full-data .hlcv-ro-yes{background:#d1fae5;color:#065f46}
+                            .hlrn-cv-full-data .hlcv-ro-no{background:#fee2e2;color:#991b1b}
+                            .hlrn-cv-full-data .hlcv-domain-flat{margin:16px 0;padding:16px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:10px}
+                            .hlrn-cv-full-data .hlcv-domain-flat-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+                            .hlrn-cv-full-data .hlcv-domain-num{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#2d5f8a);color:#fff;font-size:13px;font-weight:700;flex-shrink:0}
+                            .hlrn-cv-full-data .hlcv-domain-flat-title{font-size:15px;font-weight:600;color:#1e293b}
+                            .hlrn-cv-full-data .hlcv-indicators-grid{display:flex;flex-direction:column;gap:6px}
+                            .hlrn-cv-full-data .hlcv-ind-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f8fafc;border-radius:8px;border:1px solid #f1f5f9}
+                            .hlrn-cv-full-data .hlcv-ind-label{font-size:14px;color:#334155;flex:1}
+                            .hlrn-cv-full-data .hlcv-domain-desc-ro{margin-top:12px;padding:12px 14px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe}
+                            .hlrn-cv-full-data .hlcv-domain-desc-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#3b82f6;margin-bottom:4px}
+                            .hlrn-cv-full-data .hlcv-domain-desc-text{font-size:14px;color:#1e40af;line-height:1.5}
+                            </style>
+
                             <div class="hlrn-prep-card">
-                                <div class="hlrn-info-row" style="margin-bottom:12px">
+                                <?php
+                                // Resolve the best available date: visit_date, or fallback to first submission date.
+                                $visit_display_date = '';
+                                if (!empty($cv_review['visit_date'])) {
+                                    $visit_display_date = date_i18n(get_option('date_format'), strtotime($cv_review['visit_date']));
+                                } elseif (!empty($cv_review['submissions'])) {
+                                    foreach ($cv_review['submissions'] as $_s) {
+                                        if (!empty($_s['submitted_at'])) {
+                                            $visit_display_date = date_i18n(get_option('date_format'), strtotime($_s['submitted_at']));
+                                            break;
+                                        }
+                                    }
+                                }
+                                ?>
+                                <div class="hlrn-info-row" style="margin-bottom:16px">
                                     <div class="hlrn-info-cell">
                                         <span class="hlrn-info-label"><?php esc_html_e('Visit #', 'hl-core'); ?></span>
                                         <span class="hlrn-info-value hlrn-session-num"><?php echo esc_html($cv_review['visit_number']); ?></span>
                                     </div>
                                     <div class="hlrn-info-cell">
                                         <span class="hlrn-info-label"><?php esc_html_e('Date', 'hl-core'); ?></span>
-                                        <span class="hlrn-info-value"><?php echo esc_html(!empty($cv_review['visit_date']) ? date_i18n(get_option('date_format'), strtotime($cv_review['visit_date'])) : '—'); ?></span>
+                                        <span class="hlrn-info-value"><?php echo esc_html($visit_display_date ?: '—'); ?></span>
                                     </div>
                                     <div class="hlrn-info-cell">
                                         <span class="hlrn-info-label"><?php esc_html_e('Leader', 'hl-core'); ?></span>
@@ -272,10 +306,13 @@ class HL_Frontend_RP_Notes {
                                             : 'self_reflection_form';
                                         $instrument_sections = $this->get_instrument_sections($instrument_key);
                                     ?>
-                                        <div class="hlrn-cv-sub">
-                                            <div class="hlrn-cv-sub-header">
-                                                <strong><?php echo esc_html($role_label); ?></strong>
-                                                <span class="hlrn-badge" style="background:<?php echo esc_attr($status_color); ?>"><?php echo esc_html($sub['status']); ?></span>
+                                        <div class="hlrn-cv-sub" style="margin-bottom:16px">
+                                            <div class="hlrn-cv-sub-header" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:10px 14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
+                                                <strong style="font-size:15px;color:#1e293b"><?php echo esc_html($role_label); ?></strong>
+                                                <span class="hlrn-badge" style="background:<?php echo esc_attr($status_color); ?>;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600"><?php echo esc_html(ucfirst($sub['status'])); ?></span>
+                                                <?php if (!empty($sub['submitted_at'])) : ?>
+                                                    <span style="margin-left:auto;font-size:12px;color:#94a3b8"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($sub['submitted_at']))); ?></span>
+                                                <?php endif; ?>
                                             </div>
                                             <?php if ($sub_data && is_array($sub_data) && $instrument_sections) : ?>
                                                 <div class="hlrn-cv-full-data">
