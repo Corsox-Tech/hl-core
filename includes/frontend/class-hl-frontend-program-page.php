@@ -216,76 +216,207 @@ class HL_Frontend_Program_Page {
         $image_id = !empty($pathway->featured_image_id) ? absint($pathway->featured_image_id) : 0;
 
         // Render.
+        // Count component types for sidebar stats.
+        $type_counts = array('courses' => 0, 'visits' => 0, 'other' => 0);
+        foreach ($component_data as $cd) {
+            $ct = $cd['component']->component_type;
+            if ($ct === 'learndash_course') {
+                $type_counts['courses']++;
+            } elseif (in_array($ct, array('classroom_visit', 'observation'), true)) {
+                $type_counts['visits']++;
+            } else {
+                $type_counts['other']++;
+            }
+        }
+        $completed_count = 0;
+        foreach ($component_data as $cd) {
+            if ($cd['availability']['availability_status'] === 'completed') {
+                $completed_count++;
+            }
+        }
+        $total_components = count($component_data);
+
+        // Pathway label for badge.
+        $pathway_label = '';
+        if (stripos($pathway->pathway_name, 'teacher') !== false) {
+            $pathway_label = __('Teacher Learning Plan', 'hl-core');
+        } elseif (stripos($pathway->pathway_name, 'mentor') !== false) {
+            $pathway_label = __('Mentor Learning Plan', 'hl-core');
+        } elseif (stripos($pathway->pathway_name, 'leader') !== false) {
+            $pathway_label = __('Leader Learning Plan', 'hl-core');
+        } else {
+            $pathway_label = __('Learning Plan', 'hl-core');
+        }
+
+        // Program status label.
+        $status_label = ($overall_percent >= 100) ? __('Completed', 'hl-core') : __('In Progress', 'hl-core');
+        if ($overall_percent <= 0) {
+            $status_label = __('Not Started', 'hl-core');
+        }
         ?>
-        <div class="hl-dashboard hl-program-page">
+        <div class="hl-dashboard hl-program-page hl-program-page-v2">
 
             <?php if (!empty($my_programs_url)) : ?>
                 <a href="<?php echo esc_url($my_programs_url); ?>" class="hl-back-link">&larr; <?php esc_html_e('Back to My Programs', 'hl-core'); ?></a>
             <?php endif; ?>
 
-            <!-- Header -->
-            <div class="hl-program-header">
-                <?php if ($image_id) : ?>
-                    <div class="hl-program-hero-image">
-                        <?php echo wp_get_attachment_image($image_id, 'large', false, array('loading' => 'lazy')); ?>
+            <!-- Hero Banner -->
+            <div class="hl-pp-hero">
+                <div class="hl-pp-hero-card">
+                    <div class="hl-pp-hero-text">
+                        <div class="hl-pp-hero-badge"><?php echo esc_html($pathway_label); ?></div>
+                        <h1 class="hl-pp-hero-title"><?php echo esc_html($pathway->pathway_name); ?></h1>
+                        <p class="hl-pp-hero-subtitle"><?php echo esc_html($cycle ? $cycle->cycle_name : ''); ?></p>
                     </div>
-                <?php endif; ?>
-                <div class="hl-program-header-info">
-                    <h1 class="hl-cycle-title"><?php echo esc_html($pathway->pathway_name); ?></h1>
-                    <p class="hl-program-card-cycle"><?php echo esc_html($cycle ? $cycle->cycle_name : ''); ?></p>
-                    <?php if (!empty($pathway->description)) : ?>
-                        <div class="hl-inline-form-description"><?php echo wp_kses_post($pathway->description); ?></div>
+                    <?php if ($image_id) : ?>
+                        <div class="hl-pp-hero-image">
+                            <?php echo wp_get_attachment_image($image_id, 'large', false, array('loading' => 'lazy')); ?>
+                        </div>
                     <?php endif; ?>
                 </div>
-                <?php $this->render_progress_ring($overall_percent); ?>
             </div>
 
-            <!-- Details Panel -->
-            <div class="hl-program-details">
-                <?php if (!empty($pathway->avg_completion_time)) : ?>
-                    <div class="hl-program-detail-item"><strong><?php esc_html_e('Avg Time:', 'hl-core'); ?></strong> <?php echo esc_html($pathway->avg_completion_time); ?></div>
-                <?php endif; ?>
-                <?php if (!empty($pathway->expiration_date)) : ?>
-                    <div class="hl-program-detail-item"><strong><?php esc_html_e('Expires:', 'hl-core'); ?></strong> <?php echo esc_html($this->format_date($pathway->expiration_date)); ?></div>
-                <?php endif; ?>
-                <div class="hl-program-detail-item"><strong><?php esc_html_e('Status:', 'hl-core'); ?></strong> <span class="hl-badge <?php echo esc_attr($program_status_class); ?>"><?php echo esc_html($program_status); ?></span></div>
-                <div class="hl-program-detail-item"><strong><?php esc_html_e('Components:', 'hl-core'); ?></strong> <?php echo esc_html(count($component_data)); ?></div>
-            </div>
+            <!-- Two-Column Layout -->
+            <div class="hl-pp-layout">
 
-            <!-- Objectives -->
-            <?php if (!empty($pathway->objectives)) : ?>
-                <div class="hl-program-objectives">
-                    <h3><?php esc_html_e('Program Objectives', 'hl-core'); ?></h3>
-                    <?php echo wp_kses_post($pathway->objectives); ?>
-                </div>
-            <?php endif; ?>
+                <!-- Main Content -->
+                <div class="hl-pp-main">
 
-            <!-- Program Resources -->
-            <?php if (!empty($pathway->syllabus_url)) : ?>
-                <div class="hl-program-resources">
-                    <div class="hl-resource-card">
-                        <div class="hl-resource-content">
-                            <strong><?php esc_html_e('Curriculum Materials', 'hl-core'); ?></strong>
-                            <p><?php esc_html_e('Access your program materials and resources.', 'hl-core'); ?></p>
+                    <?php if (!empty($pathway->description)) : ?>
+                        <div class="hl-pp-about"><?php echo wp_kses_post($pathway->description); ?></div>
+                    <?php endif; ?>
+
+                    <!-- Expandable Sections -->
+                    <?php
+                    $has_objectives = !empty($pathway->objectives);
+                    $has_syllabus   = !empty($pathway->syllabus_url);
+                    if ($has_objectives || $has_syllabus) :
+                    ?>
+                        <div class="hl-pp-toggles">
+                            <?php if ($has_objectives) : ?>
+                                <button class="hl-pp-toggle-btn" onclick="hlTogglePanel('hl-pp-objectives', this)">&#x1F3AF; <?php esc_html_e('Objectives', 'hl-core'); ?></button>
+                            <?php endif; ?>
+                            <?php if ($has_syllabus) : ?>
+                                <button class="hl-pp-toggle-btn" onclick="hlTogglePanel('hl-pp-syllabus', this)">&#x1F4D6; <?php esc_html_e('Resources', 'hl-core'); ?></button>
+                            <?php endif; ?>
                         </div>
-                        <a href="<?php echo esc_url($pathway->syllabus_url); ?>" target="_blank" class="hl-btn hl-btn-secondary"><?php esc_html_e('Access Materials', 'hl-core'); ?> &rarr;</a>
-                    </div>
-                </div>
-            <?php endif; ?>
 
-            <!-- Components Section -->
-            <?php if (!empty($component_data)) : ?>
-                <div class="hl-component-list">
-                    <h3 class="hl-section-title"><?php esc_html_e('Program Steps', 'hl-core'); ?></h3>
-                    <?php foreach ($component_data as $ad) :
-                        $this->render_component_card($ad, $pathway, $enrollment);
-                    endforeach; ?>
+                        <?php if ($has_objectives) : ?>
+                            <div class="hl-pp-panel" id="hl-pp-objectives">
+                                <h3><?php esc_html_e('Program Objectives', 'hl-core'); ?></h3>
+                                <?php echo wp_kses_post($pathway->objectives); ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($has_syllabus) : ?>
+                            <div class="hl-pp-panel" id="hl-pp-syllabus">
+                                <h3><?php esc_html_e('Program Resources', 'hl-core'); ?></h3>
+                                <p><?php esc_html_e('Access your program materials and resources.', 'hl-core'); ?></p>
+                                <a href="<?php echo esc_url($pathway->syllabus_url); ?>" target="_blank" class="hl-pp-syllabus-link">&#x1F4E5; <?php esc_html_e('Access Materials', 'hl-core'); ?></a>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+
+                    <!-- Program Steps -->
+                    <?php if (!empty($component_data)) : ?>
+                        <div class="hl-pp-section-label">
+                            <?php esc_html_e('Program Steps', 'hl-core'); ?>
+                            <span class="hl-pp-section-count"><?php echo esc_html($total_components); ?></span>
+                        </div>
+                        <?php foreach ($component_data as $ad) :
+                            $this->render_component_card_v2($ad, $pathway, $enrollment);
+                        endforeach; ?>
+                    <?php else : ?>
+                        <div class="hl-notice hl-notice-info">
+                            <?php esc_html_e('No learning components have been added to this program yet.', 'hl-core'); ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
-            <?php else : ?>
-                <div class="hl-notice hl-notice-info">
-                    <?php esc_html_e('No learning components have been added to this program yet.', 'hl-core'); ?>
+
+                <!-- Sidebar -->
+                <div class="hl-pp-sidebar">
+
+                    <!-- Progress + Stats -->
+                    <div class="hl-pp-sidebar-card">
+                        <div class="hl-pp-progress-combo">
+                            <?php $this->render_progress_ring_v2($overall_percent, $completed_count, $total_components, $status_label); ?>
+                            <div class="hl-pp-stats-row">
+                                <div class="hl-pp-stat">
+                                    <div class="hl-pp-stat-num"><?php echo esc_html($type_counts['courses']); ?></div>
+                                    <div class="hl-pp-stat-lbl"><?php esc_html_e('Courses', 'hl-core'); ?></div>
+                                </div>
+                                <div class="hl-pp-stat">
+                                    <div class="hl-pp-stat-num"><?php echo esc_html($type_counts['visits']); ?></div>
+                                    <div class="hl-pp-stat-lbl"><?php esc_html_e('Visits', 'hl-core'); ?></div>
+                                </div>
+                                <div class="hl-pp-stat">
+                                    <div class="hl-pp-stat-num"><?php echo esc_html($type_counts['other']); ?></div>
+                                    <div class="hl-pp-stat-lbl"><?php esc_html_e('Other', 'hl-core'); ?></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Details -->
+                    <div class="hl-pp-sidebar-card hl-pp-details">
+                        <?php if (!empty($pathway->avg_completion_time)) : ?>
+                            <div class="hl-pp-detail-row">
+                                <div class="hl-pp-detail-icon">&#x23F1;</div>
+                                <div>
+                                    <div class="hl-pp-detail-label"><?php esc_html_e('Avg. Completion Time', 'hl-core'); ?></div>
+                                    <div class="hl-pp-detail-value"><?php echo esc_html($pathway->avg_completion_time); ?></div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        <?php if (!empty($pathway->expiration_date)) : ?>
+                            <div class="hl-pp-detail-row">
+                                <div class="hl-pp-detail-icon">&#x1F4C5;</div>
+                                <div>
+                                    <div class="hl-pp-detail-label"><?php esc_html_e('Learning Plan Ends', 'hl-core'); ?></div>
+                                    <div class="hl-pp-detail-value"><?php echo esc_html($this->format_date($pathway->expiration_date)); ?></div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($cycle) : ?>
+                            <div class="hl-pp-detail-row">
+                                <div class="hl-pp-detail-icon">&#x1F504;</div>
+                                <div>
+                                    <div class="hl-pp-detail-label"><?php esc_html_e('Cycle', 'hl-core'); ?></div>
+                                    <div class="hl-pp-detail-value"><?php echo esc_html($cycle->cycle_name); ?></div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        <div class="hl-pp-detail-row">
+                            <div class="hl-pp-detail-icon">&#x1F4CA;</div>
+                            <div>
+                                <div class="hl-pp-detail-label"><?php esc_html_e('Status', 'hl-core'); ?></div>
+                                <div class="hl-pp-detail-value"><?php echo esc_html($program_status); ?></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Certificate -->
+                    <div class="hl-pp-sidebar-card">
+                        <div class="hl-pp-cert">
+                            <?php if ($overall_percent >= 100) : ?>
+                                <div class="hl-pp-cert-icon available">&#x1F3C6;</div>
+                                <div>
+                                    <div class="hl-pp-cert-title"><?php esc_html_e('Certificate', 'hl-core'); ?></div>
+                                    <div class="hl-pp-cert-desc"><?php esc_html_e('Congratulations!', 'hl-core'); ?></div>
+                                </div>
+                                <a href="#" class="hl-pp-cert-btn"><?php esc_html_e('Download', 'hl-core'); ?></a><!-- TODO: wire up real certificate download URL -->
+                            <?php else : ?>
+                                <div class="hl-pp-cert-icon">&#x1F512;</div>
+                                <div>
+                                    <div class="hl-pp-cert-title"><?php esc_html_e('Certificate', 'hl-core'); ?></div>
+                                    <div class="hl-pp-cert-desc"><?php esc_html_e('Complete all steps to unlock', 'hl-core'); ?></div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
                 </div>
-            <?php endif; ?>
+            </div>
         </div>
         <?php
 
@@ -684,6 +815,200 @@ class HL_Frontend_Program_Page {
                 <div class="hl-ring-text">
                     <span class="hl-ring-percent"><?php echo esc_html($percent . '%'); ?></span>
                     <span class="hl-ring-label"><?php esc_html_e('Complete', 'hl-core'); ?></span>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render compact progress ring for v2 sidebar.
+     */
+    private function render_progress_ring_v2($percent, $completed_count, $total, $status_label) {
+        $percent       = max(0, min(100, (int) $percent));
+        $radius        = 22;
+        $circumference = 2 * M_PI * $radius;
+        $offset        = $circumference * (1 - $percent / 100);
+        ?>
+        <div class="hl-pp-progress-top">
+            <div class="hl-pp-ring-mini">
+                <svg viewBox="0 0 52 52">
+                    <circle class="ring-bg" cx="26" cy="26" r="<?php echo esc_attr($radius); ?>" />
+                    <circle class="ring-fill" cx="26" cy="26" r="<?php echo esc_attr($radius); ?>"
+                            stroke-dasharray="<?php echo esc_attr(round($circumference, 2)); ?>"
+                            stroke-dashoffset="<?php echo esc_attr(round($offset, 2)); ?>" />
+                </svg>
+                <div class="hl-pp-ring-text"><?php echo esc_html($percent . '%'); ?></div>
+            </div>
+            <div>
+                <div class="hl-pp-progress-label"><?php echo esc_html($status_label); ?></div>
+                <div class="hl-pp-progress-sub">
+                    <?php printf(esc_html__('%d of %d steps completed', 'hl-core'), $completed_count, $total); ?>
+                </div>
+            </div>
+        </div>
+        <div class="hl-pp-bar-full">
+            <div class="hl-pp-bar-fill" style="width: <?php echo esc_attr($percent); ?>%"></div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render a v2 component card with image support.
+     */
+    private function render_component_card_v2($ad, $pathway, $enrollment) {
+        $component          = $ad['component'];
+        $availability       = $ad['availability'];
+        $completion_percent = (int) $ad['completion_percent'];
+        $completed_at       = $ad['completed_at'];
+        $course_url         = $ad['course_url'];
+        $assess_status      = isset($ad['assess_status']) ? $ad['assess_status'] : 'not_started';
+        $children_counts    = isset($ad['children_counts']) ? $ad['children_counts'] : null;
+        $avail_status       = $availability['availability_status'];
+
+        if ($assess_status === 'partial' && $children_counts && $children_counts['total'] > 0) {
+            $completion_percent = (int) round($children_counts['submitted'] / $children_counts['total'] * 100);
+        }
+
+        $type_label = isset(self::$type_labels[$component->component_type])
+            ? self::$type_labels[$component->component_type]
+            : ucwords(str_replace('_', ' ', $component->component_type));
+
+        // Is this a course with an image?
+        $is_course   = ($component->component_type === 'learndash_course');
+        $course_image = '';
+        if ($is_course) {
+            $external_ref = $component->get_external_ref_array();
+            $course_id    = isset($external_ref['course_id']) ? absint($external_ref['course_id']) : 0;
+            if ($course_id && has_post_thumbnail($course_id)) {
+                $course_image = get_the_post_thumbnail($course_id, 'medium', array('loading' => 'lazy'));
+            }
+            // Lesson count from LearnDash.
+            if ($course_id) {
+                $lessons = function_exists('learndash_get_lesson_list') ? learndash_get_lesson_list($course_id) : array();
+                $lesson_count = is_array($lessons) ? count($lessons) : 0;
+                if ($lesson_count > 0) {
+                    $type_label .= ' · ' . sprintf(_n('%d Lesson', '%d Lessons', $lesson_count, 'hl-core'), $lesson_count);
+                }
+            }
+        }
+
+        // Status overlay text and class.
+        $overlay_class = 'hl-pp-overlay-not-started';
+        $overlay_text  = __('Not Started', 'hl-core');
+        if ($avail_status === 'completed') {
+            $overlay_class = 'hl-pp-overlay-completed';
+            $overlay_text  = __('Completed', 'hl-core');
+        } elseif ($avail_status === 'locked') {
+            $overlay_class = 'hl-pp-overlay-locked';
+            $overlay_text  = __('Locked', 'hl-core');
+        } elseif ($completion_percent > 0) {
+            $overlay_class = 'hl-pp-overlay-in-progress';
+            $overlay_text  = __('In Progress', 'hl-core');
+        }
+
+        // Progress bar fill class.
+        $fill_class = 'hl-pp-fill-none';
+        if ($avail_status === 'completed') {
+            $fill_class = 'hl-pp-fill-complete';
+        } elseif ($completion_percent > 0) {
+            $fill_class = 'hl-pp-fill-active';
+        }
+
+        // Card CSS class.
+        $card_class = 'hl-pp-component';
+        if ($avail_status === 'locked') {
+            $card_class .= ' hl-pp-locked';
+        }
+
+        // Progress text.
+        $progress_text = '';
+        if ($avail_status === 'completed') {
+            $progress_text = esc_html__('100% Complete', 'hl-core');
+        } elseif ($assess_status === 'partial' && $children_counts) {
+            $progress_text = sprintf('%d/%d', $children_counts['submitted'], $children_counts['total']);
+        } elseif ($assess_status === 'draft') {
+            $progress_text = esc_html__('Draft', 'hl-core');
+        } elseif ($completion_percent > 0) {
+            $progress_text = $completion_percent . '%';
+        } else {
+            $progress_text = esc_html__('Not started', 'hl-core');
+        }
+
+        // Action button.
+        $action_html = '';
+        $btn_class   = 'hl-pp-btn hl-pp-btn-start';
+        if ($avail_status === 'available') {
+            $action_html = $this->get_action_html($component, $enrollment, $pathway, $assess_status);
+            // Replace old button classes with v2 classes.
+            $action_html = str_replace(
+                array('hl-btn hl-btn-sm hl-btn-primary', 'hl-btn hl-btn-sm hl-btn-secondary'),
+                array('hl-pp-btn hl-pp-btn-start', 'hl-pp-btn hl-pp-btn-view'),
+                $action_html
+            );
+            // If component has progress, use continue style.
+            if ($completion_percent > 0 && $completion_percent < 100) {
+                $action_html = str_replace('hl-pp-btn-start', 'hl-pp-btn-continue', $action_html);
+            }
+        } elseif ($avail_status === 'completed') {
+            $action_html = $this->get_completed_action_html($component, $enrollment);
+            $action_html = str_replace(
+                array('hl-btn hl-btn-sm hl-btn-secondary', 'hl-btn hl-btn-sm hl-btn-primary'),
+                array('hl-pp-btn hl-pp-btn-view', 'hl-pp-btn hl-pp-btn-view'),
+                $action_html
+            );
+        }
+
+        // Non-course icon map.
+        $icon_map = array(
+            'teacher_self_assessment'      => '&#x1F4DD;',
+            'child_assessment'             => '&#x1F4DD;',
+            'classroom_visit'              => '&#x1F50D;',
+            'observation'                  => '&#x1F50D;',
+            'coaching_session_attendance'  => '&#x1F3AC;',
+            'reflective_practice_session'  => '&#x1F4AD;',
+            'self_reflection'              => '&#x1F4AD;',
+        );
+        $type_icon = isset($icon_map[$component->component_type]) ? $icon_map[$component->component_type] : '&#x1F4CB;';
+
+        // Drip badge.
+        $drip_html = '';
+        if ($avail_status === 'locked'
+            && !empty($availability['locked_reason'])
+            && $availability['locked_reason'] === 'drip'
+            && !empty($availability['next_available_at'])
+        ) {
+            $drip_html = '<span class="hl-pp-drip-badge">'
+                . sprintf(esc_html__('Available %s', 'hl-core'), esc_html($this->format_date($availability['next_available_at'])))
+                . '</span>';
+        }
+        ?>
+        <div class="<?php echo esc_attr($card_class); ?>">
+            <?php if ($is_course && !empty($course_image)) : ?>
+                <div class="hl-pp-component-image">
+                    <?php echo $course_image; ?>
+                    <div class="hl-pp-status-overlay <?php echo esc_attr($overlay_class); ?>">
+                        <?php echo esc_html($overlay_text); ?>
+                    </div>
+                </div>
+            <?php elseif (!$is_course) : ?>
+                <div class="hl-pp-component-icon"><?php echo $type_icon; ?></div>
+            <?php endif; ?>
+
+            <div class="hl-pp-component-body">
+                <div class="hl-pp-component-type"><?php echo wp_kses_post($type_label); ?></div>
+                <h4 class="hl-pp-component-name">
+                    <?php echo esc_html($component->title); ?>
+                    <?php if (!empty($drip_html)) echo $drip_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from esc_html() ?>
+                </h4>
+                <div class="hl-pp-component-footer">
+                    <div class="hl-pp-component-meta"><?php echo esc_html($progress_text); ?></div>
+                    <div class="hl-pp-component-progress">
+                        <div class="hl-pp-progress-fill <?php echo esc_attr($fill_class); ?>" style="width: <?php echo esc_attr($completion_percent); ?>%"></div>
+                    </div>
+                    <?php if (!empty($action_html)) : ?>
+                        <div class="hl-pp-component-action"><?php echo $action_html; ?></div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
