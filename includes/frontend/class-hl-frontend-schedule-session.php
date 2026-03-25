@@ -328,6 +328,7 @@ class HL_Frontend_Schedule_Session {
         $session_id   = (int) $session['session_id'];
         $status       = $session['session_status'];
         $is_completed = ($status === 'attended');
+        $is_missed    = ($status === 'missed');
         $nonce        = wp_create_nonce('hl_scheduling_nonce');
         $current_user = get_current_user_id();
         $is_admin     = current_user_can('manage_hl_core');
@@ -352,14 +353,19 @@ class HL_Frontend_Schedule_Session {
         }
 
         $can_modify = false;
+        $is_past    = false;
         if ($status === 'scheduled' && !empty($session['session_datetime'])) {
             $settings         = HL_Admin_Scheduling_Settings::get_scheduling_settings();
             $min_cancel_hours = (int) $settings['min_cancel_notice_hours'];
+            $duration_min     = (int) $settings['session_duration'];
             $wp_tz            = wp_timezone();
             $session_time     = new DateTime($session['session_datetime'], $wp_tz);
+            $session_end      = clone $session_time;
+            $session_end->modify('+' . $duration_min . ' minutes');
             $now              = new DateTime('now', $wp_tz);
             $diff_hours       = ($session_time->getTimestamp() - $now->getTimestamp()) / 3600;
             $can_modify       = ($diff_hours >= $min_cancel_hours);
+            $is_past          = ($now > $session_end);
         }
 
         $active_tab    = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'details';
@@ -391,6 +397,11 @@ class HL_Frontend_Schedule_Session {
                             <span class="hls-badge hls-badge-green">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                                 <?php esc_html_e('Completed', 'hl-core'); ?>
+                            </span>
+                        <?php elseif ($is_missed) : ?>
+                            <span class="hls-badge hls-badge-red">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                                <?php esc_html_e('No-Show', 'hl-core'); ?>
                             </span>
                         <?php else : ?>
                             <span class="hls-badge hls-badge-blue">
@@ -473,6 +484,50 @@ class HL_Frontend_Schedule_Session {
                         };
                     })();
                     </script>
+
+                    <?php if ($is_past && ($is_coach || $is_admin)) : ?>
+                    <!-- Attendance reporting (coach/admin, after session time) -->
+                    <div class="hls-attendance-box">
+                        <div class="hls-attendance-header">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+                            <span><?php esc_html_e('How did this session go?', 'hl-core'); ?></span>
+                        </div>
+                        <div class="hls-attendance-btns">
+                            <button type="button" class="hls-attend-btn hls-attend-yes" data-status="attended">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                <?php esc_html_e('Attended', 'hl-core'); ?>
+                            </button>
+                            <button type="button" class="hls-attend-btn hls-attend-no" data-status="missed">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                                <?php esc_html_e('No-Show', 'hl-core'); ?>
+                            </button>
+                        </div>
+                        <span id="hls-attend-status" class="hls-booking-status"></span>
+                    </div>
+                    <script>
+                    (function(){
+                        document.querySelectorAll('.hls-attend-btn').forEach(function(btn){
+                            btn.onclick=function(){
+                                var st=document.getElementById('hls-attend-status');
+                                document.querySelectorAll('.hls-attend-btn').forEach(function(b){b.disabled=true;});
+                                st.textContent='<?php echo esc_js(__('Saving...', 'hl-core')); ?>';st.style.color='#64748b';
+                                var fd=new FormData();
+                                fd.append('action','hl_mark_attendance');
+                                fd.append('_nonce','<?php echo esc_js($nonce); ?>');
+                                fd.append('session_id',<?php echo (int)$session_id; ?>);
+                                fd.append('attendance',this.getAttribute('data-status'));
+                                fetch('<?php echo esc_js(admin_url('admin-ajax.php')); ?>',{method:'POST',body:fd})
+                                .then(function(r){return r.json();})
+                                .then(function(r){
+                                    if(r.success){location.reload();}
+                                    else{st.textContent=r.data.message||'Failed';st.style.color='#dc2626';document.querySelectorAll('.hls-attend-btn').forEach(function(b){b.disabled=false;});}
+                                });
+                            };
+                        });
+                    })();
+                    </script>
+                    <?php endif; ?>
+
                     <?php endif; ?>
                 </div>
             </div>
@@ -709,6 +764,7 @@ class HL_Frontend_Schedule_Session {
         .hls-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700}
         .hls-badge-green{background:#d1fae5;color:#065f46}
         .hls-badge-blue{background:#e0e7ff;color:#3730a3}
+        .hls-badge-red{background:#fee2e2;color:#991b1b}
 
         .hls-detail-rows{display:flex;flex-direction:column;gap:20px;margin-bottom:24px}
         .hls-detail-row{display:flex;align-items:flex-start;gap:14px}
@@ -729,6 +785,17 @@ class HL_Frontend_Schedule_Session {
         .hls-cancel-btns{display:flex;gap:10px;flex-wrap:wrap}
         .hls-cancel-confirm-btn{padding:9px 18px;background:#dc2626;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s}
         .hls-cancel-confirm-btn:hover{background:#b91c1c}
+
+        /* Attendance box */
+        .hls-attendance-box{margin-top:24px;padding:20px 24px;background:#f5f3ff;border:1px solid #e0e7ff;border-radius:14px;animation:hls-slide .25s ease}
+        .hls-attendance-header{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:#334155;margin-bottom:14px}
+        .hls-attendance-btns{display:flex;gap:10px;flex-wrap:wrap}
+        .hls-attend-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;border:2px solid}
+        .hls-attend-yes{background:#fff;color:#059669;border-color:#a7f3d0}
+        .hls-attend-yes:hover{background:#ecfdf5;border-color:#059669}
+        .hls-attend-no{background:#fff;color:#dc2626;border-color:#fecaca}
+        .hls-attend-no:hover{background:#fef2f2;border-color:#dc2626}
+        .hls-attend-btn:disabled{opacity:.6;cursor:not-allowed}
 
         /* ── Forms tab ── */
         .hls-empty-forms{text-align:center;padding:48px 20px;color:#94a3b8;font-size:14px}

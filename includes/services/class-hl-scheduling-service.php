@@ -26,6 +26,7 @@ class HL_Scheduling_Service {
         add_action('wp_ajax_hl_book_session', array($this, 'ajax_book_session'));
         add_action('wp_ajax_hl_reschedule_session', array($this, 'ajax_reschedule_session'));
         add_action('wp_ajax_hl_cancel_session', array($this, 'ajax_cancel_session'));
+        add_action('wp_ajax_hl_mark_attendance', array($this, 'ajax_mark_attendance'));
     }
 
     // =========================================================================
@@ -848,5 +849,41 @@ class HL_Scheduling_Service {
         }
 
         wp_send_json_success(array('message' => __('Session cancelled.', 'hl-core')));
+    }
+
+    /**
+     * AJAX: Mark attendance for a coaching session (coach/admin only).
+     */
+    public function ajax_mark_attendance() {
+        check_ajax_referer('hl_scheduling_nonce', '_nonce');
+
+        $session_id = absint($_POST['session_id'] ?? 0);
+        $status     = sanitize_text_field($_POST['attendance'] ?? '');
+
+        if (!$session_id || !in_array($status, array('attended', 'missed'), true)) {
+            wp_send_json_error(array('message' => __('Invalid parameters.', 'hl-core')));
+        }
+
+        $coaching_service = new HL_Coaching_Service();
+        $session          = $coaching_service->get_session($session_id);
+        if (!$session) {
+            wp_send_json_error(array('message' => __('Session not found.', 'hl-core')));
+        }
+
+        // Only coach and admin can mark attendance.
+        $current_user_id = get_current_user_id();
+        $is_admin        = current_user_can('manage_hl_core');
+        $is_coach        = (int) $session['coach_user_id'] === $current_user_id;
+        if (!$is_admin && !$is_coach) {
+            wp_send_json_error(array('message' => __('Only coaches and administrators can mark attendance.', 'hl-core')));
+        }
+
+        $result = $coaching_service->mark_attendance($session_id, $status);
+        if ($result === false) {
+            wp_send_json_error(array('message' => __('Failed to update attendance.', 'hl-core')));
+        }
+
+        $label = $status === 'attended' ? __('Attended', 'hl-core') : __('No-Show', 'hl-core');
+        wp_send_json_success(array('message' => sprintf(__('Marked as: %s', 'hl-core'), $label)));
     }
 }

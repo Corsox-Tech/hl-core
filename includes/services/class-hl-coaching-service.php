@@ -303,13 +303,19 @@ class HL_Coaching_Service {
             return false;
         }
 
-        if ($status === 'attended') {
+        // Mark the linked component as complete on attended OR missed.
+        if (in_array($status, array('attended', 'missed'), true)) {
             $session = $wpdb->get_row($wpdb->prepare(
-                "SELECT cycle_id, mentor_enrollment_id FROM {$wpdb->prefix}hl_coaching_session WHERE session_id = %d",
+                "SELECT cycle_id, mentor_enrollment_id, component_id FROM {$wpdb->prefix}hl_coaching_session WHERE session_id = %d",
                 $session_id
             ));
 
             if ($session) {
+                // If session has a component_id, mark that specific component complete.
+                if (!empty($session->component_id)) {
+                    $this->mark_component_complete($session->mentor_enrollment_id, $session->component_id);
+                }
+                // Also run the legacy rollup for backward compat.
                 $this->update_coaching_component_state($session->mentor_enrollment_id, $session->cycle_id);
             }
         }
@@ -321,6 +327,44 @@ class HL_Coaching_Service {
         ));
 
         return $result;
+    }
+
+    /**
+     * Mark a specific component as complete for an enrollment.
+     *
+     * @param int $enrollment_id
+     * @param int $component_id
+     */
+    private function mark_component_complete($enrollment_id, $component_id) {
+        global $wpdb;
+
+        $now = current_time('mysql');
+        $existing = $wpdb->get_var($wpdb->prepare(
+            "SELECT state_id FROM {$wpdb->prefix}hl_component_state
+             WHERE enrollment_id = %d AND component_id = %d",
+            $enrollment_id, $component_id
+        ));
+
+        $state_data = array(
+            'completion_percent' => 100,
+            'completion_status'  => 'complete',
+            'completed_at'       => $now,
+            'last_computed_at'   => $now,
+        );
+
+        if ($existing) {
+            $wpdb->update(
+                $wpdb->prefix . 'hl_component_state',
+                $state_data,
+                array('state_id' => $existing)
+            );
+        } else {
+            $state_data['enrollment_id'] = $enrollment_id;
+            $state_data['component_id']  = $component_id;
+            $wpdb->insert($wpdb->prefix . 'hl_component_state', $state_data);
+        }
+
+        do_action('hl_core_recompute_rollups', $enrollment_id);
     }
 
     /**
