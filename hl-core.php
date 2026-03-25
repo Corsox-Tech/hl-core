@@ -122,6 +122,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-learndash-integration.php';
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-jfb-integration.php';
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-buddyboss-integration.php';
+        require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-microsoft-graph.php';
 
         // Scheduling & Integrations (loaded outside is_admin for AJAX support)
         require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-scheduling-settings.php';
