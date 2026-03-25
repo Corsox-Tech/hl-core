@@ -88,7 +88,23 @@ class HL_Frontend_Component_Page {
 
         // Load and validate enrollment.
         $enrollment = $this->enrollment_repo->get_by_id($enrollment_id);
-        if (!$enrollment || (int) $enrollment->user_id !== $user_id) {
+        if (!$enrollment) {
+            echo '<div class="hl-dashboard hl-component-page">';
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__('Enrollment not found.', 'hl-core') . '</div>';
+            echo '</div>';
+            return ob_get_clean();
+        }
+
+        // Access: enrollment owner, assigned coach, or admin.
+        $is_owner = (int) $enrollment->user_id === $user_id;
+        $is_admin = current_user_can('manage_hl_core');
+        $is_assigned_coach = false;
+        if (!$is_owner && !$is_admin) {
+            $coach_service = new HL_Coach_Assignment_Service();
+            $coach = $coach_service->get_coach_for_enrollment($enrollment_id, (int) $enrollment->cycle_id);
+            $is_assigned_coach = $coach && (int) $coach['coach_user_id'] === $user_id;
+        }
+        if (!$is_owner && !$is_admin && !$is_assigned_coach) {
             echo '<div class="hl-dashboard hl-component-page">';
             echo '<div class="hl-notice hl-notice-error">' . esc_html__('You do not have access to this component.', 'hl-core') . '</div>';
             echo '</div>';
@@ -180,7 +196,7 @@ class HL_Frontend_Component_Page {
             // Route to per-type rendering.
             // Form-based types render their own read-only view when submitted,
             // so always delegate to render_available_view() for them.
-            $form_types = array('classroom_visit', 'self_reflection', 'reflective_practice_session');
+            $form_types = array('classroom_visit', 'self_reflection', 'reflective_practice_session', 'coaching_session_attendance');
             $is_form_type = in_array($component->component_type, $form_types, true);
 
             if ($avail_status === 'locked') {

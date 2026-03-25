@@ -318,7 +318,7 @@ class HL_Frontend_My_Coaching {
             global $wpdb;
             $base_completed = $wpdb->get_var($wpdb->prepare(
                 "SELECT completed_at FROM {$wpdb->prefix}hl_component_state
-                 WHERE component_id = %d AND enrollment_id = %d AND status = 'completed'",
+                 WHERE component_id = %d AND enrollment_id = %d AND completion_status = 'complete'",
                 $rule['base_component_id'], $enrollment_id
             ));
 

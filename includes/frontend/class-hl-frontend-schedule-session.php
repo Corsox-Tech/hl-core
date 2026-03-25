@@ -638,7 +638,7 @@ class HL_Frontend_Schedule_Session {
         if ($rule['drip_type'] === 'after_completion_delay' && !empty($rule['base_component_id'])) {
             $base_completed = $wpdb->get_var($wpdb->prepare(
                 "SELECT completed_at FROM {$wpdb->prefix}hl_component_state
-                 WHERE component_id = %d AND enrollment_id = %d AND status = 'completed'",
+                 WHERE component_id = %d AND enrollment_id = %d AND completion_status = 'complete'",
                 $rule['base_component_id'], $enrollment_id
             ));
 
