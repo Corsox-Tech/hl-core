@@ -278,9 +278,7 @@ class HL_Frontend_RP_Notes {
                             .hlrn-cvr-col-hdr strong{font-size:13px;color:#1e293b}
                             .hlrn-cvr-col-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600}
                             .hlrn-cvr-col-by{font-size:10px;color:#94a3b8;margin-left:auto;white-space:nowrap}
-                            .hlrn-cvr-col-body{padding:8px 10px;max-height:500px;overflow-y:auto}
-                            .hlrn-cvr-col-body::-webkit-scrollbar{width:4px}
-                            .hlrn-cvr-col-body::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+                            .hlrn-cvr-col-body{padding:8px 10px}
                             .hlrn-cvr-empty{padding:20px;text-align:center;color:#94a3b8;font-size:12px}
                             /* Compact form rendering */
                             .hlrn-cv-full-data .hlcv-context{margin:4px 0 8px;padding:6px 10px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0}
@@ -370,6 +368,49 @@ class HL_Frontend_RP_Notes {
                                         </div>
                                     </div>
                                 </div>
+                                <script>
+                                /* Equalize domain block heights across columns so they align for comparison. */
+                                (function(){
+                                    function equalizeRows(){
+                                        var cols = document.querySelectorAll('.hlrn-cvr-col-body');
+                                        if (cols.length < 2) return;
+                                        var leftDomains = cols[0].querySelectorAll('.hlcv-domain-flat');
+                                        var rightDomains = cols[1].querySelectorAll('.hlcv-domain-flat');
+                                        var count = Math.max(leftDomains.length, rightDomains.length);
+                                        // Reset heights first
+                                        for (var i = 0; i < count; i++) {
+                                            if (leftDomains[i]) leftDomains[i].style.minHeight = '';
+                                            if (rightDomains[i]) rightDomains[i].style.minHeight = '';
+                                        }
+                                        // Set matching min-heights
+                                        for (var i = 0; i < count; i++) {
+                                            var lh = leftDomains[i] ? leftDomains[i].offsetHeight : 0;
+                                            var rh = rightDomains[i] ? rightDomains[i].offsetHeight : 0;
+                                            var max = Math.max(lh, rh);
+                                            if (leftDomains[i]) leftDomains[i].style.minHeight = max + 'px';
+                                            if (rightDomains[i]) rightDomains[i].style.minHeight = max + 'px';
+                                        }
+                                        // Also equalize context sections
+                                        var leftCtx = cols[0].querySelectorAll('.hlcv-context');
+                                        var rightCtx = cols[1].querySelectorAll('.hlcv-context');
+                                        var ctxCount = Math.max(leftCtx.length, rightCtx.length);
+                                        for (var i = 0; i < ctxCount; i++) {
+                                            if (leftCtx[i]) leftCtx[i].style.minHeight = '';
+                                            if (rightCtx[i]) rightCtx[i].style.minHeight = '';
+                                            var lch = leftCtx[i] ? leftCtx[i].offsetHeight : 0;
+                                            var rch = rightCtx[i] ? rightCtx[i].offsetHeight : 0;
+                                            var cmax = Math.max(lch, rch);
+                                            if (leftCtx[i]) leftCtx[i].style.minHeight = cmax + 'px';
+                                            if (rightCtx[i]) rightCtx[i].style.minHeight = cmax + 'px';
+                                        }
+                                    }
+                                    // Run after DOM paint
+                                    if (document.readyState === 'complete') { equalizeRows(); }
+                                    else { window.addEventListener('load', equalizeRows); }
+                                    // Re-equalize on resize
+                                    window.addEventListener('resize', equalizeRows);
+                                })();
+                                </script>
                             </div>
                         <?php endif; ?>
                     </div>
