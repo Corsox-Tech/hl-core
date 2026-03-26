@@ -48,11 +48,15 @@ class HL_Frontend_Dashboard {
                 <?php $this->render_participant_section_v2( $context ); ?>
             <?php endif; ?>
 
+            <?php if ( $context['is_coach'] && ! $context['is_staff'] ) : ?>
+                <?php $this->render_coach_section_v2(); ?>
+            <?php endif; ?>
+
             <?php if ( $context['is_staff'] ) : ?>
                 <?php $this->render_staff_section_v2( $context ); ?>
             <?php endif; ?>
 
-            <?php if ( ! $context['has_enrollment'] && ! $context['is_staff'] ) : ?>
+            <?php if ( ! $context['has_enrollment'] && ! $context['is_staff'] && ! $context['is_coach'] ) : ?>
                 <?php $this->render_empty_state_v2(); ?>
             <?php endif; ?>
 
@@ -509,6 +513,50 @@ class HL_Frontend_Dashboard {
             <?php endif; ?>
 
         <?php endif; ?>
+        <?php
+    }
+
+    /**
+     * V2 Coach section — coach-specific navigation cards.
+     */
+    private function render_coach_section_v2() {
+        ?>
+        <div class="hl-dv2-divider"></div>
+        <div class="hl-dv2-section">
+            <div class="hl-dv2-section-label"><?php esc_html_e( 'Coaching', 'hl-core' ); ?></div>
+            <div class="hl-dv2-grid">
+                <?php
+                $this->render_nav_card_v2(
+                    'hl_coach_dashboard',
+                    __( 'Coach Dashboard', 'hl-core' ),
+                    __( 'Sessions overview and quick links', 'hl-core' ),
+                    '&#x1F4CA;',
+                    'hl-dv2-icon-reports'
+                );
+                $this->render_nav_card_v2(
+                    'hl_coach_mentors',
+                    __( 'My Mentors', 'hl-core' ),
+                    __( 'View and manage your assigned mentors', 'hl-core' ),
+                    '&#x1F465;',
+                    'hl-dv2-icon-learners'
+                );
+                $this->render_nav_card_v2(
+                    'hl_coach_availability',
+                    __( 'My Availability', 'hl-core' ),
+                    __( 'Set your weekly coaching schedule', 'hl-core' ),
+                    '&#x1F4C5;',
+                    'hl-dv2-icon-cycles'
+                );
+                $this->render_nav_card_v2(
+                    'hl_coach_reports',
+                    __( 'Coach Reports', 'hl-core' ),
+                    __( 'Completion data and exports', 'hl-core' ),
+                    '&#x1F4CB;',
+                    'hl-dv2-icon-hub'
+                );
+                ?>
+            </div>
+        </div>
         <?php
     }
 
