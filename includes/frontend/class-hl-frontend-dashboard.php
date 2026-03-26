@@ -48,7 +48,7 @@ class HL_Frontend_Dashboard {
                 <?php $this->render_participant_section_v2( $context ); ?>
             <?php endif; ?>
 
-            <?php if ( $context['is_coach'] && ! $context['is_staff'] ) : ?>
+            <?php if ( $context['is_coach'] ) : ?>
                 <?php $this->render_coach_section_v2(); ?>
             <?php endif; ?>
 
