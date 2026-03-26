@@ -269,16 +269,17 @@ class HL_CLI_Seed_Beginnings {
         $this->seed_children( $classrooms );
         $users          = $this->seed_users();
         $instruments    = $this->seed_child_instruments();
+        $tsa_ids        = $this->lookup_tsa_instrument_ids();
 
         // Phase B: Cycle 1 (closed).
         WP_CLI::line( '' );
         WP_CLI::line( '--- Cycle 1 (closed) ---' );
-        $c1 = $this->seed_cycle_1( $partnership_id, $org, $users, $classrooms, $instruments );
+        $c1 = $this->seed_cycle_1( $partnership_id, $org, $users, $classrooms, $instruments, $tsa_ids );
 
         // Phase C: Cycle 2 (active).
         WP_CLI::line( '' );
         WP_CLI::line( '--- Cycle 2 (active) ---' );
-        $c2 = $this->seed_cycle_2( $partnership_id, $org, $users, $classrooms, $instruments );
+        $c2 = $this->seed_cycle_2( $partnership_id, $org, $users, $classrooms, $instruments, $tsa_ids );
 
         // Phase D: Coach assignment.
         $this->seed_coach_assignment( $c2['cycle_id'], $org['schools']['boston'] );
@@ -549,12 +550,36 @@ class HL_CLI_Seed_Beginnings {
         return $instruments;
     }
 
+    /**
+     * Look up teacher self-assessment instrument IDs by key.
+     * Returns array( 'pre' => id, 'post' => id ).
+     */
+    private function lookup_tsa_instrument_ids() {
+        global $wpdb;
+        $t = $wpdb->prefix;
+
+        $pre_id = (int) $wpdb->get_var(
+            "SELECT instrument_id FROM {$t}hl_teacher_assessment_instrument WHERE instrument_key = 'b2e_self_assessment_pre' LIMIT 1"
+        );
+        $post_id = (int) $wpdb->get_var(
+            "SELECT instrument_id FROM {$t}hl_teacher_assessment_instrument WHERE instrument_key = 'b2e_self_assessment_post' LIMIT 1"
+        );
+
+        if ( ! $pre_id || ! $post_id ) {
+            WP_CLI::warning( 'TSA instruments not found (b2e_self_assessment_pre/post). Teacher Self-Assessment forms will show "No instrument assigned".' );
+        } else {
+            WP_CLI::log( "  [A7] TSA instruments: pre={$pre_id}, post={$post_id}" );
+        }
+
+        return array( 'pre' => $pre_id, 'post' => $post_id );
+    }
+
     // ── Cycle 1 (Phase B) ───────────────────────────────────────────
 
     /**
      * Seed Cycle 1 (closed) — enrollments, teams, pathways, component states, child assessments.
      */
-    private function seed_cycle_1( $partnership_id, $org, $users, $classrooms, $instruments ) {
+    private function seed_cycle_1( $partnership_id, $org, $users, $classrooms, $instruments, $tsa_ids ) {
         global $wpdb;
         $t = $wpdb->prefix;
 
@@ -584,7 +609,7 @@ class HL_CLI_Seed_Beginnings {
         $this->seed_teams( $cycle_id, $org['schools'], $enrollments, self::get_teams() );
 
         // Pathways (Phase 1 only).
-        $pathways = $this->seed_pathways_c1( $cycle_id );
+        $pathways = $this->seed_pathways_c1( $cycle_id, $tsa_ids );
 
         // Assign pathways.
         $this->assign_pathways_c1( $enrollments, $pathways );
@@ -747,12 +772,12 @@ class HL_CLI_Seed_Beginnings {
     /**
      * Create Phase 1 pathways for Cycle 1 (Teacher, Mentor, Streamlined).
      */
-    private function seed_pathways_c1( $cycle_id ) {
+    private function seed_pathways_c1( $cycle_id, $tsa_ids ) {
         $svc      = new HL_Pathway_Service();
         $pathways = array();
 
-        $pathways['teacher']     = $this->create_teacher_phase1( $svc, $cycle_id );
-        $pathways['mentor']      = $this->create_mentor_phase1( $svc, $cycle_id );
+        $pathways['teacher']     = $this->create_teacher_phase1( $svc, $cycle_id, $tsa_ids );
+        $pathways['mentor']      = $this->create_mentor_phase1( $svc, $cycle_id, $tsa_ids );
         $pathways['streamlined'] = $this->create_streamlined_phase1( $svc, $cycle_id );
 
         WP_CLI::log( '  [B4] Cycle 1 pathways: ' . count( $pathways ) );
@@ -880,7 +905,7 @@ class HL_CLI_Seed_Beginnings {
      * Teacher Phase 1 (17 components): TSA Pre, CA Pre, TC0, TC1, SR#1,
      * RP#1, TC2, SR#2, RP#2, TC3, SR#3, RP#3, TC4, SR#4, RP#4, CA Post, TSA Post
      */
-    private function create_teacher_phase1( $svc, $cycle_id ) {
+    private function create_teacher_phase1( $svc, $cycle_id, $tsa_ids = array() ) {
         $pid = $svc->create_pathway( array(
             'pathway_name'  => 'B2E Teacher Phase 1',
             'cycle_id'      => $cycle_id,
@@ -890,7 +915,7 @@ class HL_CLI_Seed_Beginnings {
 
         $ids = array();
         $n = 0;
-        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',  'teacher_self_assessment', ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => 1 ) );
+        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',  'teacher_self_assessment', ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => isset( $tsa_ids['pre'] ) ? $tsa_ids['pre'] : 0 ) );
         $ids[] = $ca_pre  = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Pre)',          'child_assessment',        ++$n, array( 'phase' => 'pre' ) );
         $ids[] = $tc0     = $this->cmp( $svc, $pid, $cycle_id, 'TC0: Welcome',                   'learndash_course',        ++$n, array( 'course_id' => self::TC0 ) );
         $ids[] = $tc1     = $this->cmp( $svc, $pid, $cycle_id, 'TC1: Intro to begin to ECSEL',   'learndash_course',        ++$n, array( 'course_id' => self::TC1 ) );
@@ -906,7 +931,7 @@ class HL_CLI_Seed_Beginnings {
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Self-Reflection #4',                        'self_reflection',         ++$n, array( 'visit_number' => 4 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #4',             'reflective_practice_session', ++$n, array( 'session_number' => 4 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Post)',                    'child_assessment',        ++$n, array( 'phase' => 'post' ) );
-        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',             'teacher_self_assessment', ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => 2 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',             'teacher_self_assessment', ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => isset( $tsa_ids['post'] ) ? $tsa_ids['post'] : 0 ) );
 
         // Prerequisites: course chain TC0->TC1->TC2->TC3->TC4, first course blocked by TSA Pre.
         $this->add_prereq( $tc0, $tsa_pre );
@@ -924,7 +949,7 @@ class HL_CLI_Seed_Beginnings {
      * MC1, RP#1, TC2, Coaching#2, RP#2, TC3, Coaching#3, MC2, RP#3,
      * TC4, Coaching#4, RP#4, CA Post, TSA Post
      */
-    private function create_mentor_phase1( $svc, $cycle_id ) {
+    private function create_mentor_phase1( $svc, $cycle_id, $tsa_ids = array() ) {
         $pid = $svc->create_pathway( array(
             'pathway_name'  => 'B2E Mentor Phase 1',
             'cycle_id'      => $cycle_id,
@@ -934,7 +959,7 @@ class HL_CLI_Seed_Beginnings {
 
         $ids = array();
         $n = 0;
-        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',               'teacher_self_assessment',      ++$n, array( 'phase' => 'pre' ) );
+        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',               'teacher_self_assessment',      ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => isset( $tsa_ids['pre'] ) ? $tsa_ids['pre'] : 0 ) );
         $ids[] = $ca_pre  = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Pre)',                       'child_assessment',             ++$n, array( 'phase' => 'pre' ) );
         $ids[] = $tc0     = $this->cmp( $svc, $pid, $cycle_id, 'TC0: Welcome',                                'learndash_course',             ++$n, array( 'course_id' => self::TC0 ) );
         $ids[] = $tc1     = $this->cmp( $svc, $pid, $cycle_id, 'TC1: Intro to begin to ECSEL',                'learndash_course',             ++$n, array( 'course_id' => self::TC1 ) );
@@ -952,7 +977,7 @@ class HL_CLI_Seed_Beginnings {
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Coaching Session #4',                                    'coaching_session_attendance',  ++$n, array( 'session_number' => 4 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #4',                          'reflective_practice_session', ++$n, array( 'session_number' => 4 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Post)',                                 'child_assessment',             ++$n, array( 'phase' => 'post' ) );
-        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                          'teacher_self_assessment',      ++$n, array( 'phase' => 'post' ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                          'teacher_self_assessment',      ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => isset( $tsa_ids['post'] ) ? $tsa_ids['post'] : 0 ) );
 
         // Prerequisites: course chains.
         $this->add_prereq( $tc0, $tsa_pre );
@@ -1176,7 +1201,7 @@ class HL_CLI_Seed_Beginnings {
     /**
      * Seed Cycle 2 (active) — enrollments with turnover, 8 pathways, pending child assessments.
      */
-    private function seed_cycle_2( $partnership_id, $org, $users, $classrooms, $instruments ) {
+    private function seed_cycle_2( $partnership_id, $org, $users, $classrooms, $instruments, $tsa_ids ) {
         global $wpdb;
         $t = $wpdb->prefix;
 
@@ -1206,7 +1231,7 @@ class HL_CLI_Seed_Beginnings {
         $this->seed_teams_c2( $cycle_id, $org['schools'], $enrollments );
 
         // Pathways (8 total).
-        $pathways = $this->seed_pathways_c2( $cycle_id );
+        $pathways = $this->seed_pathways_c2( $cycle_id, $tsa_ids );
 
         // Assign pathways.
         $this->assign_pathways_c2( $enrollments, $pathways );
@@ -1373,17 +1398,17 @@ class HL_CLI_Seed_Beginnings {
     /**
      * Create all 8 pathways for Cycle 2 (Phase 1 + Phase 2 variants).
      */
-    private function seed_pathways_c2( $cycle_id ) {
+    private function seed_pathways_c2( $cycle_id, $tsa_ids ) {
         $svc      = new HL_Pathway_Service();
         $pathways = array();
 
         // Only create pathways that have enrollees in Cycle 2.
         // Teacher Phase 1 and Streamlined Phase 1 are omitted — nobody is assigned to them.
-        $pathways['teacher_p2']          = $this->create_teacher_phase2( $svc, $cycle_id );
-        $pathways['mentor_p1']           = $this->create_mentor_phase1( $svc, $cycle_id );
-        $pathways['mentor_p2']           = $this->create_mentor_phase2( $svc, $cycle_id );
-        $pathways['mentor_transition']   = $this->create_mentor_transition( $svc, $cycle_id );
-        $pathways['mentor_completion']   = $this->create_mentor_completion( $svc, $cycle_id );
+        $pathways['teacher_p2']          = $this->create_teacher_phase2( $svc, $cycle_id, $tsa_ids );
+        $pathways['mentor_p1']           = $this->create_mentor_phase1( $svc, $cycle_id, $tsa_ids );
+        $pathways['mentor_p2']           = $this->create_mentor_phase2( $svc, $cycle_id, $tsa_ids );
+        $pathways['mentor_transition']   = $this->create_mentor_transition( $svc, $cycle_id, $tsa_ids );
+        $pathways['mentor_completion']   = $this->create_mentor_completion( $svc, $cycle_id, $tsa_ids );
         $pathways['streamlined_p2']      = $this->create_streamlined_phase2( $svc, $cycle_id );
 
         WP_CLI::log( '  [C4] Cycle 2 pathways: ' . count( $pathways ) );
@@ -1508,7 +1533,7 @@ class HL_CLI_Seed_Beginnings {
      * Teacher Phase 2 (16 components): TSA Pre, CA Pre, TC5, SR#1, RP#1,
      * TC6, SR#2, RP#2, TC7, SR#3, RP#3, TC8, SR#4, RP#4, CA Post, TSA Post
      */
-    private function create_teacher_phase2( $svc, $cycle_id ) {
+    private function create_teacher_phase2( $svc, $cycle_id, $tsa_ids = array() ) {
         $pid = $svc->create_pathway( array(
             'pathway_name'  => 'B2E Teacher Phase 2',
             'cycle_id'      => $cycle_id,
@@ -1518,7 +1543,7 @@ class HL_CLI_Seed_Beginnings {
 
         $ids = array();
         $n = 0;
-        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',  'teacher_self_assessment', ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => 1 ) );
+        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',  'teacher_self_assessment', ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => isset( $tsa_ids['pre'] ) ? $tsa_ids['pre'] : 0 ) );
         $ids[] = $ca_pre  = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Pre)',          'child_assessment',        ++$n, array( 'phase' => 'pre' ) );
         $ids[] = $tc5     = $this->cmp( $svc, $pid, $cycle_id, 'TC5: Connecting Emotion and Early Learning', 'learndash_course', ++$n, array( 'course_id' => self::TC5 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Self-Reflection #1',                        'self_reflection',         ++$n, array( 'visit_number' => 1 ) );
@@ -1533,7 +1558,7 @@ class HL_CLI_Seed_Beginnings {
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Self-Reflection #4',                        'self_reflection',         ++$n, array( 'visit_number' => 4 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #4',             'reflective_practice_session', ++$n, array( 'session_number' => 4 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Post)',                    'child_assessment',        ++$n, array( 'phase' => 'post' ) );
-        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',             'teacher_self_assessment', ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => 2 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',             'teacher_self_assessment', ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => isset( $tsa_ids['post'] ) ? $tsa_ids['post'] : 0 ) );
 
         // Prerequisites: course chain TC5→TC6→TC7→TC8, first course blocked by TSA Pre.
         $this->add_prereq( $tc5, $tsa_pre );
@@ -1550,7 +1575,7 @@ class HL_CLI_Seed_Beginnings {
      * MC3, RP#1, TC6, Coaching#2, RP#2, TC7, Coaching#3, MC4, RP#3,
      * TC8, Coaching#4, RP#4, CA Post, TSA Post
      */
-    private function create_mentor_phase2( $svc, $cycle_id ) {
+    private function create_mentor_phase2( $svc, $cycle_id, $tsa_ids = array() ) {
         $pid = $svc->create_pathway( array(
             'pathway_name'  => 'B2E Mentor Phase 2',
             'cycle_id'      => $cycle_id,
@@ -1560,7 +1585,7 @@ class HL_CLI_Seed_Beginnings {
 
         $ids = array();
         $n = 0;
-        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',                       'teacher_self_assessment',      ++$n, array( 'phase' => 'pre' ) );
+        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',                       'teacher_self_assessment',      ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => isset( $tsa_ids['pre'] ) ? $tsa_ids['pre'] : 0 ) );
         $ids[] = $ca_pre  = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Pre)',                               'child_assessment',             ++$n, array( 'phase' => 'pre' ) );
         $ids[] = $tc5     = $this->cmp( $svc, $pid, $cycle_id, 'TC5: Connecting Emotion and Early Learning',           'learndash_course',             ++$n, array( 'course_id' => self::TC5 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Coaching Session #1',                                            'coaching_session_attendance',  ++$n, array( 'session_number' => 1 ) );
@@ -1577,7 +1602,7 @@ class HL_CLI_Seed_Beginnings {
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Coaching Session #4',                                            'coaching_session_attendance',  ++$n, array( 'session_number' => 4 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #4',                                  'reflective_practice_session', ++$n, array( 'session_number' => 4 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Post)',                                         'child_assessment',             ++$n, array( 'phase' => 'post' ) );
-        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                                  'teacher_self_assessment',      ++$n, array( 'phase' => 'post' ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                                  'teacher_self_assessment',      ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => isset( $tsa_ids['post'] ) ? $tsa_ids['post'] : 0 ) );
 
         // Prerequisites: course chain.
         $this->add_prereq( $tc5, $tsa_pre );
@@ -1597,7 +1622,7 @@ class HL_CLI_Seed_Beginnings {
      * TC8, Coaching#4, RP#4, CA Post, TSA Post
      * Same structure as Mentor Phase 2 but uses MC1/MC2 instead of MC3/MC4.
      */
-    private function create_mentor_transition( $svc, $cycle_id ) {
+    private function create_mentor_transition( $svc, $cycle_id, $tsa_ids = array() ) {
         $pid = $svc->create_pathway( array(
             'pathway_name'  => 'B2E Mentor Transition',
             'cycle_id'      => $cycle_id,
@@ -1607,7 +1632,7 @@ class HL_CLI_Seed_Beginnings {
 
         $ids = array();
         $n = 0;
-        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',                       'teacher_self_assessment',      ++$n, array( 'phase' => 'pre' ) );
+        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',                       'teacher_self_assessment',      ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => isset( $tsa_ids['pre'] ) ? $tsa_ids['pre'] : 0 ) );
         $ids[] = $ca_pre  = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Pre)',                               'child_assessment',             ++$n, array( 'phase' => 'pre' ) );
         $ids[] = $tc5     = $this->cmp( $svc, $pid, $cycle_id, 'TC5: Connecting Emotion and Early Learning',           'learndash_course',             ++$n, array( 'course_id' => self::TC5 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Coaching Session #1',                                            'coaching_session_attendance',  ++$n, array( 'session_number' => 1 ) );
@@ -1624,7 +1649,7 @@ class HL_CLI_Seed_Beginnings {
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Coaching Session #4',                                            'coaching_session_attendance',  ++$n, array( 'session_number' => 4 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #4',                                  'reflective_practice_session', ++$n, array( 'session_number' => 4 ) );
         $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Post)',                                         'child_assessment',             ++$n, array( 'phase' => 'post' ) );
-        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                                  'teacher_self_assessment',      ++$n, array( 'phase' => 'post' ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                                  'teacher_self_assessment',      ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => isset( $tsa_ids['post'] ) ? $tsa_ids['post'] : 0 ) );
 
         // Prerequisites: course chain.
         $this->add_prereq( $tc5, $tsa_pre );
@@ -1641,7 +1666,7 @@ class HL_CLI_Seed_Beginnings {
     /**
      * Mentor Completion (4 components): TSA Pre, MC3, MC4, TSA Post
      */
-    private function create_mentor_completion( $svc, $cycle_id ) {
+    private function create_mentor_completion( $svc, $cycle_id, $tsa_ids = array() ) {
         $pid = $svc->create_pathway( array(
             'pathway_name'  => 'B2E Mentor Completion',
             'cycle_id'      => $cycle_id,
@@ -1651,10 +1676,10 @@ class HL_CLI_Seed_Beginnings {
 
         $ids = array();
         $n = 0;
-        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',                       'teacher_self_assessment', ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => 1 ) );
+        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',                       'teacher_self_assessment', ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => isset( $tsa_ids['pre'] ) ? $tsa_ids['pre'] : 0 ) );
         $ids[] = $mc3     = $this->cmp( $svc, $pid, $cycle_id, 'MC3: Extending RP to Communication with Co-Workers',  'learndash_course',        ++$n, array( 'course_id' => self::MC3 ) );
         $ids[] = $mc4     = $this->cmp( $svc, $pid, $cycle_id, 'MC4: Extending RP to Communication with Families',    'learndash_course',        ++$n, array( 'course_id' => self::MC4 ) );
-        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                                  'teacher_self_assessment', ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => 2 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                                  'teacher_self_assessment', ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => isset( $tsa_ids['post'] ) ? $tsa_ids['post'] : 0 ) );
 
         // Prerequisites: TSA Pre → MC3 → MC4.
         $this->add_prereq( $mc3, $tsa_pre );
