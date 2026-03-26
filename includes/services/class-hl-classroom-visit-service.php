@@ -178,12 +178,23 @@ class HL_Classroom_Visit_Service {
             return array();
         }
 
-        $schools = $wpdb->get_col($wpdb->prepare(
-            "SELECT cs.school_id
-             FROM {$wpdb->prefix}hl_cycle_school cs
-             WHERE cs.cycle_id = %d",
-            $cycle_id
+        // Scope to the leader's own school, not all cycle schools.
+        $leader_school_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT school_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+            $leader_enrollment_id
         ));
+
+        if ($leader_school_id) {
+            $schools = array((int) $leader_school_id);
+        } else {
+            // Fallback for staff/admin with no school_id: all cycle schools.
+            $schools = $wpdb->get_col($wpdb->prepare(
+                "SELECT cs.school_id
+                 FROM {$wpdb->prefix}hl_cycle_school cs
+                 WHERE cs.cycle_id = %d",
+                $cycle_id
+            ));
+        }
 
         if (empty($schools)) {
             return array();
@@ -364,7 +375,30 @@ class HL_Classroom_Visit_Service {
             return;
         }
 
-        $now = current_time('mysql');
+        // Count total teachers the leader needs to visit
+        $total_teachers = count($this->get_teachers_for_leader($enrollment_id, $cycle_id));
+        if ($total_teachers === 0) {
+            $total_teachers = 1; // Avoid division by zero
+        }
+
+        // Count submitted visits for this leader/visit_number/cycle
+        $submitted_count = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(DISTINCT cv.teacher_enrollment_id)
+             FROM {$wpdb->prefix}hl_classroom_visit cv
+             JOIN {$wpdb->prefix}hl_classroom_visit_submission sub
+               ON cv.classroom_visit_id = sub.classroom_visit_id
+             WHERE cv.leader_enrollment_id = %d
+               AND cv.cycle_id = %d
+               AND cv.visit_number = %d
+               AND sub.role_in_visit = 'observer'
+               AND sub.status = 'submitted'",
+            $enrollment_id, $cycle_id, $visit_number
+        ));
+
+        $percent     = min(100, (int) floor(($submitted_count / $total_teachers) * 100));
+        $is_complete = ($percent >= 100);
+        $status      = $is_complete ? 'complete' : ($percent > 0 ? 'in_progress' : 'not_started');
+        $now         = current_time('mysql');
 
         $existing = $wpdb->get_var($wpdb->prepare(
             "SELECT state_id FROM {$wpdb->prefix}hl_component_state
@@ -373,9 +407,9 @@ class HL_Classroom_Visit_Service {
         ));
 
         $state_data = array(
-            'completion_percent' => 100,
-            'completion_status'  => 'complete',
-            'completed_at'       => $now,
+            'completion_percent' => $percent,
+            'completion_status'  => $status,
+            'completed_at'       => $is_complete ? $now : null,
             'last_computed_at'   => $now,
         );
 
