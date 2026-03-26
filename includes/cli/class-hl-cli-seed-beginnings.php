@@ -801,10 +801,10 @@ class HL_CLI_Seed_Beginnings {
             array( 'enrollment_id' => $enrollment_id ) );
 
         $wpdb->insert( $t . 'hl_pathway_assignment', array(
-            'enrollment_id'   => $enrollment_id,
-            'pathway_id'      => $pathway_id,
-            'assignment_type' => 'explicit',
-            'assigned_at'     => current_time( 'mysql' ),
+            'enrollment_id'      => $enrollment_id,
+            'pathway_id'         => $pathway_id,
+            'assigned_by_user_id' => get_current_user_id() ?: 1,
+            'assignment_type'    => 'explicit',
         ) );
     }
 
