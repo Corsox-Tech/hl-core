@@ -32,6 +32,11 @@ class HL_Frontend_Coach_Dashboard {
         $mentors_url      = $this->find_shortcode_page_url('hl_coach_mentors');
         $reports_url      = $this->find_shortcode_page_url('hl_coach_reports');
         $availability_url = $this->find_shortcode_page_url('hl_coach_availability');
+        $component_page_url = $this->find_shortcode_page_url('hl_component_page');
+        $mentor_detail_url  = $this->find_shortcode_page_url('hl_coach_mentor_detail');
+
+        // Load upcoming + needs-attention sessions.
+        $sessions = $this->get_coach_sessions($user_id);
 
         $this->render_styles();
         ?>
@@ -137,10 +142,133 @@ class HL_Frontend_Coach_Dashboard {
 
             </div>
 
+            <!-- Upcoming Sessions -->
+            <?php
+            $needs_attendance = array_filter($sessions, function ($s) {
+                return $s['needs_attendance'];
+            });
+            $upcoming = array_filter($sessions, function ($s) {
+                return !$s['needs_attendance'] && $s['session_status'] === 'scheduled';
+            });
+            ?>
+
+            <?php if (!empty($needs_attendance)) : ?>
+            <div class="hlcd-section-title" style="color:#dc2626;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <?php esc_html_e('Needs Attendance', 'hl-core'); ?>
+            </div>
+            <div class="hlcd-sessions-list">
+                <?php foreach ($needs_attendance as $s) : ?>
+                    <?php $this->render_session_row($s, $component_page_url, $mentor_detail_url, true); ?>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($upcoming)) : ?>
+            <div class="hlcd-section-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <?php esc_html_e('Upcoming Sessions', 'hl-core'); ?>
+            </div>
+            <div class="hlcd-sessions-list">
+                <?php foreach (array_slice($upcoming, 0, 10) as $s) : ?>
+                    <?php $this->render_session_row($s, $component_page_url, $mentor_detail_url, false); ?>
+                <?php endforeach; ?>
+            </div>
+            <?php elseif (empty($needs_attendance)) : ?>
+            <div class="hlcd-section-title">
+                <?php esc_html_e('Upcoming Sessions', 'hl-core'); ?>
+            </div>
+            <div style="text-align:center;padding:30px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">
+                <p style="color:#94a3b8;font-size:14px;margin:0;"><?php esc_html_e('No upcoming coaching sessions.', 'hl-core'); ?></p>
+            </div>
+            <?php endif; ?>
+
         </div>
         <?php
 
         return ob_get_clean();
+    }
+
+    /**
+     * Render a single session row in the dashboard.
+     */
+    private function render_session_row($s, $component_page_url, $mentor_detail_url, $needs_attendance) {
+        $dt   = !empty($s['session_datetime']) ? strtotime($s['session_datetime']) : 0;
+        $date = $dt ? date_i18n('D, M j', $dt) : '';
+        $time = $dt ? date_i18n('g:i A', $dt) : '';
+        $mentor_name = $s['mentor_name'] ?? '';
+
+        $view_url = '';
+        if ($component_page_url && !empty($s['component_id'])) {
+            $view_url = add_query_arg(array(
+                'id'         => $s['component_id'],
+                'enrollment' => $s['mentor_enrollment_id'],
+            ), $component_page_url);
+        }
+
+        $mentor_url = '';
+        if ($mentor_detail_url) {
+            $mentor_url = add_query_arg('mentor_enrollment_id', $s['mentor_enrollment_id'], $mentor_detail_url);
+        }
+        ?>
+        <div class="hlcd-session-row <?php echo $needs_attendance ? 'hlcd-session-attention' : ''; ?>">
+            <div class="hlcd-session-date-col">
+                <div class="hlcd-session-day"><?php echo esc_html($date); ?></div>
+                <div class="hlcd-session-time"><?php echo esc_html($time); ?></div>
+            </div>
+            <div class="hlcd-session-info-col">
+                <?php if ($mentor_url) : ?>
+                    <a href="<?php echo esc_url($mentor_url); ?>" class="hlcd-session-mentor"><?php echo esc_html($mentor_name); ?></a>
+                <?php else : ?>
+                    <span class="hlcd-session-mentor"><?php echo esc_html($mentor_name); ?></span>
+                <?php endif; ?>
+                <span class="hlcd-session-title-text"><?php echo esc_html($s['session_title'] ?? ''); ?></span>
+            </div>
+            <div class="hlcd-session-action-col">
+                <?php if ($needs_attendance) : ?>
+                    <span class="hlcd-att-badge"><?php esc_html_e('Record attendance', 'hl-core'); ?></span>
+                <?php endif; ?>
+                <?php if ($view_url) : ?>
+                    <a href="<?php echo esc_url($view_url); ?>" class="hlcd-session-view-btn"><?php esc_html_e('Open', 'hl-core'); ?></a>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Get all coaching sessions for this coach: upcoming + needs attendance.
+     */
+    private function get_coach_sessions($coach_user_id) {
+        global $wpdb;
+        $now      = current_time('mysql');
+        $settings = HL_Admin_Scheduling_Settings::get_scheduling_settings();
+        $duration = (int) $settings['session_duration'];
+
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT cs.session_id, cs.session_title, cs.session_status, cs.session_datetime,
+                    cs.component_id, cs.mentor_enrollment_id, cs.meeting_url,
+                    u.display_name AS mentor_name
+             FROM {$wpdb->prefix}hl_coaching_session cs
+             JOIN {$wpdb->prefix}hl_enrollment e ON cs.mentor_enrollment_id = e.enrollment_id
+             JOIN {$wpdb->users} u ON e.user_id = u.ID
+             WHERE cs.coach_user_id = %d
+               AND cs.session_status = 'scheduled'
+             ORDER BY cs.session_datetime ASC",
+            $coach_user_id
+        ), ARRAY_A) ?: array();
+
+        foreach ($rows as &$row) {
+            $is_past = false;
+            if (!empty($row['session_datetime'])) {
+                $end_time = date('Y-m-d H:i:s', strtotime($row['session_datetime']) + ($duration * 60));
+                $is_past  = ($now > $end_time);
+            }
+            $row['needs_attendance'] = $is_past;
+        }
+        unset($row);
+
+        return $rows;
     }
 
     /**
@@ -190,11 +318,31 @@ class HL_Frontend_Coach_Dashboard {
         .hlcd-link-arrow{flex-shrink:0;color:#cbd5e1;transition:color .2s,transform .2s}
         .hlcd-link-card:hover .hlcd-link-arrow{color:#1e3a5f;transform:translateX(2px)}
 
+        /* Sessions list */
+        .hlcd-sessions-list{display:flex;flex-direction:column;gap:8px;margin-bottom:28px}
+        .hlcd-session-row{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 20px;transition:box-shadow .2s,border-color .2s}
+        .hlcd-session-row:hover{border-color:#cbd5e1;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+        .hlcd-session-attention{border-left:3px solid #dc2626;background:#fffbfb}
+        .hlcd-session-date-col{flex-shrink:0;width:100px;text-align:center}
+        .hlcd-session-day{font-size:14px;font-weight:700;color:#1e293b}
+        .hlcd-session-time{font-size:12px;color:#64748b}
+        .hlcd-session-info-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+        .hlcd-session-mentor{font-size:14px;font-weight:600;color:#1e293b;text-decoration:none}
+        a.hlcd-session-mentor:hover{color:#6366f1;text-decoration:underline}
+        .hlcd-session-title-text{font-size:12px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .hlcd-session-action-col{flex-shrink:0;display:flex;align-items:center;gap:8px}
+        .hlcd-att-badge{display:inline-flex;padding:4px 10px;background:#fee2e2;color:#dc2626;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap}
+        .hlcd-session-view-btn{display:inline-flex;align-items:center;padding:6px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;color:#475569;text-decoration:none;transition:all .15s}
+        .hlcd-session-view-btn:hover{background:#fff;border-color:#6366f1;color:#6366f1}
+
         /* Responsive */
         @media(max-width:600px){
             .hlcd-hero{flex-direction:column;text-align:center;padding:24px 20px}
             .hlcd-stats-grid{grid-template-columns:1fr}
             .hlcd-links-grid{grid-template-columns:1fr}
+            .hlcd-session-row{flex-wrap:wrap}
+            .hlcd-session-date-col{width:auto;text-align:left}
+            .hlcd-session-action-col{width:100%;justify-content:flex-end}
         }
         </style>
         <?php
