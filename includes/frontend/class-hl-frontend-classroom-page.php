@@ -99,7 +99,12 @@ class HL_Frontend_Classroom_Page {
             }
         }
 
-        wp_safe_redirect( $redirect );
+        while ( ob_get_level() ) { ob_end_clean(); }
+        if ( ! headers_sent() ) {
+            wp_safe_redirect( $redirect );
+            exit;
+        }
+        echo '<script>window.location.href=' . wp_json_encode( $redirect ) . ';</script>';
         exit;
     }
 
@@ -135,7 +140,12 @@ class HL_Frontend_Classroom_Page {
             $redirect = add_query_arg( 'hl_success', 'child_removed', $redirect );
         }
 
-        wp_safe_redirect( $redirect );
+        while ( ob_get_level() ) { ob_end_clean(); }
+        if ( ! headers_sent() ) {
+            wp_safe_redirect( $redirect );
+            exit;
+        }
+        echo '<script>window.location.href=' . wp_json_encode( $redirect ) . ';</script>';
         exit;
     }
 

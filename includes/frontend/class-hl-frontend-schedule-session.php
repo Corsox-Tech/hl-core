@@ -682,7 +682,12 @@ class HL_Frontend_Schedule_Session {
 
         if ($result && !is_wp_error($result)) {
             $redirect = add_query_arg(array('message' => $result['message'], 'tab' => 'forms'));
-            wp_safe_redirect($redirect);
+            while (ob_get_level()) { ob_end_clean(); }
+            if (!headers_sent()) {
+                wp_safe_redirect($redirect);
+                exit;
+            }
+            echo '<script>window.location.href=' . wp_json_encode($redirect) . ';</script>';
             exit;
         }
 

@@ -37,7 +37,12 @@ class HL_Frontend_Classroom_Visit {
                 if (!empty($_POST['hl_cv_teacher_enrollment_id'])) {
                     $redirect_url = add_query_arg('teacher', absint($_POST['hl_cv_teacher_enrollment_id']), $redirect_url);
                 }
-                wp_safe_redirect($redirect_url);
+                while (ob_get_level()) { ob_end_clean(); }
+                if (!headers_sent()) {
+                    wp_safe_redirect($redirect_url);
+                    exit;
+                }
+                echo '<script>window.location.href=' . wp_json_encode($redirect_url) . ';</script>';
                 exit;
             }
             if (is_wp_error($result)) {
@@ -99,7 +104,7 @@ class HL_Frontend_Classroom_Visit {
 
                 $teacher_info = array('display_name' => isset($visit['teacher_name']) ? $visit['teacher_name'] : '—');
                 $back_url = remove_query_arg('teacher');
-                echo '<a href="' . esc_url($back_url) . '" class="hl-back-link">&larr; ' . esc_html__('Back to Teacher List', 'hl-core') . '</a>';
+                echo '<a href="' . esc_url($back_url) . '" class="hl-back-link" style="display:block;margin-bottom:8px">&larr; ' . esc_html__('Back to Teacher List', 'hl-core') . '</a>';
                 echo $this->render_form($visit, $enrollment, $instrument, $teacher_info, $existing);
             } else {
                 echo '<div class="hl-notice hl-notice-error">' . esc_html__('Unable to load classroom visit.', 'hl-core') . '</div>';
@@ -250,35 +255,35 @@ class HL_Frontend_Classroom_Visit {
         $visit_date    = isset($visit_entity['visit_date']) ? $visit_entity['visit_date'] : '';
         $teacher_name  = isset($teacher_info['display_name']) ? $teacher_info['display_name'] : '—';
 
-        // Resolve school and age group from classroom
-        $school_name = '—';
-        $age_group   = '—';
-        $classroom_id = isset($visit_entity['classroom_id']) ? (int) $visit_entity['classroom_id'] : 0;
-        if ($classroom_id) {
-            global $wpdb;
-            $cl = $wpdb->get_row($wpdb->prepare(
-                "SELECT c.age_band, o.orgunit_name FROM {$wpdb->prefix}hl_classroom c
-                 LEFT JOIN {$wpdb->prefix}hl_orgunit o ON c.school_id = o.orgunit_id
-                 WHERE c.classroom_id = %d", $classroom_id
-            ), ARRAY_A);
-            if ($cl) {
-                $school_name = $cl['orgunit_name'] ?: '—';
-                $age_group   = $cl['age_band'] ? ucwords(str_replace('_', ' ', $cl['age_band'])) : '—';
-            }
-        }
-        if ($school_name === '—' && isset($visit_entity['teacher_enrollment_id'])) {
-            // Fallback: get school from teaching assignment
-            global $wpdb;
-            $fallback = $wpdb->get_row($wpdb->prepare(
-                "SELECT o.orgunit_name, cl.age_band FROM {$wpdb->prefix}hl_teaching_assignment ta
+        // Resolve school, classroom name, and age group from teaching assignments
+        global $wpdb;
+        $school_name    = '—';
+        $classroom_name = '—';
+        $age_groups     = array();
+
+        if (isset($visit_entity['teacher_enrollment_id'])) {
+            $classrooms = $wpdb->get_results($wpdb->prepare(
+                "SELECT cl.classroom_name, cl.age_band, o.name AS school_name
+                 FROM {$wpdb->prefix}hl_teaching_assignment ta
                  JOIN {$wpdb->prefix}hl_classroom cl ON ta.classroom_id = cl.classroom_id
                  LEFT JOIN {$wpdb->prefix}hl_orgunit o ON cl.school_id = o.orgunit_id
-                 WHERE ta.enrollment_id = %d LIMIT 1",
+                 WHERE ta.enrollment_id = %d",
                 (int) $visit_entity['teacher_enrollment_id']
             ), ARRAY_A);
-            if ($fallback) {
-                $school_name = $fallback['orgunit_name'] ?: '—';
-                $age_group   = $fallback['age_band'] ? ucwords(str_replace('_', ' ', $fallback['age_band'])) : '—';
+
+            if ($classrooms) {
+                // School name (use first, all should be same school)
+                $school_name = !empty($classrooms[0]['school_name']) ? $classrooms[0]['school_name'] : '—';
+
+                // Classroom names
+                $names = array_filter(array_unique(array_column($classrooms, 'classroom_name')));
+                $classroom_name = !empty($names) ? implode(', ', $names) : '—';
+
+                // Age bands from all classrooms
+                $bands = array_filter(array_unique(array_column($classrooms, 'age_band')));
+                foreach ($bands as $band) {
+                    $age_groups[] = ucwords(str_replace('_', ' ', $band));
+                }
             }
         }
 
@@ -351,31 +356,19 @@ class HL_Frontend_Classroom_Visit {
                 </div>
                 <div class="hlcv-info-row" style="margin-top:12px">
                     <div class="hlcv-info-cell">
-                        <span class="hlcv-info-label"><?php esc_html_e('Date', 'hl-core'); ?></span>
-                        <span class="hlcv-info-value"><?php echo esc_html($visit_date ? date_i18n(get_option('date_format'), strtotime($visit_date)) : date_i18n(get_option('date_format'))); ?></span>
+                        <span class="hlcv-info-label"><?php esc_html_e('Classroom', 'hl-core'); ?></span>
+                        <span class="hlcv-info-value"><?php echo esc_html($classroom_name); ?></span>
                     </div>
                     <div class="hlcv-info-cell">
                         <span class="hlcv-info-label"><?php esc_html_e('Age Group', 'hl-core'); ?></span>
-                        <?php if ($age_group !== '—' || $is_readonly) : ?>
-                            <span class="hlcv-info-value"><?php echo esc_html($age_group); ?></span>
-                        <?php else :
-                            $saved_ag = isset($responses['age_group']) ? $responses['age_group'] : '';
-                            $ag_options = array(
-                                ''           => __('— Select —', 'hl-core'),
-                                'infant'     => __('Infant', 'hl-core'),
-                                'toddler'    => __('Toddler', 'hl-core'),
-                                'preschool'  => __('Preschool', 'hl-core'),
-                                'pre_k'      => __('Pre-K', 'hl-core'),
-                                'k_2nd'      => __('K-2nd', 'hl-core'),
-                            );
-                        ?>
-                            <select name="hl_cv[age_group]" style="padding:6px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:600;color:#1e293b;background:#fff;font-family:inherit;margin-top:2px">
-                                <?php foreach ($ag_options as $val => $label) : ?>
-                                    <option value="<?php echo esc_attr($val); ?>" <?php selected($saved_ag, $val); ?>><?php echo esc_html($label); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        <?php endif; ?>
+                        <span class="hlcv-info-value"><?php echo esc_html(!empty($age_groups) ? implode(', ', $age_groups) : '—'); ?></span>
                     </div>
+                    <div class="hlcv-info-cell">
+                        <span class="hlcv-info-label"><?php esc_html_e('Date', 'hl-core'); ?></span>
+                        <span class="hlcv-info-value"><?php echo esc_html($visit_date ? date_i18n(get_option('date_format'), strtotime($visit_date)) : date_i18n(get_option('date_format'))); ?></span>
+                    </div>
+                </div>
+                <div class="hlcv-info-row" style="margin-top:12px">
                     <div class="hlcv-info-cell">
                         <span class="hlcv-info-label"><?php esc_html_e('Visit #', 'hl-core'); ?></span>
                         <span class="hlcv-info-value hlcv-visit-num"><?php echo esc_html(isset($visit_entity['visit_number']) ? $visit_entity['visit_number'] : '1'); ?></span>

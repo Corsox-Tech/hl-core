@@ -383,7 +383,14 @@ class HL_Frontend_RP_Session {
 
         if ($result && !is_wp_error($result)) {
             $redirect = add_query_arg('message', $result['message']);
-            wp_safe_redirect($redirect);
+            // Clean output buffers so headers can be sent (BuddyBoss may have output warnings).
+            while (ob_get_level()) { ob_end_clean(); }
+            if (!headers_sent()) {
+                wp_safe_redirect($redirect);
+                exit;
+            }
+            // Fallback: JS redirect if headers already sent.
+            echo '<script>window.location.href=' . wp_json_encode($redirect) . ';</script>';
             exit;
         }
 

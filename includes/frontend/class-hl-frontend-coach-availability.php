@@ -324,7 +324,12 @@ class HL_Frontend_Coach_Availability {
         $service->save_availability($user->ID, $valid_blocks);
 
         $redirect_url = add_query_arg('hl_msg', 'availability_saved', remove_query_arg('hl_msg'));
-        wp_safe_redirect($redirect_url);
+        while (ob_get_level()) { ob_end_clean(); }
+        if (!headers_sent()) {
+            wp_safe_redirect($redirect_url);
+            exit;
+        }
+        echo '<script>window.location.href=' . wp_json_encode($redirect_url) . ';</script>';
         exit;
     }
 

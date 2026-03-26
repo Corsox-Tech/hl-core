@@ -33,7 +33,12 @@ class HL_Frontend_Self_Reflection {
             $result = self::handle_submission();
             if ($result && !is_wp_error($result)) {
                 $redirect = add_query_arg('message', $result['message']);
-                wp_safe_redirect($redirect);
+                while (ob_get_level()) { ob_end_clean(); }
+                if (!headers_sent()) {
+                    wp_safe_redirect($redirect);
+                    exit;
+                }
+                echo '<script>window.location.href=' . wp_json_encode($redirect) . ';</script>';
                 exit;
             }
             if (is_wp_error($result)) {
@@ -157,7 +162,7 @@ class HL_Frontend_Self_Reflection {
                 </div>
             <?php endif; ?>
 
-            <!-- Instructions -->
+            <!-- Instructions + Notes -->
             <div class="hlcv-instructions">
                 <div class="hlcv-instr-section">
                     <div class="hlcv-instr-icon">
@@ -176,6 +181,19 @@ class HL_Frontend_Self_Reflection {
                         <div class="hlcv-instr-heading"><?php esc_html_e('Instructions', 'hl-core'); ?></div>
                         <p><?php esc_html_e('Select "Yes" for skills you feel you demonstrated during your teaching. Select "No" if you did not demonstrate or are unsure about a skill. Use the Description field to note specific examples or reflections.', 'hl-core'); ?></p>
                     </div>
+                </div>
+                <div class="hlcv-notes" style="margin-top:0;margin-bottom:0">
+                    <div class="hlcv-notes-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <?php esc_html_e('Notes for Clarification', 'hl-core'); ?>
+                    </div>
+                    <ul class="hlcv-notes-list">
+                        <li><?php esc_html_e('Items marked with an asterisk (*) are defined in the Glossary.', 'hl-core'); ?></li>
+                        <li><?php echo wp_kses(
+                            __('The <em>begin to ECSEL Support Manual</em> for the Classroom Visit & Self-Reflection Tool includes the Glossary and the Reference Guide to Scoring.', 'hl-core'),
+                            array('em' => array())
+                        ); ?></li>
+                    </ul>
                 </div>
             </div>
 
@@ -217,21 +235,6 @@ class HL_Frontend_Self_Reflection {
                 // Reuse the shared rendering from Classroom Visit
                 HL_Frontend_Classroom_Visit::render_visit_form_sections($sections, $responses, $is_readonly, 'hl_sr');
                 ?>
-
-                <!-- Notes -->
-                <div class="hlcv-notes">
-                    <div class="hlcv-notes-title">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        <?php esc_html_e('Notes for Clarification', 'hl-core'); ?>
-                    </div>
-                    <ul class="hlcv-notes-list">
-                        <li><?php esc_html_e('Items marked with an asterisk (*) are defined in the Glossary.', 'hl-core'); ?></li>
-                        <li><?php echo wp_kses(
-                            __('The <em>begin to ECSEL Support Manual</em> for the Classroom Visit & Self-Reflection Tool includes the Glossary and the Reference Guide to Scoring.', 'hl-core'),
-                            array('em' => array())
-                        ); ?></li>
-                    </ul>
-                </div>
 
                 <?php if (!$is_readonly) : ?>
                     <div class="hlcv-actions">
@@ -278,16 +281,9 @@ class HL_Frontend_Self_Reflection {
         $service = new HL_Classroom_Visit_Service();
         $result  = $service->submit_form($visit_id, $user_id, $instrument_id, $role, $responses_json, $status);
 
-        // Update component state on submit
+        // Update self_reflection component state on submit
         if ($status === 'submitted' && !is_wp_error($result)) {
-            $visit = $service->get_visit($visit_id);
-            if ($visit) {
-                $service->update_component_state(
-                    (int) $visit['teacher_enrollment_id'],
-                    (int) $visit['cycle_id'],
-                    (int) $visit['visit_number']
-                );
-            }
+            self::update_self_reflection_component_state($user_id);
         }
 
         return array(
@@ -295,5 +291,72 @@ class HL_Frontend_Self_Reflection {
             'status'        => $status,
             'message'       => ($status === 'submitted') ? 'submitted' : 'saved',
         );
+    }
+
+    /**
+     * Mark the self_reflection component complete for the current user.
+     *
+     * Finds the self_reflection component assigned to this user's enrollment
+     * and sets it to 100% complete.
+     *
+     * @param int $user_id
+     */
+    private static function update_self_reflection_component_state($user_id) {
+        global $wpdb;
+
+        $visit_number = absint($_POST['hl_sr_visit_id'] ?? 0);
+        // Get visit_number from the form's hidden field (instrument knows this)
+        // Actually, we need the component's visit_number from external_ref.
+        // Find the self_reflection component for this user's enrollment.
+        $enrollment_id = 0;
+        if (!empty($_GET['enrollment'])) {
+            $enrollment_id = absint($_GET['enrollment']);
+        }
+        $component_id = 0;
+        if (!empty($_GET['id'])) {
+            $component_id = absint($_GET['id']);
+        }
+
+        if (!$enrollment_id || !$component_id) {
+            return;
+        }
+
+        // Verify this is a self_reflection component
+        $component_type = $wpdb->get_var($wpdb->prepare(
+            "SELECT component_type FROM {$wpdb->prefix}hl_component WHERE component_id = %d",
+            $component_id
+        ));
+        if ($component_type !== 'self_reflection') {
+            return;
+        }
+
+        $now = current_time('mysql');
+
+        $existing = $wpdb->get_var($wpdb->prepare(
+            "SELECT state_id FROM {$wpdb->prefix}hl_component_state
+             WHERE enrollment_id = %d AND component_id = %d",
+            $enrollment_id, $component_id
+        ));
+
+        $state_data = array(
+            'completion_percent' => 100,
+            'completion_status'  => 'complete',
+            'completed_at'       => $now,
+            'last_computed_at'   => $now,
+        );
+
+        if ($existing) {
+            $wpdb->update(
+                $wpdb->prefix . 'hl_component_state',
+                $state_data,
+                array('state_id' => $existing)
+            );
+        } else {
+            $state_data['enrollment_id'] = $enrollment_id;
+            $state_data['component_id']  = $component_id;
+            $wpdb->insert($wpdb->prefix . 'hl_component_state', $state_data);
+        }
+
+        do_action('hl_core_recompute_rollups', $enrollment_id);
     }
 }
