@@ -597,13 +597,13 @@ class HL_CLI_Seed_Beginnings {
         WP_CLI::log( "  [B7] Frozen age group snapshots: {$frozen}" );
 
         // Component states (~70% full completion).
-        // TODO: Implement in Task 4 — seed_component_states_c1().
+        $this->seed_component_states_c1( $enrollments, $pathways );
 
         // Completion rollups.
-        // TODO: Implement in Task 4 — seed_rollups().
+        $this->seed_rollups( $enrollments, $cycle_id );
 
         // Child assessment instances (historical, submitted).
-        // TODO: Implement in Task 4 — seed_child_assessments_c1().
+        $this->seed_child_assessments_c1( $cycle_id, $enrollments, $classrooms, $instruments );
 
         return array( 'cycle_id' => $cycle_id, 'enrollments' => $enrollments, 'pathways' => $pathways );
     }
@@ -987,6 +987,177 @@ class HL_CLI_Seed_Beginnings {
 
         WP_CLI::log( "    Streamlined Phase 1: pathway_id={$pid}, {$n} components" );
         return array( 'pathway_id' => $pid, 'component_count' => $n, 'component_ids' => $ids );
+    }
+
+    // ── Cycle 1 — Component States, Rollups, Child Assessments ────
+
+    /**
+     * Create component state rows for all Cycle 1 enrollments.
+     * Non-stragglers: all components complete. Stragglers: 50-70% complete.
+     */
+    private function seed_component_states_c1( $enrollments, $pathways ) {
+        global $wpdb;
+        $t          = $wpdb->prefix;
+        $count      = 0;
+        $stragglers = self::get_cycle1_stragglers();
+        $base_date  = '2025-02-01';
+
+        foreach ( $enrollments['all'] as $e_idx => $e ) {
+            $eid  = $e['enrollment_id'];
+            $role = $e['role'];
+
+            $pw_key = 'teacher';
+            if ( $role === 'mentor' ) $pw_key = 'mentor';
+            if ( in_array( $role, array( 'school_leader', 'district_leader' ), true ) ) $pw_key = 'streamlined';
+
+            $pw        = $pathways[ $pw_key ];
+            $comp_ids  = $pw['component_ids'];
+            $total     = count( $comp_ids );
+            $email     = isset( $e['email'] ) ? $e['email'] : '';
+            $is_strag  = in_array( $email, $stragglers, true );
+
+            // Deterministic cutoff for stragglers: 50-70% based on position in enrollment list.
+            $cutoff = $total;
+            if ( $is_strag ) {
+                $pct    = 50 + ( ( $e_idx % 3 ) * 10 ); // 50%, 60%, or 70%
+                $cutoff = (int) round( $total * $pct / 100 );
+            }
+
+            for ( $i = 0; $i < $total; $i++ ) {
+                $comp_id = $comp_ids[ $i ];
+                if ( $i < $cutoff ) {
+                    $days_offset  = (int) round( ( $i / max( $total, 1 ) ) * 200 );
+                    $completed_at = gmdate( 'Y-m-d H:i:s', strtotime( $base_date . " +{$days_offset} days" ) );
+                    $wpdb->insert( $t . 'hl_component_state', array(
+                        'enrollment_id'     => $eid,
+                        'component_id'      => $comp_id,
+                        'completion_status'  => 'complete',
+                        'completion_percent' => 100,
+                        'completed_at'      => $completed_at,
+                        'last_computed_at'  => $completed_at,
+                    ) );
+                } else {
+                    $wpdb->insert( $t . 'hl_component_state', array(
+                        'enrollment_id'     => $eid,
+                        'component_id'      => $comp_id,
+                        'completion_status'  => 'not_started',
+                        'completion_percent' => 0,
+                        'last_computed_at'  => current_time( 'mysql' ),
+                    ) );
+                }
+                $count++;
+            }
+        }
+
+        $strag_count = count( array_filter( $enrollments['all'], function( $e ) use ( $stragglers ) {
+            return in_array( $e['email'] ?? '', $stragglers, true );
+        } ) );
+        WP_CLI::log( "  [B8] Component states: {$count} (stragglers: {$strag_count})" );
+    }
+
+    /**
+     * Create completion rollup rows for fully completed enrollments.
+     */
+    private function seed_rollups( $enrollments, $cycle_id ) {
+        global $wpdb;
+        $t     = $wpdb->prefix;
+        $count = 0;
+
+        foreach ( $enrollments['all'] as $e ) {
+            $eid       = $e['enrollment_id'];
+            $total     = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$t}hl_component_state WHERE enrollment_id = %d", $eid ) );
+            $completed = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$t}hl_component_state WHERE enrollment_id = %d AND completion_status = 'complete'", $eid ) );
+
+            if ( $total > 0 && $completed === $total ) {
+                $wpdb->insert( $t . 'hl_completion_rollup', array(
+                    'enrollment_id'              => $eid,
+                    'cycle_id'                   => $cycle_id,
+                    'pathway_completion_percent'  => 100.00,
+                    'cycle_completion_percent'    => 100.00,
+                    'last_computed_at'           => current_time( 'mysql' ),
+                ) );
+                $count++;
+            }
+        }
+
+        WP_CLI::log( "  Completion rollups: {$count}" );
+    }
+
+    /**
+     * Create Pre + Post child assessment instances for every teacher with a teaching assignment.
+     */
+    private function seed_child_assessments_c1( $cycle_id, $enrollments, $classrooms, $instruments ) {
+        global $wpdb;
+        $t = $wpdb->prefix;
+
+        // Build classroom lookup: classroom_id => classroom data + child_ids.
+        $cr_lookup = array();
+        foreach ( $classrooms as $cr ) {
+            $cr_lookup[ $cr['classroom_id'] ] = $cr;
+            $cr_lookup[ $cr['classroom_id'] ]['child_ids'] = $wpdb->get_col( $wpdb->prepare(
+                "SELECT child_id FROM {$t}hl_child_classroom_current WHERE classroom_id = %d",
+                $cr['classroom_id']
+            ) );
+        }
+
+        // Get teaching assignments for Cycle 1 enrollments.
+        $all_eids = wp_list_pluck( $enrollments['all'], 'enrollment_id' );
+        if ( empty( $all_eids ) ) return;
+
+        $in = implode( ',', array_map( 'intval', $all_eids ) );
+        $assignments = $wpdb->get_results(
+            "SELECT enrollment_id, classroom_id FROM {$t}hl_teaching_assignment WHERE enrollment_id IN ({$in})"
+        );
+
+        $instances = 0;
+        $childrows = 0;
+
+        foreach ( $assignments as $asgn ) {
+            $eid = (int) $asgn->enrollment_id;
+            $cid = (int) $asgn->classroom_id;
+            $cr  = isset( $cr_lookup[ $cid ] ) ? $cr_lookup[ $cid ] : null;
+            if ( ! $cr ) continue;
+
+            $instrument_id = isset( $instruments[ $cr['age_band'] ] ) ? $instruments[ $cr['age_band'] ] : null;
+
+            foreach ( array( 'pre', 'post' ) as $phase ) {
+                $date = $phase === 'pre' ? '2025-02-15' : '2025-08-20';
+
+                $wpdb->insert( $t . 'hl_child_assessment_instance', array(
+                    'instance_uuid'       => wp_generate_uuid4(),
+                    'cycle_id'            => $cycle_id,
+                    'enrollment_id'       => $eid,
+                    'classroom_id'        => $cid,
+                    'school_id'           => $cr['school_id'],
+                    'phase'               => $phase,
+                    'instrument_age_band' => $cr['age_band'],
+                    'instrument_id'       => $instrument_id,
+                    'status'              => 'submitted',
+                    'submitted_at'        => $date,
+                    'created_at'          => $date,
+                ) );
+                $instance_id = (int) $wpdb->insert_id;
+                $instances++;
+
+                // Childrows with deterministic scores.
+                foreach ( $cr['child_ids'] as $c_idx => $child_id ) {
+                    $score = ( ( $c_idx + $eid ) % 5 ) + 1; // 1-5 deterministic
+                    $wpdb->insert( $t . 'hl_child_assessment_childrow', array(
+                        'instance_id'      => $instance_id,
+                        'child_id'         => (int) $child_id,
+                        'frozen_age_group' => $cr['age_band'],
+                        'instrument_id'    => $instrument_id,
+                        'answers_json'     => wp_json_encode( array( 'q1' => (string) $score ) ),
+                        'status'           => 'active',
+                    ) );
+                    $childrows++;
+                }
+            }
+        }
+
+        WP_CLI::log( "  [B9] Child assessment instances: {$instances}, childrows: {$childrows}" );
     }
 
     // ── Cycle 2 — Stubs (Phase C) ──────────────────────────────────
