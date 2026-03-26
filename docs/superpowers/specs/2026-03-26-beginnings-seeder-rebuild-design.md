@@ -230,7 +230,7 @@ The 6 teacher assessment instruments (coaching_rp_notes, mentoring_rp_notes, coa
 For every teacher with a teaching assignment in Cycle 1:
 - Create 1 Pre instance + 1 Post instance per classroom they're assigned to
 - Status: `submitted`
-- Childrows: one per child in classroom, with randomized scores (1-5)
+- Childrows: one per child in classroom, with deterministic scores (1-5, based on child/enrollment index)
 - Dates: Pre in Feb 2025, Post in Aug 2025
 
 For mentors: No child assessment instances (mentors don't have teaching assignments in Beginnings).
@@ -239,7 +239,7 @@ For mentors: No child assessment instances (mentors don't have teaching assignme
 
 For every teacher with a teaching assignment in Cycle 2:
 - Create 1 Pre instance per classroom they're assigned to
-- Status: `pending`
+- Status: `not_started` (DB enum: `not_started`, `in_progress`, `submitted`)
 - Childrows: one per child in classroom, `answers_json = NULL` (no scores yet)
 - instrument_id resolved from classroom's age_band
 
