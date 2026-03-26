@@ -770,31 +770,42 @@ class HL_CLI_Seed_Beginnings {
 
         foreach ( $enrollments['teachers'] as $team_teachers ) {
             foreach ( $team_teachers as $e ) {
-                $wpdb->update( $t . 'hl_enrollment',
-                    array( 'assigned_pathway_id' => $pathways['teacher']['pathway_id'] ),
-                    array( 'enrollment_id' => $e['enrollment_id'] ) );
+                $this->assign_pathway( $e['enrollment_id'], $pathways['teacher']['pathway_id'] );
                 $count++;
             }
         }
         foreach ( $enrollments['mentors'] as $e ) {
-            $wpdb->update( $t . 'hl_enrollment',
-                array( 'assigned_pathway_id' => $pathways['mentor']['pathway_id'] ),
-                array( 'enrollment_id' => $e['enrollment_id'] ) );
+            $this->assign_pathway( $e['enrollment_id'], $pathways['mentor']['pathway_id'] );
             $count++;
         }
         foreach ( $enrollments['school_leaders'] as $e ) {
-            $wpdb->update( $t . 'hl_enrollment',
-                array( 'assigned_pathway_id' => $pathways['streamlined']['pathway_id'] ),
-                array( 'enrollment_id' => $e['enrollment_id'] ) );
+            $this->assign_pathway( $e['enrollment_id'], $pathways['streamlined']['pathway_id'] );
             $count++;
         }
         if ( $enrollments['district_leader'] ) {
-            $wpdb->update( $t . 'hl_enrollment',
-                array( 'assigned_pathway_id' => $pathways['streamlined']['pathway_id'] ),
-                array( 'enrollment_id' => $enrollments['district_leader']['enrollment_id'] ) );
+            $this->assign_pathway( $enrollments['district_leader']['enrollment_id'], $pathways['streamlined']['pathway_id'] );
             $count++;
         }
         WP_CLI::log( "  [B5] Pathway assignments: {$count}" );
+    }
+
+    /**
+     * Assign a single pathway to an enrollment: updates legacy column AND inserts into hl_pathway_assignment.
+     */
+    private function assign_pathway( $enrollment_id, $pathway_id ) {
+        global $wpdb;
+        $t = $wpdb->prefix;
+
+        $wpdb->update( $t . 'hl_enrollment',
+            array( 'assigned_pathway_id' => $pathway_id ),
+            array( 'enrollment_id' => $enrollment_id ) );
+
+        $wpdb->insert( $t . 'hl_pathway_assignment', array(
+            'enrollment_id'   => $enrollment_id,
+            'pathway_id'      => $pathway_id,
+            'assignment_type' => 'explicit',
+            'assigned_at'     => current_time( 'mysql' ),
+        ) );
     }
 
     /**
@@ -1385,16 +1396,12 @@ class HL_CLI_Seed_Beginnings {
      * Leaders → Streamlined Phase 2.
      */
     private function assign_pathways_c2( $enrollments, $pathways ) {
-        global $wpdb;
-        $t     = $wpdb->prefix;
         $count = 0;
 
         // Returning teachers → Teacher Phase 2.
         foreach ( $enrollments['teachers'] as $team_teachers ) {
             foreach ( $team_teachers as $e ) {
-                $wpdb->update( $t . 'hl_enrollment',
-                    array( 'assigned_pathway_id' => $pathways['teacher_p2']['pathway_id'] ),
-                    array( 'enrollment_id' => $e['enrollment_id'] ) );
+                $this->assign_pathway( $e['enrollment_id'], $pathways['teacher_p2']['pathway_id'] );
                 $count++;
             }
         }
@@ -1402,31 +1409,23 @@ class HL_CLI_Seed_Beginnings {
         // Returning mentors → Mentor Phase 2 (or Mentor Transition for Lisa).
         foreach ( $enrollments['mentors'] as $e ) {
             $pw_key = isset( $e['pathway_key'] ) ? $e['pathway_key'] : 'mentor_p2';
-            $wpdb->update( $t . 'hl_enrollment',
-                array( 'assigned_pathway_id' => $pathways[ $pw_key ]['pathway_id'] ),
-                array( 'enrollment_id' => $e['enrollment_id'] ) );
+            $this->assign_pathway( $e['enrollment_id'], $pathways[ $pw_key ]['pathway_id'] );
             $count++;
         }
 
         // Natalia → Mentor Phase 1.
         if ( $enrollments['natalia_mentor'] ) {
-            $wpdb->update( $t . 'hl_enrollment',
-                array( 'assigned_pathway_id' => $pathways['mentor_p1']['pathway_id'] ),
-                array( 'enrollment_id' => $enrollments['natalia_mentor']['enrollment_id'] ) );
+            $this->assign_pathway( $enrollments['natalia_mentor']['enrollment_id'], $pathways['mentor_p1']['pathway_id'] );
             $count++;
         }
 
         // School Leaders + District Leader → Streamlined Phase 2.
         foreach ( $enrollments['school_leaders'] as $e ) {
-            $wpdb->update( $t . 'hl_enrollment',
-                array( 'assigned_pathway_id' => $pathways['streamlined_p2']['pathway_id'] ),
-                array( 'enrollment_id' => $e['enrollment_id'] ) );
+            $this->assign_pathway( $e['enrollment_id'], $pathways['streamlined_p2']['pathway_id'] );
             $count++;
         }
         if ( $enrollments['district_leader'] ) {
-            $wpdb->update( $t . 'hl_enrollment',
-                array( 'assigned_pathway_id' => $pathways['streamlined_p2']['pathway_id'] ),
-                array( 'enrollment_id' => $enrollments['district_leader']['enrollment_id'] ) );
+            $this->assign_pathway( $enrollments['district_leader']['enrollment_id'], $pathways['streamlined_p2']['pathway_id'] );
             $count++;
         }
 
