@@ -549,15 +549,444 @@ class HL_CLI_Seed_Beginnings {
         return $instruments;
     }
 
-    // ── Cycle 1 — Stubs (Phase B) ──────────────────────────────────
+    // ── Cycle 1 (Phase B) ───────────────────────────────────────────
 
     /**
      * Seed Cycle 1 (closed) — enrollments, teams, pathways, component states, child assessments.
-     * TODO: Implement in Task 3+4.
      */
     private function seed_cycle_1( $partnership_id, $org, $users, $classrooms, $instruments ) {
-        WP_CLI::log( '  TODO: seed_cycle_1 not yet implemented.' );
-        return array( 'cycle_id' => 0, 'enrollments' => array( 'all' => array() ), 'pathways' => array() );
+        global $wpdb;
+        $t = $wpdb->prefix;
+
+        // Create cycle (closed).
+        $repo     = new HL_Cycle_Repository();
+        $cycle_id = $repo->create( array(
+            'cycle_name'     => 'Beginnings - Cycle 1 (2025)',
+            'cycle_code'     => self::CYCLE_1_CODE,
+            'partnership_id' => $partnership_id,
+            'cycle_type'     => 'program',
+            'district_id'    => $org['district_id'],
+            'status'         => 'closed',
+            'start_date'     => '2025-01-15',
+            'end_date'       => '2025-09-30',
+        ) );
+        foreach ( $org['schools'] as $school_id ) {
+            $wpdb->insert( $t . 'hl_cycle_school', array(
+                'cycle_id' => $cycle_id, 'school_id' => $school_id,
+            ) );
+        }
+        WP_CLI::log( "  [B1] Cycle 1 created: id={$cycle_id}, status=closed" );
+
+        // Enrollments (all 35 Cycle 1 users — does NOT include Natalia).
+        $enrollments = $this->seed_enrollments_c1( $cycle_id, $org, $users );
+
+        // Teams.
+        $this->seed_teams( $cycle_id, $org['schools'], $enrollments, self::get_teams() );
+
+        // Pathways (Phase 1 only).
+        $pathways = $this->seed_pathways_c1( $cycle_id );
+
+        // Assign pathways.
+        $this->assign_pathways_c1( $enrollments, $pathways );
+
+        // Teaching assignments.
+        $this->seed_teaching_assignments( $enrollments, $classrooms, $org['schools'] );
+
+        // Freeze child age groups.
+        $frozen = HL_Child_Snapshot_Service::freeze_age_groups( $cycle_id );
+        WP_CLI::log( "  [B7] Frozen age group snapshots: {$frozen}" );
+
+        // Component states (~70% full completion).
+        // TODO: Implement in Task 4 — seed_component_states_c1().
+
+        // Completion rollups.
+        // TODO: Implement in Task 4 — seed_rollups().
+
+        // Child assessment instances (historical, submitted).
+        // TODO: Implement in Task 4 — seed_child_assessments_c1().
+
+        return array( 'cycle_id' => $cycle_id, 'enrollments' => $enrollments, 'pathways' => $pathways );
+    }
+
+    /**
+     * Enroll all 35 Cycle 1 users (district leader, 4 school leaders, 6 mentors, 24 teachers).
+     */
+    private function seed_enrollments_c1( $cycle_id, $org, $users ) {
+        $repo        = new HL_Enrollment_Repository();
+        $enrollments = array(
+            'district_leader' => null,
+            'school_leaders'  => array(),
+            'mentors'         => array(),
+            'teachers'        => array(),
+            'all'             => array(),
+            'by_email'        => array(),
+        );
+        $district_id = $org['district_id'];
+        $schools     = $org['schools'];
+        $teams_def   = self::get_teams();
+
+        // District leader.
+        $uid = $users['district_leader']['user_id'];
+        if ( $uid ) {
+            $eid = $repo->create( array(
+                'user_id' => $uid, 'cycle_id' => $cycle_id,
+                'roles' => array( 'district_leader' ), 'status' => 'active',
+                'district_id' => $district_id,
+            ) );
+            $e = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'role' => 'district_leader',
+                         'email' => $users['district_leader']['email'] );
+            $enrollments['district_leader'] = $e;
+            $enrollments['all'][]           = $e;
+            $enrollments['by_email'][ $e['email'] ] = $e;
+        }
+
+        // School leaders.
+        foreach ( self::get_schools() as $key => $def ) {
+            $uid = $users['school_leaders'][ $key ]['user_id'];
+            if ( ! $uid ) continue;
+            $eid = $repo->create( array(
+                'user_id' => $uid, 'cycle_id' => $cycle_id,
+                'roles' => array( 'school_leader' ), 'status' => 'active',
+                'school_id' => $schools[ $key ], 'district_id' => $district_id,
+            ) );
+            $e = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'role' => 'school_leader',
+                         'school_key' => $key, 'email' => $def['leader_email'] );
+            $enrollments['school_leaders'][ $key ] = $e;
+            $enrollments['all'][]                  = $e;
+            $enrollments['by_email'][ $e['email'] ] = $e;
+        }
+
+        // Mentors + Teachers.
+        foreach ( $teams_def as $t_idx => $team ) {
+            $school_id = $schools[ $team['school'] ];
+
+            $uid = $users['mentors'][ $t_idx ]['user_id'];
+            if ( $uid ) {
+                $eid = $repo->create( array(
+                    'user_id' => $uid, 'cycle_id' => $cycle_id,
+                    'roles' => array( 'mentor' ), 'status' => 'active',
+                    'school_id' => $school_id, 'district_id' => $district_id,
+                ) );
+                $e = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'role' => 'mentor',
+                             'school_key' => $team['school'], 'team_idx' => $t_idx,
+                             'email' => $team['mentor_email'] );
+                $enrollments['mentors'][ $t_idx ] = $e;
+                $enrollments['all'][]             = $e;
+                $enrollments['by_email'][ $e['email'] ] = $e;
+            }
+
+            $enrollments['teachers'][ $t_idx ] = array();
+            foreach ( $users['teachers'][ $t_idx ] as $t_data ) {
+                $uid = $t_data['user_id'];
+                if ( ! $uid ) continue;
+                $eid = $repo->create( array(
+                    'user_id' => $uid, 'cycle_id' => $cycle_id,
+                    'roles' => array( 'teacher' ), 'status' => 'active',
+                    'school_id' => $school_id, 'district_id' => $district_id,
+                ) );
+                $e = array( 'enrollment_id' => $eid, 'user_id' => $uid, 'role' => 'teacher',
+                             'school_key' => $team['school'], 'team_idx' => $t_idx,
+                             'email' => $t_data['email'] );
+                $enrollments['teachers'][ $t_idx ][] = $e;
+                $enrollments['all'][]                = $e;
+                $enrollments['by_email'][ $e['email'] ] = $e;
+            }
+        }
+
+        WP_CLI::log( '  [B2] Cycle 1 enrollments: ' . count( $enrollments['all'] ) );
+        return $enrollments;
+    }
+
+    /**
+     * Create teams and add mentor + teacher members. Shared for both cycles.
+     */
+    private function seed_teams( $cycle_id, $schools, $enrollments, $teams_def ) {
+        $svc   = new HL_Team_Service();
+        $count = 0;
+
+        foreach ( $teams_def as $t_idx => $team ) {
+            $school_id = $schools[ $team['school'] ];
+            $team_name = 'Team ' . str_pad( $team['num'], 2, '0', STR_PAD_LEFT )
+                       . ' - ' . ucfirst( $team['school'] ) . ' - Beginnings';
+
+            $team_id = $svc->create_team( array(
+                'team_name' => $team_name,
+                'cycle_id'  => $cycle_id,
+                'school_id' => $school_id,
+            ) );
+            if ( is_wp_error( $team_id ) ) {
+                WP_CLI::warning( 'Team error: ' . $team_id->get_error_message() );
+                continue;
+            }
+
+            // Add mentor.
+            if ( isset( $enrollments['mentors'][ $t_idx ] ) ) {
+                $svc->add_member( $team_id, $enrollments['mentors'][ $t_idx ]['enrollment_id'], 'mentor' );
+            }
+
+            // Add teachers.
+            if ( isset( $enrollments['teachers'][ $t_idx ] ) ) {
+                foreach ( $enrollments['teachers'][ $t_idx ] as $t ) {
+                    $svc->add_member( $team_id, $t['enrollment_id'], 'member' );
+                }
+            }
+
+            // Add extra members (e.g., Natalia on T01-Boston in Cycle 2).
+            if ( isset( $enrollments['extra_team_members'][ $t_idx ] ) ) {
+                foreach ( $enrollments['extra_team_members'][ $t_idx ] as $extra ) {
+                    $svc->add_member( $team_id, $extra['enrollment_id'], 'member' );
+                }
+            }
+
+            $count++;
+        }
+
+        WP_CLI::log( "  Teams created: {$count}" );
+    }
+
+    /**
+     * Create Phase 1 pathways for Cycle 1 (Teacher, Mentor, Streamlined).
+     */
+    private function seed_pathways_c1( $cycle_id ) {
+        $svc      = new HL_Pathway_Service();
+        $pathways = array();
+
+        $pathways['teacher']     = $this->create_teacher_phase1( $svc, $cycle_id );
+        $pathways['mentor']      = $this->create_mentor_phase1( $svc, $cycle_id );
+        $pathways['streamlined'] = $this->create_streamlined_phase1( $svc, $cycle_id );
+
+        WP_CLI::log( '  [B4] Cycle 1 pathways: ' . count( $pathways ) );
+        return $pathways;
+    }
+
+    /**
+     * Assign pathways to enrollments for Cycle 1.
+     * Teachers → Teacher Phase 1, Mentors → Mentor Phase 1, Leaders → Streamlined Phase 1.
+     */
+    private function assign_pathways_c1( $enrollments, $pathways ) {
+        global $wpdb;
+        $t     = $wpdb->prefix;
+        $count = 0;
+
+        foreach ( $enrollments['teachers'] as $team_teachers ) {
+            foreach ( $team_teachers as $e ) {
+                $wpdb->update( $t . 'hl_enrollment',
+                    array( 'assigned_pathway_id' => $pathways['teacher']['pathway_id'] ),
+                    array( 'enrollment_id' => $e['enrollment_id'] ) );
+                $count++;
+            }
+        }
+        foreach ( $enrollments['mentors'] as $e ) {
+            $wpdb->update( $t . 'hl_enrollment',
+                array( 'assigned_pathway_id' => $pathways['mentor']['pathway_id'] ),
+                array( 'enrollment_id' => $e['enrollment_id'] ) );
+            $count++;
+        }
+        foreach ( $enrollments['school_leaders'] as $e ) {
+            $wpdb->update( $t . 'hl_enrollment',
+                array( 'assigned_pathway_id' => $pathways['streamlined']['pathway_id'] ),
+                array( 'enrollment_id' => $e['enrollment_id'] ) );
+            $count++;
+        }
+        if ( $enrollments['district_leader'] ) {
+            $wpdb->update( $t . 'hl_enrollment',
+                array( 'assigned_pathway_id' => $pathways['streamlined']['pathway_id'] ),
+                array( 'enrollment_id' => $enrollments['district_leader']['enrollment_id'] ) );
+            $count++;
+        }
+        WP_CLI::log( "  [B5] Pathway assignments: {$count}" );
+    }
+
+    /**
+     * Round-robin teachers to classrooms within their school. Shared for both cycles.
+     */
+    private function seed_teaching_assignments( $enrollments, $classrooms, $schools ) {
+        remove_all_actions( 'hl_core_teaching_assignment_changed' );
+        $svc   = new HL_Classroom_Service();
+        $count = 0;
+
+        $cr_by_school = array();
+        foreach ( $classrooms as $cr ) {
+            $cr_by_school[ $cr['school_key'] ][] = $cr;
+        }
+
+        $teams_def = self::get_teams();
+        foreach ( $teams_def as $t_idx => $team ) {
+            if ( empty( $enrollments['teachers'][ $t_idx ] ) ) continue;
+            $school_crs = isset( $cr_by_school[ $team['school'] ] ) ? $cr_by_school[ $team['school'] ] : array();
+            if ( empty( $school_crs ) ) continue;
+
+            foreach ( $enrollments['teachers'][ $t_idx ] as $idx => $t ) {
+                $cr = $school_crs[ $idx % count( $school_crs ) ];
+                $result = $svc->create_teaching_assignment( array(
+                    'enrollment_id'   => $t['enrollment_id'],
+                    'classroom_id'    => $cr['classroom_id'],
+                    'is_lead_teacher' => ( $idx === 0 ) ? 1 : 0,
+                ) );
+                if ( ! is_wp_error( $result ) ) {
+                    $count++;
+                }
+            }
+        }
+
+        WP_CLI::log( "  Teaching assignments: {$count}" );
+    }
+
+    // ── Pathway Builders ──────────────────────────────────────────────
+
+    /**
+     * Shorthand: create one pathway component and return its ID.
+     */
+    private function cmp( $svc, $pathway_id, $cycle_id, $title, $type, $order, $ext_ref = array() ) {
+        return $svc->create_component( array(
+            'title'          => $title,
+            'pathway_id'     => $pathway_id,
+            'cycle_id'       => $cycle_id,
+            'component_type' => $type,
+            'weight'         => 1.0,
+            'ordering_hint'  => $order,
+            'external_ref'   => wp_json_encode( $ext_ref ?: (object) array() ),
+        ) );
+    }
+
+    /**
+     * Create a prerequisite link between two components.
+     */
+    private function add_prereq( $component_id, $prerequisite_component_id ) {
+        global $wpdb;
+        $wpdb->insert( $wpdb->prefix . 'hl_component_prereq_group', array(
+            'component_id' => $component_id,
+            'prereq_type'  => 'all_of',
+        ) );
+        $group_id = $wpdb->insert_id;
+        $wpdb->insert( $wpdb->prefix . 'hl_component_prereq_item', array(
+            'group_id'                  => $group_id,
+            'prerequisite_component_id' => $prerequisite_component_id,
+        ) );
+    }
+
+    /**
+     * Teacher Phase 1 (17 components): TSA Pre, CA Pre, TC0, TC1, SR#1,
+     * RP#1, TC2, SR#2, RP#2, TC3, SR#3, RP#3, TC4, SR#4, RP#4, CA Post, TSA Post
+     */
+    private function create_teacher_phase1( $svc, $cycle_id ) {
+        $pid = $svc->create_pathway( array(
+            'pathway_name'  => 'B2E Teacher Phase 1',
+            'cycle_id'      => $cycle_id,
+            'target_roles'  => array( 'teacher' ),
+            'active_status' => 1,
+        ) );
+
+        $ids = array();
+        $n = 0;
+        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',  'teacher_self_assessment', ++$n, array( 'phase' => 'pre' ) );
+        $ids[] = $ca_pre  = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Pre)',          'child_assessment',        ++$n, array( 'phase' => 'pre' ) );
+        $ids[] = $tc0     = $this->cmp( $svc, $pid, $cycle_id, 'TC0: Welcome',                   'learndash_course',        ++$n, array( 'course_id' => self::TC0 ) );
+        $ids[] = $tc1     = $this->cmp( $svc, $pid, $cycle_id, 'TC1: Intro to begin to ECSEL',   'learndash_course',        ++$n, array( 'course_id' => self::TC1 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Self-Reflection #1',                        'self_reflection',         ++$n, array( 'visit_number' => 1 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #1',             'reflective_practice_session', ++$n, array( 'session_number' => 1 ) );
+        $ids[] = $tc2     = $this->cmp( $svc, $pid, $cycle_id, 'TC2: Your Own Emotionality',     'learndash_course',        ++$n, array( 'course_id' => self::TC2 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Self-Reflection #2',                        'self_reflection',         ++$n, array( 'visit_number' => 2 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #2',             'reflective_practice_session', ++$n, array( 'session_number' => 2 ) );
+        $ids[] = $tc3     = $this->cmp( $svc, $pid, $cycle_id, 'TC3: Getting to Know Emotion',   'learndash_course',        ++$n, array( 'course_id' => self::TC3 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Self-Reflection #3',                        'self_reflection',         ++$n, array( 'visit_number' => 3 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #3',             'reflective_practice_session', ++$n, array( 'session_number' => 3 ) );
+        $ids[] = $tc4     = $this->cmp( $svc, $pid, $cycle_id, 'TC4: Emotion in the Heat of the Moment', 'learndash_course', ++$n, array( 'course_id' => self::TC4 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Self-Reflection #4',                        'self_reflection',         ++$n, array( 'visit_number' => 4 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #4',             'reflective_practice_session', ++$n, array( 'session_number' => 4 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Post)',                    'child_assessment',        ++$n, array( 'phase' => 'post' ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',             'teacher_self_assessment', ++$n, array( 'phase' => 'post' ) );
+
+        // Prerequisites: course chain TC0->TC1->TC2->TC3->TC4, first course blocked by TSA Pre.
+        $this->add_prereq( $tc0, $tsa_pre );
+        $this->add_prereq( $tc1, $tc0 );
+        $this->add_prereq( $tc2, $tc1 );
+        $this->add_prereq( $tc3, $tc2 );
+        $this->add_prereq( $tc4, $tc3 );
+
+        WP_CLI::log( "    Teacher Phase 1: pathway_id={$pid}, {$n} components" );
+        return array( 'pathway_id' => $pid, 'component_count' => $n, 'component_ids' => $ids );
+    }
+
+    /**
+     * Mentor Phase 1 (19 components): TSA Pre, CA Pre, TC0, TC1, Coaching#1,
+     * MC1, RP#1, TC2, Coaching#2, RP#2, TC3, Coaching#3, MC2, RP#3,
+     * TC4, Coaching#4, RP#4, CA Post, TSA Post
+     */
+    private function create_mentor_phase1( $svc, $cycle_id ) {
+        $pid = $svc->create_pathway( array(
+            'pathway_name'  => 'B2E Mentor Phase 1',
+            'cycle_id'      => $cycle_id,
+            'target_roles'  => array( 'mentor' ),
+            'active_status' => 1,
+        ) );
+
+        $ids = array();
+        $n = 0;
+        $ids[] = $tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',               'teacher_self_assessment',      ++$n, array( 'phase' => 'pre' ) );
+        $ids[] = $ca_pre  = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Pre)',                       'child_assessment',             ++$n, array( 'phase' => 'pre' ) );
+        $ids[] = $tc0     = $this->cmp( $svc, $pid, $cycle_id, 'TC0: Welcome',                                'learndash_course',             ++$n, array( 'course_id' => self::TC0 ) );
+        $ids[] = $tc1     = $this->cmp( $svc, $pid, $cycle_id, 'TC1: Intro to begin to ECSEL',                'learndash_course',             ++$n, array( 'course_id' => self::TC1 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Coaching Session #1',                                    'coaching_session_attendance',  ++$n, array( 'session_number' => 1 ) );
+        $ids[] = $mc1     = $this->cmp( $svc, $pid, $cycle_id, 'MC1: Introduction to Reflective Practice',    'learndash_course',             ++$n, array( 'course_id' => self::MC1 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #1',                          'reflective_practice_session', ++$n, array( 'session_number' => 1 ) );
+        $ids[] = $tc2     = $this->cmp( $svc, $pid, $cycle_id, 'TC2: Your Own Emotionality',                  'learndash_course',             ++$n, array( 'course_id' => self::TC2 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Coaching Session #2',                                    'coaching_session_attendance',  ++$n, array( 'session_number' => 2 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #2',                          'reflective_practice_session', ++$n, array( 'session_number' => 2 ) );
+        $ids[] = $tc3     = $this->cmp( $svc, $pid, $cycle_id, 'TC3: Getting to Know Emotion',                'learndash_course',             ++$n, array( 'course_id' => self::TC3 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Coaching Session #3',                                    'coaching_session_attendance',  ++$n, array( 'session_number' => 3 ) );
+        $ids[] = $mc2     = $this->cmp( $svc, $pid, $cycle_id, 'MC2: A Deeper Dive into Reflective Practice', 'learndash_course',             ++$n, array( 'course_id' => self::MC2 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #3',                          'reflective_practice_session', ++$n, array( 'session_number' => 3 ) );
+        $ids[] = $tc4     = $this->cmp( $svc, $pid, $cycle_id, 'TC4: Emotion in the Heat of the Moment',      'learndash_course',             ++$n, array( 'course_id' => self::TC4 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Coaching Session #4',                                    'coaching_session_attendance',  ++$n, array( 'session_number' => 4 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #4',                          'reflective_practice_session', ++$n, array( 'session_number' => 4 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Post)',                                 'child_assessment',             ++$n, array( 'phase' => 'post' ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                          'teacher_self_assessment',      ++$n, array( 'phase' => 'post' ) );
+
+        // Prerequisites: course chains.
+        $this->add_prereq( $tc0, $tsa_pre );
+        $this->add_prereq( $tc1, $tc0 );
+        $this->add_prereq( $mc1, $tc1 );
+        $this->add_prereq( $tc2, $mc1 );
+        $this->add_prereq( $tc3, $tc2 );
+        $this->add_prereq( $mc2, $tc3 );
+        $this->add_prereq( $tc4, $mc2 );
+
+        WP_CLI::log( "    Mentor Phase 1: pathway_id={$pid}, {$n} components" );
+        return array( 'pathway_id' => $pid, 'component_count' => $n, 'component_ids' => $ids );
+    }
+
+    /**
+     * Streamlined Phase 1 (11 components): TC0, TC1(S), MC1(S), CV#1,
+     * TC2(S), CV#2, TC3(S), CV#3, TC4(S), MC2(S), CV#4
+     * No prerequisites for Streamlined pathways.
+     */
+    private function create_streamlined_phase1( $svc, $cycle_id ) {
+        $pid = $svc->create_pathway( array(
+            'pathway_name'  => 'B2E Streamlined Phase 1',
+            'cycle_id'      => $cycle_id,
+            'target_roles'  => array( 'school_leader' ),
+            'active_status' => 1,
+        ) );
+
+        $ids = array();
+        $n = 0;
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'TC0: Welcome',                                                    'learndash_course',   ++$n, array( 'course_id' => self::TC0 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'TC1: Intro (Streamlined)',                                         'learndash_course',   ++$n, array( 'course_id' => self::TC1_S ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'MC1: Intro to Reflective Practice (Streamlined)',                   'learndash_course',   ++$n, array( 'course_id' => self::MC1_S ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #1',                                               'classroom_visit',    ++$n, array( 'visit_number' => 1 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'TC2: Your Own Emotionality (Streamlined)',                          'learndash_course',   ++$n, array( 'course_id' => self::TC2_S ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #2',                                               'classroom_visit',    ++$n, array( 'visit_number' => 2 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'TC3: Getting to Know Emotion (Streamlined)',                        'learndash_course',   ++$n, array( 'course_id' => self::TC3_S ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #3',                                               'classroom_visit',    ++$n, array( 'visit_number' => 3 ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'TC4: Emotion in the Heat of the Moment (Streamlined)',              'learndash_course',   ++$n, array( 'course_id' => self::TC4_S ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'MC2: Deeper Dive Reflective Practice (Streamlined)',                'learndash_course',   ++$n, array( 'course_id' => self::MC2_S ) );
+        $ids[] = $this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #4',                                               'classroom_visit',    ++$n, array( 'visit_number' => 4 ) );
+
+        // No prerequisites for Streamlined pathways.
+
+        WP_CLI::log( "    Streamlined Phase 1: pathway_id={$pid}, {$n} components" );
+        return array( 'pathway_id' => $pid, 'component_count' => $n, 'component_ids' => $ids );
     }
 
     // ── Cycle 2 — Stubs (Phase C) ──────────────────────────────────
