@@ -1701,30 +1701,279 @@ class HL_CLI_Seed_Beginnings {
 
     /**
      * Assign mgonzalez as coach for Boston school in Cycle 2.
-     * TODO: Implement in Task 6.
      */
     private function seed_coach_assignment( $cycle_id, $boston_school_id ) {
-        WP_CLI::log( '  TODO: seed_coach_assignment not yet implemented.' );
+        // Find or create mgonzalez user.
+        $coach_email = 'mgonzalez@housmanlearning.com';
+        $coach       = get_user_by( 'email', $coach_email );
+
+        if ( ! $coach ) {
+            $uid = wp_insert_user( array(
+                'user_login'   => 'mgonzalez',
+                'user_email'   => $coach_email,
+                'user_pass'    => $coach_email,
+                'display_name' => 'Mateo Gonzalez',
+                'first_name'   => 'Mateo',
+                'last_name'    => 'Gonzalez',
+                'role'         => 'subscriber',
+            ) );
+            if ( is_wp_error( $uid ) ) {
+                WP_CLI::warning( 'Could not create coach user: ' . $uid->get_error_message() );
+                return;
+            }
+            update_user_meta( $uid, self::META_KEY, 'created' );
+            $coach_user_id = $uid;
+            WP_CLI::log( "  [D1] Coach user created: {$coach_email} (ID {$uid})" );
+        } else {
+            update_user_meta( $coach->ID, self::META_KEY, 'found' );
+            $coach_user_id = $coach->ID;
+            WP_CLI::log( "  [D1] Coach user exists: {$coach_email} (ID {$coach->ID})" );
+        }
+
+        // Grant manage_hl_core capability.
+        $user_obj = new WP_User( $coach_user_id );
+        $user_obj->add_cap( 'manage_hl_core' );
+
+        // Assign as coach for Boston school in Cycle 2.
+        $svc    = new HL_Coach_Assignment_Service();
+        $result = $svc->assign_coach( array(
+            'coach_user_id'  => $coach_user_id,
+            'scope_type'     => 'school',
+            'scope_id'       => $boston_school_id,
+            'cycle_id'       => $cycle_id,
+            'effective_from' => '2026-01-15',
+        ) );
+        if ( is_wp_error( $result ) ) {
+            WP_CLI::warning( 'Coach assignment error: ' . $result->get_error_message() );
+        } else {
+            WP_CLI::log( '  [D1] Coach assigned: mgonzalez → Beginnings Boston (school scope)' );
+        }
     }
 
     // ── Summary — Stub ─────────────────────────────────────────────
 
     /**
      * Print summary of seeded data.
-     * TODO: Implement in Task 6.
      */
     private function print_summary( $partnership_id, $org, $classrooms, $users, $c1, $c2 ) {
         WP_CLI::line( '' );
-        WP_CLI::success( 'Beginnings data seeded (partial — stub methods pending).' );
+        WP_CLI::success( 'Beginnings data seeded successfully!' );
+        WP_CLI::line( '' );
+        WP_CLI::line( 'Summary:' );
+        WP_CLI::line( "  Partnership:    {$partnership_id}" );
+        WP_CLI::line( "  District:       {$org['district_id']}" );
+        WP_CLI::line( '  Schools:        ' . count( $org['schools'] ) );
+        WP_CLI::line( '  Classrooms:     ' . count( $classrooms ) );
+        WP_CLI::line( '  WP Users:       ' . $users['count'] );
+        WP_CLI::line( '' );
+        WP_CLI::line( "  Cycle 1 (closed): id={$c1['cycle_id']}, " . count( $c1['enrollments']['all'] ) . ' enrollments, '
+                    . count( $c1['pathways'] ) . ' pathways' );
+        WP_CLI::line( "  Cycle 2 (active): id={$c2['cycle_id']}, " . count( $c2['enrollments']['all'] ) . ' enrollments, '
+                    . count( $c2['pathways'] ) . ' pathways' );
+        WP_CLI::line( '' );
+        WP_CLI::line( '=== Demo Accounts ===' );
+        WP_CLI::line( '  Coach:          mgonzalez@housmanlearning.com (password: same)' );
+        WP_CLI::line( '  School Leader:  boston-school-leader@yopmail.com' );
+        WP_CLI::line( '  Mentor:         mentor-T_01-boston@yopmail.com' );
+        WP_CLI::line( '  Teacher:        john_teacher-T_01-boston@yopmail.com' );
+        WP_CLI::line( '  (Password for yopmail accounts = email address)' );
+        WP_CLI::line( '' );
     }
 
     // ── Clean — Stub ───────────────────────────────────────────────
 
     /**
      * Remove all Beginnings data (both cycles).
-     * TODO: Implement in Task 7.
      */
     private function clean() {
-        WP_CLI::log( '  TODO: clean not yet implemented.' );
+        global $wpdb;
+        $t = $wpdb->prefix;
+
+        WP_CLI::line( 'Cleaning Beginnings data...' );
+
+        // Find both cycle IDs.
+        $cycle_ids = $wpdb->get_col( $wpdb->prepare(
+            "SELECT cycle_id FROM {$t}hl_cycle WHERE cycle_code IN (%s, %s)",
+            self::CYCLE_1_CODE, self::CYCLE_2_CODE
+        ) );
+
+        foreach ( $cycle_ids as $cycle_id ) {
+            $cycle_id = (int) $cycle_id;
+            WP_CLI::log( "  Cleaning cycle {$cycle_id}..." );
+
+            // Get enrollment IDs.
+            $enrollment_ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT enrollment_id FROM {$t}hl_enrollment WHERE cycle_id = %d", $cycle_id
+            ) );
+
+            if ( ! empty( $enrollment_ids ) ) {
+                $in = implode( ',', array_map( 'intval', $enrollment_ids ) );
+
+                // Enrollment-scoped tables.
+                $wpdb->query( "DELETE FROM {$t}hl_completion_rollup WHERE enrollment_id IN ({$in})" );
+                $wpdb->query( "DELETE FROM {$t}hl_component_state WHERE enrollment_id IN ({$in})" );
+                $wpdb->query( "DELETE FROM {$t}hl_component_override WHERE enrollment_id IN ({$in})" );
+                $wpdb->query( "DELETE FROM {$t}hl_team_membership WHERE enrollment_id IN ({$in})" );
+                $wpdb->query( "DELETE FROM {$t}hl_teaching_assignment WHERE enrollment_id IN ({$in})" );
+
+                // Child assessment instances + childrows.
+                $ca_ids = $wpdb->get_col(
+                    "SELECT instance_id FROM {$t}hl_child_assessment_instance WHERE enrollment_id IN ({$in})"
+                );
+                if ( ! empty( $ca_ids ) ) {
+                    $in_ca = implode( ',', array_map( 'intval', $ca_ids ) );
+                    $wpdb->query( "DELETE FROM {$t}hl_child_assessment_childrow WHERE instance_id IN ({$in_ca})" );
+                }
+                $wpdb->query( "DELETE FROM {$t}hl_child_assessment_instance WHERE enrollment_id IN ({$in})" );
+
+                // Teacher assessment instances.
+                $wpdb->query( "DELETE FROM {$t}hl_teacher_assessment_instance WHERE enrollment_id IN ({$in})" );
+            }
+
+            // Observations (cycle-scoped).
+            $obs_ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT observation_id FROM {$t}hl_observation WHERE cycle_id = %d", $cycle_id
+            ) );
+            if ( ! empty( $obs_ids ) ) {
+                $in_obs = implode( ',', array_map( 'intval', $obs_ids ) );
+                $wpdb->query( "DELETE FROM {$t}hl_observation_attachment WHERE observation_id IN ({$in_obs})" );
+                $wpdb->query( "DELETE FROM {$t}hl_observation_response WHERE observation_id IN ({$in_obs})" );
+            }
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_observation WHERE cycle_id = %d", $cycle_id ) );
+
+            // Coaching sessions (cycle-scoped).
+            $session_ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT session_id FROM {$t}hl_coaching_session WHERE cycle_id = %d", $cycle_id
+            ) );
+            if ( ! empty( $session_ids ) ) {
+                $in_sess = implode( ',', array_map( 'intval', $session_ids ) );
+                $wpdb->query( "DELETE FROM {$t}hl_coaching_session_submission WHERE session_id IN ({$in_sess})" );
+                // coaching_session_observation and coaching_attachment may not exist yet — safe to attempt.
+                $wpdb->query( "DELETE FROM {$t}hl_coaching_session_observation WHERE session_id IN ({$in_sess})" );
+                $wpdb->query( "DELETE FROM {$t}hl_coaching_attachment WHERE session_id IN ({$in_sess})" );
+            }
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_coaching_session WHERE cycle_id = %d", $cycle_id ) );
+
+            // RP Sessions.
+            $rp_ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT session_id FROM {$t}hl_rp_session WHERE cycle_id = %d", $cycle_id
+            ) );
+            if ( ! empty( $rp_ids ) ) {
+                $in_rp = implode( ',', array_map( 'intval', $rp_ids ) );
+                $wpdb->query( "DELETE FROM {$t}hl_rp_session_submission WHERE session_id IN ({$in_rp})" );
+            }
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_rp_session WHERE cycle_id = %d", $cycle_id ) );
+
+            // Classroom Visits.
+            $cv_ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT visit_id FROM {$t}hl_classroom_visit WHERE cycle_id = %d", $cycle_id
+            ) );
+            if ( ! empty( $cv_ids ) ) {
+                $in_cv = implode( ',', array_map( 'intval', $cv_ids ) );
+                $wpdb->query( "DELETE FROM {$t}hl_classroom_visit_submission WHERE visit_id IN ({$in_cv})" );
+            }
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_classroom_visit WHERE cycle_id = %d", $cycle_id ) );
+
+            // Components + prereqs.
+            $comp_ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT component_id FROM {$t}hl_component WHERE cycle_id = %d", $cycle_id
+            ) );
+            if ( ! empty( $comp_ids ) ) {
+                $in_comp = implode( ',', array_map( 'intval', $comp_ids ) );
+                $group_ids = $wpdb->get_col(
+                    "SELECT group_id FROM {$t}hl_component_prereq_group WHERE component_id IN ({$in_comp})"
+                );
+                if ( ! empty( $group_ids ) ) {
+                    $in_grp = implode( ',', array_map( 'intval', $group_ids ) );
+                    $wpdb->query( "DELETE FROM {$t}hl_component_prereq_item WHERE group_id IN ({$in_grp})" );
+                }
+                $wpdb->query( "DELETE FROM {$t}hl_component_prereq_group WHERE component_id IN ({$in_comp})" );
+                $wpdb->query( "DELETE FROM {$t}hl_component_drip_rule WHERE component_id IN ({$in_comp})" );
+            }
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_component WHERE cycle_id = %d", $cycle_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_pathway WHERE cycle_id = %d", $cycle_id ) );
+
+            // Teams (also clean memberships by team_id for safety).
+            $team_ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT team_id FROM {$t}hl_team WHERE cycle_id = %d", $cycle_id
+            ) );
+            if ( ! empty( $team_ids ) ) {
+                $in_teams = implode( ',', array_map( 'intval', $team_ids ) );
+                $wpdb->query( "DELETE FROM {$t}hl_team_membership WHERE team_id IN ({$in_teams})" );
+            }
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_team WHERE cycle_id = %d", $cycle_id ) );
+
+            // Enrollments + cycle-level records.
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_enrollment WHERE cycle_id = %d", $cycle_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_cycle_school WHERE cycle_id = %d", $cycle_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_coach_assignment WHERE cycle_id = %d", $cycle_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_child_cycle_snapshot WHERE cycle_id = %d", $cycle_id ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_cycle WHERE cycle_id = %d", $cycle_id ) );
+
+            WP_CLI::log( "  Deleted cycle {$cycle_id} and all related records." );
+        }
+
+        // Children + classrooms by school.
+        $school_ids = $wpdb->get_col(
+            "SELECT orgunit_id FROM {$t}hl_orgunit WHERE name LIKE 'Beginnings%' AND orgunit_type = 'school'"
+        );
+        if ( ! empty( $school_ids ) ) {
+            $in_schools = implode( ',', array_map( 'intval', $school_ids ) );
+            $cr_ids = $wpdb->get_col(
+                "SELECT classroom_id FROM {$t}hl_classroom WHERE school_id IN ({$in_schools})"
+            );
+            if ( ! empty( $cr_ids ) ) {
+                $in_crs = implode( ',', array_map( 'intval', $cr_ids ) );
+                $wpdb->query( "DELETE FROM {$t}hl_child_classroom_current WHERE classroom_id IN ({$in_crs})" );
+                $wpdb->query( "DELETE FROM {$t}hl_child_classroom_history WHERE classroom_id IN ({$in_crs})" );
+            }
+            $wpdb->query( "DELETE FROM {$t}hl_child WHERE school_id IN ({$in_schools})" );
+            $wpdb->query( "DELETE FROM {$t}hl_classroom WHERE school_id IN ({$in_schools})" );
+            WP_CLI::log( '  Deleted children and classrooms.' );
+        }
+
+        // WP users.
+        $demo_rows = $wpdb->get_results(
+            "SELECT user_id, meta_value FROM {$wpdb->usermeta} WHERE meta_key = '" . self::META_KEY . "'"
+        );
+        if ( ! empty( $demo_rows ) ) {
+            require_once ABSPATH . 'wp-admin/includes/user.php';
+            $deleted  = 0;
+            $untagged = 0;
+            foreach ( $demo_rows as $row ) {
+                if ( $row->meta_value === 'found' ) {
+                    delete_user_meta( (int) $row->user_id, self::META_KEY );
+                    $untagged++;
+                } else {
+                    wp_delete_user( (int) $row->user_id );
+                    $deleted++;
+                }
+            }
+            WP_CLI::log( "  Deleted {$deleted} seed users, untagged {$untagged} pre-existing." );
+        }
+
+        // Org units.
+        if ( ! empty( $school_ids ) ) {
+            $in_schools = implode( ',', array_map( 'intval', $school_ids ) );
+            // Get district (parent of these schools).
+            $district_ids = $wpdb->get_col(
+                "SELECT DISTINCT parent_orgunit_id FROM {$t}hl_orgunit WHERE orgunit_id IN ({$in_schools}) AND parent_orgunit_id IS NOT NULL"
+            );
+            $wpdb->query( "DELETE FROM {$t}hl_orgunit WHERE orgunit_id IN ({$in_schools})" );
+            if ( ! empty( $district_ids ) ) {
+                $wpdb->query( "DELETE FROM {$t}hl_orgunit WHERE orgunit_id IN (" . implode( ',', array_map( 'intval', $district_ids ) ) . ")" );
+            }
+            WP_CLI::log( '  Deleted org units.' );
+        }
+
+        // Partnership.
+        $wpdb->query( $wpdb->prepare(
+            "DELETE FROM {$t}hl_partnership WHERE partnership_code = %s", self::PARTNERSHIP_CODE
+        ) );
+        WP_CLI::log( '  Deleted partnership.' );
+
+        // Instruments.
+        $wpdb->query( "DELETE FROM {$t}hl_instrument WHERE name LIKE 'Beginnings%'" );
+        WP_CLI::log( '  Deleted instruments.' );
     }
 }
