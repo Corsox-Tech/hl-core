@@ -109,6 +109,24 @@ class HL_Frontend_Self_Reflection {
             }
         }
 
+        // Fallback: for standalone self-reflections (no classroom visit yet),
+        // look up by classroom_visit_id=0 + user + instrument.
+        if (!$existing && empty($visit_entity['classroom_visit_id'])) {
+            $fallback = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_classroom_visit_submission
+                 WHERE classroom_visit_id = 0
+                   AND submitted_by_user_id = %d
+                   AND instrument_id = %d
+                   AND role_in_visit = 'self_reflector'
+                 ORDER BY submission_id DESC LIMIT 1",
+                get_current_user_id(),
+                (int) $instrument->instrument_id
+            ), ARRAY_A);
+            if ($fallback) {
+                $existing = $fallback;
+            }
+        }
+
         echo $this->render_form($visit_entity, $enrollment, $instrument, $existing);
 
         return ob_get_clean();
