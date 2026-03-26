@@ -153,11 +153,16 @@ class HL_Frontend_Component_Page {
             ? self::$type_labels[$component->component_type]
             : ucwords(str_replace('_', ' ', $component->component_type));
 
+        // New form types render their own hero header — suppress the wrapper title/badge
+        $self_rendering_types = array('reflective_practice_session', 'classroom_visit', 'self_reflection', 'coaching_session_attendance');
+        $has_own_header = in_array($component->component_type, $self_rendering_types, true);
+
         ?>
         <div class="hl-dashboard hl-component-page">
 
             <?php if (!empty($program_page_url)) : ?>
-                <a href="<?php echo esc_url($program_page_url); ?>" class="hl-back-link">&larr; <?php
+                <a href="<?php echo esc_url($program_page_url); ?>" class="hl-back-link"
+                   <?php if ($has_own_header) : ?> style="display:block;max-width:860px;margin:0 auto 8px"<?php endif; ?>>&larr; <?php
                     if ($pathway) {
                         printf(esc_html__('Back to %s', 'hl-core'), esc_html($pathway->pathway_name));
                     } else {
@@ -165,12 +170,6 @@ class HL_Frontend_Component_Page {
                     }
                 ?></a>
             <?php endif; ?>
-
-            <?php
-            // New form types render their own hero header — suppress the wrapper title/badge
-            $self_rendering_types = array('reflective_practice_session', 'classroom_visit', 'self_reflection');
-            $has_own_header = in_array($component->component_type, $self_rendering_types, true);
-            ?>
 
             <?php if (!$has_own_header) : ?>
                 <h1 class="hl-cycle-title"><?php echo esc_html($component->title); ?></h1>

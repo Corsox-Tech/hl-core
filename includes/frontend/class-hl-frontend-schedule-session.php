@@ -757,8 +757,13 @@ class HL_Frontend_Schedule_Session {
         $done = true;
         ?>
         <style>
+        /* ── Reset: override BuddyBoss / Elementor inherited styles ── */
+        .hls-scheduler *,.hls-session *{box-sizing:border-box}
+        .hls-scheduler button,.hls-session button{font-family:inherit;outline:none}
+        .hls-scheduler a,.hls-session a{text-decoration:none}
+
         /* ── Base ── */
-        .hls-scheduler,.hls-session{max-width:780px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:#1e293b}
+        .hls-scheduler,.hls-session{max-width:780px;margin:0 auto!important;padding:0!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:#1e293b;text-align:left}
 
         /* ── Locked ── */
         .hls-locked{text-align:center;padding:60px 20px}
@@ -850,11 +855,14 @@ class HL_Frontend_Schedule_Session {
         .hls-view-details-link{display:inline-block;font-size:14px;color:#6366f1;text-decoration:none;font-weight:600}
         .hls-view-details-link:hover{text-decoration:underline}
 
-        /* ── Scheduled view ── */
-        .hls-tabs{display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:24px}
-        .hls-tab{display:inline-flex;align-items:center;gap:6px;padding:12px 20px;border:none;background:none;font-size:14px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;font-family:inherit}
-        .hls-tab:hover{color:#475569}
-        .hls-tab-on{color:#6366f1;border-bottom-color:#6366f1}
+        /* ── Scheduled view: Tabs (full override — pill style) ── */
+        .hls-tabs{display:inline-flex!important;gap:4px!important;padding:4px!important;margin:0 0 28px!important;background:#f1f5f9!important;border:none!important;border-bottom:none!important;border-radius:12px!important;box-shadow:inset 0 1px 2px rgba(0,0,0,.06)!important}
+        .hls-tab{display:inline-flex!important;align-items:center!important;gap:7px!important;padding:10px 22px!important;margin:0!important;border:none!important;border-bottom:none!important;border-radius:9px!important;background:transparent!important;font-size:14px!important;font-weight:600!important;color:#64748b!important;cursor:pointer!important;transition:all .2s ease!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif!important;line-height:1.4!important;white-space:nowrap!important;text-decoration:none!important;box-shadow:none!important;text-transform:none!important;letter-spacing:normal!important}
+        .hls-tab:hover{color:#475569!important;background:rgba(255,255,255,.5)!important}
+        .hls-tab-on{background:#fff!important;color:#1e293b!important;box-shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06)!important}
+        .hls-tab-on:hover{background:#fff!important;color:#1e293b!important}
+        .hls-tab svg{flex-shrink:0;opacity:.6}
+        .hls-tab-on svg{opacity:1;color:#6366f1!important;stroke:#6366f1!important}
 
         .hls-detail-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px}
         .hls-detail-status{margin-bottom:24px}
