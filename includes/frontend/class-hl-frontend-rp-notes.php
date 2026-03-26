@@ -211,6 +211,19 @@ class HL_Frontend_RP_Notes {
                                     <?php foreach ($prev_plans as $plan) :
                                         $plan_data = json_decode($plan['responses_json'], true);
                                         $plan_date = !empty($plan['submitted_at']) ? date_i18n(get_option('date_format'), strtotime($plan['submitted_at'])) : '—';
+
+                                        // Map field keys to labels.
+                                        $field_labels = array(
+                                            'domain'              => __('Domain', 'hl-core'),
+                                            'skills'              => __('Skills', 'hl-core'),
+                                            'how'                 => __('How will you practice?', 'hl-core'),
+                                            'what'                => __('What will you do?', 'hl-core'),
+                                            'practice_reflection' => __('Practice Reflection', 'hl-core'),
+                                            'success_degree'      => __('Degree of Success', 'hl-core'),
+                                            'impact_observations' => __('Impact & Observations', 'hl-core'),
+                                            'what_learned'        => __('What I Learned', 'hl-core'),
+                                            'still_wondering'     => __('Still Wondering', 'hl-core'),
+                                        );
                                     ?>
                                         <div class="hlrn-plan-item">
                                             <div class="hlrn-plan-header">
@@ -219,9 +232,24 @@ class HL_Frontend_RP_Notes {
                                                     <span class="hlrn-badge"><?php echo esc_html($plan_data['domain']); ?></span>
                                                 <?php endif; ?>
                                             </div>
-                                            <?php if (!empty($plan_data['how'])) : ?>
-                                                <p class="hlrn-plan-excerpt"><?php echo esc_html(wp_trim_words(wp_strip_all_tags($plan_data['how']), 30)); ?></p>
-                                            <?php endif; ?>
+                                            <div class="hlrn-plan-fields" style="display:grid;gap:6px;margin-top:8px;font-size:12px">
+                                                <?php foreach ($field_labels as $fkey => $flabel) :
+                                                    if ($fkey === 'domain') continue; // already shown in header
+                                                    $fval = isset($plan_data[$fkey]) ? $plan_data[$fkey] : '';
+                                                    if (is_array($fval)) {
+                                                        $fval = implode(', ', $fval);
+                                                    }
+                                                    if ($fkey === 'success_degree' && $fval) {
+                                                        $fval = $fval . '/5';
+                                                    }
+                                                    if (empty($fval) && $fval !== '0') continue;
+                                                ?>
+                                                    <div style="display:flex;gap:8px;line-height:1.4">
+                                                        <span style="font-weight:600;color:#64748b;min-width:140px;flex-shrink:0"><?php echo esc_html($flabel); ?></span>
+                                                        <span style="color:#334155"><?php echo esc_html(wp_trim_words(wp_strip_all_tags($fval), 40)); ?></span>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
