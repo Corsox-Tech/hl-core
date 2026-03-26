@@ -129,6 +129,7 @@ class HL_Core {
 
         // Scheduling & Integrations (loaded outside is_admin for AJAX support)
         require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-scheduling-settings.php';
+        require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-email-templates.php';
 
         // Admin
         if (is_admin()) {
@@ -214,7 +215,6 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-ea.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-elcpb-y2-v2.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-beginnings.php';
-            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-beginnings-y2.php';
         }
     }
     
@@ -292,7 +292,6 @@ class HL_Core {
             HL_CLI_Setup_EA::register();
             HL_CLI_Setup_ELCPB_Y2_V2::register();
             HL_CLI_Seed_Beginnings::register();
-            HL_CLI_Seed_Beginnings_Y2::register();
         }
 
         do_action('hl_core_init');
