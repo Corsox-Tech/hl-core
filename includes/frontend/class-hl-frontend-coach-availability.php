@@ -195,12 +195,6 @@ class HL_Frontend_Coach_Availability {
             var dragMode = null; // 'add' or 'remove'
 
             cells.forEach(function(cell) {
-                // Click toggle
-                cell.addEventListener('click', function(e) {
-                    if (e.detail === 0) return; // keyboard handled separately
-                    toggleCell(this);
-                });
-
                 // Keyboard toggle
                 cell.addEventListener('keydown', function(e) {
                     if (e.key === ' ' || e.key === 'Enter') {
@@ -209,7 +203,8 @@ class HL_Frontend_Coach_Availability {
                     }
                 });
 
-                // Drag to paint
+                // Drag to paint — mousedown starts drag, click is suppressed
+                // to avoid double-toggling (mousedown applies, click would undo).
                 cell.addEventListener('mousedown', function(e) {
                     e.preventDefault();
                     isDragging = true;
@@ -273,6 +268,14 @@ class HL_Frontend_Coach_Availability {
 
             // Initialize on load.
             updateAvailabilityData();
+
+            // Safety: always serialize before form submit.
+            var saveForm = document.querySelector('.hlca-save-form');
+            if (saveForm) {
+                saveForm.addEventListener('submit', function() {
+                    updateAvailabilityData();
+                });
+            }
         })();
         </script>
 
