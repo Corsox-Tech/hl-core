@@ -40,20 +40,20 @@ class HL_Frontend_Dashboard {
         $context = $this->build_user_context( $user_id, $scope );
 
         ?>
-        <div class="hl-dashboard hl-dashboard-home">
+        <div class="hl-dashboard hl-dashboard-home hl-dashboard-v2">
 
-            <?php $this->render_welcome( $user ); ?>
+            <?php $this->render_welcome_v2( $user ); ?>
 
             <?php if ( $context['has_enrollment'] ) : ?>
-                <?php $this->render_participant_section( $context ); ?>
+                <?php $this->render_participant_section_v2( $context ); ?>
             <?php endif; ?>
 
             <?php if ( $context['is_staff'] ) : ?>
-                <?php $this->render_staff_section( $context ); ?>
+                <?php $this->render_staff_section_v2( $context ); ?>
             <?php endif; ?>
 
             <?php if ( ! $context['has_enrollment'] && ! $context['is_staff'] ) : ?>
-                <?php $this->render_empty_state(); ?>
+                <?php $this->render_empty_state_v2(); ?>
             <?php endif; ?>
 
         </div>
@@ -376,5 +376,241 @@ class HL_Frontend_Dashboard {
             '%[' . $wpdb->esc_like( $shortcode ) . '%'
         ) );
         return $page_id ? get_permalink( $page_id ) : '';
+    }
+
+    // =========================================================================
+    // V2 — Calm Professional Dashboard Renderers
+    // =========================================================================
+
+    /**
+     * V2 Welcome hero with avatar and time-based greeting.
+     */
+    private function render_welcome_v2( $user ) {
+        $display_name = $user->display_name ?: $user->user_login;
+        $hour = (int) current_time( 'G' );
+
+        if ( $hour < 12 ) {
+            $greeting = __( 'Good morning', 'hl-core' );
+        } elseif ( $hour < 17 ) {
+            $greeting = __( 'Good afternoon', 'hl-core' );
+        } else {
+            $greeting = __( 'Good evening', 'hl-core' );
+        }
+        ?>
+        <div class="hl-dv2-welcome">
+            <div class="hl-dv2-avatar">
+                <?php echo get_avatar( $user->ID, 128 ); ?>
+            </div>
+            <div class="hl-dv2-welcome-text">
+                <h2><?php echo esc_html( $greeting . ', ' . $display_name . '!' ); ?></h2>
+                <p><?php esc_html_e( 'Welcome to Housman Learning Academy', 'hl-core' ); ?></p>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * V2 Participant section — learning cards visible to enrolled users.
+     */
+    private function render_participant_section_v2( $context ) {
+        $available_count = $this->count_available_activities( get_current_user_id() );
+        ?>
+        <div class="hl-dv2-section">
+            <div class="hl-dv2-section-label"><?php esc_html_e( 'Your Learning', 'hl-core' ); ?></div>
+            <div class="hl-dv2-grid">
+                <?php
+                $this->render_nav_card_v2(
+                    'hl_my_programs',
+                    __( 'My Programs', 'hl-core' ),
+                    __( 'View your assigned programs and track progress', 'hl-core' ),
+                    '&#x1F4DA;',
+                    'hl-dv2-icon-programs',
+                    $available_count
+                );
+
+                $this->render_nav_card_v2(
+                    'hl_classrooms_listing',
+                    __( 'My Classrooms', 'hl-core' ),
+                    __( 'View your classrooms and children', 'hl-core' ),
+                    '&#x1F3EB;',
+                    'hl-dv2-icon-classrooms'
+                );
+                ?>
+            </div>
+        </div>
+
+        <?php if ( ! $context['all_control'] ) : ?>
+
+            <?php if ( $context['is_mentor'] ) : ?>
+                <div class="hl-dv2-section">
+                    <div class="hl-dv2-section-label"><?php esc_html_e( 'Coaching & Team', 'hl-core' ); ?></div>
+                    <div class="hl-dv2-grid">
+                        <?php
+                        $this->render_nav_card_v2(
+                            'hl_my_coaching',
+                            __( 'My Coaching', 'hl-core' ),
+                            __( 'View coaching sessions and schedule', 'hl-core' ),
+                            '&#x1F3AC;',
+                            'hl-dv2-icon-coaching'
+                        );
+                        $this->render_nav_card_v2(
+                            'hl_my_team',
+                            __( 'My Team', 'hl-core' ),
+                            __( 'View team members and their progress', 'hl-core' ),
+                            '&#x1F465;',
+                            'hl-dv2-icon-team'
+                        );
+                        ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php if ( $context['is_teacher'] && ! $context['is_mentor'] ) : ?>
+                <div class="hl-dv2-section">
+                    <div class="hl-dv2-section-label"><?php esc_html_e( 'Team', 'hl-core' ); ?></div>
+                    <div class="hl-dv2-grid">
+                        <?php
+                        $this->render_nav_card_v2(
+                            'hl_my_team',
+                            __( 'My Team', 'hl-core' ),
+                            __( 'View team members and their progress', 'hl-core' ),
+                            '&#x1F465;',
+                            'hl-dv2-icon-team'
+                        );
+                        ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php if ( $context['is_leader'] ) : ?>
+                <div class="hl-dv2-section">
+                    <div class="hl-dv2-section-label"><?php esc_html_e( 'Leadership', 'hl-core' ); ?></div>
+                    <div class="hl-dv2-grid">
+                        <?php
+                        $this->render_nav_card_v2(
+                            'hl_my_cycle',
+                            __( 'My Cycle', 'hl-core' ),
+                            __( 'View cycle teams, staff, and reports', 'hl-core' ),
+                            '&#x1F504;',
+                            'hl-dv2-icon-cycle'
+                        );
+                        if ( ! $context['is_mentor'] && ! $context['is_teacher'] ) {
+                            $this->render_nav_card_v2(
+                                'hl_my_team',
+                                __( 'My Team', 'hl-core' ),
+                                __( 'View team members and their progress', 'hl-core' ),
+                                '&#x1F465;',
+                                'hl-dv2-icon-team'
+                            );
+                        }
+                        ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+        <?php endif; ?>
+        <?php
+    }
+
+    /**
+     * V2 Staff section — admin cards for coaches and admins.
+     */
+    private function render_staff_section_v2( $context ) {
+        ?>
+        <div class="hl-dv2-divider"></div>
+        <div class="hl-dv2-section">
+            <div class="hl-dv2-section-label"><?php esc_html_e( 'Administration', 'hl-core' ); ?></div>
+            <div class="hl-dv2-grid">
+                <?php
+                $this->render_nav_card_v2(
+                    'hl_cycles_listing',
+                    __( 'Cycles', 'hl-core' ),
+                    __( 'Browse and manage all cycles', 'hl-core' ),
+                    '&#x1F504;',
+                    'hl-dv2-icon-cycles'
+                );
+                $this->render_nav_card_v2(
+                    'hl_institutions_listing',
+                    __( 'Institutions', 'hl-core' ),
+                    __( 'View districts and schools', 'hl-core' ),
+                    '&#x1F3DB;',
+                    'hl-dv2-icon-institutions'
+                );
+                $this->render_nav_card_v2(
+                    'hl_learners',
+                    __( 'Learners', 'hl-core' ),
+                    __( 'Search and view all participants', 'hl-core' ),
+                    '&#x1F393;',
+                    'hl-dv2-icon-learners'
+                );
+                $this->render_nav_card_v2(
+                    'hl_pathways_listing',
+                    __( 'Pathways', 'hl-core' ),
+                    __( 'Browse pathway configurations', 'hl-core' ),
+                    '&#x1F5FA;',
+                    'hl-dv2-icon-pathways'
+                );
+                $this->render_nav_card_v2(
+                    'hl_coaching_hub',
+                    __( 'Coaching Hub', 'hl-core' ),
+                    __( 'View and manage coaching sessions', 'hl-core' ),
+                    '&#x1F4CB;',
+                    'hl-dv2-icon-hub'
+                );
+                $this->render_nav_card_v2(
+                    'hl_reports_hub',
+                    __( 'Reports', 'hl-core' ),
+                    __( 'Access reports and data exports', 'hl-core' ),
+                    '&#x1F4CA;',
+                    'hl-dv2-icon-reports'
+                );
+                ?>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * V2 navigation card with emoji icon and hover arrow.
+     *
+     * @param string $shortcode Target page shortcode tag.
+     * @param string $title     Card title.
+     * @param string $desc      Card description.
+     * @param string $icon      Emoji HTML entity for the icon.
+     * @param string $icon_class CSS class for icon background color.
+     * @param int    $badge     Optional badge count.
+     */
+    private function render_nav_card_v2( $shortcode, $title, $desc, $icon, $icon_class, $badge = 0 ) {
+        $url = $this->find_shortcode_page_url( $shortcode );
+        if ( empty( $url ) ) {
+            return;
+        }
+        ?>
+        <a href="<?php echo esc_url( $url ); ?>" class="hl-dv2-card">
+            <div class="hl-dv2-card-icon <?php echo esc_attr( $icon_class ); ?>"><?php echo $icon; ?></div>
+            <div>
+                <h4>
+                    <?php echo esc_html( $title ); ?>
+                    <?php if ( $badge > 0 ) : ?>
+                        <span class="hl-dv2-badge"><?php echo (int) $badge; ?></span>
+                    <?php endif; ?>
+                </h4>
+                <p><?php echo esc_html( $desc ); ?></p>
+            </div>
+            <div class="hl-dv2-arrow">&#x2192;</div>
+        </a>
+        <?php
+    }
+
+    /**
+     * V2 empty state for users with no enrollment and no staff role.
+     */
+    private function render_empty_state_v2() {
+        ?>
+        <div class="hl-dv2-empty">
+            <h3><?php esc_html_e( 'Welcome!', 'hl-core' ); ?></h3>
+            <p><?php esc_html_e( 'You are not currently enrolled in any programs. If you believe this is an error, please contact your administrator.', 'hl-core' ); ?></p>
+        </div>
+        <?php
     }
 }
