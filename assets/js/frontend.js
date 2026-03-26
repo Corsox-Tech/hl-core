@@ -110,8 +110,21 @@
             });
         });
 
+        // === Cycle Workspace Tab Switching ===
+        $(document).on('click', '.hl-cw-tab', function(e) {
+            e.preventDefault();
+            var targetId = $(this).data('target');
+            var $wrap = $(this).closest('.hl-cw-v2');
+
+            $wrap.find('.hl-cw-tab').removeClass('active');
+            $(this).addClass('active');
+
+            $wrap.find('.hl-cw-panel').removeClass('active');
+            $wrap.find('#' + targetId).addClass('active');
+        });
+
         // === Detail Row Toggle (Reports Tab) ===
-        $(document).on('click', '.hl-detail-toggle', function(e) {
+        $(document).on('click', '.hl-detail-toggle, .hl-cw-view-btn', function(e) {
             e.preventDefault();
             var targetId = $(this).data('target');
             var $detail = $('#' + targetId);

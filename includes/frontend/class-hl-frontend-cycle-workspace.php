@@ -180,10 +180,11 @@ class HL_Frontend_Cycle_Workspace {
         $back_url = $this->build_back_url( $scope_orgunit );
 
         ?>
-        <div class="hl-dashboard hl-cycle-workspace hl-frontend-wrap">
+        <div class="hl-dashboard hl-cycle-workspace hl-frontend-wrap hl-cw-v2">
 
             <?php if ( ! empty( $back_url ) ) : ?>
-                <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr;
+                <a href="<?php echo esc_url( $back_url ); ?>" class="hl-cw-back">
+                    &larr;
                     <?php
                     if ( $scope_orgunit ) {
                         printf( esc_html__( 'Back to %s', 'hl-core' ), esc_html( $scope_orgunit->name ) );
@@ -196,18 +197,18 @@ class HL_Frontend_Cycle_Workspace {
 
             <?php $this->render_header( $cycle, $scope, $scope_orgunit, $orgunit_options, $orgunit_id ); ?>
 
-            <div class="hl-cycle-tabs">
+            <div class="hl-cw-tabs">
                 <?php foreach ( $tabs as $key => $label ) : ?>
-                    <button class="hl-tab hl-cycle-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
-                            data-target="hl-tab-<?php echo esc_attr( $key ); ?>">
+                    <button class="hl-cw-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
+                            data-target="hl-cw-panel-<?php echo esc_attr( $key ); ?>">
                         <?php echo esc_html( $label ); ?>
                     </button>
                 <?php endforeach; ?>
             </div>
 
             <?php foreach ( $tabs as $key => $label ) : ?>
-                <div id="hl-tab-<?php echo esc_attr( $key ); ?>"
-                     class="hl-cycle-content <?php echo $active_tab === $key ? 'active' : ''; ?>">
+                <div id="hl-cw-panel-<?php echo esc_attr( $key ); ?>"
+                     class="hl-cw-panel <?php echo $active_tab === $key ? 'active' : ''; ?>">
                     <?php
                     switch ( $key ) {
                         case 'dashboard':
@@ -307,7 +308,7 @@ class HL_Frontend_Cycle_Workspace {
 
     private function render_header( $cycle, $scope, $scope_orgunit, $orgunit_options, $current_orgunit_id ) {
         $status       = $cycle->status ?: 'active';
-        $status_class = 'hl-badge-' . sanitize_html_class( $status );
+        $badge_class  = 'hl-cw-hero-badge-' . sanitize_html_class( $status );
 
         $scope_label = '';
         if ( $scope_orgunit ) {
@@ -319,46 +320,73 @@ class HL_Frontend_Cycle_Workspace {
             $scope_label = __( 'Showing all cycle data', 'hl-core' );
         }
 
+        // Compute hero meta stats.
+        $filters      = $this->get_scope_filters( $cycle->cycle_id, $scope );
+        $participants = $this->reporting_service->get_participant_report( $filters );
+        $total        = count( $participants );
+        $sum_pct      = 0;
+        foreach ( $participants as $p ) {
+            $sum_pct += floatval( $p['cycle_completion_percent'] );
+        }
+        $avg_pct = $total > 0 ? round( $sum_pct / $total ) : 0;
+
+        $all_teams  = $this->team_repo->get_all( array( 'cycle_id' => $cycle->cycle_id ) );
+        $team_count = count( $all_teams );
+
+        // Date string.
+        $date_str = '';
+        $dates    = array();
+        if ( $cycle->start_date ) $dates[] = date_i18n( 'M j, Y', strtotime( $cycle->start_date ) );
+        if ( $cycle->end_date )   $dates[] = date_i18n( 'M j, Y', strtotime( $cycle->end_date ) );
+        if ( ! empty( $dates ) ) {
+            $date_str = implode( ' — ', $dates );
+        }
+
         ?>
-        <div class="hl-my-cycle-header">
-            <div class="hl-my-cycle-header-info">
-                <h2 class="hl-cycle-title"><?php echo esc_html( $cycle->cycle_name ); ?></h2>
-                <?php if ( $scope_label ) : ?>
-                    <p class="hl-scope-indicator"><?php echo esc_html( $scope_label ); ?></p>
+        <div class="hl-cw-hero">
+            <div class="hl-cw-hero-left">
+                <div class="hl-cw-hero-badge <?php echo esc_attr( $badge_class ); ?>">
+                    <?php echo esc_html( ucfirst( $status ) ); ?>
+                </div>
+                <h1 class="hl-cw-hero-title"><?php echo esc_html( $cycle->cycle_name ); ?></h1>
+                <?php if ( $date_str ) : ?>
+                    <p class="hl-cw-hero-sub"><?php echo esc_html( $date_str ); ?></p>
                 <?php endif; ?>
-                <div class="hl-cycle-meta">
-                    <span class="hl-badge <?php echo esc_attr( $status_class ); ?>">
-                        <?php echo esc_html( ucfirst( $status ) ); ?>
-                    </span>
-                    <?php if ( $cycle->start_date || $cycle->end_date ) : ?>
-                        <span class="hl-meta-item">
-                            <?php
-                            $dates = array();
-                            if ( $cycle->start_date ) $dates[] = date_i18n( 'M j, Y', strtotime( $cycle->start_date ) );
-                            if ( $cycle->end_date )   $dates[] = date_i18n( 'M j, Y', strtotime( $cycle->end_date ) );
-                            echo esc_html( implode( ' — ', $dates ) );
-                            ?>
-                        </span>
-                    <?php endif; ?>
+                <?php if ( $scope_label ) : ?>
+                    <p class="hl-cw-hero-scope"><?php echo esc_html( $scope_label ); ?></p>
+                <?php endif; ?>
+            </div>
+            <div class="hl-cw-hero-meta">
+                <div class="hl-cw-hero-meta-item">
+                    <strong><?php echo esc_html( $total ); ?></strong>
+                    <?php esc_html_e( 'Participants', 'hl-core' ); ?>
+                </div>
+                <div class="hl-cw-hero-meta-item">
+                    <strong><?php echo esc_html( $avg_pct . '%' ); ?></strong>
+                    <?php esc_html_e( 'Avg Completion', 'hl-core' ); ?>
+                </div>
+                <div class="hl-cw-hero-meta-item">
+                    <strong><?php echo esc_html( $team_count ); ?></strong>
+                    <?php esc_html_e( 'Teams', 'hl-core' ); ?>
                 </div>
             </div>
-
-            <?php if ( ! empty( $orgunit_options ) ) : ?>
-                <div class="hl-cycle-selector">
-                    <label for="hl-orgunit-filter"><?php esc_html_e( 'Filter:', 'hl-core' ); ?></label>
-                    <select id="hl-orgunit-filter" class="hl-select"
-                            onchange="var u=new URL(window.location);if(this.value){u.searchParams.set('orgunit',this.value)}else{u.searchParams.delete('orgunit')};window.location=u;">
-                        <option value=""><?php esc_html_e( 'All', 'hl-core' ); ?></option>
-                        <?php foreach ( $orgunit_options as $opt ) : ?>
-                            <option value="<?php echo esc_attr( $opt['id'] ); ?>"
-                                <?php selected( (int) $opt['id'], (int) $current_orgunit_id ); ?>>
-                                <?php echo esc_html( $opt['label'] ); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            <?php endif; ?>
         </div>
+
+        <?php if ( ! empty( $orgunit_options ) ) : ?>
+            <div class="hl-cw-filter-bar">
+                <label for="hl-orgunit-filter"><?php esc_html_e( 'Scope:', 'hl-core' ); ?></label>
+                <select id="hl-orgunit-filter" class="hl-cw-filter-select"
+                        onchange="var u=new URL(window.location);if(this.value){u.searchParams.set('orgunit',this.value)}else{u.searchParams.delete('orgunit')};window.location=u;">
+                    <option value=""><?php esc_html_e( 'All', 'hl-core' ); ?></option>
+                    <?php foreach ( $orgunit_options as $opt ) : ?>
+                        <option value="<?php echo esc_attr( $opt['id'] ); ?>"
+                            <?php selected( (int) $opt['id'], (int) $current_orgunit_id ); ?>>
+                            <?php echo esc_html( $opt['label'] ); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        <?php endif; ?>
         <?php
     }
 
@@ -412,42 +440,49 @@ class HL_Frontend_Cycle_Workspace {
         }
 
         ?>
-        <div class="hl-workspace-dashboard">
-            <div class="hl-metrics-row">
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $avg_pct . '%' ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Avg Completion', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $total ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Total Participants', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $on_track ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Completed', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $behind ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'In Progress', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $not_started ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Not Started', 'hl-core' ); ?></div>
+        <div class="hl-cw-stats-grid">
+            <div class="hl-cw-stat-card">
+                <div class="hl-cw-stat-value hl-cw-highlight"><?php echo esc_html( $avg_pct . '%' ); ?></div>
+                <div class="hl-cw-stat-label"><?php esc_html_e( 'Avg Completion', 'hl-core' ); ?></div>
+            </div>
+            <div class="hl-cw-stat-card">
+                <div class="hl-cw-stat-value"><?php echo esc_html( $total ); ?></div>
+                <div class="hl-cw-stat-label"><?php esc_html_e( 'Participants', 'hl-core' ); ?></div>
+            </div>
+            <div class="hl-cw-stat-card">
+                <div class="hl-cw-stat-value hl-cw-success"><?php echo esc_html( $on_track ); ?></div>
+                <div class="hl-cw-stat-label"><?php esc_html_e( 'Completed', 'hl-core' ); ?></div>
+            </div>
+            <div class="hl-cw-stat-card">
+                <div class="hl-cw-stat-value hl-cw-warning"><?php echo esc_html( $behind ); ?></div>
+                <div class="hl-cw-stat-label"><?php esc_html_e( 'In Progress', 'hl-core' ); ?></div>
+            </div>
+            <div class="hl-cw-stat-card">
+                <div class="hl-cw-stat-value"><?php echo esc_html( $not_started ); ?></div>
+                <div class="hl-cw-stat-label"><?php esc_html_e( 'Not Started', 'hl-core' ); ?></div>
+            </div>
+        </div>
+
+        <div class="hl-cw-role-row">
+            <div class="hl-cw-role-card">
+                <div class="hl-cw-role-icon hl-cw-role-icon-teachers">&#x1F393;</div>
+                <div>
+                    <div class="hl-cw-role-num"><?php echo esc_html( $teacher_count ); ?></div>
+                    <div class="hl-cw-role-label"><?php esc_html_e( 'Teachers', 'hl-core' ); ?></div>
                 </div>
             </div>
-
-            <div class="hl-metrics-row">
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $teacher_count ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Teachers', 'hl-core' ); ?></div>
+            <div class="hl-cw-role-card">
+                <div class="hl-cw-role-icon hl-cw-role-icon-mentors">&#x1F465;</div>
+                <div>
+                    <div class="hl-cw-role-num"><?php echo esc_html( $mentor_count ); ?></div>
+                    <div class="hl-cw-role-label"><?php esc_html_e( 'Mentors', 'hl-core' ); ?></div>
                 </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $mentor_count ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Mentors', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( count( $school_names ) ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Schools', 'hl-core' ); ?></div>
+            </div>
+            <div class="hl-cw-role-card">
+                <div class="hl-cw-role-icon hl-cw-role-icon-schools">&#x1F3EB;</div>
+                <div>
+                    <div class="hl-cw-role-num"><?php echo esc_html( count( $school_names ) ); ?></div>
+                    <div class="hl-cw-role-label"><?php esc_html_e( 'Schools', 'hl-core' ); ?></div>
                 </div>
             </div>
         </div>
@@ -471,7 +506,7 @@ class HL_Frontend_Cycle_Workspace {
         }
 
         if ( empty( $all_teams ) ) {
-            echo '<div class="hl-empty-state"><p>'
+            echo '<div class="hl-cw-empty"><p>'
                 . esc_html__( 'No teams found in scope.', 'hl-core' )
                 . '</p></div>';
             return;
@@ -479,7 +514,8 @@ class HL_Frontend_Cycle_Workspace {
 
         $team_page_url = $this->find_shortcode_page_url( 'hl_team_page' );
 
-        echo '<div class="hl-teams-grid">';
+        echo '<div class="hl-cw-section-label">' . esc_html__( 'All Teams', 'hl-core' ) . '</div>';
+        echo '<div class="hl-cw-team-grid">';
         foreach ( $all_teams as $team ) {
             $this->render_team_card( $team, $team_page_url );
         }
@@ -513,48 +549,33 @@ class HL_Frontend_Cycle_Workspace {
             : '';
 
         ?>
-        <div class="hl-team-card-item">
-            <div class="hl-team-card-body">
-                <h4 class="hl-team-card-name">
-                    <?php if ( $team_url ) : ?>
-                        <a href="<?php echo esc_url( $team_url ); ?>"><?php echo esc_html( $team->team_name ); ?></a>
-                    <?php else : ?>
-                        <?php echo esc_html( $team->team_name ); ?>
-                    <?php endif; ?>
-                </h4>
-                <?php if ( $school_name ) : ?>
-                    <p class="hl-team-card-school"><?php echo esc_html( $school_name ); ?></p>
+        <div class="hl-cw-team-card">
+            <div class="hl-cw-team-name">
+                <?php if ( $team_url ) : ?>
+                    <a href="<?php echo esc_url( $team_url ); ?>"><?php echo esc_html( $team->team_name ); ?></a>
+                <?php else : ?>
+                    <?php echo esc_html( $team->team_name ); ?>
                 <?php endif; ?>
-                <div class="hl-team-card-meta">
-                    <?php if ( ! empty( $mentor_names ) ) : ?>
-                        <span class="hl-team-card-mentors">
-                            <strong><?php esc_html_e( 'Mentor(s):', 'hl-core' ); ?></strong>
-                            <?php echo esc_html( implode( ', ', $mentor_names ) ); ?>
-                        </span>
-                    <?php endif; ?>
-                    <span class="hl-team-card-count">
-                        <strong><?php esc_html_e( 'Members:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( $member_count ); ?>
-                    </span>
+            </div>
+            <?php if ( $school_name ) : ?>
+                <div class="hl-cw-team-school"><?php echo esc_html( $school_name ); ?></div>
+            <?php endif; ?>
+            <div class="hl-cw-team-meta">
+                <?php if ( ! empty( $mentor_names ) ) : ?>
+                    <span><?php esc_html_e( 'Mentor:', 'hl-core' ); ?> <strong><?php echo esc_html( implode( ', ', $mentor_names ) ); ?></strong></span>
+                <?php endif; ?>
+                <span><?php esc_html_e( 'Members:', 'hl-core' ); ?> <strong><?php echo esc_html( $member_count ); ?></strong></span>
+            </div>
+            <div class="hl-cw-team-progress">
+                <div class="hl-cw-team-bar">
+                    <div class="hl-cw-team-bar-fill" style="width: <?php echo esc_attr( $avg ); ?>%"></div>
                 </div>
-                <div class="hl-team-card-progress">
-                    <div class="hl-inline-progress">
-                        <div class="hl-progress-inline">
-                            <div class="hl-progress-bar-container">
-                                <div class="hl-progress-bar <?php echo esc_attr( $progress_class ); ?>"
-                                     style="width: <?php echo esc_attr( $avg ); ?>%"></div>
-                            </div>
-                        </div>
-                        <span class="hl-progress-text"><?php echo esc_html( $avg . '%' ); ?></span>
-                    </div>
-                </div>
+                <span class="hl-cw-team-pct"><?php echo esc_html( $avg . '%' ); ?></span>
             </div>
             <?php if ( $team_url ) : ?>
-                <div class="hl-team-card-action">
-                    <a href="<?php echo esc_url( $team_url ); ?>" class="hl-btn hl-btn-sm hl-btn-secondary">
-                        <?php esc_html_e( 'View Team', 'hl-core' ); ?>
-                    </a>
-                </div>
+                <a href="<?php echo esc_url( $team_url ); ?>" class="hl-cw-team-btn">
+                    <?php esc_html_e( 'View Team', 'hl-core' ); ?>
+                </a>
             <?php endif; ?>
         </div>
         <?php
@@ -569,64 +590,62 @@ class HL_Frontend_Cycle_Workspace {
         $participants = $this->reporting_service->get_participant_report( $filters );
 
         if ( empty( $participants ) ) {
-            echo '<div class="hl-empty-state"><p>'
+            echo '<div class="hl-cw-empty"><p>'
                 . esc_html__( 'No staff found in scope.', 'hl-core' )
                 . '</p></div>';
             return;
         }
 
         ?>
-        <div class="hl-table-container">
-            <div class="hl-table-header">
-                <h3 class="hl-section-title"><?php esc_html_e( 'Staff Directory', 'hl-core' ); ?></h3>
-                <div class="hl-table-filters">
-                    <input type="text" class="hl-search-input" data-table="hl-workspace-staff-table"
-                           placeholder="<?php esc_attr_e( 'Search by name...', 'hl-core' ); ?>">
-                </div>
+        <div class="hl-cw-staff-header">
+            <div class="hl-cw-section-label" style="border: none; margin: 0; padding: 0;">
+                <?php esc_html_e( 'Staff Directory', 'hl-core' ); ?>
             </div>
-
-            <table class="hl-table" id="hl-workspace-staff-table">
-                <thead>
-                    <tr>
-                        <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
-                        <th><?php esc_html_e( 'Email', 'hl-core' ); ?></th>
-                        <th><?php esc_html_e( 'Team', 'hl-core' ); ?></th>
-                        <th><?php esc_html_e( 'Role', 'hl-core' ); ?></th>
-                        <th><?php esc_html_e( 'Completion', 'hl-core' ); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ( $participants as $p ) :
-                        $roles_raw  = json_decode( $p['roles'], true );
-                        $roles_str  = is_array( $roles_raw )
-                            ? implode( ', ', array_map( function ( $r ) {
-                                return ucwords( str_replace( '_', ' ', $r ) );
-                            }, $roles_raw ) )
-                            : '';
-                        $completion = round( floatval( $p['cycle_completion_percent'] ) );
-                        $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
-                    ?>
-                        <tr data-name="<?php echo esc_attr( strtolower( $p['display_name'] ) ); ?>">
-                            <td><strong><?php echo esc_html( $p['display_name'] ); ?></strong></td>
-                            <td><?php echo esc_html( $p['user_email'] ); ?></td>
-                            <td><?php echo esc_html( $p['team_name'] ?: '—' ); ?></td>
-                            <td><?php echo esc_html( $roles_str ); ?></td>
-                            <td>
-                                <div class="hl-inline-progress">
-                                    <div class="hl-progress-inline">
-                                        <div class="hl-progress-bar-container">
-                                            <div class="hl-progress-bar <?php echo esc_attr( $pclass ); ?>"
-                                                 style="width: <?php echo esc_attr( $completion ); ?>%"></div>
-                                        </div>
-                                    </div>
-                                    <span class="hl-progress-text"><?php echo esc_html( $completion . '%' ); ?></span>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+            <input type="text" class="hl-cw-staff-search hl-search-input" data-table="hl-cw-staff-table"
+                   placeholder="<?php esc_attr_e( 'Search by name...', 'hl-core' ); ?>">
         </div>
+
+        <table class="hl-cw-table" id="hl-cw-staff-table">
+            <thead>
+                <tr>
+                    <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
+                    <th><?php esc_html_e( 'Email', 'hl-core' ); ?></th>
+                    <th><?php esc_html_e( 'Team', 'hl-core' ); ?></th>
+                    <th><?php esc_html_e( 'Role', 'hl-core' ); ?></th>
+                    <th><?php esc_html_e( 'Completion', 'hl-core' ); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ( $participants as $p ) :
+                    $roles_raw  = json_decode( $p['roles'], true );
+                    $roles_arr  = is_array( $roles_raw ) ? $roles_raw : array();
+                    $completion = round( floatval( $p['cycle_completion_percent'] ) );
+                    $fill_class = $completion >= 100 ? 'hl-cw-complete' : '';
+                ?>
+                    <tr data-name="<?php echo esc_attr( strtolower( $p['display_name'] ) ); ?>">
+                        <td class="hl-cw-name"><?php echo esc_html( $p['display_name'] ); ?></td>
+                        <td class="hl-cw-email"><?php echo esc_html( $p['user_email'] ); ?></td>
+                        <td><?php echo esc_html( $p['team_name'] ?: '—' ); ?></td>
+                        <td>
+                            <?php foreach ( $roles_arr as $role ) : ?>
+                                <span class="hl-cw-role-badge hl-cw-badge-<?php echo esc_attr( $role ); ?>">
+                                    <?php echo esc_html( ucwords( str_replace( '_', ' ', $role ) ) ); ?>
+                                </span>
+                            <?php endforeach; ?>
+                        </td>
+                        <td>
+                            <div class="hl-cw-progress">
+                                <div class="hl-cw-progress-bar">
+                                    <div class="hl-cw-progress-fill <?php echo esc_attr( $fill_class ); ?>"
+                                         style="width: <?php echo esc_attr( $completion ); ?>%"></div>
+                                </div>
+                                <span class="hl-cw-progress-pct"><?php echo esc_html( $completion . '%' ); ?></span>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
         <?php
     }
 
@@ -678,17 +697,19 @@ class HL_Frontend_Cycle_Workspace {
         $export_url = add_query_arg( $export_args );
 
         ?>
-        <div class="hl-table-container hl-reports-container">
-            <div class="hl-table-header">
-                <h3 class="hl-section-title"><?php esc_html_e( 'Completion Report', 'hl-core' ); ?></h3>
-                <a href="<?php echo esc_url( $export_url ); ?>" class="hl-btn hl-btn-sm hl-btn-primary hl-export-btn">
-                    <?php esc_html_e( 'Download CSV', 'hl-core' ); ?>
+        <div class="hl-reports-container">
+            <div class="hl-cw-report-header">
+                <div class="hl-cw-section-label" style="border: none; margin: 0; padding: 0;">
+                    <?php esc_html_e( 'Completion Report', 'hl-core' ); ?>
+                </div>
+                <a href="<?php echo esc_url( $export_url ); ?>" class="hl-cw-export-btn">
+                    &#x1F4E5; <?php esc_html_e( 'Export CSV', 'hl-core' ); ?>
                 </a>
             </div>
 
-            <div class="hl-report-filters">
+            <div class="hl-cw-report-filters hl-report-filters">
                 <?php if ( ! empty( $school_options ) ) : ?>
-                    <select class="hl-select hl-report-filter" data-filter="school">
+                    <select class="hl-report-filter" data-filter="school">
                         <option value=""><?php esc_html_e( 'All Institutions', 'hl-core' ); ?></option>
                         <?php foreach ( $school_options as $co ) : ?>
                             <option value="<?php echo esc_attr( $co ); ?>"><?php echo esc_html( $co ); ?></option>
@@ -697,7 +718,7 @@ class HL_Frontend_Cycle_Workspace {
                 <?php endif; ?>
 
                 <?php if ( ! empty( $team_options ) ) : ?>
-                    <select class="hl-select hl-report-filter" data-filter="team">
+                    <select class="hl-report-filter" data-filter="team">
                         <option value=""><?php esc_html_e( 'All Teams', 'hl-core' ); ?></option>
                         <?php foreach ( $team_options as $to ) : ?>
                             <option value="<?php echo esc_attr( $to ); ?>"><?php echo esc_html( $to ); ?></option>
@@ -705,14 +726,14 @@ class HL_Frontend_Cycle_Workspace {
                     </select>
                 <?php endif; ?>
 
-                <input type="text" class="hl-search-input hl-report-search"
+                <input type="text" class="hl-report-search"
                        placeholder="<?php esc_attr_e( 'Search by name...', 'hl-core' ); ?>">
             </div>
 
             <?php if ( empty( $participants ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No participants found.', 'hl-core' ); ?></p></div>
+                <div class="hl-cw-empty"><p><?php esc_html_e( 'No participants found.', 'hl-core' ); ?></p></div>
             <?php else : ?>
-                <table class="hl-table hl-reports-table" id="hl-workspace-reports-table">
+                <table class="hl-cw-table" id="hl-workspace-reports-table">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -731,77 +752,75 @@ class HL_Frontend_Cycle_Workspace {
                             $row_num++;
                             $eid        = $p['enrollment_id'];
                             $roles_raw  = json_decode( $p['roles'], true );
-                            $roles_str  = is_array( $roles_raw )
-                                ? implode( ', ', array_map( function ( $r ) {
-                                    return ucwords( str_replace( '_', ' ', $r ) );
-                                }, $roles_raw ) )
-                                : '';
+                            $roles_arr  = is_array( $roles_raw ) ? $roles_raw : array();
                             $completion = round( floatval( $p['cycle_completion_percent'] ) );
-                            $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
+                            $fill_class = $completion >= 100 ? 'hl-cw-complete' : '';
                         ?>
                             <tr class="hl-report-row"
                                 data-name="<?php echo esc_attr( strtolower( $p['display_name'] ) ); ?>"
                                 data-school="<?php echo esc_attr( $p['school_name'] ); ?>"
                                 data-team="<?php echo esc_attr( $p['team_name'] ); ?>">
                                 <td><?php echo esc_html( $row_num ); ?></td>
-                                <td><strong><?php echo esc_html( $p['display_name'] ); ?></strong></td>
+                                <td class="hl-cw-name"><?php echo esc_html( $p['display_name'] ); ?></td>
                                 <td><?php echo esc_html( $p['team_name'] ?: '—' ); ?></td>
-                                <td><?php echo esc_html( $roles_str ); ?></td>
+                                <td>
+                                    <?php foreach ( $roles_arr as $role ) : ?>
+                                        <span class="hl-cw-role-badge hl-cw-badge-<?php echo esc_attr( $role ); ?>">
+                                            <?php echo esc_html( ucwords( str_replace( '_', ' ', $role ) ) ); ?>
+                                        </span>
+                                    <?php endforeach; ?>
+                                </td>
                                 <td><?php echo esc_html( $p['school_name'] ?: '—' ); ?></td>
                                 <td>
-                                    <div class="hl-inline-progress">
-                                        <div class="hl-progress-inline">
-                                            <div class="hl-progress-bar-container">
-                                                <div class="hl-progress-bar <?php echo esc_attr( $pclass ); ?>"
-                                                     style="width: <?php echo esc_attr( $completion ); ?>%"></div>
-                                            </div>
+                                    <div class="hl-cw-progress">
+                                        <div class="hl-cw-progress-bar">
+                                            <div class="hl-cw-progress-fill <?php echo esc_attr( $fill_class ); ?>"
+                                                 style="width: <?php echo esc_attr( $completion ); ?>%"></div>
                                         </div>
-                                        <span class="hl-progress-text"><?php echo esc_html( $completion . '%' ); ?></span>
+                                        <span class="hl-cw-progress-pct"><?php echo esc_html( $completion . '%' ); ?></span>
                                     </div>
                                 </td>
                                 <td>
-                                    <button class="hl-btn hl-btn-sm hl-btn-secondary hl-detail-toggle"
+                                    <button class="hl-cw-view-btn"
                                             data-target="hl-ws-detail-<?php echo esc_attr( $eid ); ?>">
                                         <?php esc_html_e( 'View', 'hl-core' ); ?>
                                     </button>
                                 </td>
                             </tr>
-                            <tr class="hl-detail-row" id="hl-ws-detail-<?php echo esc_attr( $eid ); ?>">
+                            <tr class="hl-cw-detail-row hl-detail-row" id="hl-ws-detail-<?php echo esc_attr( $eid ); ?>">
                                 <td colspan="7">
-                                    <div class="hl-detail-content">
-                                        <?php if ( isset( $activity_detail[ $eid ] ) && ! empty( $activities ) ) : ?>
-                                            <table class="hl-table hl-detail-table">
-                                                <thead>
+                                    <?php if ( isset( $activity_detail[ $eid ] ) && ! empty( $activities ) ) : ?>
+                                        <table class="hl-cw-detail-table">
+                                            <thead>
+                                                <tr>
+                                                    <th><?php esc_html_e( 'Activity', 'hl-core' ); ?></th>
+                                                    <th><?php esc_html_e( 'Type', 'hl-core' ); ?></th>
+                                                    <th><?php esc_html_e( 'Progress', 'hl-core' ); ?></th>
+                                                    <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ( $activities as $act ) :
+                                                    $aid        = $act['component_id'];
+                                                    $ad         = isset( $activity_detail[ $eid ][ $aid ] ) ? $activity_detail[ $eid ][ $aid ] : null;
+                                                    $act_pct    = $ad ? intval( $ad['completion_percent'] ) : 0;
+                                                    $act_status = $ad ? $ad['completion_status'] : 'not_started';
+                                                    $status_lbl = ucwords( str_replace( '_', ' ', $act_status ) );
+                                                    $status_cls = 'hl-cw-status-' . str_replace( '_', '-', $act_status );
+                                                    $type_lbl   = ucwords( str_replace( '_', ' ', $act['component_type'] ) );
+                                                ?>
                                                     <tr>
-                                                        <th><?php esc_html_e( 'Activity', 'hl-core' ); ?></th>
-                                                        <th><?php esc_html_e( 'Type', 'hl-core' ); ?></th>
-                                                        <th><?php esc_html_e( 'Progress', 'hl-core' ); ?></th>
-                                                        <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
+                                                        <td><?php echo esc_html( $act['title'] ); ?></td>
+                                                        <td><span class="hl-cw-activity-type"><?php echo esc_html( $type_lbl ); ?></span></td>
+                                                        <td><?php echo esc_html( $act_pct . '%' ); ?></td>
+                                                        <td><span class="hl-cw-status-badge <?php echo esc_attr( $status_cls ); ?>"><?php echo esc_html( $status_lbl ); ?></span></td>
                                                     </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ( $activities as $act ) :
-                                                        $aid        = $act['component_id'];
-                                                        $ad         = isset( $activity_detail[ $eid ][ $aid ] ) ? $activity_detail[ $eid ][ $aid ] : null;
-                                                        $act_pct    = $ad ? intval( $ad['completion_percent'] ) : 0;
-                                                        $act_status = $ad ? $ad['completion_status'] : 'not_started';
-                                                        $status_lbl = ucwords( str_replace( '_', ' ', $act_status ) );
-                                                        $status_cls = 'hl-badge-' . str_replace( '_', '-', $act_status );
-                                                        $type_lbl   = ucwords( str_replace( '_', ' ', $act['component_type'] ) );
-                                                    ?>
-                                                        <tr>
-                                                            <td><?php echo esc_html( $act['title'] ); ?></td>
-                                                            <td><span class="hl-activity-type"><?php echo esc_html( $type_lbl ); ?></span></td>
-                                                            <td><?php echo esc_html( $act_pct . '%' ); ?></td>
-                                                            <td><span class="hl-badge <?php echo esc_attr( $status_cls ); ?>"><?php echo esc_html( $status_lbl ); ?></span></td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
-                                        <?php else : ?>
-                                            <p><?php esc_html_e( 'No activity data available.', 'hl-core' ); ?></p>
-                                        <?php endif; ?>
-                                    </div>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    <?php else : ?>
+                                        <p><?php esc_html_e( 'No activity data available.', 'hl-core' ); ?></p>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -831,7 +850,7 @@ class HL_Frontend_Cycle_Workspace {
         }
 
         if ( empty( $classrooms ) ) {
-            echo '<div class="hl-empty-state"><p>'
+            echo '<div class="hl-cw-empty"><p>'
                 . esc_html__( 'No classrooms found in scope.', 'hl-core' )
                 . '</p></div>';
             return;
@@ -848,54 +867,52 @@ class HL_Frontend_Cycle_Workspace {
         $classroom_page_url = $this->find_shortcode_page_url( 'hl_classroom_page' );
 
         ?>
-        <div class="hl-table-container">
-            <h3 class="hl-section-title"><?php esc_html_e( 'Classrooms', 'hl-core' ); ?></h3>
+        <div class="hl-cw-section-label"><?php esc_html_e( 'Classrooms', 'hl-core' ); ?></div>
 
-            <table class="hl-table" id="hl-workspace-classrooms-table">
-                <thead>
+        <table class="hl-cw-table" id="hl-cw-classrooms-table">
+            <thead>
+                <tr>
+                    <th><?php esc_html_e( 'Classroom', 'hl-core' ); ?></th>
+                    <th><?php esc_html_e( 'School', 'hl-core' ); ?></th>
+                    <th><?php esc_html_e( 'Age Band', 'hl-core' ); ?></th>
+                    <th><?php esc_html_e( 'Children', 'hl-core' ); ?></th>
+                    <th><?php esc_html_e( 'Teacher(s)', 'hl-core' ); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ( $classrooms as $classroom ) :
+                    $cr  = is_object( $classroom ) ? $classroom : (object) $classroom;
+                    $cid = $cr->classroom_id;
+
+                    if ( ! isset( $school_cache[ $cr->school_id ] ) ) {
+                        $school_obj                     = $this->orgunit_repo->get_by_id( $cr->school_id );
+                        $school_cache[ $cr->school_id ] = $school_obj ? $school_obj->name : '';
+                    }
+
+                    $count    = isset( $child_counts[ $cid ] ) ? $child_counts[ $cid ] : 0;
+                    $teachers = isset( $teacher_names[ $cid ] ) ? $teacher_names[ $cid ] : '—';
+                    $cr_url   = $classroom_page_url
+                        ? add_query_arg( 'id', $cid, $classroom_page_url )
+                        : '';
+                ?>
                     <tr>
-                        <th><?php esc_html_e( 'Classroom', 'hl-core' ); ?></th>
-                        <th><?php esc_html_e( 'School', 'hl-core' ); ?></th>
-                        <th><?php esc_html_e( 'Age Band', 'hl-core' ); ?></th>
-                        <th><?php esc_html_e( 'Children', 'hl-core' ); ?></th>
-                        <th><?php esc_html_e( 'Teacher(s)', 'hl-core' ); ?></th>
+                        <td>
+                            <?php if ( $cr_url ) : ?>
+                                <a href="<?php echo esc_url( $cr_url ); ?>" style="color: var(--hl-indigo); text-decoration: none; font-weight: 600;">
+                                    <?php echo esc_html( $cr->classroom_name ); ?>
+                                </a>
+                            <?php else : ?>
+                                <span class="hl-cw-name"><?php echo esc_html( $cr->classroom_name ); ?></span>
+                            <?php endif; ?>
+                        </td>
+                        <td><?php echo esc_html( $school_cache[ $cr->school_id ] ); ?></td>
+                        <td><?php echo esc_html( $cr->age_band ?: '—' ); ?></td>
+                        <td><?php echo esc_html( $count ); ?></td>
+                        <td><?php echo esc_html( $teachers ); ?></td>
                     </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ( $classrooms as $classroom ) :
-                        $cr  = is_object( $classroom ) ? $classroom : (object) $classroom;
-                        $cid = $cr->classroom_id;
-
-                        if ( ! isset( $school_cache[ $cr->school_id ] ) ) {
-                            $school_obj                     = $this->orgunit_repo->get_by_id( $cr->school_id );
-                            $school_cache[ $cr->school_id ] = $school_obj ? $school_obj->name : '';
-                        }
-
-                        $count    = isset( $child_counts[ $cid ] ) ? $child_counts[ $cid ] : 0;
-                        $teachers = isset( $teacher_names[ $cid ] ) ? $teacher_names[ $cid ] : '—';
-                        $cr_url   = $classroom_page_url
-                            ? add_query_arg( 'id', $cid, $classroom_page_url )
-                            : '';
-                    ?>
-                        <tr>
-                            <td>
-                                <?php if ( $cr_url ) : ?>
-                                    <a href="<?php echo esc_url( $cr_url ); ?>">
-                                        <strong><?php echo esc_html( $cr->classroom_name ); ?></strong>
-                                    </a>
-                                <?php else : ?>
-                                    <strong><?php echo esc_html( $cr->classroom_name ); ?></strong>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo esc_html( $school_cache[ $cr->school_id ] ); ?></td>
-                            <td><?php echo esc_html( $cr->age_band ?: '—' ); ?></td>
-                            <td><?php echo esc_html( $count ); ?></td>
-                            <td><?php echo esc_html( $teachers ); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
         <?php
     }
 
