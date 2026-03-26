@@ -1856,21 +1856,21 @@ class HL_CLI_Seed_Beginnings {
 
             // RP Sessions.
             $rp_ids = $wpdb->get_col( $wpdb->prepare(
-                "SELECT session_id FROM {$t}hl_rp_session WHERE cycle_id = %d", $cycle_id
+                "SELECT rp_session_id FROM {$t}hl_rp_session WHERE cycle_id = %d", $cycle_id
             ) );
             if ( ! empty( $rp_ids ) ) {
                 $in_rp = implode( ',', array_map( 'intval', $rp_ids ) );
-                $wpdb->query( "DELETE FROM {$t}hl_rp_session_submission WHERE session_id IN ({$in_rp})" );
+                $wpdb->query( "DELETE FROM {$t}hl_rp_session_submission WHERE rp_session_id IN ({$in_rp})" );
             }
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_rp_session WHERE cycle_id = %d", $cycle_id ) );
 
             // Classroom Visits.
             $cv_ids = $wpdb->get_col( $wpdb->prepare(
-                "SELECT visit_id FROM {$t}hl_classroom_visit WHERE cycle_id = %d", $cycle_id
+                "SELECT classroom_visit_id FROM {$t}hl_classroom_visit WHERE cycle_id = %d", $cycle_id
             ) );
             if ( ! empty( $cv_ids ) ) {
                 $in_cv = implode( ',', array_map( 'intval', $cv_ids ) );
-                $wpdb->query( "DELETE FROM {$t}hl_classroom_visit_submission WHERE visit_id IN ({$in_cv})" );
+                $wpdb->query( "DELETE FROM {$t}hl_classroom_visit_submission WHERE classroom_visit_id IN ({$in_cv})" );
             }
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$t}hl_classroom_visit WHERE cycle_id = %d", $cycle_id ) );
 
