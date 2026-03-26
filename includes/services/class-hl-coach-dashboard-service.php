@@ -92,7 +92,7 @@ class HL_Coach_Dashboard_Service {
                 $school_name = '—';
                 if (!empty($r['school_id'])) {
                     $school_name = $wpdb->get_var($wpdb->prepare(
-                        "SELECT orgunit_name FROM {$prefix}hl_orgunit WHERE orgunit_id = %d",
+                        "SELECT name FROM {$prefix}hl_orgunit WHERE orgunit_id = %d",
                         $r['school_id']
                     )) ?: '—';
                 }
@@ -159,7 +159,7 @@ class HL_Coach_Dashboard_Service {
 
         $enrollment = $wpdb->get_row($wpdb->prepare(
             "SELECT e.*, u.display_name, u.user_email,
-                    o.orgunit_name AS school_name
+                    o.name AS school_name
              FROM {$prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
              LEFT JOIN {$prefix}hl_orgunit o ON e.school_id = o.orgunit_id
