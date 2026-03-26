@@ -93,6 +93,8 @@ class HL_Frontend_Coach_Mentor_Detail {
         $back_url      = $this->find_shortcode_page_url('hl_coach_mentors');
 
         $this->render_styles();
+        // Hide the automatic page title from BuddyBoss theme.
+        echo '<style>.entry-header .entry-title, article > header .entry-title { display: none !important; } .entry-header { margin-bottom: 0 !important; min-height: 0 !important; padding: 0 !important; }</style>';
 
         if (!$mentor) {
             ?>
@@ -493,8 +495,8 @@ class HL_Frontend_Coach_Mentor_Detail {
         .hlcmd-hero{display:flex;align-items:center;gap:20px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;padding:28px 32px;border-radius:16px;margin-bottom:24px}
         .hlcmd-hero-avatar{flex-shrink:0}
         .hlcmd-hero-avatar img{width:64px;height:64px;border-radius:50%;border:3px solid rgba(255,255,255,.25);display:block}
-        .hlcmd-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px}
-        .hlcmd-hero-sub{font-size:14px;opacity:.75;margin:4px 0 0}
+        .hlcmd-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px;color:#fff!important}
+        .hlcmd-hero-sub{font-size:14px;opacity:.75;margin:4px 0 0;color:#fff!important}
 
         /* Info card */
         .hlcmd-info-card{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:24px}

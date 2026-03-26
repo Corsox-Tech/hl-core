@@ -171,10 +171,14 @@ class HL_Coach_Dashboard_Service {
             return null;
         }
 
-        $coach_service = new HL_Coach_Assignment_Service();
-        $resolved = $coach_service->get_coach_for_enrollment($mentor_enrollment_id, (int) $enrollment['cycle_id']);
-        if (!$resolved || (int) $resolved['coach_user_id'] !== $coach_user_id) {
-            return null;
+        // Authorize: assigned coach OR admin.
+        $is_admin = current_user_can('manage_hl_core');
+        if (!$is_admin) {
+            $coach_service = new HL_Coach_Assignment_Service();
+            $resolved = $coach_service->get_coach_for_enrollment($mentor_enrollment_id, (int) $enrollment['cycle_id']);
+            if (!$resolved || (int) $resolved['coach_user_id'] !== $coach_user_id) {
+                return null;
+            }
         }
 
         $eid = $mentor_enrollment_id;
