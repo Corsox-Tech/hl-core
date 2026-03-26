@@ -834,7 +834,7 @@ class HL_BuddyBoss_Integration {
             array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       'dashicons-randomize',            $is_staff),
             array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   'dashicons-format-chat',          $is_staff),
             // --- Coach tools ---
-            array('coach-dashboard', 'hl_coach_dashboard',      __('Coach Dashboard', 'hl-core'),  'dashicons-dashboard',            $is_coach),
+            array('coaching-home',   'hl_coach_dashboard',      __('Coaching Home', 'hl-core'),    'dashicons-dashboard',            $is_coach),
             array('coach-mentors',   'hl_coach_mentors',        __('My Mentors', 'hl-core'),       'dashicons-groups',               $is_coach),
             array('coach-availability', 'hl_coach_availability', __('My Availability', 'hl-core'), 'dashicons-calendar-alt',         $is_coach),
             array('coach-reports',   'hl_coach_reports',        __('Coach Reports', 'hl-core'),    'dashicons-chart-bar',            $is_coach),

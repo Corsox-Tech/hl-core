@@ -528,7 +528,7 @@ class HL_Frontend_Dashboard {
                 <?php
                 $this->render_nav_card_v2(
                     'hl_coach_dashboard',
-                    __( 'Coach Dashboard', 'hl-core' ),
+                    __( 'Coaching Home', 'hl-core' ),
                     __( 'Sessions overview and quick links', 'hl-core' ),
                     '&#x1F4CA;',
                     'hl-dv2-icon-reports'
