@@ -32,7 +32,39 @@ class HL_Admin_Enrollments {
      * Constructor
      */
     private function __construct() {
-        // No hooks needed.
+        add_action('wp_ajax_hl_search_users', array($this, 'ajax_search_users'));
+    }
+
+    /**
+     * AJAX user search — returns up to 20 users matching a query string.
+     */
+    public function ajax_search_users() {
+        check_ajax_referer('hl_enrollment_user_search', '_nonce');
+        if (!current_user_can('manage_hl_core')) {
+            wp_send_json_error();
+        }
+
+        $q = isset($_GET['q']) ? sanitize_text_field($_GET['q']) : '';
+        if (strlen($q) < 2) {
+            wp_send_json_success(array());
+        }
+
+        $users = get_users(array(
+            'search'         => '*' . $q . '*',
+            'search_columns' => array('display_name', 'user_email', 'user_login'),
+            'number'         => 20,
+            'orderby'        => 'display_name',
+            'order'          => 'ASC',
+        ));
+
+        $results = array();
+        foreach ($users as $u) {
+            $results[] = array(
+                'id'    => $u->ID,
+                'text'  => $u->display_name . ' (' . $u->user_email . ')',
+            );
+        }
+        wp_send_json_success($results);
     }
 
     /**
@@ -273,6 +305,8 @@ class HL_Admin_Enrollments {
             return;
         }
 
+        $can_switch = class_exists( 'BP_Core_Members_Switching' ) && current_user_can( 'edit_users' );
+
         echo '<table class="widefat striped">';
         echo '<thead>';
         echo '<tr>';
@@ -320,7 +354,14 @@ class HL_Admin_Enrollments {
             echo '<td>' . esc_html($enrollment->enrolled_at) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
-            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this enrollment?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
+            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this enrollment?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a> ';
+            if ( $can_switch && $enrollment->user_id ) {
+                $target_user = new WP_User( $enrollment->user_id );
+                if ( $target_user->exists() ) {
+                    $switch_url = BP_Core_Members_Switching::switch_to_url( $target_user );
+                    echo '<a href="' . esc_url( $switch_url ) . '" title="' . esc_attr__( 'View as this user', 'hl-core' ) . '" class="button button-small">&#x21C4; ' . esc_html__( 'View As', 'hl-core' ) . '</a>';
+                }
+            }
             echo '</td>';
             echo '</tr>';
         }
@@ -342,8 +383,16 @@ class HL_Admin_Enrollments {
 
         global $wpdb;
 
-        // Get WP users for dropdown
-        $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC', 'number' => 500));
+        // Resolve current user for edit mode.
+        $current_user_id   = $is_edit ? $enrollment->user_id : '';
+        $current_user_text = '';
+        if ($current_user_id) {
+            $u = get_userdata($current_user_id);
+            if ($u) {
+                $current_user_text = $u->display_name . ' (' . $u->user_email . ')';
+            }
+        }
+        $user_search_nonce = wp_create_nonce('hl_enrollment_user_search');
 
         // Get cycles
         $cycles = $wpdb->get_results(
@@ -386,16 +435,19 @@ class HL_Admin_Enrollments {
 
         echo '<table class="form-table">';
 
-        // User
-        $current_user_id = $is_edit ? $enrollment->user_id : '';
+        // User (AJAX search).
         echo '<tr>';
-        echo '<th scope="row"><label for="user_id">' . esc_html__('User', 'hl-core') . '</label></th>';
-        echo '<td><select id="user_id" name="user_id" required>';
-        echo '<option value="">' . esc_html__('-- Select User --', 'hl-core') . '</option>';
-        foreach ($users as $user) {
-            echo '<option value="' . esc_attr($user->ID) . '"' . selected($current_user_id, $user->ID, false) . '>' . esc_html($user->display_name) . ' (' . esc_html($user->user_email) . ')</option>';
-        }
-        echo '</select></td>';
+        echo '<th scope="row"><label for="hl-user-search">' . esc_html__('User', 'hl-core') . '</label></th>';
+        echo '<td>';
+        echo '<div style="position:relative;max-width:400px;">';
+        echo '<input type="hidden" id="user_id" name="user_id" value="' . esc_attr($current_user_id) . '" />';
+        echo '<input type="text" id="hl-user-search" autocomplete="off" class="regular-text"'
+           . ' placeholder="' . esc_attr__('Type to search by name or email...', 'hl-core') . '"'
+           . ' value="' . esc_attr($current_user_text) . '"'
+           . ' data-nonce="' . esc_attr($user_search_nonce) . '" />';
+        echo '<div id="hl-user-results" style="display:none;position:absolute;z-index:999;background:#fff;border:1px solid #ddd;border-top:0;border-radius:0 0 4px 4px;width:100%;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1);"></div>';
+        echo '</div>';
+        echo '</td>';
         echo '</tr>';
 
         // Cycle
@@ -472,5 +524,78 @@ class HL_Admin_Enrollments {
         submit_button($is_edit ? __('Update Enrollment', 'hl-core') : __('Create Enrollment', 'hl-core'));
 
         echo '</form>';
+
+        // User search autocomplete JS.
+        ?>
+        <script>
+        (function(){
+            var input   = document.getElementById('hl-user-search');
+            var hidden  = document.getElementById('user_id');
+            var results = document.getElementById('hl-user-results');
+            var nonce   = input.dataset.nonce;
+            var timer   = null;
+
+            input.addEventListener('input', function() {
+                clearTimeout(timer);
+                var q = this.value.trim();
+                if (q.length < 2) { results.style.display = 'none'; return; }
+                // Clear selection when user edits the text.
+                hidden.value = '';
+                timer = setTimeout(function() { doSearch(q); }, 250);
+            });
+
+            input.addEventListener('focus', function() {
+                if (results.children.length > 0 && !hidden.value) {
+                    results.style.display = 'block';
+                }
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!results.contains(e.target) && e.target !== input) {
+                    results.style.display = 'none';
+                }
+            });
+
+            function doSearch(q) {
+                fetch(ajaxurl + '?action=hl_search_users&_nonce=' + encodeURIComponent(nonce) + '&q=' + encodeURIComponent(q))
+                    .then(function(r) { return r.json(); })
+                    .then(function(resp) {
+                        results.innerHTML = '';
+                        if (!resp.success || !resp.data.length) {
+                            results.innerHTML = '<div style="padding:10px 12px;color:#999;font-size:13px;"><?php echo esc_js(__('No users found', 'hl-core')); ?></div>';
+                            results.style.display = 'block';
+                            return;
+                        }
+                        resp.data.forEach(function(u) {
+                            var div = document.createElement('div');
+                            div.textContent = u.text;
+                            div.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0f0;';
+                            div.addEventListener('mouseenter', function(){ this.style.background='#f0f6fc'; });
+                            div.addEventListener('mouseleave', function(){ this.style.background=''; });
+                            div.addEventListener('click', function() {
+                                input.value = u.text;
+                                hidden.value = u.id;
+                                results.style.display = 'none';
+                            });
+                            results.appendChild(div);
+                        });
+                        results.style.display = 'block';
+                    })
+                    .catch(function() { results.style.display = 'none'; });
+            }
+
+            // Validate on submit: require a selected user.
+            input.closest('form').addEventListener('submit', function(e) {
+                if (!hidden.value) {
+                    e.preventDefault();
+                    input.focus();
+                    input.style.borderColor = '#d63638';
+                    setTimeout(function(){ input.style.borderColor = ''; }, 2000);
+                    alert('<?php echo esc_js(__('Please select a user from the search results.', 'hl-core')); ?>');
+                }
+            });
+        })();
+        </script>
+        <?php
     }
 }
