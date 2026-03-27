@@ -184,10 +184,11 @@ class HL_Frontend_My_Cycle {
         $is_control = ! empty( $cycle->is_control_group );
 
         if ( $is_control ) {
-            // Control groups: Reports + Classrooms only (no Teams, no Staff — Staff is redundant with Reports).
+            // Control groups: Reports, Assessments, Classrooms (no Teams, no Staff).
             $tabs = array(
-                'reports'    => __( 'Reports', 'hl-core' ),
-                'classrooms' => __( 'Classrooms', 'hl-core' ),
+                'reports'     => __( 'Reports', 'hl-core' ),
+                'assessments' => __( 'Assessments', 'hl-core' ),
+                'classrooms'  => __( 'Classrooms', 'hl-core' ),
             );
             $default_tab = 'reports';
         } else {
@@ -244,6 +245,9 @@ class HL_Frontend_My_Cycle {
                         break;
                     case 'reports':
                         $this->render_reports_tab( $cycle, $scope );
+                        break;
+                    case 'assessments':
+                        $this->render_assessments_tab( $cycle, $scope );
                         break;
                     case 'classrooms':
                         $this->render_classrooms_tab( $cycle, $scope );
@@ -752,6 +756,227 @@ class HL_Frontend_My_Cycle {
                     </tbody>
                 </table>
             <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    // ========================================================================
+    // Tab: Assessments
+    // ========================================================================
+
+    private function render_assessments_tab( $cycle, $scope ) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        $cycle_id  = (int) $cycle->cycle_id;
+        $school_id = ( $scope['type'] === 'school' && $scope['orgunit_id'] ) ? (int) $scope['orgunit_id'] : 0;
+
+        // ── Fetch TSA instances scoped by school ──
+        $tsa_where  = array( 'tai.cycle_id = %d' );
+        $tsa_params = array( $cycle_id );
+        if ( $school_id ) {
+            $tsa_where[]  = 'e.school_id = %d';
+            $tsa_params[] = $school_id;
+        }
+        // Exclude the current viewer (school leader).
+        $tsa_where[]  = 'e.user_id != %d';
+        $tsa_params[] = get_current_user_id();
+
+        $tsa_sql = "SELECT tai.instance_id, tai.phase, tai.status, tai.submitted_at,
+                           tai.responses_json, tai.instrument_id,
+                           u.display_name, e.enrollment_id
+                    FROM {$prefix}hl_teacher_assessment_instance tai
+                    JOIN {$prefix}hl_enrollment e ON tai.enrollment_id = e.enrollment_id
+                    LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+                    WHERE " . implode( ' AND ', $tsa_where ) . "
+                    ORDER BY tai.phase ASC, u.display_name ASC";
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $tsa_instances = $wpdb->get_results( $wpdb->prepare( $tsa_sql, $tsa_params ), ARRAY_A ) ?: array();
+
+        // ── Load the instrument for section labels ──
+        $instrument_sections = array();
+        if ( ! empty( $tsa_instances ) ) {
+            $instrument_id = (int) $tsa_instances[0]['instrument_id'];
+            if ( $instrument_id ) {
+                $sections_json = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT sections FROM {$prefix}hl_teacher_assessment_instrument WHERE instrument_id = %d",
+                    $instrument_id
+                ) );
+                $instrument_sections = $sections_json ? json_decode( $sections_json, true ) : array();
+            }
+        }
+
+        // ── Group TSA by phase ──
+        $tsa_by_phase = array( 'pre' => array(), 'post' => array() );
+        foreach ( $tsa_instances as $inst ) {
+            $phase = $inst['phase'] ?: 'pre';
+            $tsa_by_phase[ $phase ][] = $inst;
+        }
+
+        // ── Fetch CA instances scoped by school ──
+        $ca_where  = array( 'cai.cycle_id = %d' );
+        $ca_params = array( $cycle_id );
+        if ( $school_id ) {
+            $ca_where[]  = '(cai.school_id = %d OR e.school_id = %d)';
+            $ca_params[] = $school_id;
+            $ca_params[] = $school_id;
+        }
+        $ca_where[]  = 'e.user_id != %d';
+        $ca_params[] = get_current_user_id();
+
+        $ca_sql = "SELECT cai.instance_id, cai.phase, cai.status, cai.submitted_at,
+                          cai.instrument_age_band, cai.classroom_id,
+                          u.display_name, cr.classroom_name,
+                          (SELECT COUNT(*) FROM {$prefix}hl_child_assessment_childrow
+                           WHERE instance_id = cai.instance_id AND status = 'active') AS children_assessed
+                   FROM {$prefix}hl_child_assessment_instance cai
+                   JOIN {$prefix}hl_enrollment e ON cai.enrollment_id = e.enrollment_id
+                   LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+                   LEFT JOIN {$prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
+                   WHERE " . implode( ' AND ', $ca_where ) . "
+                   ORDER BY cai.phase ASC, u.display_name ASC";
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $ca_instances = $wpdb->get_results( $wpdb->prepare( $ca_sql, $ca_params ), ARRAY_A ) ?: array();
+
+        $ca_by_phase = array( 'pre' => array(), 'post' => array() );
+        foreach ( $ca_instances as $inst ) {
+            $phase = $inst['phase'] ?: 'pre';
+            $ca_by_phase[ $phase ][] = $inst;
+        }
+
+        // ── Summary counts ──
+        $tsa_total     = count( $tsa_instances );
+        $tsa_submitted = count( array_filter( $tsa_instances, function ( $i ) { return $i['status'] === 'submitted'; } ) );
+        $ca_total      = count( $ca_instances );
+        $ca_submitted  = count( array_filter( $ca_instances, function ( $i ) { return $i['status'] === 'submitted'; } ) );
+
+        ?>
+        <div class="hl-assessments-tab">
+
+            <!-- Summary Cards -->
+            <div class="hl-assessment-summary" style="display:flex; gap:1.5rem; margin-bottom:2rem; flex-wrap:wrap;">
+                <div style="flex:1; min-width:220px; background:#f8f9fa; border-radius:12px; padding:1.25rem; border-left:4px solid #2F5496;">
+                    <div style="font-size:0.85rem; color:#666; margin-bottom:0.5rem;"><?php esc_html_e( 'Teacher Self-Assessment', 'hl-core' ); ?></div>
+                    <div style="font-size:1.75rem; font-weight:700; color:#1a1a2e;"><?php echo esc_html( $tsa_submitted . '/' . $tsa_total ); ?></div>
+                    <div style="font-size:0.8rem; color:#888;"><?php esc_html_e( 'Submitted', 'hl-core' ); ?></div>
+                </div>
+                <div style="flex:1; min-width:220px; background:#f8f9fa; border-radius:12px; padding:1.25rem; border-left:4px solid #548235;">
+                    <div style="font-size:0.85rem; color:#666; margin-bottom:0.5rem;"><?php esc_html_e( 'Child Assessment', 'hl-core' ); ?></div>
+                    <div style="font-size:1.75rem; font-weight:700; color:#1a1a2e;"><?php echo esc_html( $ca_submitted . '/' . $ca_total ); ?></div>
+                    <div style="font-size:0.8rem; color:#888;"><?php esc_html_e( 'Submitted', 'hl-core' ); ?></div>
+                </div>
+            </div>
+
+            <?php
+            // ── Teacher Self-Assessment Section ──
+            foreach ( array( 'pre' => 'PRE', 'post' => 'POST' ) as $phase_key => $phase_label ) :
+                $phase_data = $tsa_by_phase[ $phase_key ];
+                if ( empty( $phase_data ) ) continue;
+
+                $phase_submitted = count( array_filter( $phase_data, function ( $i ) { return $i['status'] === 'submitted'; } ) );
+            ?>
+                <h3 class="hl-section-title" style="margin-top:2rem;">
+                    <?php echo esc_html( sprintf( __( 'Teacher Self-Assessment — %s', 'hl-core' ), $phase_label ) ); ?>
+                    <span style="font-weight:400; font-size:0.85rem; color:#888; margin-left:0.5rem;">
+                        (<?php echo esc_html( $phase_submitted . '/' . count( $phase_data ) . ' submitted' ); ?>)
+                    </span>
+                </h3>
+
+                <div class="hl-table-container">
+                    <table class="hl-table">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e( 'Teacher', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'Submitted', 'hl-core' ); ?></th>
+                                <?php foreach ( $instrument_sections as $sec ) : ?>
+                                    <th style="text-align:center;"><?php echo esc_html( $sec['title'] ); ?></th>
+                                <?php endforeach; ?>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ( $phase_data as $inst ) :
+                                $status_class = 'hl-badge-' . str_replace( '_', '-', $inst['status'] );
+                                $status_label = ucwords( str_replace( '_', ' ', $inst['status'] ) );
+                                $responses    = $inst['responses_json'] ? json_decode( $inst['responses_json'], true ) : null;
+                            ?>
+                                <tr>
+                                    <td><strong><?php echo esc_html( $inst['display_name'] ); ?></strong></td>
+                                    <td><span class="hl-badge <?php echo esc_attr( $status_class ); ?>"><?php echo esc_html( $status_label ); ?></span></td>
+                                    <td><?php echo $inst['submitted_at'] ? esc_html( date_i18n( 'M j, Y', strtotime( $inst['submitted_at'] ) ) ) : '—'; ?></td>
+                                    <?php foreach ( $instrument_sections as $sec ) :
+                                        $sec_key = $sec['section_key'];
+                                        if ( $responses && isset( $responses[ $sec_key ] ) ) {
+                                            $values = array_values( $responses[ $sec_key ] );
+                                            $values = array_map( 'floatval', $values );
+                                            $avg    = count( $values ) > 0 ? round( array_sum( $values ) / count( $values ), 1 ) : 0;
+                                        } else {
+                                            $avg = null;
+                                        }
+                                    ?>
+                                        <td style="text-align:center; font-weight:600;">
+                                            <?php echo $avg !== null ? esc_html( $avg ) : '—'; ?>
+                                        </td>
+                                    <?php endforeach; ?>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endforeach; ?>
+
+            <?php
+            // ── Child Assessment Section ──
+            foreach ( array( 'pre' => 'PRE', 'post' => 'POST' ) as $phase_key => $phase_label ) :
+                $phase_data = $ca_by_phase[ $phase_key ];
+                if ( empty( $phase_data ) ) continue;
+
+                $phase_submitted = count( array_filter( $phase_data, function ( $i ) { return $i['status'] === 'submitted'; } ) );
+            ?>
+                <h3 class="hl-section-title" style="margin-top:2rem;">
+                    <?php echo esc_html( sprintf( __( 'Child Assessment — %s', 'hl-core' ), $phase_label ) ); ?>
+                    <span style="font-weight:400; font-size:0.85rem; color:#888; margin-left:0.5rem;">
+                        (<?php echo esc_html( $phase_submitted . '/' . count( $phase_data ) . ' submitted' ); ?>)
+                    </span>
+                </h3>
+
+                <div class="hl-table-container">
+                    <table class="hl-table">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e( 'Teacher', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'Classroom', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'Age Band', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'Children', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'Submitted', 'hl-core' ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ( $phase_data as $inst ) :
+                                $status_class = 'hl-badge-' . str_replace( '_', '-', $inst['status'] );
+                                $status_label = ucwords( str_replace( '_', ' ', $inst['status'] ) );
+                            ?>
+                                <tr>
+                                    <td><strong><?php echo esc_html( $inst['display_name'] ); ?></strong></td>
+                                    <td><?php echo esc_html( $inst['classroom_name'] ?: '—' ); ?></td>
+                                    <td><?php echo esc_html( $inst['instrument_age_band'] ? ucfirst( $inst['instrument_age_band'] ) : '—' ); ?></td>
+                                    <td><?php echo esc_html( $inst['children_assessed'] ?: '0' ); ?></td>
+                                    <td><span class="hl-badge <?php echo esc_attr( $status_class ); ?>"><?php echo esc_html( $status_label ); ?></span></td>
+                                    <td><?php echo $inst['submitted_at'] ? esc_html( date_i18n( 'M j, Y', strtotime( $inst['submitted_at'] ) ) ) : '—'; ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endforeach; ?>
+
+            <?php if ( empty( $tsa_instances ) && empty( $ca_instances ) ) : ?>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No assessment data found for your school.', 'hl-core' ); ?></p></div>
+            <?php endif; ?>
+
         </div>
         <?php
     }
