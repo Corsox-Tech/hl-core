@@ -230,7 +230,19 @@ class HL_Frontend_My_Cycle {
                 </div>
             <?php endforeach; ?>
         </div>
+        <?php
 
+        // Output tab JS via wp_footer to avoid content filter stripping.
+        add_action( 'wp_footer', array( $this, 'render_tab_script' ), 99 );
+
+        return ob_get_clean();
+    }
+
+    /**
+     * Output tab-switching JS in the page footer.
+     */
+    public function render_tab_script() {
+        ?>
         <script>
         (function(){
             var tabs = document.querySelectorAll('.hl-cycle-tab');
@@ -245,7 +257,6 @@ class HL_Frontend_My_Cycle {
                     this.classList.add('active');
                     var panel = document.getElementById(target);
                     if (panel) panel.classList.add('active');
-                    // Update URL
                     var tabName = target.replace('hl-tab-', '');
                     if (window.history && window.history.replaceState) {
                         var url = new URL(window.location);
@@ -257,8 +268,6 @@ class HL_Frontend_My_Cycle {
         })();
         </script>
         <?php
-
-        return ob_get_clean();
     }
 
     // ========================================================================
