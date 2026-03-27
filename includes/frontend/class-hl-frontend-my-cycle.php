@@ -183,13 +183,20 @@ class HL_Frontend_My_Cycle {
         // Build tabs based on cycle type.
         $is_control = ! empty( $cycle->is_control_group );
 
+        // Assessments tab: only for staff until teacher consent is obtained.
+        $show_assessments_tab = HL_Security::can_manage();
+
         if ( $is_control ) {
-            // Control groups: Reports, Assessments, Classrooms (no Teams, no Staff).
+            // Control groups: Reports + Classrooms (no Teams, no Staff).
             $tabs = array(
-                'reports'     => __( 'Reports', 'hl-core' ),
-                'assessments' => __( 'Assessments', 'hl-core' ),
-                'classrooms'  => __( 'Classrooms', 'hl-core' ),
+                'reports'    => __( 'Reports', 'hl-core' ),
+                'classrooms' => __( 'Classrooms', 'hl-core' ),
             );
+            if ( $show_assessments_tab ) {
+                $tabs = array_slice( $tabs, 0, 1, true )
+                    + array( 'assessments' => __( 'Assessments', 'hl-core' ) )
+                    + array_slice( $tabs, 1, null, true );
+            }
             $default_tab = 'reports';
         } else {
             $tabs = array(
@@ -765,6 +772,14 @@ class HL_Frontend_My_Cycle {
     // ========================================================================
 
     private function render_assessments_tab( $cycle, $scope ) {
+        // Staff only — teacher consent required before sharing responses with leaders.
+        if ( ! HL_Security::can_manage() ) {
+            echo '<div class="hl-notice hl-notice-warning">'
+                . esc_html__( 'Assessment responses are not available at this time.', 'hl-core' )
+                . '</div>';
+            return;
+        }
+
         // Check if viewing a specific TSA instance (detail/form view).
         $view_tsa_id = isset( $_GET['view_tsa'] ) ? absint( $_GET['view_tsa'] ) : 0;
         if ( $view_tsa_id ) {
