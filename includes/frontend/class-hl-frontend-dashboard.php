@@ -444,7 +444,7 @@ class HL_Frontend_Dashboard {
                 ?>
             </div>
         </div>
-        <?php endif;
+        <?php endif; ?>
 
         <?php if ( ! $context['all_control'] ) : ?>
 
