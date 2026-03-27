@@ -180,23 +180,30 @@ class HL_Frontend_My_Cycle {
             ? $this->orgunit_repo->get_by_id( $scope['orgunit_id'] )
             : null;
 
-        // Active tab — default to 'staff' for control group cycles (no teams).
-        $default_tab = ( ! empty( $cycle->is_control_group ) ) ? 'staff' : 'teams';
-        $active_tab  = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : $default_tab;
-        $valid_tabs  = array( 'teams', 'staff', 'reports', 'classrooms' );
-        if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
-            $active_tab = $default_tab;
+        // Build tabs based on cycle type.
+        $is_control = ! empty( $cycle->is_control_group );
+
+        if ( $is_control ) {
+            // Control groups: Reports + Classrooms only (no Teams, no Staff — Staff is redundant with Reports).
+            $tabs = array(
+                'reports'    => __( 'Reports', 'hl-core' ),
+                'classrooms' => __( 'Classrooms', 'hl-core' ),
+            );
+            $default_tab = 'reports';
+        } else {
+            $tabs = array(
+                'teams'      => __( 'Teams', 'hl-core' ),
+                'staff'      => __( 'Staff', 'hl-core' ),
+                'reports'    => __( 'Reports', 'hl-core' ),
+                'classrooms' => __( 'Classrooms', 'hl-core' ),
+            );
+            $default_tab = 'teams';
         }
 
-        $tabs = array(
-            'staff'      => __( 'Staff', 'hl-core' ),
-            'reports'    => __( 'Reports', 'hl-core' ),
-            'classrooms' => __( 'Classrooms', 'hl-core' ),
-        );
-
-        // Only show Teams tab for non-control-group cycles.
-        if ( empty( $cycle->is_control_group ) ) {
-            $tabs = array_merge( array( 'teams' => __( 'Teams', 'hl-core' ) ), $tabs );
+        $active_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : $default_tab;
+        $valid_tabs = array_keys( $tabs );
+        if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
+            $active_tab = $default_tab;
         }
 
         ?>
@@ -564,6 +571,14 @@ class HL_Frontend_My_Cycle {
     private function render_reports_tab( $cycle, $scope ) {
         $filters      = $this->get_scope_filters( $cycle->cycle_id, $scope );
         $participants = $this->reporting_service->get_participant_report( $filters );
+
+        // Exclude the current user (the leader viewing this page) from the report.
+        // Leaders without a pathway assigned are not participants — they're viewers.
+        $current_user_id = get_current_user_id();
+        $participants = array_filter( $participants, function ( $p ) use ( $current_user_id ) {
+            return (int) $p['user_id'] !== $current_user_id;
+        } );
+        $participants = array_values( $participants );
 
         // Activity detail for expandable rows.
         $enrollment_ids  = wp_list_pluck( $participants, 'enrollment_id' );
