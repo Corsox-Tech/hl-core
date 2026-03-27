@@ -24,10 +24,12 @@ class HL_Assessment_Service {
     public function get_teacher_assessments_by_cycle($cycle_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT tai.*, e.user_id, u.display_name, u.user_email
+            "SELECT tai.*, e.user_id, u.display_name, u.user_email,
+                    o.name AS school_name
              FROM {$wpdb->prefix}hl_teacher_assessment_instance tai
              JOIN {$wpdb->prefix}hl_enrollment e ON tai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON e.school_id = o.orgunit_id
              WHERE tai.cycle_id = %d ORDER BY tai.phase ASC, u.display_name ASC",
             $cycle_id
         ), ARRAY_A) ?: array();
@@ -907,7 +909,7 @@ class HL_Assessment_Service {
         sort($all_question_ids);
 
         // Header row
-        $header = array('Instance ID', 'Teacher Name', 'Email', 'Phase', 'Status', 'Submitted At');
+        $header = array('Instance ID', 'Teacher Name', 'Email', 'School', 'Phase', 'Status', 'Submitted At');
         foreach ($all_question_ids as $qid) {
             $header[] = $qid;
         }
@@ -919,6 +921,7 @@ class HL_Assessment_Service {
                 $inst['instance_id'],
                 $inst['display_name'],
                 $inst['user_email'],
+                $inst['school_name'] ?? '',
                 $inst['phase'],
                 $inst['status'],
                 $inst['submitted_at'] ?: '',
@@ -1000,7 +1003,7 @@ class HL_Assessment_Service {
         $output = fopen( 'php://temp', 'r+' );
 
         // Header row.
-        $header = array( 'Teacher Name', 'Email', 'Phase', 'Status', 'Submitted At' );
+        $header = array( 'Teacher Name', 'Email', 'School', 'Phase', 'Status', 'Submitted At' );
         foreach ( $columns as $col ) {
             $header[] = $col['header'];
         }
@@ -1024,6 +1027,7 @@ class HL_Assessment_Service {
             $row = array(
                 $inst['display_name'],
                 $inst['user_email'],
+                $inst['school_name'] ?? '',
                 $inst['phase'],
                 $inst['status'],
                 $inst['submitted_at'] ?: '',

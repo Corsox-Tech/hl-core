@@ -334,7 +334,7 @@ class HL_Admin_Assessments {
 
         // Table
         $can_switch = class_exists('BP_Core_Members_Switching') && current_user_can('edit_users');
-        $col_count = $can_switch ? 8 : 7;
+        $col_count = $can_switch ? 9 : 8;
 
         $phase_counts = array();
         foreach ($instances as $inst) {
@@ -347,6 +347,7 @@ class HL_Admin_Assessments {
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Teacher', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Email', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Phase', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Submitted At', 'hl-core') . '</th>';
@@ -374,6 +375,7 @@ class HL_Admin_Assessments {
             echo '<td>' . esc_html($inst['instance_id']) . '</td>';
             echo '<td><a href="' . esc_url($user_edit_url) . '">' . esc_html($inst['display_name']) . '</a></td>';
             echo '<td>' . esc_html($inst['user_email']) . '</td>';
+            echo '<td>' . esc_html($inst['school_name'] ?? '-') . '</td>';
             echo '<td><span style="text-transform:uppercase;font-weight:600;">' . esc_html($inst['phase']) . '</span></td>';
             echo '<td>' . $this->render_status_badge($inst['status']) . '</td>';
             echo '<td>' . esc_html($inst['submitted_at'] ?: '-') . '</td>';
