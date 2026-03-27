@@ -395,7 +395,7 @@ class HL_Frontend_Classroom_Visit {
                         </button>
                         <button type="submit" name="hl_cv_action" value="submit" class="hlcv-btn hlcv-btn-submit">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                            <?php esc_html_e('Submit Observation', 'hl-core'); ?>
+                            <?php esc_html_e('Submit', 'hl-core'); ?>
                         </button>
                     </div>
                 <?php endif; ?>

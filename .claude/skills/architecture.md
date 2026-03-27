@@ -262,10 +262,10 @@ Housman measures program impact by comparing:
     /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (9 classes)
     /cli/                        # WP-CLI commands (13 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses) + data files
-    /services/                   # Business logic (20 services incl. HL_RP_Session_Service, HL_Classroom_Visit_Service, HL_Session_Prep_Service)
+    /services/                   # Business logic (20 services incl. HL_RP_Session_Service, HL_Classroom_Visit_Service, HL_Session_Prep_Service, HL_Scheduling_Email_Service with admin-editable templates)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss (3 classes, JFB legacy)
-    /admin/                      # WP admin pages (17 controllers incl. Coaching Hub with Coaches tab)
+    /admin/                      # WP admin pages (18 controllers incl. Coaching Hub with Coaches tab, Email Templates editor)
     /frontend/                   # 28 shortcode page renderers + 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + instrument/teacher-assessment renderers
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, age group helpers + label remap (legacy)

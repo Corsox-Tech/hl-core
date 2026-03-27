@@ -618,7 +618,7 @@ class HL_Frontend_Program_Page {
 
         // Coaching session: show session-specific info.
         if ($type === 'coaching_session_attendance') {
-            return $this->get_coaching_action_html($enrollment);
+            return $this->get_coaching_action_html($component, $enrollment);
         }
 
         // New event component types: link to Component Page.
@@ -682,26 +682,27 @@ class HL_Frontend_Program_Page {
     /**
      * Build coaching session action HTML for the component card.
      *
-     * - Session scheduled: "Upcoming on [date]" badge + meeting link
-     * - No session: "Schedule Session" button linking to My Coaching page
+     * - Session scheduled: "Upcoming on [date]" badge + "View Session" button
+     * - No session: "Schedule Session" button linking to Component Page
      * - Session missed: "Missed" badge + "Reschedule" link
      * - Session attended: "Completed on [date]" (handled by main card, this is fallback)
      *
+     * @param object $component
      * @param object $enrollment
      * @return string
      */
-    private function get_coaching_action_html($enrollment) {
+    private function get_coaching_action_html($component, $enrollment) {
         $coaching_service = new HL_Coaching_Service();
-        $now = current_time('mysql');
+        $component_id = $component->component_id;
 
-        // Get the most relevant session: prefer upcoming scheduled, then most recent.
+        // Get sessions for THIS specific component, not all coaching sessions in the enrollment.
         $upcoming = $coaching_service->get_upcoming_sessions(
             $enrollment->enrollment_id,
-            $enrollment->cycle_id
+            $enrollment->cycle_id,
+            $component_id
         );
 
         if (!empty($upcoming)) {
-            // Show the next upcoming session.
             $session = $upcoming[0];
             $date_display = !empty($session['session_datetime'])
                 ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($session['session_datetime']))
@@ -712,9 +713,11 @@ class HL_Frontend_Program_Page {
                   . sprintf(esc_html__('Upcoming on %s', 'hl-core'), esc_html($date_display))
                   . '</span>';
 
-            if (!empty($session['meeting_url'])) {
-                $html .= ' <a href="' . esc_url($session['meeting_url']) . '" target="_blank" class="hl-btn hl-btn-sm hl-btn-primary">'
-                       . esc_html__('Join Meeting', 'hl-core')
+            // "View Session" button links to the Component Page (session details + Action Plan).
+            $component_page_url = $this->get_component_page_url($component_id, $enrollment->enrollment_id);
+            if (!empty($component_page_url)) {
+                $html .= ' <a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
+                       . esc_html__('View Session', 'hl-core')
                        . '</a>';
             }
 
@@ -724,7 +727,8 @@ class HL_Frontend_Program_Page {
         // Check for recently missed session (past, status = scheduled but datetime < now).
         $past = $coaching_service->get_past_sessions(
             $enrollment->enrollment_id,
-            $enrollment->cycle_id
+            $enrollment->cycle_id,
+            $component_id
         );
 
         if (!empty($past)) {
@@ -732,10 +736,10 @@ class HL_Frontend_Program_Page {
             $status = $latest['session_status'] ?? 'scheduled';
 
             if ($status === 'missed') {
-                $coaching_page_url = $this->find_shortcode_page_url('hl_my_coaching');
+                $component_page_url = $this->get_component_page_url($component_id, $enrollment->enrollment_id);
                 $html = HL_Coaching_Service::render_status_badge('missed');
-                if ($coaching_page_url) {
-                    $html .= ' <a href="' . esc_url(add_query_arg('enrollment', $enrollment->enrollment_id, $coaching_page_url)) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
+                if ($component_page_url) {
+                    $html .= ' <a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
                            . esc_html__('Reschedule', 'hl-core')
                            . '</a>';
                 }
@@ -743,10 +747,10 @@ class HL_Frontend_Program_Page {
             }
         }
 
-        // No session scheduled yet: show "Schedule Session" button.
-        $coaching_page_url = $this->find_shortcode_page_url('hl_my_coaching');
-        if ($coaching_page_url) {
-            return '<a href="' . esc_url(add_query_arg('enrollment', $enrollment->enrollment_id, $coaching_page_url)) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
+        // No session scheduled yet: link to the Component Page (scheduling UI).
+        $component_page_url = $this->get_component_page_url($component_id, $enrollment->enrollment_id);
+        if ($component_page_url) {
+            return '<a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
                  . esc_html__('Schedule Session', 'hl-core')
                  . '</a>';
         }
@@ -790,6 +794,14 @@ class HL_Frontend_Program_Page {
             if (!empty($component_page_url)) {
                 return '<a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
                     . esc_html__('View Submission', 'hl-core') . '</a>';
+            }
+        }
+
+        if ($type === 'coaching_session_attendance') {
+            $component_page_url = $this->get_component_page_url($component->component_id, $enrollment->enrollment_id);
+            if (!empty($component_page_url)) {
+                return '<a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
+                    . esc_html__('View Session', 'hl-core') . '</a>';
             }
         }
 

@@ -235,14 +235,78 @@ class HL_Frontend_RP_Session {
 
             <script>
             (function(){
+                // Auto-save the form in the active panel as draft before switching tabs
+                function autoSaveActiveForm(container) {
+                    var activePanel = container.querySelector('.hl-rp-tab-panel.active');
+                    if (!activePanel) return Promise.resolve();
+                    var form = activePanel.querySelector('form');
+                    if (!form) return Promise.resolve();
+
+                    // Check if form has a nonce (editable, not read-only)
+                    var nonce = form.querySelector('input[name="hl_rp_notes_nonce"], input[name="hl_action_plan_nonce"]');
+                    if (!nonce) return Promise.resolve();
+
+                    // Sync TinyMCE editors to their textareas
+                    if (window.tinyMCE) {
+                        try { window.tinyMCE.triggerSave(); } catch(e) {}
+                    }
+
+                    // Build form data and force action=draft
+                    var formData = new FormData(form);
+                    // Determine which action field to set
+                    if (formData.has('hl_rp_notes_action') || form.querySelector('[name="hl_rp_notes_nonce"]')) {
+                        formData.set('hl_rp_notes_action', 'draft');
+                    }
+                    if (formData.has('hl_action_plan_action') || form.querySelector('[name="hl_action_plan_nonce"]')) {
+                        formData.set('hl_action_plan_action', 'draft');
+                    }
+
+                    // Show saving indicator
+                    var indicator = document.createElement('div');
+                    indicator.className = 'hl-autosave-indicator';
+                    indicator.textContent = '<?php echo esc_js(__('Saving draft...', 'hl-core')); ?>';
+                    indicator.style.cssText = 'position:fixed;top:16px;right:16px;background:#1e3a5f;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;z-index:10000;opacity:0;transition:opacity .2s';
+                    document.body.appendChild(indicator);
+                    requestAnimationFrame(function(){ indicator.style.opacity = '1'; });
+
+                    return fetch(window.location.href, {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'same-origin',
+                        redirect: 'manual'
+                    }).then(function(){
+                        indicator.textContent = '<?php echo esc_js(__('Draft saved', 'hl-core')); ?>';
+                        indicator.style.background = '#059669';
+                        setTimeout(function(){
+                            indicator.style.opacity = '0';
+                            setTimeout(function(){ indicator.remove(); }, 300);
+                        }, 1200);
+                    }).catch(function(){
+                        indicator.textContent = '<?php echo esc_js(__('Save failed', 'hl-core')); ?>';
+                        indicator.style.background = '#dc2626';
+                        setTimeout(function(){
+                            indicator.style.opacity = '0';
+                            setTimeout(function(){ indicator.remove(); }, 300);
+                        }, 2000);
+                    });
+                }
+
                 document.querySelectorAll('.hl-rp-tab').forEach(function(tab){
                     tab.addEventListener('click', function(){
-                        var container = this.closest('.hl-rp-session-detail');
-                        container.querySelectorAll('.hl-rp-tab').forEach(function(t){ t.classList.remove('active'); });
-                        container.querySelectorAll('.hl-rp-tab-panel').forEach(function(p){ p.classList.remove('active'); });
-                        this.classList.add('active');
-                        var target = document.getElementById(this.getAttribute('data-target'));
-                        if (target) target.classList.add('active');
+                        var clickedTab = this;
+                        var container = clickedTab.closest('.hl-rp-session-detail');
+
+                        // Don't re-switch to the already active tab
+                        if (clickedTab.classList.contains('active')) return;
+
+                        // Auto-save, then switch
+                        autoSaveActiveForm(container).then(function(){
+                            container.querySelectorAll('.hl-rp-tab').forEach(function(t){ t.classList.remove('active'); });
+                            container.querySelectorAll('.hl-rp-tab-panel').forEach(function(p){ p.classList.remove('active'); });
+                            clickedTab.classList.add('active');
+                            var target = document.getElementById(clickedTab.getAttribute('data-target'));
+                            if (target) target.classList.add('active');
+                        });
                     });
                 });
             })();

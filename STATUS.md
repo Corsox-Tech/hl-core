@@ -62,6 +62,9 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Frontend: My Coaching rewrite** — Component-based sessions hub with status badges, drip rule locking, complete_by dates, multi-cycle grouping.
 - [x] **Coach Mentor Detail: Schedule Next Session** — Button links to next unscheduled coaching component for streamlined coach-initiated scheduling.
 - [x] **Deployed to test** — Schema revision 24 verified, all 6 columns present. Manual browser testing pending (API credentials needed for end-to-end Zoom/Outlook tests).
+- [x] **Admin: Email Templates tab** — `HL_Admin_Email_Templates` in Settings hub. Edit subjects + body copy for 6 coaching session emails (Booked/Rescheduled/Cancelled x Mentor/Coach). Merge tags, Send Test, Reset to Default. `HL_Scheduling_Email_Service` updated to pull from `hl_email_templates` wp_option with defaults fallback.
+- [x] **Fix: Coaching session component buttons** — Program Page coaching cards now filter by `component_id` (fixes all sessions showing "Scheduled" when only one is). Button changed from "Join Meeting" to "View Session" linking to Component Page. Completed sessions get "View Session" link.
+- [x] **Fix: Action Plan domain dropdown clipping** — `.hlap-select` CSS: added `line-height:1.4`, `height:auto`, reduced padding.
 
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders

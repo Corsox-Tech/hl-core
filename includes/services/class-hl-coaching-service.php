@@ -57,49 +57,63 @@ class HL_Coaching_Service {
     /**
      * Get upcoming sessions (scheduled, session_datetime >= now) for a participant.
      *
-     * @param int $enrollment_id
-     * @param int $cycle_id
+     * @param int      $enrollment_id
+     * @param int      $cycle_id
+     * @param int|null $component_id Optional. Filter to a specific coaching component.
      * @return array
      */
-    public function get_upcoming_sessions($enrollment_id, $cycle_id) {
+    public function get_upcoming_sessions($enrollment_id, $cycle_id, $component_id = null) {
         global $wpdb;
         $now = current_time('mysql');
 
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT cs.*, u_coach.display_name AS coach_name
-             FROM {$wpdb->prefix}hl_coaching_session cs
-             LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
-             WHERE cs.mentor_enrollment_id = %d
-               AND cs.cycle_id = %d
-               AND cs.session_status = 'scheduled'
-               AND cs.session_datetime >= %s
-             ORDER BY cs.session_datetime ASC",
-            $enrollment_id, $cycle_id, $now
-        ), ARRAY_A) ?: array();
+        $sql = "SELECT cs.*, u_coach.display_name AS coach_name
+                FROM {$wpdb->prefix}hl_coaching_session cs
+                LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
+                WHERE cs.mentor_enrollment_id = %d
+                  AND cs.cycle_id = %d
+                  AND cs.session_status = 'scheduled'
+                  AND cs.session_datetime >= %s";
+        $params = array($enrollment_id, $cycle_id, $now);
+
+        if ($component_id) {
+            $sql .= " AND cs.component_id = %d";
+            $params[] = $component_id;
+        }
+
+        $sql .= " ORDER BY cs.session_datetime ASC";
+
+        return $wpdb->get_results($wpdb->prepare($sql, $params), ARRAY_A) ?: array();
     }
 
     /**
      * Get past sessions (datetime < now OR terminal status) for a participant.
      *
-     * @param int $enrollment_id
-     * @param int $cycle_id
+     * @param int      $enrollment_id
+     * @param int      $cycle_id
+     * @param int|null $component_id Optional. Filter to a specific coaching component.
      * @return array
      */
-    public function get_past_sessions($enrollment_id, $cycle_id) {
+    public function get_past_sessions($enrollment_id, $cycle_id, $component_id = null) {
         global $wpdb;
         $now = current_time('mysql');
 
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT cs.*, u_coach.display_name AS coach_name
-             FROM {$wpdb->prefix}hl_coaching_session cs
-             LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
-             WHERE cs.mentor_enrollment_id = %d
-               AND cs.cycle_id = %d
-               AND (cs.session_status IN ('attended','missed','cancelled','rescheduled')
-                    OR (cs.session_datetime < %s AND cs.session_status = 'scheduled'))
-             ORDER BY cs.session_datetime DESC",
-            $enrollment_id, $cycle_id, $now
-        ), ARRAY_A) ?: array();
+        $sql = "SELECT cs.*, u_coach.display_name AS coach_name
+                FROM {$wpdb->prefix}hl_coaching_session cs
+                LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
+                WHERE cs.mentor_enrollment_id = %d
+                  AND cs.cycle_id = %d
+                  AND (cs.session_status IN ('attended','missed','cancelled','rescheduled')
+                       OR (cs.session_datetime < %s AND cs.session_status = 'scheduled'))";
+        $params = array($enrollment_id, $cycle_id, $now);
+
+        if ($component_id) {
+            $sql .= " AND cs.component_id = %d";
+            $params[] = $component_id;
+        }
+
+        $sql .= " ORDER BY cs.session_datetime DESC";
+
+        return $wpdb->get_results($wpdb->prepare($sql, $params), ARRAY_A) ?: array();
     }
 
     // =========================================================================

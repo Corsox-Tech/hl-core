@@ -301,11 +301,15 @@ class HL_Frontend_Coach_Availability {
             return;
         }
 
-        $blocks_json = sanitize_text_field(isset($_POST['availability_data']) ? $_POST['availability_data'] : '[]');
+        $raw_post    = isset($_POST['availability_data']) ? $_POST['availability_data'] : '[]';
+        $blocks_json = wp_unslash($raw_post);
         $blocks      = json_decode($blocks_json, true);
         if (!is_array($blocks)) {
             $blocks = array();
         }
+        // Debug: log what was received.
+        error_log('[HL-Core Availability] Raw POST: ' . substr($raw_post, 0, 500));
+        error_log('[HL-Core Availability] Decoded blocks: ' . count($blocks));
 
         $valid_blocks = array();
         foreach ($blocks as $block) {

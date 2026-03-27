@@ -375,7 +375,7 @@ class HL_Frontend_Action_Plan {
         .hlap-muted{color:#94a3b8;font-size:14px}
 
         /* Select */
-        .hlap-select{width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-weight:500;color:#1e293b;background:#fff;font-family:inherit;transition:border-color .2s;appearance:auto}
+        .hlap-select{width:100%;padding:10px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;line-height:1.4;font-weight:500;color:#1e293b;background:#fff;font-family:inherit;transition:border-color .2s;appearance:auto;height:auto}
         .hlap-select:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1)}
 
         /* Textarea */

@@ -44,6 +44,58 @@ class HL_CLI_Import_ELCPB {
 	/** LD district meta value for school_district. */
 	const LD_DISTRICT_ID = '32916';
 
+	/** LD team post ID → team definition mapping. */
+	const LD_TEAMS = array(
+		33113 => array( 'name' => 'Team 1 - ABC Playschool',  'school_ld' => 32817, 'mentor_uid' => 287 ),
+		33114 => array( 'name' => 'Team 1 - Bright IDEAS',    'school_ld' => 32819, 'mentor_uid' => 288 ),
+		33115 => array( 'name' => 'Team 1 - Kings Kids',      'school_ld' => 32821, 'mentor_uid' => 282 ),
+		33116 => array( 'name' => 'Team 1 - Life Span',       'school_ld' => 32823, 'mentor_uid' => 283 ),
+		33117 => array( 'name' => 'Team 2 - Life Span',       'school_ld' => 32823, 'mentor_uid' => 284 ),
+		33118 => array( 'name' => 'Team 1 - Stepping Stones', 'school_ld' => 32825, 'mentor_uid' => 286 ),
+		33119 => array( 'name' => 'Team 1 - WeeCare',         'school_ld' => 32827, 'mentor_uid' => 289 ),
+		33120 => array( 'name' => 'Team 2 - WeeCare',         'school_ld' => 32827, 'mentor_uid' => 285 ),
+	);
+
+	/**
+	 * LD classroom post ID → classroom definition mapping.
+	 * Each: name, LD institution (school) ID, age_band.
+	 */
+	const LD_CLASSROOMS = array(
+		// ABC Playschool (32817).
+		32836 => array( 'name' => 'ABC Playschool - Infant',       'school_ld' => 32817, 'age_band' => 'infant' ),
+		32842 => array( 'name' => 'ABC Playschool - Toddler',      'school_ld' => 32817, 'age_band' => 'toddler' ),
+		34232 => array( 'name' => 'ABC Playschool - 2 year Old',   'school_ld' => 32817, 'age_band' => 'toddler' ),
+		35150 => array( 'name' => 'ABC PlaySchool - Preschool',    'school_ld' => 32817, 'age_band' => 'preschool' ),
+		// Bright IDEAS (32819).
+		32838 => array( 'name' => 'Bright IDEAS - Infant',         'school_ld' => 32819, 'age_band' => 'infant' ),
+		32839 => array( 'name' => 'Bright IDEAS - Toddler A',      'school_ld' => 32819, 'age_band' => 'toddler' ),
+		32840 => array( 'name' => 'Bright IDEAS - Toddler B',      'school_ld' => 32819, 'age_band' => 'toddler' ),
+		34234 => array( 'name' => "Bright IDEAS - 3's/4's",        'school_ld' => 32819, 'age_band' => 'preschool' ),
+		// King's Kids (32821).
+		32841 => array( 'name' => "King's Kids - Infant",          'school_ld' => 32821, 'age_band' => 'infant' ),
+		32837 => array( 'name' => "King's Kids - Toddler",        'school_ld' => 32821, 'age_band' => 'toddler' ),
+		32843 => array( 'name' => 'Kings Kid - Twos',              'school_ld' => 32821, 'age_band' => 'toddler' ),
+		34237 => array( 'name' => "Kings Kids - Three's",          'school_ld' => 32821, 'age_band' => 'preschool' ),
+		34238 => array( 'name' => 'Kings Kids - VPK',              'school_ld' => 32821, 'age_band' => 'preschool' ),
+		// Life Span (32823).
+		32844 => array( 'name' => 'Life Span - Infant',            'school_ld' => 32823, 'age_band' => 'infant' ),
+		32852 => array( 'name' => 'Life Span - Toddler B',        'school_ld' => 32823, 'age_band' => 'toddler' ),
+		32846 => array( 'name' => 'Life Span - Toddler C',        'school_ld' => 32823, 'age_band' => 'toddler' ),
+		32847 => array( 'name' => 'Life Span - Toddler D',        'school_ld' => 32823, 'age_band' => 'toddler' ),
+		34239 => array( 'name' => "Life Span - 3's",               'school_ld' => 32823, 'age_band' => 'preschool' ),
+		// Stepping Stones (32825).
+		32848 => array( 'name' => 'Stepping Stones - Infant/Toddler', 'school_ld' => 32825, 'age_band' => 'infant' ),
+		32849 => array( 'name' => 'Stepping Stones - Two A',       'school_ld' => 32825, 'age_band' => 'toddler' ),
+		32850 => array( 'name' => 'Stepping Stones - Two B',       'school_ld' => 32825, 'age_band' => 'toddler' ),
+		34240 => array( 'name' => 'Stepping Stones - 4 and 5',     'school_ld' => 32825, 'age_band' => 'preschool' ),
+		// WeeCare (32827).
+		32851 => array( 'name' => 'WeeCare - Infant',              'school_ld' => 32827, 'age_band' => 'infant' ),
+		32845 => array( 'name' => 'WeeCare - Toddler B',          'school_ld' => 32827, 'age_band' => 'toddler' ),
+		32854 => array( 'name' => 'WeeCare - Young Twos',          'school_ld' => 32827, 'age_band' => 'toddler' ),
+		32853 => array( 'name' => 'WeeCare - Twos',                'school_ld' => 32827, 'age_band' => 'toddler' ),
+		34241 => array( 'name' => 'WeeCare - Preschool',           'school_ld' => 32827, 'age_band' => 'preschool' ),
+	);
+
 	/**
 	 * Register the WP-CLI command.
 	 */
@@ -106,13 +158,22 @@ class HL_CLI_Import_ELCPB {
 		// Step 7: Assign pathways to enrollments.
 		$this->assign_pathways( $enrollments, $pathways );
 
-		// Step 8: Import LearnDash completion data.
+		// Step 8: Create teams and memberships from LD data.
+		$this->create_teams( $cycle_id, $orgunits, $enrollments );
+
+		// Step 9: Create classrooms.
+		$this->create_classrooms( $orgunits );
+
+		// Step 10: Import LearnDash completion data.
 		$this->import_completion_data( $enrollments, $pathways );
 
-		// Step 9: Create TSA and reflection placeholder states.
+		// Step 11: Create TSA and reflection placeholder states.
 		$this->create_placeholder_states( $enrollments, $pathways );
 
-		// Step 10: Compute completion rollups.
+		// Step 12: Import Teacher Self-Assessment responses.
+		$this->import_tsa_data( $cycle_id, $enrollments, $pathways );
+
+		// Step 13: Compute completion rollups.
 		$this->compute_rollups( $enrollments );
 
 		WP_CLI::line( '' );
@@ -467,7 +528,108 @@ class HL_CLI_Import_ELCPB {
 	}
 
 	// ------------------------------------------------------------------
-	// Step 8: LearnDash completion data
+	// Step 8: Teams
+	// ------------------------------------------------------------------
+
+	private function create_teams( $cycle_id, $orgunits, $enrollments ) {
+		global $wpdb;
+		$svc        = new HL_Team_Service();
+		$team_count = 0;
+		$mem_count  = 0;
+
+		// Build user_id → enrollment_id lookup from all enrollments.
+		$uid_to_eid = array();
+		foreach ( $enrollments['all'] as $e ) {
+			$uid_to_eid[ $e['user_id'] ] = $e['enrollment_id'];
+		}
+
+		foreach ( self::LD_TEAMS as $ld_team_id => $def ) {
+			$school_id = isset( $orgunits['schools'][ $def['school_ld'] ] ) ? $orgunits['schools'][ $def['school_ld'] ] : null;
+			if ( ! $school_id ) {
+				WP_CLI::warning( "  Team '{$def['name']}': school LD {$def['school_ld']} not found — skipping." );
+				continue;
+			}
+
+			$team_id = $svc->create_team( array(
+				'team_name' => $def['name'],
+				'cycle_id'  => $cycle_id,
+				'school_id' => $school_id,
+			) );
+
+			if ( is_wp_error( $team_id ) ) {
+				WP_CLI::warning( "  Team '{$def['name']}': " . $team_id->get_error_message() );
+				continue;
+			}
+			$team_count++;
+
+			// Add mentor as team member.
+			$mentor_uid = $def['mentor_uid'];
+			if ( isset( $uid_to_eid[ $mentor_uid ] ) ) {
+				$result = $svc->add_member( $team_id, $uid_to_eid[ $mentor_uid ], 'mentor' );
+				if ( ! is_wp_error( $result ) ) {
+					$mem_count++;
+				}
+			}
+
+			// Find all users assigned to this LD team.
+			$team_user_ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = 'team' AND meta_value = %s",
+					(string) $ld_team_id
+				)
+			);
+
+			foreach ( $team_user_ids as $uid ) {
+				$uid = (int) $uid;
+				if ( $uid === $mentor_uid ) {
+					continue; // Already added as mentor.
+				}
+				if ( ! isset( $uid_to_eid[ $uid ] ) ) {
+					continue; // Not enrolled (school leader or skipped user).
+				}
+				$result = $svc->add_member( $team_id, $uid_to_eid[ $uid ], 'member' );
+				if ( ! is_wp_error( $result ) ) {
+					$mem_count++;
+				}
+			}
+		}
+
+		WP_CLI::log( "  [8] Teams created: {$team_count} (with {$mem_count} memberships)" );
+	}
+
+	// ------------------------------------------------------------------
+	// Step 9: Classrooms
+	// ------------------------------------------------------------------
+
+	private function create_classrooms( $orgunits ) {
+		$svc   = new HL_Classroom_Service();
+		$count = 0;
+
+		foreach ( self::LD_CLASSROOMS as $ld_classroom_id => $def ) {
+			$school_id = isset( $orgunits['schools'][ $def['school_ld'] ] ) ? $orgunits['schools'][ $def['school_ld'] ] : null;
+			if ( ! $school_id ) {
+				WP_CLI::warning( "  Classroom '{$def['name']}': school LD {$def['school_ld']} not found — skipping." );
+				continue;
+			}
+
+			$id = $svc->create_classroom( array(
+				'classroom_name' => $def['name'],
+				'school_id'      => $school_id,
+				'age_band'       => $def['age_band'],
+			) );
+
+			if ( is_wp_error( $id ) ) {
+				WP_CLI::warning( "  Classroom '{$def['name']}': " . $id->get_error_message() );
+				continue;
+			}
+			$count++;
+		}
+
+		WP_CLI::log( "  [9] Classrooms created: {$count}" );
+	}
+
+	// ------------------------------------------------------------------
+	// Step 10: LearnDash completion data
 	// ------------------------------------------------------------------
 
 	private function import_completion_data( $enrollments, $pathways ) {
@@ -551,7 +713,7 @@ class HL_CLI_Import_ELCPB {
 			}
 		}
 
-		WP_CLI::log( "  [8] LD completion imported: {$count_complete} complete, {$count_in_progress} in-progress" );
+		WP_CLI::log( "  [10] LD completion imported: {$count_complete} complete, {$count_in_progress} in-progress" );
 	}
 
 	// ------------------------------------------------------------------
@@ -596,11 +758,205 @@ class HL_CLI_Import_ELCPB {
 			}
 		}
 
-		WP_CLI::log( "  [9] Placeholder states created: {$count}" );
+		WP_CLI::log( "  [11] Placeholder states created: {$count}" );
 	}
 
 	// ------------------------------------------------------------------
-	// Step 10: Completion rollups
+	// Step 12: Teacher Self-Assessment data
+	// ------------------------------------------------------------------
+
+	private function import_tsa_data( $cycle_id, $enrollments, $pathways ) {
+		global $wpdb;
+		$now            = current_time( 'mysql', true );
+		$instance_count = 0;
+		$state_updated  = 0;
+
+		// Build user_id → enrollment lookup.
+		$uid_to_enrollment = array();
+		foreach ( $enrollments['all'] as $e ) {
+			$uid_to_enrollment[ $e['user_id'] ] = $e;
+		}
+
+		$tsa_data = $this->get_tsa_data();
+
+		foreach ( $tsa_data as $entry ) {
+			$uid   = $entry['user_id'];
+			$phase = $entry['phase'];
+
+			if ( ! isset( $uid_to_enrollment[ $uid ] ) ) {
+				continue; // User not in this import (e.g., test user 1409).
+			}
+
+			$e    = $uid_to_enrollment[ $uid ];
+			$role = $e['role'];
+
+			if ( ! isset( $pathways[ $role ] ) ) {
+				continue;
+			}
+
+			$components    = $pathways[ $role ]['components'];
+			$component_key = ( $phase === 'pre' ) ? 'tsa_pre' : 'tsa_post';
+
+			if ( ! isset( $components[ $component_key ] ) ) {
+				continue;
+			}
+
+			$component_id = $components[ $component_key ];
+
+			// Create teacher assessment instance.
+			$wpdb->insert( $wpdb->prefix . 'hl_teacher_assessment_instance', array(
+				'instance_uuid'  => HL_DB_Utils::generate_uuid(),
+				'cycle_id'       => $cycle_id,
+				'enrollment_id'  => $e['enrollment_id'],
+				'component_id'   => $component_id,
+				'phase'          => $phase,
+				'responses_json' => wp_json_encode( $entry['responses'] ),
+				'status'         => 'submitted',
+				'submitted_at'   => $entry['date'],
+				'created_at'     => $entry['date'],
+			) );
+			$instance_count++;
+
+			// Update the component_state from not_started → complete.
+			$updated = $wpdb->update(
+				$wpdb->prefix . 'hl_component_state',
+				array(
+					'completion_percent' => 100,
+					'completion_status'  => 'complete',
+					'completed_at'      => $entry['date'],
+					'last_computed_at'  => $now,
+				),
+				array(
+					'enrollment_id' => $e['enrollment_id'],
+					'component_id'  => $component_id,
+				)
+			);
+			if ( $updated ) {
+				$state_updated++;
+			}
+		}
+
+		WP_CLI::log( "  [12] TSA data imported: {$instance_count} instances, {$state_updated} states updated to complete" );
+	}
+
+	/**
+	 * Get hardcoded TSA response data extracted from Excel.
+	 * Source: data/Old - Assessment Entries Records/2025-10-10 - B2E Teacher Self-Assessment Report.xlsx
+	 * Scale: 1=Strongly Disagree, 2=Disagree, 3=Slightly Disagree, 4=Neither, 5=Slightly Agree, 6=Agree, 7=Strongly Agree
+	 */
+	private function get_tsa_data() {
+		return array(
+			array( 'user_id' => 289, 'phase' => 'pre', 'date' => '2025-02-25 15:23:00', 'responses' => array( 'q1' => 1, 'q2' => 1, 'q3' => 1, 'q4' => 3, 'q5' => 3, 'q6' => 1, 'q7' => 1, 'q8' => 3, 'q9' => 1, 'q10' => 1, 'q11' => 5, 'q12' => 1, 'q13' => 5, 'q14' => 5, 'q15' => 3, 'q16' => 5 ) ),
+			array( 'user_id' => 287, 'phase' => 'pre', 'date' => '2025-02-27 10:35:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 6, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 6, 'q10' => 5, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 290, 'phase' => 'pre', 'date' => '2025-03-01 07:23:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 6, 'q6' => 6, 'q7' => 4, 'q8' => 6, 'q9' => 6, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 5, 'q14' => 6, 'q15' => 5, 'q16' => 6 ) ),
+			array( 'user_id' => 292, 'phase' => 'pre', 'date' => '2025-03-01 13:36:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 5, 'q4' => 5, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 5, 'q10' => 5, 'q11' => 5, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 302, 'phase' => 'pre', 'date' => '2025-03-01 13:47:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 7, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 309, 'phase' => 'pre', 'date' => '2025-03-01 13:51:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 6, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 304, 'phase' => 'pre', 'date' => '2025-03-01 13:52:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 5, 'q4' => 6, 'q5' => 3, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 5, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 284, 'phase' => 'pre', 'date' => '2025-03-01 13:59:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 5, 'q6' => 7, 'q7' => 7, 'q8' => 4, 'q9' => 6, 'q10' => 6, 'q11' => 7, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 5, 'q16' => 6 ) ),
+			array( 'user_id' => 286, 'phase' => 'pre', 'date' => '2025-03-01 14:00:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 5, 'q6' => 6, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 6, 'q16' => 7 ) ),
+			array( 'user_id' => 330, 'phase' => 'pre', 'date' => '2025-03-01 14:04:00', 'responses' => array( 'q1' => 5, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 4, 'q6' => 6, 'q7' => 6, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 288, 'phase' => 'pre', 'date' => '2025-03-01 14:07:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 343, 'phase' => 'pre', 'date' => '2025-03-01 14:08:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 303, 'phase' => 'pre', 'date' => '2025-03-01 14:22:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 6, 'q15' => 6, 'q16' => 7 ) ),
+			array( 'user_id' => 300, 'phase' => 'pre', 'date' => '2025-03-01 17:58:00', 'responses' => array( 'q1' => 5, 'q2' => 5, 'q3' => 5, 'q4' => 5, 'q5' => 5, 'q6' => 5, 'q7' => 5, 'q8' => 5, 'q9' => 5, 'q10' => 5, 'q11' => 5, 'q12' => 5, 'q13' => 5, 'q14' => 5, 'q15' => 5, 'q16' => 5 ) ),
+			array( 'user_id' => 340, 'phase' => 'pre', 'date' => '2025-03-01 22:56:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 6, 'q6' => 6, 'q7' => 1, 'q8' => 6, 'q9' => 6, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 6, 'q16' => 7 ) ),
+			array( 'user_id' => 285, 'phase' => 'pre', 'date' => '2025-03-03 10:31:00', 'responses' => array( 'q1' => 6, 'q2' => 7, 'q3' => 6, 'q4' => 7, 'q5' => 6, 'q6' => 6, 'q7' => 7, 'q8' => 6, 'q9' => 7, 'q10' => 5, 'q11' => 6, 'q12' => 7, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 328, 'phase' => 'pre', 'date' => '2025-03-03 14:34:00', 'responses' => array( 'q1' => 1, 'q2' => 1, 'q3' => 1, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 1, 'q8' => 1, 'q9' => 6, 'q10' => 6, 'q11' => 5, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 7, 'q16' => 6 ) ),
+			array( 'user_id' => 295, 'phase' => 'pre', 'date' => '2025-03-03 16:39:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 307, 'phase' => 'pre', 'date' => '2025-03-04 11:15:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 347, 'phase' => 'pre', 'date' => '2025-03-04 11:28:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 6, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 6, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 6, 'q14' => 6, 'q15' => 5, 'q16' => 5 ) ),
+			array( 'user_id' => 323, 'phase' => 'pre', 'date' => '2025-03-04 14:25:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 4, 'q6' => 4, 'q7' => 6, 'q8' => 4, 'q9' => 6, 'q10' => 7, 'q11' => 6, 'q12' => 7, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 321, 'phase' => 'pre', 'date' => '2025-03-04 16:32:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 315, 'phase' => 'pre', 'date' => '2025-03-04 23:07:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 6, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 311, 'phase' => 'pre', 'date' => '2025-03-05 21:57:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 279, 'phase' => 'pre', 'date' => '2025-03-07 09:52:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 5, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 316, 'phase' => 'pre', 'date' => '2025-03-07 10:15:00', 'responses' => array( 'q1' => 5, 'q2' => 5, 'q3' => 5, 'q4' => 5, 'q5' => 5, 'q6' => 5, 'q7' => 5, 'q8' => 5, 'q9' => 5, 'q10' => 5, 'q11' => 5, 'q12' => 5, 'q13' => 5, 'q14' => 5, 'q15' => 5, 'q16' => 5 ) ),
+			array( 'user_id' => 317, 'phase' => 'pre', 'date' => '2025-03-07 13:37:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 322, 'phase' => 'pre', 'date' => '2025-03-07 15:21:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 7, 'q10' => 6, 'q11' => 6, 'q12' => 7, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 296, 'phase' => 'pre', 'date' => '2025-03-07 21:47:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 7, 'q8' => 6, 'q9' => 7, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 5, 'q15' => 5, 'q16' => 5 ) ),
+			array( 'user_id' => 310, 'phase' => 'pre', 'date' => '2025-03-09 22:39:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 7, 'q5' => 6, 'q6' => 4, 'q7' => 7, 'q8' => 6, 'q9' => 7, 'q10' => 6, 'q11' => 6, 'q12' => 7, 'q13' => 6, 'q14' => 6, 'q15' => 5, 'q16' => 5 ) ),
+			array( 'user_id' => 339, 'phase' => 'pre', 'date' => '2025-03-11 14:17:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 6, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 348, 'phase' => 'pre', 'date' => '2025-03-11 14:18:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 299, 'phase' => 'pre', 'date' => '2025-03-12 11:54:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 301, 'phase' => 'pre', 'date' => '2025-03-12 12:14:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 5, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 318, 'phase' => 'pre', 'date' => '2025-03-13 15:31:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 4, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 1, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 344, 'phase' => 'pre', 'date' => '2025-03-13 15:46:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 2, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 305, 'phase' => 'pre', 'date' => '2025-03-13 21:40:00', 'responses' => array( 'q1' => 1, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 345, 'phase' => 'pre', 'date' => '2025-03-14 11:24:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 7, 'q5' => 6, 'q6' => 5, 'q7' => 5, 'q8' => 5, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 5, 'q14' => 6, 'q15' => 5, 'q16' => 6 ) ),
+			array( 'user_id' => 283, 'phase' => 'pre', 'date' => '2025-03-14 11:30:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 7, 'q7' => 7, 'q8' => 6, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 6, 'q14' => 6, 'q15' => 5, 'q16' => 6 ) ),
+			array( 'user_id' => 316, 'phase' => 'post', 'date' => '2025-03-14 13:04:55', 'responses' => array( 'q1' => 5, 'q2' => 5, 'q3' => 5, 'q4' => 5, 'q5' => 5, 'q6' => 5, 'q7' => 6, 'q8' => 6, 'q9' => 4, 'q10' => 4, 'q11' => 5, 'q12' => 5, 'q13' => 5, 'q14' => 5, 'q15' => 5, 'q16' => 5 ) ),
+			array( 'user_id' => 324, 'phase' => 'pre', 'date' => '2025-03-14 14:53:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 1, 'q4' => 7, 'q5' => 4, 'q6' => 6, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 349, 'phase' => 'pre', 'date' => '2025-03-17 08:41:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 7, 'q6' => 7, 'q7' => 6, 'q8' => 6, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 3 ) ),
+			array( 'user_id' => 320, 'phase' => 'pre', 'date' => '2025-03-17 15:26:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 319, 'phase' => 'pre', 'date' => '2025-03-17 15:40:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 7, 'q5' => 6, 'q6' => 6, 'q7' => 5, 'q8' => 6, 'q9' => 5, 'q10' => 6, 'q11' => 6, 'q12' => 4, 'q13' => 6, 'q14' => 6, 'q15' => 5, 'q16' => 5 ) ),
+			array( 'user_id' => 325, 'phase' => 'pre', 'date' => '2025-03-18 12:40:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 6, 'q8' => 7, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 313, 'phase' => 'pre', 'date' => '2025-03-18 13:21:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 314, 'phase' => 'pre', 'date' => '2025-03-18 15:21:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 282, 'phase' => 'pre', 'date' => '2025-03-20 10:27:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 7, 'q4' => 7, 'q5' => 6, 'q6' => 6, 'q7' => 7, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 7, 'q12' => 7, 'q13' => 6, 'q14' => 7, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 315, 'phase' => 'post', 'date' => '2025-03-26 07:54:42', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 345, 'phase' => 'post', 'date' => '2025-03-27 10:27:21', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 6, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 327, 'phase' => 'pre', 'date' => '2025-04-01 13:05:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 4, 'q7' => 7, 'q8' => 3, 'q9' => 5, 'q10' => 5, 'q11' => 7, 'q12' => 7, 'q13' => 4, 'q14' => 4, 'q15' => 2, 'q16' => 2 ) ),
+			array( 'user_id' => 321, 'phase' => 'post', 'date' => '2025-04-01 13:14:00', 'responses' => array( 'q1' => 5, 'q2' => 5, 'q3' => 5, 'q4' => 5, 'q5' => 5, 'q6' => 5, 'q7' => 5, 'q8' => 5, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 326, 'phase' => 'pre', 'date' => '2025-04-02 13:16:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 350, 'phase' => 'pre', 'date' => '2025-04-03 13:39:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 5, 'q6' => 5, 'q7' => 5, 'q8' => 5, 'q9' => 5, 'q10' => 5, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 311, 'phase' => 'post', 'date' => '2025-04-04 09:13:20', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 317, 'phase' => 'post', 'date' => '2025-04-07 08:39:27', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 306, 'phase' => 'pre', 'date' => '2025-04-07 18:25:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 6, 'q4' => 7, 'q5' => 6, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 6, 'q10' => 6, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 283, 'phase' => 'post', 'date' => '2025-04-08 11:17:52', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 6, 'q11' => 6, 'q12' => 7, 'q13' => 6, 'q14' => 7, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 284, 'phase' => 'post', 'date' => '2025-04-08 11:46:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 1408, 'phase' => 'pre', 'date' => '2025-04-11 09:30:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 7, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 341, 'phase' => 'pre', 'date' => '2025-04-11 13:00:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 5, 'q6' => 6, 'q7' => 7, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 286, 'phase' => 'post', 'date' => '2025-04-15 13:39:00', 'responses' => array( 'q1' => 6, 'q2' => 7, 'q3' => 5, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 6, 'q9' => 7, 'q10' => 6, 'q11' => 6, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 324, 'phase' => 'post', 'date' => '2025-04-15 14:47:07', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 4, 'q4' => 6, 'q5' => 4, 'q6' => 5, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 342, 'phase' => 'pre', 'date' => '2025-04-16 15:16:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 5, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 7, 'q10' => 6, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 341, 'phase' => 'post', 'date' => '2025-04-16 23:40:51', 'responses' => array( 'q1' => 6, 'q2' => 7, 'q3' => 7, 'q4' => 5, 'q5' => 5, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 3, 'q10' => 7, 'q11' => 7, 'q12' => 5, 'q13' => 6, 'q14' => 5, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 328, 'phase' => 'post', 'date' => '2025-04-17 12:53:21', 'responses' => array( 'q1' => 1, 'q2' => 3, 'q3' => 1, 'q4' => 4, 'q5' => 6, 'q6' => 6, 'q7' => 2, 'q8' => 2, 'q9' => 7, 'q10' => 4, 'q11' => 5, 'q12' => 6, 'q13' => 6, 'q14' => 7, 'q15' => 7, 'q16' => 6 ) ),
+			array( 'user_id' => 327, 'phase' => 'post', 'date' => '2025-04-17 13:37:30', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 7, 'q5' => 7, 'q6' => 3, 'q7' => 6, 'q8' => 2, 'q9' => 4, 'q10' => 4, 'q11' => 7, 'q12' => 7, 'q13' => 4, 'q14' => 6, 'q15' => 1, 'q16' => 2 ) ),
+			array( 'user_id' => 326, 'phase' => 'post', 'date' => '2025-04-17 13:39:23', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 7, 'q6' => 6, 'q7' => 5, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 6, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 300, 'phase' => 'post', 'date' => '2025-04-18 02:11:24', 'responses' => array( 'q1' => 5, 'q2' => 5, 'q3' => 5, 'q4' => 5, 'q5' => 5, 'q6' => 5, 'q7' => 5, 'q8' => 5, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 1408, 'phase' => 'post', 'date' => '2025-04-22 15:14:55', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 6, 'q4' => 7, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 5, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 7 ) ),
+			array( 'user_id' => 301, 'phase' => 'post', 'date' => '2025-04-23 08:06:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 1409, 'phase' => 'pre', 'date' => '2025-04-24 10:26:00', 'responses' => array( 'q1' => 1, 'q2' => 1, 'q3' => 1, 'q4' => 1, 'q5' => 1, 'q6' => 1, 'q7' => 1, 'q8' => 1, 'q9' => 1, 'q10' => 1, 'q11' => 1, 'q12' => 1, 'q13' => 1, 'q14' => 1, 'q15' => 1, 'q16' => 1 ) ),
+			array( 'user_id' => 1409, 'phase' => 'pre', 'date' => '2025-04-24 10:36:00', 'responses' => array( 'q1' => 1, 'q2' => 1, 'q3' => 1, 'q4' => 1, 'q5' => 1, 'q6' => 1, 'q7' => 1, 'q8' => 1, 'q9' => 1, 'q10' => 1, 'q11' => 1, 'q12' => 1, 'q13' => 1, 'q14' => 1, 'q15' => 1, 'q16' => 1 ) ),
+			array( 'user_id' => 349, 'phase' => 'post', 'date' => '2025-04-24 12:13:10', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 307, 'phase' => 'post', 'date' => '2025-04-25 13:10:19', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 7, 'q6' => 6, 'q7' => 5, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 6, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 298, 'phase' => 'pre', 'date' => '2025-04-29 14:51:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 6, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 6, 'q15' => 7, 'q16' => 6 ) ),
+			array( 'user_id' => 306, 'phase' => 'post', 'date' => '2025-04-29 20:24:26', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 5, 'q10' => 6, 'q11' => 6, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 294, 'phase' => 'pre', 'date' => '2025-04-30 13:21:00', 'responses' => array( 'q1' => 6, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 303, 'phase' => 'post', 'date' => '2025-04-30 22:02:59', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 6, 'q15' => 6, 'q16' => 7 ) ),
+			array( 'user_id' => 358, 'phase' => 'pre', 'date' => '2025-05-01 13:17:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 313, 'phase' => 'post', 'date' => '2025-05-01 20:40:19', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 6, 'q6' => 6, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 320, 'phase' => 'post', 'date' => '2025-05-05 02:03:36', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 342, 'phase' => 'post', 'date' => '2025-05-06 11:07:30', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 7, 'q5' => 4, 'q6' => 4, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 7, 'q11' => 6, 'q12' => 6, 'q13' => 7, 'q14' => 7, 'q15' => 4, 'q16' => 6 ) ),
+			array( 'user_id' => 280, 'phase' => 'pre', 'date' => '2025-05-08 09:36:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 5, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 7, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 309, 'phase' => 'post', 'date' => '2025-05-08 13:28:57', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 287, 'phase' => 'post', 'date' => '2025-05-09 18:14:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 288, 'phase' => 'post', 'date' => '2025-05-12 16:16:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 5, 'q6' => 5, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 330, 'phase' => 'post', 'date' => '2025-05-14 08:48:00', 'responses' => array( 'q1' => 6, 'q2' => 7, 'q3' => 6, 'q4' => 7, 'q5' => 5, 'q6' => 6, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 339, 'phase' => 'post', 'date' => '2025-05-14 13:10:19', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 319, 'phase' => 'post', 'date' => '2025-05-30 13:22:18', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 6, 'q4' => 7, 'q5' => 6, 'q6' => 7, 'q7' => 5, 'q8' => 7, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 5, 'q13' => 6, 'q14' => 6, 'q15' => 2, 'q16' => 5 ) ),
+			array( 'user_id' => 323, 'phase' => 'post', 'date' => '2025-05-30 21:00:37', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 4, 'q6' => 4, 'q7' => 6, 'q8' => 4, 'q9' => 6, 'q10' => 7, 'q11' => 6, 'q12' => 7, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 340, 'phase' => 'post', 'date' => '2025-06-02 15:42:12', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 6, 'q6' => 6, 'q7' => 2, 'q8' => 4, 'q9' => 2, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 6, 'q16' => 7 ) ),
+			array( 'user_id' => 343, 'phase' => 'post', 'date' => '2025-06-04 15:22:36', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 285, 'phase' => 'post', 'date' => '2025-06-08 15:15:54', 'responses' => array( 'q1' => 6, 'q2' => 7, 'q3' => 6, 'q4' => 7, 'q5' => 6, 'q6' => 6, 'q7' => 7, 'q8' => 6, 'q9' => 7, 'q10' => 5, 'q11' => 6, 'q12' => 7, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 310, 'phase' => 'post', 'date' => '2025-06-08 16:09:45', 'responses' => array( 'q1' => 6, 'q2' => 4, 'q3' => 6, 'q4' => 7, 'q5' => 6, 'q6' => 4, 'q7' => 6, 'q8' => 7, 'q9' => 7, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 289, 'phase' => 'post', 'date' => '2025-06-24 15:33:52', 'responses' => array( 'q1' => 5, 'q2' => 7, 'q3' => 6, 'q4' => 6, 'q5' => 5, 'q6' => 5, 'q7' => 6, 'q8' => 6, 'q9' => 1, 'q10' => 1, 'q11' => 6, 'q12' => 1, 'q13' => 5, 'q14' => 5, 'q15' => 5, 'q16' => 5 ) ),
+			array( 'user_id' => 314, 'phase' => 'post', 'date' => '2025-06-26 11:52:00', 'responses' => array( 'q1' => 4, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 6, 'q10' => 7, 'q11' => 6, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 6, 'q16' => 7 ) ),
+			array( 'user_id' => 302, 'phase' => 'post', 'date' => '2025-07-09 09:32:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 7, 'q6' => 6, 'q7' => 6, 'q8' => 7, 'q9' => 6, 'q10' => 6, 'q11' => 7, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 304, 'phase' => 'post', 'date' => '2025-07-11 13:48:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 318, 'phase' => 'post', 'date' => '2025-07-22 15:29:00', 'responses' => array( 'q1' => 5, 'q2' => 5, 'q3' => 5, 'q4' => 5, 'q5' => 5, 'q6' => 5, 'q7' => 5, 'q8' => 5, 'q9' => 5, 'q10' => 5, 'q11' => 5, 'q12' => 5, 'q13' => 5, 'q14' => 5, 'q15' => 5, 'q16' => 5 ) ),
+			array( 'user_id' => 296, 'phase' => 'post', 'date' => '2025-07-23 20:32:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 7, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 344, 'phase' => 'post', 'date' => '2025-07-24 15:03:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 348, 'phase' => 'post', 'date' => '2025-07-24 16:35:00', 'responses' => array( 'q1' => 7, 'q2' => 6, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 325, 'phase' => 'post', 'date' => '2025-07-25 18:40:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+			array( 'user_id' => 299, 'phase' => 'post', 'date' => '2025-07-29 11:39:00', 'responses' => array( 'q1' => 6, 'q2' => 6, 'q3' => 6, 'q4' => 6, 'q5' => 6, 'q6' => 6, 'q7' => 6, 'q8' => 6, 'q9' => 6, 'q10' => 6, 'q11' => 6, 'q12' => 6, 'q13' => 6, 'q14' => 6, 'q15' => 6, 'q16' => 6 ) ),
+			array( 'user_id' => 282, 'phase' => 'post', 'date' => '2025-07-29 17:55:00', 'responses' => array( 'q1' => 7, 'q2' => 7, 'q3' => 7, 'q4' => 7, 'q5' => 7, 'q6' => 7, 'q7' => 7, 'q8' => 7, 'q9' => 7, 'q10' => 7, 'q11' => 7, 'q12' => 7, 'q13' => 7, 'q14' => 7, 'q15' => 7, 'q16' => 7 ) ),
+		);
+	}
+
+	// ------------------------------------------------------------------
+	// Step 13: Completion rollups
 	// ------------------------------------------------------------------
 
 	private function compute_rollups( $enrollments ) {
@@ -617,7 +973,7 @@ class HL_CLI_Import_ELCPB {
 			}
 		}
 
-		WP_CLI::log( "  [10] Completion rollups computed: {$count}" . ( $errors ? " ({$errors} errors)" : '' ) );
+		WP_CLI::log( "  [13] Completion rollups computed: {$count}" . ( $errors ? " ({$errors} errors)" : '' ) );
 	}
 
 	// ------------------------------------------------------------------
@@ -698,11 +1054,24 @@ class HL_CLI_Import_ELCPB {
 			WP_CLI::log( "  Deleted cycle {$cycle_id} and all related records." );
 		}
 
-		// Delete org units.
+		// Delete classrooms for ELCPB schools.
 		$district_id = $wpdb->get_var(
 			"SELECT orgunit_id FROM {$wpdb->prefix}hl_orgunit WHERE name = 'ELC Palm Beach County' AND orgunit_type = 'district' LIMIT 1"
 		);
 		if ( $district_id ) {
+			$school_ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT orgunit_id FROM {$wpdb->prefix}hl_orgunit WHERE parent_orgunit_id = %d AND orgunit_type = 'school'",
+					$district_id
+				)
+			);
+			if ( ! empty( $school_ids ) ) {
+				$in_schools = implode( ',', array_map( 'intval', $school_ids ) );
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}hl_classroom WHERE school_id IN ({$in_schools})" );
+				WP_CLI::log( '  Deleted ELCPB classrooms.' );
+			}
+
+			// Delete org units.
 			$wpdb->query(
 				$wpdb->prepare(
 					"DELETE FROM {$wpdb->prefix}hl_orgunit WHERE parent_orgunit_id = %d",

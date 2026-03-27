@@ -39,6 +39,12 @@ class HL_Admin_Settings {
                 }
                 break;
 
+            case 'email_templates':
+                if (isset($_POST['hl_email_templates_nonce'])) {
+                    HL_Admin_Email_Templates::instance()->handle_save();
+                }
+                break;
+
             default:
                 // Imports early actions are AJAX-based (no handle_early_actions needed).
                 break;
@@ -73,6 +79,10 @@ class HL_Admin_Settings {
                 HL_Admin_Scheduling_Settings::instance()->render_page_content();
                 break;
 
+            case 'email_templates':
+                HL_Admin_Email_Templates::instance()->render_page_content();
+                break;
+
             default:
                 HL_Admin_Imports::instance()->render_page_content();
                 break;
@@ -91,7 +101,8 @@ class HL_Admin_Settings {
             'imports'    => __('Imports', 'hl-core'),
             'audit'      => __('Audit Log', 'hl-core'),
             'docs'       => __('Doc Articles', 'hl-core'),
-            'scheduling' => __('Scheduling & Integrations', 'hl-core'),
+            'scheduling'       => __('Scheduling & Integrations', 'hl-core'),
+            'email_templates'  => __('Email Templates', 'hl-core'),
         );
         $base_url = admin_url('admin.php?page=hl-settings');
 

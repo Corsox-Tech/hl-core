@@ -7,6 +7,9 @@ if (!defined('ABSPATH')) exit;
  * Branded HTML emails for coaching session booking, rescheduling,
  * cancellation, and API failure fallback notifications.
  *
+ * Subjects and body copy are pulled from HL_Admin_Email_Templates
+ * (wp_options) with hardcoded defaults as fallback.
+ *
  * @package HL_Core
  */
 class HL_Scheduling_Email_Service {
@@ -43,34 +46,38 @@ class HL_Scheduling_Email_Service {
     public function send_session_booked($session_data) {
         $mentor_time = $this->format_time_in_tz($session_data['session_datetime'], $session_data['mentor_timezone']);
         $coach_time  = $this->format_time_in_tz($session_data['session_datetime'], $session_data['coach_timezone']);
+        $meeting_url = $session_data['meeting_url'] ?? '';
+
+        $merge_base = array(
+            'mentor_name'  => esc_html($session_data['mentor_name']),
+            'coach_name'   => esc_html($session_data['coach_name']),
+            'session_date' => $mentor_time,
+        );
 
         // Email to mentor.
+        $tpl_mentor = HL_Admin_Email_Templates::get_template('session_booked_mentor');
         $this->send(
             $session_data['mentor_email'],
-            __('Your Coaching Session Has Been Scheduled', 'hl-core'),
+            HL_Admin_Email_Templates::merge($tpl_mentor['subject'], $merge_base),
             $this->build_body(
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($session_data['mentor_name'])),
-                sprintf(
-                    __('Your coaching session with <strong>%s</strong> has been scheduled.', 'hl-core'),
-                    esc_html($session_data['coach_name'])
-                ),
+                HL_Admin_Email_Templates::merge($tpl_mentor['body'], $merge_base),
                 $mentor_time,
-                $session_data['meeting_url'] ?? ''
+                $meeting_url
             )
         );
 
         // Email to coach.
+        $merge_coach = array_merge($merge_base, array('session_date' => $coach_time));
+        $tpl_coach = HL_Admin_Email_Templates::get_template('session_booked_coach');
         $this->send(
             $session_data['coach_email'],
-            __('Coaching Session Scheduled', 'hl-core'),
+            HL_Admin_Email_Templates::merge($tpl_coach['subject'], $merge_coach),
             $this->build_body(
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($session_data['coach_name'])),
-                sprintf(
-                    __('A coaching session has been scheduled with <strong>%s</strong>.', 'hl-core'),
-                    esc_html($session_data['mentor_name'])
-                ),
+                HL_Admin_Email_Templates::merge($tpl_coach['body'], $merge_coach),
                 $coach_time,
-                $session_data['meeting_url'] ?? ''
+                $meeting_url
             )
         );
     }
@@ -86,37 +93,43 @@ class HL_Scheduling_Email_Service {
         $new_mentor_time = $this->format_time_in_tz($new_session['session_datetime'], $new_session['mentor_timezone']);
         $old_coach_time  = $this->format_time_in_tz($old_session['session_datetime'], $new_session['coach_timezone']);
         $new_coach_time  = $this->format_time_in_tz($new_session['session_datetime'], $new_session['coach_timezone']);
+        $meeting_url     = $new_session['meeting_url'] ?? '';
 
-        $mentor_detail = sprintf(
-            __('Your coaching session has been rescheduled from <strong>%s</strong> to <strong>%s</strong>.', 'hl-core'),
-            $old_mentor_time, $new_mentor_time
+        // Mentor email.
+        $tpl_mentor = HL_Admin_Email_Templates::get_template('session_rescheduled_mentor');
+        $merge_mentor = array(
+            'mentor_name'      => esc_html($new_session['mentor_name']),
+            'coach_name'       => esc_html($new_session['coach_name']),
+            'old_session_date' => $old_mentor_time,
+            'new_session_date' => $new_mentor_time,
         );
-        $coach_detail = sprintf(
-            __('A coaching session with <strong>%s</strong> has been rescheduled from <strong>%s</strong> to <strong>%s</strong>.', 'hl-core'),
-            esc_html($new_session['mentor_name']), $old_coach_time, $new_coach_time
-        );
-
-        // Email to mentor.
         $this->send(
             $new_session['mentor_email'],
-            __('Your Coaching Session Has Been Rescheduled', 'hl-core'),
+            HL_Admin_Email_Templates::merge($tpl_mentor['subject'], $merge_mentor),
             $this->build_body(
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($new_session['mentor_name'])),
-                $mentor_detail,
+                HL_Admin_Email_Templates::merge($tpl_mentor['body'], $merge_mentor),
                 $new_mentor_time,
-                $new_session['meeting_url'] ?? ''
+                $meeting_url
             )
         );
 
-        // Email to coach.
+        // Coach email.
+        $tpl_coach = HL_Admin_Email_Templates::get_template('session_rescheduled_coach');
+        $merge_coach = array(
+            'mentor_name'      => esc_html($new_session['mentor_name']),
+            'coach_name'       => esc_html($new_session['coach_name']),
+            'old_session_date' => $old_coach_time,
+            'new_session_date' => $new_coach_time,
+        );
         $this->send(
             $new_session['coach_email'],
-            __('Coaching Session Rescheduled', 'hl-core'),
+            HL_Admin_Email_Templates::merge($tpl_coach['subject'], $merge_coach),
             $this->build_body(
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($new_session['coach_name'])),
-                $coach_detail,
+                HL_Admin_Email_Templates::merge($tpl_coach['body'], $merge_coach),
                 $new_coach_time,
-                $new_session['meeting_url'] ?? ''
+                $meeting_url
             )
         );
     }
@@ -131,36 +144,39 @@ class HL_Scheduling_Email_Service {
         $mentor_time = $this->format_time_in_tz($session_data['session_datetime'], $session_data['mentor_timezone']);
         $coach_time  = $this->format_time_in_tz($session_data['session_datetime'], $session_data['coach_timezone']);
 
-        $cancel_note = sprintf(
-            __('This session was cancelled by %s.', 'hl-core'),
-            esc_html($cancelled_by_name)
+        // Mentor email.
+        $tpl_mentor = HL_Admin_Email_Templates::get_template('session_cancelled_mentor');
+        $merge_mentor = array(
+            'mentor_name'  => esc_html($session_data['mentor_name']),
+            'coach_name'   => esc_html($session_data['coach_name']),
+            'session_date' => $mentor_time,
+            'cancelled_by' => esc_html($cancelled_by_name),
         );
-
-        // Email to mentor.
         $this->send(
             $session_data['mentor_email'],
-            __('Your Coaching Session Has Been Cancelled', 'hl-core'),
+            HL_Admin_Email_Templates::merge($tpl_mentor['subject'], $merge_mentor),
             $this->build_body(
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($session_data['mentor_name'])),
-                sprintf(
-                    __('Your coaching session on <strong>%s</strong> has been cancelled.', 'hl-core'),
-                    $mentor_time
-                ) . '<br>' . $cancel_note,
+                HL_Admin_Email_Templates::merge($tpl_mentor['body'], $merge_mentor),
                 '',
                 ''
             )
         );
 
-        // Email to coach.
+        // Coach email.
+        $tpl_coach = HL_Admin_Email_Templates::get_template('session_cancelled_coach');
+        $merge_coach = array(
+            'mentor_name'  => esc_html($session_data['mentor_name']),
+            'coach_name'   => esc_html($session_data['coach_name']),
+            'session_date' => $coach_time,
+            'cancelled_by' => esc_html($cancelled_by_name),
+        );
         $this->send(
             $session_data['coach_email'],
-            __('Coaching Session Cancelled', 'hl-core'),
+            HL_Admin_Email_Templates::merge($tpl_coach['subject'], $merge_coach),
             $this->build_body(
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($session_data['coach_name'])),
-                sprintf(
-                    __('The coaching session with <strong>%s</strong> on <strong>%s</strong> has been cancelled.', 'hl-core'),
-                    esc_html($session_data['mentor_name']), $coach_time
-                ) . '<br>' . $cancel_note,
+                HL_Admin_Email_Templates::merge($tpl_coach['body'], $merge_coach),
                 '',
                 ''
             )
@@ -169,6 +185,7 @@ class HL_Scheduling_Email_Service {
 
     /**
      * Send fallback email when Outlook calendar event creation fails.
+     * (Fallback emails stay hardcoded — internal/technical, not client-facing.)
      *
      * @param array  $session_data  Session data.
      * @param string $error_message API error message.
@@ -214,6 +231,7 @@ class HL_Scheduling_Email_Service {
 
     /**
      * Send fallback email when Zoom meeting creation fails.
+     * (Fallback emails stay hardcoded — internal/technical, not client-facing.)
      *
      * @param array  $session_data  Session data.
      * @param string $error_message API error message.
@@ -324,6 +342,19 @@ class HL_Scheduling_Email_Service {
      * @return string Full HTML.
      */
     private function build_body($greeting, $message, $time_display, $meeting_url) {
+        return $this->build_branded_body($greeting, $message, $time_display, $meeting_url);
+    }
+
+    /**
+     * Build a branded HTML email body (public for test emails).
+     *
+     * @param string $greeting    e.g. "Hello Jane,"
+     * @param string $message     Main message HTML.
+     * @param string $time_display Formatted date/time string (for details block).
+     * @param string $meeting_url  Zoom link (optional).
+     * @return string Full HTML.
+     */
+    public function build_branded_body($greeting, $message, $time_display, $meeting_url) {
         $logo_url = 'https://academy.housmanlearning.com/wp-content/uploads/2024/09/Housman-Learning-Logo-Horizontal-Color.svg';
 
         $html  = '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;">';
@@ -336,7 +367,7 @@ class HL_Scheduling_Email_Service {
         // Body.
         $html .= '<tr><td style="background:#FFFFFF;padding:40px;">';
         $html .= '<p style="margin:0 0 24px;font-size:18px;font-weight:600;color:#1A2B47;">' . $greeting . '</p>';
-        $html .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">' . $message . '</p>';
+        $html .= '<div style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">' . $message . '</div>';
 
         // Session details block.
         if (!empty($time_display)) {

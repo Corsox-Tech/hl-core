@@ -181,6 +181,29 @@ class HL_RP_Session_Service {
     }
 
     /**
+     * Find the mentor enrollment for a given teacher via team membership.
+     *
+     * @param int $teacher_enrollment_id
+     * @return int|null Mentor enrollment ID or null if not found.
+     */
+    public function get_mentor_for_teacher($teacher_enrollment_id) {
+        global $wpdb;
+        return $wpdb->get_var($wpdb->prepare(
+            "SELECT tm_mentor.enrollment_id
+             FROM {$wpdb->prefix}hl_team_membership tm_teacher
+             JOIN {$wpdb->prefix}hl_team_membership tm_mentor
+                 ON tm_teacher.team_id = tm_mentor.team_id
+                 AND tm_mentor.enrollment_id != %d
+             JOIN {$wpdb->prefix}hl_enrollment e ON tm_mentor.enrollment_id = e.enrollment_id
+             WHERE tm_teacher.enrollment_id = %d
+               AND e.status = 'active'
+               AND e.roles LIKE %s
+             LIMIT 1",
+            $teacher_enrollment_id, $teacher_enrollment_id, '%"mentor"%'
+        ));
+    }
+
+    /**
      * Transition session status with validation.
      *
      * @param int    $rp_session_id
