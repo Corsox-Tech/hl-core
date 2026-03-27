@@ -215,6 +215,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-ea.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-setup-elcpb-y2-v2.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-beginnings.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-diagnose-nav.php';
         }
     }
     

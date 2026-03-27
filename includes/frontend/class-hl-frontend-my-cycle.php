@@ -189,11 +189,15 @@ class HL_Frontend_My_Cycle {
         }
 
         $tabs = array(
-            'teams'      => __( 'Teams', 'hl-core' ),
             'staff'      => __( 'Staff', 'hl-core' ),
             'reports'    => __( 'Reports', 'hl-core' ),
             'classrooms' => __( 'Classrooms', 'hl-core' ),
         );
+
+        // Only show Teams tab for non-control-group cycles.
+        if ( empty( $cycle->is_control_group ) ) {
+            $tabs = array_merge( array( 'teams' => __( 'Teams', 'hl-core' ) ), $tabs );
+        }
 
         ?>
         <div class="hl-dashboard hl-my-cycle hl-frontend-wrap">
@@ -243,42 +247,8 @@ class HL_Frontend_My_Cycle {
         </div>
         <?php
 
-        // Output tab JS via wp_footer to avoid content filter stripping.
-        add_action( 'wp_footer', array( $this, 'render_tab_script' ), 99 );
-
+        // Tabs use plain URL navigation (?tab=staff, ?tab=teams, etc.) — no JS needed.
         return ob_get_clean();
-    }
-
-    /**
-     * Output tab-switching JS in the page footer.
-     */
-    public function render_tab_script() {
-        ?>
-        <script>
-        (function(){
-            var tabs = document.querySelectorAll('.hl-cycle-tab');
-            var panels = document.querySelectorAll('.hl-cycle-content');
-            if (!tabs.length) return;
-            tabs.forEach(function(tab) {
-                tab.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    var target = this.getAttribute('data-target');
-                    tabs.forEach(function(t) { t.classList.remove('active'); });
-                    panels.forEach(function(p) { p.classList.remove('active'); });
-                    this.classList.add('active');
-                    var panel = document.getElementById(target);
-                    if (panel) panel.classList.add('active');
-                    var tabName = target.replace('hl-tab-', '');
-                    if (window.history && window.history.replaceState) {
-                        var url = new URL(window.location);
-                        url.searchParams.set('tab', tabName);
-                        window.history.replaceState({}, '', url);
-                    }
-                });
-            });
-        })();
-        </script>
-        <?php
     }
 
     // ========================================================================
