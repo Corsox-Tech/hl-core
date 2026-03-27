@@ -417,8 +417,10 @@ class HL_Frontend_Dashboard {
      * V2 Participant section — learning cards visible to enrolled users.
      */
     private function render_participant_section_v2( $context ) {
-        $available_count = $this->count_available_activities( get_current_user_id() );
-        ?>
+        $is_participant = $context['is_teacher'] || $context['is_mentor'];
+        $available_count = $is_participant ? $this->count_available_activities( get_current_user_id() ) : 0;
+
+        if ( $is_participant ) : ?>
         <div class="hl-dv2-section">
             <div class="hl-dv2-section-label"><?php esc_html_e( 'Your Learning', 'hl-core' ); ?></div>
             <div class="hl-dv2-grid">
@@ -442,6 +444,7 @@ class HL_Frontend_Dashboard {
                 ?>
             </div>
         </div>
+        <?php endif;
 
         <?php if ( ! $context['all_control'] ) : ?>
 
@@ -493,7 +496,7 @@ class HL_Frontend_Dashboard {
                         <?php
                         $this->render_nav_card_v2(
                             'hl_my_cycle',
-                            __( 'My Partnership', 'hl-core' ),
+                            __( 'My School', 'hl-core' ),
                             __( 'View your school staff, classrooms, and reports', 'hl-core' ),
                             '&#x1F3EB;',
                             'hl-dv2-icon-cycle'
