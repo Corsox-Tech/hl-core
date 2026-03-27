@@ -334,10 +334,12 @@ class HL_Reporting_Service {
             $params[] = $status;
         }
 
-        // School filter — use team.school_id via team_membership
+        // School filter — check team.school_id OR enrollment.school_id (fallback
+        // for cycles without teams, e.g. control groups).
         $school_id = isset( $filters['school_id'] ) ? absint( $filters['school_id'] ) : 0;
         if ( $school_id ) {
-            $where[]  = 't.school_id = %d';
+            $where[]  = '(t.school_id = %d OR e.school_id = %d)';
+            $params[] = $school_id;
             $params[] = $school_id;
         }
 
@@ -370,7 +372,7 @@ class HL_Reporting_Service {
                     u.display_name,
                     u.user_email,
                     e.roles,
-                    COALESCE( school_ou.name, '' ) AS school_name,
+                    COALESCE( school_ou.name, enroll_ou.name, '' ) AS school_name,
                     COALESCE( t.team_name, '' ) AS team_name,
                     COALESCE( cr.cycle_completion_percent, 0 ) AS cycle_completion_percent,
                     COALESCE( cr.pathway_completion_percent, 0 ) AS pathway_completion_percent
@@ -380,6 +382,7 @@ class HL_Reporting_Service {
                 LEFT JOIN {$prefix}hl_team_membership tm ON e.enrollment_id = tm.enrollment_id
                 LEFT JOIN {$prefix}hl_team t ON tm.team_id = t.team_id AND t.cycle_id = e.cycle_id
                 LEFT JOIN {$prefix}hl_orgunit school_ou ON t.school_id = school_ou.orgunit_id
+                LEFT JOIN {$prefix}hl_orgunit enroll_ou ON e.school_id = enroll_ou.orgunit_id
                 WHERE {$where_sql}
                 GROUP BY e.enrollment_id
                 ORDER BY u.display_name ASC";

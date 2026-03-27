@@ -492,7 +492,7 @@ class HL_BuddyBoss_Integration {
 
         $keep_patterns = array(
             'action=logout',
-            '/dashboard/',
+            '/dashboard',
         );
 
         preg_match_all('/<li[^>]*>.*?<\/li>/s', $html, $matches);
@@ -811,23 +811,26 @@ class HL_BuddyBoss_Integration {
         $is_mentor  = in_array('mentor', $roles, true);
         $is_teacher = in_array('teacher', $roles, true);
         $is_coach   = in_array('coach', (array) wp_get_current_user()->roles, true);
+        // Leader-only = leader but not also a teacher/mentor (no personal program view).
+        $is_leader_only = $is_leader && !$is_teacher && !$is_mentor;
 
         // Define all possible menu items with their visibility rules.
         // Each entry: [ slug, shortcode, label, icon, show_condition ]
-        // Role matrix updated 2026-03-26:
-        //   Teacher: My Programs, My Team, Classrooms
-        //   Mentor:  My Programs, My Coaching, My Team, Classrooms
-        //   Leader:  My Programs, Cycles, Classrooms, Reports
-        //   Coach:   Coach Dashboard, My Mentors, My Availability, Coach Reports, Documentation
-        //   Admin:   My Programs, Classrooms, Cycles, Institutions, Learners, Pathways, Coaching Hub, Reports, Documentation
+        // Role matrix updated 2026-03-27:
+        //   Teacher:      My Programs, My Team, Classrooms
+        //   Mentor:       My Programs, My Coaching, My Team, Classrooms
+        //   Leader-only:  Classrooms, Reports
+        //   Leader+teach: My Programs, Classrooms, Reports
+        //   Coach:        Coach Dashboard, My Mentors, My Availability, Coach Reports, Documentation
+        //   Admin:        My Programs, Classrooms, Cycles, Institutions, Learners, Pathways, Coaching Hub, Reports, Documentation
         $is_coach_only = $is_coach && !$is_staff;
         $menu_def = array(
             // --- Personal (require active enrollment) ---
-            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment),
+            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment && !$is_leader_only),
             array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $is_mentor && !$is_control_only),
             array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor || $is_teacher),
             // --- Directories / Management ---
-            array('cycles',         'hl_cycles_listing',       __('Cycles', 'hl-core'),         'dashicons-groups',               $is_staff || $is_leader),
+            array('cycles',         'hl_cycles_listing',       __('Cycles', 'hl-core'),         'dashicons-groups',               $is_staff),
             array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'dashicons-welcome-learn-more',   $is_staff || $is_leader || $is_teacher || $is_mentor),
             array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'dashicons-id-alt',               $is_staff),
             // --- Staff tools ---

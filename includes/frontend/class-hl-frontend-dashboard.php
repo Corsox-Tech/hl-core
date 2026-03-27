@@ -493,9 +493,9 @@ class HL_Frontend_Dashboard {
                         <?php
                         $this->render_nav_card_v2(
                             'hl_my_cycle',
-                            __( 'My Cycle', 'hl-core' ),
-                            __( 'View cycle teams, staff, and reports', 'hl-core' ),
-                            '&#x1F504;',
+                            __( 'My Partnership', 'hl-core' ),
+                            __( 'View your school staff, classrooms, and reports', 'hl-core' ),
+                            '&#x1F3EB;',
                             'hl-dv2-icon-cycle'
                         );
                         if ( ! $context['is_mentor'] && ! $context['is_teacher'] ) {
