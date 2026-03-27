@@ -70,8 +70,11 @@ class HL_Frontend_Reports_Hub {
         $reports = array();
 
         // Completion Report — links to Cycle Workspace reports tab.
-        $workspace_url = $this->find_shortcode_page_url( 'hl_cycle_workspace' );
-        $cycle_url = $this->find_shortcode_page_url( 'hl_my_cycle' );
+        // Try new shortcode names first, fall back to pre-Rename-V3 names.
+        $workspace_url = $this->find_shortcode_page_url( 'hl_cycle_workspace' )
+                      ?: $this->find_shortcode_page_url( 'hl_track_workspace' );
+        $cycle_url = $this->find_shortcode_page_url( 'hl_my_cycle' )
+                  ?: $this->find_shortcode_page_url( 'hl_my_track' );
 
         // Completion report — staff use workspace, leaders use my-track.
         $completion_url = '';

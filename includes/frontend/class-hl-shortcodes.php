@@ -59,6 +59,13 @@ class HL_Shortcodes {
         add_shortcode('hl_coach_mentor_detail', array($this, 'render_coach_mentor_detail'));
         add_shortcode('hl_coach_reports', array($this, 'render_coach_reports'));
         add_shortcode('hl_coach_availability', array($this, 'render_coach_availability'));
+
+        // Backward-compatible aliases for pre-Rename-V3 shortcode names.
+        // Production pages may still contain the old shortcode names.
+        add_shortcode('hl_my_track', array($this, 'render_my_cycle'));
+        add_shortcode('hl_track_workspace', array($this, 'render_cycle_workspace'));
+        add_shortcode('hl_tracks_listing', array($this, 'render_cycles_listing'));
+        add_shortcode('hl_track_dashboard', array($this, 'render_cycle_dashboard'));
     }
 
     public function enqueue_assets() {
@@ -75,6 +82,7 @@ class HL_Shortcodes {
             || has_shortcode($post->post_content, 'hl_program_page')
             || has_shortcode($post->post_content, 'hl_component_page')
             || has_shortcode($post->post_content, 'hl_my_cycle')
+            || has_shortcode($post->post_content, 'hl_my_track')
             || has_shortcode($post->post_content, 'hl_team_page')
             || has_shortcode($post->post_content, 'hl_classroom_page')
             || has_shortcode($post->post_content, 'hl_districts_listing')
@@ -82,8 +90,10 @@ class HL_Shortcodes {
             || has_shortcode($post->post_content, 'hl_schools_listing')
             || has_shortcode($post->post_content, 'hl_school_page')
             || has_shortcode($post->post_content, 'hl_cycle_workspace')
+            || has_shortcode($post->post_content, 'hl_track_workspace')
             || has_shortcode($post->post_content, 'hl_my_coaching')
             || has_shortcode($post->post_content, 'hl_cycles_listing')
+            || has_shortcode($post->post_content, 'hl_tracks_listing')
             || has_shortcode($post->post_content, 'hl_institutions_listing')
             || has_shortcode($post->post_content, 'hl_coaching_hub')
             || has_shortcode($post->post_content, 'hl_classrooms_listing')
