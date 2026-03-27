@@ -230,6 +230,32 @@ class HL_Frontend_My_Cycle {
                 </div>
             <?php endforeach; ?>
         </div>
+
+        <script>
+        (function(){
+            var tabs = document.querySelectorAll('.hl-cycle-tab');
+            var panels = document.querySelectorAll('.hl-cycle-content');
+            if (!tabs.length) return;
+            tabs.forEach(function(tab) {
+                tab.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var target = this.getAttribute('data-target');
+                    tabs.forEach(function(t) { t.classList.remove('active'); });
+                    panels.forEach(function(p) { p.classList.remove('active'); });
+                    this.classList.add('active');
+                    var panel = document.getElementById(target);
+                    if (panel) panel.classList.add('active');
+                    // Update URL
+                    var tabName = target.replace('hl-tab-', '');
+                    if (window.history && window.history.replaceState) {
+                        var url = new URL(window.location);
+                        url.searchParams.set('tab', tabName);
+                        window.history.replaceState({}, '', url);
+                    }
+                });
+            });
+        })();
+        </script>
         <?php
 
         return ob_get_clean();
