@@ -110,27 +110,6 @@
             });
         });
 
-        // === My Cycle Tab Switching ===
-        $(document).on('click', '.hl-cycle-tab', function(e) {
-            e.preventDefault();
-            var targetId = $(this).data('target');
-            var $wrap = $(this).closest('.hl-frontend-wrap');
-
-            $wrap.find('.hl-cycle-tab').removeClass('active');
-            $(this).addClass('active');
-
-            $wrap.find('.hl-cycle-content').removeClass('active');
-            $wrap.find('#' + targetId).addClass('active');
-
-            // Update URL for bookmarkable tabs.
-            var tab = targetId.replace('hl-tab-', '');
-            if (window.history && window.history.replaceState) {
-                var url = new URL(window.location);
-                url.searchParams.set('tab', tab);
-                window.history.replaceState({}, '', url);
-            }
-        });
-
         // === Cycle Workspace Tab Switching ===
         $(document).on('click', '.hl-cw-tab', function(e) {
             e.preventDefault();
