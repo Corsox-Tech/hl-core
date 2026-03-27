@@ -180,11 +180,12 @@ class HL_Frontend_My_Cycle {
             ? $this->orgunit_repo->get_by_id( $scope['orgunit_id'] )
             : null;
 
-        // Active tab.
-        $active_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'teams';
-        $valid_tabs = array( 'teams', 'staff', 'reports', 'classrooms' );
+        // Active tab — default to 'staff' for control group cycles (no teams).
+        $default_tab = ( ! empty( $cycle->is_control_group ) ) ? 'staff' : 'teams';
+        $active_tab  = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : $default_tab;
+        $valid_tabs  = array( 'teams', 'staff', 'reports', 'classrooms' );
         if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
-            $active_tab = 'teams';
+            $active_tab = $default_tab;
         }
 
         $tabs = array(
