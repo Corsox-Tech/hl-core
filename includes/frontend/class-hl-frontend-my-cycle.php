@@ -199,36 +199,47 @@ class HL_Frontend_My_Cycle {
         <div class="hl-dashboard hl-my-cycle hl-frontend-wrap">
             <?php $this->render_header( $cycle, $scope, $scope_orgunit, $leader_enrollments, $active_enrollment ); ?>
 
+            <?php
+            // Build tab URLs as plain links — no JS dependency.
+            $base_url = strtok( $_SERVER['REQUEST_URI'], '?' );
+            $tab_params = array();
+            if ( isset( $_GET['cycle_id'] ) ) {
+                $tab_params['cycle_id'] = absint( $_GET['cycle_id'] );
+            }
+            ?>
             <div class="hl-cycle-tabs">
-                <?php foreach ( $tabs as $key => $label ) : ?>
-                    <button class="hl-tab hl-cycle-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
-                            data-target="hl-tab-<?php echo esc_attr( $key ); ?>">
+                <?php foreach ( $tabs as $key => $label ) :
+                    $tab_url = add_query_arg( array_merge( $tab_params, array( 'tab' => $key ) ), $base_url );
+                ?>
+                    <a class="hl-tab hl-cycle-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
+                       href="<?php echo esc_url( $tab_url ); ?>">
                         <?php echo esc_html( $label ); ?>
-                    </button>
+                    </a>
                 <?php endforeach; ?>
             </div>
 
-            <?php foreach ( $tabs as $key => $label ) : ?>
-                <div id="hl-tab-<?php echo esc_attr( $key ); ?>"
-                     class="hl-cycle-content <?php echo $active_tab === $key ? 'active' : ''; ?>">
-                    <?php
-                    switch ( $key ) {
-                        case 'teams':
-                            $this->render_teams_tab( $cycle, $scope );
-                            break;
-                        case 'staff':
-                            $this->render_staff_tab( $cycle, $scope );
-                            break;
-                        case 'reports':
-                            $this->render_reports_tab( $cycle, $scope );
-                            break;
-                        case 'classrooms':
-                            $this->render_classrooms_tab( $cycle, $scope );
-                            break;
-                    }
-                    ?>
-                </div>
-            <?php endforeach; ?>
+            <?php
+            // Only render the active tab — avoids fatal errors in other tabs
+            // crashing the whole page.
+            ?>
+            <div class="hl-cycle-content active">
+                <?php
+                switch ( $active_tab ) {
+                    case 'teams':
+                        $this->render_teams_tab( $cycle, $scope );
+                        break;
+                    case 'staff':
+                        $this->render_staff_tab( $cycle, $scope );
+                        break;
+                    case 'reports':
+                        $this->render_reports_tab( $cycle, $scope );
+                        break;
+                    case 'classrooms':
+                        $this->render_classrooms_tab( $cycle, $scope );
+                        break;
+                }
+                ?>
+            </div>
         </div>
         <?php
 

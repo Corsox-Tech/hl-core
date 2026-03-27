@@ -3882,12 +3882,14 @@ body:has(.hl-dashboard-v2) .entry-title {
     font-size: 13px;
     font-weight: 600;
     color: var(--hl-slate-400);
+    text-decoration: none;
     border: none;
     cursor: pointer;
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
     transition: all 0.15s;
     background: none;
+    display: inline-block;
 }
 
 .hl-my-cycle .hl-cycle-tab:hover {
