@@ -3866,6 +3866,59 @@ body:has(.hl-dashboard-v2) .entry-title {
     display: block;
 }
 
+/* ================================================================
+   My Cycle (hl_my_cycle / My Partnership) — Tab System
+   ================================================================ */
+.hl-my-cycle .hl-cycle-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--hl-slate-100);
+    margin-bottom: 24px;
+}
+
+.hl-my-cycle .hl-cycle-tab {
+    padding: 10px 22px;
+    font-family: var(--hl-font);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--hl-slate-400);
+    border: none;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+    background: none;
+}
+
+.hl-my-cycle .hl-cycle-tab:hover {
+    color: var(--hl-slate-600);
+}
+
+.hl-my-cycle .hl-cycle-tab.active {
+    color: var(--hl-slate-900);
+    border-bottom-color: var(--hl-indigo);
+}
+
+.hl-my-cycle .hl-cycle-content {
+    display: none;
+}
+
+.hl-my-cycle .hl-cycle-content.active {
+    display: block;
+}
+
+@media (max-width: 600px) {
+    .hl-my-cycle .hl-cycle-tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .hl-my-cycle .hl-cycle-tab {
+        padding: 10px 14px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+}
+
 /* ---- Stats Grid (5-column) ---- */
 .hl-cw-v2 .hl-cw-stats-grid {
     display: grid;
