@@ -31,8 +31,14 @@ class HL_Admin_Enrollments {
     /**
      * Constructor
      */
-    private function __construct() {
-        add_action('wp_ajax_hl_search_users', array($this, 'ajax_search_users'));
+    private function __construct() {}
+
+    /**
+     * Register AJAX hooks. Called from plugin bootstrap so the endpoint
+     * is available during wp_ajax requests (before any page-specific init).
+     */
+    public static function register_ajax_hooks() {
+        add_action('wp_ajax_hl_search_users', array(self::instance(), 'ajax_search_users'));
     }
 
     /**
@@ -144,11 +150,11 @@ class HL_Admin_Enrollments {
 
         $enrollment_id = isset($_POST['enrollment_id']) ? absint($_POST['enrollment_id']) : 0;
 
-        // Process roles checkboxes into JSON array
+        // Process roles checkboxes into JSON array (normalize to lowercase snake_case).
         $roles = array();
         if (!empty($_POST['roles']) && is_array($_POST['roles'])) {
             foreach ($_POST['roles'] as $role) {
-                $roles[] = sanitize_text_field($role);
+                $roles[] = strtolower(str_replace(' ', '_', sanitize_text_field($role)));
             }
         }
 
@@ -225,38 +231,73 @@ class HL_Admin_Enrollments {
     private function render_list() {
         global $wpdb;
 
-        // Filter by cycle
-        $filter_cycle = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
+        // Read filters from GET.
+        $f_partnership = isset($_GET['partnership_id']) ? absint($_GET['partnership_id']) : 0;
+        $f_cycle       = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
+        $f_role        = isset($_GET['role']) ? sanitize_text_field($_GET['role']) : '';
+        $f_school      = isset($_GET['school_id']) ? absint($_GET['school_id']) : 0;
+        $f_search      = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
 
-        $where = '';
-        if ($filter_cycle) {
-            $where = $wpdb->prepare(' WHERE e.cycle_id = %d', $filter_cycle);
+        // Build WHERE clauses.
+        $wheres = array();
+        $params = array();
+
+        if ($f_cycle) {
+            $wheres[] = 'e.cycle_id = %d';
+            $params[] = $f_cycle;
+        } elseif ($f_partnership) {
+            $wheres[] = 't.partnership_id = %d';
+            $params[] = $f_partnership;
+        }
+        if ($f_role) {
+            $wheres[] = 'e.roles LIKE %s';
+            $params[] = '%' . $wpdb->esc_like($f_role) . '%';
+        }
+        if ($f_school) {
+            $wheres[] = 'e.school_id = %d';
+            $params[] = $f_school;
+        }
+        if ($f_search) {
+            $like = '%' . $wpdb->esc_like($f_search) . '%';
+            $wheres[] = '(u.display_name LIKE %s OR u.user_email LIKE %s)';
+            $params[] = $like;
+            $params[] = $like;
         }
 
-        $enrollments = $wpdb->get_results(
-            "SELECT e.*, t.cycle_name, u.display_name, u.user_email
-             FROM {$wpdb->prefix}hl_enrollment e
-             LEFT JOIN {$wpdb->prefix}hl_cycle t ON e.cycle_id = t.cycle_id
-             LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             {$where}
-             ORDER BY e.enrolled_at DESC"
-        );
+        $where_sql = !empty($wheres) ? ' WHERE ' . implode(' AND ', $wheres) : '';
 
-        // Get cycles for filter dropdown
+        $sql = "SELECT e.*, t.cycle_name, t.partnership_id, u.display_name, u.user_email
+                FROM {$wpdb->prefix}hl_enrollment e
+                LEFT JOIN {$wpdb->prefix}hl_cycle t ON e.cycle_id = t.cycle_id
+                LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+                {$where_sql}
+                ORDER BY e.enrolled_at DESC
+                LIMIT 500";
+
+        $enrollments = !empty($params)
+            ? $wpdb->get_results($wpdb->prepare($sql, $params))
+            : $wpdb->get_results($sql);
+        if (!$enrollments) $enrollments = array();
+
+        // Filter data for dropdowns.
+        $partnerships = $wpdb->get_results(
+            "SELECT partnership_id, partnership_name FROM {$wpdb->prefix}hl_partnership ORDER BY partnership_name ASC"
+        );
         $cycles = $wpdb->get_results(
-            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle ORDER BY cycle_name ASC"
+            "SELECT c.cycle_id, c.cycle_name, c.partnership_id FROM {$wpdb->prefix}hl_cycle c ORDER BY c.cycle_name ASC"
         );
-
-        // Get school names
-        $schools = array();
         $school_rows = $wpdb->get_results(
-            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school'"
+            "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' ORDER BY name ASC"
         );
+        $schools = array();
         if ($school_rows) {
             foreach ($school_rows as $c) {
                 $schools[$c->orgunit_id] = $c->name;
             }
         }
+
+        // All distinct roles for dropdown.
+        $all_roles = array('teacher', 'mentor', 'school_leader', 'district_leader');
 
         // Show success messages
         if (isset($_GET['message'])) {
@@ -271,13 +312,12 @@ class HL_Admin_Enrollments {
         }
 
         // Cycle breadcrumb.
-        if ($filter_cycle) {
-            global $wpdb;
+        if ($f_cycle) {
             $cycle_name = $wpdb->get_var($wpdb->prepare(
-                "SELECT cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d", $filter_cycle
+                "SELECT cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d", $f_cycle
             ));
             if ($cycle_name) {
-                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-cycles&action=edit&id=' . $filter_cycle . '&tab=enrollments')) . '">&larr; ' . sprintf(esc_html__('Cycle: %s', 'hl-core'), esc_html($cycle_name)) . '</a></p>';
+                echo '<p style="margin:0 0 5px;"><a href="' . esc_url(admin_url('admin.php?page=hl-cycles&action=edit&id=' . $f_cycle . '&tab=enrollments')) . '">&larr; ' . sprintf(esc_html__('Cycle: %s', 'hl-core'), esc_html($cycle_name)) . '</a></p>';
             }
         }
 
@@ -285,20 +325,84 @@ class HL_Admin_Enrollments {
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-enrollments&action=new')) . '" class="page-title-action">' . esc_html__('Add New', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
-        // Cycle filter form
+        // Build cycles JS map for partnership→cycle dependency.
+        $cycles_by_partnership = array();
+        foreach ($cycles as $c) {
+            $pid = $c->partnership_id ? (int) $c->partnership_id : 0;
+            $cycles_by_partnership[$pid][] = array('id' => (int) $c->cycle_id, 'name' => $c->cycle_name);
+        }
+
+        // Filter bar.
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-enrollments" />';
-        echo '<label for="cycle_id_filter"><strong>' . esc_html__('Filter by Cycle:', 'hl-core') . '</strong> </label>';
-        echo '<select name="cycle_id" id="cycle_id_filter">';
+        echo '<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">';
+
+        // Partnership.
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#646970;margin-bottom:2px;">' . esc_html__('Partnership', 'hl-core') . '</label>';
+        echo '<select name="partnership_id" id="hl-enr-f-partnership" style="min-width:160px;">';
+        echo '<option value="">' . esc_html__('All Partnerships', 'hl-core') . '</option>';
+        if ($partnerships) {
+            foreach ($partnerships as $p) {
+                echo '<option value="' . esc_attr($p->partnership_id) . '"' . selected($f_partnership, $p->partnership_id, false) . '>' . esc_html($p->partnership_name) . '</option>';
+            }
+        }
+        echo '</select></div>';
+
+        // Cycle.
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#646970;margin-bottom:2px;">' . esc_html__('Cycle', 'hl-core') . '</label>';
+        echo '<select name="cycle_id" id="hl-enr-f-cycle" style="min-width:180px;">';
         echo '<option value="">' . esc_html__('All Cycles', 'hl-core') . '</option>';
         if ($cycles) {
             foreach ($cycles as $cycle) {
-                echo '<option value="' . esc_attr($cycle->cycle_id) . '"' . selected($filter_cycle, $cycle->cycle_id, false) . '>' . esc_html($cycle->cycle_name) . '</option>';
+                echo '<option value="' . esc_attr($cycle->cycle_id) . '"'
+                    . ' data-partnership="' . esc_attr($cycle->partnership_id ?: 0) . '"'
+                    . selected($f_cycle, $cycle->cycle_id, false) . '>'
+                    . esc_html($cycle->cycle_name) . '</option>';
             }
         }
-        echo '</select> ';
+        echo '</select></div>';
+
+        // Role.
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#646970;margin-bottom:2px;">' . esc_html__('Role', 'hl-core') . '</label>';
+        echo '<select name="role" style="min-width:130px;">';
+        echo '<option value="">' . esc_html__('All Roles', 'hl-core') . '</option>';
+        foreach ($all_roles as $r) {
+            $label = ucwords(str_replace('_', ' ', $r));
+            echo '<option value="' . esc_attr($r) . '"' . selected($f_role, $r, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select></div>';
+
+        // School.
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#646970;margin-bottom:2px;">' . esc_html__('School', 'hl-core') . '</label>';
+        echo '<select name="school_id" style="min-width:180px;">';
+        echo '<option value="">' . esc_html__('All Schools', 'hl-core') . '</option>';
+        if ($school_rows) {
+            foreach ($school_rows as $s) {
+                echo '<option value="' . esc_attr($s->orgunit_id) . '"' . selected($f_school, $s->orgunit_id, false) . '>' . esc_html($s->name) . '</option>';
+            }
+        }
+        echo '</select></div>';
+
+        // Search.
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#646970;margin-bottom:2px;">' . esc_html__('Search', 'hl-core') . '</label>';
+        echo '<input type="text" name="s" value="' . esc_attr($f_search) . '" placeholder="' . esc_attr__('Name or email...', 'hl-core') . '" style="min-width:180px;" /></div>';
+
+        echo '<div>';
         submit_button(__('Filter', 'hl-core'), 'secondary', 'submit', false);
+        if ($f_partnership || $f_cycle || $f_role || $f_school || $f_search) {
+            echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-enrollments')) . '" class="button">' . esc_html__('Clear', 'hl-core') . '</a>';
+        }
+        echo '</div>';
+
+        echo '</div>';
         echo '</form>';
+
+        // Show count.
+        $count = count($enrollments);
+        echo '<p style="color:#646970;font-size:13px;margin:0 0 10px;">'
+            . sprintf(esc_html__('Showing %d enrollments', 'hl-core'), $count)
+            . ($count >= 500 ? ' (' . esc_html__('limited to 500 — use filters to narrow', 'hl-core') . ')' : '')
+            . '</p>';
 
         if (empty($enrollments)) {
             echo '<p>' . esc_html__('No enrollments found.', 'hl-core') . '</p>';
@@ -368,6 +472,27 @@ class HL_Admin_Enrollments {
 
         echo '</tbody>';
         echo '</table>';
+
+        // Partnership → Cycle dependency JS.
+        ?>
+        <script>
+        (function(){
+            var pSel = document.getElementById('hl-enr-f-partnership');
+            var cSel = document.getElementById('hl-enr-f-cycle');
+            if (!pSel || !cSel) return;
+
+            var allOpts = Array.from(cSel.querySelectorAll('option[data-partnership]'));
+
+            pSel.addEventListener('change', function() {
+                var pid = this.value;
+                cSel.value = '';
+                allOpts.forEach(function(opt) {
+                    opt.style.display = (!pid || opt.dataset.partnership === pid || opt.dataset.partnership === '0') ? '' : 'none';
+                });
+            });
+        })();
+        </script>
+        <?php
     }
 
     /**
@@ -409,12 +534,15 @@ class HL_Admin_Enrollments {
             "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'district' AND status = 'active' ORDER BY name ASC"
         );
 
-        // Decode current roles
+        // Decode current roles (DB may store lowercase; normalize to Title Case for checkbox matching).
         $current_roles = array();
         if ($is_edit && !empty($enrollment->roles)) {
             $decoded = json_decode($enrollment->roles, true);
             if (is_array($decoded)) {
-                $current_roles = $decoded;
+                $current_roles = array_map(function($r) {
+                    // "teacher" → "Teacher", "school_leader" → "School Leader"
+                    return ucwords(str_replace('_', ' ', $r));
+                }, $decoded);
             }
         }
 

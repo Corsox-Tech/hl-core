@@ -248,6 +248,7 @@ class HL_Core {
         // Initialize admin
         if (is_admin()) {
             HL_Admin::instance();
+            HL_Admin_Enrollments::register_ajax_hooks();
         }
         
         // Initialize front-end shortcodes

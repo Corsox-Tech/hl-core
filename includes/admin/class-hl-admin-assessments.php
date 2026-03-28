@@ -322,27 +322,60 @@ class HL_Admin_Assessments {
 
         echo '<div class="hl-metrics-row">';
         echo '<div class="hl-metric-card">';
-        echo '<div class="metric-value">' . esc_html($total) . '</div>';
+        echo '<div class="metric-value" id="hl-tsa-stat-total">' . esc_html($total) . '</div>';
         echo '<div class="metric-label">' . esc_html__('Total Instances', 'hl-core') . '</div></div>';
         echo '<div class="hl-metric-card">';
-        echo '<div class="metric-value">' . esc_html($submitted) . '</div>';
+        echo '<div class="metric-value" id="hl-tsa-stat-submitted">' . esc_html($submitted) . '</div>';
         echo '<div class="metric-label">' . esc_html__('Submitted', 'hl-core') . '</div></div>';
         echo '<div class="hl-metric-card">';
-        echo '<div class="metric-value">' . esc_html($pending) . '</div>';
+        echo '<div class="metric-value" id="hl-tsa-stat-pending">' . esc_html($pending) . '</div>';
         echo '<div class="metric-label">' . esc_html__('Pending', 'hl-core') . '</div></div>';
+        echo '</div>';
+
+        // Collect filter options from data.
+        $schools  = array();
+        $phases   = array();
+        $statuses = array();
+        foreach ($instances as $inst) {
+            $s = $inst['school_name'] ?? '';
+            if ($s && !in_array($s, $schools, true)) $schools[] = $s;
+            if (!in_array($inst['phase'], $phases, true)) $phases[] = $inst['phase'];
+            if (!in_array($inst['status'], $statuses, true)) $statuses[] = $inst['status'];
+        }
+        sort($schools);
+        sort($statuses);
+
+        // Filter bar.
+        echo '<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">';
+        echo '<select id="hl-tsa-filter-phase" style="min-width:120px;">';
+        echo '<option value="">' . esc_html__('All Phases', 'hl-core') . '</option>';
+        foreach ($phases as $p) {
+            echo '<option value="' . esc_attr($p) . '">' . esc_html(strtoupper($p)) . '</option>';
+        }
+        echo '</select>';
+
+        echo '<select id="hl-tsa-filter-school" style="min-width:180px;">';
+        echo '<option value="">' . esc_html__('All Schools', 'hl-core') . '</option>';
+        foreach ($schools as $s) {
+            echo '<option value="' . esc_attr($s) . '">' . esc_html($s) . '</option>';
+        }
+        echo '</select>';
+
+        echo '<select id="hl-tsa-filter-status" style="min-width:140px;">';
+        echo '<option value="">' . esc_html__('All Statuses', 'hl-core') . '</option>';
+        foreach ($statuses as $st) {
+            echo '<option value="' . esc_attr($st) . '">' . esc_html(ucfirst(str_replace('_', ' ', $st))) . '</option>';
+        }
+        echo '</select>';
+
+        echo '<span id="hl-tsa-filter-count" style="color:#646970;font-size:13px;"></span>';
         echo '</div>';
 
         // Table
         $can_switch = class_exists('BP_Core_Members_Switching') && current_user_can('edit_users');
         $col_count = $can_switch ? 9 : 8;
 
-        $phase_counts = array();
-        foreach ($instances as $inst) {
-            $p = $inst['phase'];
-            $phase_counts[$p] = isset($phase_counts[$p]) ? $phase_counts[$p] + 1 : 1;
-        }
-
-        echo '<table class="widefat striped">';
+        echo '<table class="widefat striped" id="hl-tsa-table">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Teacher', 'hl-core') . '</th>';
@@ -357,21 +390,11 @@ class HL_Admin_Assessments {
         }
         echo '</tr></thead><tbody>';
 
-        $current_phase = '';
         foreach ($instances as $inst) {
-            // Phase section header
-            if ($inst['phase'] !== $current_phase) {
-                $current_phase = $inst['phase'];
-                $phase_label = strtoupper($current_phase) === 'POST' ? __('POST-Assessment', 'hl-core') : __('PRE-Assessment', 'hl-core');
-                $phase_cnt = isset($phase_counts[$current_phase]) ? $phase_counts[$current_phase] : 0;
-                echo '<tr><td colspan="' . $col_count . '" style="background:#f0f6fc;font-weight:700;padding:10px 12px;font-size:13px;border-left:4px solid #2271b1;">'
-                    . esc_html($phase_label) . ' <span style="color:#646970;font-weight:400;">(' . $phase_cnt . ')</span></td></tr>';
-            }
-
             $view_url = admin_url('admin.php?page=hl-assessments&action=view_teacher&instance_id=' . $inst['instance_id'] . '&cycle_id=' . $cycle_id);
             $user_edit_url = admin_url('user-edit.php?user_id=' . $inst['user_id']);
 
-            echo '<tr>';
+            echo '<tr data-phase="' . esc_attr($inst['phase']) . '" data-school="' . esc_attr($inst['school_name'] ?? '') . '" data-status="' . esc_attr($inst['status']) . '">';
             echo '<td>' . esc_html($inst['instance_id']) . '</td>';
             echo '<td><a href="' . esc_url($user_edit_url) . '">' . esc_html($inst['display_name']) . '</a></td>';
             echo '<td>' . esc_html($inst['user_email']) . '</td>';
@@ -389,6 +412,50 @@ class HL_Admin_Assessments {
         }
 
         echo '</tbody></table>';
+
+        // Client-side filter JS.
+        ?>
+        <script>
+        (function(){
+            var fPhase  = document.getElementById('hl-tsa-filter-phase');
+            var fSchool = document.getElementById('hl-tsa-filter-school');
+            var fStatus = document.getElementById('hl-tsa-filter-status');
+            var counter = document.getElementById('hl-tsa-filter-count');
+            var rows    = document.querySelectorAll('#hl-tsa-table tbody tr[data-phase]');
+            var total   = rows.length;
+
+            var elTotal = document.getElementById('hl-tsa-stat-total');
+            var elSub   = document.getElementById('hl-tsa-stat-submitted');
+            var elPend  = document.getElementById('hl-tsa-stat-pending');
+
+            function applyFilters() {
+                var vp = fPhase.value, vs = fSchool.value, vst = fStatus.value;
+                var visible = 0, submitted = 0;
+                rows.forEach(function(row) {
+                    var show = true;
+                    if (vp  && row.dataset.phase  !== vp)  show = false;
+                    if (vs  && row.dataset.school !== vs)  show = false;
+                    if (vst && row.dataset.status !== vst) show = false;
+                    row.style.display = show ? '' : 'none';
+                    if (show) {
+                        visible++;
+                        if (row.dataset.status === 'submitted') submitted++;
+                    }
+                });
+                elTotal.textContent = visible;
+                elSub.textContent = submitted;
+                elPend.textContent = visible - submitted;
+                counter.textContent = (vp || vs || vst)
+                    ? '<?php echo esc_js(__('Showing', 'hl-core')); ?> ' + visible + ' / ' + total
+                    : '';
+            }
+
+            fPhase.addEventListener('change', applyFilters);
+            fSchool.addEventListener('change', applyFilters);
+            fStatus.addEventListener('change', applyFilters);
+        })();
+        </script>
+        <?php
     }
 
     // =========================================================================
