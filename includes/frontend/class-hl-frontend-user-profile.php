@@ -92,9 +92,6 @@ class HL_Frontend_User_Profile {
         // ── Load overview data ───────────────────────────────────────
         $overview = $this->load_overview_data($target_user, $active_enrollment, $enrollments);
 
-        // Hide automatic page title from BuddyBoss theme.
-        echo '<style>.entry-header .entry-title, article > header .entry-title { display: none !important; } .entry-header { margin-bottom: 0 !important; min-height: 0 !important; padding: 0 !important; }</style>';
-
         ?>
         <div class="hlup-wrapper">
 
@@ -203,15 +200,18 @@ class HL_Frontend_User_Profile {
             $target_enrollment_ids[] = (int) $e->enrollment_id;
         }
 
+        // Coach uses WP roles (not enrollment roles) because coaches have a
+        // dedicated WP role and their access is determined by hl_coach_assignment,
+        // not by per-enrollment role arrays like school_leader/mentor.
+        if (in_array('coach', (array) wp_get_current_user()->roles, true)) {
+            if ($this->is_coach_of_target($viewer_id, $target_enrollment_ids)) {
+                return true;
+            }
+        }
+
+        // Remaining checks use per-enrollment HL roles.
         foreach ($viewer_enrollments as $ve) {
             $roles = $ve->get_roles_array();
-
-            // Coach: check coach assignments.
-            if (in_array('coach', (array) wp_get_current_user()->roles, true)) {
-                if ($this->is_coach_of_target($viewer_id, $target_enrollment_ids)) {
-                    return true;
-                }
-            }
 
             // School Leader: target in same school.
             if (in_array('school_leader', $roles, true)) {
@@ -355,6 +355,13 @@ class HL_Frontend_User_Profile {
     private function get_visible_tabs($viewer_id, $target_id, $is_admin, $is_own_profile, $target_enrollments) {
         $tabs = array();
 
+        // Pre-compute coach-of-target once (used by coaching + RP tabs).
+        $is_coach_of_target = false;
+        if (in_array('coach', (array) wp_get_current_user()->roles, true)) {
+            $target_eids = array_map(function($e) { return (int) $e->enrollment_id; }, $target_enrollments);
+            $is_coach_of_target = $this->is_coach_of_target($viewer_id, $target_eids);
+        }
+
         // Overview — always visible.
         $tabs['overview'] = array(
             'label' => __('Overview', 'hl-core'),
@@ -370,11 +377,7 @@ class HL_Frontend_User_Profile {
         }
 
         // Coaching — own profile, admin, or coach of this user.
-        $show_coaching = $is_own_profile || $is_admin;
-        if (!$show_coaching && in_array('coach', (array) wp_get_current_user()->roles, true)) {
-            $target_eids = array_map(function($e) { return (int) $e->enrollment_id; }, $target_enrollments);
-            $show_coaching = $this->is_coach_of_target($viewer_id, $target_eids);
-        }
+        $show_coaching = $is_own_profile || $is_admin || $is_coach_of_target;
         if ($show_coaching && !empty($target_enrollments)) {
             $tabs['coaching'] = array(
                 'label' => __('Coaching', 'hl-core'),
@@ -391,11 +394,7 @@ class HL_Frontend_User_Profile {
         }
 
         // RP & Observations — own profile, admin, or coach.
-        $show_rp = $is_own_profile || $is_admin;
-        if (!$show_rp && in_array('coach', (array) wp_get_current_user()->roles, true)) {
-            $target_eids = array_map(function($e) { return (int) $e->enrollment_id; }, $target_enrollments);
-            $show_rp = $this->is_coach_of_target($viewer_id, $target_eids);
-        }
+        $show_rp = $is_own_profile || $is_admin || $is_coach_of_target;
         if ($show_rp && !empty($target_enrollments)) {
             $tabs['rp'] = array(
                 'label' => __('RP & Observations', 'hl-core'),
@@ -816,6 +815,8 @@ class HL_Frontend_User_Profile {
 
     /**
      * Find page URL for a given shortcode.
+     *
+     * // TODO: Phase 7 — used for entry point wiring (linking names to profiles).
      */
     private function find_shortcode_page_url($shortcode) {
         global $wpdb;

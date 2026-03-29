@@ -4595,6 +4595,15 @@ body:has(.hl-dashboard-v2) .entry-title {
    User Profile Page (.hlup-*)
    ===================================================================== */
 
+/* Hide BB automatic page title on profile page.
+   :has() targets the parent article when .hlup-wrapper is inside .entry-content. */
+article:has(.hlup-wrapper) > .entry-header {
+    display: none !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+}
+
 .hlup-wrapper {
     max-width: 960px;
     margin: 0 auto;
