@@ -1005,7 +1005,7 @@ class HL_Frontend_User_Profile {
     private function get_component_type_label($type) {
         $labels = array(
             'learndash_course'            => __('Course', 'hl-core'),
-            'coaching_session'            => __('Coaching', 'hl-core'),
+            'coaching_session_attendance' => __('Coaching', 'hl-core'),
             'teacher_self_assessment'     => __('Self-Assessment', 'hl-core'),
             'child_assessment'            => __('Child Assessment', 'hl-core'),
             'classroom_visit'             => __('Classroom Visit', 'hl-core'),
