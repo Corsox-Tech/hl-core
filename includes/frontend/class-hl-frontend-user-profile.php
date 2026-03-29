@@ -1682,16 +1682,24 @@ class HL_Frontend_User_Profile {
     }
 
     /**
-     * Get self-reflection submissions for a user.
+     * Get self-reflection submissions scoped to an enrollment.
+     *
+     * Joins through hl_classroom_visit to scope by teacher_enrollment_id
+     * (consistent with how RP sessions and classroom visits are scoped).
+     * The user_id filter stays as a safety belt.
      */
     private function get_self_reflections($user_id, $enrollment_id) {
         global $wpdb;
+        $prefix = $wpdb->prefix;
         return $wpdb->get_results($wpdb->prepare(
             "SELECT sub.submission_id, sub.status, sub.submitted_at, sub.updated_at
-             FROM {$wpdb->prefix}hl_classroom_visit_submission sub
-             WHERE sub.submitted_by_user_id = %d
+             FROM {$prefix}hl_classroom_visit_submission sub
+             JOIN {$prefix}hl_classroom_visit cv ON sub.classroom_visit_id = cv.classroom_visit_id
+             WHERE cv.teacher_enrollment_id = %d
+               AND sub.submitted_by_user_id = %d
                AND sub.role_in_visit = 'self_reflector'
              ORDER BY sub.submitted_at DESC",
+            $enrollment_id,
             $user_id
         ), ARRAY_A) ?: array();
     }
