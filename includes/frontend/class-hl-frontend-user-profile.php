@@ -118,7 +118,7 @@ class HL_Frontend_User_Profile {
                         $this->render_overview_tab($target_user, $overview, $active_enrollment, $is_admin);
                         break;
                     case 'progress':
-                        $this->render_progress_tab($target_user, $active_enrollment, $enrollments);
+                        $this->render_progress_tab($target_user, $active_enrollment, $enrollments, $overview);
                         break;
                     case 'coaching':
                         $this->render_placeholder_tab(__('Coaching', 'hl-core'), __('Coaching sessions and action plans will appear here.', 'hl-core'));
@@ -811,8 +811,9 @@ class HL_Frontend_User_Profile {
      * @param WP_User            $user
      * @param HL_Enrollment|null $enrollment  Currently selected enrollment.
      * @param HL_Enrollment[]    $all_enrollments
+     * @param array              $overview  Data already loaded by load_overview_data().
      */
-    private function render_progress_tab($user, $enrollment, $all_enrollments) {
+    private function render_progress_tab($user, $enrollment, $all_enrollments, $overview) {
         if (!$enrollment) {
             ?>
             <div class="hlup-empty-state">
@@ -834,19 +835,9 @@ class HL_Frontend_User_Profile {
             $state_map[(int) $s['component_id']] = $s;
         }
 
-        // Cycle name.
-        global $wpdb;
-        $cycle_name = $wpdb->get_var($wpdb->prepare(
-            "SELECT cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
-            $enrollment->cycle_id
-        ));
-
-        // Overall enrollment completion.
-        $overall_pct = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COALESCE(completion_pct, 0) FROM {$wpdb->prefix}hl_completion_rollup
-             WHERE enrollment_id = %d ORDER BY computed_at DESC LIMIT 1",
-            $enrollment->enrollment_id
-        ));
+        // Reuse data already loaded for the hero (load_overview_data runs on every tab).
+        $cycle_name  = $overview['cycle_name'];
+        $overall_pct = $overview['completion'];
 
         // LearnDash helper — resolve course progress for learndash_course components.
         $ld_user_id = (int) $user->ID;
