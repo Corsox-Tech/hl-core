@@ -124,7 +124,7 @@ class HL_Frontend_User_Profile {
                         $this->render_coaching_tab($target_user, $active_enrollment, $is_admin);
                         break;
                     case 'assessments':
-                        $this->render_placeholder_tab(__('Assessments', 'hl-core'), __('TSA and CA status will appear here.', 'hl-core'));
+                        $this->render_assessments_tab($target_user, $active_enrollment, $is_admin);
                         break;
                     case 'rp':
                         $this->render_placeholder_tab(__('RP & Observations', 'hl-core'), __('Reflective practice and classroom visits will appear here.', 'hl-core'));
@@ -1280,6 +1280,233 @@ class HL_Frontend_User_Profile {
             }
         }
         return null;
+    }
+
+    // =====================================================================
+    // Rendering — Assessments Tab
+    // =====================================================================
+
+    /**
+     * Render the Assessments tab: TSA and CA status with optional inline responses.
+     *
+     * Response data is gated behind manage_hl_core (staff/coach) until teacher
+     * consent is obtained. All viewers with tab access see completion status.
+     *
+     * @param WP_User            $user
+     * @param HL_Enrollment|null $enrollment
+     * @param bool               $is_admin
+     */
+    private function render_assessments_tab($user, $enrollment, $is_admin) {
+        if (!$enrollment) {
+            $this->render_placeholder_tab(__('Assessments', 'hl-core'), __('No enrollment found.', 'hl-core'));
+            return;
+        }
+
+        $assessment_service = new HL_Assessment_Service();
+        $enrollment_id = (int) $enrollment->enrollment_id;
+
+        // Can this viewer see response data? Staff/coach only until consent.
+        $can_see_responses = current_user_can('manage_hl_core');
+
+        // TSA instances.
+        $tsa_instances = $assessment_service->get_teacher_assessments($enrollment_id);
+
+        // CA instances (with classroom + children count).
+        $ca_instances = $this->load_ca_instances_with_details($enrollment_id);
+
+        // Summary counts.
+        $tsa_submitted = count(array_filter($tsa_instances, function($i) { return $i['status'] === 'submitted'; }));
+        $ca_submitted  = count(array_filter($ca_instances, function($i) { return $i['status'] === 'submitted'; }));
+
+        ?>
+        <!-- Summary stats -->
+        <div class="hlup-assess-stats">
+            <div class="hlup-assess-stat-card">
+                <div class="hlup-assess-stat-num"><?php echo esc_html(count($tsa_instances)); ?></div>
+                <div class="hlup-assess-stat-label"><?php esc_html_e('Teacher Assessments', 'hl-core'); ?></div>
+                <div class="hlup-assess-stat-sub"><?php printf(esc_html__('%d submitted', 'hl-core'), $tsa_submitted); ?></div>
+            </div>
+            <div class="hlup-assess-stat-card">
+                <div class="hlup-assess-stat-num"><?php echo esc_html(count($ca_instances)); ?></div>
+                <div class="hlup-assess-stat-label"><?php esc_html_e('Child Assessments', 'hl-core'); ?></div>
+                <div class="hlup-assess-stat-sub"><?php printf(esc_html__('%d submitted', 'hl-core'), $ca_submitted); ?></div>
+            </div>
+        </div>
+
+        <!-- TSA Section -->
+        <?php if (!empty($tsa_instances)) : ?>
+            <div class="hlup-assess-section">
+                <h4 class="hlup-assess-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <?php esc_html_e('Teacher Self-Assessments', 'hl-core'); ?>
+                </h4>
+                <?php foreach ($tsa_instances as $idx => $tsa) :
+                    $phase  = strtoupper($tsa['phase'] ?? 'PRE');
+                    $status = $tsa['status'] ?? 'not_started';
+                    $date   = !empty($tsa['submitted_at']) ? date_i18n('M j, Y', strtotime($tsa['submitted_at'])) : '';
+                    $has_responses = ($status === 'submitted' || $status === 'draft') && !empty($tsa['responses_json']);
+                    $panel_id = 'hlup-tsa-resp-' . $idx;
+                ?>
+                    <div class="hlup-assess-card">
+                        <div class="hlup-assess-card-main">
+                            <div class="hlup-assess-card-info">
+                                <span class="hlup-assess-phase <?php echo esc_attr(strtolower($phase)); ?>"><?php echo esc_html($phase); ?></span>
+                                <span class="hlup-assess-card-title"><?php esc_html_e('Teacher Self-Assessment', 'hl-core'); ?></span>
+                            </div>
+                            <div class="hlup-assess-card-right">
+                                <?php if ($date) : ?>
+                                    <span class="hlup-assess-date"><?php echo esc_html($date); ?></span>
+                                <?php endif; ?>
+                                <?php echo $this->render_assess_badge($status); ?>
+                                <?php if ($can_see_responses && $has_responses) : ?>
+                                    <button type="button" class="hlup-assess-toggle" data-target="<?php echo esc_attr($panel_id); ?>">
+                                        <?php esc_html_e('View', 'hl-core'); ?>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php if ($can_see_responses && $has_responses) : ?>
+                            <div id="<?php echo esc_attr($panel_id); ?>" class="hlup-assess-responses" style="display:none;">
+                                <?php $this->render_tsa_responses_inline($tsa, $assessment_service); ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- CA Section -->
+        <?php if (!empty($ca_instances)) : ?>
+            <div class="hlup-assess-section">
+                <h4 class="hlup-assess-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <?php esc_html_e('Child Assessments', 'hl-core'); ?>
+                </h4>
+                <?php foreach ($ca_instances as $ca) :
+                    $phase    = strtoupper($ca['phase'] ?? 'PRE');
+                    $status   = $ca['status'] ?? 'not_started';
+                    $date     = !empty($ca['submitted_at']) ? date_i18n('M j, Y', strtotime($ca['submitted_at'])) : '';
+                    $classroom = $ca['classroom_name'] ?? "\xe2\x80\x94";
+                    $age_band  = $ca['instrument_age_band'] ?? '';
+                    $children  = (int) ($ca['children_assessed'] ?? 0);
+                ?>
+                    <div class="hlup-assess-card">
+                        <div class="hlup-assess-card-main">
+                            <div class="hlup-assess-card-info">
+                                <span class="hlup-assess-phase <?php echo esc_attr(strtolower($phase)); ?>"><?php echo esc_html($phase); ?></span>
+                                <span class="hlup-assess-card-title"><?php echo esc_html($classroom); ?></span>
+                                <?php if ($age_band) : ?>
+                                    <span class="hlup-assess-age-band"><?php echo esc_html(ucwords(str_replace('_', ' ', $age_band))); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="hlup-assess-card-right">
+                                <?php if ($children > 0) : ?>
+                                    <span class="hlup-assess-children">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                                        <?php printf(esc_html__('%d children', 'hl-core'), $children); ?>
+                                    </span>
+                                <?php endif; ?>
+                                <?php if ($date) : ?>
+                                    <span class="hlup-assess-date"><?php echo esc_html($date); ?></span>
+                                <?php endif; ?>
+                                <?php echo $this->render_assess_badge($status); ?>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (empty($tsa_instances) && empty($ca_instances)) : ?>
+            <div class="hlup-empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <h3><?php esc_html_e('No Assessments', 'hl-core'); ?></h3>
+                <p><?php esc_html_e('No assessment instances found for this enrollment.', 'hl-core'); ?></p>
+            </div>
+        <?php endif; ?>
+
+        <!-- Toggle script for View buttons -->
+        <script>
+        (function(){
+            document.querySelectorAll('.hlup-assess-toggle').forEach(function(btn){
+                btn.addEventListener('click', function(){
+                    var panel = document.getElementById(btn.dataset.target);
+                    if (!panel) return;
+                    var open = panel.style.display !== 'none';
+                    panel.style.display = open ? 'none' : 'block';
+                    btn.classList.toggle('open', !open);
+                });
+            });
+        })();
+        </script>
+        <?php
+    }
+
+    /**
+     * Render inline TSA responses using HL_Teacher_Assessment_Renderer in read-only mode.
+     */
+    private function render_tsa_responses_inline($tsa, $assessment_service) {
+        $instrument = $assessment_service->get_teacher_instrument($tsa['instrument_id'] ?? 0);
+        if (!$instrument) {
+            echo '<p class="hlup-field-empty">' . esc_html__('Instrument not found.', 'hl-core') . '</p>';
+            return;
+        }
+
+        $responses = !empty($tsa['responses_json']) ? json_decode($tsa['responses_json'], true) : array();
+
+        // For POST phase, load PRE responses for comparison column.
+        $pre_responses = array();
+        if (($tsa['phase'] ?? '') === 'post') {
+            $pre_responses = $assessment_service->get_pre_responses_for_post(
+                $tsa['enrollment_id'],
+                $tsa['cycle_id']
+            );
+        }
+
+        $renderer = new HL_Teacher_Assessment_Renderer(
+            $instrument,
+            $tsa,
+            $tsa['phase'] ?? 'pre',
+            $responses,
+            $pre_responses,
+            true  // read_only
+        );
+
+        echo $renderer->render();
+    }
+
+    /**
+     * Load child assessment instances with classroom name and children count.
+     */
+    private function load_ca_instances_with_details($enrollment_id) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT cai.*, cr.classroom_name,
+                    (SELECT COUNT(*) FROM {$prefix}hl_child_assessment_childrow
+                     WHERE instance_id = cai.instance_id AND status = 'active') AS children_assessed
+             FROM {$prefix}hl_child_assessment_instance cai
+             LEFT JOIN {$prefix}hl_classroom cr ON cai.classroom_id = cr.classroom_id
+             WHERE cai.enrollment_id = %d
+             ORDER BY cai.phase ASC, cr.classroom_name ASC",
+            $enrollment_id
+        ), ARRAY_A) ?: array();
+    }
+
+    /**
+     * Render an assessment status badge.
+     */
+    private function render_assess_badge($status) {
+        $map = array(
+            'submitted'   => array('hlup-badge-submitted', __('Submitted', 'hl-core')),
+            'draft'       => array('hlup-badge-draft', __('Draft', 'hl-core')),
+            'in_progress' => array('hlup-badge-draft', __('In Progress', 'hl-core')),
+            'not_started' => array('hlup-badge-pending', __('Not Started', 'hl-core')),
+        );
+        $badge = isset($map[$status]) ? $map[$status] : array('hlup-badge-pending', ucwords(str_replace('_', ' ', $status)));
+        return '<span class="hlup-assess-badge ' . esc_attr($badge[0]) . '">' . esc_html($badge[1]) . '</span>';
     }
 
     // =====================================================================

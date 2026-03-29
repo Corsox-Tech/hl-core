@@ -5658,3 +5658,219 @@ article:has(.hlup-wrapper) > .entry-header {
         text-align: left;
     }
 }
+
+/* ── Assessments Tab ──────────────────────────────────────────────── */
+
+.hlup-assess-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.hlup-assess-stat-card {
+    flex: 1;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
+    padding: 16px 20px;
+    text-align: center;
+}
+
+.hlup-assess-stat-num {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--hl-text-heading);
+    line-height: 1.1;
+}
+
+.hlup-assess-stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--hl-text-secondary);
+    margin-top: 4px;
+}
+
+.hlup-assess-stat-sub {
+    font-size: 12px;
+    color: var(--hl-text-muted);
+    margin-top: 2px;
+}
+
+.hlup-assess-section {
+    margin-bottom: 24px;
+}
+
+.hlup-assess-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.hlup-assess-section-title svg {
+    color: var(--hl-text-secondary);
+}
+
+/* ── Assessment Card ──────────────────────────────────────────────── */
+
+.hlup-assess-card {
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-sm);
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.hlup-assess-card-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+}
+
+.hlup-assess-card-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.hlup-assess-phase {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.hlup-assess-phase.pre {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.hlup-assess-phase.post {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.hlup-assess-card-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--hl-text);
+}
+
+.hlup-assess-age-band {
+    font-size: 12px;
+    color: var(--hl-text-muted);
+    background: var(--hl-bg);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.hlup-assess-card-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.hlup-assess-date {
+    font-size: 13px;
+    color: var(--hl-text-muted);
+}
+
+.hlup-assess-children {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+}
+
+/* Assessment status badges */
+.hlup-assess-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.hlup-badge-submitted {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.hlup-badge-draft {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.hlup-badge-pending {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* View toggle button */
+.hlup-assess-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-xs);
+    background: var(--hl-surface);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--hl-secondary);
+    cursor: pointer;
+    transition: var(--hl-transition);
+}
+
+.hlup-assess-toggle:hover {
+    background: var(--hl-bg-hover);
+    border-color: var(--hl-secondary);
+}
+
+.hlup-assess-toggle.open svg {
+    transform: rotate(180deg);
+}
+
+/* Inline responses panel */
+.hlup-assess-responses {
+    border-top: 1px solid var(--hl-border);
+    padding: 16px;
+    background: var(--hl-bg);
+}
+
+/* ── Assessments Tab Responsive ───────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .hlup-assess-stats {
+        flex-direction: column;
+    }
+
+    .hlup-assess-card-main {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .hlup-assess-card-right {
+        align-self: flex-end;
+    }
+}

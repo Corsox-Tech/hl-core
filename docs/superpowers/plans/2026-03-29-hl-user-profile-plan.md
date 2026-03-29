@@ -11,7 +11,7 @@
 | Phase 1: Page + Overview + BB redirect | [x] |
 | Phase 2: Progress tab + entry links | [x] |
 | Phase 3: Coaching tab | [x] |
-| Phase 4: Assessments tab | [ ] |
+| Phase 4: Assessments tab | [x] |
 | Phase 5: RP & Observations tab | [ ] |
 | Phase 6: Manage tab (admin) | [ ] |
 | Phase 7: Wiring + polish | [ ] |
