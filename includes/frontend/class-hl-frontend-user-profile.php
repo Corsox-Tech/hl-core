@@ -45,6 +45,156 @@ class HL_Frontend_User_Profile {
     }
 
     /**
+     * Handle POST actions (hooked to template_redirect).
+     */
+    public static function handle_post_actions() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !is_user_logged_in()) {
+            return;
+        }
+        if (!current_user_can('manage_hl_core')) {
+            return;
+        }
+
+        $action = isset($_POST['hlup_action']) ? sanitize_text_field($_POST['hlup_action']) : '';
+        if (empty($action)) {
+            return;
+        }
+
+        $enrollment_id = absint($_POST['hlup_enrollment_id'] ?? 0);
+        $user_id       = absint($_POST['hlup_user_id'] ?? 0);
+
+        if (!$enrollment_id && !$user_id) {
+            return;
+        }
+
+        $nonce_action = 'hlup_manage_' . ($enrollment_id ?: $user_id);
+        if (!wp_verify_nonce($_POST['_hlup_nonce'] ?? '', $nonce_action)) {
+            return;
+        }
+
+        $enrollment_repo = new HL_Enrollment_Repository();
+
+        switch ($action) {
+            case 'update_profile':
+                $display_name = sanitize_text_field($_POST['hlup_display_name'] ?? '');
+                $email        = sanitize_email($_POST['hlup_email'] ?? '');
+
+                if ($display_name && $user_id) {
+                    wp_update_user(array('ID' => $user_id, 'display_name' => $display_name));
+                }
+                if ($email && $user_id && is_email($email)) {
+                    wp_update_user(array('ID' => $user_id, 'user_email' => $email));
+                }
+
+                HL_Audit_Service::log('profile.updated', array(
+                    'entity_type' => 'user',
+                    'entity_id'   => $user_id,
+                    'after_data'  => array('display_name' => $display_name, 'email' => $email),
+                ));
+                break;
+
+            case 'update_enrollment':
+                $enrollment = $enrollment_repo->get_by_id($enrollment_id);
+                if (!$enrollment) break;
+
+                $before = $enrollment->to_array();
+                $updates = array();
+
+                $new_status = sanitize_text_field($_POST['hlup_status'] ?? '');
+                if ($new_status && in_array($new_status, array('active', 'inactive'), true)) {
+                    $updates['status'] = $new_status;
+                }
+
+                $new_school = absint($_POST['hlup_school_id'] ?? 0);
+                if ($new_school > 0) {
+                    $updates['school_id'] = $new_school;
+                    // Update district_id from school's parent.
+                    $orgunit_repo = new HL_OrgUnit_Repository();
+                    $school = $orgunit_repo->get_by_id($new_school);
+                    if ($school && $school->parent_orgunit_id) {
+                        $updates['district_id'] = (int) $school->parent_orgunit_id;
+                    }
+                }
+
+                $new_roles = isset($_POST['hlup_roles']) ? array_map('sanitize_text_field', (array) $_POST['hlup_roles']) : null;
+                $valid_roles = array('teacher', 'mentor', 'school_leader', 'district_leader');
+                if ($new_roles !== null) {
+                    $updates['roles'] = array_values(array_intersect($new_roles, $valid_roles));
+                }
+
+                if (!empty($updates)) {
+                    $enrollment_repo->update($enrollment_id, $updates);
+                    HL_Audit_Service::log('enrollment.updated', array(
+                        'entity_type' => 'enrollment',
+                        'entity_id'   => $enrollment_id,
+                        'cycle_id'    => $enrollment->cycle_id,
+                        'before_data' => $before,
+                        'after_data'  => $updates,
+                    ));
+                }
+                break;
+
+            case 'assign_pathway':
+                $pathway_id = absint($_POST['hlup_pathway_id'] ?? 0);
+                if ($pathway_id && $enrollment_id) {
+                    $pa_service = new HL_Pathway_Assignment_Service();
+                    $pa_service->assign_pathway($enrollment_id, $pathway_id, 'explicit');
+                    HL_Audit_Service::log('pathway.assigned', array(
+                        'entity_type' => 'enrollment',
+                        'entity_id'   => $enrollment_id,
+                        'after_data'  => array('pathway_id' => $pathway_id),
+                    ));
+                }
+                break;
+
+            case 'unassign_pathway':
+                $pathway_id = absint($_POST['hlup_pathway_id'] ?? 0);
+                if ($pathway_id && $enrollment_id) {
+                    $pa_service = new HL_Pathway_Assignment_Service();
+                    $pa_service->unassign_pathway($enrollment_id, $pathway_id);
+                    HL_Audit_Service::log('pathway.unassigned', array(
+                        'entity_type' => 'enrollment',
+                        'entity_id'   => $enrollment_id,
+                        'after_data'  => array('pathway_id' => $pathway_id),
+                    ));
+                }
+                break;
+
+            case 'send_password_reset':
+                if ($user_id) {
+                    $user = get_userdata($user_id);
+                    if ($user) {
+                        retrieve_password($user->user_login);
+                        HL_Audit_Service::log('user.password_reset_sent', array(
+                            'entity_type' => 'user',
+                            'entity_id'   => $user_id,
+                        ));
+                    }
+                }
+                break;
+
+            case 'deactivate_enrollment':
+                if ($enrollment_id) {
+                    $enrollment = $enrollment_repo->get_by_id($enrollment_id);
+                    if ($enrollment) {
+                        $enrollment_repo->update($enrollment_id, array('status' => 'inactive'));
+                        HL_Audit_Service::log('enrollment.deactivated', array(
+                            'entity_type' => 'enrollment',
+                            'entity_id'   => $enrollment_id,
+                            'cycle_id'    => $enrollment->cycle_id,
+                        ));
+                    }
+                }
+                break;
+        }
+
+        // Redirect back to prevent form resubmission.
+        $redirect = add_query_arg('hlup_updated', '1', remove_query_arg(array('_hlup_nonce', 'hlup_updated')));
+        wp_safe_redirect($redirect);
+        exit;
+    }
+
+    /**
      * Main render entry point.
      *
      * @param array $atts Shortcode attributes.
@@ -130,7 +280,7 @@ class HL_Frontend_User_Profile {
                         $this->render_rp_tab($target_user, $active_enrollment);
                         break;
                     case 'manage':
-                        $this->render_placeholder_tab(__('Manage', 'hl-core'), __('Admin management actions will appear here.', 'hl-core'));
+                        $this->render_manage_tab($target_user, $active_enrollment);
                         break;
                 }
                 ?>
@@ -1716,6 +1866,211 @@ class HL_Frontend_User_Profile {
         );
         $badge = isset($map[$status]) ? $map[$status] : array('hlup-badge-pending', ucwords(str_replace('_', ' ', $status)));
         return '<span class="hlup-assess-badge ' . esc_attr($badge[0]) . '">' . esc_html($badge[1]) . '</span>';
+    }
+
+    // =====================================================================
+    // Rendering — Manage Tab (Admin Only)
+    // =====================================================================
+
+    /**
+     * Render the Manage tab — admin-only actions for this user/enrollment.
+     *
+     * @param WP_User            $user
+     * @param HL_Enrollment|null $enrollment
+     */
+    private function render_manage_tab($user, $enrollment) {
+        $user_id       = (int) $user->ID;
+        $enrollment_id = $enrollment ? (int) $enrollment->enrollment_id : 0;
+        $nonce_value   = wp_create_nonce('hlup_manage_' . ($enrollment_id ?: $user_id));
+
+        // Flash message from POST redirect.
+        $success = isset($_GET['hlup_updated']) ? 1 : 0;
+
+        // Load schools for dropdown.
+        $schools = $this->orgunit_repo->get_schools();
+
+        // Load current pathway assignments.
+        $assigned_pathways = array();
+        $available_pathways = array();
+        if ($enrollment) {
+            $assigned_pathways = $this->pathway_service->get_pathways_for_enrollment($enrollment_id);
+
+            // All pathways in this cycle.
+            global $wpdb;
+            $all_pathways = $wpdb->get_results($wpdb->prepare(
+                "SELECT pathway_id, pathway_name FROM {$wpdb->prefix}hl_pathway
+                 WHERE cycle_id = %d AND active_status = 1 ORDER BY pathway_name ASC",
+                $enrollment->cycle_id
+            ), ARRAY_A) ?: array();
+
+            $assigned_ids = array_map(function($p) { return (int) $p['pathway_id']; }, $assigned_pathways);
+            $available_pathways = array_filter($all_pathways, function($p) use ($assigned_ids) {
+                return !in_array((int) $p['pathway_id'], $assigned_ids, true);
+            });
+        }
+
+        $current_roles = $enrollment ? $enrollment->get_roles_array() : array();
+        $all_roles = array('teacher', 'mentor', 'school_leader', 'district_leader');
+
+        ?>
+        <?php if ($success) : ?>
+            <div class="hlup-manage-flash">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <?php esc_html_e('Changes saved successfully.', 'hl-core'); ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Profile Info -->
+        <div class="hlup-manage-section">
+            <h4 class="hlup-manage-section-title"><?php esc_html_e('Profile Information', 'hl-core'); ?></h4>
+            <form method="post" class="hlup-manage-form">
+                <input type="hidden" name="hlup_action" value="update_profile">
+                <input type="hidden" name="hlup_user_id" value="<?php echo esc_attr($user_id); ?>">
+                <input type="hidden" name="hlup_enrollment_id" value="<?php echo esc_attr($enrollment_id); ?>">
+                <input type="hidden" name="_hlup_nonce" value="<?php echo esc_attr($nonce_value); ?>">
+
+                <div class="hlup-manage-field">
+                    <label for="hlup_display_name"><?php esc_html_e('Display Name', 'hl-core'); ?></label>
+                    <input type="text" id="hlup_display_name" name="hlup_display_name"
+                           value="<?php echo esc_attr($user->display_name); ?>">
+                </div>
+                <div class="hlup-manage-field">
+                    <label for="hlup_email"><?php esc_html_e('Email Address', 'hl-core'); ?></label>
+                    <input type="email" id="hlup_email" name="hlup_email"
+                           value="<?php echo esc_attr($user->user_email); ?>">
+                </div>
+                <button type="submit" class="hlup-manage-btn primary"><?php esc_html_e('Save Profile', 'hl-core'); ?></button>
+            </form>
+        </div>
+
+        <!-- Enrollment Management -->
+        <?php if ($enrollment) : ?>
+        <div class="hlup-manage-section">
+            <h4 class="hlup-manage-section-title"><?php esc_html_e('Enrollment Settings', 'hl-core'); ?></h4>
+            <form method="post" class="hlup-manage-form">
+                <input type="hidden" name="hlup_action" value="update_enrollment">
+                <input type="hidden" name="hlup_user_id" value="<?php echo esc_attr($user_id); ?>">
+                <input type="hidden" name="hlup_enrollment_id" value="<?php echo esc_attr($enrollment_id); ?>">
+                <input type="hidden" name="_hlup_nonce" value="<?php echo esc_attr($nonce_value); ?>">
+
+                <div class="hlup-manage-field">
+                    <label for="hlup_status"><?php esc_html_e('Status', 'hl-core'); ?></label>
+                    <select id="hlup_status" name="hlup_status">
+                        <option value="active" <?php selected($enrollment->status, 'active'); ?>><?php esc_html_e('Active', 'hl-core'); ?></option>
+                        <option value="inactive" <?php selected($enrollment->status, 'inactive'); ?>><?php esc_html_e('Inactive', 'hl-core'); ?></option>
+                    </select>
+                </div>
+                <div class="hlup-manage-field">
+                    <label for="hlup_school_id"><?php esc_html_e('School', 'hl-core'); ?></label>
+                    <select id="hlup_school_id" name="hlup_school_id">
+                        <option value=""><?php esc_html_e('— Select School —', 'hl-core'); ?></option>
+                        <?php foreach ($schools as $school) : ?>
+                            <option value="<?php echo esc_attr($school->orgunit_id); ?>"
+                                <?php selected((int) $enrollment->school_id, (int) $school->orgunit_id); ?>>
+                                <?php echo esc_html($school->name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="hlup-manage-field">
+                    <label><?php esc_html_e('Roles', 'hl-core'); ?></label>
+                    <div class="hlup-manage-checkboxes">
+                        <?php foreach ($all_roles as $role) : ?>
+                            <label class="hlup-manage-checkbox">
+                                <input type="checkbox" name="hlup_roles[]" value="<?php echo esc_attr($role); ?>"
+                                    <?php checked(in_array($role, $current_roles, true)); ?>>
+                                <?php echo esc_html(ucwords(str_replace('_', ' ', $role))); ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <button type="submit" class="hlup-manage-btn primary"><?php esc_html_e('Save Enrollment', 'hl-core'); ?></button>
+            </form>
+        </div>
+
+        <!-- Pathway Assignments -->
+        <div class="hlup-manage-section">
+            <h4 class="hlup-manage-section-title"><?php esc_html_e('Learning Plan Assignments', 'hl-core'); ?></h4>
+
+            <?php if (!empty($assigned_pathways)) : ?>
+                <div class="hlup-manage-pathway-list">
+                    <?php foreach ($assigned_pathways as $pw) : ?>
+                        <div class="hlup-manage-pathway-row">
+                            <span class="hlup-manage-pathway-name"><?php echo esc_html($pw['pathway_name']); ?></span>
+                            <form method="post" class="hlup-manage-inline-form">
+                                <input type="hidden" name="hlup_action" value="unassign_pathway">
+                                <input type="hidden" name="hlup_enrollment_id" value="<?php echo esc_attr($enrollment_id); ?>">
+                                <input type="hidden" name="hlup_user_id" value="<?php echo esc_attr($user_id); ?>">
+                                <input type="hidden" name="hlup_pathway_id" value="<?php echo esc_attr($pw['pathway_id']); ?>">
+                                <input type="hidden" name="_hlup_nonce" value="<?php echo esc_attr($nonce_value); ?>">
+                                <button type="submit" class="hlup-manage-btn danger-sm"
+                                        onclick="return confirm('<?php echo esc_js(__('Remove this learning plan?', 'hl-core')); ?>');">
+                                    <?php esc_html_e('Remove', 'hl-core'); ?>
+                                </button>
+                            </form>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php else : ?>
+                <p class="hlup-field-empty"><?php esc_html_e('No learning plans assigned.', 'hl-core'); ?></p>
+            <?php endif; ?>
+
+            <?php if (!empty($available_pathways)) : ?>
+                <form method="post" class="hlup-manage-form hlup-manage-assign-form">
+                    <input type="hidden" name="hlup_action" value="assign_pathway">
+                    <input type="hidden" name="hlup_enrollment_id" value="<?php echo esc_attr($enrollment_id); ?>">
+                    <input type="hidden" name="hlup_user_id" value="<?php echo esc_attr($user_id); ?>">
+                    <input type="hidden" name="_hlup_nonce" value="<?php echo esc_attr($nonce_value); ?>">
+                    <div class="hlup-manage-assign-row">
+                        <select name="hlup_pathway_id">
+                            <option value=""><?php esc_html_e('— Add Learning Plan —', 'hl-core'); ?></option>
+                            <?php foreach ($available_pathways as $pw) : ?>
+                                <option value="<?php echo esc_attr($pw['pathway_id']); ?>"><?php echo esc_html($pw['pathway_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="submit" class="hlup-manage-btn primary"><?php esc_html_e('Assign', 'hl-core'); ?></button>
+                    </div>
+                </form>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Quick Actions -->
+        <div class="hlup-manage-section">
+            <h4 class="hlup-manage-section-title"><?php esc_html_e('Quick Actions', 'hl-core'); ?></h4>
+            <div class="hlup-manage-actions">
+                <form method="post" class="hlup-manage-inline-form">
+                    <input type="hidden" name="hlup_action" value="send_password_reset">
+                    <input type="hidden" name="hlup_user_id" value="<?php echo esc_attr($user_id); ?>">
+                    <input type="hidden" name="hlup_enrollment_id" value="<?php echo esc_attr($enrollment_id); ?>">
+                    <input type="hidden" name="_hlup_nonce" value="<?php echo esc_attr($nonce_value); ?>">
+                    <button type="submit" class="hlup-manage-btn secondary">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <?php esc_html_e('Send Password Reset Email', 'hl-core'); ?>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <?php if ($enrollment && $enrollment->status === 'active') : ?>
+        <div class="hlup-manage-section hlup-manage-danger">
+            <h4 class="hlup-manage-section-title"><?php esc_html_e('Danger Zone', 'hl-core'); ?></h4>
+            <p class="hlup-manage-danger-text"><?php esc_html_e('Deactivating an enrollment will hide this user from reports and prevent access to program content.', 'hl-core'); ?></p>
+            <form method="post" class="hlup-manage-inline-form">
+                <input type="hidden" name="hlup_action" value="deactivate_enrollment">
+                <input type="hidden" name="hlup_enrollment_id" value="<?php echo esc_attr($enrollment_id); ?>">
+                <input type="hidden" name="hlup_user_id" value="<?php echo esc_attr($user_id); ?>">
+                <input type="hidden" name="_hlup_nonce" value="<?php echo esc_attr($nonce_value); ?>">
+                <button type="submit" class="hlup-manage-btn danger"
+                        onclick="return confirm('<?php echo esc_js(__('Are you sure you want to deactivate this enrollment? This can be reversed by setting the status back to Active.', 'hl-core')); ?>');">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    <?php esc_html_e('Deactivate Enrollment', 'hl-core'); ?>
+                </button>
+            </form>
+        </div>
+        <?php endif; ?>
+        <?php
     }
 
     // =====================================================================

@@ -23,6 +23,7 @@ class HL_Shortcodes {
         add_action('template_redirect', array('HL_Frontend_Coach_Mentor_Detail', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Coach_Reports', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Coach_Availability', 'handle_post_actions'));
+        add_action('template_redirect', array('HL_Frontend_User_Profile', 'handle_post_actions'));
     }
 
     public function register_shortcodes() {

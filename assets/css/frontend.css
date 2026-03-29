@@ -5967,3 +5967,238 @@ article:has(.hlup-wrapper) > .entry-header {
         gap: 8px;
     }
 }
+
+/* ── Manage Tab ───────────────────────────────────────────────────── */
+
+.hlup-manage-flash {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    margin-bottom: 20px;
+    background: #d1fae5;
+    border-radius: var(--hl-radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    color: #065f46;
+}
+
+.hlup-manage-section {
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+}
+
+.hlup-manage-section-title {
+    margin: 0 0 16px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.hlup-manage-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.hlup-manage-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.hlup-manage-field label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--hl-text-secondary);
+}
+
+.hlup-manage-field input[type="text"],
+.hlup-manage-field input[type="email"],
+.hlup-manage-field select {
+    padding: 8px 12px;
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-xs);
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--hl-text);
+    background: var(--hl-surface);
+    transition: border-color 0.2s ease;
+}
+
+.hlup-manage-field input:focus,
+.hlup-manage-field select:focus {
+    outline: none;
+    border-color: var(--hl-secondary);
+    box-shadow: 0 0 0 3px rgba(44, 123, 229, 0.1);
+}
+
+.hlup-manage-checkboxes {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.hlup-manage-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--hl-text);
+    cursor: pointer;
+}
+
+.hlup-manage-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--hl-primary);
+}
+
+/* Buttons */
+.hlup-manage-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--hl-radius-xs);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--hl-transition);
+}
+
+.hlup-manage-btn.primary {
+    background: var(--hl-primary);
+    color: #fff;
+}
+
+.hlup-manage-btn.primary:hover {
+    background: var(--hl-primary-light);
+}
+
+.hlup-manage-btn.secondary {
+    background: var(--hl-bg);
+    color: var(--hl-text);
+    border: 1px solid var(--hl-border);
+}
+
+.hlup-manage-btn.secondary:hover {
+    background: var(--hl-bg-hover);
+    border-color: var(--hl-text-secondary);
+}
+
+.hlup-manage-btn.danger {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.hlup-manage-btn.danger:hover {
+    background: #fecaca;
+}
+
+.hlup-manage-btn.danger-sm {
+    background: transparent;
+    color: #dc2626;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.hlup-manage-btn.danger-sm:hover {
+    background: #fee2e2;
+}
+
+/* Pathway list */
+.hlup-manage-pathway-list {
+    margin-bottom: 12px;
+}
+
+.hlup-manage-pathway-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--hl-border);
+}
+
+.hlup-manage-pathway-row:last-child {
+    border-bottom: none;
+}
+
+.hlup-manage-pathway-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--hl-text);
+}
+
+.hlup-manage-inline-form {
+    display: inline;
+}
+
+.hlup-manage-assign-form {
+    margin-top: 8px;
+}
+
+.hlup-manage-assign-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.hlup-manage-assign-row select {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-xs);
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--hl-text);
+}
+
+.hlup-manage-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Danger zone */
+.hlup-manage-danger {
+    border-color: #fecaca;
+}
+
+.hlup-manage-danger .hlup-manage-section-title {
+    color: #991b1b;
+}
+
+.hlup-manage-danger-text {
+    font-size: 14px;
+    color: var(--hl-text-secondary);
+    margin: 0 0 12px;
+}
+
+@media (max-width: 768px) {
+    .hlup-manage-section {
+        padding: 16px;
+    }
+
+    .hlup-manage-checkboxes {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .hlup-manage-assign-row {
+        flex-direction: column;
+    }
+
+    .hlup-manage-assign-row select {
+        width: 100%;
+    }
+}
