@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md
-Version: 3.0
-Last Updated: 2026-03-17
+Version: 3.1
+Last Updated: 2026-03-29
 Timezone: America/Bogota
 
 ---
@@ -311,7 +311,43 @@ Implementation note:
 
 ---
 
-# 9) Audit Logging Requirements (Authorization-related)
+# 9) User Profile Visibility Rules
+
+The HL User Profile (`[hl_user_profile]`) is the unified profile page for all users, replacing BuddyBoss profiles. BuddyBoss profile URLs redirect to the HL User Profile.
+
+## 9.1 Profile Access Control
+
+Only these users can view another user's profile:
+
+| Viewer | Can See Profiles Of | Scope Basis |
+|--------|-------------------|-------------|
+| The user themselves | Own profile (always) | Self |
+| Admin / Staff | Any user | `manage_hl_core` capability |
+| Coach | Their assigned mentors | `hl_coach_assignment` resolution |
+| Mentor | Their team members | `hl_team_membership` in same cycle |
+| School Leader | Staff at their school | Enrollment `school_id` match |
+| District Leader | Staff in their district | Enrollment `district_id` match via OrgUnit hierarchy |
+| Everyone else | Access denied | — |
+
+## 9.2 Tab Visibility by Role
+
+| Tab | Self | Admin | Coach (assigned) | Mentor (team) | School Leader (school) |
+|-----|:----:|:-----:|:-----------------:|:-------------:|:----------------------:|
+| **Overview** | Yes | Yes (all fields) | Yes | Yes | Yes |
+| **Progress** | Yes | Yes | Yes | Yes | Yes |
+| **Coaching** | Yes | Yes | Yes | No | No |
+| **Assessments** | Status only | Full + responses | Full + responses | Status only | Status only |
+| **RP & Observations** | Yes | Yes | Yes | No | No |
+| **Manage** | No | Yes | No | No | No |
+
+Notes:
+- Assessment responses (TSA answer-level data) gated behind `manage_hl_core` — consistent with §3.2 above.
+- Manage tab is admin-only: profile edit, enrollment settings, pathway assign/unassign, password reset, deactivation.
+- Multi-enrollment users see a cycle selector; all tabs scope to the selected enrollment.
+
+---
+
+# 10) Audit Logging Requirements (Authorization-related)
 
 Log these events with:
 - actor_user_id

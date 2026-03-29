@@ -1,7 +1,7 @@
 # Housman Learning Core Plugin — AI Library
 ## File: 10_FRONTEND_PAGES_NAVIGATION_UX.md
-Version: 5.0
-Last Updated: 2026-03-24
+Version: 5.1
+Last Updated: 2026-03-29
 Timezone: America/Bogota
 
 ---
@@ -86,16 +86,28 @@ Cycle Workspace (the "command center" for one cycle)
   └─ Tab: Dashboard (stats overview)
 ```
 
-## 2.4 Future: BuddyBoss Profile Integration
+## 2.4 HL User Profile (Implemented)
 
-A custom BuddyBoss profile tab ("Housman Learning" or similar) where coaches/admins can manage a specific user:
-- Enrollment info and role
-- Pathway progress detail
-- Team assignment (with ability to change)
-- Coaching sessions
-- Action buttons: re-send invite, override activity, change team/role
+**Shortcode:** `[hl_user_profile]`
+**Page URL:** `/user-profile/` — accessed via `?user_id=X`, `?enrollment_id=X`, or no parameter (own profile).
+**Class:** `HL_Frontend_User_Profile` (`includes/frontend/class-hl-frontend-user-profile.php`)
 
-**This is OUT OF SCOPE for v1 but should be designed to integrate cleanly later.**
+A unified profile page that replaces BuddyBoss profiles as the primary profile for all users. BuddyBoss profile URLs (forum name clicks, @mentions) are redirected to this page via `template_redirect`.
+
+**6 tabs with role-based visibility:**
+
+| Tab | Content | Who Sees It |
+|-----|---------|------------|
+| Overview | Photo, name, email, school, district, role(s), classroom(s), coach, enrollment dates | All permitted viewers |
+| Progress | Pathway enrollments, component-by-component completion, LearnDash %, rollups | All permitted viewers |
+| Coaching | Sessions (upcoming/past), action plans, Schedule Next Session button | Self, Admin, Coach |
+| Assessments | TSA/CA completion status; responses for staff/coach only | All (responses gated) |
+| RP & Observations | RP sessions, classroom visits, self-reflections | Self, Admin, Coach |
+| Manage | Profile edit, enrollment settings, pathway assign/unassign, password reset, deactivation | Admin only |
+
+**Access control:** Own profile (always), Admin/Staff (any profile), Coach (assigned mentors), Mentor (team members), School Leader (school staff), District Leader (district staff). Cycle selector for multi-enrollment users.
+
+**Entry points:** User names clickable in Staff tab, Reports tab, Team Page, Coach Mentors grid, Admin Enrollments. "My Profile" link in BuddyBoss sidebar. Breadcrumb navigation (Dashboard > My School > User Name).
 
 ---
 
@@ -118,6 +130,7 @@ All front-end pages require the user to be logged in.
 | Classroom Page | Housman Admin, Coach, School Leader(s), District Leader(s), Teacher(s) assigned to that Classroom |
 | Team Page | Housman Admin, Coach, School Leader(s), District Leader(s), Mentor(s) of that Team |
 | My Coaching | Any enrolled participant (sees only their own sessions) |
+| User Profile | Own profile (always), Admin/Staff (any), Coach (assigned mentors), Mentor (team), School Leader (school staff), District Leader (district staff) |
 
 If a user does not have permission, show a "You do not have access to this page" message. Never expose data outside the user's scope.
 
@@ -347,7 +360,7 @@ This page automatically detects the logged-in user's enrollment and scopes the v
 ### Tab: Staff
 - Table of all enrolled participants within scope
 - Columns: Name, Email, Team, Role, Completion %
-- "View Profile" button per row (links to BuddyBoss profile in future; for now, expands inline detail)
+- "View Profile" button per row (links to HL User Profile)
 - Sortable columns
 - Search box
 
@@ -431,7 +444,7 @@ Content:
 ### Section: Staff
 - Table of all users associated with this school (across cycles)
 - Columns: Name, Email, Role, Cycle
-- Click → BuddyBoss profile (future) or inline detail
+- Click → HL User Profile
 
 ## 6.5 Cycle Workspace
 **Shortcode:** `[hl_cycle_workspace]` with URL parameter `cycle_id` and optional `orgunit_id`
@@ -519,11 +532,13 @@ Every detail page includes a breadcrumb link back to its parent:
 - Classroom Page → "← Back to [source]"
 - School Page → "← Back to [District Name]" (for staff)
 - Cycle Workspace → "← Back to [District/School Name]" (when accessed from CRM)
+- User Profile → "Dashboard > My School > [User Name]" (breadcrumb navigation)
 
 ## 8.2 Sidebar Menu Integration
 The following items should appear in the BuddyBoss sidebar menu under "HOUSMAN LEARNING" (or similar section), conditional on user role:
 
-**All enrolled participants:**
+**All enrolled participants + staff:**
+- My Profile
 - My Programs
 
 **School Leaders, District Leaders:**
@@ -557,6 +572,7 @@ Use WordPress pages with URL parameters. Recommended slugs:
 | Team Page | `/team/` | `?id=X` |
 | Classroom Page | `/classroom/` | `?id=X` |
 | My Coaching | `/my-coaching/` | optional `?cycle_id=X` |
+| User Profile | `/user-profile/` | `?user_id=X` or `?enrollment_id=X` (no param = own profile) |
 
 For v1, URL parameters are simplest. Pretty permalinks (e.g., `/program/begin-to-ecsel/`) can be added later via rewrite rules.
 
@@ -657,7 +673,7 @@ When a coach is replaced:
 Coach assignment is managed in these existing admin/front-end pages:
 - **School Page (admin or CRM):** "Default Coach" dropdown — creates/updates school-level assignment
 - **Team Page (admin):** "Coach" dropdown — creates/updates team`school`-level assignment (overrides school default)
-- **Enrollment detail / BuddyBoss profile (future):** "Coach Override" — creates enrollment`school`-level assignment
+- **Enrollment detail / HL User Profile (Manage tab):** "Coach Override" — creates enrollment-level assignment
 
 Alternatively, a dedicated "Coach Assignments" admin page under HL Core menu showing all current assignments with filter by cycle.
 
@@ -746,7 +762,7 @@ If no coach assigned: show "No coach assigned yet. Contact your administrator."
 
 ### Visibility
 - Any enrolled participant can see their own sessions
-- Coaches see this page scoped to the participant they're viewing (future: via BuddyBoss profile tab)
+- Coaches see this page scoped to the participant they're viewing (via HL User Profile Coaching tab)
 
 ## 15.3 Coach/Admin Coaching Management
 
@@ -915,7 +931,7 @@ These pages serve both the sidebar navigation and provide comprehensive browseab
 **Layout:**
 - Search bar (by name, email)
 - Filters: Cycle, School, Team, Role (teacher/mentor/school_leader/district_leader), Status
-- Table: Name (link to BuddyBoss profile or user page), Email, Role(s), School, Team, Cycle, Completion %
+- Table: Name (link to HL User Profile), Email, Role(s), School, Team, Cycle, Completion %
 - Pagination (25 per page)
 
 **Scope:**
@@ -981,8 +997,8 @@ Original Phases A-C are complete (Phases 7-9 in README build queue).
 9. Booking flow — participant selects available slot → creates session in HL Core + MS365 calendar event for both parties
 10. Sync — reschedule/cancel updates propagate to MS365 calendar
 
-**Phase F: BuddyBoss Integration (future)**
-11. Custom BuddyBoss profile tab for user management (unchanged from original plan)
+**Phase F: HL User Profile (Implemented)**
+11. HL User Profile replaces BuddyBoss profile tab — unified profile page with 6 tabs (Overview, Progress, Coaching, Assessments, RP & Observations, Manage). BB profile URLs redirect to HL profile. See §2.4.
 
 ---
 

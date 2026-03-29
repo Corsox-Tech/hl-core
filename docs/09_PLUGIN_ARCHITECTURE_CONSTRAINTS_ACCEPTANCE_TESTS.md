@@ -188,7 +188,7 @@ Notes:
 
 ## 3.4 BuddyBoss
 - HL Core does not implement messaging.
-- HL Core may provide links to dashboards within BuddyBoss profile navigation (optional).
+- HL Core provides its own unified User Profile page (`[hl_user_profile]`). BuddyBoss profile URLs are redirected to the HL User Profile.
 - HL Core should not restrict BuddyBoss messaging.
 
 ---
@@ -269,8 +269,7 @@ HL Core should provide at least:
 - School/District leader report pages (scoped)
 
 Implementation options:
-- WP shortcodes OR BuddyBoss profile tabs OR custom pages with routing.
-Choose simplest: shortcodes + capability checks.
+- WP shortcodes + capability checks (implemented). HL User Profile replaces BuddyBoss profile tabs.
 
 ---
 

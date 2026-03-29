@@ -15,7 +15,7 @@
 | Phase 5: RP & Observations tab | [x] |
 | Phase 6: Manage tab (admin) | [x] |
 | Phase 7: Wiring + polish | [x] |
-| Phase 8: Documentation updates | [ ] |
+| Phase 8: Documentation updates | [x] |
 
 ---
 

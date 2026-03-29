@@ -106,8 +106,8 @@ The sidebar menu is rendered programmatically by `HL_BuddyBoss_Integration` — 
 2. `wp_nav_menu_items` filter on `buddypanel-loggedin` location — left sidebar
 3. `wp_footer` JS fallback — covers empty BuddyPanel or missing hooks
 
-**11 menu items with role-based visibility (doc 10 §16):**
-- Personal (require enrollment): My Programs, My Coaching, My Team (mentor), My Cycle (leader/mentor)
+**12 menu items with role-based visibility (doc 10 §16):**
+- Personal (require enrollment): My Profile (all enrolled + staff), My Programs, My Coaching, My Team (mentor), My Cycle (leader/mentor)
 - Directories: Cycles, Institutions (staff/leader), Classrooms (staff/leader/teacher), Learners (staff/leader/mentor)
 - Staff tools: Pathways (staff only), Coaching Hub (staff/mentor), Reports (staff/leader)
 
@@ -266,7 +266,7 @@ Housman measures program impact by comparing:
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss (3 classes, JFB legacy)
     /admin/                      # WP admin pages (18 controllers incl. Coaching Hub with Coaches tab, Email Templates editor)
-    /frontend/                   # 28 shortcode page renderers + 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + instrument/teacher-assessment renderers
+    /frontend/                   # 29 shortcode page renderers (incl. User Profile) + 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + instrument/teacher-assessment renderers
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, age group helpers + label remap (legacy)
   /assets/

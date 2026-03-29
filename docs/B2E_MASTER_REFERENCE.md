@@ -580,7 +580,7 @@ The README.md has a 31+ phase build queue that mixes completed work with future 
 - Control group design — no change (just clarified)
 - Import system — no change
 - Security/Scope model — no change (scope still derives from Cycle enrollment)
-- BuddyBoss integration — minimal change (add My Courses to sidebar if needed)
+- BuddyBoss integration — HL User Profile replaces BB profiles; BB profile URLs redirect to `/user-profile/`. My Profile added to sidebar.
 
 ---
 
