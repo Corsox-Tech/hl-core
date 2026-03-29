@@ -59,6 +59,7 @@ class HL_Shortcodes {
         add_shortcode('hl_coach_mentor_detail', array($this, 'render_coach_mentor_detail'));
         add_shortcode('hl_coach_reports', array($this, 'render_coach_reports'));
         add_shortcode('hl_coach_availability', array($this, 'render_coach_availability'));
+        add_shortcode('hl_user_profile', array($this, 'render_user_profile'));
 
         // Backward-compatible aliases for pre-Rename-V3 shortcode names.
         // Production pages may still contain the old shortcode names.
@@ -107,7 +108,8 @@ class HL_Shortcodes {
             || has_shortcode($post->post_content, 'hl_coach_mentors')
             || has_shortcode($post->post_content, 'hl_coach_mentor_detail')
             || has_shortcode($post->post_content, 'hl_coach_reports')
-            || has_shortcode($post->post_content, 'hl_coach_availability');
+            || has_shortcode($post->post_content, 'hl_coach_availability')
+            || has_shortcode($post->post_content, 'hl_user_profile');
 
         if ($has_shortcode) {
             wp_enqueue_style('hl-google-fonts-inter', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null);
@@ -565,6 +567,19 @@ class HL_Shortcodes {
         $this->ensure_frontend_assets();
         $atts = shortcode_atts(array(), $atts, 'hl_coach_availability');
         $renderer = new HL_Frontend_Coach_Availability();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_user_profile] - User profile page
+     */
+    public function render_user_profile($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this profile.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $atts = shortcode_atts(array(), $atts, 'hl_user_profile');
+        $renderer = new HL_Frontend_User_Profile();
         return $renderer->render($atts);
     }
 

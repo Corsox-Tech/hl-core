@@ -66,10 +66,20 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Fix: Coaching session component buttons** — Program Page coaching cards now filter by `component_id` (fixes all sessions showing "Scheduled" when only one is). Button changed from "Join Meeting" to "View Session" linking to Component Page. Completed sessions get "View Session" link.
 - [x] **Fix: Action Plan domain dropdown clipping** — `.hlap-select` CSS: added `line-height:1.4`, `height:auto`, reduced padding.
 
+### HL User Profile Page (Active — March 2026)
+> **Plan:** `docs/superpowers/plans/2026-03-29-hl-user-profile-plan.md` — read this FIRST for full context, architecture, access control rules, and data sources.
+- [x] **Phase 1 — Page foundation + Overview tab + BB redirect** — `HL_Frontend_User_Profile` class, `[hl_user_profile]` shortcode, Overview tab (hero + 3-4 info cards: Contact, Program, Team & Coaching, Classrooms), role-based access control, cycle selector for multi-enrollment users, BB profile redirect to HL profile, `User Profile` page in CLI create-pages. CSS in frontend.css (`.hlup-*`).
+- [ ] **Phase 2 — Progress tab + entry point links** — Pathway enrollments, component completion with status badges, LearnDash %. Make user names clickable in Reports/Staff tabs on My School page.
+- [ ] **Phase 3 — Coaching tab** — Sessions list (upcoming/past), action plans, "Schedule Next Session" link. Evaluate Coach Mentor Detail deprecation.
+- [ ] **Phase 4 — Assessments tab** — TSA/CA completion status. TSA read-only form view (staff/coach only). Reuse `HL_Teacher_Assessment_Renderer` with `read_only=true`.
+- [ ] **Phase 5 — RP & Observations tab** — Self-reflections, classroom visits, RP session notes.
+- [ ] **Phase 6 — Manage tab (admin only)** — Edit profile, assign/unassign pathways, manage enrollment, send password reset/welcome email.
+- [ ] **Phase 7 — Entry point wiring + polish** — Profile links on all pages (Coach Mentors, Team Page, Classrooms, Admin Enrollments, sidebar "My Profile"), breadcrumbs, mobile responsive.
+- [ ] **Phase 8 — Documentation updates** — Update README.md, STATUS.md, roles/permissions doc, architecture skill. Audit all docs for profile references.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
-- [ ] BuddyBoss Profile Tab (out of scope for v1)
 - [ ] Frontend CSS redesign (modernize all 25+ shortcode pages)
 
 ---

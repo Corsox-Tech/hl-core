@@ -195,6 +195,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-coach-reports.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-coach-availability.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-schedule-session.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-user-profile.php';
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';

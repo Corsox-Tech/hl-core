@@ -152,6 +152,9 @@ class HL_CLI_Create_Pages {
             // Documentation
             array( 'title' => 'Documentation',             'shortcode' => 'hl_docs' ),
 
+            // User profile
+            array( 'title' => 'User Profile',         'shortcode' => 'hl_user_profile' ),
+
             // Coach pages
             array( 'title' => 'Coach Dashboard',     'shortcode' => 'hl_coach_dashboard' ),
             array( 'title' => 'My Mentors',           'shortcode' => 'hl_coach_mentors' ),

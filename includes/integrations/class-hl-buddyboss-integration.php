@@ -80,6 +80,9 @@ class HL_BuddyBoss_Integration {
         // 0a. Template redirect — redirect enrolled users from BB Dashboard to HL Dashboard.
         add_action('template_redirect', array($this, 'redirect_bb_dashboard_to_hl'));
 
+        // 0a2. Template redirect — redirect BB member profiles to HL User Profile.
+        add_action('template_redirect', array($this, 'redirect_bb_profile_to_hl'));
+
         // 0b. Custom CSS for dashicons sizing, spacing, and vertical padding.
         add_action('wp_head', array($this, 'render_custom_css'));
 
@@ -348,6 +351,43 @@ class HL_BuddyBoss_Integration {
         }
 
         wp_redirect($hl_dashboard_url);
+        exit;
+    }
+
+    /**
+     * Redirect BuddyBoss member profile pages to the HL User Profile.
+     *
+     * When a user clicks a name in the forum (or any link to a BB profile),
+     * they land on the HL profile page instead of the empty BB profile.
+     *
+     * Escape hatch: ?bb=1 skips the redirect (for debugging).
+     */
+    public function redirect_bb_profile_to_hl() {
+        // Skip if not on a BP member page.
+        if (!function_exists('bp_is_user') || !bp_is_user()) {
+            return;
+        }
+
+        // Escape hatch for debugging.
+        if (!empty($_GET['bb'])) {
+            return;
+        }
+
+        // Get the displayed user ID from BuddyPress.
+        $displayed_user_id = bp_displayed_user_id();
+        if (!$displayed_user_id) {
+            return;
+        }
+
+        // Find the HL User Profile page.
+        $profile_url = $this->find_shortcode_page_url('hl_user_profile');
+        if (empty($profile_url)) {
+            return;
+        }
+
+        $redirect_url = add_query_arg('user_id', $displayed_user_id, $profile_url);
+
+        wp_redirect($redirect_url, 302);
         exit;
     }
 

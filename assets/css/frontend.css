@@ -131,7 +131,6 @@ body:has(.hl-dashboard) h1.entry-title {
    ===================================================== */
 
 .hl-dashboard {
-    max-width: 1000px;
     margin: 0 auto;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
@@ -151,6 +150,51 @@ body:has(.hl-dashboard) h1.entry-title {
     padding: 0;
     margin-left: auto;
     margin-right: auto;
+}
+
+/* ---- Global: HL Core pages use fullwidth-content page template ----
+   All HL Core shortcode pages use BuddyBoss's "Fullwidth Content" template
+   which strips the theme's container/padding. We add back a single,
+   consistent content constraint here so ALL pages align the same way.
+
+   ONE rule controls width + padding for every HL Core page.
+   Individual wrappers must NOT set their own max-width — that creates
+   misalignment. Internal elements can constrain for readability.
+   ---------------------------------------------------------------------- */
+.page-template-page-fullwidth-content .entry-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 30px 40px;
+}
+@media (min-width: 1024px) {
+    .page-template-page-fullwidth-content .entry-content {
+        padding: 20px 40px 40px;
+    }
+}
+
+/* ---- Override: strip hardcoded max-width from ALL sub-wrappers ----
+   These wrappers had 720px-1100px max-widths that conflict with the
+   entry-content constraint. Force them all to fill their parent so
+   every element aligns to the same left/right edges.
+   ---------------------------------------------------------------------- */
+.page-template-page-fullwidth-content .hlap-form-wrapper,
+.page-template-page-fullwidth-content .hlrn-form-wrapper,
+.page-template-page-fullwidth-content .hlcv-form-wrapper,
+.page-template-page-fullwidth-content .hls-scheduler,
+.page-template-page-fullwidth-content .hls-session,
+.page-template-page-fullwidth-content .hlmc-wrap,
+.page-template-page-fullwidth-content .hlca-wrapper,
+.page-template-page-fullwidth-content .hlcd-wrapper,
+.page-template-page-fullwidth-content .hlcm-wrapper,
+.page-template-page-fullwidth-content .hlcr-wrapper,
+.page-template-page-fullwidth-content .hlcmd-wrapper,
+.page-template-page-fullwidth-content .hl-rp-session-detail,
+.page-template-page-fullwidth-content .hl-docs-wrapper,
+.page-template-page-fullwidth-content .hl-back-link,
+.page-template-page-fullwidth-content .hlcv-alert {
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
 }
 
 /* =====================================================
@@ -4544,5 +4588,516 @@ body:has(.hl-dashboard-v2) .entry-title {
         display: block;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* =====================================================================
+   User Profile Page (.hlup-*)
+   ===================================================================== */
+
+.hlup-wrapper {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 4px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────── */
+
+.hlup-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: linear-gradient(135deg, var(--hl-primary) 0%, var(--hl-primary-light) 100%);
+    border-radius: var(--hl-radius);
+    padding: 28px 32px;
+    margin-bottom: 20px;
+    color: #fff;
+}
+
+.hlup-hero-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    min-width: 0;
+}
+
+.hlup-hero-avatar {
+    flex-shrink: 0;
+}
+
+.hlup-hero-avatar .hlup-avatar-img,
+.hlup-hero-avatar img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.hlup-hero-info {
+    min-width: 0;
+}
+
+.hlup-hero-name {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    line-height: 1.2;
+    color: #fff;
+}
+
+.hlup-hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.hlup-hero-roles {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.hlup-role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    backdrop-filter: blur(4px);
+    text-transform: capitalize;
+}
+
+.hlup-hero-school {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.hlup-hero-school svg {
+    opacity: 0.7;
+}
+
+/* Circular completion indicator */
+.hlup-hero-right {
+    flex-shrink: 0;
+}
+
+.hlup-hero-completion {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.hlup-completion-circle {
+    position: relative;
+    width: 72px;
+    height: 72px;
+}
+
+.hlup-completion-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.hlup-circle-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.15);
+    stroke-width: 3;
+}
+
+.hlup-circle-fill {
+    fill: none;
+    stroke: #2ECC71;
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.6s ease;
+}
+
+.hlup-completion-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.hlup-completion-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+    font-weight: 600;
+}
+
+/* ── Cycle Selector ───────────────────────────────────────────────── */
+
+.hlup-cycle-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.hlup-cycle-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--hl-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.hlup-cycle-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--hl-bg);
+    color: var(--hl-text-secondary);
+    border: 1px solid var(--hl-border);
+    text-decoration: none;
+    transition: var(--hl-transition);
+}
+
+.hlup-cycle-pill:hover {
+    background: var(--hl-bg-hover);
+    color: var(--hl-text-heading);
+    border-color: var(--hl-secondary);
+    text-decoration: none;
+}
+
+.hlup-cycle-pill.active {
+    background: var(--hl-primary);
+    color: #fff;
+    border-color: var(--hl-primary);
+}
+
+/* ── Tab Navigation ───────────────────────────────────────────────── */
+
+.hlup-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--hl-border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.hlup-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.hlup-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--hl-text-secondary);
+    text-decoration: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    white-space: nowrap;
+    transition: var(--hl-transition);
+}
+
+.hlup-tab:hover {
+    color: var(--hl-text-heading);
+    text-decoration: none;
+}
+
+.hlup-tab.active {
+    color: var(--hl-primary);
+    border-bottom-color: var(--hl-primary);
+}
+
+.hlup-tab svg {
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+
+.hlup-tab.active svg {
+    opacity: 1;
+}
+
+/* ── Overview Grid ────────────────────────────────────────────────── */
+
+.hlup-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+/* ── Cards ────────────────────────────────────────────────────────── */
+
+.hlup-card {
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
+    overflow: hidden;
+    transition: var(--hl-transition);
+}
+
+.hlup-card:hover {
+    box-shadow: var(--hl-shadow-hover);
+}
+
+.hlup-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--hl-border);
+    background: var(--hl-bg);
+}
+
+.hlup-card-header svg {
+    flex-shrink: 0;
+    color: var(--hl-primary);
+}
+
+.hlup-card-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.hlup-card-body {
+    padding: 16px 20px;
+}
+
+/* ── Fields ───────────────────────────────────────────────────────── */
+
+.hlup-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--hl-border);
+}
+
+.hlup-field:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.hlup-field:first-child {
+    padding-top: 0;
+}
+
+.hlup-field-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--hl-text-secondary);
+    flex-shrink: 0;
+    min-width: 80px;
+}
+
+.hlup-field-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--hl-text-heading);
+    text-align: right;
+    word-break: break-word;
+}
+
+.hlup-field-empty {
+    font-size: 14px;
+    color: var(--hl-text-muted);
+    font-style: italic;
+    margin: 4px 0 0;
+}
+
+/* Progress bar within field */
+.hlup-field-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    max-width: 200px;
+}
+
+.hlup-progress-track {
+    flex: 1;
+    height: 8px;
+    background: var(--hl-border);
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.hlup-progress-fill {
+    height: 100%;
+    border-radius: 20px;
+    background: linear-gradient(90deg, var(--hl-primary) 0%, var(--hl-secondary) 100%);
+    transition: width 0.5s ease;
+}
+
+.hlup-progress-fill.complete {
+    background: linear-gradient(90deg, var(--hl-accent-dark) 0%, var(--hl-accent) 100%);
+}
+
+.hlup-progress-pct {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+    min-width: 36px;
+    text-align: right;
+}
+
+/* ── Classroom Items ──────────────────────────────────────────────── */
+
+.hlup-classroom-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--hl-border);
+}
+
+.hlup-classroom-item:last-child {
+    border-bottom: none;
+}
+
+.hlup-classroom-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--hl-text);
+}
+
+/* ── Empty State ──────────────────────────────────────────────────── */
+
+.hlup-empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
+}
+
+.hlup-empty-state svg {
+    color: var(--hl-text-muted);
+    margin-bottom: 16px;
+}
+
+.hlup-empty-state h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: var(--hl-text-heading);
+}
+
+.hlup-empty-state p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--hl-text-secondary);
+}
+
+.hlup-empty-email {
+    margin-top: 8px !important;
+    font-size: 13px !important;
+    color: var(--hl-text-muted) !important;
+}
+
+/* ── Placeholder Tab (future phases) ──────────────────────────────── */
+
+.hlup-placeholder-tab {
+    text-align: center;
+    padding: 60px 24px;
+    background: var(--hl-surface);
+    border: 1px dashed var(--hl-border);
+    border-radius: var(--hl-radius);
+}
+
+.hlup-placeholder-icon {
+    color: var(--hl-text-muted);
+    margin-bottom: 16px;
+}
+
+.hlup-placeholder-title {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--hl-text-heading);
+}
+
+.hlup-placeholder-text {
+    margin: 0;
+    font-size: 14px;
+    color: var(--hl-text-secondary);
+}
+
+/* ── Responsive ───────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .hlup-hero {
+        flex-direction: column;
+        text-align: center;
+        padding: 24px 20px;
+    }
+
+    .hlup-hero-left {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .hlup-hero-info {
+        text-align: center;
+    }
+
+    .hlup-hero-meta {
+        justify-content: center;
+    }
+
+    .hlup-hero-name {
+        font-size: 20px;
+    }
+
+    .hlup-overview-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hlup-field {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .hlup-field-value {
+        text-align: left;
+    }
+
+    .hlup-field-progress {
+        max-width: 100%;
+    }
+
+    .hlup-tab-label {
+        display: none;
+    }
+
+    .hlup-tab {
+        padding: 12px;
+    }
+
+    .hlup-tab svg {
+        width: 20px;
+        height: 20px;
     }
 }
