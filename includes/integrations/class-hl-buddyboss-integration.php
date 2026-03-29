@@ -866,6 +866,7 @@ class HL_BuddyBoss_Integration {
         $is_coach_only = $is_coach && !$is_staff;
         $menu_def = array(
             // --- Personal (require active enrollment) ---
+            array('my-profile',     'hl_user_profile',         __('My Profile', 'hl-core'),     'dashicons-admin-users',          $has_enrollment || $is_staff),
             array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment && ($is_teacher || $is_mentor || $is_staff)),
             array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $is_mentor && !$is_control_only),
             array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor || $is_teacher),

@@ -4604,6 +4604,33 @@ article:has(.hlup-wrapper) > .entry-header {
     padding: 0 !important;
 }
 
+/* ── Breadcrumbs ──────────────────────────────────────────────────── */
+
+.hlup-breadcrumbs {
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+    margin-bottom: 12px;
+}
+
+.hlup-breadcrumbs a {
+    color: var(--hl-secondary);
+    text-decoration: none;
+}
+
+.hlup-breadcrumbs a:hover {
+    text-decoration: underline;
+}
+
+.hlup-breadcrumb-sep {
+    margin: 0 6px;
+    color: var(--hl-text-muted);
+}
+
+.hlup-breadcrumb-current {
+    color: var(--hl-text-heading);
+    font-weight: 600;
+}
+
 .hlup-wrapper {
     max-width: 960px;
     margin: 0 auto;

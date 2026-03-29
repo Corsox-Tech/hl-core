@@ -142,6 +142,15 @@ class HL_Frontend_Coach_Mentors {
                         <?php else : ?>
                             </div>
                         <?php endif; ?>
+                        <?php
+                        $profile_url = $this->get_profile_url($mentor['user_id']);
+                        if ($profile_url) :
+                        ?>
+                            <a href="<?php echo esc_url($profile_url); ?>" class="hlcm-profile-link">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                <?php esc_html_e('View Profile', 'hl-core'); ?>
+                            </a>
+                        <?php endif; ?>
 
                     <?php endforeach; ?>
                 </div>
@@ -266,6 +275,9 @@ class HL_Frontend_Coach_Mentors {
             .hlcm-grid{grid-template-columns:1fr}
             .hlcm-card-meta{flex-direction:column;gap:10px}
         }
+        .hlcm-profile-link{display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 0;font-size:12px;font-weight:600;color:#2C7BE5;text-decoration:none;transition:color .2s}
+        .hlcm-profile-link:hover{color:#1a6ad4;text-decoration:underline}
+        .hlcm-profile-link svg{opacity:.6}
         </style>
         <?php
     }
@@ -285,5 +297,13 @@ class HL_Frontend_Coach_Mentors {
             '%[' . $wpdb->esc_like($shortcode) . '%'
         ));
         return $page_id ? get_permalink($page_id) : '';
+    }
+
+    private function get_profile_url($user_id) {
+        static $base_url = null;
+        if ($base_url === null) {
+            $base_url = $this->find_shortcode_page_url('hl_user_profile');
+        }
+        return $base_url ? add_query_arg('user_id', (int) $user_id, $base_url) : '';
     }
 }

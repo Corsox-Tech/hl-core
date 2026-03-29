@@ -253,6 +253,8 @@ class HL_Frontend_User_Profile {
         ?>
         <div class="hlup-wrapper">
 
+            <?php $this->render_breadcrumbs($target_user, $overview, $is_own_profile); ?>
+
             <?php $this->render_hero($target_user, $overview, $is_own_profile); ?>
 
             <?php if (count($enrollments) > 1) : ?>
@@ -696,6 +698,37 @@ class HL_Frontend_User_Profile {
             'team_name'   => $team->team_name,
             'mentor_name' => $mentor_name ?: null,
         );
+    }
+
+    // =====================================================================
+    // Rendering — Breadcrumbs
+    // =====================================================================
+
+    private function render_breadcrumbs($user, $overview, $is_own_profile) {
+        if ($is_own_profile) {
+            return; // No breadcrumbs for own profile.
+        }
+
+        $crumbs = array();
+
+        // Dashboard as root.
+        $dashboard_url = $this->find_shortcode_page_url('hl_dashboard');
+        if ($dashboard_url) {
+            $crumbs[] = '<a href="' . esc_url($dashboard_url) . '">' . esc_html__('Dashboard', 'hl-core') . '</a>';
+        }
+
+        // If viewer came from My School, link back.
+        $school_url = $this->find_shortcode_page_url('hl_my_cycle');
+        if ($school_url) {
+            $crumbs[] = '<a href="' . esc_url($school_url) . '">' . esc_html__('My School', 'hl-core') . '</a>';
+        }
+
+        // Current page — user name.
+        $crumbs[] = '<span class="hlup-breadcrumb-current">' . esc_html($user->display_name) . '</span>';
+
+        if (count($crumbs) > 1) {
+            echo '<nav class="hlup-breadcrumbs">' . implode(' <span class="hlup-breadcrumb-sep">/</span> ', $crumbs) . '</nav>';
+        }
     }
 
     // =====================================================================

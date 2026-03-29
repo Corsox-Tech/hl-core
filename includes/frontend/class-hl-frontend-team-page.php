@@ -334,7 +334,14 @@ class HL_Frontend_Team_Page {
                         $role_label = ucwords( str_replace( '_', ' ', $m['membership_type'] ) );
                     ?>
                         <tr data-name="<?php echo esc_attr( strtolower( $m['display_name'] ?? '' ) ); ?>">
-                            <td><strong><?php echo esc_html( $m['display_name'] ); ?></strong></td>
+                            <td><strong><?php
+                                $profile_url = $this->get_profile_url( $m['user_id'] ?? 0 );
+                                if ( $profile_url ) {
+                                    echo '<a href="' . esc_url( $profile_url ) . '" class="hl-profile-link">' . esc_html( $m['display_name'] ) . '</a>';
+                                } else {
+                                    echo esc_html( $m['display_name'] );
+                                }
+                            ?></strong></td>
                             <td><?php echo esc_html( $m['user_email'] ); ?></td>
                             <td><span class="hl-badge hl-badge-role"><?php echo esc_html( $role_label ); ?></span></td>
                             <td>
@@ -434,7 +441,14 @@ class HL_Frontend_Team_Page {
                             <tr class="hl-report-row"
                                 data-name="<?php echo esc_attr( strtolower( $p['display_name'] ) ); ?>">
                                 <td><?php echo esc_html( $row_num ); ?></td>
-                                <td><strong><?php echo esc_html( $p['display_name'] ); ?></strong></td>
+                                <td><strong><?php
+                                    $profile_url = $this->get_profile_url( $p['user_id'] ?? 0 );
+                                    if ( $profile_url ) {
+                                        echo '<a href="' . esc_url( $profile_url ) . '" class="hl-profile-link">' . esc_html( $p['display_name'] ) . '</a>';
+                                    } else {
+                                        echo esc_html( $p['display_name'] );
+                                    }
+                                ?></strong></td>
                                 <td><?php echo esc_html( $roles_str ); ?></td>
                                 <td>
                                     <div class="hl-inline-progress">
@@ -528,5 +542,13 @@ class HL_Frontend_Team_Page {
             '%[' . $wpdb->esc_like( $shortcode ) . '%'
         ) );
         return $page_id ? get_permalink( $page_id ) : '';
+    }
+
+    private function get_profile_url( $user_id ) {
+        static $base_url = null;
+        if ( $base_url === null ) {
+            $base_url = $this->find_shortcode_page_url( 'hl_user_profile' );
+        }
+        return $base_url ? add_query_arg( 'user_id', (int) $user_id, $base_url ) : '';
     }
 }

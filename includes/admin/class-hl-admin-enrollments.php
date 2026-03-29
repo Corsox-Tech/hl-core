@@ -458,6 +458,10 @@ class HL_Admin_Enrollments {
             echo '<td>' . esc_html($enrollment->enrolled_at) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
+            $profile_url = $this->get_frontend_profile_url($enrollment->user_id);
+            if ($profile_url) {
+                echo '<a href="' . esc_url($profile_url) . '" class="button button-small" target="_blank">' . esc_html__('Profile', 'hl-core') . '</a> ';
+            }
             echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this enrollment?', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a> ';
             if ( $can_switch && $enrollment->user_id ) {
                 $target_user = new WP_User( $enrollment->user_id );
@@ -725,5 +729,20 @@ class HL_Admin_Enrollments {
         })();
         </script>
         <?php
+    }
+
+    private function get_frontend_profile_url($user_id) {
+        static $base_url = null;
+        if ($base_url === null) {
+            global $wpdb;
+            $page_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT ID FROM {$wpdb->posts}
+                 WHERE post_type = 'page' AND post_status = 'publish'
+                 AND post_content LIKE %s LIMIT 1",
+                '%[' . $wpdb->esc_like('hl_user_profile') . '%'
+            ));
+            $base_url = $page_id ? get_permalink($page_id) : '';
+        }
+        return $base_url ? add_query_arg('user_id', (int) $user_id, $base_url) : '';
     }
 }
