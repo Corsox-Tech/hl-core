@@ -127,7 +127,7 @@ class HL_Frontend_User_Profile {
                         $this->render_assessments_tab($target_user, $active_enrollment, $is_admin);
                         break;
                     case 'rp':
-                        $this->render_placeholder_tab(__('RP & Observations', 'hl-core'), __('Reflective practice and classroom visits will appear here.', 'hl-core'));
+                        $this->render_rp_tab($target_user, $active_enrollment);
                         break;
                     case 'manage':
                         $this->render_placeholder_tab(__('Manage', 'hl-core'), __('Admin management actions will appear here.', 'hl-core'));
@@ -1504,6 +1504,207 @@ class HL_Frontend_User_Profile {
             'draft'       => array('hlup-badge-draft', __('Draft', 'hl-core')),
             'in_progress' => array('hlup-badge-draft', __('In Progress', 'hl-core')),
             'not_started' => array('hlup-badge-pending', __('Not Started', 'hl-core')),
+        );
+        $badge = isset($map[$status]) ? $map[$status] : array('hlup-badge-pending', ucwords(str_replace('_', ' ', $status)));
+        return '<span class="hlup-assess-badge ' . esc_attr($badge[0]) . '">' . esc_html($badge[1]) . '</span>';
+    }
+
+    // =====================================================================
+    // Rendering — RP & Observations Tab
+    // =====================================================================
+
+    /**
+     * Render the RP & Observations tab: RP sessions, classroom visits, self-reflections.
+     *
+     * @param WP_User            $user
+     * @param HL_Enrollment|null $enrollment
+     */
+    private function render_rp_tab($user, $enrollment) {
+        if (!$enrollment) {
+            $this->render_placeholder_tab(__('RP & Observations', 'hl-core'), __('No enrollment found.', 'hl-core'));
+            return;
+        }
+
+        $enrollment_id = (int) $enrollment->enrollment_id;
+        $roles         = $enrollment->get_roles_array();
+
+        $rp_service = new HL_RP_Session_Service();
+        $cv_service = new HL_Classroom_Visit_Service();
+
+        // RP Sessions — query by role (mentor sees their sessions, teacher sees theirs).
+        $rp_sessions = array();
+        if (in_array('mentor', $roles, true)) {
+            $rp_sessions = array_merge($rp_sessions, $rp_service->get_by_mentor($enrollment_id));
+        }
+        if (in_array('teacher', $roles, true)) {
+            $teacher_sessions = $rp_service->get_by_teacher($enrollment_id);
+            // Avoid duplicates if user is both mentor and teacher.
+            $existing_ids = array_column($rp_sessions, 'rp_session_id');
+            foreach ($teacher_sessions as $ts) {
+                if (!in_array($ts['rp_session_id'], $existing_ids, true)) {
+                    $rp_sessions[] = $ts;
+                }
+            }
+        }
+        // Sort by session_date descending.
+        usort($rp_sessions, function($a, $b) {
+            return strcmp($b['session_date'] ?? '', $a['session_date'] ?? '');
+        });
+
+        // Classroom Visits — where this user is the teacher being visited.
+        $classroom_visits = array();
+        if (in_array('teacher', $roles, true)) {
+            $classroom_visits = $cv_service->get_by_teacher($enrollment_id);
+            // Reverse to show most recent first.
+            $classroom_visits = array_reverse($classroom_visits);
+        }
+
+        // Self-Reflections — submissions by this user with role = 'self_reflector'.
+        $self_reflections = $this->get_self_reflections($user->ID, $enrollment_id);
+
+        $has_any = !empty($rp_sessions) || !empty($classroom_visits) || !empty($self_reflections);
+
+        if (!$has_any) {
+            ?>
+            <div class="hlup-empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                <h3><?php esc_html_e('No RP & Observations', 'hl-core'); ?></h3>
+                <p><?php esc_html_e('No reflective practice sessions, classroom visits, or self-reflections found for this enrollment.', 'hl-core'); ?></p>
+            </div>
+            <?php
+            return;
+        }
+
+        // ── RP Sessions ──
+        if (!empty($rp_sessions)) : ?>
+            <div class="hlup-rp-section">
+                <h4 class="hlup-rp-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    <?php esc_html_e('RP Sessions', 'hl-core'); ?>
+                    <span class="hlup-rp-count"><?php echo esc_html(count($rp_sessions)); ?></span>
+                </h4>
+                <?php foreach ($rp_sessions as $rp) :
+                    $date    = !empty($rp['session_date']) ? date_i18n('M j, Y', strtotime($rp['session_date'])) : "\xe2\x80\x94";
+                    $number  = (int) ($rp['session_number'] ?? 0);
+                    $status  = $rp['status'] ?? 'pending';
+                    $partner = '';
+                    if (in_array('mentor', $roles, true) && !empty($rp['teacher_name'])) {
+                        $partner = $rp['teacher_name'];
+                    } elseif (!empty($rp['mentor_name'])) {
+                        $partner = $rp['mentor_name'];
+                    }
+                ?>
+                    <div class="hlup-rp-card">
+                        <div class="hlup-rp-card-left">
+                            <span class="hlup-rp-number"><?php printf(esc_html__('Session %d', 'hl-core'), $number); ?></span>
+                            <div class="hlup-rp-card-meta">
+                                <span class="hlup-rp-date">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                    <?php echo esc_html($date); ?>
+                                </span>
+                                <?php if ($partner) : ?>
+                                    <span class="hlup-rp-partner">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                        <?php echo esc_html($partner); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php echo $this->render_rp_status_badge($status); ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif;
+
+        // ── Classroom Visits ──
+        if (!empty($classroom_visits)) : ?>
+            <div class="hlup-rp-section">
+                <h4 class="hlup-rp-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    <?php esc_html_e('Classroom Visits', 'hl-core'); ?>
+                    <span class="hlup-rp-count"><?php echo esc_html(count($classroom_visits)); ?></span>
+                </h4>
+                <?php foreach ($classroom_visits as $cv) :
+                    $date     = !empty($cv['visit_date']) ? date_i18n('M j, Y', strtotime($cv['visit_date'])) : "\xe2\x80\x94";
+                    $number   = (int) ($cv['visit_number'] ?? 0);
+                    $status   = $cv['status'] ?? 'pending';
+                    $observer = $cv['leader_name'] ?? '';
+                ?>
+                    <div class="hlup-rp-card">
+                        <div class="hlup-rp-card-left">
+                            <span class="hlup-rp-number"><?php printf(esc_html__('Visit %d', 'hl-core'), $number); ?></span>
+                            <div class="hlup-rp-card-meta">
+                                <span class="hlup-rp-date">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                    <?php echo esc_html($date); ?>
+                                </span>
+                                <?php if ($observer) : ?>
+                                    <span class="hlup-rp-partner">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        <?php echo esc_html($observer); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php echo $this->render_rp_status_badge($status); ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif;
+
+        // ── Self-Reflections ──
+        if (!empty($self_reflections)) : ?>
+            <div class="hlup-rp-section">
+                <h4 class="hlup-rp-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <?php esc_html_e('Self-Reflections', 'hl-core'); ?>
+                    <span class="hlup-rp-count"><?php echo esc_html(count($self_reflections)); ?></span>
+                </h4>
+                <?php foreach ($self_reflections as $sr) :
+                    $date   = !empty($sr['submitted_at']) ? date_i18n('M j, Y', strtotime($sr['submitted_at'])) : "\xe2\x80\x94";
+                    $status = $sr['status'] ?? 'draft';
+                ?>
+                    <div class="hlup-rp-card">
+                        <div class="hlup-rp-card-left">
+                            <span class="hlup-rp-number"><?php esc_html_e('Self-Reflection', 'hl-core'); ?></span>
+                            <div class="hlup-rp-card-meta">
+                                <span class="hlup-rp-date">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                    <?php echo esc_html($date); ?>
+                                </span>
+                            </div>
+                        </div>
+                        <?php echo $this->render_assess_badge($status); ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif;
+    }
+
+    /**
+     * Get self-reflection submissions for a user.
+     */
+    private function get_self_reflections($user_id, $enrollment_id) {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT sub.submission_id, sub.status, sub.submitted_at, sub.updated_at
+             FROM {$wpdb->prefix}hl_classroom_visit_submission sub
+             WHERE sub.submitted_by_user_id = %d
+               AND sub.role_in_visit = 'self_reflector'
+             ORDER BY sub.submitted_at DESC",
+            $user_id
+        ), ARRAY_A) ?: array();
+    }
+
+    /**
+     * Render an RP/visit status badge.
+     */
+    private function render_rp_status_badge($status) {
+        $map = array(
+            'completed' => array('hlup-badge-submitted', __('Completed', 'hl-core')),
+            'scheduled' => array('hlup-badge-draft', __('Scheduled', 'hl-core')),
+            'pending'   => array('hlup-badge-pending', __('Pending', 'hl-core')),
+            'cancelled' => array('hlup-badge-pending', __('Cancelled', 'hl-core')),
         );
         $badge = isset($map[$status]) ? $map[$status] : array('hlup-badge-pending', ucwords(str_replace('_', ' ', $status)));
         return '<span class="hlup-assess-badge ' . esc_attr($badge[0]) . '">' . esc_html($badge[1]) . '</span>';

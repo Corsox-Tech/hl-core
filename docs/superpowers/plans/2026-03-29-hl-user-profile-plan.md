@@ -12,7 +12,7 @@
 | Phase 2: Progress tab + entry links | [x] |
 | Phase 3: Coaching tab | [x] |
 | Phase 4: Assessments tab | [x] |
-| Phase 5: RP & Observations tab | [ ] |
+| Phase 5: RP & Observations tab | [x] |
 | Phase 6: Manage tab (admin) | [ ] |
 | Phase 7: Wiring + polish | [ ] |
 | Phase 8: Documentation updates | [ ] |
