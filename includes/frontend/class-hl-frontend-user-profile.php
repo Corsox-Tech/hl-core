@@ -28,12 +28,20 @@ class HL_Frontend_User_Profile {
     /** @var HL_Coach_Assignment_Service */
     private $coach_service;
 
+    /** @var HL_Component_Repository */
+    private $component_repo;
+
+    /** @var HL_Reporting_Service */
+    private $reporting_service;
+
     public function __construct() {
-        $this->enrollment_repo  = new HL_Enrollment_Repository();
-        $this->orgunit_repo     = new HL_OrgUnit_Repository();
+        $this->enrollment_repo   = new HL_Enrollment_Repository();
+        $this->orgunit_repo      = new HL_OrgUnit_Repository();
         $this->classroom_service = new HL_Classroom_Service();
-        $this->pathway_service  = new HL_Pathway_Assignment_Service();
-        $this->coach_service    = new HL_Coach_Assignment_Service();
+        $this->pathway_service   = new HL_Pathway_Assignment_Service();
+        $this->coach_service     = new HL_Coach_Assignment_Service();
+        $this->component_repo    = new HL_Component_Repository();
+        $this->reporting_service = HL_Reporting_Service::instance();
     }
 
     /**
@@ -110,7 +118,7 @@ class HL_Frontend_User_Profile {
                         $this->render_overview_tab($target_user, $overview, $active_enrollment, $is_admin);
                         break;
                     case 'progress':
-                        $this->render_placeholder_tab(__('Progress', 'hl-core'), __('Pathway completion and component status will appear here.', 'hl-core'));
+                        $this->render_progress_tab($target_user, $active_enrollment, $enrollments);
                         break;
                     case 'coaching':
                         $this->render_placeholder_tab(__('Coaching', 'hl-core'), __('Coaching sessions and action plans will appear here.', 'hl-core'));
@@ -791,6 +799,247 @@ class HL_Frontend_User_Profile {
 
         </div>
         <?php
+    }
+
+    // =====================================================================
+    // Rendering — Progress Tab
+    // =====================================================================
+
+    /**
+     * Render the Progress tab: pathway cards with component-by-component completion.
+     *
+     * @param WP_User            $user
+     * @param HL_Enrollment|null $enrollment  Currently selected enrollment.
+     * @param HL_Enrollment[]    $all_enrollments
+     */
+    private function render_progress_tab($user, $enrollment, $all_enrollments) {
+        if (!$enrollment) {
+            ?>
+            <div class="hlup-empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+                <h3><?php esc_html_e('No Progress Data', 'hl-core'); ?></h3>
+                <p><?php esc_html_e('This user has no active program enrollment.', 'hl-core'); ?></p>
+            </div>
+            <?php
+            return;
+        }
+
+        // Load pathways assigned to this enrollment.
+        $pathways = $this->pathway_service->get_pathways_for_enrollment($enrollment->enrollment_id);
+
+        // Load all component states for this enrollment (keyed by component_id).
+        $states_raw = $this->reporting_service->get_component_states($enrollment->enrollment_id);
+        $state_map  = array();
+        foreach ($states_raw as $s) {
+            $state_map[(int) $s['component_id']] = $s;
+        }
+
+        // Cycle name.
+        global $wpdb;
+        $cycle_name = $wpdb->get_var($wpdb->prepare(
+            "SELECT cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+            $enrollment->cycle_id
+        ));
+
+        // Overall enrollment completion.
+        $overall_pct = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COALESCE(completion_pct, 0) FROM {$wpdb->prefix}hl_completion_rollup
+             WHERE enrollment_id = %d ORDER BY computed_at DESC LIMIT 1",
+            $enrollment->enrollment_id
+        ));
+
+        // LearnDash helper — resolve course progress for learndash_course components.
+        $ld_user_id = (int) $user->ID;
+
+        ?>
+        <!-- Enrollment summary bar -->
+        <div class="hlup-prog-summary">
+            <div class="hlup-prog-summary-info">
+                <h3 class="hlup-prog-summary-title"><?php echo esc_html($cycle_name ?: __('Program', 'hl-core')); ?></h3>
+                <div class="hlup-prog-summary-meta">
+                    <?php
+                    $roles = $enrollment->get_roles_array();
+                    if (!empty($roles)) :
+                        $role_labels = array_map(function($r) { return ucfirst(str_replace('_', ' ', $r)); }, $roles);
+                    ?>
+                        <span class="hlup-prog-meta-item"><?php echo esc_html(implode(', ', $role_labels)); ?></span>
+                    <?php endif; ?>
+                    <?php if ($enrollment->enrolled_at) : ?>
+                        <span class="hlup-prog-meta-item">
+                            <?php printf(esc_html__('Enrolled %s', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($enrollment->enrolled_at)))); ?>
+                        </span>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="hlup-prog-summary-pct">
+                <div class="hlup-prog-overall-ring" data-pct="<?php echo esc_attr($overall_pct); ?>">
+                    <svg viewBox="0 0 36 36">
+                        <path class="hlup-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                        <path class="hlup-ring-fill" stroke-dasharray="<?php echo esc_attr($overall_pct); ?>, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                    </svg>
+                    <span class="hlup-ring-text"><?php echo esc_html($overall_pct); ?>%</span>
+                </div>
+            </div>
+        </div>
+
+        <?php if (empty($pathways)) : ?>
+            <div class="hlup-empty-state" style="margin-top:16px;">
+                <p><?php esc_html_e('No learning plan assigned yet.', 'hl-core'); ?></p>
+            </div>
+        <?php else : ?>
+
+            <?php foreach ($pathways as $pw) :
+                $pw_id   = (int) $pw['pathway_id'];
+                $pw_name = $pw['pathway_name'];
+
+                // Load components for this pathway.
+                $components = $this->component_repo->get_by_pathway($pw_id);
+                $components = array_filter($components, function($c) {
+                    return $c->visibility !== 'staff_only';
+                });
+                $components = array_values($components);
+
+                // Compute pathway-level stats.
+                $total_weight  = 0;
+                $weighted_done = 0;
+                $completed     = 0;
+                $total         = count($components);
+
+                $comp_data = array();
+                foreach ($components as $component) {
+                    $cid   = (int) $component->component_id;
+                    $state = isset($state_map[$cid]) ? $state_map[$cid] : null;
+
+                    $pct    = $state ? (int) $state['completion_percent'] : 0;
+                    $status = $state ? $state['completion_status'] : 'not_started';
+
+                    // LearnDash live progress override.
+                    if ($component->component_type === 'learndash_course') {
+                        $ext = $component->get_external_ref_array();
+                        if (!empty($ext['course_id'])) {
+                            $ld_pct = $this->get_learndash_progress($ld_user_id, (int) $ext['course_id']);
+                            if ($ld_pct > $pct) {
+                                $pct = $ld_pct;
+                            }
+                        }
+                    }
+
+                    if ($status === 'complete' || $pct >= 100) {
+                        $pct    = 100;
+                        $status = 'complete';
+                        $completed++;
+                    }
+
+                    $weight = max((float) $component->weight, 0);
+                    $total_weight  += $weight;
+                    $weighted_done += $weight * ($pct / 100);
+
+                    $comp_data[] = array(
+                        'title'  => $component->title,
+                        'type'   => $component->component_type,
+                        'pct'    => $pct,
+                        'status' => $status,
+                    );
+                }
+
+                $pw_pct = ($total_weight > 0) ? round(($weighted_done / $total_weight) * 100) : 0;
+            ?>
+                <div class="hlup-pathway-card">
+                    <div class="hlup-pathway-header">
+                        <div class="hlup-pathway-info">
+                            <h4 class="hlup-pathway-name"><?php echo esc_html($pw_name); ?></h4>
+                            <span class="hlup-pathway-counts">
+                                <?php printf(esc_html__('%d of %d completed', 'hl-core'), $completed, $total); ?>
+                            </span>
+                        </div>
+                        <div class="hlup-pathway-pct-group">
+                            <div class="hlup-pathway-bar">
+                                <div class="hlup-pathway-bar-fill <?php echo $pw_pct >= 100 ? 'complete' : ''; ?>"
+                                     style="width:<?php echo esc_attr($pw_pct); ?>%"></div>
+                            </div>
+                            <span class="hlup-pathway-pct-text"><?php echo esc_html($pw_pct); ?>%</span>
+                        </div>
+                    </div>
+
+                    <?php if (!empty($comp_data)) : ?>
+                        <div class="hlup-component-list">
+                            <?php foreach ($comp_data as $i => $cd) :
+                                $status_class = 'not-started';
+                                $status_label = __('Not Started', 'hl-core');
+                                $status_icon  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
+
+                                if ($cd['status'] === 'complete') {
+                                    $status_class = 'complete';
+                                    $status_label = __('Complete', 'hl-core');
+                                    $status_icon  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+                                } elseif ($cd['pct'] > 0) {
+                                    $status_class = 'in-progress';
+                                    $status_label = __('In Progress', 'hl-core');
+                                    $status_icon  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+                                }
+
+                                $type_label = $this->get_component_type_label($cd['type']);
+                            ?>
+                                <div class="hlup-component-row">
+                                    <div class="hlup-component-index"><?php echo esc_html($i + 1); ?></div>
+                                    <div class="hlup-component-main">
+                                        <div class="hlup-component-title"><?php echo esc_html($cd['title']); ?></div>
+                                        <span class="hlup-component-type"><?php echo esc_html($type_label); ?></span>
+                                    </div>
+                                    <div class="hlup-component-status hlup-status-<?php echo esc_attr($status_class); ?>">
+                                        <?php echo $status_icon; ?>
+                                        <span class="hlup-component-status-label"><?php echo esc_html($status_label); ?></span>
+                                    </div>
+                                    <div class="hlup-component-pct">
+                                        <div class="hlup-component-bar">
+                                            <div class="hlup-component-bar-fill <?php echo $cd['pct'] >= 100 ? 'complete' : ''; ?>"
+                                                 style="width:<?php echo esc_attr($cd['pct']); ?>%"></div>
+                                        </div>
+                                        <span class="hlup-component-pct-text"><?php echo esc_html($cd['pct']); ?>%</span>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+
+        <?php endif; ?>
+        <?php
+    }
+
+    /**
+     * Get a human-readable label for a component type.
+     */
+    private function get_component_type_label($type) {
+        $labels = array(
+            'learndash_course'            => __('Course', 'hl-core'),
+            'coaching_session'            => __('Coaching', 'hl-core'),
+            'teacher_self_assessment'     => __('Self-Assessment', 'hl-core'),
+            'child_assessment'            => __('Child Assessment', 'hl-core'),
+            'classroom_visit'             => __('Classroom Visit', 'hl-core'),
+            'self_reflection'             => __('Self-Reflection', 'hl-core'),
+            'reflective_practice_session' => __('RP Session', 'hl-core'),
+            'observation'                 => __('Observation', 'hl-core'),
+        );
+        return isset($labels[$type]) ? $labels[$type] : ucwords(str_replace('_', ' ', $type));
+    }
+
+    /**
+     * Get LearnDash course progress for a user.
+     *
+     * @return int Percent (0-100).
+     */
+    private function get_learndash_progress($user_id, $course_id) {
+        if (!function_exists('learndash_course_progress')) {
+            return 0;
+        }
+        $progress = learndash_course_progress(array(
+            'user_id'   => $user_id,
+            'course_id' => $course_id,
+            'array'     => true,
+        ));
+        return isset($progress['percentage']) ? (int) $progress['percentage'] : 0;
     }
 
     // =====================================================================

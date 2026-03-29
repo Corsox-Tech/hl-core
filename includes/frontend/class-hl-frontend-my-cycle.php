@@ -552,7 +552,14 @@ class HL_Frontend_My_Cycle {
                         $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
                     ?>
                         <tr data-name="<?php echo esc_attr( strtolower( $p['display_name'] ) ); ?>">
-                            <td><strong><?php echo esc_html( $p['display_name'] ); ?></strong></td>
+                            <td><strong><?php
+                                $profile_url = $this->get_profile_url( $p['user_id'] );
+                                if ( $profile_url ) {
+                                    echo '<a href="' . esc_url( $profile_url ) . '" class="hl-profile-link">' . esc_html( $p['display_name'] ) . '</a>';
+                                } else {
+                                    echo esc_html( $p['display_name'] );
+                                }
+                            ?></strong></td>
                             <td><?php echo esc_html( $p['user_email'] ); ?></td>
                             <td><?php echo esc_html( $p['team_name'] ?: '—' ); ?></td>
                             <td><?php echo esc_html( $roles_str ); ?></td>
@@ -698,7 +705,14 @@ class HL_Frontend_My_Cycle {
                                 data-school="<?php echo esc_attr( $p['school_name'] ); ?>"
                                 data-team="<?php echo esc_attr( $p['team_name'] ); ?>">
                                 <td><?php echo esc_html( $row_num ); ?></td>
-                                <td><strong><?php echo esc_html( $p['display_name'] ); ?></strong></td>
+                                <td><strong><?php
+                                    $profile_url = $this->get_profile_url( $p['user_id'] );
+                                    if ( $profile_url ) {
+                                        echo '<a href="' . esc_url( $profile_url ) . '" class="hl-profile-link">' . esc_html( $p['display_name'] ) . '</a>';
+                                    } else {
+                                        echo esc_html( $p['display_name'] );
+                                    }
+                                ?></strong></td>
                                 <td><?php echo esc_html( $p['team_name'] ?: '—' ); ?></td>
                                 <td><?php echo esc_html( $roles_str ); ?></td>
                                 <td><?php echo esc_html( $p['school_name'] ?: '—' ); ?></td>
@@ -1328,5 +1342,22 @@ class HL_Frontend_My_Cycle {
             '%[' . $wpdb->esc_like( $shortcode ) . '%'
         ) );
         return $page_id ? get_permalink( $page_id ) : '';
+    }
+
+    /**
+     * Get the HL User Profile URL for a user.
+     *
+     * @param int $user_id
+     * @return string URL or empty string if page not found.
+     */
+    private function get_profile_url( $user_id ) {
+        static $base_url = null;
+        if ( $base_url === null ) {
+            $base_url = $this->find_shortcode_page_url( 'hl_user_profile' );
+        }
+        if ( empty( $base_url ) ) {
+            return '';
+        }
+        return add_query_arg( 'user_id', (int) $user_id, $base_url );
     }
 }

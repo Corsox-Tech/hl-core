@@ -69,7 +69,7 @@ Pick up from the first unchecked `[ ]` item each session.
 ### HL User Profile Page (Active — March 2026)
 > **Plan:** `docs/superpowers/plans/2026-03-29-hl-user-profile-plan.md` — read this FIRST for full context, architecture, access control rules, and data sources.
 - [x] **Phase 1 — Page foundation + Overview tab + BB redirect** — `HL_Frontend_User_Profile` class, `[hl_user_profile]` shortcode, Overview tab (hero + 3-4 info cards: Contact, Program, Team & Coaching, Classrooms), role-based access control, cycle selector for multi-enrollment users, BB profile redirect to HL profile, `User Profile` page in CLI create-pages. CSS in frontend.css (`.hlup-*`).
-- [ ] **Phase 2 — Progress tab + entry point links** — Pathway enrollments, component completion with status badges, LearnDash %. Make user names clickable in Reports/Staff tabs on My School page.
+- [x] **Phase 2 — Progress tab + entry point links** — `render_progress_tab()` with enrollment summary bar (ring chart), pathway cards with component-by-component completion (status badges, progress bars, LearnDash live %), type labels. User names now clickable in My School Staff + Reports tabs (link to `/user-profile/?user_id=X`).
 - [ ] **Phase 3 — Coaching tab** — Sessions list (upcoming/past), action plans, "Schedule Next Session" link. Evaluate Coach Mentor Detail deprecation.
 - [ ] **Phase 4 — Assessments tab** — TSA/CA completion status. TSA read-only form view (staff/coach only). Reuse `HL_Teacher_Assessment_Renderer` with `read_only=true`.
 - [ ] **Phase 5 — RP & Observations tab** — Self-reflections, classroom visits, RP session notes.

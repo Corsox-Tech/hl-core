@@ -5110,3 +5110,309 @@ article:has(.hlup-wrapper) > .entry-header {
         height: 20px;
     }
 }
+
+/* ── Progress Tab ─────────────────────────────────────────────────── */
+
+.hlup-prog-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+}
+
+.hlup-prog-summary-title {
+    margin: 0 0 6px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+}
+
+.hlup-prog-summary-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.hlup-prog-meta-item {
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+    font-weight: 500;
+}
+
+.hlup-prog-summary-pct {
+    flex-shrink: 0;
+}
+
+.hlup-prog-overall-ring {
+    position: relative;
+    width: 64px;
+    height: 64px;
+}
+
+.hlup-prog-overall-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.hlup-ring-bg {
+    fill: none;
+    stroke: var(--hl-border);
+    stroke-width: 3;
+}
+
+.hlup-ring-fill {
+    fill: none;
+    stroke: var(--hl-accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.6s ease;
+}
+
+.hlup-ring-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+}
+
+/* ── Pathway Card ─────────────────────────────────────────────────── */
+
+.hlup-pathway-card {
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.hlup-pathway-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--hl-bg);
+    border-bottom: 1px solid var(--hl-border);
+}
+
+.hlup-pathway-info {
+    min-width: 0;
+}
+
+.hlup-pathway-name {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+}
+
+.hlup-pathway-counts {
+    font-size: 12px;
+    color: var(--hl-text-secondary);
+    font-weight: 500;
+}
+
+.hlup-pathway-pct-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.hlup-pathway-bar {
+    width: 100px;
+    height: 8px;
+    background: var(--hl-border);
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.hlup-pathway-bar-fill {
+    height: 100%;
+    border-radius: 20px;
+    background: linear-gradient(90deg, var(--hl-primary) 0%, var(--hl-secondary) 100%);
+    transition: width 0.5s ease;
+}
+
+.hlup-pathway-bar-fill.complete {
+    background: linear-gradient(90deg, var(--hl-accent-dark) 0%, var(--hl-accent) 100%);
+}
+
+.hlup-pathway-pct-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+    min-width: 36px;
+    text-align: right;
+}
+
+/* ── Component List ───────────────────────────────────────────────── */
+
+.hlup-component-list {
+    padding: 4px 0;
+}
+
+.hlup-component-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--hl-border);
+    transition: background 0.15s ease;
+}
+
+.hlup-component-row:last-child {
+    border-bottom: none;
+}
+
+.hlup-component-row:hover {
+    background: var(--hl-bg);
+}
+
+.hlup-component-index {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--hl-bg);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--hl-text-secondary);
+    flex-shrink: 0;
+}
+
+.hlup-component-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.hlup-component-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--hl-text);
+    line-height: 1.3;
+}
+
+.hlup-component-type {
+    font-size: 11px;
+    color: var(--hl-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+}
+
+/* Component status badges */
+.hlup-component-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.hlup-status-not-started {
+    color: var(--hl-text-muted);
+}
+
+.hlup-status-in-progress {
+    color: var(--hl-secondary);
+}
+
+.hlup-status-complete {
+    color: var(--hl-accent-dark);
+}
+
+.hlup-component-status-label {
+    display: inline;
+}
+
+/* Component mini progress bar */
+.hlup-component-pct {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    width: 110px;
+}
+
+.hlup-component-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--hl-border);
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.hlup-component-bar-fill {
+    height: 100%;
+    border-radius: 20px;
+    background: var(--hl-secondary);
+    transition: width 0.4s ease;
+}
+
+.hlup-component-bar-fill.complete {
+    background: var(--hl-accent);
+}
+
+.hlup-component-pct-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--hl-text-secondary);
+    min-width: 30px;
+    text-align: right;
+}
+
+/* ── Progress Tab Responsive ──────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .hlup-prog-summary {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .hlup-prog-summary-meta {
+        justify-content: center;
+    }
+
+    .hlup-pathway-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hlup-pathway-pct-group {
+        width: 100%;
+    }
+
+    .hlup-pathway-bar {
+        flex: 1;
+        width: auto;
+    }
+
+    .hlup-component-row {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px 16px;
+    }
+
+    .hlup-component-pct {
+        width: 100%;
+        margin-left: 36px;
+    }
+
+    .hlup-component-status-label {
+        display: none;
+    }
+}
