@@ -106,11 +106,9 @@ class HL_Frontend_Learners {
                                     data-roles="<?php echo esc_attr( strtolower( implode( ',', $roles_arr ) ) ); ?>">
                                     <td>
                                         <?php
-                                        $profile_url = function_exists( 'bp_core_get_user_domain' )
-                                            ? bp_core_get_user_domain( $r['user_id'] )
-                                            : '';
+                                        $profile_url = $this->get_profile_url( $r['user_id'] );
                                         if ( $profile_url ) : ?>
-                                            <a href="<?php echo esc_url( $profile_url ); ?>"><?php echo esc_html( $r['display_name'] ); ?></a>
+                                            <a href="<?php echo esc_url( $profile_url ); ?>" class="hl-profile-link"><?php echo esc_html( $r['display_name'] ); ?></a>
                                         <?php else : ?>
                                             <?php echo esc_html( $r['display_name'] ); ?>
                                         <?php endif; ?>
@@ -275,5 +273,20 @@ class HL_Frontend_Learners {
         $repo = new HL_OrgUnit_Repository();
         $all  = $repo->get_schools();
         return HL_Scope_Service::filter_by_ids( $all, 'orgunit_id', $scope['school_ids'], $scope['is_admin'] );
+    }
+
+    private function get_profile_url( $user_id ) {
+        static $base_url = null;
+        if ( $base_url === null ) {
+            global $wpdb;
+            $page_id = $wpdb->get_var( $wpdb->prepare(
+                "SELECT ID FROM {$wpdb->posts}
+                 WHERE post_type = 'page' AND post_status = 'publish'
+                 AND post_content LIKE %s LIMIT 1",
+                '%[' . $wpdb->esc_like( 'hl_user_profile' ) . '%'
+            ) );
+            $base_url = $page_id ? get_permalink( $page_id ) : '';
+        }
+        return $base_url ? add_query_arg( 'user_id', (int) $user_id, $base_url ) : '';
     }
 }

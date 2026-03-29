@@ -407,14 +407,14 @@ class HL_Frontend_User_Profile {
         }
 
         global $wpdb;
-        $in = implode(',', array_map('intval', $target_enrollment_ids));
+        $placeholders = implode(',', array_fill(0, count($target_enrollment_ids), '%d'));
 
         $count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}hl_coach_assignment
              WHERE coach_user_id = %d
                AND scope_type = 'enrollment'
-               AND scope_id IN ({$in})",
-            $coach_user_id
+               AND scope_id IN ($placeholders)",
+            array_merge(array($coach_user_id), array_map('intval', $target_enrollment_ids))
         ));
 
         return (int) $count > 0;
@@ -429,13 +429,13 @@ class HL_Frontend_User_Profile {
         }
 
         global $wpdb;
-        $in = implode(',', array_map('intval', $target_school_ids));
+        $placeholders = implode(',', array_fill(0, count($target_school_ids), '%d'));
 
         $count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}hl_orgunit
-             WHERE orgunit_id IN ({$in})
+             WHERE orgunit_id IN ($placeholders)
                AND parent_orgunit_id = %d",
-            $district_id
+            array_merge(array_map('intval', $target_school_ids), array($district_id))
         ));
 
         return (int) $count > 0;
@@ -450,15 +450,15 @@ class HL_Frontend_User_Profile {
         }
 
         global $wpdb;
-        $in = implode(',', array_map('intval', $target_enrollment_ids));
+        $placeholders = implode(',', array_fill(0, count($target_enrollment_ids), '%d'));
 
         $count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*)
              FROM {$wpdb->prefix}hl_team_membership tm1
              JOIN {$wpdb->prefix}hl_team_membership tm2 ON tm1.team_id = tm2.team_id
              WHERE tm1.enrollment_id = %d
-               AND tm2.enrollment_id IN ({$in})",
-            $viewer_enrollment_id
+               AND tm2.enrollment_id IN ($placeholders)",
+            array_merge(array($viewer_enrollment_id), array_map('intval', $target_enrollment_ids))
         ));
 
         return (int) $count > 0;
@@ -794,11 +794,11 @@ class HL_Frontend_User_Profile {
 
         // Pre-fetch cycle names.
         $cycle_ids = array_unique(array_map(function($e) { return (int) $e->cycle_id; }, $enrollments));
-        $in = implode(',', $cycle_ids);
-        $cycles = $wpdb->get_results(
-            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id IN ({$in})",
-            OBJECT_K
-        );
+        $placeholders = implode(',', array_fill(0, count($cycle_ids), '%d'));
+        $cycles = $wpdb->get_results($wpdb->prepare(
+            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id IN ($placeholders)",
+            array_values($cycle_ids)
+        ), OBJECT_K);
 
         $base_url = remove_query_arg(array('enrollment_id', 'cycle_id', 'tab'));
         if (!empty($_GET['user_id'])) {
@@ -2128,8 +2128,6 @@ class HL_Frontend_User_Profile {
 
     /**
      * Find page URL for a given shortcode.
-     *
-     * // TODO: Phase 7 — used for entry point wiring (linking names to profiles).
      */
     private function find_shortcode_page_url($shortcode) {
         global $wpdb;

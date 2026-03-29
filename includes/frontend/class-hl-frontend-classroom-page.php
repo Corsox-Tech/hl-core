@@ -215,12 +215,15 @@ class HL_Frontend_Classroom_Page {
 
         $school = $classroom->school_id ? $this->orgunit_repo->get_by_id( $classroom->school_id ) : null;
 
-        // Get teaching assignments for teacher names.
+        // Get teaching assignments for teacher names + profile links.
         $assignments   = $this->classroom_service->get_teaching_assignments( $classroom_id );
         $teacher_names = array();
         foreach ( $assignments as $ta ) {
             if ( ! empty( $ta->display_name ) ) {
-                $teacher_names[] = $ta->display_name;
+                $teacher_names[] = array(
+                    'name'    => $ta->display_name,
+                    'user_id' => isset( $ta->user_id ) ? (int) $ta->user_id : 0,
+                );
             }
         }
 
@@ -609,7 +612,18 @@ class HL_Frontend_Classroom_Page {
                     <?php if ( ! empty( $teacher_names ) ) : ?>
                         <span class="hl-meta-item">
                             <strong><?php esc_html_e( 'Teacher(s):', 'hl-core' ); ?></strong>
-                            <?php echo esc_html( implode( ', ', $teacher_names ) ); ?>
+                            <?php
+                            $links = array();
+                            foreach ( $teacher_names as $t ) {
+                                $url = $t['user_id'] ? $this->get_profile_url( $t['user_id'] ) : '';
+                                if ( $url ) {
+                                    $links[] = '<a href="' . esc_url( $url ) . '" class="hl-profile-link">' . esc_html( $t['name'] ) . '</a>';
+                                } else {
+                                    $links[] = esc_html( $t['name'] );
+                                }
+                            }
+                            echo implode( ', ', $links );
+                            ?>
                         </span>
                     <?php endif; ?>
                 </div>
@@ -712,5 +726,13 @@ class HL_Frontend_Classroom_Page {
             '%[' . $wpdb->esc_like( $shortcode ) . '%'
         ) );
         return $page_id ? get_permalink( $page_id ) : '';
+    }
+
+    private function get_profile_url( $user_id ) {
+        static $base_url = null;
+        if ( $base_url === null ) {
+            $base_url = $this->find_shortcode_page_url( 'hl_user_profile' );
+        }
+        return $base_url ? add_query_arg( 'user_id', (int) $user_id, $base_url ) : '';
     }
 }
