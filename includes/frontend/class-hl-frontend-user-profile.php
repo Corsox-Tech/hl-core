@@ -121,7 +121,7 @@ class HL_Frontend_User_Profile {
                         $this->render_progress_tab($target_user, $active_enrollment, $enrollments, $overview);
                         break;
                     case 'coaching':
-                        $this->render_placeholder_tab(__('Coaching', 'hl-core'), __('Coaching sessions and action plans will appear here.', 'hl-core'));
+                        $this->render_coaching_tab($target_user, $active_enrollment, $is_admin);
                         break;
                     case 'assessments':
                         $this->render_placeholder_tab(__('Assessments', 'hl-core'), __('TSA and CA status will appear here.', 'hl-core'));
@@ -1031,6 +1031,255 @@ class HL_Frontend_User_Profile {
             'array'     => true,
         ));
         return isset($progress['percentage']) ? (int) $progress['percentage'] : 0;
+    }
+
+    // =====================================================================
+    // Rendering — Coaching Tab
+    // =====================================================================
+
+    /**
+     * Render the Coaching tab: sessions list, action plans, schedule link.
+     *
+     * @param WP_User            $user
+     * @param HL_Enrollment|null $enrollment
+     * @param bool               $is_admin
+     */
+    private function render_coaching_tab($user, $enrollment, $is_admin) {
+        if (!$enrollment) {
+            $this->render_placeholder_tab(__('Coaching', 'hl-core'), __('No enrollment found.', 'hl-core'));
+            return;
+        }
+
+        $coaching_service = new HL_Coaching_Service();
+        $cycle_id         = (int) $enrollment->cycle_id;
+        $enrollment_id    = (int) $enrollment->enrollment_id;
+
+        // All sessions for this enrollment.
+        $sessions = $coaching_service->get_sessions_for_participant($enrollment_id, $cycle_id);
+
+        // Action plan submissions.
+        $action_plans = $coaching_service->get_previous_coaching_action_plans($enrollment_id, $cycle_id);
+
+        // Schedule Next Session — only for coaches and admins viewing someone else's profile.
+        $next_component = null;
+        $schedule_url   = '';
+        $is_viewer_coach = in_array('coach', (array) wp_get_current_user()->roles, true);
+        if ($is_admin || $is_viewer_coach) {
+            $next_component = $this->get_next_coaching_component($enrollment_id);
+            if ($next_component) {
+                $comp_page_url = $this->find_shortcode_page_url('hl_component_page');
+                if ($comp_page_url) {
+                    $schedule_url = add_query_arg(array(
+                        'id'         => $next_component['component_id'],
+                        'enrollment' => $enrollment_id,
+                    ), $comp_page_url);
+                }
+            }
+        }
+
+        // Split sessions into upcoming and past.
+        $now = current_time('U');
+        $upcoming = array();
+        $past     = array();
+        foreach ($sessions as $s) {
+            $dt = !empty($s['session_datetime']) ? strtotime($s['session_datetime']) : 0;
+            if ($dt && $dt >= $now && $s['session_status'] === 'scheduled') {
+                $upcoming[] = $s;
+            } else {
+                $past[] = $s;
+            }
+        }
+        // Past sessions: most recent first.
+        $past = array_reverse($past);
+
+        ?>
+        <!-- Schedule button -->
+        <?php if ($schedule_url) : ?>
+            <div class="hlup-coach-schedule-bar">
+                <a href="<?php echo esc_url($schedule_url); ?>" class="hlup-coach-schedule-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <?php printf(esc_html__('Schedule Next: %s', 'hl-core'), esc_html($next_component['title'])); ?>
+                </a>
+            </div>
+        <?php elseif (($is_admin || $is_viewer_coach) && !empty($sessions) && !$next_component) : ?>
+            <div class="hlup-coach-all-scheduled">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <?php esc_html_e('All coaching sessions are scheduled or completed.', 'hl-core'); ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (empty($sessions)) : ?>
+            <div class="hlup-empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <h3><?php esc_html_e('No Coaching Sessions', 'hl-core'); ?></h3>
+                <p><?php esc_html_e('No coaching sessions have been scheduled for this enrollment yet.', 'hl-core'); ?></p>
+            </div>
+        <?php else : ?>
+
+            <!-- Upcoming Sessions -->
+            <?php if (!empty($upcoming)) : ?>
+                <div class="hlup-coach-section">
+                    <h4 class="hlup-coach-section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <?php esc_html_e('Upcoming', 'hl-core'); ?>
+                        <span class="hlup-coach-count"><?php echo esc_html(count($upcoming)); ?></span>
+                    </h4>
+                    <?php foreach ($upcoming as $s) : ?>
+                        <?php $this->render_session_card($s, true); ?>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
+            <!-- Past Sessions -->
+            <?php if (!empty($past)) : ?>
+                <div class="hlup-coach-section">
+                    <h4 class="hlup-coach-section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                        <?php esc_html_e('Past Sessions', 'hl-core'); ?>
+                        <span class="hlup-coach-count"><?php echo esc_html(count($past)); ?></span>
+                    </h4>
+                    <?php foreach ($past as $s) : ?>
+                        <?php $this->render_session_card($s, false); ?>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
+        <?php endif; ?>
+
+        <!-- Action Plans -->
+        <?php if (!empty($action_plans)) : ?>
+            <div class="hlup-coach-section" style="margin-top:24px;">
+                <h4 class="hlup-coach-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <?php esc_html_e('Action Plans', 'hl-core'); ?>
+                    <span class="hlup-coach-count"><?php echo esc_html(count($action_plans)); ?></span>
+                </h4>
+                <?php foreach ($action_plans as $ap) :
+                    $responses = json_decode($ap['responses_json'], true);
+                    $domain    = isset($responses['domain']) ? $responses['domain'] : '';
+                    $skills    = isset($responses['skills_to_practice']) ? $responses['skills_to_practice'] : '';
+                    $ap_date   = !empty($ap['submitted_at']) ? date_i18n('M j, Y', strtotime($ap['submitted_at'])) : '';
+                    $session_title = !empty($ap['session_title']) ? $ap['session_title'] : __('Coaching Session', 'hl-core');
+                ?>
+                    <div class="hlup-action-plan-card">
+                        <div class="hlup-ap-header">
+                            <span class="hlup-ap-session"><?php echo esc_html($session_title); ?></span>
+                            <?php if ($ap_date) : ?>
+                                <span class="hlup-ap-date"><?php echo esc_html($ap_date); ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($domain) : ?>
+                            <div class="hlup-ap-field">
+                                <span class="hlup-ap-label"><?php esc_html_e('Domain', 'hl-core'); ?></span>
+                                <span class="hlup-ap-value"><?php echo esc_html(ucwords(str_replace('_', ' ', $domain))); ?></span>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($skills) : ?>
+                            <div class="hlup-ap-field">
+                                <span class="hlup-ap-label"><?php esc_html_e('Skills to Practice', 'hl-core'); ?></span>
+                                <span class="hlup-ap-value"><?php echo esc_html(is_array($skills) ? implode(', ', $skills) : $skills); ?></span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+        <?php
+    }
+
+    /**
+     * Render a single coaching session card.
+     *
+     * @param array $session
+     * @param bool  $is_upcoming
+     */
+    private function render_session_card($session, $is_upcoming) {
+        $dt     = !empty($session['session_datetime']) ? strtotime($session['session_datetime']) : 0;
+        $date   = $dt ? date_i18n('M j, Y', $dt) : "\xe2\x80\x94";
+        $time   = $dt ? date_i18n('g:i A', $dt) : '';
+        $title  = !empty($session['session_title']) ? $session['session_title'] : __('Coaching Session', 'hl-core');
+        $status = $session['session_status'] ?? 'scheduled';
+        $coach  = $session['coach_name'] ?? "\xe2\x80\x94";
+        $url    = $session['meeting_url'] ?? '';
+        ?>
+        <div class="hlup-session-card <?php echo $is_upcoming ? 'upcoming' : ''; ?>">
+            <div class="hlup-session-main">
+                <div class="hlup-session-title"><?php echo esc_html($title); ?></div>
+                <div class="hlup-session-meta">
+                    <span class="hlup-session-date">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        <?php echo esc_html($date); ?>
+                        <?php if ($time) : ?>
+                            <span class="hlup-session-time"><?php echo esc_html($time); ?></span>
+                        <?php endif; ?>
+                    </span>
+                    <span class="hlup-session-coach">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <?php echo esc_html($coach); ?>
+                    </span>
+                </div>
+            </div>
+            <div class="hlup-session-actions">
+                <?php echo HL_Coaching_Service::render_status_badge($status); ?>
+                <?php if ($url && $is_upcoming) : ?>
+                    <a href="<?php echo esc_url($url); ?>" class="hlup-session-join" target="_blank" rel="noopener noreferrer">
+                        <?php esc_html_e('Join', 'hl-core'); ?>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </a>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Find the next unscheduled coaching component for an enrollment.
+     */
+    private function get_next_coaching_component($enrollment_id) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        // Get first assigned pathway.
+        $pathway_id = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT pa.pathway_id FROM {$prefix}hl_pathway_assignment pa
+             WHERE pa.enrollment_id = %d ORDER BY pa.created_at DESC LIMIT 1",
+            $enrollment_id
+        ));
+        if (!$pathway_id) {
+            return null;
+        }
+
+        // All coaching components for this pathway.
+        $components = $wpdb->get_results($wpdb->prepare(
+            "SELECT component_id, title FROM {$prefix}hl_component
+             WHERE pathway_id = %d AND component_type = 'coaching_session_attendance' AND status = 'active'
+             ORDER BY ordering_hint ASC",
+            $pathway_id
+        ), ARRAY_A);
+        if (empty($components)) {
+            return null;
+        }
+
+        // Component IDs that already have a scheduled or attended session.
+        $comp_ids     = array_map(function($c) { return (int) $c['component_id']; }, $components);
+        $placeholders = implode(',', array_fill(0, count($comp_ids), '%d'));
+        $params       = array_merge($comp_ids, array($enrollment_id));
+
+        $scheduled_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT component_id FROM {$prefix}hl_coaching_session
+             WHERE component_id IN ($placeholders)
+               AND mentor_enrollment_id = %d
+               AND session_status IN ('scheduled', 'attended')",
+            ...$params
+        ));
+        $scheduled_set = array_map('intval', $scheduled_ids);
+
+        foreach ($components as $comp) {
+            if (!in_array((int) $comp['component_id'], $scheduled_set, true)) {
+                return $comp;
+            }
+        }
+        return null;
     }
 
     // =====================================================================

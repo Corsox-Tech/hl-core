@@ -5416,3 +5416,245 @@ article:has(.hlup-wrapper) > .entry-header {
         display: none;
     }
 }
+
+/* ── Coaching Tab ─────────────────────────────────────────────────── */
+
+.hlup-coach-schedule-bar {
+    margin-bottom: 20px;
+}
+
+.hlup-coach-schedule-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--hl-primary);
+    color: #fff;
+    border-radius: var(--hl-radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: var(--hl-transition);
+}
+
+.hlup-coach-schedule-btn:hover {
+    background: var(--hl-primary-light);
+    color: #fff;
+    text-decoration: none;
+    box-shadow: var(--hl-shadow-hover);
+}
+
+.hlup-coach-all-scheduled {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    margin-bottom: 20px;
+    background: #d1fae5;
+    border-radius: var(--hl-radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    color: #065f46;
+}
+
+.hlup-coach-section {
+    margin-bottom: 20px;
+}
+
+.hlup-coach-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.hlup-coach-section-title svg {
+    color: var(--hl-text-secondary);
+}
+
+.hlup-coach-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--hl-bg);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--hl-text-secondary);
+}
+
+/* ── Session Card ─────────────────────────────────────────────────── */
+
+.hlup-session-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 20px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-sm);
+    margin-bottom: 8px;
+    transition: var(--hl-transition);
+}
+
+.hlup-session-card:hover {
+    box-shadow: var(--hl-shadow);
+}
+
+.hlup-session-card.upcoming {
+    border-left: 3px solid var(--hl-secondary);
+}
+
+.hlup-session-main {
+    min-width: 0;
+    flex: 1;
+}
+
+.hlup-session-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--hl-text-heading);
+    margin-bottom: 4px;
+}
+
+.hlup-session-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.hlup-session-date,
+.hlup-session-coach {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+}
+
+.hlup-session-date svg,
+.hlup-session-coach svg {
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+.hlup-session-time {
+    margin-left: 4px;
+    color: var(--hl-text-muted);
+}
+
+.hlup-session-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.hlup-session-join {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    background: var(--hl-secondary);
+    color: #fff;
+    border-radius: var(--hl-radius-xs);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: var(--hl-transition);
+}
+
+.hlup-session-join:hover {
+    background: #1a6ad4;
+    color: #fff;
+    text-decoration: none;
+}
+
+/* ── Action Plan Card ─────────────────────────────────────────────── */
+
+.hlup-action-plan-card {
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-sm);
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.hlup-ap-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--hl-bg);
+    border-bottom: 1px solid var(--hl-border);
+}
+
+.hlup-ap-session {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--hl-text-heading);
+}
+
+.hlup-ap-date {
+    font-size: 12px;
+    color: var(--hl-text-muted);
+}
+
+.hlup-ap-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--hl-border);
+}
+
+.hlup-ap-field:last-child {
+    border-bottom: none;
+}
+
+.hlup-ap-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--hl-text-secondary);
+    flex-shrink: 0;
+}
+
+.hlup-ap-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--hl-text);
+    text-align: right;
+    word-break: break-word;
+}
+
+/* ── Coaching Tab Responsive ──────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .hlup-session-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .hlup-session-actions {
+        align-self: flex-end;
+    }
+
+    .hlup-ap-field {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .hlup-ap-value {
+        text-align: left;
+    }
+}
