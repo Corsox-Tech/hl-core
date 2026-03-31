@@ -520,12 +520,9 @@ class HL_BuddyBoss_Integration {
             $html .= '</li>';
         }
 
-        // For HL-enrolled non-staff users (and coaches), strip legacy
-        // BuddyPanel items to avoid confusion. Staff keep all items.
-        $is_coach_user = in_array('coach', (array) wp_get_current_user()->roles, true);
-        if (($has_enrollment || $is_coach_user) && !$is_staff) {
-            $items = $this->strip_legacy_buddypanel_items($items);
-        }
+        // Strip legacy BuddyPanel items for ALL users who have HL menu items.
+        // Keeps only Logout and community/forum links.
+        $items = $this->strip_legacy_buddypanel_items($items);
 
         // Prepend HL items BEFORE remaining items.
         return $html . $items;
@@ -607,8 +604,7 @@ class HL_BuddyBoss_Integration {
         }
 
         $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
-        $is_coach_user = in_array('coach', (array) wp_get_current_user()->roles, true);
-        $strip_legacy = (($has_enrollment || $is_coach_user) && !$is_staff);
+        $strip_legacy = true; // Always strip BB legacy items when HL items are present.
 
         // Build the items as a JS-safe data structure.
         $js_items = array();

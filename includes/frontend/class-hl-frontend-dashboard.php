@@ -618,6 +618,20 @@ class HL_Frontend_Dashboard {
                     '&#x1F4CA;',
                     'hl-dv2-icon-reports'
                 );
+                $this->render_nav_card_v2(
+                    'hl_classrooms_listing',
+                    __( 'Classrooms', 'hl-core' ),
+                    __( 'Browse and manage classrooms', 'hl-core' ),
+                    '&#x1F3EB;',
+                    'hl-dv2-icon-institutions'
+                );
+                $this->render_nav_card_v2(
+                    'hl_user_profile',
+                    __( 'My Profile', 'hl-core' ),
+                    __( 'View your profile and account info', 'hl-core' ),
+                    '&#x1F464;',
+                    'hl-dv2-icon-learners'
+                );
                 ?>
             </div>
         </div>

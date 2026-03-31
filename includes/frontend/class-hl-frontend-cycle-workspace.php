@@ -198,11 +198,15 @@ class HL_Frontend_Cycle_Workspace {
             <?php $this->render_header( $cycle, $scope, $scope_orgunit, $orgunit_options, $orgunit_id ); ?>
 
             <div class="hl-cw-tabs">
-                <?php foreach ( $tabs as $key => $label ) : ?>
-                    <button class="hl-cw-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
-                            data-target="hl-cw-panel-<?php echo esc_attr( $key ); ?>">
+                <?php
+                $tab_base_url = remove_query_arg( 'tab' );
+                foreach ( $tabs as $key => $label ) :
+                    $tab_url = add_query_arg( 'tab', $key, $tab_base_url );
+                ?>
+                    <a href="<?php echo esc_url( $tab_url ); ?>"
+                       class="hl-cw-tab <?php echo $active_tab === $key ? 'active' : ''; ?>">
                         <?php echo esc_html( $label ); ?>
-                    </button>
+                    </a>
                 <?php endforeach; ?>
             </div>
 

@@ -207,7 +207,7 @@ class HL_Frontend_Learners {
                      LEFT JOIN {$prefix}hl_orgunit ou ON e.school_id = ou.orgunit_id
                      LEFT JOIN {$prefix}hl_cycle tr ON e.cycle_id = tr.cycle_id
                      LEFT JOIN {$prefix}hl_completion_rollup cr
-                         ON cr.enrollment_id = e.enrollment_id AND cr.pathway_id IS NULL";
+                         ON cr.enrollment_id = e.enrollment_id";
 
         $where  = array( "e.status = 'active'" );
         $values = array();
@@ -242,7 +242,7 @@ class HL_Frontend_Learners {
         $data_sql = "SELECT e.enrollment_id, e.cycle_id, e.school_id, e.roles,
                             e.user_id, u.display_name, u.user_email,
                             ou.name AS school_name, tr.cycle_name,
-                            cr.overall_percent
+                            cr.cycle_completion_percent AS overall_percent
                      {$base_sql}{$where_clause}
                      ORDER BY u.display_name ASC
                      LIMIT %d OFFSET %d";
