@@ -387,12 +387,6 @@ class HL_Frontend_User_Profile {
             return true;
         }
 
-        // Get viewer's enrollments.
-        $viewer_enrollments = $this->enrollment_repo->get_by_user_id($viewer_id, 'active');
-        if (empty($viewer_enrollments)) {
-            return false;
-        }
-
         // Collect target's school IDs and enrollment IDs.
         $target_school_ids     = array();
         $target_enrollment_ids = array();
@@ -406,10 +400,17 @@ class HL_Frontend_User_Profile {
         // Coach uses WP roles (not enrollment roles) because coaches have a
         // dedicated WP role and their access is determined by hl_coach_assignment,
         // not by per-enrollment role arrays like school_leader/mentor.
+        // Check BEFORE the enrollment guard — coaches may have no HL enrollment.
         if (in_array('coach', (array) wp_get_current_user()->roles, true)) {
             if ($this->is_coach_of_target($viewer_id, $target_enrollment_ids)) {
                 return true;
             }
+        }
+
+        // Get viewer's enrollments.
+        $viewer_enrollments = $this->enrollment_repo->get_by_user_id($viewer_id, 'active');
+        if (empty($viewer_enrollments)) {
+            return false;
         }
 
         // Remaining checks use per-enrollment HL roles.
