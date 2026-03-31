@@ -77,6 +77,15 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Phase 7 — Entry point wiring + polish** — Profile links wired: Coach Mentors grid ("View Profile" below cards), Team Page (Members + Report tabs), Admin Enrollments ("Profile" button), BuddyBoss sidebar ("My Profile" for enrolled users + staff). Breadcrumb nav on profile page (Dashboard > My School > User Name). My School Staff + Reports tabs already linked in Phase 2.
 - [x] **Phase 8 — Documentation updates** — Updated README.md, STATUS.md, roles/permissions doc (§10 User Profile visibility), frontend pages doc (§2.4 rewritten, BB references updated), architecture skill (file tree, page inventory, sidebar nav), coach plan (Mentor Detail note), plugin architecture doc (§3.4 updated). All BB profile references updated to HL User Profile.
 
+### Component Eligibility Rules (Active — March 2026)
+> **Plan:** `docs/superpowers/plans/2026-03-31-component-eligibility-plan.md`
+- [x] **Schema: 2 new columns on hl_component** — `requires_classroom` (tinyint, default 0) and `eligible_roles` (text, JSON array or NULL). Schema revision 24→25.
+- [x] **Domain + Rules Engine** — `HL_Component` properties + `get_eligible_roles_array()`. `HL_Rules_Engine_Service::check_eligibility()` + eligibility gate in `compute_availability()` returns `not_applicable`.
+- [x] **Admin UI** — Eligibility Rules section in component form: checkbox for requires_classroom, checkboxes for eligible_roles (teacher, mentor, school_leader, district_leader). Save handling with JSON encoding.
+- [x] **Completion Calculation** — `compute_rollups()` skips ineligible components from weighted average. `get_cycle_component_detail()` adds `is_eligible` flag.
+- [x] **Frontend Rendering** — 6 files updated: Program Page, My Progress, My Programs, User Profile, Team Progress, Dashboard. Ineligible components show "Not Applicable" with grayed styling, excluded from completion %.
+- [x] **Deployed to test** — Schema verified, smoke test 0 new failures, 5 eval test scenarios pass.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)

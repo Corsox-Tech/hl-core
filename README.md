@@ -42,6 +42,7 @@ All 10 core entities have domain model classes with proper properties and reposi
   - "Most restrictive wins" logic
   - Override handling (exempt, manual_unlock, grace_unlock)
   - Prerequisite cycle detection (DFS-based) with admin validation on save
+  - **Component eligibility** — `requires_classroom` + `eligible_roles` per component. Ineligible components excluded from completion %, shown as "Not Applicable" in frontend
 - **AssessmentService** - Teacher/Child assessment queries + completion checks + child assessment activity_state updates + rollup triggering on submission + instance auto-generation for cycle teaching assignments
 - **ObservationService** - Full observation CRUD: create draft observations, query by cycle/mentor/user with joined data, get observable teachers from team membership, teacher classroom lookup, observation component/form lookup
 - **CoachingService** - Full coaching session CRUD (create/update/delete) + attendance marking with activity_state updates + rollup triggering + observation linking/unlinking + attachment management (WP Media)
