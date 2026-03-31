@@ -13,6 +13,8 @@ class HL_Component {
     public $weight;
     public $external_ref;
     public $visibility;
+    public $requires_classroom;
+    public $eligible_roles;
     public $status;
     public $created_at;
     public $updated_at;
@@ -23,6 +25,13 @@ class HL_Component {
                 $this->$key = $value;
             }
         }
+    }
+
+    public function get_eligible_roles_array() {
+        if (empty($this->eligible_roles)) return array();
+        if (is_array($this->eligible_roles)) return $this->eligible_roles;
+        $decoded = json_decode($this->eligible_roles, true);
+        return is_array($decoded) ? $decoded : array();
     }
 
     public function get_external_ref_array() {

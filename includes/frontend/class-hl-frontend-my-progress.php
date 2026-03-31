@@ -140,6 +140,21 @@ class HL_Frontend_My_Progress {
                         $component->component_id
                     );
 
+                    // Ineligible components: add to display but skip weight.
+                    if ($availability['availability_status'] === 'not_applicable') {
+                        $component_data[] = array(
+                            'component'           => $component,
+                            'availability'        => $availability,
+                            'completion_percent'  => 0,
+                            'completion_status'   => 'not_applicable',
+                            'completed_at'        => null,
+                            'course_id'           => null,
+                            'course_url'          => '',
+                            'enrollment'          => $enrollment,
+                        );
+                        continue;
+                    }
+
                     $state = $this->get_component_state(
                         $enrollment->enrollment_id,
                         $component->component_id
@@ -328,6 +343,10 @@ class HL_Frontend_My_Progress {
                 $card_class = 'hl-component-locked';
                 $bar_class  = 'hl-progress-locked';
                 break;
+            case 'not_applicable':
+                $card_class = 'hl-component-not-applicable';
+                $bar_class  = '';
+                break;
             default: // available
                 $card_class = 'hl-component-available';
                 $bar_class  = ($completion_percent > 0) ? 'hl-progress-active' : '';
@@ -348,6 +367,8 @@ class HL_Frontend_My_Progress {
             <div class="hl-component-status-icon">
                 <?php if ($avail_status === 'completed') : ?>
                     <span class="hl-icon-check">&#10003;</span>
+                <?php elseif ($avail_status === 'not_applicable') : ?>
+                    <span class="hl-icon-na">&#8212;</span>
                 <?php elseif ($avail_status === 'locked') : ?>
                     <span class="hl-icon-lock">&#128274;</span>
                 <?php else : ?>
@@ -369,6 +390,8 @@ class HL_Frontend_My_Progress {
                             /* translators: %s: formatted completion date */
                             printf(esc_html__('Completed %s', 'hl-core'), esc_html($this->format_date($completed_at)));
                         ?></span>
+                    <?php elseif ($avail_status === 'not_applicable') : ?>
+                        <span class="hl-component-progress-text"><?php esc_html_e('Not applicable to your role', 'hl-core'); ?></span>
                     <?php elseif ($avail_status === 'locked') : ?>
                         <span class="hl-component-lock-reason"><?php echo esc_html($this->get_lock_reason_text($availability)); ?></span>
                     <?php else : ?>

@@ -110,6 +110,11 @@ class HL_Frontend_My_Programs {
                     $component->component_id
                 );
 
+                // Skip ineligible components from percentage.
+                if ($availability['availability_status'] === 'not_applicable') {
+                    continue;
+                }
+
                 $state = $this->get_component_state(
                     $enrollment->enrollment_id,
                     $component->component_id

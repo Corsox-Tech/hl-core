@@ -4,6 +4,46 @@ if (!defined('ABSPATH')) exit;
 class HL_Rules_Engine_Service {
 
     /**
+     * Check whether an enrollment is eligible for a component.
+     *
+     * @param int          $enrollment_id
+     * @param HL_Component $component Must have requires_classroom and eligible_roles populated.
+     * @return bool
+     */
+    public function check_eligibility($enrollment_id, $component) {
+        if (empty($component->requires_classroom) && empty($component->eligible_roles)) {
+            return true;
+        }
+        global $wpdb;
+        $t = $wpdb->prefix;
+
+        // Both conditions are AND: if either fails, the component is ineligible.
+        // Roles checked first (cheaper — no extra query).
+        if (!empty($component->eligible_roles)) {
+            $allowed = $component->get_eligible_roles_array();
+            if (!empty($allowed)) {
+                $user_roles_json = $wpdb->get_var($wpdb->prepare(
+                    "SELECT roles FROM {$t}hl_enrollment WHERE enrollment_id = %d", $enrollment_id
+                ));
+                $user_roles = json_decode($user_roles_json, true);
+                if (!is_array($user_roles) || empty(array_intersect($user_roles, $allowed))) {
+                    return false;
+                }
+            }
+        }
+
+        // Check requires_classroom.
+        if (!empty($component->requires_classroom)) {
+            $has = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$t}hl_teaching_assignment WHERE enrollment_id = %d", $enrollment_id
+            ));
+            if ($has === 0) return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Compute component availability for a given enrollment + component
      *
      * @return array {availability_status, locked_reason, blockers, next_available_at}
@@ -11,6 +51,26 @@ class HL_Rules_Engine_Service {
     public function compute_availability($enrollment_id, $component_id) {
         global $wpdb;
         $prefix = $wpdb->prefix;
+
+        // Eligibility gate.
+        $elig_data = $wpdb->get_row($wpdb->prepare(
+            "SELECT requires_classroom, eligible_roles FROM {$prefix}hl_component WHERE component_id = %d",
+            $component_id
+        ));
+        if ($elig_data && (!empty($elig_data->requires_classroom) || !empty($elig_data->eligible_roles))) {
+            $comp_obj = new HL_Component(array(
+                'requires_classroom' => $elig_data->requires_classroom,
+                'eligible_roles'     => $elig_data->eligible_roles,
+            ));
+            if (!$this->check_eligibility($enrollment_id, $comp_obj)) {
+                return array(
+                    'availability_status' => 'not_applicable',
+                    'locked_reason'       => null,
+                    'blockers'            => array(),
+                    'next_available_at'   => null,
+                );
+            }
+        }
 
         // Check if already completed
         $state = $wpdb->get_row($wpdb->prepare(

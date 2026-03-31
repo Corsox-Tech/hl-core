@@ -307,6 +307,13 @@ class HL_Admin_Pathways {
             'external_ref'   => $external_ref,
         );
 
+        // Eligibility rules.
+        $data['requires_classroom'] = !empty($_POST['requires_classroom']) ? 1 : 0;
+        $eligible_roles_raw = isset($_POST['eligible_roles']) && is_array($_POST['eligible_roles'])
+            ? array_map('sanitize_text_field', $_POST['eligible_roles'])
+            : array();
+        $data['eligible_roles'] = !empty($eligible_roles_raw) ? wp_json_encode(array_values($eligible_roles_raw)) : null;
+
         if ($component_id > 0) {
             $wpdb->update($wpdb->prefix . 'hl_component', $data, array('component_id' => $component_id));
             $target_component_id = $component_id;
@@ -1697,6 +1704,41 @@ class HL_Admin_Pathways {
             }
             echo '</select>';
         }
+        echo '</td>';
+        echo '</tr>';
+
+        // --- Eligibility Rules ---
+        $current_requires_classroom = $is_edit && !empty($component->requires_classroom) ? 1 : 0;
+        $current_eligible_roles = array();
+        if ($is_edit && !empty($component->eligible_roles)) {
+            $decoded_roles = json_decode($component->eligible_roles, true);
+            if (is_array($decoded_roles)) {
+                $current_eligible_roles = $decoded_roles;
+            }
+        }
+        $all_roles = array(
+            'teacher'         => __('Teacher', 'hl-core'),
+            'mentor'          => __('Mentor', 'hl-core'),
+            'school_leader'   => __('School Leader', 'hl-core'),
+            'district_leader' => __('District Leader', 'hl-core'),
+        );
+
+        echo '<tr>';
+        echo '<th scope="row">' . esc_html__('Eligibility Rules', 'hl-core') . '</th>';
+        echo '<td>';
+
+        echo '<label><input type="checkbox" name="requires_classroom" value="1"' . checked($current_requires_classroom, 1, false) . ' /> ';
+        echo esc_html__('Requires classroom (skip for users without a teaching assignment)', 'hl-core') . '</label>';
+        echo '<br><br>';
+
+        echo '<p class="description" style="margin-bottom:6px;">' . esc_html__('Eligible roles (leave all unchecked for "all roles"):', 'hl-core') . '</p>';
+        foreach ($all_roles as $role_val => $role_label) {
+            $chk = in_array($role_val, $current_eligible_roles, true) ? ' checked' : '';
+            echo '<label style="margin-right:16px;"><input type="checkbox" name="eligible_roles[]" value="' . esc_attr($role_val) . '"' . $chk . ' /> ';
+            echo esc_html($role_label) . '</label>';
+        }
+        echo '<p class="description">' . esc_html__('If no roles are checked, all enrollment roles are eligible. Both conditions must pass.', 'hl-core') . '</p>';
+
         echo '</td>';
         echo '</tr>';
 

@@ -129,6 +129,21 @@ class HL_Frontend_Program_Page {
                 $component->component_id
             );
 
+            // Ineligible components: add to display but skip weight.
+            if ($availability['availability_status'] === 'not_applicable') {
+                $component_data[] = array(
+                    'component'          => $component,
+                    'availability'       => $availability,
+                    'completion_percent' => 0,
+                    'completion_status'  => 'not_applicable',
+                    'completed_at'       => null,
+                    'course_url'         => '',
+                    'assess_status'      => 'not_started',
+                    'children_counts'    => null,
+                );
+                continue;
+            }
+
             $state = $this->get_component_state(
                 $enrollment->enrollment_id,
                 $component->component_id
@@ -450,6 +465,10 @@ class HL_Frontend_Program_Page {
             case 'locked':
                 $card_class = 'hl-component-locked';
                 $bar_class  = 'hl-progress-locked';
+                break;
+            case 'not_applicable':
+                $card_class = 'hl-component-not-applicable';
+                $bar_class  = '';
                 break;
             default:
                 $card_class = 'hl-component-available';
@@ -908,7 +927,10 @@ class HL_Frontend_Program_Page {
         // Status overlay text and class.
         $overlay_class = 'hl-pp-overlay-not-started';
         $overlay_text  = __('Not Started', 'hl-core');
-        if ($avail_status === 'completed') {
+        if ($avail_status === 'not_applicable') {
+            $overlay_class = 'hl-pp-overlay-not-applicable';
+            $overlay_text  = __('Not Applicable', 'hl-core');
+        } elseif ($avail_status === 'completed') {
             $overlay_class = 'hl-pp-overlay-completed';
             $overlay_text  = __('Completed', 'hl-core');
         } elseif ($avail_status === 'locked') {
@@ -929,7 +951,9 @@ class HL_Frontend_Program_Page {
 
         // Card CSS class.
         $card_class = 'hl-pp-component';
-        if ($avail_status === 'locked') {
+        if ($avail_status === 'not_applicable') {
+            $card_class .= ' hl-pp-not-applicable';
+        } elseif ($avail_status === 'locked') {
             $card_class .= ' hl-pp-locked';
         }
 

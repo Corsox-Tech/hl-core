@@ -233,9 +233,20 @@ class HL_Frontend_Team_Progress {
             });
             $components = array_values($components);
 
-            $total_count = count($components);
+            $rules_engine = new HL_Rules_Engine_Service();
 
             foreach ($components as $component) {
+                // Skip ineligible components.
+                if (!$rules_engine->check_eligibility($enrollment_id, $component)) {
+                    $components_data[] = array(
+                        'component'          => $component,
+                        'completion_percent' => 0,
+                        'completion_status'  => 'not_applicable',
+                    );
+                    continue;
+                }
+
+                $total_count++;
                 $state = $this->get_component_state($enrollment_id, $component->component_id);
 
                 $act_percent = $state ? (int) $state['completion_percent'] : 0;

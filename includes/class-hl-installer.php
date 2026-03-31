@@ -127,7 +127,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 24;
+        $current_revision = 25;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -1368,6 +1368,8 @@ class HL_Installer {
             external_ref longtext NULL COMMENT 'JSON - course_id/instrument_id etc',
             complete_by date DEFAULT NULL COMMENT 'Suggested completion date (not enforced)',
             visibility enum('all','staff_only') NOT NULL DEFAULT 'all',
+            requires_classroom tinyint(1) NOT NULL DEFAULT 0,
+            eligible_roles text NULL,
             status enum('active','removed') NOT NULL DEFAULT 'active',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

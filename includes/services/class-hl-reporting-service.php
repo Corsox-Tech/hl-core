@@ -63,7 +63,7 @@ class HL_Reporting_Service {
 
         // Get all active components for this pathway
         $components = $wpdb->get_results($wpdb->prepare(
-            "SELECT component_id, component_type, weight, external_ref
+            "SELECT component_id, component_type, weight, external_ref, requires_classroom, eligible_roles
              FROM {$wpdb->prefix}hl_component
              WHERE pathway_id = %d AND status = 'active'",
             $enrollment->assigned_pathway_id
@@ -99,7 +99,18 @@ class HL_Reporting_Service {
         $total_weight = 0.0;
         $weighted_sum = 0.0;
 
+        $rules_engine = new HL_Rules_Engine_Service();
+
         foreach ($components as $component) {
+            // Skip ineligible components.
+            $comp_obj = new HL_Component(array(
+                'requires_classroom' => $component->requires_classroom,
+                'eligible_roles'     => $component->eligible_roles,
+            ));
+            if (!$rules_engine->check_eligibility($enrollment_id, $comp_obj)) {
+                continue;
+            }
+
             $weight = floatval($component->weight);
             if ($weight <= 0) {
                 $weight = 1.0;
@@ -423,7 +434,7 @@ class HL_Reporting_Service {
         $pathway_placeholders = implode( ',', array_fill( 0, count( $pathway_ids ), '%d' ) );
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $components = $wpdb->get_results( $wpdb->prepare(
-            "SELECT component_id, pathway_id, title, component_type, weight, ordering_hint, external_ref
+            "SELECT component_id, pathway_id, title, component_type, weight, ordering_hint, external_ref, requires_classroom, eligible_roles
              FROM {$prefix}hl_component
              WHERE pathway_id IN ({$pathway_placeholders}) AND status = 'active'
              ORDER BY ordering_hint ASC, component_id ASC",
@@ -472,12 +483,20 @@ class HL_Reporting_Service {
         }
 
         // Build result keyed by enrollment_id => array of component data
+        $rules_engine = new HL_Rules_Engine_Service();
         $result = array();
         foreach ( $enrollment_ids as $eid ) {
             $result[ $eid ] = array();
             foreach ( $components as $component ) {
                 $aid = $component['component_id'];
                 $state = isset( $state_map[ $eid ][ $aid ] ) ? $state_map[ $eid ][ $aid ] : null;
+
+                $comp_obj = new HL_Component( array(
+                    'requires_classroom' => isset( $component['requires_classroom'] ) ? $component['requires_classroom'] : 0,
+                    'eligible_roles'     => isset( $component['eligible_roles'] ) ? $component['eligible_roles'] : null,
+                ) );
+                $is_eligible = $rules_engine->check_eligibility( $eid, $comp_obj );
+
                 $result[ $eid ][ $aid ] = array(
                     'component_id'        => $aid,
                     'title'              => $component['title'],
@@ -487,6 +506,7 @@ class HL_Reporting_Service {
                     'completion_percent' => $state ? intval( $state['completion_percent'] ) : 0,
                     'completion_status'  => $state ? $state['completion_status'] : 'not_started',
                     'completed_at'       => $state ? $state['completed_at'] : null,
+                    'is_eligible'        => $is_eligible,
                 );
             }
         }

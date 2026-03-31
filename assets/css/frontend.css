@@ -994,6 +994,12 @@ button.hl-btn-danger:hover,
     background: var(--hl-bg-alt);
 }
 
+.hl-component-not-applicable {
+    opacity: 0.5;
+    background: #f0f0f0;
+    pointer-events: none;
+}
+
 .hl-component-available {
     border-left: 4px solid var(--hl-secondary);
 }
@@ -3429,6 +3435,22 @@ body:has(.hl-program-page-v2) .entry-title {
     transform: none;
     box-shadow: none;
     border-color: var(--hl-slate-200);
+}
+
+/* Not Applicable component */
+.hl-pp-component.hl-pp-not-applicable {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.hl-pp-overlay-not-applicable {
+    background: #f0f0f0;
+    color: #999;
+}
+
+/* User Profile — Not Applicable status */
+.hlup-status-not-applicable {
+    color: #999;
 }
 
 .hl-pp-drip-badge {

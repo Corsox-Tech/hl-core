@@ -1166,10 +1166,23 @@ class HL_Frontend_User_Profile {
                 $total_weight  = 0;
                 $weighted_done = 0;
                 $completed     = 0;
-                $total         = count($components);
+                $total         = 0;
 
+                $rules_engine = new HL_Rules_Engine_Service();
                 $comp_data = array();
                 foreach ($components as $component) {
+                    // Eligibility check.
+                    if (!$rules_engine->check_eligibility($enrollment->enrollment_id, $component)) {
+                        $comp_data[] = array(
+                            'title'  => $component->title,
+                            'type'   => $component->component_type,
+                            'pct'    => 0,
+                            'status' => 'not_applicable',
+                        );
+                        continue;
+                    }
+
+                    $total++;
                     $cid   = (int) $component->component_id;
                     $state = isset($state_map[$cid]) ? $state_map[$cid] : null;
 
@@ -1231,7 +1244,11 @@ class HL_Frontend_User_Profile {
                                 $status_label = __('Not Started', 'hl-core');
                                 $status_icon  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
 
-                                if ($cd['status'] === 'complete') {
+                                if ($cd['status'] === 'not_applicable') {
+                                    $status_class = 'not-applicable';
+                                    $status_label = __('N/A', 'hl-core');
+                                    $status_icon  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>';
+                                } elseif ($cd['status'] === 'complete') {
                                     $status_class = 'complete';
                                     $status_label = __('Complete', 'hl-core');
                                     $status_icon  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
