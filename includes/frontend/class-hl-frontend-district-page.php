@@ -166,7 +166,7 @@ class HL_Frontend_District_Page {
                     ?>
                         <div class="hl-crm-track-row">
                             <div class="hl-crm-track-info">
-                                <strong><?php echo esc_html( $cycle->cycle_name ); ?></strong>
+                                <strong><?php echo esc_html( $cycle->cycle_name ?? __( '(Unnamed Cycle)', 'hl-core' ) ); ?></strong>
                                 <span class="hl-badge <?php echo esc_attr( $status_class ); ?>"><?php echo esc_html( ucfirst( $status ) ); ?></span>
                                 <?php if ( ! empty( $dates ) ) : ?>
                                     <span class="hl-crm-track-dates"><?php echo esc_html( implode( ' — ', $dates ) ); ?></span>

@@ -357,7 +357,7 @@ class HL_Frontend_Action_Plan {
         .hlap-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px;color:#fff}
         .hlap-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0}
 
-        .hlap-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;margin-bottom:20px}
+        .hlap-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:12px;font-size:14px;margin-bottom:20px}
         .hlap-alert-info{background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef}
 
         /* Sections */
@@ -371,44 +371,44 @@ class HL_Frontend_Action_Plan {
         .hlap-field{margin-bottom:20px}
         .hlap-field:last-child{margin-bottom:0}
         .hlap-field-label{display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;letter-spacing:.3px}
-        .hlap-readonly-value{background:#f1f5f9;padding:12px 16px;border-radius:10px;font-size:14px;color:#334155;line-height:1.6;min-height:20px}
+        .hlap-readonly-value{background:#f1f5f9;padding:12px 16px;border-radius:12px;font-size:14px;color:#334155;line-height:1.6;min-height:20px}
         .hlap-muted{color:#94a3b8;font-size:14px}
 
         /* Select */
-        .hlap-select{width:100%;padding:10px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;line-height:1.4;font-weight:500;color:#1e293b;background:#fff;font-family:inherit;transition:border-color .2s;appearance:auto;height:auto}
+        .hlap-select{width:100%;padding:10px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:14px;line-height:1.4;font-weight:500;color:#1e293b;background:#fff;font-family:inherit;transition:border-color .2s;appearance:auto;height:auto}
         .hlap-select:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1)}
 
         /* Textarea */
-        .hlap-textarea{width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;transition:border-color .2s;background:#fafbfc;box-sizing:border-box}
+        .hlap-textarea{width:100%;border:2px solid #e2e8f0;border-radius:12px;padding:12px 16px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;transition:border-color .2s;background:#fafbfc;box-sizing:border-box}
         .hlap-textarea:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1);background:#fff}
         .hlap-textarea::placeholder{color:#94a3b8}
 
         /* Domain badge (read-only) */
-        .hlap-domain-badge{display:inline-flex;padding:6px 16px;border-radius:50px;font-size:14px;font-weight:600;background:#1e3a5f;color:#fff}
+        .hlap-domain-badge{display:inline-flex;padding:6px 16px;border-radius:100px;font-size:14px;font-weight:600;background:#1e3a5f;color:#fff}
 
         /* Pill checkboxes for skills */
         .hlap-pills{display:flex;flex-wrap:wrap;gap:10px}
         .hlap-pill{position:relative}
         .hlap-pill input{position:absolute;opacity:0;pointer-events:none}
-        .hlap-pill-label{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:2px solid #e2e8f0;border-radius:50px;font-size:14px;font-weight:500;color:#64748b;cursor:pointer;transition:all .2s ease;background:#fff;user-select:none}
+        .hlap-pill-label{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:2px solid #e2e8f0;border-radius:100px;font-size:14px;font-weight:500;color:#64748b;cursor:pointer;transition:all .2s ease;background:#fff;user-select:none}
         .hlap-pill-label:hover{border-color:#94a3b8;color:#334155}
-        .hlap-pill input:checked+.hlap-pill-label{background:#1e3a5f;border-color:#1e3a5f;color:#fff;box-shadow:0 2px 8px rgba(30,58,95,.25)}
+        .hlap-pill input:checked+.hlap-pill-label{background:#1e3a5f;border-color:#1e3a5f;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08)}
         .hlap-pill-dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1;transition:background .2s}
         .hlap-pill input:checked+.hlap-pill-label .hlap-pill-dot{background:#6ee7b7}
         .hlap-pills-ro{display:flex;flex-wrap:wrap;gap:8px}
-        .hlap-pill-ro{display:inline-flex;padding:6px 14px;border-radius:50px;font-size:13px;font-weight:600;background:#d1fae5;color:#065f46}
+        .hlap-pill-ro{display:inline-flex;padding:6px 14px;border-radius:100px;font-size:13px;font-weight:600;background:#d1fae5;color:#065f46}
 
         /* Likert scale */
         .hlap-likert{display:flex;flex-direction:column;gap:8px}
         .hlap-likert-option{display:block;cursor:pointer}
         .hlap-likert-option input{position:absolute;opacity:0;pointer-events:none}
-        .hlap-likert-btn{display:flex;align-items:center;gap:12px;padding:12px 16px;border:2px solid #e2e8f0;border-radius:10px;transition:all .2s;background:#fff}
+        .hlap-likert-btn{display:flex;align-items:center;gap:12px;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;transition:all .2s;background:#fff}
         .hlap-likert-option:hover .hlap-likert-btn{border-color:#94a3b8}
-        .hlap-likert-option input:checked+.hlap-likert-btn{border-color:#1e3a5f;background:#f0f4f8;box-shadow:0 2px 8px rgba(30,58,95,.1)}
+        .hlap-likert-option input:checked+.hlap-likert-btn{border-color:#1e3a5f;background:#f0f4f8;box-shadow:0 2px 8px rgba(0,0,0,.06)}
         .hlap-likert-num{width:28px;height:28px;border-radius:50%;background:#e2e8f0;color:#64748b;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
         .hlap-likert-option input:checked+.hlap-likert-btn .hlap-likert-num{background:#1e3a5f;color:#fff}
         .hlap-likert-text{font-size:14px;font-weight:500;color:#475569}
-        .hlap-likert-badge{display:inline-flex;padding:6px 14px;border-radius:50px;font-size:13px;font-weight:600}
+        .hlap-likert-badge{display:inline-flex;padding:6px 14px;border-radius:100px;font-size:13px;font-weight:600}
         .hlap-likert-1{background:#fee2e2;color:#991b1b}
         .hlap-likert-2{background:#fef3c7;color:#92400e}
         .hlap-likert-3{background:#fef9c3;color:#854d0e}
@@ -417,11 +417,11 @@ class HL_Frontend_Action_Plan {
 
         /* Action buttons */
         .hlap-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:32px;padding-top:24px;border-top:1px solid #e2e8f0}
-        .hlap-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:inherit}
+        .hlap-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:12px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:inherit}
         .hlap-btn-draft{background:#f1f5f9;color:#475569;border:2px solid #e2e8f0}
         .hlap-btn-draft:hover{background:#e2e8f0;border-color:#cbd5e1}
-        .hlap-btn-submit{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:2px solid transparent;box-shadow:0 4px 14px rgba(30,58,95,.3)}
-        .hlap-btn-submit:hover{box-shadow:0 6px 20px rgba(30,58,95,.4);transform:translateY(-1px)}
+        .hlap-btn-submit{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:2px solid transparent;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+        .hlap-btn-submit:hover{box-shadow:0 6px 20px rgba(0,0,0,.15);transform:translateY(-1px)}
 
         @media(max-width:600px){
             .hlap-hero{flex-direction:column;text-align:center;padding:24px 20px}

@@ -311,14 +311,14 @@ class HL_Frontend_Coach_Reports {
 
         /* Hero */
         .hlcr-hero{display:flex;align-items:center;gap:20px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;padding:28px 32px;border-radius:16px;margin-bottom:28px;position:relative}
-        .hlcr-hero-icon{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.12)}
+        .hlcr-hero-icon{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.12)}
         .hlcr-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px}
         .hlcr-hero-sub{font-size:14px;opacity:.75;margin:4px 0 0}
         .hlcr-hero-back{position:absolute;top:16px;right:20px;display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:500;color:rgba(255,255,255,.8);text-decoration:none;transition:color .2s}
         .hlcr-hero-back:hover{color:#fff;text-decoration:none}
 
         /* Filter bar */
-        .hlcr-filter-bar{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:24px}
+        .hlcr-filter-bar{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;margin-bottom:24px}
         .hlcr-filter-form{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
         .hlcr-filter-group{display:flex;flex-direction:column;gap:6px;min-width:180px}
         .hlcr-filter-group-btn{align-self:flex-end}
@@ -336,7 +336,7 @@ class HL_Frontend_Coach_Reports {
 
         /* Stats grid */
         .hlcr-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:32px}
-        .hlcr-stat-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;transition:box-shadow .25s ease,transform .25s ease}
+        .hlcr-stat-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;transition:box-shadow .25s ease,transform .25s ease}
         .hlcr-stat-card:hover{box-shadow:0 8px 25px rgba(0,0,0,.08);transform:translateY(-2px)}
         .hlcr-stat-accent{height:4px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%)}
         .hlcr-stat-accent-completion{background:linear-gradient(135deg,#059669 0%,#34d399 100%)}
@@ -353,7 +353,7 @@ class HL_Frontend_Coach_Reports {
         .hlcr-section-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#475569;margin-bottom:16px}
 
         /* Table */
-        .hlcr-table-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;margin-bottom:32px}
+        .hlcr-table-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;margin-bottom:32px}
         .hlcr-table{width:100%;border-collapse:collapse}
         .hlcr-th{padding:14px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8896a6;background:#f8fafc;border-bottom:2px solid #e2e8f0;white-space:nowrap;cursor:default}
         .hlcr-th-pct{min-width:180px}
@@ -371,13 +371,13 @@ class HL_Frontend_Coach_Reports {
         .hlcr-progress-fill{height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:4px;transition:width .4s ease}
 
         /* Empty state */
-        .hlcr-empty{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:48px 24px;text-align:center;margin-bottom:32px}
+        .hlcr-empty{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:48px 24px;text-align:center;margin-bottom:32px}
         .hlcr-empty-icon{color:#cbd5e1;margin-bottom:12px}
         .hlcr-empty-text{font-size:15px;color:#8896a6;margin:0}
 
         /* Team comparison grid */
         .hlcr-teams-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:32px}
-        .hlcr-team-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;transition:box-shadow .25s ease,transform .25s ease}
+        .hlcr-team-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;transition:box-shadow .25s ease,transform .25s ease}
         .hlcr-team-card:hover{box-shadow:0 8px 25px rgba(0,0,0,.08);transform:translateY(-2px)}
         .hlcr-team-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
         .hlcr-team-icon{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:rgba(30,58,95,.08);color:#1e3a5f;flex-shrink:0}

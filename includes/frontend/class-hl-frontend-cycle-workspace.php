@@ -600,6 +600,8 @@ class HL_Frontend_Cycle_Workspace {
             return;
         }
 
+        $profile_base_url = $this->find_shortcode_page_url( 'hl_user_profile' );
+
         ?>
         <div class="hl-cw-staff-header">
             <div class="hl-cw-section-label" style="border: none; margin: 0; padding: 0;">
@@ -627,7 +629,14 @@ class HL_Frontend_Cycle_Workspace {
                     $fill_class = $completion >= 100 ? 'hl-cw-complete' : '';
                 ?>
                     <tr data-name="<?php echo esc_attr( strtolower( $p['display_name'] ) ); ?>">
-                        <td class="hl-cw-name"><?php echo esc_html( $p['display_name'] ); ?></td>
+                        <td class="hl-cw-name"><?php
+                            if ( $profile_base_url && ! empty( $p['user_id'] ) ) {
+                                $p_url = add_query_arg( 'user_id', $p['user_id'], $profile_base_url );
+                                echo '<a href="' . esc_url( $p_url ) . '" class="hl-profile-link">' . esc_html( $p['display_name'] ) . '</a>';
+                            } else {
+                                echo esc_html( $p['display_name'] );
+                            }
+                        ?></td>
                         <td class="hl-cw-email"><?php echo esc_html( $p['user_email'] ); ?></td>
                         <td><?php echo esc_html( $p['team_name'] ?: '—' ); ?></td>
                         <td>
@@ -975,15 +984,30 @@ class HL_Frontend_Cycle_Workspace {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        return $wpdb->get_results( $wpdb->prepare(
+        // Primary: classrooms at schools linked to this cycle via hl_cycle_school.
+        $results = $wpdb->get_results( $wpdb->prepare(
             "SELECT DISTINCT cr.*
              FROM {$prefix}hl_classroom cr
-             INNER JOIN {$prefix}hl_teaching_assignment ta ON cr.classroom_id = ta.classroom_id
-             INNER JOIN {$prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
-             WHERE e.cycle_id = %d
+             INNER JOIN {$prefix}hl_cycle_school cs ON cr.school_id = cs.school_id
+             WHERE cs.cycle_id = %d AND cr.status = 'active'
              ORDER BY cr.classroom_name ASC",
             $cycle_id
         ) ) ?: array();
+
+        // Fallback: if no cycle_school rows, try via teaching assignments.
+        if ( empty( $results ) ) {
+            $results = $wpdb->get_results( $wpdb->prepare(
+                "SELECT DISTINCT cr.*
+                 FROM {$prefix}hl_classroom cr
+                 INNER JOIN {$prefix}hl_teaching_assignment ta ON cr.classroom_id = ta.classroom_id
+                 INNER JOIN {$prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
+                 WHERE e.cycle_id = %d AND cr.status = 'active'
+                 ORDER BY cr.classroom_name ASC",
+                $cycle_id
+            ) ) ?: array();
+        }
+
+        return $results;
     }
 
     private function get_classroom_child_counts( $classroom_ids ) {

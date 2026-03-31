@@ -55,13 +55,13 @@ class HL_Frontend_Classroom_Visit {
             $msg = sanitize_text_field($_GET['message']);
             if ($msg === 'submitted') {
                 self::render_form_styles();
-                echo '<div class="hlcv-alert" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
+                echo '<div class="hlcv-alert" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:12px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
                 echo '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
                 echo '<strong>' . esc_html__('Classroom visit submitted successfully!', 'hl-core') . '</strong>';
                 echo '</div>';
             } elseif ($msg === 'saved') {
                 self::render_form_styles();
-                echo '<div class="hlcv-alert" style="background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
+                echo '<div class="hlcv-alert" style="background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:12px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
                 echo '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>';
                 echo '<strong>' . esc_html__('Draft saved.', 'hl-core') . '</strong>';
                 echo '</div>';
@@ -423,7 +423,7 @@ class HL_Frontend_Classroom_Visit {
         .hlcv-hero-icon{background:rgba(255,255,255,.15);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center}
         .hlcv-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px;color:#fff !important}
         .hlcv-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0;color:rgba(255,255,255,.8) !important}
-        .hlcv-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;margin-bottom:20px}
+        .hlcv-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:12px;font-size:14px;margin-bottom:20px}
         .hlcv-alert-info{background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef}
         .hlcv-info-card{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:28px}
         .hlcv-info-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
@@ -440,7 +440,7 @@ class HL_Frontend_Classroom_Visit {
         .hlcv-pill input{position:absolute;opacity:0;pointer-events:none}
         .hlcv-pill-label{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:2px solid #e2e8f0;border-radius:50px;font-size:14px;font-weight:500;color:#64748b;cursor:pointer;transition:all .2s ease;background:#fff;user-select:none}
         .hlcv-pill-label:hover{border-color:#94a3b8;color:#334155}
-        .hlcv-pill input:checked+.hlcv-pill-label{background:#1e3a5f;border-color:#1e3a5f;color:#fff;box-shadow:0 2px 8px rgba(30,58,95,.25)}
+        .hlcv-pill input:checked+.hlcv-pill-label{background:#1e3a5f;border-color:#1e3a5f;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08)}
         .hlcv-pill-dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1;transition:background .2s}
         .hlcv-pill input:checked+.hlcv-pill-label .hlcv-pill-dot{background:#6ee7b7}
 
@@ -464,7 +464,7 @@ class HL_Frontend_Classroom_Visit {
 
         /* One description per domain */
         .hlcv-domain-desc{padding:0 20px 16px;animation:hlcvSlideDown .3s ease}
-        .hlcv-domain-desc textarea{width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:14px;font-family:inherit;resize:vertical;min-height:70px;transition:border-color .2s;background:#fafbfc;box-sizing:border-box}
+        .hlcv-domain-desc textarea{width:100%;border:2px solid #e2e8f0;border-radius:12px;padding:12px 16px;font-size:14px;font-family:inherit;resize:vertical;min-height:70px;transition:border-color .2s;background:#fafbfc;box-sizing:border-box}
         .hlcv-domain-desc textarea:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1);background:#fff}
         .hlcv-domain-desc textarea::placeholder{color:#94a3b8}
         .hlcv-domain-desc-ro{padding:8px 20px 16px}
@@ -474,11 +474,11 @@ class HL_Frontend_Classroom_Visit {
 
         /* Action buttons */
         .hlcv-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:32px;padding-top:24px;border-top:1px solid #e2e8f0}
-        .hlcv-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:inherit}
+        .hlcv-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:12px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:inherit}
         .hlcv-btn-draft{background:#f1f5f9;color:#475569;border:2px solid #e2e8f0}
         .hlcv-btn-draft:hover{background:#e2e8f0;border-color:#cbd5e1}
-        .hlcv-btn-submit{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:2px solid transparent;box-shadow:0 4px 14px rgba(30,58,95,.3)}
-        .hlcv-btn-submit:hover{box-shadow:0 6px 20px rgba(30,58,95,.4);transform:translateY(-1px)}
+        .hlcv-btn-submit{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:2px solid transparent;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+        .hlcv-btn-submit:hover{box-shadow:0 6px 20px rgba(0,0,0,.15);transform:translateY(-1px)}
 
         /* Read-only badges */
         .hlcv-ro-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:50px;font-size:12px;font-weight:600}
@@ -489,7 +489,7 @@ class HL_Frontend_Classroom_Visit {
         .hlcv-instructions{margin-bottom:28px;display:flex;flex-direction:column;gap:12px}
         .hlcv-instr-section{display:flex;gap:14px;padding:16px 18px;background:#f8f9fb;border:1px solid #e2e8f0;border-radius:12px}
         .hlcv-instr-highlight{background:#eef6ff;border-color:#bfdbfe}
-        .hlcv-instr-icon{flex-shrink:0;width:36px;height:36px;border-radius:10px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#64748b}
+        .hlcv-instr-icon{flex-shrink:0;width:36px;height:36px;border-radius:12px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#64748b}
         .hlcv-instr-icon-warn{background:#fef3c7;color:#d97706}
         .hlcv-instr-icon-how{background:#dbeafe;color:#2563eb}
         .hlcv-instr-heading{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569;margin-bottom:4px}

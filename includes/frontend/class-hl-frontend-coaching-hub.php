@@ -140,7 +140,7 @@ class HL_Frontend_Coaching_Hub {
         .hl-hub-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
         .hl-hub-calendar-view .hl-calendar-header { margin-bottom: 8px; font-weight: 600; }
         .hl-hub-calendar-view .hl-calendar-dow { padding: 4px; text-align: center; font-weight: 600; font-size: 12px; color: #666; }
-        .hl-hub-calendar-view .hl-calendar-day { padding: 8px; min-height: 60px; border: 1px solid #eee; border-radius: 4px; font-size: 14px; }
+        .hl-hub-calendar-view .hl-calendar-day { padding: 8px; min-height: 60px; border: 1px solid #eee; border-radius: 8px; font-size: 14px; }
         .hl-hub-calendar-view .hl-calendar-today { background: #f0f7ff; }
         .hl-hub-calendar-view .hl-calendar-empty { border: none; }
         .hl-cal-day-num { display: block; font-weight: 600; margin-bottom: 4px; }
@@ -212,16 +212,25 @@ class HL_Frontend_Coaching_Hub {
         if ( empty( $coaches ) ) {
             return;
         }
+        $profile_base = $this->find_shortcode_page_url( 'hl_user_profile' );
         ?>
         <div class="hl-section hl-coaches-section">
             <h3><?php esc_html_e( 'Coaches', 'hl-core' ); ?></h3>
             <div class="hl-card-grid">
-                <?php foreach ( $coaches as $coach ) : ?>
+                <?php foreach ( $coaches as $coach ) :
+                    $profile_url = $profile_base ? add_query_arg( 'user_id', $coach->ID, $profile_base ) : '';
+                ?>
                     <div class="hl-card hl-coach-card">
                         <div class="hl-coach-avatar"><?php echo get_avatar( $coach->ID, 64 ); ?></div>
                         <div class="hl-coach-info">
-                            <strong><?php echo esc_html( $coach->display_name ); ?></strong>
-                            <span><?php echo esc_html( $coach->user_email ); ?></span>
+                            <strong><?php
+                                if ( $profile_url ) {
+                                    echo '<a href="' . esc_url( $profile_url ) . '" class="hl-profile-link">' . esc_html( $coach->display_name ) . '</a>';
+                                } else {
+                                    echo esc_html( $coach->display_name );
+                                }
+                            ?></strong>
+                            <span style="word-break:break-all;overflow-wrap:break-word;"><?php echo esc_html( $coach->user_email ); ?></span>
                         </div>
                     </div>
                 <?php endforeach; ?>

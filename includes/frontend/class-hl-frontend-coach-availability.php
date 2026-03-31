@@ -380,7 +380,7 @@ class HL_Frontend_Coach_Availability {
 
         /* Hero */
         .hlca-hero{display:flex;align-items:center;gap:20px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;padding:28px 32px;border-radius:16px;margin-bottom:24px}
-        .hlca-hero-icon{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.12)}
+        .hlca-hero-icon{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.12)}
         .hlca-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px}
         .hlca-hero-sub{font-size:14px;opacity:.75;margin:4px 0 0}
 
@@ -394,7 +394,7 @@ class HL_Frontend_Coach_Availability {
         .hlca-instructions-text{font-size:14px;color:#1e40af;line-height:1.5}
 
         /* Grid card */
-        .hlca-grid-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px;margin-bottom:20px;overflow:hidden}
+        .hlca-grid-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:20px;overflow:hidden}
         .hlca-grid-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 
         /* Grid layout */
@@ -427,7 +427,7 @@ class HL_Frontend_Coach_Availability {
 
         /* Save form */
         .hlca-save-form{text-align:center;margin-bottom:24px}
-        .hlca-btn-save{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:box-shadow .25s ease,transform .25s ease;font-family:inherit}
+        .hlca-btn-save{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;padding:12px 28px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:box-shadow .25s ease,transform .25s ease;font-family:inherit}
         .hlca-btn-save:hover{box-shadow:0 8px 25px rgba(30,58,95,.25);transform:translateY(-1px)}
         .hlca-btn-save:active{transform:translateY(0)}
 

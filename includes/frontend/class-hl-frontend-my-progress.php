@@ -431,13 +431,14 @@ class HL_Frontend_My_Progress {
                     // Find instance for this enrollment + phase
                     global $wpdb;
                     $phase = isset($external_ref['phase']) ? $external_ref['phase'] : 'pre';
-                    $instance_id = $wpdb->get_var($wpdb->prepare(
+                    $enrollment_id_val = isset($ad['enrollment_id']) ? (int) $ad['enrollment_id'] : 0;
+                    $instance_id = $enrollment_id_val ? $wpdb->get_var($wpdb->prepare(
                         "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
                          WHERE enrollment_id = %d AND cycle_id = %d AND phase = %s",
-                        $ad['enrollment_id'],
+                        $enrollment_id_val,
                         $component->cycle_id ?? 0,
                         $phase
-                    ));
+                    )) : null;
 
                     if ($instance_id) {
                         $tsa_page_url = add_query_arg('instance_id', $instance_id, $tsa_page_url);

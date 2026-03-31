@@ -261,13 +261,6 @@ class HL_Frontend_Dashboard {
                 );
 
                 $this->render_nav_card(
-                    'hl_pathways_listing',
-                    __( 'Pathways', 'hl-core' ),
-                    __( 'Browse pathway configurations.', 'hl-core' ),
-                    'dashicons-randomize'
-                );
-
-                $this->render_nav_card(
                     'hl_coaching_hub',
                     __( 'Coaching Hub', 'hl-core' ),
                     __( 'View and manage all coaching sessions.', 'hl-core' ),
@@ -596,13 +589,6 @@ class HL_Frontend_Dashboard {
                     __( 'Search and view all participants', 'hl-core' ),
                     '&#x1F393;',
                     'hl-dv2-icon-learners'
-                );
-                $this->render_nav_card_v2(
-                    'hl_pathways_listing',
-                    __( 'Pathways', 'hl-core' ),
-                    __( 'Browse pathway configurations', 'hl-core' ),
-                    '&#x1F5FA;',
-                    'hl-dv2-icon-pathways'
                 );
                 $this->render_nav_card_v2(
                     'hl_coaching_hub',

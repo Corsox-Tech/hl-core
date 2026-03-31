@@ -234,11 +234,19 @@ class HL_Coach_Assignment_Service {
             }
         }
 
-        // 3. School-level assignment.
+        // 3. School-level assignment — check enrollment school_id first,
+        //    then fall back to the team's school_id if enrollment has none.
         $school_id = $wpdb->get_var($wpdb->prepare(
             "SELECT school_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
             $enrollment_id
         ));
+
+        if (!$school_id && $team_id) {
+            $school_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT school_id FROM {$wpdb->prefix}hl_team WHERE team_id = %d",
+                $team_id
+            ));
+        }
 
         if ($school_id) {
             $coach = $wpdb->get_row($wpdb->prepare(

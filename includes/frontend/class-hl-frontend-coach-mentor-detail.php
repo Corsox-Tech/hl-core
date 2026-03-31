@@ -472,7 +472,7 @@ class HL_Frontend_Coach_Mentor_Detail {
         );
         $badge = isset($map[$status]) ? $map[$status] : array('#f1f5f9', '#64748b');
         return sprintf(
-            '<span style="display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:%s;color:%s;">%s</span>',
+            '<span style="display:inline-block;padding:4px 12px;border-radius:16px;font-size:12px;font-weight:600;background:%s;color:%s;">%s</span>',
             esc_attr($badge[0]),
             esc_attr($badge[1]),
             esc_html(ucfirst($status))
@@ -499,7 +499,7 @@ class HL_Frontend_Coach_Mentor_Detail {
         .hlcmd-hero-sub{font-size:14px;opacity:.75;margin:4px 0 0;color:#fff!important}
 
         /* Info card */
-        .hlcmd-info-card{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:24px}
+        .hlcmd-info-card{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;margin-bottom:24px}
         .hlcmd-info-row{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
         .hlcmd-info-cell{display:flex;flex-direction:column;gap:6px}
         .hlcmd-info-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6}
@@ -517,7 +517,7 @@ class HL_Frontend_Coach_Mentor_Detail {
 
         /* Tabs */
         .hlcmd-tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
-        .hlcmd-tab-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;border:2px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;transition:all .2s;font-family:inherit}
+        .hlcmd-tab-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:12px;font-size:14px;font-weight:600;border:2px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;transition:all .2s;font-family:inherit}
         .hlcmd-tab-btn:hover{border-color:#94a3b8;color:#334155;background:#f8fafc}
         .hlcmd-tab-btn.hlcmd-tab-active{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(30,58,95,.25)}
         .hlcmd-tab-btn.hlcmd-tab-active svg{stroke:#fff}
@@ -527,15 +527,15 @@ class HL_Frontend_Coach_Mentor_Detail {
         @keyframes hlcmdFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
         /* Panel empty state */
-        .hlcmd-panel-empty{text-align:center;padding:48px 20px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;color:#8896a6}
+        .hlcmd-panel-empty{text-align:center;padding:48px 20px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;color:#8896a6}
         .hlcmd-panel-empty svg{margin-bottom:12px;opacity:.5}
         .hlcmd-panel-empty p{font-size:15px;margin:0}
 
         /* ---- TAB 1: Coaching Sessions ---- */
-        .hlcmd-btn-schedule{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s}
+        .hlcmd-btn-schedule{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s}
         .hlcmd-btn-schedule:hover{background:#1d4ed8;color:#fff}
         .hlcmd-sessions-list{display:flex;flex-direction:column;gap:12px}
-        .hlcmd-session-row{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 24px;transition:box-shadow .25s ease}
+        .hlcmd-session-row{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:18px 24px;transition:box-shadow .25s ease}
         .hlcmd-session-row:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}
         .hlcmd-session-main{flex:1;min-width:0}
         .hlcmd-session-title{font-size:15px;font-weight:600;color:#1e293b;margin-bottom:6px}
@@ -548,13 +548,13 @@ class HL_Frontend_Coach_Mentor_Detail {
 
         /* ---- TAB 2: Team Overview ---- */
         .hlcmd-team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-        .hlcmd-team-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;transition:box-shadow .25s ease,transform .25s ease}
+        .hlcmd-team-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;transition:box-shadow .25s ease,transform .25s ease}
         .hlcmd-team-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.06);transform:translateY(-1px)}
         .hlcmd-team-card-top{margin-bottom:12px}
         .hlcmd-team-card-name{font-size:15px;font-weight:600;color:#1e293b;margin-bottom:2px}
         .hlcmd-team-card-email{font-size:13px;color:#8896a6}
         .hlcmd-team-card-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-        .hlcmd-badge{display:inline-block;padding:4px 12px;font-size:12px;font-weight:600;border-radius:20px;line-height:1.4}
+        .hlcmd-badge{display:inline-block;padding:4px 12px;font-size:12px;font-weight:600;border-radius:16px;line-height:1.4}
         .hlcmd-badge-green{background:#d1fae5;color:#065f46}
         .hlcmd-badge-blue{background:#dbeafe;color:#1e40af}
         .hlcmd-badge-orange{background:#fef3c7;color:#92400e}
@@ -562,7 +562,7 @@ class HL_Frontend_Coach_Mentor_Detail {
         .hlcmd-team-card-pathway{font-size:13px;color:#64748b;margin-bottom:12px}
 
         /* ---- TAB 3: RP Sessions ---- */
-        .hlcmd-rp-table-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+        .hlcmd-rp-table-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden}
         .hlcmd-rp-table{width:100%;border-collapse:collapse}
         .hlcmd-rp-table thead th{text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6;padding:14px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
         .hlcmd-rp-table tbody td{padding:14px 20px;font-size:14px;color:#334155;border-bottom:1px solid #f1f5f9}
@@ -571,12 +571,12 @@ class HL_Frontend_Coach_Mentor_Detail {
 
         /* ---- TAB 4: Reports ---- */
         .hlcmd-report-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-        .hlcmd-report-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;text-align:center}
+        .hlcmd-report-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px;text-align:center}
         .hlcmd-report-card-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6;margin-bottom:8px}
         .hlcmd-report-card-value{font-size:32px;font-weight:700;color:#1e293b;line-height:1;margin-bottom:4px}
 
         /* Comparison card */
-        .hlcmd-comparison-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px;margin-bottom:24px}
+        .hlcmd-comparison-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px}
         .hlcmd-comparison-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#475569;margin-bottom:20px}
         .hlcmd-comparison-row{display:flex;align-items:center;gap:14px;margin-bottom:14px}
         .hlcmd-comparison-row:last-child{margin-bottom:0}
@@ -584,15 +584,15 @@ class HL_Frontend_Coach_Mentor_Detail {
         .hlcmd-comparison-pct{font-size:14px;font-weight:700;color:#1e293b;min-width:44px;text-align:right;flex-shrink:0}
 
         /* Export card */
-        .hlcmd-export-card{display:flex;align-items:center;justify-content:space-between;gap:20px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px}
+        .hlcmd-export-card{display:flex;align-items:center;justify-content:space-between;gap:20px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px}
         .hlcmd-export-title{font-size:15px;font-weight:600;color:#1e293b;margin-bottom:4px}
         .hlcmd-export-desc{font-size:13px;color:#8896a6}
         .hlcmd-export-form{flex-shrink:0}
-        .hlcmd-export-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;cursor:pointer;transition:box-shadow .2s,transform .2s;font-family:inherit}
+        .hlcmd-export-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:12px;font-size:14px;font-weight:600;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;cursor:pointer;transition:box-shadow .2s,transform .2s;font-family:inherit}
         .hlcmd-export-btn:hover{box-shadow:0 6px 20px rgba(30,58,95,.3);transform:translateY(-1px)}
 
         /* Empty state (not-found) */
-        .hlcmd-empty{text-align:center;padding:60px 20px;background:#fff;border:1px solid #e2e8f0;border-radius:14px}
+        .hlcmd-empty{text-align:center;padding:60px 20px;background:#fff;border:1px solid #e2e8f0;border-radius:16px}
         .hlcmd-empty-icon{display:inline-flex;align-items:center;justify-content:center;width:80px;height:80px;border-radius:50%;background:rgba(30,58,95,.06);color:#8896a6;margin-bottom:16px}
         .hlcmd-empty-text{font-size:16px;color:#64748b;margin:0}
 

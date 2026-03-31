@@ -304,18 +304,18 @@ class HL_Frontend_RP_Notes {
                             .hlrn-cvr-col{border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}
                             .hlrn-cvr-col-hdr{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
                             .hlrn-cvr-col-hdr strong{font-size:13px;color:#1e293b}
-                            .hlrn-cvr-col-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600}
+                            .hlrn-cvr-col-badge{display:inline-block;padding:1px 7px;border-radius:12px;font-size:10px;font-weight:600}
                             .hlrn-cvr-col-by{font-size:10px;color:#94a3b8;margin-left:auto;white-space:nowrap}
                             .hlrn-cvr-col-body{padding:8px 10px}
                             .hlrn-cvr-empty{padding:20px;text-align:center;color:#94a3b8;font-size:12px}
                             /* Compact form rendering */
-                            .hlrn-cv-full-data .hlcv-context{margin:4px 0 8px;padding:6px 10px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0}
+                            .hlrn-cv-full-data .hlcv-context{margin:4px 0 8px;padding:6px 10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
                             .hlrn-cv-full-data .hlcv-context-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569;margin-bottom:4px}
                             .hlrn-cv-full-data .hlcv-pills{display:flex;flex-wrap:wrap;gap:3px}
-                            .hlrn-cv-full-data .hlcv-ro-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:500}
+                            .hlrn-cv-full-data .hlcv-ro-badge{display:inline-block;padding:1px 7px;border-radius:12px;font-size:10px;font-weight:500}
                             .hlrn-cv-full-data .hlcv-ro-yes{background:#d1fae5;color:#065f46}
                             .hlrn-cv-full-data .hlcv-ro-no{background:#fee2e2;color:#991b1b}
-                            .hlrn-cv-full-data .hlcv-domain-flat{margin:6px 0;padding:6px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:6px}
+                            .hlrn-cv-full-data .hlcv-domain-flat{margin:6px 0;padding:6px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px}
                             .hlrn-cv-full-data .hlcv-domain-flat-header{display:flex;align-items:center;gap:5px;margin-bottom:4px}
                             .hlrn-cv-full-data .hlcv-domain-num{display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#2d5f8a);color:#fff;font-size:9px;font-weight:700;flex-shrink:0}
                             .hlrn-cv-full-data .hlcv-domain-flat-title{font-size:12px;font-weight:600;color:#1e293b}
@@ -631,7 +631,7 @@ class HL_Frontend_RP_Notes {
         .hlrn-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px;color:#fff !important}
         .hlrn-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0;color:rgba(255,255,255,.8) !important}
 
-        .hlrn-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;margin-bottom:20px}
+        .hlrn-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:12px;font-size:14px;margin-bottom:20px}
         .hlrn-alert-info{background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef}
 
         .hlrn-info-card{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:28px}
@@ -645,7 +645,7 @@ class HL_Frontend_RP_Notes {
         .hlrn-section{background:#fff;border:1px solid #e2e8f0;border-radius:14px;margin-bottom:20px;overflow:hidden}
         .hlrn-section-auto{background:#fafbfc}
         .hlrn-section-header{display:flex;align-items:center;gap:12px;padding:16px 20px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-bottom:1px solid #e2e8f0}
-        .hlrn-section-num{background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+        .hlrn-section-num{background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
         .hlrn-section-title{font-size:15px;font-weight:600;color:#1e293b;display:block}
         .hlrn-section-hint{font-size:12px;color:#8896a6;display:block;margin-top:2px}
         .hlrn-section-body{padding:20px}
@@ -654,13 +654,13 @@ class HL_Frontend_RP_Notes {
         .hlrn-field{margin-bottom:20px}
         .hlrn-field:last-child{margin-bottom:0}
         .hlrn-field-label{display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px}
-        .hlrn-readonly-value{background:#f1f5f9;padding:12px 16px;border-radius:10px;font-size:14px;color:#334155;line-height:1.6;min-height:20px}
-        .hlrn-date-input{padding:10px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-weight:500;color:#1e293b;background:#fff;font-family:inherit;transition:border-color .2s}
+        .hlrn-readonly-value{background:#f1f5f9;padding:12px 16px;border-radius:12px;font-size:14px;color:#334155;line-height:1.6;min-height:20px}
+        .hlrn-date-input{padding:10px 14px;border:2px solid #e2e8f0;border-radius:12px;font-size:14px;font-weight:500;color:#1e293b;background:#fff;font-family:inherit;transition:border-color .2s}
         .hlrn-date-input:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1)}
         .hlrn-muted{color:#94a3b8;font-size:14px;margin:0}
 
         /* Prep cards */
-        .hlrn-prep-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:16px}
+        .hlrn-prep-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px}
         .hlrn-prep-card:last-child{margin-bottom:0}
         .hlrn-prep-card-title{font-size:13px;font-weight:700;color:#475569;margin-bottom:12px;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.5px}
 
@@ -690,8 +690,8 @@ class HL_Frontend_RP_Notes {
         .hlrn-cv-indicators{display:flex;flex-wrap:wrap;gap:4px}
 
         /* RP Steps Guide — drawer */
-        .hlrn-guide-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:10px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;box-shadow:0 2px 8px rgba(30,58,95,.25);transition:all .2s}
-        .hlrn-guide-btn:hover{box-shadow:0 4px 16px rgba(30,58,95,.35);transform:translateY(-1px)}
+        .hlrn-guide-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:12px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.08);transition:all .2s}
+        .hlrn-guide-btn:hover{box-shadow:0 4px 16px rgba(0,0,0,.12);transform:translateY(-1px)}
         .hlrn-guide-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998}
         .hlrn-guide-drawer{position:fixed;top:0;right:0;bottom:0;width:420px;max-width:90vw;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,.15);display:flex;flex-direction:column;overflow:hidden}
         .hlrn-guide-drawer-header{padding:24px 24px 16px;border-bottom:1px solid #e2e8f0;position:relative}
@@ -701,7 +701,7 @@ class HL_Frontend_RP_Notes {
         .hlrn-guide-close:hover{color:#1e293b}
         .hlrn-guide-drawer-body{padding:20px 24px;overflow-y:auto;flex:1}
         .hlrn-rp-steps{display:flex;flex-direction:column;gap:12px}
-        .hlrn-rp-step{display:flex;gap:12px;padding:14px 16px;background:#f8f9fb;border:1px solid #e2e8f0;border-radius:10px}
+        .hlrn-rp-step{display:flex;gap:12px;padding:14px 16px;background:#f8f9fb;border:1px solid #e2e8f0;border-radius:12px}
         .hlrn-rp-step-icon{flex-shrink:0;width:32px;height:32px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#64748b}
         .hlrn-rp-step-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:6px}
         .hlrn-rp-step-questions{margin:0;padding-left:18px;list-style:disc}
@@ -717,15 +717,15 @@ class HL_Frontend_RP_Notes {
         .hlrn-form-wrapper .mce-panel{background:#f8f9fb !important;border-color:#e2e8f0 !important}
         .hlrn-form-wrapper .mce-edit-area{border-color:#e2e8f0 !important}
         .hlrn-form-wrapper .mce-edit-area iframe{min-height:80px}
-        .hlrn-form-wrapper .wp-editor-container{border:2px solid #e2e8f0;border-radius:10px;overflow:hidden}
+        .hlrn-form-wrapper .wp-editor-container{border:2px solid #e2e8f0;border-radius:12px;overflow:hidden}
 
         /* Action buttons */
         .hlrn-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:32px;padding-top:24px;border-top:1px solid #e2e8f0}
-        .hlrn-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:inherit}
+        .hlrn-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:12px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:inherit}
         .hlrn-btn-draft{background:#f1f5f9;color:#475569;border:2px solid #e2e8f0}
         .hlrn-btn-draft:hover{background:#e2e8f0;border-color:#cbd5e1}
-        .hlrn-btn-submit{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:2px solid transparent;box-shadow:0 4px 14px rgba(30,58,95,.3)}
-        .hlrn-btn-submit:hover{box-shadow:0 6px 20px rgba(30,58,95,.4);transform:translateY(-1px)}
+        .hlrn-btn-submit{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:2px solid transparent;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+        .hlrn-btn-submit:hover{box-shadow:0 6px 20px rgba(0,0,0,.15);transform:translateY(-1px)}
 
         @media(max-width:600px){
             .hlrn-hero{flex-direction:column;text-align:center;padding:24px 20px}

@@ -895,7 +895,7 @@ class HL_BuddyBoss_Integration {
             array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'dashicons-welcome-learn-more',   $is_staff || $is_leader || $is_teacher || $is_mentor),
             array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'dashicons-id-alt',               $is_staff),
             // --- Staff tools ---
-            array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       'dashicons-randomize',            $is_staff),
+            array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       'dashicons-randomize',            false),
             array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   'dashicons-format-chat',          $is_staff),
             // --- Coach tools ---
             array('coaching-home',   'hl_coach_dashboard',      __('Coaching Home', 'hl-core'),    'dashicons-dashboard',            $is_coach),

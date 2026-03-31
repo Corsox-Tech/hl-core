@@ -791,14 +791,14 @@ class HL_Frontend_Schedule_Session {
         .hls-booking-layout{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
         @media(max-width:680px){.hls-booking-layout{grid-template-columns:1fr}}
 
-        .hls-calendar-panel,.hls-slots-panel{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px;min-height:340px}
+        .hls-calendar-panel,.hls-slots-panel{background:#fff!important;border:1px solid #e8eaf0!important;border-radius:16px;padding:24px;min-height:340px}
         .hls-section-title{font-size:15px;font-weight:700;color:#334155;margin:0 0 16px}
 
         /* ── Calendar ── */
         .hls-cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
         .hls-cal-month{font-size:16px;font-weight:700;color:#1e293b}
-        .hls-cal-arrow{background:none;border:1px solid #e2e8f0;border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;transition:all .15s}
-        .hls-cal-arrow:hover{background:#f1f5f9;border-color:#cbd5e1;color:#334155}
+        .hls-cal-arrow{background:#fff!important;border:1.5px solid #e2e8f0!important;border-radius:10px!important;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b!important;transition:all .15s;padding:0!important}
+        .hls-cal-arrow:hover{background:#f1f5f9!important;border-color:#cbd5e1!important;color:#334155!important}
         .hls-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
         .hls-cal-head{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;padding:8px 0}
         .hls-cal-empty{padding:8px 0}
@@ -825,10 +825,10 @@ class HL_Frontend_Schedule_Session {
         .hls-slots-warning{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fef3c7;border-radius:8px;font-size:13px;color:#92400e;margin-top:12px}
 
         /* ── Slot button ── */
-        .hls-slot{display:flex;align-items:center;justify-content:center;padding:12px 16px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all .2s;font-family:inherit}
-        .hls-slot:hover{border-color:#6366f1;background:#f5f3ff}
-        .hls-slot-time{font-size:14px;font-weight:600;color:#334155}
-        .hls-slot:hover .hls-slot-time{color:#6366f1}
+        .hls-slot{display:flex;align-items:center;justify-content:center;padding:12px 16px;border:1.5px solid #e2e8f0!important;border-radius:12px!important;background:#fff!important;cursor:pointer;transition:all .2s;font-family:inherit}
+        .hls-slot:hover{border-color:#6366f1!important;background:#f5f3ff!important}
+        .hls-slot-time{font-size:14px;font-weight:600;color:#334155!important}
+        .hls-slot:hover .hls-slot-time{color:#6366f1!important}
         .hls-slot-sel{border-color:#6366f1!important;background:#6366f1!important}
         .hls-slot-sel .hls-slot-time{color:#fff!important}
 
@@ -885,8 +885,8 @@ class HL_Frontend_Schedule_Session {
         .hls-detail-sub{font-size:13px;color:#64748b;margin-top:2px}
 
         .hls-detail-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;padding-top:20px;border-top:1px solid #f1f5f9}
-        .hls-action-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;font-size:13px;font-weight:600;color:#475569;cursor:pointer;text-decoration:none;transition:all .15s;font-family:inherit}
-        .hls-action-btn:hover{background:#f8fafc;border-color:#cbd5e1;color:#1e293b}
+        .hls-action-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border:1px solid #e2e8f0!important;border-radius:10px!important;background:#fff!important;font-size:13px;font-weight:600;color:#475569!important;cursor:pointer;text-decoration:none;transition:all .15s;font-family:inherit}
+        .hls-action-btn:hover{background:#f8fafc!important;border-color:#cbd5e1!important;color:#1e293b!important}
         .hls-action-danger{color:#dc2626;border-color:#fecaca}
         .hls-action-danger:hover{background:#fef2f2;border-color:#fca5a5;color:#b91c1c}
 
