@@ -881,7 +881,7 @@ class HL_BuddyBoss_Integration {
         // Role matrix updated 2026-03-27:
         //   Teacher:      My Programs, My Team, Classrooms
         //   Mentor:       My Programs, My Coaching, My Team, Classrooms
-        //   Leader-only:  My School, Classrooms, Reports
+        //   Leader-only:  My Programs (Streamlined), My School, Classrooms, Reports
         //   Leader+teach: My Programs, My School, Classrooms, Reports
         //   Coach:        Coach Dashboard, My Mentors, My Availability, Coach Reports, Documentation
         //   Admin:        My Programs, Classrooms, Cycles, Institutions, Learners, Pathways, Coaching Hub, Reports, Documentation
@@ -889,7 +889,7 @@ class HL_BuddyBoss_Integration {
         $menu_def = array(
             // --- Personal (require active enrollment) ---
             array('my-profile',     'hl_user_profile',         __('My Profile', 'hl-core'),     'dashicons-admin-users',          $has_enrollment || $is_staff || $is_coach),
-            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment && ($is_teacher || $is_mentor || $is_staff)),
+            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment && ($is_teacher || $is_mentor || $is_leader || $is_staff)),
             array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $is_mentor && !$is_control_only),
             array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor || $is_teacher),
             // --- Leader ---
