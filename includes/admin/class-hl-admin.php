@@ -64,6 +64,9 @@ class HL_Admin {
         $page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
 
         switch ($page) {
+            case 'hl-partnerships':
+                HL_Admin_Partnerships::instance()->handle_early_actions();
+                break;
             case 'hl-cycles':
                 HL_Admin_Cycles::instance()->handle_early_actions();
                 break;
