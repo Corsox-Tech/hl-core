@@ -232,16 +232,37 @@ class HL_CLI_Smoke_Test {
 				$wpdb->last_error  = '';
 				$wpdb->last_query  = '';
 
-				// Render the shortcode.
-				ob_start();
-				$output = do_shortcode( '[' . $shortcode . ']' );
-				$buffered = ob_get_clean();
+				// Render the shortcode with fatal error protection.
+				$full_output = '';
+				$sql_error   = '';
+				$fatal_error = '';
 
-				// Combine direct return and any echoed output.
-				$full_output = $output . $buffered;
+				// Register shutdown handler to catch fatal errors.
+				$error_caught = false;
+				set_error_handler( function( $errno, $errstr, $errfile, $errline ) use ( &$fatal_error ) {
+					$fatal_error = "$errstr in $errfile:$errline";
+					return true; // Prevent default handler.
+				}, E_ALL );
+
+				try {
+					ob_start();
+					$output   = do_shortcode( '[' . $shortcode . ']' );
+					$buffered = ob_get_clean();
+					$full_output = $output . $buffered;
+				} catch ( \Throwable $e ) {
+					while ( ob_get_level() ) ob_end_clean();
+					$fatal_error = $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
+				}
+
+				restore_error_handler();
 
 				// Check $wpdb->last_error.
 				$sql_error = $wpdb->last_error;
+
+				// If fatal error caught, treat as FAIL.
+				if ( $fatal_error ) {
+					$sql_error = $sql_error ?: $fatal_error;
+				}
 
 				// Reset $_GET.
 				$_GET = array();

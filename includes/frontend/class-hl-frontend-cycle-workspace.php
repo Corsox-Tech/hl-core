@@ -667,11 +667,11 @@ class HL_Frontend_Cycle_Workspace {
         $activities      = array();
 
         if ( ! empty( $enrollment_ids ) ) {
-            $activity_detail = $this->reporting_service->get_cycle_activity_detail(
+            $activity_detail = $this->reporting_service->get_cycle_component_detail(
                 $cycle->cycle_id,
                 $enrollment_ids
             );
-            $activities = $this->reporting_service->get_cycle_activities( $cycle->cycle_id );
+            $activities = $this->reporting_service->get_cycle_components( $cycle->cycle_id );
         }
 
         // Filter options.
