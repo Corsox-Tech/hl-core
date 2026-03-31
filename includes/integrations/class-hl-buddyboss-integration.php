@@ -341,13 +341,14 @@ class HL_BuddyBoss_Integration {
             return;
         }
 
-        // Check if user has HL enrollment or staff access.
-        $user_id = get_current_user_id();
-        $roles   = $this->get_user_hl_roles($user_id);
+        // Check if user has HL enrollment, staff access, or coach role.
+        $user_id  = get_current_user_id();
+        $roles    = $this->get_user_hl_roles($user_id);
         $is_staff = current_user_can('manage_hl_core');
+        $is_coach = in_array('coach', (array) wp_get_current_user()->roles, true);
 
-        if (empty($roles) && !$is_staff) {
-            return; // Non-enrolled, non-staff users keep the default BB dashboard.
+        if (empty($roles) && !$is_staff && !$is_coach) {
+            return; // Non-enrolled, non-staff, non-coach users keep the default BB dashboard.
         }
 
         wp_redirect($hl_dashboard_url);
@@ -500,10 +501,10 @@ class HL_BuddyBoss_Integration {
             $html .= '</li>';
         }
 
-        // For HL-enrolled non-staff users, strip legacy BuddyPanel items
-        // (Admin, All Users, New School Leader, etc.) to avoid confusion.
-        // Staff keep all items for admin access.
-        if ($has_enrollment && !$is_staff) {
+        // For HL-enrolled non-staff users (and coaches), strip legacy
+        // BuddyPanel items to avoid confusion. Staff keep all items.
+        $is_coach_user = in_array('coach', (array) wp_get_current_user()->roles, true);
+        if (($has_enrollment || $is_coach_user) && !$is_staff) {
             $items = $this->strip_legacy_buddypanel_items($items);
         }
 
@@ -532,7 +533,8 @@ class HL_BuddyBoss_Integration {
 
         $keep_patterns = array(
             'action=logout',
-            '/dashboard',
+            '/ecsel-community',
+            '/forums',
         );
 
         preg_match_all('/<li[^>]*>.*?<\/li>/s', $html, $matches);
@@ -586,7 +588,8 @@ class HL_BuddyBoss_Integration {
         }
 
         $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
-        $strip_legacy = ($has_enrollment && !$is_staff);
+        $is_coach_user = in_array('coach', (array) wp_get_current_user()->roles, true);
+        $strip_legacy = (($has_enrollment || $is_coach_user) && !$is_staff);
 
         // Build the items as a JS-safe data structure.
         $js_items = array();
@@ -732,7 +735,7 @@ class HL_BuddyBoss_Integration {
 
             function stripLegacyItems() {
                 if (!stripLegacy) return;
-                var keepPatterns = ['action=logout', '/dashboard/'];
+                var keepPatterns = ['action=logout', '/ecsel-community', '/forums'];
                 var ul = document.querySelector('.buddypanel .side-panel-menu-container ul.buddypanel-menu, .buddypanel .side-panel-menu-container ul.side-panel-menu');
                 if (!ul) return;
                 var allItems = ul.querySelectorAll('li:not(.hl-core-menu-item):not(.hl-buddypanel-section)');
@@ -866,7 +869,7 @@ class HL_BuddyBoss_Integration {
         $is_coach_only = $is_coach && !$is_staff;
         $menu_def = array(
             // --- Personal (require active enrollment) ---
-            array('my-profile',     'hl_user_profile',         __('My Profile', 'hl-core'),     'dashicons-admin-users',          $has_enrollment || $is_staff),
+            array('my-profile',     'hl_user_profile',         __('My Profile', 'hl-core'),     'dashicons-admin-users',          $has_enrollment || $is_staff || $is_coach),
             array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment && ($is_teacher || $is_mentor || $is_staff)),
             array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $is_mentor && !$is_control_only),
             array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor || $is_teacher),
@@ -886,7 +889,7 @@ class HL_BuddyBoss_Integration {
             array('coach-reports',   'hl_coach_reports',        __('Coach Reports', 'hl-core'),    'dashicons-chart-bar',            $is_coach),
             array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'dashicons-chart-bar',            $is_staff || $is_leader),
             // --- Documentation ---
-            array('documentation', 'hl_docs',                 __('Documentation', 'hl-core'),  'dashicons-media-document',       current_user_can('manage_options') || $is_coach),
+            array('documentation', 'hl_docs',                 __('Documentation', 'hl-core'),  'dashicons-media-document',       current_user_can('manage_options')),
         );
 
         $items = array();

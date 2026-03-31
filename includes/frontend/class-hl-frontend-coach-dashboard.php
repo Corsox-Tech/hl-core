@@ -32,6 +32,7 @@ class HL_Frontend_Coach_Dashboard {
         $mentors_url      = $this->find_shortcode_page_url('hl_coach_mentors');
         $reports_url      = $this->find_shortcode_page_url('hl_coach_reports');
         $availability_url = $this->find_shortcode_page_url('hl_coach_availability');
+        $profile_url      = $this->find_shortcode_page_url('hl_user_profile');
         $component_page_url = $this->find_shortcode_page_url('hl_component_page');
         $mentor_detail_url  = $this->find_shortcode_page_url('hl_coach_mentor_detail');
 
@@ -133,6 +134,21 @@ class HL_Frontend_Coach_Dashboard {
                     <div class="hlcd-link-text">
                         <div class="hlcd-link-title"><?php esc_html_e('My Availability', 'hl-core'); ?></div>
                         <div class="hlcd-link-desc"><?php esc_html_e('Set your weekly coaching schedule', 'hl-core'); ?></div>
+                    </div>
+                    <div class="hlcd-link-arrow">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+                </a>
+                <?php endif; ?>
+
+                <?php if ($profile_url) : ?>
+                <a href="<?php echo esc_url($profile_url); ?>" class="hlcd-link-card">
+                    <div class="hlcd-link-icon hlcd-link-icon-profile">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <div class="hlcd-link-text">
+                        <div class="hlcd-link-title"><?php esc_html_e('My Profile', 'hl-core'); ?></div>
+                        <div class="hlcd-link-desc"><?php esc_html_e('View your profile and account info', 'hl-core'); ?></div>
                     </div>
                     <div class="hlcd-link-arrow">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -305,13 +321,14 @@ class HL_Frontend_Coach_Dashboard {
         .hlcd-section-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#475569;margin-bottom:16px}
 
         /* Quick links grid */
-        .hlcd-links-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:20px}
+        .hlcd-links-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-bottom:20px}
         .hlcd-link-card{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;text-decoration:none;color:inherit;transition:box-shadow .25s ease,transform .25s ease}
         .hlcd-link-card:hover{box-shadow:0 8px 25px rgba(0,0,0,.08);transform:translateY(-2px);text-decoration:none;color:inherit}
         .hlcd-link-icon{flex-shrink:0;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center}
         .hlcd-link-icon-mentors{background:rgba(30,58,95,.08);color:#1e3a5f}
         .hlcd-link-icon-reports{background:rgba(5,150,105,.08);color:#059669}
         .hlcd-link-icon-availability{background:rgba(217,119,6,.08);color:#d97706}
+        .hlcd-link-icon-profile{background:rgba(99,102,241,.08);color:#6366f1}
         .hlcd-link-text{flex:1;min-width:0}
         .hlcd-link-title{font-size:15px;font-weight:600;color:#1e293b;margin-bottom:4px}
         .hlcd-link-desc{font-size:13px;color:#8896a6;line-height:1.4}

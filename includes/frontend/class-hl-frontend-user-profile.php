@@ -250,12 +250,55 @@ class HL_Frontend_User_Profile {
         // ── Load overview data ───────────────────────────────────────
         $overview = $this->load_overview_data($target_user, $active_enrollment, $enrollments);
 
+        // ── View As / Return support ────────────────────────────────
+        $is_coach = in_array('coach', (array) wp_get_current_user()->roles, true);
+        $can_switch = class_exists('BP_Core_Members_Switching')
+                      && ($is_admin || $is_coach)
+                      && !$is_own_profile
+                      && !user_can($target_user_id, 'manage_hl_core'); // Don't allow switching to admins.
+        $switch_url = '';
+        if ($can_switch) {
+            $switch_url = BP_Core_Members_Switching::switch_to_url($target_user);
+        }
+
+        // Detect if current session is switched (return-to-original).
+        $old_user = null;
+        if (function_exists('user_switching_get_old_user')) {
+            $old_user = user_switching_get_old_user();
+        }
+
         ?>
         <div class="hlup-wrapper">
 
+            <?php if ($old_user) : ?>
+                <?php
+                $switch_back_url = '';
+                if (class_exists('BP_Core_Members_Switching') && method_exists('BP_Core_Members_Switching', 'switch_off_url')) {
+                    $switch_back_url = BP_Core_Members_Switching::switch_off_url(wp_get_current_user());
+                } elseif (function_exists('user_switching_get_switchback_url')) {
+                    $switch_back_url = user_switching_get_switchback_url();
+                }
+                ?>
+                <?php if ($switch_back_url) : ?>
+                <div class="hlup-switch-banner">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 1 1 0 8h-1"/></svg>
+                    <?php echo esc_html(sprintf(
+                        __('You are viewing as %s.', 'hl-core'),
+                        wp_get_current_user()->display_name
+                    )); ?>
+                    <a href="<?php echo esc_url($switch_back_url); ?>" class="hlup-switch-back-link">
+                        <?php echo esc_html(sprintf(
+                            __('Return to %s', 'hl-core'),
+                            $old_user->display_name
+                        )); ?>
+                    </a>
+                </div>
+                <?php endif; ?>
+            <?php endif; ?>
+
             <?php $this->render_breadcrumbs($target_user, $overview, $is_own_profile); ?>
 
-            <?php $this->render_hero($target_user, $overview, $is_own_profile); ?>
+            <?php $this->render_hero($target_user, $overview, $is_own_profile, $switch_url); ?>
 
             <?php if (count($enrollments) > 1) : ?>
                 <?php $this->render_cycle_selector($enrollments, $active_enrollment); ?>
@@ -735,7 +778,7 @@ class HL_Frontend_User_Profile {
     // Rendering — Hero
     // =====================================================================
 
-    private function render_hero($user, $overview, $is_own_profile) {
+    private function render_hero($user, $overview, $is_own_profile, $switch_url = '') {
         $display_name = $user->display_name;
         $email        = $user->user_email;
         $avatar       = get_avatar($user->ID, 96, '', $display_name, array('class' => 'hlup-avatar-img'));
@@ -763,6 +806,12 @@ class HL_Frontend_User_Profile {
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                                 <?php echo esc_html($school_name); ?>
                             </span>
+                        <?php endif; ?>
+                        <?php if ($switch_url) : ?>
+                            <a href="<?php echo esc_url($switch_url); ?>" class="hlup-view-as-btn" title="<?php esc_attr_e('Switch to this user\'s session to see the platform from their perspective', 'hl-core'); ?>">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <?php esc_html_e('View As', 'hl-core'); ?>
+                            </a>
                         <?php endif; ?>
                     </div>
                 </div>

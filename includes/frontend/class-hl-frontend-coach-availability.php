@@ -217,6 +217,23 @@ class HL_Frontend_Coach_Availability {
                         applyDragMode(this);
                     }
                 });
+
+                // Touch support for mobile.
+                cell.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    isDragging = true;
+                    dragMode = this.classList.contains('hlca-active') ? 'remove' : 'add';
+                    applyDragMode(this);
+                }, {passive: false});
+
+                cell.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    if (isDragging) {
+                        isDragging = false;
+                        dragMode = null;
+                        updateAvailabilityData();
+                    }
+                }, {passive: false});
             });
 
             document.addEventListener('mouseup', function() {
@@ -269,11 +286,19 @@ class HL_Frontend_Coach_Availability {
             // Initialize on load.
             updateAvailabilityData();
 
-            // Safety: always serialize before form submit.
+            // Safety: always serialize before form submit + guard against empty data.
             var saveForm = document.querySelector('.hlca-save-form');
             if (saveForm) {
-                saveForm.addEventListener('submit', function() {
+                saveForm.addEventListener('submit', function(e) {
                     updateAvailabilityData();
+                    var dataField = document.getElementById('hlca-data');
+                    var activeCount = document.querySelectorAll('.hlca-cell.hlca-active').length;
+                    // Prevent wiping saved data if JS serialization silently failed.
+                    if (activeCount > 0 && (!dataField.value || dataField.value === '[]')) {
+                        e.preventDefault();
+                        alert('Error: could not serialize availability data. Please try again or refresh the page.');
+                        return false;
+                    }
                 });
             }
         })();
