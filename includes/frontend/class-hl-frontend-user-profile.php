@@ -51,9 +51,6 @@ class HL_Frontend_User_Profile {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !is_user_logged_in()) {
             return;
         }
-        if (!current_user_can('manage_hl_core')) {
-            return;
-        }
 
         $action = isset($_POST['hlup_action']) ? sanitize_text_field($_POST['hlup_action']) : '';
         if (empty($action)) {
@@ -64,6 +61,12 @@ class HL_Frontend_User_Profile {
         $user_id       = absint($_POST['hlup_user_id'] ?? 0);
 
         if (!$enrollment_id && !$user_id) {
+            return;
+        }
+
+        // Allow users to edit their own profile; require manage_hl_core for everything else.
+        $is_own_profile = ($action === 'update_profile' && $user_id === get_current_user_id());
+        if (!$is_own_profile && !current_user_can('manage_hl_core')) {
             return;
         }
 
@@ -910,12 +913,37 @@ class HL_Frontend_User_Profile {
 
     private function render_overview_tab($user, $overview, $enrollment, $is_admin) {
         if (!$enrollment) {
+            $is_own = (get_current_user_id() === (int) $user->ID);
+            $show_success = isset($_GET['hlup_updated']);
             ?>
             <div class="hlup-empty-state">
+                <?php if ($show_success) : ?>
+                    <div class="hlup-success-banner" style="margin-bottom:16px;padding:10px 16px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;font-size:13px;">
+                        <?php esc_html_e('Profile updated successfully.', 'hl-core'); ?>
+                    </div>
+                <?php endif; ?>
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 <h3><?php echo esc_html($user->display_name); ?></h3>
-                <p><?php esc_html_e('This user has no active program enrollment.', 'hl-core'); ?></p>
                 <p class="hlup-empty-email"><?php echo esc_html($user->user_email); ?></p>
+                <?php if ($is_own) : ?>
+                    <form method="post" style="margin-top:20px;text-align:left;max-width:400px;margin-left:auto;margin-right:auto;">
+                        <?php wp_nonce_field('hlup_manage_' . $user->ID, '_hlup_nonce'); ?>
+                        <input type="hidden" name="hlup_action" value="update_profile">
+                        <input type="hidden" name="hlup_user_id" value="<?php echo esc_attr($user->ID); ?>">
+                        <input type="hidden" name="hlup_enrollment_id" value="0">
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px;"><?php esc_html_e('Display Name', 'hl-core'); ?></label>
+                            <input type="text" name="hlup_display_name" value="<?php echo esc_attr($user->display_name); ?>" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px;"><?php esc_html_e('Email', 'hl-core'); ?></label>
+                            <input type="email" name="hlup_email" value="<?php echo esc_attr($user->user_email); ?>" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+                        </div>
+                        <button type="submit" style="background:linear-gradient(135deg,#1e3a5f,#2d5f8a);color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
+                            <?php esc_html_e('Save Changes', 'hl-core'); ?>
+                        </button>
+                    </form>
+                <?php endif; ?>
             </div>
             <?php
             return;

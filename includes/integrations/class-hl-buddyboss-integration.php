@@ -323,8 +323,33 @@ class HL_BuddyBoss_Integration {
         }
 
         $current_page_id = get_queried_object_id();
-        $hl_dashboard_url = $this->find_shortcode_page_url('hl_dashboard');
+        $current_slug    = get_post_field('post_name', $current_page_id);
 
+        $user_id  = get_current_user_id();
+        $roles    = $this->get_user_hl_roles($user_id);
+        $is_staff = current_user_can('manage_hl_core');
+        $is_coach = in_array('coach', (array) wp_get_current_user()->roles, true);
+        $has_enrollment = !empty($roles);
+
+        // Coach-only users (no enrollment, not staff): redirect any dashboard
+        // page to the Coach Dashboard for a seamless coach experience.
+        if ($is_coach && !$has_enrollment && !$is_staff) {
+            $coach_dashboard_url = $this->find_shortcode_page_url('hl_coach_dashboard');
+            if ($coach_dashboard_url) {
+                $coach_page_id = url_to_postid($coach_dashboard_url);
+                if ($current_page_id !== $coach_page_id) {
+                    // Redirect from BB dashboards and HL dashboard to Coach Dashboard.
+                    $dashboard_slugs = array('dashboard', 'dashboard-2', 'dashboard-3');
+                    if (in_array($current_slug, $dashboard_slugs, true)) {
+                        wp_redirect($coach_dashboard_url);
+                        exit;
+                    }
+                }
+            }
+            return; // Don't redirect coach away from other pages.
+        }
+
+        $hl_dashboard_url = $this->find_shortcode_page_url('hl_dashboard');
         if (empty($hl_dashboard_url)) {
             return;
         }
@@ -336,19 +361,13 @@ class HL_BuddyBoss_Integration {
         }
 
         // Only redirect from known "dashboard" pages (BB Dashboard, duplicates).
-        $current_slug = get_post_field('post_name', $current_page_id);
-        if (strpos($current_slug, 'dashboard') === false) {
+        $dashboard_slugs = array('dashboard', 'dashboard-2', 'dashboard-3');
+        if (!in_array($current_slug, $dashboard_slugs, true)) {
             return;
         }
 
-        // Check if user has HL enrollment, staff access, or coach role.
-        $user_id  = get_current_user_id();
-        $roles    = $this->get_user_hl_roles($user_id);
-        $is_staff = current_user_can('manage_hl_core');
-        $is_coach = in_array('coach', (array) wp_get_current_user()->roles, true);
-
-        if (empty($roles) && !$is_staff && !$is_coach) {
-            return; // Non-enrolled, non-staff, non-coach users keep the default BB dashboard.
+        if (!$has_enrollment && !$is_staff) {
+            return; // Non-enrolled, non-staff users keep the default BB dashboard.
         }
 
         wp_redirect($hl_dashboard_url);
