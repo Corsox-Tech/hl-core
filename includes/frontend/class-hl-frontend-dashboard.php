@@ -74,10 +74,15 @@ class HL_Frontend_Dashboard {
      * @return array
      */
     private function build_user_context( $user_id, $scope ) {
+        // Detect actual coach WP role (scope service's is_coach means
+        // staff-but-not-admin, which is different from the coach role).
+        $wp_user  = get_userdata( $user_id );
+        $is_coach = $wp_user && in_array( 'coach', (array) $wp_user->roles, true );
+
         $context = array(
             'is_admin'          => $scope['is_admin'],
             'is_staff'          => $scope['is_staff'],
-            'is_coach'          => $scope['is_coach'],
+            'is_coach'          => $is_coach || $scope['is_coach'],
             'has_enrollment'    => false,
             'all_control'       => true,
             'has_program_track' => false,
@@ -547,6 +552,13 @@ class HL_Frontend_Dashboard {
                     __( 'Completion data and exports', 'hl-core' ),
                     '&#x1F4CB;',
                     'hl-dv2-icon-hub'
+                );
+                $this->render_nav_card_v2(
+                    'hl_user_profile',
+                    __( 'My Profile', 'hl-core' ),
+                    __( 'View your profile and account info', 'hl-core' ),
+                    '&#x1F464;',
+                    'hl-dv2-icon-learners'
                 );
                 ?>
             </div>

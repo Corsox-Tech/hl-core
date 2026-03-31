@@ -85,15 +85,13 @@ class HL_Frontend_Coach_Mentors {
                             ? esc_url($detail_url . (strpos($detail_url, '?') !== false ? '&' : '?') . 'mentor_enrollment_id=' . (int) $mentor['enrollment_id'])
                             : '';
                     ?>
+                        <div class="hlcm-card-wrapper"
+                             data-search="<?php echo esc_attr($search_data); ?>"
+                             data-school="<?php echo esc_attr($mentor['school_name'] ?: ''); ?>">
                         <?php if ($card_url) : ?>
-                            <a href="<?php echo $card_url; ?>"
-                               class="hlcm-card"
-                               data-search="<?php echo esc_attr($search_data); ?>"
-                               data-school="<?php echo esc_attr($mentor['school_name'] ?: ''); ?>">
+                            <a href="<?php echo $card_url; ?>" class="hlcm-card">
                         <?php else : ?>
-                            <div class="hlcm-card"
-                                 data-search="<?php echo esc_attr($search_data); ?>"
-                                 data-school="<?php echo esc_attr($mentor['school_name'] ?: ''); ?>">
+                            <div class="hlcm-card">
                         <?php endif; ?>
 
                             <!-- Card top: avatar + identity -->
@@ -151,6 +149,7 @@ class HL_Frontend_Coach_Mentors {
                                 <?php esc_html_e('View Profile', 'hl-core'); ?>
                             </a>
                         <?php endif; ?>
+                        </div><!-- /.hlcm-card-wrapper -->
 
                     <?php endforeach; ?>
                 </div>
@@ -176,7 +175,7 @@ class HL_Frontend_Coach_Mentors {
 
         <script>
         (function($){
-            var $cards = $('.hlcm-card');
+            var $cards = $('.hlcm-card-wrapper');
             var $noResults = $('.hlcm-no-results');
 
             function filterCards() {

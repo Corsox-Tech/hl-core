@@ -285,10 +285,12 @@ class HL_Admin_Coach_Assignments {
         echo '<option value="enrollment">' . esc_html__('Enrollment (override for one participant)', 'hl-core') . '</option>';
         echo '</select></td></tr>';
 
-        // Scope ID
-        echo '<tr><th scope="row"><label for="scope_id">' . esc_html__('Scope ID', 'hl-core') . '</label></th>';
-        echo '<td><input type="number" id="scope_id" name="scope_id" required min="1" class="small-text" />';
-        echo '<p class="description">' . esc_html__('Enter the School ID, Team ID, or Enrollment ID depending on the scope level selected above.', 'hl-core') . '</p>';
+        // Scope ID — dynamic dropdown filtered by cycle + scope type
+        echo '<tr><th scope="row"><label for="scope_id">' . esc_html__('Scope', 'hl-core') . '</label></th>';
+        echo '<td><select id="scope_id" name="scope_id" required>';
+        echo '<option value="">' . esc_html__('-- Select Cycle and Scope Level first --', 'hl-core') . '</option>';
+        echo '</select>';
+        echo '<p class="description" id="scope_id_hint">' . esc_html__('Select a cycle and scope level above to populate this list.', 'hl-core') . '</p>';
         echo '</td></tr>';
 
         // Effective from
@@ -299,6 +301,101 @@ class HL_Admin_Coach_Assignments {
 
         submit_button(__('Create Assignment', 'hl-core'));
         echo '</form>';
+
+        // Build scope data for JS.
+        $scope_data = $this->build_scope_data_for_js($cycles);
+        ?>
+        <script>
+        (function(){
+            var scopeData = <?php echo wp_json_encode($scope_data); ?>;
+            var cycleEl = document.getElementById('cycle_id');
+            var scopeTypeEl = document.getElementById('scope_type');
+            var scopeIdEl = document.getElementById('scope_id');
+            var hintEl = document.getElementById('scope_id_hint');
+
+            function updateScopeOptions() {
+                var cycleId = cycleEl.value;
+                var scopeType = scopeTypeEl.value;
+                scopeIdEl.innerHTML = '';
+
+                if (!cycleId) {
+                    scopeIdEl.innerHTML = '<option value=""><?php echo esc_js(__('-- Select Cycle first --', 'hl-core')); ?></option>';
+                    hintEl.textContent = '<?php echo esc_js(__('Select a cycle above to populate this list.', 'hl-core')); ?>';
+                    return;
+                }
+
+                var key = cycleId + '_' + scopeType;
+                var options = scopeData[key] || [];
+
+                if (options.length === 0) {
+                    scopeIdEl.innerHTML = '<option value=""><?php echo esc_js(__('-- No options found for this cycle --', 'hl-core')); ?></option>';
+                    hintEl.textContent = '';
+                    return;
+                }
+
+                var defaultOpt = document.createElement('option');
+                defaultOpt.value = '';
+                defaultOpt.textContent = '<?php echo esc_js(__('-- Select --', 'hl-core')); ?>';
+                scopeIdEl.appendChild(defaultOpt);
+
+                options.forEach(function(opt) {
+                    var o = document.createElement('option');
+                    o.value = opt.id;
+                    o.textContent = opt.label;
+                    scopeIdEl.appendChild(o);
+                });
+                hintEl.textContent = '';
+            }
+
+            cycleEl.addEventListener('change', updateScopeOptions);
+            scopeTypeEl.addEventListener('change', updateScopeOptions);
+        })();
+        </script>
+        <?php
+    }
+
+    /**
+     * Build scope options data keyed by "cycleId_scopeType".
+     */
+    private function build_scope_data_for_js($cycles) {
+        global $wpdb;
+        $t = $wpdb->prefix;
+        $data = array();
+
+        foreach ($cycles as $cycle) {
+            $cid = (int) $cycle->cycle_id;
+
+            // Schools: get schools that have enrollments in this cycle.
+            $schools = $wpdb->get_results($wpdb->prepare(
+                "SELECT DISTINCT o.orgunit_id AS id, o.name AS label
+                 FROM {$t}hl_enrollment e
+                 JOIN {$t}hl_orgunit o ON e.school_id = o.orgunit_id
+                 WHERE e.cycle_id = %d AND e.status = 'active'
+                 ORDER BY o.name", $cid
+            ), ARRAY_A);
+            $data[$cid . '_school'] = $schools ?: array();
+
+            // Teams: get teams in this cycle.
+            $teams = $wpdb->get_results($wpdb->prepare(
+                "SELECT team_id AS id, team_name AS label
+                 FROM {$t}hl_team WHERE cycle_id = %d ORDER BY team_name", $cid
+            ), ARRAY_A);
+            $data[$cid . '_team'] = $teams ?: array();
+
+            // Enrollments: get active enrollments with mentor role in this cycle.
+            $enrollments = $wpdb->get_results($wpdb->prepare(
+                "SELECT e.enrollment_id AS id,
+                        CONCAT(u.display_name, ' (', o.name, ')') AS label
+                 FROM {$t}hl_enrollment e
+                 JOIN {$wpdb->users} u ON e.user_id = u.ID
+                 LEFT JOIN {$t}hl_orgunit o ON e.school_id = o.orgunit_id
+                 WHERE e.cycle_id = %d AND e.status = 'active' AND e.roles LIKE '%%mentor%%'
+                 ORDER BY u.display_name", $cid
+            ), ARRAY_A);
+            $data[$cid . '_enrollment'] = $enrollments ?: array();
+        }
+
+        return $data;
     }
 
     // =========================================================================
