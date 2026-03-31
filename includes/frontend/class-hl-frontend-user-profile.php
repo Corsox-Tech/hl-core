@@ -450,18 +450,29 @@ class HL_Frontend_User_Profile {
             return false;
         }
 
+        // Use the same roster logic as the coach assignment service:
+        // check enrollment, school, and team scope types.
+        $svc = new HL_Coach_Assignment_Service();
+
+        // Get target enrollments' cycle IDs.
         global $wpdb;
         $placeholders = implode(',', array_fill(0, count($target_enrollment_ids), '%d'));
-
-        $count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_coach_assignment
-             WHERE coach_user_id = %d
-               AND scope_type = 'enrollment'
-               AND scope_id IN ($placeholders)",
-            array_merge(array($coach_user_id), array_map('intval', $target_enrollment_ids))
+        $cycle_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT cycle_id FROM {$wpdb->prefix}hl_enrollment
+             WHERE enrollment_id IN ($placeholders)",
+            array_map('intval', $target_enrollment_ids)
         ));
 
-        return (int) $count > 0;
+        // For each cycle, get the coach's roster and check if target is in it.
+        foreach ($cycle_ids as $cid) {
+            $roster = $svc->get_coach_roster($coach_user_id, (int) $cid);
+            $roster_ids = array_map(function ($r) { return (int) $r['enrollment_id']; }, $roster);
+            if (array_intersect($target_enrollment_ids, $roster_ids)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
