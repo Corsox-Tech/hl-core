@@ -197,16 +197,17 @@ class HL_Frontend_School_Page {
                     <?php foreach ( $cycles as $row ) :
                         $trk              = $row['cycle'];
                         $participant_count = $row['participant_count'];
-                        $status           = $cycle->status ?: 'active';
+                        if ( ! $trk ) continue;
+                        $status           = $trk->status ?: 'active';
                         $status_class     = 'hl-badge-' . sanitize_html_class( $status );
 
                         $track_url = $workspace_url
-                            ? add_query_arg( array( 'id' => $cycle->cycle_id, 'orgunit' => $school_id ), $workspace_url )
+                            ? add_query_arg( array( 'id' => $trk->cycle_id, 'orgunit' => $school_id ), $workspace_url )
                             : '';
                     ?>
                         <div class="hl-crm-track-row">
                             <div class="hl-crm-track-info">
-                                <strong><?php echo esc_html( $cycle->cycle_name ?? __( '(Unnamed Cycle)', 'hl-core' ) ); ?></strong>
+                                <strong><?php echo esc_html( $trk->cycle_name ?? __( '(Unnamed Cycle)', 'hl-core' ) ); ?></strong>
                                 <span class="hl-badge <?php echo esc_attr( $status_class ); ?>"><?php echo esc_html( ucfirst( $status ) ); ?></span>
                                 <span class="hl-crm-track-count">
                                     <?php printf(

@@ -152,21 +152,22 @@ class HL_Frontend_District_Page {
             <?php else : ?>
                 <div class="hl-crm-track-list">
                     <?php foreach ( $cycles as $trk ) :
-                        $status       = $cycle->status ?: 'active';
+                        if ( ! $trk ) continue;
+                        $status       = $trk->status ?: 'active';
                         $status_class = 'hl-badge-' . sanitize_html_class( $status );
                         $dates        = array();
-                        if ( $cycle->start_date ) $dates[] = date_i18n( 'M j, Y', strtotime( $cycle->start_date ) );
-                        if ( $cycle->end_date )   $dates[] = date_i18n( 'M j, Y', strtotime( $cycle->end_date ) );
+                        if ( $trk->start_date ) $dates[] = date_i18n( 'M j, Y', strtotime( $trk->start_date ) );
+                        if ( $trk->end_date )   $dates[] = date_i18n( 'M j, Y', strtotime( $trk->end_date ) );
 
-                        $participant_count = $this->enrollment_repo->count_by_cycle( $cycle->cycle_id );
+                        $participant_count = $this->enrollment_repo->count_by_cycle( $trk->cycle_id );
 
                         $track_url = $workspace_url
-                            ? add_query_arg( array( 'id' => $cycle->cycle_id, 'orgunit' => $district_id ), $workspace_url )
+                            ? add_query_arg( array( 'id' => $trk->cycle_id, 'orgunit' => $district_id ), $workspace_url )
                             : '';
                     ?>
                         <div class="hl-crm-track-row">
                             <div class="hl-crm-track-info">
-                                <strong><?php echo esc_html( $cycle->cycle_name ?? __( '(Unnamed Cycle)', 'hl-core' ) ); ?></strong>
+                                <strong><?php echo esc_html( $trk->cycle_name ?? __( '(Unnamed Cycle)', 'hl-core' ) ); ?></strong>
                                 <span class="hl-badge <?php echo esc_attr( $status_class ); ?>"><?php echo esc_html( ucfirst( $status ) ); ?></span>
                                 <?php if ( ! empty( $dates ) ) : ?>
                                     <span class="hl-crm-track-dates"><?php echo esc_html( implode( ' — ', $dates ) ); ?></span>
