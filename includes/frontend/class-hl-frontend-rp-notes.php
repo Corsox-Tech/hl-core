@@ -515,11 +515,13 @@ class HL_Frontend_RP_Notes {
             </form>
         </div>
 
-        <!-- RP Steps Guide floating drawer -->
-        <button type="button" id="hlrn-guide-toggle" class="hlrn-guide-fab" title="<?php esc_attr_e('RP Steps Guide', 'hl-core'); ?>">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            <span><?php esc_html_e('RP Guide', 'hl-core'); ?></span>
-        </button>
+        <!-- RP Steps Guide button (inline, not fixed — avoids chat widget overlap) -->
+        <div style="text-align:center;margin:20px 0 8px;">
+            <button type="button" id="hlrn-guide-toggle" class="hlrn-guide-btn" title="<?php esc_attr_e('RP Steps Guide', 'hl-core'); ?>">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <?php esc_html_e('RP Steps Guide', 'hl-core'); ?>
+            </button>
+        </div>
 
         <div id="hlrn-guide-drawer" class="hlrn-guide-drawer" style="display:none">
             <div class="hlrn-guide-drawer-header">
@@ -688,8 +690,8 @@ class HL_Frontend_RP_Notes {
         .hlrn-cv-indicators{display:flex;flex-wrap:wrap;gap:4px}
 
         /* RP Steps Guide — drawer */
-        .hlrn-guide-fab{position:fixed;bottom:24px;right:24px;z-index:9998;display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:50px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;box-shadow:0 4px 20px rgba(30,58,95,.4);transition:all .2s}
-        .hlrn-guide-fab:hover{box-shadow:0 6px 28px rgba(30,58,95,.5);transform:translateY(-2px)}
+        .hlrn-guide-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:10px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;box-shadow:0 2px 8px rgba(30,58,95,.25);transition:all .2s}
+        .hlrn-guide-btn:hover{box-shadow:0 4px 16px rgba(30,58,95,.35);transform:translateY(-1px)}
         .hlrn-guide-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998}
         .hlrn-guide-drawer{position:fixed;top:0;right:0;bottom:0;width:420px;max-width:90vw;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,.15);display:flex;flex-direction:column;overflow:hidden}
         .hlrn-guide-drawer-header{padding:24px 24px 16px;border-bottom:1px solid #e2e8f0;position:relative}

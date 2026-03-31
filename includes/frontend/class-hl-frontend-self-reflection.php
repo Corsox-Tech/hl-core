@@ -208,8 +208,8 @@ class HL_Frontend_Self_Reflection {
                     <ul class="hlcv-notes-list">
                         <li><?php esc_html_e('Items marked with an asterisk (*) are defined in the Glossary.', 'hl-core'); ?></li>
                         <li><?php echo wp_kses(
-                            __('The <em>begin to ECSEL Support Manual</em> for the Classroom Visit & Self-Reflection Tool includes the Glossary and the Reference Guide to Scoring.', 'hl-core'),
-                            array('em' => array())
+                            __('The <em>begin to ECSEL Support Manual</em> for the Classroom Visit & Self-Reflection Tool includes the Glossary and the Reference Guide to Scoring. <a href="https://dam.housmaninstitute.com/b2E/Course/MC1/Resources/B2E%20Support%20Manual%20for%20the%20Classroom%20Visit%20%26%20Self-Reflection%20Tool.pdf" target="_blank" rel="noopener noreferrer">Open Support Manual</a>', 'hl-core'),
+                            array('em' => array(), 'a' => array('href' => array(), 'target' => array(), 'rel' => array()))
                         ); ?></li>
                     </ul>
                 </div>
