@@ -231,7 +231,8 @@ class HL_Frontend_My_Cycle {
                     $tab_url = add_query_arg( array_merge( $tab_params, array( 'tab' => $key ) ), $base_url );
                 ?>
                     <a class="hl-tab hl-cycle-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
-                       href="<?php echo esc_url( $tab_url ); ?>">
+                       href="<?php echo esc_url( $tab_url ); ?>"
+                       onclick="window.location.href=this.href; return false;">
                         <?php echo esc_html( $label ); ?>
                     </a>
                 <?php endforeach; ?>

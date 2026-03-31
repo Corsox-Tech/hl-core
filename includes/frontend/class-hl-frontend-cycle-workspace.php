@@ -204,17 +204,18 @@ class HL_Frontend_Cycle_Workspace {
                     $tab_url = add_query_arg( 'tab', $key, $tab_base_url );
                 ?>
                     <a href="<?php echo esc_url( $tab_url ); ?>"
-                       class="hl-cw-tab <?php echo $active_tab === $key ? 'active' : ''; ?>">
+                       class="hl-cw-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
+                       onclick="window.location.href=this.href; return false;">
                         <?php echo esc_html( $label ); ?>
                     </a>
                 <?php endforeach; ?>
             </div>
 
-            <?php foreach ( $tabs as $key => $label ) : ?>
-                <div id="hl-cw-panel-<?php echo esc_attr( $key ); ?>"
-                     class="hl-cw-panel <?php echo $active_tab === $key ? 'active' : ''; ?>">
+            <?php // Only render the active tab (not all tabs) for performance. ?>
+                <div id="hl-cw-panel-<?php echo esc_attr( $active_tab ); ?>"
+                     class="hl-cw-panel active">
                     <?php
-                    switch ( $key ) {
+                    switch ( $active_tab ) {
                         case 'dashboard':
                             $this->render_dashboard_tab( $cycle, $scope );
                             break;
@@ -233,7 +234,6 @@ class HL_Frontend_Cycle_Workspace {
                     }
                     ?>
                 </div>
-            <?php endforeach; ?>
 
         </div>
         <?php
