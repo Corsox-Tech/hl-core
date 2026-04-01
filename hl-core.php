@@ -256,6 +256,7 @@ class HL_Core {
         // Initialize admin
         if (is_admin()) {
             HL_Admin::instance();
+            HL_Admin_Imports::instance(); // Register AJAX hooks for import wizard
             HL_Admin_Enrollments::register_ajax_hooks();
         }
         
