@@ -85,7 +85,7 @@ Component has:
 - component_type (enumeration; below)
 - title (display)
 - description (optional)
-- ordering_hint (optional; UI ordering only; does not define prerequisite logic)
+- ordering_hint (internal; managed via drag-and-drop reorder in admin UI; does not define prerequisite logic)
 - visibility (who sees it; usually enrolled participants; some artifacts may be staff-only)
 - weight (integer or float; default=1; used for completion % aggregation)
 - external_ref (JSON; stores type-specific configuration — see each type below)
@@ -321,7 +321,7 @@ Components may be gated by:
 - prerequisites (graph dependencies)
 - drip rules (fixed date and/or completion-based delay)
 
-HL Core must keep unlock logic independent of ordering_hint.
+HL Core must keep unlock logic independent of ordering_hint (display order managed via admin drag-and-drop, not tied to prerequisite evaluation).
 
 ---
 
