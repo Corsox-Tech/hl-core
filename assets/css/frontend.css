@@ -177,7 +177,7 @@ body.buddyboss-theme .entry-content [class*="hlup-"] {
 
 /* BB link color override */
 body.buddyboss-theme .entry-content [class*="hl-"] a:not(.hl-btn):not([class*="hl-btn"]),
-body.buddyboss-theme .entry-content [class*="hl"] a:not(.hl-btn):not([class*="hl-btn"]) {
+body.buddyboss-theme .entry-content [class*="hl-"] a:not(.hl-btn):not([class*="hl-btn"]) {
     color: var(--hl-interactive);
     transition: var(--hl-transition);
 }
@@ -6477,25 +6477,13 @@ article:has(.hlup-wrapper) > .entry-header {
     margin-bottom: 8px;
 }
 
-/* ---- Buttons ---- */
-.hl-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 20px;
-    border-radius: var(--hl-radius-xs);
-    font-size: 14px;
-    font-weight: 600;
-    font-family: var(--hl-font);
-    cursor: pointer;
-    border: none;
-    transition: var(--hl-transition);
-    text-decoration: none;
-    line-height: 1.4;
-}
-.hl-btn:hover {
-    text-decoration: none;
-}
+/* ---- Buttons (BEM variants — new design system) ----
+   NOTE: Legacy .hl-btn base is at Section 12 (~line 604).
+   These BEM variants (.hl-btn--accent, etc.) layer on top.
+   Do NOT redefine .hl-btn base here — it would silently
+   override the legacy definition and break existing pages.
+   Session 6 will consolidate both into one definition.
+   ---------------------------------------------------- */
 .hl-btn--accent {
     background: var(--hl-accent);
     color: #fff;
@@ -6534,14 +6522,11 @@ article:has(.hlup-wrapper) > .entry-header {
     font-size: 12px;
 }
 
-/* ---- Badges ---- */
-.hl-badge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: var(--hl-radius-pill);
-    font-size: 11px;
-    font-weight: 600;
-}
+/* ---- Badges (BEM variants — new design system) ----
+   NOTE: Legacy .hl-badge base is at Section 8 (~line 463).
+   These BEM variants (.hl-badge--success, etc.) layer on top.
+   Do NOT redefine .hl-badge base here — Session 6 consolidates.
+   ---------------------------------------------------- */
 .hl-badge--success {
     background: var(--hl-status-active-bg);
     color: var(--hl-status-active-text);
@@ -6850,13 +6835,11 @@ article:has(.hlup-wrapper) > .entry-header {
     font-size: 14px;
 }
 
-/* ---- Notice (token-based) ---- */
-.hl-notice {
-    border-radius: var(--hl-radius-xs);
-    padding: 14px 18px;
-    margin-bottom: 16px;
-    font-size: 14px;
-}
+/* ---- Notice (BEM variants — new design system) ----
+   NOTE: Legacy .hl-notice base is at Section 4 (~line 343).
+   These BEM variants (.hl-notice--info, etc.) layer on top.
+   Do NOT redefine .hl-notice base here — Session 6 consolidates.
+   ---------------------------------------------------- */
 .hl-notice--info {
     background: var(--hl-status-progress-bg);
     color: var(--hl-status-progress-text);
@@ -6914,9 +6897,9 @@ body.hl-has-sidebar .bb-content {
 
 /* Sidebar base */
 .hl-sidebar {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
+    align-self: start;
     width: 240px;
     height: 100vh;
     background: var(--hl-primary);
@@ -7072,6 +7055,7 @@ body.hl-has-sidebar .entry-content {
     padding: 24px 32px !important;
     background: var(--hl-bg);
     min-height: calc(100vh - 60px);
+    max-width: none !important;
 }
 
 /* Responsive: collapse sidebar on small screens */

@@ -275,17 +275,6 @@ class HL_BuddyBoss_Integration {
         }
 
         $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
-        $user = wp_get_current_user();
-        $initials = '';
-        if ($user->first_name) {
-            $initials .= strtoupper(substr($user->first_name, 0, 1));
-        }
-        if ($user->last_name) {
-            $initials .= strtoupper(substr($user->last_name, 0, 1));
-        }
-        if (!$initials) {
-            $initials = strtoupper(substr($user->display_name, 0, 2));
-        }
 
         ?>
         <nav class="hl-sidebar" id="hl-sidebar">
@@ -318,15 +307,14 @@ class HL_BuddyBoss_Integration {
         </nav>
         <script>
         (function() {
+            // Move sidebar from wp_footer into the .site grid (before #content)
+            // so it participates in the CSS grid layout. Position is sticky via CSS.
             var sidebar = document.getElementById('hl-sidebar');
             var site = document.querySelector('.site');
             if (sidebar && site) {
                 var content = site.querySelector('#content, .site-content');
                 if (content) {
                     site.insertBefore(sidebar, content);
-                    sidebar.style.position = 'sticky';
-                    sidebar.style.top = '0';
-                    sidebar.style.alignSelf = 'start';
                 }
             }
         })();
