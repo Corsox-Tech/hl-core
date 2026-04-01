@@ -178,10 +178,12 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 
 ### BuddyBoss Integration
 - **HL_BuddyBoss_Integration** service (`includes/integrations/class-hl-buddyboss-integration.php`)
-- Multi-hook injection strategy for reliable menu rendering:
-  1. **Profile Dropdown** — `buddyboss_theme_after_bb_profile_menu` (last hook in header-profile-menu.php)
-  2. **BuddyPanel Left Sidebar** — `wp_nav_menu_items` filter on `buddypanel-loggedin` location, appends section divider + items using native BB CSS classes
-  3. **JS Fallback** — `wp_footer` injects into BuddyPanel DOM and/or profile dropdown if PHP hooks did not fire (covers empty BuddyPanel menu or custom profile dropdown override)
+- **Custom HL Sidebar** — Dark navy sidebar replacing BuddyBoss BuddyPanel:
+  - `render_hl_sidebar()` outputs sidebar HTML via `wp_footer` (priority 5), JS repositions into grid layout
+  - `add_sidebar_body_class()` adds `hl-has-sidebar` to `<body>` for CSS grid layout
+  - Brand area (HL logo, "Housman Learning", "Learning Hub"), nav items from `get_menu_items_for_current_user()`, logout footer
+  - 240px fixed sidebar + content grid, responsive collapse at 1024px
+- Legacy BB injection hooks still present (profile dropdown, BuddyPanel filter, JS fallback) for non-sidebar contexts
 - 16 menu items with role-based visibility (from `build_menu_items()` in code):
   - **Personal (require active enrollment):** My Profile (all enrolled + staff + coach), My Programs (enrolled teacher/mentor/leader/staff), My Coaching (mentor, non-control), My Team (mentor or teacher)
   - **Leader:** My School (leader, non-staff — renders `[hl_my_cycle]`)
@@ -204,6 +206,13 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Collapsed sidebar CSS fix** — Overrides BuddyBoss theme CSS that hides all `<span>` elements in collapsed mode (`body:not(.buddypanel-open) ... opacity:0; visibility:hidden`), keeping HL dashicon icons visible. Section headers and badges hidden in collapsed mode.
 - **Login page fix** — Suppresses BuddyBoss `bpnoaccess` error message and shake animation on wp-login.php via `bp_wp_login_error`, `shake_error_codes`, and `login_message` filters. Shows friendly "Welcome to Housman Learning Academy. Please log in to continue." message instead of red error styling.
 - **Page header with docs link** — All HL Core admin pages use `HL_Admin::render_page_header()` which renders the page title with an inline "Docs" link to `/documentation/`. Replaces the old `in_admin_header` hook approach that was hidden behind the Screen Options drawer.
+
+### Frontend Design System (In Progress — Session 1 Complete)
+- **Consolidated design tokens** — Single canonical `:root` block in `frontend.css` with semantic groups: Primary (Navy), Accent (Green), Interactive (Indigo), Secondary (Blue), Warning/Error, Text Scale, Surfaces, Borders, Radius, Shadows, Transitions, Status Colors, Typography. Backward compat aliases for `--hl-indigo-*`, `--hl-slate-*`, `--hl-crm-*`, `--hl-violet`, `--hl-bg-alt`.
+- **BuddyBoss override layer** — Global Inter font, BB theme resets for fonts, links, headings, form elements, and tables inside all HL containers. Scoped with `body.buddyboss-theme` selectors.
+- **Component library** — Reusable CSS classes: `.hl-card`, `.hl-btn` (accent/interactive/outline/danger/sm), `.hl-badge` (success/warning/error/info/draft), `.hl-pill` (interactive/primary/outline), `.hl-tabs-bar`, `.hl-hero`, `.hl-meta-bar`, `.hl-table`, `.hl-progress`, `.hl-rating`, `.hl-breadcrumb`, `.hl-section-divider`, `.hl-empty`, `.hl-notice`.
+- **Custom sidebar** — 240px dark navy sidebar replacing BB BuddyPanel. CSS grid layout, topbar, responsive collapse at 1024px.
+- **Remaining:** Sessions 2-6 will extract inline CSS from 42 PHP files into the component library.
 
 ---
 

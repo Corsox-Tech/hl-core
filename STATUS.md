@@ -102,10 +102,18 @@ Pick up from the first unchecked `[ ]` item each session.
 ### Admin Enrollment Form Enhancement (April 2026)
 - [x] **Pathway + Team fields on enrollment form** — Admin enrollment form (standalone + Cycle Editor inline) now includes Pathway and Team dropdowns, filtered by selected cycle. On save, creates `hl_pathway_assignment` (explicit) and `hl_team_membership` records. Edit mode pre-selects current values. Prevents blank Pathway/Team/School columns on Cycle enrollments table.
 
+### Frontend Design System (Active — April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-01-design-system-spec.md` | **Plan:** `docs/superpowers/plans/2026-04-01-design-system-plan.md`
+- [x] **Session 1: Foundation** — Consolidated `:root` design tokens (merged Core + CRM + Calm Professional palettes, added `--hl-interactive-*` canonical indigo, backward compat aliases). Global BB override layer (Inter font, link/heading/form/table resets). Component library CSS (cards, buttons, badges, pills, tabs, hero, meta bar, tables, progress, rating, breadcrumb, section divider, empty state, notices). Sidebar CSS + layout shell (240px grid, topbar, responsive). Sidebar PHP renderer (`render_hl_sidebar()` in BB integration, `body_class` filter). Deployed to test + production.
+- [ ] **Session 2: Forms & Instruments** — Extract inline CSS from 7 form/instrument PHP files.
+- [ ] **Session 3: Coach Pages** — Extract inline CSS from 7 coach PHP files.
+- [ ] **Session 4: Program & Navigation Pages** — Extract inline CSS from 9 program PHP files.
+- [ ] **Session 5: Directory & Profile Pages** — Verify/fix 19 directory/profile PHP files.
+- [ ] **Session 6: Review & Polish** — Visual review, dead CSS cleanup, final consistency pass.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
-- [ ] Frontend CSS redesign (modernize all 25+ shortcode pages)
 
 ---
 
