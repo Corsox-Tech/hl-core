@@ -59,14 +59,12 @@ class HL_Pathway_Assignment_Service {
             $enrollment = $wpdb->get_row($wpdb->prepare(
                 "SELECT cycle_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d", $enrollment_id
             ));
-            HL_Audit_Service::log(
-                'pathway_assigned',
-                get_current_user_id(),
-                $enrollment ? $enrollment->cycle_id : null,
-                null,
-                $assignment_id,
-                sprintf('Pathway #%d assigned to enrollment #%d (%s)', $pathway_id, $enrollment_id, $type)
-            );
+            HL_Audit_Service::log('pathway_assigned', array(
+                'cycle_id'    => $enrollment ? $enrollment->cycle_id : null,
+                'entity_type' => 'pathway_assignment',
+                'entity_id'   => $assignment_id,
+                'reason'      => sprintf('Pathway #%d assigned to enrollment #%d (%s)', $pathway_id, $enrollment_id, $type),
+            ));
         }
 
         return $assignment_id;
@@ -98,14 +96,12 @@ class HL_Pathway_Assignment_Service {
             $enrollment = $wpdb->get_row($wpdb->prepare(
                 "SELECT cycle_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d", absint($enrollment_id)
             ));
-            HL_Audit_Service::log(
-                'pathway_unassigned',
-                get_current_user_id(),
-                $enrollment ? $enrollment->cycle_id : null,
-                null,
-                absint($enrollment_id),
-                sprintf('Pathway #%d unassigned from enrollment #%d', $pathway_id, $enrollment_id)
-            );
+            HL_Audit_Service::log('pathway_unassigned', array(
+                'cycle_id'    => $enrollment ? $enrollment->cycle_id : null,
+                'entity_type' => 'pathway_assignment',
+                'entity_id'   => absint($enrollment_id),
+                'reason'      => sprintf('Pathway #%d unassigned from enrollment #%d', $pathway_id, $enrollment_id),
+            ));
         }
 
         return true;
