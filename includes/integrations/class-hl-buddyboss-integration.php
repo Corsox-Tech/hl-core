@@ -307,10 +307,26 @@ class HL_BuddyBoss_Integration {
         </nav>
         <script>
         (function() {
+            // Ensure body class is present (PHP filter may not fire on cached pages).
+            document.body.classList.add('hl-has-sidebar');
+            // Also set class on <html> for admin bar margin override.
+            document.documentElement.classList.add('hl-has-sidebar-html');
+
+            // Hide BB header, footer, admin bar, and page title immediately.
+            var hide = ['#masthead', '.site-header', '#wpadminbar', '.site-footer',
+                        '#colophon', 'footer.footer-wrap', '.elementor-location-footer',
+                        '.entry-header', 'h1.entry-title'];
+            hide.forEach(function(sel) {
+                var el = document.querySelector(sel);
+                if (el) el.style.display = 'none';
+            });
+            // Remove admin bar top margin.
+            document.documentElement.style.marginTop = '0';
+
             // Move sidebar from wp_footer into the .site grid (before #content)
             // so it participates in the CSS grid layout. Position is sticky via CSS.
             var sidebar = document.getElementById('hl-sidebar');
-            var site = document.querySelector('.site');
+            var site = document.querySelector('#page, .site');
             if (sidebar && site) {
                 var content = site.querySelector('#content, .site-content');
                 if (content) {
