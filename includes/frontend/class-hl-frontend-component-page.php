@@ -42,7 +42,6 @@ class HL_Frontend_Component_Page {
         'teacher_self_assessment'      => 'Self-Assessment',
         'child_assessment'          => 'Child Assessment',
         'coaching_session_attendance'      => 'Coaching Session',
-        'observation'                      => 'Observation',
         'reflective_practice_session'      => 'Reflective Practice Session',
         'classroom_visit'                  => 'Classroom Visit',
         'self_reflection'                  => 'Self-Reflection',
@@ -252,12 +251,6 @@ class HL_Frontend_Component_Page {
                 return;
             }
             // Legacy JFB-powered fallback
-            $this->render_jfb_form($component, $enrollment);
-            return;
-        }
-
-        // JFB-powered: observation.
-        if ($type === 'observation') {
             $this->render_jfb_form($component, $enrollment);
             return;
         }

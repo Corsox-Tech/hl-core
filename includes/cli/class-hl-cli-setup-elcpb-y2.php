@@ -298,16 +298,16 @@ class HL_CLI_Setup_ELCPB_Y2 {
 		$this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',         'teacher_self_assessment',      ++$n, array( 'phase' => 'pre' ) );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC0: Welcome',                          'learndash_course',             ++$n, array( 'course_id' => self::TC0 ) );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC1: Intro to begin to ECSEL',          'learndash_course',             ++$n, array( 'course_id' => self::TC1 ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #1',  'observation',                  ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #1',  'classroom_visit',                  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'RP Session #1',                         'coaching_session_attendance',  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC2: Your Own Emotionality',            'learndash_course',             ++$n, array( 'course_id' => self::TC2 ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #2',  'observation',                  ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #2',  'classroom_visit',                  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'RP Session #2',                         'coaching_session_attendance',  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC3: Getting to Know Emotion',          'learndash_course',             ++$n, array( 'course_id' => self::TC3 ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #3',  'observation',                  ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #3',  'classroom_visit',                  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'RP Session #3',                         'coaching_session_attendance',  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC4: Emotion in the Heat of the Moment', 'learndash_course',            ++$n, array( 'course_id' => self::TC4 ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #4',  'observation',                  ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #4',  'classroom_visit',                  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'RP Session #4',                         'coaching_session_attendance',  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',         'teacher_self_assessment',      ++$n, array( 'phase' => 'post' ) );
 
@@ -330,16 +330,16 @@ class HL_CLI_Setup_ELCPB_Y2 {
 		$n = 0;
 		$this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',                 'teacher_self_assessment',      ++$n, array( 'phase' => 'pre' ) );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC5: Connecting Emotion and Early Learning',    'learndash_course',             ++$n, array( 'course_id' => self::TC5 ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #1',          'observation',                  ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #1',          'classroom_visit',                  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'RP Session #1',                                 'coaching_session_attendance',  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC6: Empathy, Acceptance & Prosocial Behaviors', 'learndash_course',            ++$n, array( 'course_id' => self::TC6 ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #2',          'observation',                  ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #2',          'classroom_visit',                  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'RP Session #2',                                 'coaching_session_attendance',  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC7: begin to ECSEL Tools & Trauma-Informed',   'learndash_course',             ++$n, array( 'course_id' => self::TC7 ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #3',          'observation',                  ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #3',          'classroom_visit',                  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'RP Session #3',                                 'coaching_session_attendance',  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC8: ECSEL in the Everyday Classroom',          'learndash_course',             ++$n, array( 'course_id' => self::TC8 ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #4',          'observation',                  ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit & Self-Reflection #4',          'classroom_visit',                  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'RP Session #4',                                 'coaching_session_attendance',  ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                 'teacher_self_assessment',      ++$n, array( 'phase' => 'post' ) );
 
@@ -504,13 +504,13 @@ class HL_CLI_Setup_ELCPB_Y2 {
 
 		$n = 0;
 		$this->cmp( $svc, $pid, $cycle_id, 'TC5: Connecting Emotion and Early Learning (Streamlined)',       'learndash_course', ++$n, array( 'course_id' => self::TC5_S ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #1',                                             'observation',      ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #1',                                             'classroom_visit',      ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC6: Empathy, Inclusivity & Prosocial Behaviors (Streamlined)',  'learndash_course', ++$n, array( 'course_id' => self::TC6_S ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #2',                                             'observation',      ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #2',                                             'classroom_visit',      ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC7: begin to ECSEL Tools & Trauma-Informed (Streamlined)',      'learndash_course', ++$n, array( 'course_id' => self::TC7_S ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #3',                                             'observation',      ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #3',                                             'classroom_visit',      ++$n );
 		$this->cmp( $svc, $pid, $cycle_id, 'TC8: ECSEL in the Everyday Classroom (Streamlined)',             'learndash_course', ++$n, array( 'course_id' => self::TC8_S ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #4',                                             'observation',      ++$n );
+		$this->cmp( $svc, $pid, $cycle_id, 'Classroom Visit #4',                                             'classroom_visit',      ++$n );
 
 		WP_CLI::log( "    Streamlined Phase 2: pathway_id={$pid}, {$n} components" );
 		return array( 'pathway_id' => $pid, 'component_count' => $n );

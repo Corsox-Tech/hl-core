@@ -1373,7 +1373,7 @@ class HL_CLI_Seed_Palm_Beach {
 
 		$ma = array();
 		$ma['ld_course']    = $svc->create_component( array( 'title' => 'Mentor Training Course', 'pathway_id' => $mp_id, 'cycle_id' => $cycle_id, 'component_type' => 'learndash_course', 'weight' => 2.0, 'ordering_hint' => 1, 'external_ref' => wp_json_encode( array( 'course_id' => 99902 ) ) ) );
-		$ma['observation']  = $svc->create_component( array( 'title' => 'Teacher Observations', 'pathway_id' => $mp_id, 'cycle_id' => $cycle_id, 'component_type' => 'observation', 'weight' => 1.0, 'ordering_hint' => 2, 'external_ref' => wp_json_encode( array( 'form_plugin' => 'jetformbuilder', 'form_id' => 99903, 'required_count' => 2 ) ) ) );
+		$ma['classroom_visit'] = $svc->create_component( array( 'title' => 'Classroom Visits', 'pathway_id' => $mp_id, 'cycle_id' => $cycle_id, 'component_type' => 'classroom_visit', 'weight' => 1.0, 'ordering_hint' => 2 ) );
 
 		WP_CLI::log( '  [10/17] Pathways created: 2 (teacher=' . count( $ta ) . ' components, mentor=' . count( $ma ) . ' components)' );
 

@@ -1067,21 +1067,16 @@ class HL_CLI_Seed_Demo {
         ) );
         $mentor_components['ld_course'] = $a_id;
 
-        // 2. Observation.
+        // 2. Classroom Visit.
         $a_id = $svc->create_component( array(
-            'title'         => 'Teacher Observations',
+            'title'         => 'Classroom Visits',
             'pathway_id'    => $mp_id,
             'cycle_id'     => $cycle_id,
-            'component_type' => 'observation',
+            'component_type' => 'classroom_visit',
             'weight'        => 1.0,
             'ordering_hint' => 2,
-            'external_ref'  => wp_json_encode( array(
-                'form_plugin'    => 'jetformbuilder',
-                'form_id'        => 99903,
-                'required_count' => 2,
-            ) ),
         ) );
-        $mentor_components['observation'] = $a_id;
+        $mentor_components['classroom_visit'] = $a_id;
 
         $t_comp_count = count( $teacher_components );
         $m_comp_count = count( $mentor_components );

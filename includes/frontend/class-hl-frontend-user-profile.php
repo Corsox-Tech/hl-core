@@ -1300,7 +1300,6 @@ class HL_Frontend_User_Profile {
             'classroom_visit'             => __('Classroom Visit', 'hl-core'),
             'self_reflection'             => __('Self-Reflection', 'hl-core'),
             'reflective_practice_session' => __('RP Session', 'hl-core'),
-            'observation'                 => __('Observation', 'hl-core'),
         );
         return isset($labels[$type]) ? $labels[$type] : ucwords(str_replace('_', ' ', $type));
     }

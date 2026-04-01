@@ -478,19 +478,6 @@ class HL_Admin_Pathways {
                 $ref = array( 'phase' => $phase );
                 break;
 
-            case 'observation':
-                $form_id = isset($_POST['jfb_form_id']) ? absint($_POST['jfb_form_id']) : 0;
-                if ($form_id) {
-                    $ref = array(
-                        'form_plugin' => 'jetformbuilder',
-                        'form_id'     => $form_id,
-                    );
-                }
-                if (!empty($_POST['required_count'])) {
-                    $ref['required_count'] = absint($_POST['required_count']);
-                }
-                break;
-
             case 'child_assessment':
                 $instrument_id = isset($_POST['instrument_id']) ? absint($_POST['instrument_id']) : 0;
                 if ($instrument_id) {
@@ -1115,7 +1102,6 @@ class HL_Admin_Pathways {
                 'teacher_self_assessment'     => __('Self-Assessment', 'hl-core'),
                 'child_assessment'            => __('Child Assessment', 'hl-core'),
                 'coaching_session_attendance' => __('Coaching Attendance', 'hl-core'),
-                'observation'                 => __('Observation', 'hl-core'),
                 'reflective_practice_session' => __('Reflective Practice', 'hl-core'),
                 'classroom_visit'             => __('Classroom Visit', 'hl-core'),
                 'self_reflection'             => __('Self-Reflection', 'hl-core'),
@@ -1504,18 +1490,6 @@ class HL_Admin_Pathways {
                 $label = isset($ref['phase']) ? ucfirst($ref['phase']) : '';
                 return esc_html($label);
 
-            case 'observation':
-                $form_id = isset($ref['form_id']) ? absint($ref['form_id']) : 0;
-                $label = '';
-                if ($form_id) {
-                    $form_title = get_the_title($form_id);
-                    $label = $form_title ? $form_title : sprintf(__('Form #%d', 'hl-core'), $form_id);
-                }
-                if (!empty($ref['required_count'])) {
-                    $label .= sprintf(' (%dx)', absint($ref['required_count']));
-                }
-                return esc_html($label);
-
             case 'child_assessment':
                 $instrument_id = isset($ref['instrument_id']) ? absint($ref['instrument_id']) : 0;
                 if ($instrument_id) {
@@ -1590,26 +1564,17 @@ class HL_Admin_Pathways {
             'teacher_self_assessment'      => __('Teacher Self-Assessment', 'hl-core'),
             'child_assessment'             => __('Child Assessment', 'hl-core'),
             'coaching_session_attendance'   => __('Coaching Session Attendance', 'hl-core'),
-            'observation'                  => __('Observation', 'hl-core'),
             'reflective_practice_session'  => __('Reflective Practice Session', 'hl-core'),
             'classroom_visit'              => __('Classroom Visit', 'hl-core'),
             'self_reflection'              => __('Self-Reflection', 'hl-core'),
         );
-
-        $jfb_active = HL_JFB_Integration::instance()->is_active();
 
         echo '<tr>';
         echo '<th scope="row"><label for="component_type">' . esc_html__('Component Type', 'hl-core') . '</label></th>';
         echo '<td><select id="component_type" name="component_type" required>';
         echo '<option value="">' . esc_html__('-- Select Type --', 'hl-core') . '</option>';
         foreach ($component_types as $type_value => $type_label) {
-            $disabled = '';
-            // Disable observation type if JFB is not active (observations still use JFB forms)
-            if (!$jfb_active && $type_value === 'observation') {
-                $disabled = ' disabled="disabled"';
-                $type_label .= ' ' . __('(requires JetFormBuilder)', 'hl-core');
-            }
-            echo '<option value="' . esc_attr($type_value) . '"' . selected($current_type, $type_value, false) . $disabled . '>' . esc_html($type_label) . '</option>';
+            echo '<option value="' . esc_attr($type_value) . '"' . selected($current_type, $type_value, false) . '>' . esc_html($type_label) . '</option>';
         }
         echo '</select></td>';
         echo '</tr>';
@@ -1643,30 +1608,6 @@ class HL_Admin_Pathways {
         // Conditional fields based on component type
         // =====================================================================
 
-        // --- JFB Form Dropdown (for observation only) ---
-        $jfb_forms = HL_JFB_Integration::instance()->get_available_forms();
-        $current_form_id = isset($ext_ref['form_id']) ? absint($ext_ref['form_id']) : 0;
-
-        echo '<tr class="hl-component-field hl-field-jfb" style="display:none;">';
-        echo '<th scope="row"><label for="jfb_form_id">' . esc_html__('Observation Form', 'hl-core') . '</label></th>';
-        echo '<td>';
-        if (empty($jfb_forms)) {
-            echo '<p class="description">' . esc_html__('No JetFormBuilder forms found. Create a form in JetFormBuilder first.', 'hl-core') . '</p>';
-            echo '<input type="hidden" name="jfb_form_id" value="0" />';
-        } else {
-            echo '<select id="jfb_form_id" name="jfb_form_id">';
-            echo '<option value="0">' . esc_html__('-- Select Form --', 'hl-core') . '</option>';
-            foreach ($jfb_forms as $form) {
-                echo '<option value="' . esc_attr($form['id']) . '"' . selected($current_form_id, $form['id'], false) . '>'
-                    . esc_html($form['title']) . ' (ID: ' . esc_html($form['id']) . ')'
-                    . '</option>';
-            }
-            echo '</select>';
-            echo '<p class="description">' . esc_html__('Select the JetFormBuilder observation form. It must include hidden fields (hl_enrollment_id, hl_component_id, hl_cycle_id) and a "Call Hook" post-submit action with hook name: hl_core_form_submitted', 'hl-core') . '</p>';
-        }
-        echo '</td>';
-        echo '</tr>';
-
         // --- Phase dropdown (for teacher_self_assessment only) ---
         $current_phase = isset($ext_ref['phase']) ? $ext_ref['phase'] : 'pre';
 
@@ -1676,15 +1617,6 @@ class HL_Admin_Pathways {
         echo '<option value="pre"' . selected($current_phase, 'pre', false) . '>' . esc_html__('Pre-Assessment', 'hl-core') . '</option>';
         echo '<option value="post"' . selected($current_phase, 'post', false) . '>' . esc_html__('Post-Assessment', 'hl-core') . '</option>';
         echo '</select></td>';
-        echo '</tr>';
-
-        // --- Required count (for observation only) ---
-        $current_required_count = isset($ext_ref['required_count']) ? absint($ext_ref['required_count']) : '';
-
-        echo '<tr class="hl-component-field hl-field-obs-count" style="display:none;">';
-        echo '<th scope="row"><label for="required_count">' . esc_html__('Required Observation Count', 'hl-core') . '</label></th>';
-        echo '<td><input type="number" id="required_count" name="required_count" value="' . esc_attr($current_required_count) . '" min="1" class="small-text" />';
-        echo '<p class="description">' . esc_html__('Number of observations required for completion. Leave blank if not modeled as a component.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
         // --- Instrument dropdown (for child_assessment) ---
@@ -1957,7 +1889,6 @@ class HL_Admin_Pathways {
 
             var fieldMap = {
                 'teacher_self_assessment': ['hl-field-phase'],
-                'observation':             ['hl-field-jfb', 'hl-field-obs-count'],
                 'child_assessment':        ['hl-field-instrument'],
                 'learndash_course':        ['hl-field-ld'],
                 'coaching_session_attendance':  [],

@@ -42,7 +42,6 @@ class HL_Frontend_Program_Page {
         'teacher_self_assessment'      => 'Self-Assessment',
         'child_assessment'          => 'Child Assessment',
         'coaching_session_attendance'  => 'Coaching Session',
-        'observation'                  => 'Observation',
     );
 
     public function __construct() {
@@ -237,7 +236,7 @@ class HL_Frontend_Program_Page {
             $ct = $cd['component']->component_type;
             if ($ct === 'learndash_course') {
                 $type_counts['courses']++;
-            } elseif (in_array($ct, array('classroom_visit', 'observation'), true)) {
+            } elseif ($ct === 'classroom_visit') {
                 $type_counts['visits']++;
             } else {
                 $type_counts['other']++;
@@ -597,16 +596,6 @@ class HL_Frontend_Program_Page {
                 $btn_class = ($assess_status === 'submitted') ? 'hl-btn-secondary' : 'hl-btn-primary';
                 return '<a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm ' . esc_attr($btn_class) . '">'
                     . esc_html($label) . '</a>';
-            }
-            return '';
-        }
-
-        // JFB-powered components (observation): link to Component Page.
-        if ($type === 'observation') {
-            $component_page_url = $this->get_component_page_url($component->component_id, $enrollment->enrollment_id);
-            if (!empty($component_page_url)) {
-                return '<a href="' . esc_url($component_page_url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
-                    . esc_html__('Start', 'hl-core') . '</a>';
             }
             return '';
         }
@@ -1000,7 +989,6 @@ class HL_Frontend_Program_Page {
             'teacher_self_assessment'      => '&#x1F4DD;',
             'child_assessment'             => '&#x1F4DD;',
             'classroom_visit'              => '&#x1F50D;',
-            'observation'                  => '&#x1F50D;',
             'coaching_session_attendance'  => '&#x1F3AC;',
             'reflective_practice_session'  => '&#x1F4AD;',
             'self_reflection'              => '&#x1F4AD;',

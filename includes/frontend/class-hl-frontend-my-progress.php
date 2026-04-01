@@ -41,7 +41,9 @@ class HL_Frontend_My_Progress {
         'teacher_self_assessment'      => 'Self-Assessment',
         'child_assessment'          => 'Child Assessment',
         'coaching_session_attendance'  => 'Coaching Session',
-        'observation'                  => 'Observation',
+        'classroom_visit'              => 'Classroom Visit',
+        'reflective_practice_session'  => 'Reflective Practice',
+        'self_reflection'              => 'Self-Reflection',
     );
 
     public function __construct() {
@@ -496,25 +498,6 @@ class HL_Frontend_My_Progress {
                 . '</a>';
         }
 
-        // ── observation: direct to the [hl_observations] page ───────────
-        if ($type === 'observation') {
-            /**
-             * Filter the URL of the page containing the [hl_observations] shortcode.
-             *
-             * @param string $url Default empty. Themes/configs can provide the page URL.
-             */
-            $observations_url = apply_filters('hl_core_observations_page_url', '');
-
-            if (!empty($observations_url)) {
-                return '<a href="' . esc_url($observations_url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
-                    . esc_html__('Go to Observations', 'hl-core')
-                    . '</a>';
-            }
-
-            return '<span class="hl-component-notice">'
-                . esc_html__('Visit the Observations page to submit observations.', 'hl-core')
-                . '</span>';
-        }
 
         // ── child_assessment: direct to the [hl_child_assessment] page ─
         if ($type === 'child_assessment') {

@@ -1185,7 +1185,9 @@ class HL_Admin_Reporting {
             'teacher_self_assessment'      => __('Teacher Self-Assessment', 'hl-core'),
             'child_assessment'          => __('Child Assessment', 'hl-core'),
             'coaching_session_attendance'  => __('Coaching Attendance', 'hl-core'),
-            'observation'                  => __('Observation', 'hl-core'),
+            'classroom_visit'              => __('Classroom Visit', 'hl-core'),
+            'reflective_practice_session'  => __('Reflective Practice', 'hl-core'),
+            'self_reflection'              => __('Self-Reflection', 'hl-core'),
         );
 
         return isset($labels[$type]) ? $labels[$type] : ucwords(str_replace('_', ' ', $type));

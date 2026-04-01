@@ -366,7 +366,7 @@ class HL_Observation_Service {
             "SELECT a.*
              FROM {$wpdb->prefix}hl_component a
              JOIN {$wpdb->prefix}hl_pathway p ON a.pathway_id = p.pathway_id
-             WHERE p.cycle_id = %d AND a.component_type = 'observation' AND a.status = 'active'
+             WHERE p.cycle_id = %d AND a.component_type = 'classroom_visit' AND a.status = 'active'
              LIMIT 1",
             $cycle_id
         ), ARRAY_A );

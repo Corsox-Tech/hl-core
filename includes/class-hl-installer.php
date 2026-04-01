@@ -127,7 +127,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 25;
+        $current_revision = 26;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -150,6 +150,11 @@ class HL_Installer {
             // Rev 24: Add scheduling integration columns to hl_coaching_session.
             if ( (int) $stored < 24 ) {
                 self::migrate_coaching_scheduling_columns();
+            }
+
+            // Rev 26: Remove deprecated 'observation' component type (replaced by 'classroom_visit').
+            if ( (int) $stored < 26 ) {
+                self::migrate_remove_observation_component_type();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -1360,7 +1365,7 @@ class HL_Installer {
             component_uuid char(36) NOT NULL,
             cycle_id bigint(20) unsigned NOT NULL,
             pathway_id bigint(20) unsigned NOT NULL,
-            component_type enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','observation','reflective_practice_session','classroom_visit','self_reflection') NOT NULL,
+            component_type enum('learndash_course','teacher_self_assessment','child_assessment','coaching_session_attendance','reflective_practice_session','classroom_visit','self_reflection') NOT NULL,
             title varchar(255) NOT NULL,
             description text NULL,
             ordering_hint int NOT NULL DEFAULT 0,
@@ -2028,6 +2033,33 @@ class HL_Installer {
         if ( ! $index_exists( 'booked_by_user_id' ) ) {
             $wpdb->query( "ALTER TABLE `{$table}` ADD KEY booked_by_user_id (booked_by_user_id)" );
         }
+    }
+
+    /**
+     * Rev 26: Remove deprecated 'observation' component type.
+     * Replaced by 'classroom_visit' which uses native PHP forms instead of JFB.
+     */
+    private static function migrate_remove_observation_component_type() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_component';
+
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return;
+        }
+
+        // Convert any existing 'observation' rows to 'classroom_visit'
+        $wpdb->update(
+            $table,
+            array( 'component_type' => 'classroom_visit' ),
+            array( 'component_type' => 'observation' )
+        );
+
+        // Remove 'observation' from the ENUM
+        $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN component_type
+            ENUM('learndash_course','teacher_self_assessment','child_assessment',
+                 'coaching_session_attendance',
+                 'reflective_practice_session','classroom_visit','self_reflection')
+            NOT NULL" );
     }
 
     /**
