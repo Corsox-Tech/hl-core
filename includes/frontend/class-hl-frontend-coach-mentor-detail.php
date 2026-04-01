@@ -92,9 +92,7 @@ class HL_Frontend_Coach_Mentor_Detail {
         $mentor        = $enrollment_id ? $service->get_mentor_detail($enrollment_id, $user_id) : null;
         $back_url      = $this->find_shortcode_page_url('hl_coach_mentors');
 
-        $this->render_styles();
-        // Hide the automatic page title from BuddyBoss theme.
-        echo '<style>.entry-header .entry-title, article > header .entry-title { display: none !important; } .entry-header { margin-bottom: 0 !important; min-height: 0 !important; padding: 0 !important; }</style>';
+        // BB title hiding moved to frontend.css (Session 3 coach pages section)
 
         if (!$mentor) {
             ?>
@@ -213,7 +211,7 @@ class HL_Frontend_Coach_Mentor_Detail {
                             'enrollment' => $enrollment_id,
                         ), $comp_page_url);
                 ?>
-                    <div style="margin-bottom:16px;">
+                    <div class="hlcmd-schedule-wrap">
                         <a href="<?php echo esc_url($schedule_url); ?>" class="hlcmd-btn-schedule">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             <?php printf(esc_html__('Schedule Next Session: %s', 'hl-core'), esc_html($next_component['title'])); ?>
@@ -221,7 +219,7 @@ class HL_Frontend_Coach_Mentor_Detail {
                     </div>
                 <?php endif; ?>
                 <?php elseif (!empty($coaching_sessions)) : ?>
-                    <div style="margin-bottom:16px;padding:10px 16px;background:#d1fae5;border-radius:8px;font-size:14px;color:#065f46;font-weight:500;">
+                    <div class="hlcmd-all-scheduled">
                         <?php esc_html_e('All coaching sessions are scheduled or completed.', 'hl-core'); ?>
                     </div>
                 <?php endif; ?>
@@ -311,8 +309,8 @@ class HL_Frontend_Coach_Mentor_Detail {
                                 ?>
                                     <tr>
                                         <td>
-                                            <div style="font-weight:600;color:#1e293b;"><?php echo esc_html($member['display_name']); ?></div>
-                                            <div style="font-size:12px;color:#8896a6;"><?php echo esc_html($member['user_email'] ?? ''); ?></div>
+                                            <div class="hlcmd-team-member-name"><?php echo esc_html($member['display_name']); ?></div>
+                                            <div class="hlcmd-team-member-email"><?php echo esc_html($member['user_email'] ?? ''); ?></div>
                                         </td>
                                         <td>
                                             <?php foreach ($roles as $role) :
@@ -479,156 +477,20 @@ class HL_Frontend_Coach_Mentor_Detail {
      * @return string
      */
     private function render_rp_status_badge($status) {
-        $map = array(
-            'completed' => array('#d1fae5', '#065f46'),
-            'scheduled' => array('#dbeafe', '#1e40af'),
-            'pending'   => array('#fef3c7', '#92400e'),
-            'cancelled' => array('#f1f5f9', '#64748b'),
+        $class_map = array(
+            'completed' => 'hlcmd-rp-badge--completed',
+            'scheduled' => 'hlcmd-rp-badge--scheduled',
+            'pending'   => 'hlcmd-rp-badge--pending',
+            'cancelled' => 'hlcmd-rp-badge--cancelled',
         );
-        $badge = isset($map[$status]) ? $map[$status] : array('#f1f5f9', '#64748b');
+        $class = isset($class_map[$status]) ? $class_map[$status] : 'hlcmd-rp-badge--cancelled';
         return sprintf(
-            '<span style="display:inline-block;padding:4px 12px;border-radius:16px;font-size:12px;font-weight:600;background:%s;color:%s;">%s</span>',
-            esc_attr($badge[0]),
-            esc_attr($badge[1]),
+            '<span class="hlcmd-rp-badge %s">%s</span>',
+            esc_attr($class),
             esc_html(ucfirst($status))
         );
     }
 
-    /**
-     * All CSS for the Mentor Detail page (inline to avoid external CSS dependency).
-     */
-    private function render_styles() {
-        ?>
-        <style>
-        .hlcmd-wrapper{max-width:1100px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
-
-        /* Back link */
-        .hlcmd-back{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:#475569;text-decoration:none;margin-bottom:20px;transition:color .2s}
-        .hlcmd-back:hover{color:#1e3a5f;text-decoration:none}
-
-        /* Hero */
-        .hlcmd-hero{display:flex;align-items:center;gap:20px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;padding:28px 32px;border-radius:16px;margin-bottom:24px}
-        .hlcmd-hero-avatar{flex-shrink:0}
-        .hlcmd-hero-avatar img{width:64px;height:64px;border-radius:50%;border:3px solid rgba(255,255,255,.25);display:block}
-        .hlcmd-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px;color:#fff!important}
-        .hlcmd-hero-sub{font-size:14px;opacity:.75;margin:4px 0 0;color:#fff!important}
-
-        /* Info card */
-        .hlcmd-info-card{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;margin-bottom:24px}
-        .hlcmd-info-row{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-        .hlcmd-info-cell{display:flex;flex-direction:column;gap:6px}
-        .hlcmd-info-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6}
-        .hlcmd-info-value{font-size:15px;font-weight:600;color:#1e293b}
-        .hlcmd-info-progress{display:flex;align-items:center;gap:10px}
-
-        /* Progress bars (shared) */
-        .hlcmd-progress-row{display:flex;align-items:center;gap:10px}
-        .hlcmd-progress-track{flex:1;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden}
-        .hlcmd-progress-track-lg{height:10px;margin-top:8px}
-        .hlcmd-progress-track-wide{flex:1;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden}
-        .hlcmd-progress-fill{height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:4px;transition:width .4s ease}
-        .hlcmd-progress-fill-alt{background:linear-gradient(90deg,#2563eb,#60a5fa)}
-        .hlcmd-progress-pct{flex-shrink:0;font-size:13px;font-weight:700;color:#1e293b;min-width:36px;text-align:right}
-
-        /* Tabs */
-        .hlcmd-tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
-        .hlcmd-tab-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:12px;font-size:14px;font-weight:600;border:2px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;transition:all .2s;font-family:inherit}
-        .hlcmd-tab-btn:hover{border-color:#94a3b8;color:#334155;background:#f8fafc}
-        .hlcmd-tab-btn.hlcmd-tab-active{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(30,58,95,.25)}
-        .hlcmd-tab-btn.hlcmd-tab-active svg{stroke:#fff}
-
-        /* Tab panels */
-        .hlcmd-tab-panel{animation:hlcmdFadeIn .3s ease}
-        @keyframes hlcmdFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-
-        /* Panel empty state */
-        .hlcmd-panel-empty{text-align:center;padding:48px 20px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;color:#8896a6}
-        .hlcmd-panel-empty svg{margin-bottom:12px;opacity:.5}
-        .hlcmd-panel-empty p{font-size:15px;margin:0}
-
-        /* ---- TAB 1: Coaching Sessions ---- */
-        .hlcmd-btn-schedule{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s}
-        .hlcmd-btn-schedule:hover{background:#1d4ed8;color:#fff}
-        .hlcmd-sessions-list{display:flex;flex-direction:column;gap:12px}
-        .hlcmd-session-row{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:18px 24px;transition:box-shadow .25s ease}
-        .hlcmd-session-row:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}
-        .hlcmd-session-main{flex:1;min-width:0}
-        .hlcmd-session-title{font-size:15px;font-weight:600;color:#1e293b;margin-bottom:6px}
-        .hlcmd-session-meta{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:#64748b}
-        .hlcmd-session-meta svg{vertical-align:middle;margin-right:4px;opacity:.6}
-        .hlcmd-session-time{margin-left:6px;color:#8896a6}
-        .hlcmd-session-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}
-        .hlcmd-join-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;background:#059669;color:#fff;text-decoration:none;transition:background .2s,box-shadow .2s}
-        .hlcmd-join-btn:hover{background:#047857;box-shadow:0 4px 12px rgba(5,150,105,.3);text-decoration:none;color:#fff}
-
-        /* ---- TAB 2: Team Overview ---- */
-        .hlcmd-team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-        .hlcmd-team-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;transition:box-shadow .25s ease,transform .25s ease}
-        .hlcmd-team-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.06);transform:translateY(-1px)}
-        .hlcmd-team-card-top{margin-bottom:12px}
-        .hlcmd-team-card-name{font-size:15px;font-weight:600;color:#1e293b;margin-bottom:2px}
-        .hlcmd-team-card-email{font-size:13px;color:#8896a6}
-        .hlcmd-team-card-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-        .hlcmd-badge{display:inline-block;padding:4px 12px;font-size:12px;font-weight:600;border-radius:16px;line-height:1.4}
-        .hlcmd-badge-green{background:#d1fae5;color:#065f46}
-        .hlcmd-badge-blue{background:#dbeafe;color:#1e40af}
-        .hlcmd-badge-orange{background:#fef3c7;color:#92400e}
-        .hlcmd-badge-gray{background:#f1f5f9;color:#64748b}
-        .hlcmd-team-card-pathway{font-size:13px;color:#64748b;margin-bottom:12px}
-
-        /* ---- TAB 3: RP Sessions ---- */
-        .hlcmd-rp-table-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden}
-        .hlcmd-rp-table{width:100%;border-collapse:collapse}
-        .hlcmd-rp-table thead th{text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6;padding:14px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
-        .hlcmd-rp-table tbody td{padding:14px 20px;font-size:14px;color:#334155;border-bottom:1px solid #f1f5f9}
-        .hlcmd-rp-table tbody tr:last-child td{border-bottom:none}
-        .hlcmd-rp-table tbody tr:hover{background:#fafbfc}
-
-        /* ---- TAB 4: Reports ---- */
-        .hlcmd-report-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-        .hlcmd-report-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px;text-align:center}
-        .hlcmd-report-card-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6;margin-bottom:8px}
-        .hlcmd-report-card-value{font-size:32px;font-weight:700;color:#1e293b;line-height:1;margin-bottom:4px}
-
-        /* Comparison card */
-        .hlcmd-comparison-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px}
-        .hlcmd-comparison-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#475569;margin-bottom:20px}
-        .hlcmd-comparison-row{display:flex;align-items:center;gap:14px;margin-bottom:14px}
-        .hlcmd-comparison-row:last-child{margin-bottom:0}
-        .hlcmd-comparison-label{font-size:14px;font-weight:500;color:#334155;min-width:140px;flex-shrink:0}
-        .hlcmd-comparison-pct{font-size:14px;font-weight:700;color:#1e293b;min-width:44px;text-align:right;flex-shrink:0}
-
-        /* Export card */
-        .hlcmd-export-card{display:flex;align-items:center;justify-content:space-between;gap:20px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px}
-        .hlcmd-export-title{font-size:15px;font-weight:600;color:#1e293b;margin-bottom:4px}
-        .hlcmd-export-desc{font-size:13px;color:#8896a6}
-        .hlcmd-export-form{flex-shrink:0}
-        .hlcmd-export-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:12px;font-size:14px;font-weight:600;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;cursor:pointer;transition:box-shadow .2s,transform .2s;font-family:inherit}
-        .hlcmd-export-btn:hover{box-shadow:0 6px 20px rgba(30,58,95,.3);transform:translateY(-1px)}
-
-        /* Empty state (not-found) */
-        .hlcmd-empty{text-align:center;padding:60px 20px;background:#fff;border:1px solid #e2e8f0;border-radius:16px}
-        .hlcmd-empty-icon{display:inline-flex;align-items:center;justify-content:center;width:80px;height:80px;border-radius:50%;background:rgba(30,58,95,.06);color:#8896a6;margin-bottom:16px}
-        .hlcmd-empty-text{font-size:16px;color:#64748b;margin:0}
-
-        /* Responsive */
-        @media(max-width:600px){
-            .hlcmd-hero{flex-direction:column;text-align:center;padding:24px 20px}
-            .hlcmd-info-row{grid-template-columns:1fr}
-            .hlcmd-tabs{flex-direction:column}
-            .hlcmd-tab-btn{width:100%;justify-content:center}
-            .hlcmd-session-row{flex-direction:column;align-items:flex-start;gap:12px}
-            .hlcmd-session-actions{width:100%;justify-content:flex-start}
-            .hlcmd-team-grid{grid-template-columns:1fr}
-            .hlcmd-report-grid{grid-template-columns:repeat(2,1fr)}
-            .hlcmd-comparison-row{flex-direction:column;align-items:flex-start;gap:6px}
-            .hlcmd-comparison-label{min-width:0}
-            .hlcmd-export-card{flex-direction:column;text-align:center}
-            .hlcmd-rp-table thead th,.hlcmd-rp-table tbody td{padding:10px 12px;font-size:13px}
-        }
-        </style>
-        <?php
-    }
 
     /**
      * Find the published page that contains a given shortcode.
