@@ -575,7 +575,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 		$pid = $svc->create_pathway( array(
 			'pathway_name'  => 'B2E Streamlined Phase 1',
 			'cycle_id'      => $cycle_id,
-			'target_roles'  => array( 'school_leader' ),
+			'target_roles'  => array( 'school_leader', 'district_leader' ),
 			'active_status' => 1,
 		) );
 
@@ -608,7 +608,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 		$pid = $svc->create_pathway( array(
 			'pathway_name'  => 'B2E Streamlined Phase 2',
 			'cycle_id'      => $cycle_id,
-			'target_roles'  => array( 'school_leader' ),
+			'target_roles'  => array( 'school_leader', 'district_leader' ),
 			'active_status' => 1,
 		) );
 
