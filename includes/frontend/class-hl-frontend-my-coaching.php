@@ -53,6 +53,11 @@ class HL_Frontend_My_Coaching {
             $cycle   = $cycle_repo->get_by_id($cycle_id);
             $pathway = $pathway_repo->get_by_id($pathway_id);
 
+            // Skip closed/archived cycles — only show active cycles.
+            if ($cycle && !empty($cycle->status) && !in_array($cycle->status, array('active', 'draft'), true)) {
+                continue;
+            }
+
             // Get coach assignment.
             $coach_service = new HL_Coach_Assignment_Service();
             $coach         = $coach_service->get_coach_for_enrollment($enrollment_id, $cycle_id);
