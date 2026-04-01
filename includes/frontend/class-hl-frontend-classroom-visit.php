@@ -55,13 +55,13 @@ class HL_Frontend_Classroom_Visit {
             $msg = sanitize_text_field($_GET['message']);
             if ($msg === 'submitted') {
                 self::render_form_styles();
-                echo '<div class="hlcv-alert" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:12px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
+                echo '<div class="hlcv-alert hlcv-alert-success hlcv-alert--standalone">';
                 echo '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
                 echo '<strong>' . esc_html__('Classroom visit submitted successfully!', 'hl-core') . '</strong>';
                 echo '</div>';
             } elseif ($msg === 'saved') {
                 self::render_form_styles();
-                echo '<div class="hlcv-alert" style="background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:12px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
+                echo '<div class="hlcv-alert hlcv-alert-info hlcv-alert--standalone">';
                 echo '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>';
                 echo '<strong>' . esc_html__('Draft saved.', 'hl-core') . '</strong>';
                 echo '</div>';
@@ -104,7 +104,7 @@ class HL_Frontend_Classroom_Visit {
 
                 $teacher_info = array('display_name' => isset($visit['teacher_name']) ? $visit['teacher_name'] : '—');
                 $back_url = remove_query_arg('teacher');
-                echo '<a href="' . esc_url($back_url) . '" class="hl-back-link" style="display:block;margin-bottom:8px">&larr; ' . esc_html__('Back to Teacher List', 'hl-core') . '</a>';
+                echo '<a href="' . esc_url($back_url) . '" class="hl-back-link hlcv-back-link">&larr; ' . esc_html__('Back to Teacher List', 'hl-core') . '</a>';
                 echo $this->render_form($visit, $enrollment, $instrument, $teacher_info, $existing);
             } else {
                 echo '<div class="hl-notice hl-notice-error">' . esc_html__('Unable to load classroom visit.', 'hl-core') . '</div>';
@@ -128,7 +128,7 @@ class HL_Frontend_Classroom_Visit {
             <p class="hl-field-hint"><?php esc_html_e('Select a teacher to complete the classroom visit form.', 'hl-core'); ?></p>
 
             <!-- What this is / isn't — shown on the list page -->
-            <div class="hlcv-instructions" style="margin-bottom:24px">
+            <div class="hlcv-instructions">
                 <div class="hlcv-instr-section">
                     <div class="hlcv-instr-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
@@ -323,7 +323,7 @@ class HL_Frontend_Classroom_Visit {
                         <p><?php esc_html_e('Select "Yes" if you observe an indicator in practice during the classroom visit. Select "No" if the indicator is not observed. In the Description field, describe specific examples, teacher or student behaviors, and any relevant context to support your rating.', 'hl-core'); ?></p>
                     </div>
                 </div>
-                <div class="hlcv-notes" style="margin-top:0;margin-bottom:0">
+                <div class="hlcv-notes hlcv-notes--flush">
                     <div class="hlcv-notes-title">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         <?php esc_html_e('Notes for Clarification', 'hl-core'); ?>
@@ -354,7 +354,7 @@ class HL_Frontend_Classroom_Visit {
                         <span class="hlcv-info-value"><?php echo esc_html($user->display_name); ?></span>
                     </div>
                 </div>
-                <div class="hlcv-info-row" style="margin-top:12px">
+                <div class="hlcv-info-row">
                     <div class="hlcv-info-cell">
                         <span class="hlcv-info-label"><?php esc_html_e('Classroom', 'hl-core'); ?></span>
                         <span class="hlcv-info-value"><?php echo esc_html($classroom_name); ?></span>
@@ -368,7 +368,7 @@ class HL_Frontend_Classroom_Visit {
                         <span class="hlcv-info-value"><?php echo esc_html($visit_date ? date_i18n(get_option('date_format'), strtotime($visit_date)) : date_i18n(get_option('date_format'))); ?></span>
                     </div>
                 </div>
-                <div class="hlcv-info-row" style="margin-top:12px">
+                <div class="hlcv-info-row">
                     <div class="hlcv-info-cell">
                         <span class="hlcv-info-label"><?php esc_html_e('Visit #', 'hl-core'); ?></span>
                         <span class="hlcv-info-value hlcv-visit-num"><?php echo esc_html(isset($visit_entity['visit_number']) ? $visit_entity['visit_number'] : '1'); ?></span>
@@ -409,108 +409,11 @@ class HL_Frontend_Classroom_Visit {
     }
 
     /**
-     * Modern form styles (inline to avoid external CSS dependency).
+     * Styles are in assets/css/frontend.css under "FORMS & INSTRUMENTS (Session 2)".
+     * Kept as no-op for callers that still reference this method.
      */
     public static function render_form_styles() {
-        static $rendered = false;
-        if ($rendered) return;
-        $rendered = true;
-        ?>
-        <style>
-        .hlcv-form-wrapper{max-width:820px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
-        .hlcv-hero{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff !important;padding:28px 32px;border-radius:16px;margin-bottom:24px;position:relative;z-index:1;overflow:visible}
-        .hlcv-hero *{color:#fff !important}
-        .hlcv-hero-icon{background:rgba(255,255,255,.15);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center}
-        .hlcv-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px;color:#fff !important}
-        .hlcv-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0;color:rgba(255,255,255,.8) !important}
-        .hlcv-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:12px;font-size:14px;margin-bottom:20px}
-        .hlcv-alert-info{background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef}
-        .hlcv-info-card{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:28px}
-        .hlcv-info-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
-        .hlcv-info-cell{display:flex;flex-direction:column;gap:4px}
-        .hlcv-info-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6}
-        .hlcv-info-value{font-size:15px;font-weight:600;color:#1e293b}
-        .hlcv-visit-num{display:inline-flex;align-items:center;justify-content:center;background:#1e3a5f;color:#fff;width:28px;height:28px;border-radius:8px;font-size:14px}
-
-        /* Context pills */
-        .hlcv-context{margin-bottom:28px}
-        .hlcv-context-title{font-size:14px;font-weight:600;color:#475569;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
-        .hlcv-pills{display:flex;flex-wrap:wrap;gap:10px}
-        .hlcv-pill{position:relative}
-        .hlcv-pill input{position:absolute;opacity:0;pointer-events:none}
-        .hlcv-pill-label{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:2px solid #e2e8f0;border-radius:50px;font-size:14px;font-weight:500;color:#64748b;cursor:pointer;transition:all .2s ease;background:#fff;user-select:none}
-        .hlcv-pill-label:hover{border-color:#94a3b8;color:#334155}
-        .hlcv-pill input:checked+.hlcv-pill-label{background:#1e3a5f;border-color:#1e3a5f;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08)}
-        .hlcv-pill-dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1;transition:background .2s}
-        .hlcv-pill input:checked+.hlcv-pill-label .hlcv-pill-dot{background:#6ee7b7}
-
-        /* Domain sections — flat, no accordion */
-        .hlcv-domain-flat{background:#fff;border:1px solid #e2e8f0;border-radius:14px;margin-bottom:20px;overflow:hidden}
-        .hlcv-domain-flat-header{display:flex;align-items:center;gap:10px;padding:16px 20px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-bottom:1px solid #e2e8f0}
-        .hlcv-domain-flat-title{font-size:15px;font-weight:600;color:#1e293b}
-        .hlcv-domain-num{background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
-
-        /* Indicator rows — compact */
-        .hlcv-indicators-grid{padding:4px 20px}
-        .hlcv-ind-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid #f1f5f9}
-        .hlcv-ind-row:last-child{border-bottom:none}
-        .hlcv-ind-label{font-size:14px;color:#334155;flex:1;line-height:1.4}
-        .hlcv-toggle-group{display:flex;gap:0;border-radius:8px;overflow:hidden;border:2px solid #e2e8f0;flex-shrink:0}
-        .hlcv-toggle-group label{margin:0}
-        .hlcv-toggle-group input{position:absolute;opacity:0;pointer-events:none}
-        .hlcv-toggle-btn{display:inline-flex;align-items:center;justify-content:center;padding:7px 18px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;background:#fff;color:#94a3b8;user-select:none;border:none}
-        .hlcv-toggle-group input[value="1"]:checked+.hlcv-toggle-btn{background:#059669;color:#fff}
-        .hlcv-toggle-group input[value="0"]:checked+.hlcv-toggle-btn{background:#e2e8f0;color:#64748b}
-
-        /* One description per domain */
-        .hlcv-domain-desc{padding:0 20px 16px;animation:hlcvSlideDown .3s ease}
-        .hlcv-domain-desc textarea{width:100%;border:2px solid #e2e8f0;border-radius:12px;padding:12px 16px;font-size:14px;font-family:inherit;resize:vertical;min-height:70px;transition:border-color .2s;background:#fafbfc;box-sizing:border-box}
-        .hlcv-domain-desc textarea:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1);background:#fff}
-        .hlcv-domain-desc textarea::placeholder{color:#94a3b8}
-        .hlcv-domain-desc-ro{padding:8px 20px 16px}
-        .hlcv-domain-desc-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6;margin-bottom:6px}
-        .hlcv-domain-desc-text{background:#f1f5f9;padding:10px 14px;border-radius:8px;font-size:14px;color:#334155;line-height:1.5}
-        @keyframes hlcvSlideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-
-        /* Action buttons */
-        .hlcv-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:32px;padding-top:24px;border-top:1px solid #e2e8f0}
-        .hlcv-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:12px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:inherit}
-        .hlcv-btn-draft{background:#f1f5f9;color:#475569;border:2px solid #e2e8f0}
-        .hlcv-btn-draft:hover{background:#e2e8f0;border-color:#cbd5e1}
-        .hlcv-btn-submit{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:2px solid transparent;box-shadow:0 4px 14px rgba(0,0,0,.12)}
-        .hlcv-btn-submit:hover{box-shadow:0 6px 20px rgba(0,0,0,.15);transform:translateY(-1px)}
-
-        /* Read-only badges */
-        .hlcv-ro-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:50px;font-size:12px;font-weight:600}
-        .hlcv-ro-yes{background:#d1fae5;color:#065f46}
-        .hlcv-ro-no{background:#f1f5f9;color:#64748b}
-
-        /* Instructions */
-        .hlcv-instructions{margin-bottom:28px;display:flex;flex-direction:column;gap:12px}
-        .hlcv-instr-section{display:flex;gap:14px;padding:16px 18px;background:#f8f9fb;border:1px solid #e2e8f0;border-radius:12px}
-        .hlcv-instr-highlight{background:#eef6ff;border-color:#bfdbfe}
-        .hlcv-instr-icon{flex-shrink:0;width:36px;height:36px;border-radius:12px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#64748b}
-        .hlcv-instr-icon-warn{background:#fef3c7;color:#d97706}
-        .hlcv-instr-icon-how{background:#dbeafe;color:#2563eb}
-        .hlcv-instr-heading{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569;margin-bottom:4px}
-        .hlcv-instr-section p{font-size:14px;line-height:1.6;color:#475569;margin:0}
-
-        /* Notes */
-        .hlcv-notes{background:#fafbfc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-top:24px;margin-bottom:8px}
-        .hlcv-notes-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#64748b;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-        .hlcv-notes-list{margin:0;padding-left:18px;font-size:13px;color:#64748b;line-height:1.7}
-        .hlcv-notes-list li{margin-bottom:4px}
-        .hlcv-notes-list em{font-style:italic;color:#475569}
-
-        @media(max-width:600px){
-            .hlcv-hero{flex-direction:column;text-align:center;padding:24px 20px}
-            .hlcv-info-row{grid-template-columns:1fr 1fr}
-            .hlcv-ind-top{flex-direction:column;align-items:flex-start}
-            .hlcv-actions{flex-direction:column}
-            .hlcv-btn{justify-content:center}
-        }
-        </style>
-        <?php
+        // CSS moved to frontend.css — this method is kept for backward compat
     }
 
     /**
@@ -595,7 +498,7 @@ class HL_Frontend_Classroom_Visit {
                         <?php endif; ?>
                     <?php endforeach; ?>
                     <?php if (empty($selected)) : ?>
-                        <span style="color:#94a3b8;font-size:14px"><?php esc_html_e('None selected', 'hl-core'); ?></span>
+                        <span class="hlcv-muted"><?php esc_html_e('None selected', 'hl-core'); ?></span>
                     <?php endif; ?>
                 </div>
             <?php else : ?>
