@@ -108,7 +108,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [ ] **Session 2: Forms & Instruments** — Extract inline CSS from 7 form/instrument PHP files.
 - [ ] **Session 3: Coach Pages** — Extract inline CSS from 7 coach PHP files.
 - [ ] **Session 4: Program & Navigation Pages** — Extract inline CSS from 9 program PHP files.
-- [ ] **Session 5: Directory & Profile Pages** — Verify/fix 19 directory/profile PHP files.
+- [x] **Session 5: Directory & Profile Pages** — Replaced inline `style=` in 4 PHP files (classroom-page 16 attrs, user-profile 11 attrs, docs 1 icon, learners 1 width). New CSS: `.hl-add-child-panel`, `.hl-form-grid-2col`, `.hl-modal-overlay`/`.hl-modal-box`, `.hl-btn-row`, `.hlup-success-banner`, `.hlup-quick-edit-form`. 12 clean files verified (all `hl-` wrapper classes match BB override selectors). Dynamic progress widths + JS-toggled display:none kept inline.
 - [ ] **Session 6: Review & Polish** — Visual review, dead CSS cleanup, final consistency pass.
 
 ### Lower Priority (Future)
