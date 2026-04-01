@@ -12,7 +12,7 @@ description: Domain model, roles, coach assignment, partnerships, cycle types, s
 | 01_GLOSSARY_CANONICAL_TERMS.md | Terminology definitions including Partnership, Cycle, Control Group |
 | 02_DOMAIN_MODEL_ORG_STRUCTURE.md | Org units, partnerships, enrollments, teams |
 | 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md | Roles, capabilities, access control |
-| 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md | Pathways, components, prerequisite rules |
+| 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md | Pathways, components, prerequisite rules, component eligibility references |
 | 05_UNLOCKING_LOGIC_PREREQS_DRIP_OVERRIDES.md | Unlock logic, drip rules, overrides |
 | 06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md | Assessment instruments (custom PHP for teacher + children, JFB for observations only), coaching |
 | 07_IMPORTS_ROSTERS_IDENTITIES_MATCHING.md | CSV import pipeline, identity matching |
@@ -76,7 +76,7 @@ A Cycle is a time-bounded yearly run within a Partnership. It is the primary ope
 
 Course-type Cycles hide: Teams tab, Coaching tab, Assessment tabs, Pathway editor.
 
-## Individual Enrollments (NEW — B2E Master Reference)
+## Individual Enrollments (PLANNED — Phase 33 in Build Queue)
 
 For individual (non-institutional) course purchases. Stored in `hl_individual_enrollment` (user_id, course_id, enrolled_at, expires_at, status).
 
@@ -106,12 +106,15 @@ The sidebar menu is rendered programmatically by `HL_BuddyBoss_Integration` — 
 2. `wp_nav_menu_items` filter on `buddypanel-loggedin` location — left sidebar
 3. `wp_footer` JS fallback — covers empty BuddyPanel or missing hooks
 
-**12 menu items with role-based visibility (doc 10 §16):**
-- Personal (require enrollment): My Profile (all enrolled + staff), My Programs, My Coaching, My Team (mentor), My Cycle (leader/mentor)
-- Directories: Cycles, Institutions (staff/leader), Classrooms (staff/leader/teacher), Learners (staff/leader/mentor)
-- Staff tools: Pathways (staff only), Coaching Hub (staff/mentor), Reports (staff/leader)
+**16 menu items with role-based visibility (from `build_menu_items()` in code):**
+- Personal (require enrollment): My Profile (all enrolled + staff + coach), My Programs (enrolled teacher/mentor/leader/staff), My Coaching (mentor, non-control), My Team (mentor or teacher)
+- Leader: My School (leader, non-staff)
+- Directories: Cycles (staff), Classrooms (staff/leader/teacher/mentor), Learners (staff)
+- Staff tools: Coaching Hub (staff), Reports (staff/leader)
+- Coach tools: Coaching Home (coach WP role), My Mentors (coach), My Availability (coach), Coach Reports (coach)
+- Documentation (manage_options only)
 
-Staff WITHOUT enrollment see only directory/management pages. Staff WITH enrollment see both.
+Staff WITHOUT enrollment see only directory/management pages. Staff WITH enrollment see both. Pathways item is currently disabled (show_condition = false). Coach-only users see coach tools but not staff tools.
 
 ## Forms Architecture: Custom PHP + JFB for Observations Only
 
@@ -192,6 +195,21 @@ The `hl_component.component_type` ENUM defines all possible component types:
 | `classroom_visit` | Leader classroom visit | `HL_Frontend_Classroom_Visit` |
 | `self_reflection` | Teacher self-reflection | `HL_Frontend_Self_Reflection` |
 
+**Additional `hl_component` columns (beyond type/title/weight):**
+- `complete_by` (date, nullable) — suggested completion date (not enforced, displayed on frontend)
+- `requires_classroom` (tinyint, default 0) — eligibility: requires teaching assignment
+- `eligible_roles` (text, JSON array or NULL) — eligibility: restricts to specific enrollment roles
+
+## Component Eligibility Rules (Implemented)
+
+Two columns on `hl_component` enable per-component eligibility filtering:
+- **`requires_classroom`** (tinyint, default 0) — component requires the enrollee to have at least one `hl_teaching_assignment` record.
+- **`eligible_roles`** (text, JSON array or NULL) — component is only for enrollees whose `hl_enrollment.roles` JSON contains at least one of the listed roles. NULL = all roles eligible.
+
+`HL_Rules_Engine_Service::check_eligibility()` checks both conditions (AND logic). Ineligible components return `availability_status = 'not_applicable'`, are excluded from weighted completion averages (`compute_rollups()`), and show "Not Applicable" with grayed styling on all frontend pages (Program Page, My Progress, My Programs, User Profile, Team Progress, Dashboard).
+
+Admin UI: "Eligibility Rules" section in the component form with checkbox for requires_classroom and checkboxes for eligible_roles.
+
 ## Cross-Pathway Instruments
 
 6 instruments stored in `hl_teacher_assessment_instrument` with structured `sections_json`:
@@ -258,15 +276,15 @@ Housman measures program impact by comparing:
     /Lutheran - Control Group/   # Lutheran spreadsheets (.xlsx)
   /docs/                         # Spec documents (11 files, read-only reference)
   /includes/
-    class-hl-installer.php       # DB schema (43 tables) + activation + migrations
+    class-hl-installer.php       # DB schema (44 tables, revision 25) + activation + migrations
     /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (9 classes)
-    /cli/                        # WP-CLI commands (13 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses) + data files
-    /services/                   # Business logic (20 services incl. HL_RP_Session_Service, HL_Classroom_Visit_Service, HL_Session_Prep_Service, HL_Scheduling_Email_Service with admin-editable templates)
+    /cli/                        # WP-CLI commands (16 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav, seed-beginnings) + data files
+    /services/                   # Business logic (23 services incl. HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Microsoft_Graph, HL_Zoom_Integration, HL_Coach_Dashboard_Service)
     /security/                   # Capabilities + authorization
-    /integrations/               # LearnDash + BuddyBoss (3 classes, JFB legacy)
-    /admin/                      # WP admin pages (18 controllers incl. Coaching Hub with Coaches tab, Email Templates editor)
-    /frontend/                   # 29 shortcode page renderers (incl. User Profile) + 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + instrument/teacher-assessment renderers
+    /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)
+    /admin/                      # WP admin pages (18 controllers incl. Coaching Hub with Coaches tab, Email Templates, Scheduling Settings)
+    /frontend/                   # 34 shortcode page renderers (incl. User Profile, 5 coach pages, schedule-session) + 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + instrument/teacher-assessment renderers
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, age group helpers + label remap (legacy)
   /assets/

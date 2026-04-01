@@ -231,7 +231,7 @@ Shortcode: `[hl_teacher_assessment]` (class-hl-frontend-teacher-assessment.php)
   7. On submit: update hl_component_state to completed, trigger rollup
 
 ## 2.6 Component Routing
-When `activity_type = 'teacher_self_assessment'`:
+When `component_type = 'teacher_self_assessment'`:
 - Check `external_ref` for `teacher_instrument_id` -> route to custom form
 - Fall back to `jfb_form_id` -> route to JFB form (legacy)
 - Component page, my-progress, and program page all respect this routing
@@ -432,13 +432,21 @@ This is an admin-side CRUD workflow, not a user-facing questionnaire.
 - cycle_id
 - coach_user_id (WP User; staff)
 - mentor_enrollment_id
+- session_number (tinyint, nullable)
 - session_title
 - meeting_url
-- session_datetime
 - session_status in { "scheduled", "attended", "missed", "cancelled", "rescheduled" }
+- attendance_status in { "attended", "missed", "unknown" } (legacy, kept for backward compat)
+- session_datetime
 - notes_richtext (optional)
 - cancelled_at (nullable)
 - rescheduled_from_session_id (nullable)
+- component_id (FK → hl_component, nullable — links to specific coaching component in pathway)
+- zoom_meeting_id (bigint, nullable — Zoom API meeting ID for update/delete)
+- outlook_event_id (varchar, nullable — Microsoft Graph calendar event ID)
+- booked_by_user_id (FK → WP User, nullable — who created the booking)
+- mentor_timezone (varchar, nullable — IANA timezone at booking time)
+- coach_timezone (varchar, nullable — IANA timezone at booking time)
 - created_at, updated_at
 
 ### hl_coaching_session_observation (join table)

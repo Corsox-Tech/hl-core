@@ -89,6 +89,9 @@ Component has:
 - visibility (who sees it; usually enrolled participants; some artifacts may be staff-only)
 - weight (integer or float; default=1; used for completion % aggregation)
 - external_ref (JSON; stores type-specific configuration — see each type below)
+- complete_by (date, nullable; suggested completion date — displayed on frontend, not enforced)
+- requires_classroom (tinyint, default 0; eligibility: requires teaching assignment — see doc 05 §1.3)
+- eligible_roles (text, JSON array or NULL; eligibility: restricts to specific enrollment roles — see doc 05 §1.3)
 
 Note: The DB column is `component_type` and `component_state`.
 
@@ -277,7 +280,8 @@ Rules:
 
 ## 4.2 Cycle/Pathway Completion Percent
 For a participant in a Cycle:
-- pathway_completion_percent = weighted average of assigned Components (default weight=1)
+- pathway_completion_percent = weighted average of **eligible** Components (default weight=1)
+  - Ineligible components (from `requires_classroom` or `eligible_roles` checks) are excluded from the weighted average. See doc 05 §1.3 for eligibility rules.
 - cycle_completion_percent = same as pathway_completion_percent for the participant's assigned Pathway(s)
 
 If multiple pathways are ever assigned in the future:

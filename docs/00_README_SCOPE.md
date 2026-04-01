@@ -115,8 +115,8 @@ HL Core may optionally add partnership-related navigation links or dashboards, b
 
 ## 5.3 Assessment Privacy
 Raw responses for:
-- Teacher Self-Assessments (stored in JFB Form Records — admin-only access)
-- Child Assessments (stored in hl_child_assessment_childrow — enforced by HL_Security)
+- Teacher Self-Assessments (stored in `hl_teacher_assessment_instance.responses_json` — enforced by HL_Security)
+- Child Assessments (stored in `hl_child_assessment_childrow` — enforced by HL_Security)
 are visible ONLY to Housman Admins and Coaches.
 
 Non-staff roles may see completion status only.
@@ -210,7 +210,7 @@ If any documents conflict, follow this priority order:
 1) 01_GLOSSARY_CANONICAL_TERMS.md
 2) 02_DOMAIN_MODEL_ORG_STRUCTURE.md
 3) 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md
-4) 04_CYCLE_PATHWAYS_COMPONENTS_RULES.md
+4) 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md (filename is legacy; content uses current terms)
 5) 05_UNLOCKING_LOGIC_PREREQS_DRIP_OVERRIDES.md
 6) 06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md
 7) 07_IMPORTS_ROSTERS_IDENTITIES_MATCHING.md

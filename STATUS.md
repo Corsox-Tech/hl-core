@@ -1,6 +1,6 @@
 # STATUS.md — HL Core Build Status
 
-**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 33 shortcode pages, 15+ admin pages, 40 DB tables, 16+ services. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools).
+**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 34 shortcode pages (+ 4 backward-compatible aliases), 18 admin controllers, 44 DB tables, 23 services, 16 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools).
 
 ---
 

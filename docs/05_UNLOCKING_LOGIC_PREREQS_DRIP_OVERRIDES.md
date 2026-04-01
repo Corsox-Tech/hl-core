@@ -28,6 +28,7 @@ A Component is either:
 - Locked
 - Available
 - Completed
+- Not Applicable (ineligible — see §1.3 below)
 
 Availability is evaluated per:
 - cycle_id
@@ -38,11 +39,21 @@ Note: Components belong to Pathways, which belong to Cycles. Availability is eva
 
 ## 1.2 Gates (Constraints)
 Availability is controlled by gates:
+0) Eligibility Gate (see §1.3 — checked first)
 1) Prerequisite Gate
 2) Drip Gate(s)
 3) Override Gate(s)
 
 All gates must pass for "Available", unless an override explicitly bypasses certain gates.
+
+## 1.3 Component Eligibility (Implemented)
+Before evaluating prerequisites and drip rules, the rules engine checks whether the enrollment is eligible for the component via `HL_Rules_Engine_Service::check_eligibility()`.
+
+Two eligibility conditions on `hl_component`:
+- **`requires_classroom`** (tinyint, default 0) — component requires the enrollee to have at least one teaching assignment. Ineligible if no teaching assignment exists.
+- **`eligible_roles`** (text, JSON array or NULL) — component is only for enrollees whose `hl_enrollment.roles` JSON contains at least one of the listed roles (e.g., `["teacher"]`, `["mentor","school_leader"]`). NULL = all roles eligible.
+
+Both conditions are AND: if either fails, the component returns `availability_status = 'not_applicable'` and is excluded from the weighted completion average. Frontend shows "Not Applicable" with grayed styling.
 
 ---
 
@@ -160,6 +171,8 @@ For each Component, compute:
 - overrides state for this enrollment/component
 
 ## 4.2 Gates (in order)
+0) Evaluate Eligibility Gate (§1.3):
+   - if `requires_classroom` or `eligible_roles` fails → status = Not Applicable
 1) If Component is completed → status = Completed (no need to unlock)
 2) Evaluate Prereq Gate:
    - if not satisfied → status = Locked (reason=prereq; blockers list)
@@ -168,7 +181,7 @@ For each Component, compute:
 4) If reached here → status = Available
 
 ## 4.3 Output fields
-- availability_status ∈ { "locked", "available", "completed" }
+- availability_status ∈ { "not_applicable", "locked", "available", "completed" }
 - locked_reason ∈ { "prereq", "drip", null }
 - blockers (list of component_ids) when prereq locked
 - next_available_at (datetime optional) when drip locked and computable

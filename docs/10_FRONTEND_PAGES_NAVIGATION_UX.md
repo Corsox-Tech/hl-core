@@ -131,6 +131,11 @@ All front-end pages require the user to be logged in.
 | Team Page | Housman Admin, Coach, School Leader(s), District Leader(s), Mentor(s) of that Team |
 | My Coaching | Any enrolled participant (sees only their own sessions) |
 | User Profile | Own profile (always), Admin/Staff (any), Coach (assigned mentors), Mentor (team), School Leader (school staff), District Leader (district staff) |
+| Coach Dashboard | Coach WP role or manage_hl_core |
+| My Mentors | Coach WP role |
+| Mentor Detail | Coach (authorized via assignment), Admin/Staff |
+| Coach Reports | Coach WP role |
+| Coach Availability | Coach WP role |
 
 If a user does not have permission, show a "You do not have access to this page" message. Never expose data outside the user's scope.
 
@@ -534,22 +539,37 @@ Every detail page includes a breadcrumb link back to its parent:
 - Cycle Workspace → "← Back to [District/School Name]" (when accessed from CRM)
 - User Profile → "Dashboard > My School > [User Name]" (breadcrumb navigation)
 
-## 8.2 Sidebar Menu Integration
-The following items should appear in the BuddyBoss sidebar menu under "HOUSMAN LEARNING" (or similar section), conditional on user role:
+## 8.2 Sidebar Menu Integration (Implemented)
+The BuddyBoss sidebar menu is rendered programmatically by `HL_BuddyBoss_Integration::build_menu_items()`. 16 menu items with role-based visibility:
 
-**All enrolled participants + staff:**
-- My Profile
-- My Programs
+**Personal (require enrollment):**
+- My Profile (all enrolled + staff + coach)
+- My Programs (enrolled teacher/mentor/leader/staff)
+- My Coaching (mentor, non-control-group)
+- My Team (mentor or teacher)
 
-**School Leaders, District Leaders:**
-- My Programs
-- My Cycle
+**Leader:**
+- My School (leader, non-staff — renders `[hl_my_cycle]`)
 
-**Admin, Coach:**
-- My Programs (if enrolled)
-- School Districts
-- Institutions
-- (Individual cycle workspaces accessed via Districts/Schools, not from sidebar)
+**Directories:**
+- Cycles (staff only)
+- Classrooms (staff/leader/teacher/mentor)
+- Learners (staff only)
+
+**Staff tools:**
+- Coaching Hub (staff only)
+- Reports (staff or leader)
+
+**Coach tools (coach WP role):**
+- Coaching Home (`[hl_coach_dashboard]`)
+- My Mentors (`[hl_coach_mentors]`)
+- My Availability (`[hl_coach_availability]`)
+- Coach Reports (`[hl_coach_reports]`)
+
+**Documentation:**
+- Documentation (manage_options only)
+
+**Disabled:** Pathways (show_condition = false)
 
 ---
 
@@ -683,17 +703,17 @@ Alternatively, a dedicated "Coach Assignments" admin page under HL Core menu sho
 
 The existing `hl_coaching_session` table needs additional fields to support the participant-facing experience.
 
-## 14.1 Schema Changes to `hl_coaching_session`
+## 14.1 Schema Changes to `hl_coaching_session` (Implemented — Schema Revision 24)
 
-New columns:
-- `session_title` varchar(255) NULL — display name (e.g. "Coaching Session 1"). If NULL, auto-generates from the pathway activity title.
-- `meeting_url` varchar(500) NULL — video call link (Zoom, Teams, etc.)
-- `session_status` enum('scheduled', 'attended', 'missed', 'cancelled', 'rescheduled') NOT NULL DEFAULT 'scheduled'
-- `cancelled_at` datetime NULL
-- `rescheduled_from_session_id` bigint NULL — links to the original session if this is a reschedule
-- `cancellation_allowed` — NOT stored here; controlled at cycle level via `hl_cycle.settings` JSON (key: `coaching_allow_cancellation`, default: true)
+Columns added in schema revision 24 (in addition to earlier session_title, meeting_url, session_status, cancelled_at, rescheduled_from_session_id):
+- `component_id` bigint NULL — FK to `hl_component`, links session to specific coaching component in pathway
+- `zoom_meeting_id` bigint NULL — Zoom API meeting ID for update/delete operations
+- `outlook_event_id` varchar(255) NULL — Microsoft Graph calendar event ID for update/delete
+- `booked_by_user_id` bigint NULL — FK to WP User who created the booking
+- `mentor_timezone` varchar(100) NULL — IANA timezone at booking time
+- `coach_timezone` varchar(100) NULL — IANA timezone at booking time
 
-Deprecate: `attendance_status` column is replaced by `session_status`. Migration should map: 'attended' → 'attended', 'missed' → 'missed', 'unknown' → 'scheduled'.
+Note: `attendance_status` column is kept alongside `session_status` for backward compatibility.
 
 ## 14.2 Session Status Flow
 
@@ -722,47 +742,21 @@ Content:
 
 If no coach assigned: show "No coach assigned yet. Contact your administrator."
 
-## 15.2 My Coaching Page
+## 15.2 My Coaching Page (Implemented — Rewritten)
 **Shortcode:** `[hl_my_coaching]`
-**Purpose:** Participant view of all their coaching sessions and scheduling.
+**Purpose:** Component-based coaching sessions hub showing all `coaching_session_attendance` components from the participant's pathways.
 
-### Header
-- Page title: "My Coaching"
-- Coach info card: photo, name, email
-
-### Section: Upcoming Sessions
-- List of sessions with `session_status = 'scheduled'` and `session_datetime >= now`
-- Each row shows:
-  - Session title (e.g. "Coaching Session 1")
-  - Date and time (formatted for user's timezone)
-  - Coach name
-  - Status badge: "Scheduled" (blue)
-  - Meeting link button (if `meeting_url` is set): "Join Meeting"
-  - Action buttons:
-    - "Reschedule" → opens reschedule flow (Phase A: date-time picker; Phase B: MS365 availability)
-    - "Cancel" → confirmation dialog → sets status to cancelled (ONLY shown if `coaching_allow_cancellation` is true for the cycle)
-
-### Section: Past Sessions
-- List of sessions with `session_datetime < now` OR terminal status
-- Each row shows:
-  - Session title
-  - Date and time
-  - Coach name (frozen — shows the coach who was assigned at the time, not current coach)
-  - Status badge: Attended (green), Missed (red), Cancelled (gray), Rescheduled (amber)
-  - No action buttons on past sessions
-
-### Section: Schedule New Session (Phase A)
-- Button: "Schedule New Session"
-- Opens inline form:
-  - Session name (auto-populated from next available pathway coaching activity, editable)
-  - Date picker + time picker (simple HTML datetime-local input for Phase A)
-  - Meeting link (optional, text input — coach can add later)
-  - "Confirm" button → creates session with status 'scheduled'
-- Phase B enhancement: replace date/time picker with MS365 availability calendar
+### Implementation
+- Component-based view: shows all coaching_session_attendance components across pathways with status badges (Completed / Scheduled / Not Scheduled)
+- Drip rule locking: components with fixed_date or after_completion_delay drip rules show lock icon + unlock date/reason
+- `complete_by` dates displayed when set on the component
+- "View" links route to Component Page scheduling UI for each session
+- Multi-cycle grouping: participants enrolled in multiple cycles see sessions grouped by cycle
+- Coach info card: avatar, name, email via CoachAssignmentService resolution
 
 ### Visibility
 - Any enrolled participant can see their own sessions
-- Coaches see this page scoped to the participant they're viewing (via HL User Profile Coaching tab)
+- Coaches see coaching tabs on assigned mentor profiles (via HL User Profile Coaching tab)
 
 ## 15.3 Coach/Admin Coaching Management
 
@@ -784,78 +778,40 @@ On the Program Page, coaching_session_attendance activities should show enhanced
 
 ---
 
-# 16) Sidebar Navigation & Role-Based Menu
+# 16) Sidebar Navigation & Role-Based Menu (Implemented)
 
-The BuddyBoss sidebar menu must be fully role-aware. Menu items shown depend on the user's WP capabilities AND their cycle enrollment roles. Each menu item links to an existing shortcode page.
+The BuddyBoss sidebar menu is rendered programmatically by `HL_BuddyBoss_Integration::build_menu_items()`. The actual code is the source of truth for the role matrix.
 
-## 16.1 Menu Structure by Role
+## 16.1 Current Menu Structure (16 items, from code)
 
-### Admin (manage_hl_core + administrator)
-| Menu Item | Target Shortcode | Notes |
+| Menu Item | Shortcode | Visible To |
 |---|---|---|
-| Cycles | `[hl_cycles_listing]` | All cycles, searchable. Default: active + future |
-| Institutions | `[hl_institutions_listing]` | Combined districts + schools, searchable |
-| Coaching | `[hl_coaching_hub]` | All coaching sessions, searchable/filterable |
-| Classrooms | `[hl_classrooms_listing]` | All classrooms in active/future cycles |
-| Learners | `[hl_learners]` | All participants, searchable, name links to profile |
-| Programs | `[hl_pathways_listing]` | All pathways across platform, searchable |
-| Reports | `[hl_reports_hub]` | Hub of front-end reports (placeholder for now) |
-
-### Coach (manage_hl_core, coach WP role)
-Same as Admin but scoped to cycles where they are assigned as coach:
-| Menu Item | Target Shortcode | Scope |
-|---|---|---|
-| Cycles | `[hl_cycles_listing]` | Cycles where user is assigned coach |
-| Institutions | `[hl_institutions_listing]` | Districts/schools where user is assigned coach |
-| Coaching | `[hl_coaching_hub]` | Own coaching sessions across all cycles |
-| Classrooms | `[hl_classrooms_listing]` | Classrooms in cycles where coach |
-| Learners | `[hl_learners]` | Participants in cycles where coach |
-| Programs | `[hl_pathways_listing]` | All pathways (same as admin) |
-| Reports | `[hl_reports_hub]` | Scoped to coach's cycles |
-
-### District Leader (enrollment role 'district_leader')
-| Menu Item | Target Shortcode | Scope |
-|---|---|---|
-| My Cycle | `[hl_my_cycle]` | Auto-navigates to active cycle |
-| My Institutions | `[hl_institutions_listing]` | Districts/schools in their scope |
-| Coaching | `[hl_coaching_hub]` | Sessions in cycles where district leader |
-| Classrooms | `[hl_classrooms_listing]` | Classrooms in their scope |
-| Learners | `[hl_learners]` | Participants in their scope |
-| My Programs | `[hl_my_programs]` | Own pathways. Future pathways shown as inactive with countdown |
-| Reports | `[hl_reports_hub]` | Scoped to district |
-
-### School Leader (enrollment role 'school_leader')
-| Menu Item | Target Shortcode | Scope |
-|---|---|---|
-| My Institution | `[hl_institutions_listing]` | Own school(s) |
-| Coaching | `[hl_coaching_hub]` | Sessions in cycles where school leader |
-| Classrooms | `[hl_classrooms_listing]` | Classrooms in their school(s) |
-| Learners | `[hl_learners]` | Participants in their school(s) |
-| My Programs | `[hl_my_programs]` | Own pathways. Future pathways inactive with countdown |
-| Reports | `[hl_reports_hub]` | Scoped to school |
-
-### Mentor (enrollment role 'mentor')
-| Menu Item | Target Shortcode | Scope |
-|---|---|---|
-| My Team | `[hl_my_team]` | Auto-detect team from hl_team_membership → team page |
-| Coaching | `[hl_coaching_hub]` | Own coaching sessions |
-| My Programs | `[hl_my_programs]` | Own pathways. Future pathways inactive with countdown |
-| Reports | `[hl_reports_hub]` | Scoped to team |
-
-### Teacher (enrollment role 'teacher')
-| Menu Item | Target Shortcode | Scope |
-|---|---|---|
-| My Programs | `[hl_my_programs]` | Own pathways. Future pathways inactive with countdown |
-| Classrooms | `[hl_classrooms_listing]` | Classrooms where assigned as teacher |
+| My Profile | `hl_user_profile` | Enrolled + staff + coach |
+| My Programs | `hl_my_programs` | Enrolled teacher/mentor/leader/staff |
+| My Coaching | `hl_my_coaching` | Mentor (non-control-group) |
+| My Team | `hl_my_team` | Mentor or teacher |
+| My School | `hl_my_cycle` | Leader (non-staff) |
+| Cycles | `hl_cycles_listing` | Staff only |
+| Classrooms | `hl_classrooms_listing` | Staff, leader, teacher, or mentor |
+| Learners | `hl_learners` | Staff only |
+| Pathways | `hl_pathways_listing` | **Disabled** (show_condition = false) |
+| Coaching Hub | `hl_coaching_hub` | Staff only |
+| Coaching Home | `hl_coach_dashboard` | Coach WP role |
+| My Mentors | `hl_coach_mentors` | Coach WP role |
+| My Availability | `hl_coach_availability` | Coach WP role |
+| Coach Reports | `hl_coach_reports` | Coach WP role |
+| Reports | `hl_reports_hub` | Staff or leader |
+| Documentation | `hl_docs` | manage_options only |
 
 ## 16.2 Menu Visibility Rules
 - Only show a menu item if the target page exists (shortcode page found via `find_shortcode_page_url()`)
-- Staff (`manage_hl_core`) sees ALL items regardless of enrollment
-- Admins vs Coaches: both have `manage_hl_core`, differentiate by `current_user_can('manage_options')` for admin vs coach-only scope
-- Non-staff users: query `hl_enrollment.roles` JSON for the current user
+- Staff (`manage_hl_core`) sees directory/management items
+- Coach WP role users see dedicated coach tools (Coaching Home, My Mentors, My Availability, Coach Reports)
+- Non-staff users: role determined from `hl_enrollment.roles` JSON for the current user
 - A user with multiple roles sees the union of all their role menus (no duplicates)
-- Highlight the current/active page in the sidebar
-- Detail pages (Program, Component, Team, Classroom detail) are NOT in the menu — they are navigated to from listing pages
+- Highlight the current/active page in the sidebar via `current` / `current-menu-item` CSS class
+- Detail pages (Program, Component, Team, Classroom, District, School, User Profile, Mentor Detail) are NOT in the menu — they are navigated to from listing pages
+- Control-group-only users: My Coaching hidden (set `$is_control_only` flag)
 
 ---
 
@@ -977,28 +933,37 @@ These pages serve both the sidebar navigation and provide comprehensive browseab
 3. If multiple teams → show team selector cards
 4. If no team → show "You are not assigned as mentor to any team."
 
+## 17.9 Coach Pages (Implemented)
+
+Five dedicated pages for Coach WP role users:
+
+**Coach Dashboard** `[hl_coach_dashboard]` — Landing page with gradient hero (avatar + welcome), 3 stats cards (assigned mentors, upcoming sessions, sessions this month), quick link cards. Coach WP role or manage_hl_core only.
+
+**My Mentors** `[hl_coach_mentors]` — Card grid of assigned mentors with search and school filter. Each card: avatar, name, school, team badge, pathway, progress bar, last/next session dates. Links to Mentor Detail.
+
+**Mentor Detail** `[hl_coach_mentor_detail]` — Full mentor profile via `?mentor_enrollment_id=X`. Header with mentor info + progress. 4 tabs: Coaching Sessions, Team Overview, RP Sessions, Reports + CSV export. "Schedule Next Session" button for the next unscheduled coaching component. Authorization via coach assignment resolution.
+
+**Coach Reports** `[hl_coach_reports]` — Aggregated completion data. Cycle + school filter dropdowns. Summary stats row. Completion table with progress bars. CSV export via POST.
+
+**Coach Availability** `[hl_coach_availability]` — Weekly schedule grid for recurring coaching hours. 7-column grid (Mon-Sun), 30-min slots (7AM-7PM). Click to toggle, saves to `hl_coach_availability` table via POST. Legend with slot count and hours/week.
+
 ---
 
 # 18) Build Priority (Updated)
 
 Original Phases A-C are complete (Phases 7-9 in README build queue).
 
-**Phase D: Coach Assignment + Coaching Enhancement**
-1. `hl_coach_assignment` table — DB migration + CoachAssignmentService (CRUD, resolution logic, reassignment with history)
-2. Schema changes to `hl_coaching_session` — add session_title, meeting_url, session_status, cancelled_at, rescheduled_from_session_id. Migrate attendance_status → session_status.
-3. Admin UI updates — Coach assignment management (school/team/enrollment level). Coaching session form updates (status, meeting_url, title, reschedule/cancel actions).
-4. `[hl_my_coaching]` — Participant coaching page with session history, upcoming sessions, schedule/reschedule/cancel buttons (functional with date-time pickers)
-5. My Coach widget — on My Programs page
-6. Program Page coaching component enhancement — show session status and scheduling link
+**Phase D: Coach Assignment + Coaching Enhancement — COMPLETE**
+All coaching features implemented: `hl_coach_assignment`, coaching session scheduling, `[hl_my_coaching]` rewrite, My Coach widget, Program Page coaching enhancement.
 
-**Phase E: MS365 Calendar Integration (future)**
-7. Azure AD app registration + OAuth flow for coach calendar consent
-8. Coach availability endpoint — reads coach's MS365 calendar via Graph API `/me/calendarView`
-9. Booking flow — participant selects available slot → creates session in HL Core + MS365 calendar event for both parties
-10. Sync — reschedule/cancel updates propagate to MS365 calendar
+**Phase E: Calendar + Scheduling Integration — COMPLETE**
+Microsoft Graph API client (`HL_Microsoft_Graph`), Zoom S2S OAuth client (`HL_Zoom_Integration`), `HL_Scheduling_Service` with slot calculation + booking/reschedule/cancel, `HL_Scheduling_Email_Service` with admin-editable templates, admin Settings > Scheduling & Integrations tab, Component Page scheduling UI, Coach Mentor Detail "Schedule Next Session" button.
 
-**Phase F: HL User Profile (Implemented)**
-11. HL User Profile replaces BuddyBoss profile tab — unified profile page with 6 tabs (Overview, Progress, Coaching, Assessments, RP & Observations, Manage). BB profile URLs redirect to HL profile. See §2.4.
+**Phase F: HL User Profile — COMPLETE**
+Unified profile page with 6 tabs. BB profile URLs redirect. See §2.4.
+
+**Phase G: Component Eligibility Rules — COMPLETE**
+`requires_classroom` + `eligible_roles` on `hl_component`. `HL_Rules_Engine_Service::check_eligibility()`. Frontend "Not Applicable" rendering on all pages. Excluded from completion %.
 
 ---
 

@@ -59,6 +59,14 @@ Core services to implement:
 - RPSessionService (RP session CRUD, submission management, session status flow)
 - ClassroomVisitService (classroom visit CRUD, submission management, visit status flow)
 - SessionPrepService (auto-populates session prep data — pathway progress, previous action plans, recent classroom visits — for coaching and RP session forms)
+- CoachAssignmentService (coach scope assignment CRUD — school/team/enrollment)
+- CoachDashboardService (coach frontend data queries: stats, mentor roster, availability CRUD)
+- SchedulingService (coaching session scheduling orchestrator: slot calculation, booking with Zoom + Outlook + email)
+- SchedulingEmailService (branded HTML email notifications for session events, admin-editable templates)
+- MicrosoftGraph (Microsoft Graph API client: client credentials OAuth2, calendar CRUD, token caching)
+- ZoomIntegration (Zoom S2S OAuth client: meeting CRUD, token caching)
+- ChildSnapshotService (freeze child age groups per cycle for assessment consistency)
+- ScopeService (role-based data filtering across all listing pages)
 - ImportService (preview/commit)
 - ReportingService (completion rollups + exports)
 - AuditService (write-only logger)
@@ -104,7 +112,7 @@ Individual Enrollments (PLANNED):
 
 Learning config:
 - hl_pathway (has cycle_id FK → hl_cycle)
-- hl_component
+- hl_component (includes `complete_by` date, `requires_classroom` tinyint, `eligible_roles` text JSON for eligibility rules)
 - hl_component_prereq_group
 - hl_component_prereq_item
 - hl_component_drip_rule
@@ -128,7 +136,7 @@ Assessment orchestration:
 Observations + coaching:
 - hl_observation (tracks who observed whom, status — does NOT store form responses; JFB stores those)
 - hl_observation_attachment (optional; only if managing attachments outside JFB)
-- hl_coaching_session
+- hl_coaching_session (includes scheduling columns: component_id, zoom_meeting_id, outlook_event_id, booked_by_user_id, mentor_timezone, coach_timezone)
 - hl_coaching_session_observation
 - hl_coaching_session_submission (structured form responses — RP Notes and Action Plan — submitted by coach or mentor during coaching sessions)
 - hl_coaching_attachment
@@ -139,8 +147,9 @@ Cross-pathway events:
 - hl_classroom_visit (leader-initiated classroom observations; tracks leader, teacher, classroom)
 - hl_classroom_visit_submission (form responses for classroom visits)
 
-Assignments + email:
+Assignments + scheduling + email:
 - hl_coach_assignment (coach ↔ enrollment scope mapping)
+- hl_coach_availability (recurring weekly schedule blocks for coaches)
 - hl_pathway_assignment (enrollment ↔ pathway assignment)
 - hl_cycle_email_log (tracks emails sent per cycle)
 
