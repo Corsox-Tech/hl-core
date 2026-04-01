@@ -132,7 +132,6 @@
 .hl-import-summary-card.create .count { color: #00a32a; }
 .hl-import-summary-card.update .count { color: #2271b1; }
 .hl-import-summary-card.skip .count { color: #8c8f94; }
-.hl-import-summary-card.needs-review .count { color: #dba617; }
 .hl-import-summary-card.error .count { color: #d63638; }
 
 /* Bulk Action Bar */
@@ -218,7 +217,6 @@
 .hl-import-status.create { background: #d4edda; color: #155724; }
 .hl-import-status.update { background: #cce5ff; color: #004085; }
 .hl-import-status.skip { background: #e2e3e5; color: #383d41; }
-.hl-import-status.needs-review { background: #fff3cd; color: #856404; }
 .hl-import-status.error { background: #f8d7da; color: #721c24; }
 
 /* Messages & Actions in cells */

@@ -224,7 +224,7 @@ class HL_Import_Children_Handler {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        $import_service = new HL_Import_Service();
+        $import_service = $this->import_service;
         $run = $import_service->get_preview($run_id);
         if (!$run || $run['status'] !== 'preview') {
             return array(

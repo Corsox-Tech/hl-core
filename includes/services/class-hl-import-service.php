@@ -264,10 +264,10 @@ class HL_Import_Service {
     }
 
     // Validate and commit methods removed — now handled by handler classes:
-    // - HL_Import_Participant_Handler (validate_participant_rows, commit_import)
-    // - HL_Import_Children_Handler (validate_children_rows, commit_children_import)
-    // - HL_Import_Classroom_Handler (validate_classroom_rows, commit_classroom_import)
-    // - HL_Import_Teaching_Assignment_Handler (validate_teaching_assignment_rows, commit_teaching_assignment_import)
+    // - HL_Import_Participant_Handler::validate() / commit()
+    // - HL_Import_Children_Handler::validate() / commit()
+    // Classroom and Teaching Assignment imports were removed in the redesign;
+    // those entities are now auto-created from Participant import.
 
     /**
      * Save preview data to the import run

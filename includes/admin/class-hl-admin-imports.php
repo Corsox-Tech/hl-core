@@ -178,33 +178,15 @@ class HL_Admin_Imports {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        // Get cycle's partnership_id
-        $partnership_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT partnership_id FROM {$prefix}hl_cycle WHERE cycle_id = %d",
-            $cycle_id
-        ));
-
-        // Schools linked to this cycle
-        $schools = $wpdb->get_results($wpdb->prepare(
-            "SELECT o.orgunit_id, o.name, o.orgunit_code
-             FROM {$prefix}hl_cycle_school cs
-             JOIN {$prefix}hl_orgunit o ON cs.school_id = o.orgunit_id
-             WHERE cs.cycle_id = %d AND o.status = 'active'
-             ORDER BY o.name ASC",
-            $cycle_id
-        ), ARRAY_A) ?: array();
-
-        // If no direct cycle_school links, try all cycles in the partnership
-        if (empty($schools) && $partnership_id) {
-            $schools = $wpdb->get_results($wpdb->prepare(
-                "SELECT DISTINCT o.orgunit_id, o.name, o.orgunit_code
-                 FROM {$prefix}hl_cycle c
-                 JOIN {$prefix}hl_cycle_school cs ON c.cycle_id = cs.cycle_id
-                 JOIN {$prefix}hl_orgunit o ON cs.school_id = o.orgunit_id
-                 WHERE c.partnership_id = %d AND o.status = 'active'
-                 ORDER BY o.name ASC",
-                $partnership_id
-            ), ARRAY_A) ?: array();
+        $import_service = new HL_Import_Service();
+        $partnership_schools = $import_service->load_partnership_schools($cycle_id);
+        $schools = array();
+        foreach ($partnership_schools as $s) {
+            $schools[] = array(
+                'orgunit_id'  => $s->orgunit_id,
+                'name'        => $s->name,
+                'orgunit_code' => $s->orgunit_code,
+            );
         }
 
         // Pathways for this cycle
