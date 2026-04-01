@@ -143,7 +143,7 @@ class HL_Admin_Imports {
                         <th scope="row"><label for="hl-import-file"><?php esc_html_e('CSV File', 'hl-core'); ?></label></th>
                         <td>
                             <input type="file" id="hl-import-file" accept=".csv" required />
-                            <p class="description"><?php esc_html_e('Max 2MB. Maximum 5,000 rows.', 'hl-core'); ?></p>
+                            <p class="description"><?php esc_html_e('CSV format only. Max 2MB, 5,000 rows. If you have an Excel file (.xlsx), save it as CSV first (File → Save As → CSV).', 'hl-core'); ?></p>
                         </td>
                     </tr>
                 </table>
@@ -444,7 +444,14 @@ class HL_Admin_Imports {
 
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if ($ext !== 'csv') {
-            wp_send_json_error(array('message' => __('Only CSV files are supported.', 'hl-core')));
+            $hint = '';
+            if (in_array($ext, array('xlsx', 'xls'), true)) {
+                $hint = ' ' . __('To convert: open the file in Excel, go to File → Save As, and choose "CSV (Comma delimited)" as the format.', 'hl-core');
+            }
+            wp_send_json_error(array('message' => sprintf(
+                __('Only CSV files are supported. You uploaded a .%s file.', 'hl-core'),
+                $ext
+            ) . $hint));
         }
 
         $import_service = new HL_Import_Service();

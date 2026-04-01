@@ -15,6 +15,7 @@ class HL_Import_Service {
         'role'           => 'cycle_roles',
         'roles'          => 'cycle_roles',
         'rol'            => 'cycle_roles',
+        'b2e_role'       => 'cycle_roles',
 
         'school_name'    => 'school_name',
         'school'         => 'school_name',
@@ -83,6 +84,8 @@ class HL_Import_Service {
         // Is primary teacher
         'is_primary_teacher' => 'is_primary_teacher',
         'primary_teacher'    => 'is_primary_teacher',
+        'primary_teacher_of_the_classroom_(y)' => 'is_primary_teacher',
+        'primary_teacher_of_the_classroom' => 'is_primary_teacher',
 
         // Ethnicity (children)
         'ethnicity'          => 'ethnicity',
@@ -249,12 +252,20 @@ class HL_Import_Service {
      * @return array{mapped: array, unmapped: string[]}
      */
     private function map_column_headers($normalized_headers) {
-        $mapped = array();   // index => canonical_name
-        $unmapped = array(); // headers that couldn't be matched
+        $mapped = array();       // index => canonical_name
+        $mapped_names = array(); // canonical_name => first index (dedup: first column wins)
+        $unmapped = array();     // headers that couldn't be matched
 
         foreach ($normalized_headers as $index => $header) {
             if (isset(self::$header_synonyms[$header])) {
-                $mapped[$index] = self::$header_synonyms[$header];
+                $canonical = self::$header_synonyms[$header];
+                // If this canonical name is already mapped, skip (first column wins)
+                if (isset($mapped_names[$canonical])) {
+                    $unmapped[] = $header . ' (duplicate of ' . $canonical . ')';
+                    continue;
+                }
+                $mapped[$index] = $canonical;
+                $mapped_names[$canonical] = $index;
             } else {
                 $unmapped[] = $header;
             }
