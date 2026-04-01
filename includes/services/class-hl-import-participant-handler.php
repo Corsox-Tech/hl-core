@@ -183,7 +183,7 @@ class HL_Import_Participant_Handler {
                 }
             }
 
-            $is_district_leader = ($parsed_role === 'District Leader');
+            $is_district_leader = ($parsed_role === 'district_leader');
 
             if ($matched_school) {
                 $preview['matched_school_id'] = (int) $matched_school->orgunit_id;
@@ -313,7 +313,10 @@ class HL_Import_Participant_Handler {
 
                 // Check if data differs
                 $existing_roles = json_decode($existing['roles'], true) ?: array();
-                $role_changed   = !in_array($parsed_role, $existing_roles, true);
+                $existing_roles_normalized = array_map(function($r) {
+                    return strtolower(str_replace(' ', '_', trim($r)));
+                }, $existing_roles);
+                $role_changed = !in_array($parsed_role, $existing_roles_normalized, true);
                 $school_changed = $preview['matched_school_id'] && (int) $existing['school_id'] !== $preview['matched_school_id'];
 
                 if ($role_changed || $school_changed) {
@@ -346,13 +349,13 @@ class HL_Import_Participant_Handler {
                 }
             }
             if (!empty($raw_team) && !$has_errors) {
-                $membership_type = ($parsed_role === 'Mentor') ? 'mentor' : 'member';
+                $membership_type = ($parsed_role === 'mentor') ? 'mentor' : 'member';
                 $preview['proposed_actions'][] = sprintf(__('Team: %s (create if needed, as %s)', 'hl-core'), $raw_team, $membership_type);
             }
             if (!empty($raw_pathway) && !$has_errors) {
                 $preview['proposed_actions'][] = sprintf(__('Pathway: %s', 'hl-core'), $raw_pathway);
             }
-            if (!empty($raw_coach) && !$has_errors && $parsed_role === 'Mentor') {
+            if (!empty($raw_coach) && !$has_errors && $parsed_role === 'mentor') {
                 $preview['proposed_actions'][] = sprintf(__('Coach assignment: %s', 'hl-core'), $raw_coach);
             }
 
@@ -377,16 +380,16 @@ class HL_Import_Participant_Handler {
     private function resolve_role($raw) {
         $normalized = strtolower(trim($raw));
         $synonyms = array(
-            'teacher'         => 'Teacher',
-            'maestro'         => 'Teacher',
-            'maestra'         => 'Teacher',
-            'mentor'          => 'Mentor',
-            'school leader'   => 'School Leader',
-            'school_leader'   => 'School Leader',
-            'lider de centro' => 'School Leader',
-            'director'        => 'School Leader',
-            'district leader' => 'District Leader',
-            'district_leader' => 'District Leader',
+            'teacher'         => 'teacher',
+            'maestro'         => 'teacher',
+            'maestra'         => 'teacher',
+            'mentor'          => 'mentor',
+            'school leader'   => 'school_leader',
+            'school_leader'   => 'school_leader',
+            'lider de centro' => 'school_leader',
+            'director'        => 'school_leader',
+            'district leader' => 'district_leader',
+            'district_leader' => 'district_leader',
         );
         return isset($synonyms[$normalized]) ? $synonyms[$normalized] : '';
     }
@@ -646,7 +649,7 @@ class HL_Import_Participant_Handler {
                     }
 
                     // Add membership
-                    $membership_type = ($role === 'Mentor') ? 'mentor' : 'member';
+                    $membership_type = ($role === 'mentor') ? 'mentor' : 'member';
                     $result = $team_service->add_member($team_id, $enrollment_id, $membership_type);
                     if (is_wp_error($result) && $result->get_error_code() !== 'already_member') {
                         // already_member is OK (idempotent), other errors are real
@@ -657,7 +660,7 @@ class HL_Import_Participant_Handler {
                 }
 
                 // 5. Coach Assignment (Mentors only)
-                if (!empty($row['parsed_coach']) && $role === 'Mentor') {
+                if (!empty($row['parsed_coach']) && $role === 'mentor') {
                     $coach_email = HL_Normalization::normalize_email($row['parsed_coach']);
                     $coach_user = get_user_by('email', $coach_email);
                     if ($coach_user) {
