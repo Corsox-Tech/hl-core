@@ -1,25 +1,38 @@
 /* =====================================================
    HL Core Frontend Design System
    =====================================================
-   CSS custom properties aligned with BuddyBoss theme.
+   Consolidated design tokens — single canonical palette.
    All components use these tokens for consistent theming.
    ===================================================== */
 
 :root {
-    /* ---- Core Palette ---- */
+    /* ---- Primary (Navy) ---- */
     --hl-primary:          #1A2B47;
     --hl-primary-light:    #243B5C;
     --hl-primary-rgb:      26, 43, 71;
+
+    /* ---- Accent (Green — CTAs, success) ---- */
     --hl-accent:           #2ECC71;
     --hl-accent-dark:      #059669;
     --hl-accent-darker:    #047857;
+
+    /* ---- Interactive (Indigo — tags, links, secondary actions) ---- */
+    --hl-interactive:      #6366f1;
+    --hl-interactive-dark: #4f46e5;
+    --hl-interactive-light:#818cf8;
+    --hl-interactive-bg:   #f5f3ff;
+    --hl-interactive-border:#c7d2fe;
+
+    /* ---- Secondary (Blue — legacy compat, info states) ---- */
     --hl-secondary:        #2C7BE5;
     --hl-secondary-dark:   #1D4ED8;
+
+    /* ---- Warning / Error ---- */
     --hl-warning:          #F59E0B;
     --hl-error:            #EF4444;
     --hl-error-dark:       #DC2626;
 
-    /* ---- Text ---- */
+    /* ---- Text Scale ---- */
     --hl-text:             #374151;
     --hl-text-heading:     #1A2B47;
     --hl-text-secondary:   #6B7280;
@@ -29,9 +42,8 @@
     --hl-surface:          #FFFFFF;
     --hl-bg:               #F4F5F7;
     --hl-bg-subtle:        #F9FAFB;
-    --hl-bg-alt:           #FAFBFC;
-    --hl-bg-hover:         #EFF6FF;
     --hl-bg-card:          #F7F8FA;
+    --hl-bg-hover:         #EFF6FF;
 
     /* ---- Borders ---- */
     --hl-border:           #E8EAF0;
@@ -45,10 +57,10 @@
     --hl-radius-pill:      100px;
 
     /* ---- Shadows ---- */
-    --hl-shadow:           0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
-    --hl-shadow-md:        0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-    --hl-shadow-lg:        0 4px 16px rgba(0, 0, 0, 0.08);
-    --hl-shadow-hover:     0 4px 12px rgba(0, 0, 0, 0.07);
+    --hl-shadow:           0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+    --hl-shadow-md:        0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+    --hl-shadow-lg:        0 4px 16px rgba(0,0,0,0.08);
+    --hl-shadow-hover:     0 4px 12px rgba(0,0,0,0.07);
 
     /* ---- Transitions ---- */
     --hl-transition:       all 0.2s ease;
@@ -70,20 +82,19 @@
     --hl-status-role-bg:        #E0E7FF;
     --hl-status-role-text:      #3730A3;
 
-    /* ---- CRM Palette (Slate/Blue) ---- */
-    --hl-crm-border:       #E2E8F0;
-    --hl-crm-text:         #64748B;
-    --hl-crm-text-dark:    #475569;
-    --hl-crm-accent:       #3B82F6;
-    --hl-crm-border-light: #F1F5F9;
+    /* ---- Typography ---- */
+    --hl-font:             'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-    /* ---- Calm Professional Palette ---- */
-    --hl-indigo:           #6366f1;
-    --hl-indigo-dark:      #4f46e5;
-    --hl-indigo-light:     #818cf8;
-    --hl-indigo-bg:        #f5f3ff;
-    --hl-indigo-border:    #c7d2fe;
+    /* ---- Backward compat aliases — remove after full migration ---- */
+    --hl-indigo:           var(--hl-interactive);
+    --hl-indigo-dark:      var(--hl-interactive-dark);
+    --hl-indigo-light:     var(--hl-interactive-light);
+    --hl-indigo-bg:        var(--hl-interactive-bg);
+    --hl-indigo-border:    var(--hl-interactive-border);
     --hl-violet:           #8b5cf6;
+    --hl-bg-alt:           #FAFBFC;
+
+    /* Slate scale — used by CRM pages */
     --hl-slate-50:         #f8fafc;
     --hl-slate-100:        #f1f5f9;
     --hl-slate-200:        #e2e8f0;
@@ -95,8 +106,12 @@
     --hl-slate-800:        #1e293b;
     --hl-slate-900:        #0f172a;
 
-    /* ---- Typography ---- */
-    --hl-font:             'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* CRM aliases */
+    --hl-crm-border:       #E2E8F0;
+    --hl-crm-text:         #64748B;
+    --hl-crm-text-dark:    #475569;
+    --hl-crm-accent:       #3B82F6;
+    --hl-crm-border-light: #F1F5F9;
 }
 
 /* =====================================================
