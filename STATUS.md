@@ -99,6 +99,9 @@ Pick up from the first unchecked `[ ]` item each session.
 - [ ] **Follow-up: multi-row same email** — Duplicate email in CSV marked ERROR; spec allows multiple rows with same email for different classrooms. Needs merge logic.
 - [ ] **Follow-up: error report field names** — Error report CSV references old field names from pre-redesign handlers.
 
+### Admin Enrollment Form Enhancement (April 2026)
+- [x] **Pathway + Team fields on enrollment form** — Admin enrollment form (standalone + Cycle Editor inline) now includes Pathway and Team dropdowns, filtered by selected cycle. On save, creates `hl_pathway_assignment` (explicit) and `hl_team_membership` records. Edit mode pre-selects current values. Prevents blank Pathway/Team/School columns on Cycle enrollments table.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
