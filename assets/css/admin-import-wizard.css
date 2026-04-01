@@ -298,3 +298,35 @@
 .hl-import-notices .notice {
     margin: 10px 0;
 }
+
+/* Warning status badge */
+.hl-import-status.warning {
+    background: #fcf0e3;
+    color: #996800;
+    border: 1px solid #dba617;
+}
+
+/* Warning summary card */
+.hl-import-summary-card.warning {
+    border-left-color: #dba617;
+}
+.hl-import-summary-card.warning .count {
+    color: #996800;
+}
+
+/* Helper panel responsive */
+.hl-import-helpers ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 5px 0;
+}
+.hl-import-helpers li {
+    margin-bottom: 3px;
+}
+.hl-import-helpers code {
+    background: #fff;
+    padding: 1px 5px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 12px;
+}
