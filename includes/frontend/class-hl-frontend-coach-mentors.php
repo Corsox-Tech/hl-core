@@ -29,7 +29,6 @@ class HL_Frontend_Coach_Mentors {
         $detail_url = $this->find_shortcode_page_url('hl_coach_mentor_detail');
         $count      = count($mentors);
 
-        $this->render_styles();
         ?>
         <div class="hlcm-wrapper">
 
@@ -203,83 +202,6 @@ class HL_Frontend_Coach_Mentors {
         return ob_get_clean();
     }
 
-    /**
-     * All CSS for the My Mentors page (inline to avoid external CSS dependency).
-     */
-    private function render_styles() {
-        ?>
-        <style>
-        .hlcm-wrapper{max-width:1100px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
-
-        /* Hero */
-        .hlcm-hero{display:flex;align-items:center;gap:20px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;padding:28px 32px;border-radius:16px;margin-bottom:28px}
-        .hlcm-hero-icon{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:60px;height:60px;background:rgba(255,255,255,.12);border-radius:16px}
-        .hlcm-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px}
-        .hlcm-hero-sub{font-size:14px;opacity:.75;margin:4px 0 0}
-
-        /* Filters */
-        .hlcm-filters{display:flex;gap:12px;margin-bottom:24px}
-        .hlcm-search-input{flex:1;min-width:0;padding:10px 16px;font-size:14px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:#1e293b;outline:none;transition:border-color .2s,box-shadow .2s}
-        .hlcm-search-input:focus{border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.12)}
-        .hlcm-search-input::placeholder{color:#94a3b8}
-        .hlcm-select{padding:10px 16px;font-size:14px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:#1e293b;outline:none;cursor:pointer;min-width:180px;transition:border-color .2s,box-shadow .2s}
-        .hlcm-select:focus{border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.12)}
-
-        /* Card grid */
-        .hlcm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
-
-        /* Card */
-        .hlcm-card{display:block;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;text-decoration:none;color:inherit;transition:box-shadow .25s ease,transform .25s ease}
-        .hlcm-card:hover{box-shadow:0 8px 25px rgba(0,0,0,.08);transform:translateY(-2px);text-decoration:none;color:inherit}
-        a.hlcm-card{cursor:pointer}
-
-        /* Card top: avatar + identity */
-        .hlcm-card-top{display:flex;align-items:center;gap:14px;margin-bottom:16px}
-        .hlcm-card-avatar{flex-shrink:0}
-        .hlcm-card-avatar img{width:48px;height:48px;border-radius:50%;border:2px solid #e2e8f0;display:block}
-        .hlcm-card-name{font-size:15px;font-weight:600;color:#1e293b;line-height:1.3}
-        .hlcm-card-school{font-size:13px;color:#8896a6;margin-top:2px}
-
-        /* Badges */
-        .hlcm-card-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
-        .hlcm-badge{display:inline-block;padding:4px 12px;font-size:12px;font-weight:600;border-radius:20px;line-height:1.4}
-        .hlcm-badge-team{background:rgba(30,58,95,.08);color:#1e3a5f}
-        .hlcm-badge-pathway{background:rgba(5,150,105,.08);color:#059669}
-
-        /* Progress bar */
-        .hlcm-progress-row{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-        .hlcm-progress-track{flex:1;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden}
-        .hlcm-progress-fill{height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:4px;transition:width .4s ease}
-        .hlcm-progress-pct{flex-shrink:0;font-size:13px;font-weight:700;color:#1e293b;min-width:36px;text-align:right}
-
-        /* Card meta */
-        .hlcm-card-meta{display:flex;gap:20px;padding-top:14px;border-top:1px solid #f1f5f9}
-        .hlcm-meta-item{flex:1;min-width:0}
-        .hlcm-meta-label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6;margin-bottom:4px}
-        .hlcm-meta-value{display:block;font-size:15px;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-        /* No results */
-        .hlcm-no-results{text-align:center;padding:40px 20px;color:#8896a6;font-size:15px}
-
-        /* Empty state */
-        .hlcm-empty{text-align:center;padding:60px 20px;background:#fff;border:1px solid #e2e8f0;border-radius:16px}
-        .hlcm-empty-icon{display:inline-flex;align-items:center;justify-content:center;width:80px;height:80px;border-radius:50%;background:rgba(30,58,95,.06);color:#8896a6;margin-bottom:16px}
-        .hlcm-empty-text{font-size:16px;color:#64748b;margin:0}
-
-        /* Responsive */
-        @media(max-width:600px){
-            .hlcm-hero{flex-direction:column;text-align:center;padding:24px 20px}
-            .hlcm-filters{flex-direction:column}
-            .hlcm-select{min-width:0;width:100%}
-            .hlcm-grid{grid-template-columns:1fr}
-            .hlcm-card-meta{flex-direction:column;gap:10px}
-        }
-        .hlcm-profile-link{display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 0;font-size:12px;font-weight:600;color:#2C7BE5;text-decoration:none;transition:color .2s}
-        .hlcm-profile-link:hover{color:#1a6ad4;text-decoration:underline}
-        .hlcm-profile-link svg{opacity:.6}
-        </style>
-        <?php
-    }
 
     /**
      * Find the published page that contains a given shortcode.
