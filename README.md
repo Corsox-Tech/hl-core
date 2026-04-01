@@ -208,13 +208,14 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Login page fix** — Suppresses BuddyBoss `bpnoaccess` error message and shake animation on wp-login.php via `bp_wp_login_error`, `shake_error_codes`, and `login_message` filters. Shows friendly "Welcome to Housman Learning Academy. Please log in to continue." message instead of red error styling.
 - **Page header with docs link** — All HL Core admin pages use `HL_Admin::render_page_header()` which renders the page title with an inline "Docs" link to `/documentation/`. Replaces the old `in_admin_header` hook approach that was hidden behind the Screen Options drawer.
 
-### Frontend Design System (In Progress — Sessions 1 + 5 Complete)
+### Frontend Design System (In Progress — Sessions 1 + 2 + 5 Complete)
 - **Consolidated design tokens** — Single canonical `:root` block in `frontend.css` with semantic groups: Primary (Navy), Accent (Green), Interactive (Indigo), Secondary (Blue), Warning/Error, Text Scale, Surfaces, Borders, Radius, Shadows, Transitions, Status Colors, Typography. Backward compat aliases for `--hl-indigo-*`, `--hl-slate-*`, `--hl-crm-*`, `--hl-violet`, `--hl-bg-alt`.
 - **BuddyBoss override layer** — Global Inter font, BB theme resets for fonts, links, headings, form elements, and tables inside all HL containers. Scoped with `body.buddyboss-theme` selectors.
 - **Component library** — Reusable CSS classes: `.hl-card`, `.hl-btn` (accent/interactive/outline/danger/sm), `.hl-badge` (success/warning/error/info/draft), `.hl-pill` (interactive/primary/outline), `.hl-tabs-bar`, `.hl-hero`, `.hl-meta-bar`, `.hl-table`, `.hl-progress`, `.hl-rating`, `.hl-breadcrumb`, `.hl-section-divider`, `.hl-empty`, `.hl-notice`.
 - **Custom sidebar** — 240px dark navy sidebar replacing BB BuddyPanel. CSS grid layout, topbar, responsive collapse at 1024px.
 - **Session 5: Directory & Profile Pages** — Extracted inline `style=` from classroom-page (form panel, modal, grid), user-profile (success banner, edit form, buttons), docs (icon), learners (progress width). New reusable classes: `.hl-add-child-panel`, `.hl-form-grid-2col`, `.hl-modal-overlay`/`.hl-modal-box`, `.hl-btn-row`, `.hlup-success-banner`, `.hlup-quick-edit-form`. 12 clean files verified against BB override selectors.
-- **Remaining:** Sessions 2-4, 6 will extract inline CSS from remaining PHP files and do final polish.
+- **Session 2: Forms & Instruments** — Extracted ~1,366 lines of inline `<style>` CSS from 7 files into frontend.css. Files: action-plan (`.hlap-*`), classroom-visit + self-reflection (`.hlcv-*`), rp-notes (`.hlrn-*`), child-assessment (`.hl-ca-summary-*`), instrument-renderer (`.hl-ca-*`), teacher-assessment-renderer (`.hl-tsa-*`). All hardcoded hex colors replaced with design tokens. TSA + instrument renderers keep dynamic `render_style_overrides()` in minimal inline `<style>`. New utility classes: `.hlcv-alert-success`, `.hlcv-alert--standalone`, `.hlcv-notes--flush`, `.hlrn-info-cell--wide`, `.hlrn-plan-fields`/`field-row`/`field-label`/`field-value`, `.hlrn-cvr-col-badge--submitted`/`--draft`, `.hl-ca-missing-child`, `.hl-ca-actions-row`, `.hl-ca-row-skipped`, `.hl-ca-skip-cell`, `.hl-tsa-skip-bold`/`detail`.
+- **Remaining:** Sessions 3-4, 6 will extract inline CSS from coach and program page PHP files and do final polish.
 
 ---
 
