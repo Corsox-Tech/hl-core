@@ -39,7 +39,6 @@ class HL_Frontend_Coach_Dashboard {
         // Load upcoming + needs-attention sessions.
         $sessions = $this->get_coach_sessions($user_id);
 
-        $this->render_styles();
         ?>
         <div class="hlcd-wrapper">
 
@@ -175,8 +174,8 @@ class HL_Frontend_Coach_Dashboard {
             ?>
 
             <?php if (!empty($needs_attendance)) : ?>
-            <div class="hlcd-section-title" style="color:#dc2626;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <div class="hlcd-section-title hlcd-section-title--attention">
+                <svg class="hlcd-inline-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <?php esc_html_e('Needs Attendance', 'hl-core'); ?>
             </div>
             <div class="hlcd-sessions-list">
@@ -188,7 +187,7 @@ class HL_Frontend_Coach_Dashboard {
 
             <?php if (!empty($upcoming)) : ?>
             <div class="hlcd-section-title">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <svg class="hlcd-inline-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 <?php esc_html_e('Upcoming Sessions', 'hl-core'); ?>
             </div>
             <div class="hlcd-sessions-list">
@@ -200,8 +199,8 @@ class HL_Frontend_Coach_Dashboard {
             <div class="hlcd-section-title">
                 <?php esc_html_e('Upcoming Sessions', 'hl-core'); ?>
             </div>
-            <div style="text-align:center;padding:30px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">
-                <p style="color:#94a3b8;font-size:14px;margin:0;"><?php esc_html_e('No upcoming coaching sessions.', 'hl-core'); ?></p>
+            <div class="hlcd-empty-state">
+                <p><?php esc_html_e('No upcoming coaching sessions.', 'hl-core'); ?></p>
             </div>
             <?php endif; ?>
 
@@ -293,86 +292,6 @@ class HL_Frontend_Coach_Dashboard {
         return $rows;
     }
 
-    /**
-     * All CSS for the Coach Dashboard (inline to avoid external CSS dependency).
-     */
-    private function render_styles() {
-        ?>
-        <style>
-        .hlcd-wrapper{max-width:1100px;margin:0 auto!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
-        .hlcd-wrapper *{box-sizing:border-box}
-        .hlcd-wrapper a{text-decoration:none}
-
-        /* Hero */
-        .hlcd-hero{display:flex!important;align-items:center;gap:24px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5a88 100%)!important;color:#fff!important;padding:32px 36px!important;border-radius:16px!important;margin-bottom:32px}
-        .hlcd-hero-avatar{flex-shrink:0}
-        .hlcd-hero-avatar img{width:64px;height:64px;border-radius:50%!important;border:3px solid rgba(255,255,255,.25)!important;display:block;object-fit:cover}
-        .hlcd-hero-title{font-size:24px!important;font-weight:800!important;margin:0!important;letter-spacing:-.3px;color:#fff!important}
-        .hlcd-hero-sub{font-size:14px;opacity:.75;margin:4px 0 0!important;color:#fff!important}
-
-        /* Stats grid */
-        .hlcd-stats-grid{display:grid!important;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:36px}
-        .hlcd-stat-card{background:#fff!important;border:1px solid #f0f1f5!important;border-radius:16px!important;overflow:hidden;transition:box-shadow .25s ease,transform .25s ease;box-shadow:0 1px 3px rgba(0,0,0,.04),0 1px 2px rgba(0,0,0,.03)}
-        .hlcd-stat-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)!important;transform:translateY(-2px)}
-        .hlcd-stat-accent{height:4px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5a88 100%)}
-        .hlcd-stat-accent-sessions{background:linear-gradient(135deg,#059669 0%,#34d399 100%)}
-        .hlcd-stat-accent-month{background:linear-gradient(135deg,#d97706 0%,#fbbf24 100%)}
-        .hlcd-stat-body{display:flex!important;align-items:center;gap:16px;padding:18px 22px}
-        .hlcd-stat-icon{display:inline-flex!important;align-items:center;justify-content:center;width:48px;height:48px;border-radius:12px;flex-shrink:0}
-        .hlcd-stat-icon-mentors{background:rgba(30,58,95,.08)!important;color:#1e3a5f!important}
-        .hlcd-stat-icon-sessions{background:rgba(5,150,105,.08)!important;color:#059669!important}
-        .hlcd-stat-icon-month{background:rgba(217,119,6,.08)!important;color:#d97706!important}
-        .hlcd-stat-content{min-width:0}
-        .hlcd-stat-value{font-size:28px!important;font-weight:700!important;color:#1e293b!important;line-height:1;margin-bottom:4px}
-        .hlcd-stat-label{font-size:11px!important;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8896a6!important}
-
-        /* Section title */
-        .hlcd-section-title{font-size:13px!important;font-weight:700!important;text-transform:uppercase;letter-spacing:.06em;color:#475569!important;margin-bottom:18px}
-
-        /* Quick links grid */
-        .hlcd-links-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-bottom:20px}
-        .hlcd-link-card{display:flex!important;align-items:center;gap:16px;background:#fff!important;border:1px solid #f0f1f5!important;border-radius:16px!important;padding:22px 24px;text-decoration:none!important;color:inherit!important;transition:box-shadow .25s ease,transform .25s ease;box-shadow:0 1px 3px rgba(0,0,0,.04),0 1px 2px rgba(0,0,0,.03)}
-        .hlcd-link-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)!important;transform:translateY(-2px);text-decoration:none!important;color:inherit!important;border-color:#e8eaf0!important}
-        .hlcd-link-icon{flex-shrink:0;width:44px;height:44px;border-radius:12px;display:flex!important;align-items:center;justify-content:center}
-        .hlcd-link-icon-mentors{background:rgba(30,58,95,.08)!important;color:#1e3a5f!important}
-        .hlcd-link-icon-reports{background:rgba(5,150,105,.08)!important;color:#059669!important}
-        .hlcd-link-icon-availability{background:rgba(217,119,6,.08)!important;color:#d97706!important}
-        .hlcd-link-icon-profile{background:rgba(99,102,241,.08)!important;color:#6366f1!important}
-        .hlcd-link-text{flex:1;min-width:0}
-        .hlcd-link-title{font-size:15px!important;font-weight:600!important;color:#1e293b!important;margin-bottom:4px}
-        .hlcd-link-desc{font-size:13px!important;color:#8896a6!important;line-height:1.4}
-        .hlcd-link-arrow{flex-shrink:0;color:#cbd5e1;transition:color .2s,transform .2s}
-        .hlcd-link-card:hover .hlcd-link-arrow{color:#1e3a5f;transform:translateX(2px)}
-
-        /* Sessions list */
-        .hlcd-sessions-list{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
-        .hlcd-session-row{display:flex!important;align-items:center;gap:16px;background:#f7f8fa!important;border:1px solid #f0f1f5!important;border-radius:12px!important;padding:16px 22px;transition:box-shadow .2s,border-color .2s}
-        .hlcd-session-row:hover{border-color:#e8eaf0!important;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-        .hlcd-session-attention{border-left:3px solid #dc2626!important;background:#fffbfb!important}
-        .hlcd-session-date-col{flex-shrink:0;width:100px;text-align:center}
-        .hlcd-session-day{font-size:14px!important;font-weight:700!important;color:#1e293b!important}
-        .hlcd-session-time{font-size:12px!important;color:#64748b!important}
-        .hlcd-session-info-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-        .hlcd-session-mentor{font-size:14px!important;font-weight:600!important;color:#1e293b!important;text-decoration:none!important}
-        a.hlcd-session-mentor:hover{color:#6366f1!important;text-decoration:underline!important}
-        .hlcd-session-title-text{font-size:12px!important;color:#94a3b8!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .hlcd-session-action-col{flex-shrink:0;display:flex;align-items:center;gap:8px}
-        .hlcd-att-badge{display:inline-flex;padding:4px 10px;background:#fee2e2!important;color:#dc2626!important;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap}
-        .hlcd-session-view-btn{display:inline-flex!important;align-items:center;padding:7px 16px;background:#fff!important;border:1px solid #e8eaf0!important;border-radius:10px!important;font-size:13px!important;font-weight:600!important;color:#475569!important;text-decoration:none!important;transition:all .15s}
-        .hlcd-session-view-btn:hover{background:#fff!important;border-color:#6366f1!important;color:#6366f1!important}
-
-        /* Responsive */
-        @media(max-width:600px){
-            .hlcd-hero{flex-direction:column;text-align:center;padding:24px 20px!important}
-            .hlcd-stats-grid{grid-template-columns:1fr}
-            .hlcd-links-grid{grid-template-columns:1fr}
-            .hlcd-session-row{flex-wrap:wrap}
-            .hlcd-session-date-col{width:auto;text-align:left}
-            .hlcd-session-action-col{width:100%;justify-content:flex-end}
-        }
-        </style>
-        <?php
-    }
 
     /**
      * Find the published page that contains a given shortcode.
