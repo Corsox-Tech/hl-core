@@ -117,6 +117,10 @@ class HL_Frontend_My_Coaching {
 
     /**
      * Get session records keyed by component_id for an enrollment.
+     *
+     * Matches by component_id first. Sessions without component_id (created
+     * before the scheduling integration) are matched to unoccupied components
+     * in component order.
      */
     private function get_sessions_for_enrollment($enrollment_id, $components) {
         global $wpdb;
@@ -126,27 +130,39 @@ class HL_Frontend_My_Coaching {
             return array();
         }
 
-        $placeholders = implode(',', array_fill(0, count($component_ids), '%d'));
-        $params       = array_merge($component_ids, array($enrollment_id));
-
+        // Fetch all sessions for this enrollment (with or without component_id).
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT cs.*
              FROM {$wpdb->prefix}hl_coaching_session cs
-             WHERE cs.component_id IN ($placeholders)
-               AND cs.mentor_enrollment_id = %d
+             WHERE cs.mentor_enrollment_id = %d
                AND cs.session_status IN ('scheduled', 'attended')
-             ORDER BY cs.session_status = 'attended' DESC, cs.created_at DESC",
-            ...$params
+             ORDER BY cs.session_status = 'attended' DESC, cs.created_at ASC",
+            $enrollment_id
         ), ARRAY_A);
 
         // Key by component_id (first match wins — attended takes priority via ORDER BY).
         $by_component = array();
+        $orphans      = array();
+
         foreach ($rows as $row) {
-            $cid = (int) $row['component_id'];
-            if (!isset($by_component[$cid])) {
+            $cid = !empty($row['component_id']) ? (int) $row['component_id'] : 0;
+            if ($cid && in_array($cid, $component_ids, true) && !isset($by_component[$cid])) {
                 $by_component[$cid] = $row;
+            } elseif (!$cid) {
+                $orphans[] = $row;
             }
         }
+
+        // Assign orphan sessions (no component_id) to unoccupied components in order.
+        if (!empty($orphans)) {
+            foreach ($component_ids as $cid) {
+                if (empty($orphans)) break;
+                if (!isset($by_component[$cid])) {
+                    $by_component[$cid] = array_shift($orphans);
+                }
+            }
+        }
+
         return $by_component;
     }
 

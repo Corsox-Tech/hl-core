@@ -283,46 +283,61 @@ class HL_Frontend_Coach_Mentor_Detail {
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                         <p><?php esc_html_e('No team members found.', 'hl-core'); ?></p>
                     </div>
-                <?php else : ?>
-                    <div class="hlcmd-team-grid">
-                        <?php foreach ($team_members as $member) :
-                            $m_pct   = (int) ($member['completion_pct'] ?? 0);
-                            $roles   = json_decode($member['roles'] ?? '[]', true);
-                            $roles   = is_array($roles) ? $roles : array();
-                        ?>
-                            <div class="hlcmd-team-card">
-                                <div class="hlcmd-team-card-top">
-                                    <div class="hlcmd-team-card-name"><?php echo esc_html($member['display_name']); ?></div>
-                                    <div class="hlcmd-team-card-email"><?php echo esc_html($member['user_email'] ?? ''); ?></div>
-                                </div>
-                                <?php if (!empty($roles)) : ?>
-                                    <div class="hlcmd-team-card-badges">
-                                        <?php foreach ($roles as $role) :
-                                            $badge_class = 'hlcmd-badge-gray';
-                                            $r = strtolower($role);
-                                            if ($r === 'mentor') {
-                                                $badge_class = 'hlcmd-badge-blue';
-                                            } elseif ($r === 'teacher') {
-                                                $badge_class = 'hlcmd-badge-green';
-                                            } elseif ($r === 'leader') {
-                                                $badge_class = 'hlcmd-badge-orange';
-                                            }
-                                        ?>
-                                            <span class="hlcmd-badge <?php echo esc_attr($badge_class); ?>"><?php echo esc_html(ucfirst($role)); ?></span>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($member['pathway_name'])) : ?>
-                                    <div class="hlcmd-team-card-pathway"><?php echo esc_html($member['pathway_name']); ?></div>
-                                <?php endif; ?>
-                                <div class="hlcmd-progress-row">
-                                    <div class="hlcmd-progress-track">
-                                        <div class="hlcmd-progress-fill" style="width:<?php echo esc_attr($m_pct); ?>%"></div>
-                                    </div>
-                                    <span class="hlcmd-progress-pct"><?php echo esc_html($m_pct); ?>%</span>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
+                <?php else :
+                    // Sort: mentors first, then other roles.
+                    usort($team_members, function ($a, $b) {
+                        $a_roles = json_decode($a['roles'] ?? '[]', true) ?: array();
+                        $b_roles = json_decode($b['roles'] ?? '[]', true) ?: array();
+                        $a_mentor = in_array('mentor', $a_roles, true) ? 0 : 1;
+                        $b_mentor = in_array('mentor', $b_roles, true) ? 0 : 1;
+                        return $a_mentor - $b_mentor;
+                    });
+                ?>
+                    <div class="hlcmd-rp-table-wrap">
+                        <table class="hlcmd-rp-table">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e('Name', 'hl-core'); ?></th>
+                                    <th><?php esc_html_e('Role', 'hl-core'); ?></th>
+                                    <th><?php esc_html_e('Pathway', 'hl-core'); ?></th>
+                                    <th><?php esc_html_e('Completion', 'hl-core'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($team_members as $member) :
+                                    $m_pct = (int) ($member['completion_pct'] ?? 0);
+                                    $roles = json_decode($member['roles'] ?? '[]', true);
+                                    $roles = is_array($roles) ? $roles : array();
+                                ?>
+                                    <tr>
+                                        <td>
+                                            <div style="font-weight:600;color:#1e293b;"><?php echo esc_html($member['display_name']); ?></div>
+                                            <div style="font-size:12px;color:#8896a6;"><?php echo esc_html($member['user_email'] ?? ''); ?></div>
+                                        </td>
+                                        <td>
+                                            <?php foreach ($roles as $role) :
+                                                $badge_class = 'hlcmd-badge-gray';
+                                                $r = strtolower($role);
+                                                if ($r === 'mentor') $badge_class = 'hlcmd-badge-blue';
+                                                elseif ($r === 'teacher') $badge_class = 'hlcmd-badge-green';
+                                                elseif ($r === 'leader') $badge_class = 'hlcmd-badge-orange';
+                                            ?>
+                                                <span class="hlcmd-badge <?php echo esc_attr($badge_class); ?>"><?php echo esc_html(ucfirst($role)); ?></span>
+                                            <?php endforeach; ?>
+                                        </td>
+                                        <td><?php echo esc_html(!empty($member['pathway_name']) ? $member['pathway_name'] : "\xe2\x80\x94"); ?></td>
+                                        <td>
+                                            <div class="hlcmd-progress-row">
+                                                <div class="hlcmd-progress-track">
+                                                    <div class="hlcmd-progress-fill" style="width:<?php echo esc_attr($m_pct); ?>%"></div>
+                                                </div>
+                                                <span class="hlcmd-progress-pct"><?php echo esc_html($m_pct); ?>%</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
                 <?php endif; ?>
             </div>

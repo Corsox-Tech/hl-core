@@ -30,11 +30,16 @@ class HL_Frontend_Learners {
             && ! in_array( 'school_leader', $scope['hl_roles'], true )
             && ! in_array( 'district_leader', $scope['hl_roles'], true );
 
-        $page = max( 1, absint( $_GET['paged'] ?? 1 ) );
-        $data = $this->get_learners( $scope, $mentor_only, $page );
+        $page       = max( 1, absint( $_GET['paged'] ?? 1 ) );
+        $filter_cycle  = isset( $_GET['cycle_id'] ) ? absint( $_GET['cycle_id'] ) : 0;
+        $filter_school = isset( $_GET['school_id'] ) ? absint( $_GET['school_id'] ) : 0;
+        $filter_role   = isset( $_GET['role'] ) ? sanitize_text_field( $_GET['role'] ) : '';
+        $filter_search = isset( $_GET['q'] ) ? sanitize_text_field( $_GET['q'] ) : '';
+
+        $data = $this->get_learners( $scope, $mentor_only, $page, $filter_cycle, $filter_school, $filter_role, $filter_search );
 
         $cycles = $this->get_cycle_options( $scope );
-        $schools = $this->get_school_options( $scope );
+        $schools = $this->get_school_options( $scope, $filter_cycle );
 
         ?>
         <div class="hl-dashboard hl-learners hl-frontend-wrap">
@@ -43,37 +48,41 @@ class HL_Frontend_Learners {
                 <h2 class="hl-crm-page-title"><?php esc_html_e( 'Learners', 'hl-core' ); ?></h2>
             </div>
 
-            <div class="hl-filters-bar">
-                <input type="text" class="hl-search-input" id="hl-learner-search"
+            <form class="hl-filters-bar" method="get" action="">
+                <input type="text" name="q" class="hl-search-input"
+                       value="<?php echo esc_attr( $filter_search ); ?>"
                        placeholder="<?php esc_attr_e( 'Search by name or email...', 'hl-core' ); ?>">
                 <?php if ( count( $cycles ) > 1 ) : ?>
-                    <select class="hl-select" id="hl-learner-track-filter">
-                        <option value=""><?php esc_html_e( 'All Tracks', 'hl-core' ); ?></option>
+                    <select name="cycle_id" class="hl-select" onchange="this.form.submit();">
+                        <option value=""><?php esc_html_e( 'All Cycles', 'hl-core' ); ?></option>
                         <?php foreach ( $cycles as $c ) : ?>
-                            <option value="<?php echo esc_attr( $c['cycle_id'] ); ?>">
+                            <option value="<?php echo esc_attr( $c['cycle_id'] ); ?>"
+                                <?php selected( (int) $c['cycle_id'], $filter_cycle ); ?>>
                                 <?php echo esc_html( $c['cycle_name'] ); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                 <?php endif; ?>
-                <?php if ( count( $schools ) > 1 ) : ?>
-                    <select class="hl-select" id="hl-learner-school-filter">
+                <?php if ( ! empty( $schools ) ) : ?>
+                    <select name="school_id" class="hl-select" onchange="this.form.submit();">
                         <option value=""><?php esc_html_e( 'All Schools', 'hl-core' ); ?></option>
                         <?php foreach ( $schools as $c ) : ?>
-                            <option value="<?php echo esc_attr( $c->orgunit_id ); ?>">
+                            <option value="<?php echo esc_attr( $c->orgunit_id ); ?>"
+                                <?php selected( (int) $c->orgunit_id, $filter_school ); ?>>
                                 <?php echo esc_html( $c->name ); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                 <?php endif; ?>
-                <select class="hl-select" id="hl-learner-role-filter">
+                <select name="role" class="hl-select" onchange="this.form.submit();">
                     <option value=""><?php esc_html_e( 'All Roles', 'hl-core' ); ?></option>
-                    <option value="teacher"><?php esc_html_e( 'Teacher', 'hl-core' ); ?></option>
-                    <option value="mentor"><?php esc_html_e( 'Mentor', 'hl-core' ); ?></option>
-                    <option value="school_leader"><?php esc_html_e( 'School Leader', 'hl-core' ); ?></option>
-                    <option value="district_leader"><?php esc_html_e( 'District Leader', 'hl-core' ); ?></option>
+                    <option value="teacher" <?php selected( 'teacher', $filter_role ); ?>><?php esc_html_e( 'Teacher', 'hl-core' ); ?></option>
+                    <option value="mentor" <?php selected( 'mentor', $filter_role ); ?>><?php esc_html_e( 'Mentor', 'hl-core' ); ?></option>
+                    <option value="school_leader" <?php selected( 'school_leader', $filter_role ); ?>><?php esc_html_e( 'School Leader', 'hl-core' ); ?></option>
+                    <option value="district_leader" <?php selected( 'district_leader', $filter_role ); ?>><?php esc_html_e( 'District Leader', 'hl-core' ); ?></option>
                 </select>
-            </div>
+                <button type="submit" class="hl-btn hl-btn-sm hl-btn-primary"><?php esc_html_e( 'Search', 'hl-core' ); ?></button>
+            </form>
 
             <?php if ( empty( $data['rows'] ) ) : ?>
                 <div class="hl-empty-state"><p><?php esc_html_e( 'No learners found.', 'hl-core' ); ?></p></div>
@@ -135,42 +144,12 @@ class HL_Frontend_Learners {
 
                 <?php $this->render_pagination( $page, $data['total'], self::PER_PAGE ); ?>
 
-                <div class="hl-empty-state hl-no-results">
-                    <p><?php esc_html_e( 'No learners match your filters.', 'hl-core' ); ?></p>
-                </div>
+                <?php /* No-results handled by server-side empty check */ ?>
             <?php endif; ?>
 
         </div>
 
-        <script>
-        (function($){
-            var $rows = $('.hl-learner-row');
-            var $noResults = $('.hl-learners .hl-no-results');
-
-            function filterRows() {
-                var query  = $('#hl-learner-search').val().toLowerCase();
-                var track = $('#hl-learner-track-filter').val();
-                var school = $('#hl-learner-school-filter').val();
-                var role   = $('#hl-learner-role-filter').val();
-                var visible = 0;
-
-                $rows.each(function(){
-                    var $r = $(this);
-                    var matchSearch = !query || $r.data('search').indexOf(query) !== -1;
-                    var matchTrack = !track || String($r.data('cycle')) === track;
-                    var matchSchool = !school || String($r.data('school')) === school;
-                    var matchRole   = !role || ($r.data('roles') && $r.data('roles').indexOf(role) !== -1);
-                    var show = matchSearch && matchTrack && matchSchool && matchRole;
-                    $r.toggle(show);
-                    if (show) visible++;
-                });
-                $noResults.toggle(visible === 0 && $rows.length > 0);
-            }
-
-            $('#hl-learner-search').on('input', filterRows);
-            $('#hl-learner-track-filter, #hl-learner-school-filter, #hl-learner-role-filter').on('change', filterRows);
-        })(jQuery);
-        </script>
+        <?php /* Filters are now server-side — no client-side JS needed */ ?>
         <?php
 
         return ob_get_clean();
@@ -184,9 +163,17 @@ class HL_Frontend_Learners {
         $total_pages = max( 1, (int) ceil( $total / $per_page ) );
         if ( $total_pages <= 1 ) return;
 
+        // Build base URL preserving current filters.
+        $base_args = array();
+        if ( ! empty( $_GET['cycle_id'] ) )  $base_args['cycle_id']  = absint( $_GET['cycle_id'] );
+        if ( ! empty( $_GET['school_id'] ) ) $base_args['school_id'] = absint( $_GET['school_id'] );
+        if ( ! empty( $_GET['role'] ) )      $base_args['role']      = sanitize_text_field( $_GET['role'] );
+        if ( ! empty( $_GET['q'] ) )         $base_args['q']         = sanitize_text_field( $_GET['q'] );
+
         echo '<div class="hl-pagination">';
         for ( $p = 1; $p <= $total_pages; $p++ ) {
-            $url   = add_query_arg( 'paged', $p );
+            $args  = array_merge( $base_args, array( 'paged' => $p ) );
+            $url   = add_query_arg( $args );
             $class = $p === $current_page ? 'hl-btn hl-btn-sm hl-btn-primary' : 'hl-btn hl-btn-sm hl-btn-secondary';
             printf( '<a href="%s" class="%s">%d</a>', esc_url( $url ), esc_attr( $class ), $p );
         }
@@ -197,7 +184,7 @@ class HL_Frontend_Learners {
     // Data helpers
     // =========================================================================
 
-    private function get_learners( $scope, $mentor_only, $page ) {
+    private function get_learners( $scope, $mentor_only, $page, $filter_cycle = 0, $filter_school = 0, $filter_role = '', $filter_search = '' ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
         $offset = ( $page - 1 ) * self::PER_PAGE;
@@ -227,6 +214,26 @@ class HL_Frontend_Learners {
             } else {
                 return array( 'rows' => array(), 'total' => 0, 'per_page' => self::PER_PAGE );
             }
+        }
+
+        // Server-side filters.
+        if ( $filter_cycle ) {
+            $where[]  = 'e.cycle_id = %d';
+            $values[] = $filter_cycle;
+        }
+        if ( $filter_school ) {
+            $where[]  = 'e.school_id = %d';
+            $values[] = $filter_school;
+        }
+        if ( $filter_role ) {
+            $where[]  = 'e.roles LIKE %s';
+            $values[] = '%"' . $wpdb->esc_like( $filter_role ) . '"%';
+        }
+        if ( $filter_search ) {
+            $where[]  = '(u.display_name LIKE %s OR u.user_email LIKE %s)';
+            $like     = '%' . $wpdb->esc_like( $filter_search ) . '%';
+            $values[] = $like;
+            $values[] = $like;
         }
 
         $where_clause = ' WHERE ' . implode( ' AND ', $where );
@@ -269,9 +276,27 @@ class HL_Frontend_Learners {
         ) ?: array();
     }
 
-    private function get_school_options( $scope ) {
+    private function get_school_options( $scope, $filter_cycle = 0 ) {
         $repo = new HL_OrgUnit_Repository();
-        $all  = $repo->get_schools();
+
+        // When a cycle is selected, only show schools with enrollments in that cycle.
+        if ( $filter_cycle ) {
+            global $wpdb;
+            $ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT DISTINCT e.school_id FROM {$wpdb->prefix}hl_enrollment e
+                 WHERE e.cycle_id = %d AND e.status = 'active' AND e.school_id IS NOT NULL",
+                $filter_cycle
+            ) );
+            if ( empty( $ids ) ) return array();
+            $all = array();
+            foreach ( $ids as $id ) {
+                $ou = $repo->get_by_id( (int) $id );
+                if ( $ou ) $all[] = $ou;
+            }
+            return HL_Scope_Service::filter_by_ids( $all, 'orgunit_id', $scope['school_ids'], $scope['is_admin'] );
+        }
+
+        $all = $repo->get_schools();
         return HL_Scope_Service::filter_by_ids( $all, 'orgunit_id', $scope['school_ids'], $scope['is_admin'] );
     }
 

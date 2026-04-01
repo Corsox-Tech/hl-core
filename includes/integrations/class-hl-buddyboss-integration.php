@@ -293,8 +293,19 @@ class HL_BuddyBoss_Integration {
             return $redirect_to;
         }
 
-        $roles = $this->get_user_hl_roles($user->ID);
-        if (empty($roles)) {
+        // Coach-only users (no enrollment): send to Coach Dashboard.
+        $is_coach = in_array('coach', (array) $user->roles, true);
+        $hl_roles = $this->get_user_hl_roles($user->ID);
+        $is_staff = user_can($user, 'manage_options');
+
+        if ($is_coach && empty($hl_roles) && !$is_staff) {
+            $coach_url = $this->find_shortcode_page_url('hl_coach_dashboard');
+            if ($coach_url) {
+                return $coach_url;
+            }
+        }
+
+        if (empty($hl_roles) && !$is_coach) {
             return $redirect_to;
         }
 

@@ -182,16 +182,16 @@ class HL_Frontend_School_Page {
     }
 
     // ========================================================================
-    // Section: Active Tracks
+    // Section: Active Cycles
     // ========================================================================
 
     private function render_tracks_section( $cycles, $workspace_url, $school_id ) {
         ?>
         <div class="hl-crm-section">
-            <h3 class="hl-section-title"><?php esc_html_e( 'Active Tracks', 'hl-core' ); ?></h3>
+            <h3 class="hl-section-title"><?php esc_html_e( 'Active Cycles', 'hl-core' ); ?></h3>
 
             <?php if ( empty( $cycles ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No active tracks at this school.', 'hl-core' ); ?></p></div>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No active cycles at this school.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <div class="hl-crm-track-list">
                     <?php foreach ( $cycles as $row ) :

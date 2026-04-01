@@ -357,7 +357,8 @@ class HL_Reporting_Service {
         // District filter — schools whose parent orgunit is the district
         $district_id = isset( $filters['district_id'] ) ? absint( $filters['district_id'] ) : 0;
         if ( $district_id ) {
-            $where[]  = 'school_ou.parent_orgunit_id = %d';
+            $where[]  = '(school_ou.parent_orgunit_id = %d OR enroll_ou.parent_orgunit_id = %d)';
+            $params[] = $district_id;
             $params[] = $district_id;
         }
 

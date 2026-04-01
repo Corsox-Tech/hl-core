@@ -54,7 +54,7 @@ class HL_Frontend_Coach_Dashboard {
                 </div>
             </div>
 
-            <!-- Stats cards -->
+            <!-- Stats cards (horizontal layout) -->
             <div class="hlcd-stats-grid">
 
                 <div class="hlcd-stat-card">
@@ -63,8 +63,10 @@ class HL_Frontend_Coach_Dashboard {
                         <div class="hlcd-stat-icon hlcd-stat-icon-mentors">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                         </div>
-                        <div class="hlcd-stat-value"><?php echo esc_html($stats['assigned_mentors']); ?></div>
-                        <div class="hlcd-stat-label"><?php esc_html_e('Assigned Mentors', 'hl-core'); ?></div>
+                        <div class="hlcd-stat-content">
+                            <div class="hlcd-stat-value"><?php echo esc_html($stats['assigned_mentors']); ?></div>
+                            <div class="hlcd-stat-label"><?php esc_html_e('Assigned Mentors', 'hl-core'); ?></div>
+                        </div>
                     </div>
                 </div>
 
@@ -74,8 +76,10 @@ class HL_Frontend_Coach_Dashboard {
                         <div class="hlcd-stat-icon hlcd-stat-icon-sessions">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                         </div>
-                        <div class="hlcd-stat-value"><?php echo esc_html($stats['upcoming_sessions']); ?></div>
-                        <div class="hlcd-stat-label"><?php esc_html_e('Upcoming Sessions', 'hl-core'); ?></div>
+                        <div class="hlcd-stat-content">
+                            <div class="hlcd-stat-value"><?php echo esc_html($stats['upcoming_sessions']); ?></div>
+                            <div class="hlcd-stat-label"><?php esc_html_e('Upcoming Sessions', 'hl-core'); ?></div>
+                        </div>
                     </div>
                 </div>
 
@@ -85,8 +89,10 @@ class HL_Frontend_Coach_Dashboard {
                         <div class="hlcd-stat-icon hlcd-stat-icon-month">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         </div>
-                        <div class="hlcd-stat-value"><?php echo esc_html($stats['sessions_this_month']); ?></div>
-                        <div class="hlcd-stat-label"><?php esc_html_e('Sessions This Month', 'hl-core'); ?></div>
+                        <div class="hlcd-stat-content">
+                            <div class="hlcd-stat-value"><?php echo esc_html($stats['sessions_this_month']); ?></div>
+                            <div class="hlcd-stat-label"><?php esc_html_e('Sessions This Month', 'hl-core'); ?></div>
+                        </div>
                     </div>
                 </div>
 
@@ -311,12 +317,13 @@ class HL_Frontend_Coach_Dashboard {
         .hlcd-stat-accent{height:4px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5a88 100%)}
         .hlcd-stat-accent-sessions{background:linear-gradient(135deg,#059669 0%,#34d399 100%)}
         .hlcd-stat-accent-month{background:linear-gradient(135deg,#d97706 0%,#fbbf24 100%)}
-        .hlcd-stat-body{padding:24px 20px;text-align:center}
-        .hlcd-stat-icon{display:inline-flex!important;align-items:center;justify-content:center;width:48px;height:48px;border-radius:12px;margin-bottom:16px}
+        .hlcd-stat-body{display:flex!important;align-items:center;gap:16px;padding:18px 22px}
+        .hlcd-stat-icon{display:inline-flex!important;align-items:center;justify-content:center;width:48px;height:48px;border-radius:12px;flex-shrink:0}
         .hlcd-stat-icon-mentors{background:rgba(30,58,95,.08)!important;color:#1e3a5f!important}
         .hlcd-stat-icon-sessions{background:rgba(5,150,105,.08)!important;color:#059669!important}
         .hlcd-stat-icon-month{background:rgba(217,119,6,.08)!important;color:#d97706!important}
-        .hlcd-stat-value{font-size:36px!important;font-weight:700!important;color:#1e293b!important;line-height:1;margin-bottom:6px}
+        .hlcd-stat-content{min-width:0}
+        .hlcd-stat-value{font-size:28px!important;font-weight:700!important;color:#1e293b!important;line-height:1;margin-bottom:4px}
         .hlcd-stat-label{font-size:11px!important;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8896a6!important}
 
         /* Section title */

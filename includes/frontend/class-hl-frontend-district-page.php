@@ -81,7 +81,7 @@ class HL_Frontend_District_Page {
 
             <?php $this->render_schools_section( $schools, $school_page_url ); ?>
 
-            <?php $this->render_stats_section( count( $schools ), $total_participants ); ?>
+            <?php /* Overview section removed — redundant with banner stats */ ?>
 
         </div>
         <?php
@@ -139,16 +139,16 @@ class HL_Frontend_District_Page {
     }
 
     // ========================================================================
-    // Section: Active Tracks
+    // Section: Active Cycles
     // ========================================================================
 
     private function render_tracks_section( $cycles, $workspace_url, $district_id ) {
         ?>
         <div class="hl-crm-section">
-            <h3 class="hl-section-title"><?php esc_html_e( 'Active Tracks', 'hl-core' ); ?></h3>
+            <h3 class="hl-section-title"><?php esc_html_e( 'Active Cycles', 'hl-core' ); ?></h3>
 
             <?php if ( empty( $cycles ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No active tracks in this district.', 'hl-core' ); ?></p></div>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No active cycles in this district.', 'hl-core' ); ?></p></div>
             <?php else : ?>
                 <div class="hl-crm-track-list">
                     <?php foreach ( $cycles as $trk ) :
@@ -159,7 +159,7 @@ class HL_Frontend_District_Page {
                         if ( $trk->start_date ) $dates[] = date_i18n( 'M j, Y', strtotime( $trk->start_date ) );
                         if ( $trk->end_date )   $dates[] = date_i18n( 'M j, Y', strtotime( $trk->end_date ) );
 
-                        $participant_count = $this->enrollment_repo->count_by_cycle( $trk->cycle_id );
+                        $participant_count = $this->count_participants_in_cycle_for_district( $trk->cycle_id, $district_id );
 
                         $track_url = $workspace_url
                             ? add_query_arg( array( 'id' => $trk->cycle_id, 'orgunit' => $district_id ), $workspace_url )
@@ -242,27 +242,7 @@ class HL_Frontend_District_Page {
         <?php
     }
 
-    // ========================================================================
-    // Section: Stats
-    // ========================================================================
-
-    private function render_stats_section( $num_schools, $total_participants ) {
-        ?>
-        <div class="hl-crm-section">
-            <h3 class="hl-section-title"><?php esc_html_e( 'Overview', 'hl-core' ); ?></h3>
-            <div class="hl-crm-stats-row">
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $num_schools ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Total Schools', 'hl-core' ); ?></div>
-                </div>
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $total_participants ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Total Participants', 'hl-core' ); ?></div>
-                </div>
-            </div>
-        </div>
-        <?php
-    }
+    // render_stats_section removed — redundant with banner stats.
 
     // ========================================================================
     // Data Helpers
@@ -290,7 +270,26 @@ class HL_Frontend_District_Page {
     }
 
     /**
-     * Count active participants across all active tracks in this district.
+     * Count participants in a specific cycle scoped to this district's schools.
+     */
+    private function count_participants_in_cycle_for_district( $cycle_id, $district_id ) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        return (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(DISTINCT e.enrollment_id)
+             FROM {$prefix}hl_enrollment e
+             INNER JOIN {$prefix}hl_orgunit ou ON e.school_id = ou.orgunit_id
+             WHERE e.cycle_id = %d
+               AND ou.parent_orgunit_id = %d
+               AND e.status = 'active'",
+            $cycle_id,
+            $district_id
+        ) );
+    }
+
+    /**
+     * Count active participants across all active cycles in this district.
      */
     private function count_participants_in_district( $district_id ) {
         global $wpdb;

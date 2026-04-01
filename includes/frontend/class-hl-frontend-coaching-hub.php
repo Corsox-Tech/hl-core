@@ -134,8 +134,8 @@ class HL_Frontend_Coaching_Hub {
         .hl-coaches-section { margin-bottom: 24px; }
         .hl-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
         .hl-coach-card { display: flex; align-items: center; gap: 12px; padding: 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; }
-        .hl-coach-card .hl-coach-info { display: flex; flex-direction: column; gap: 2px; }
-        .hl-coach-card .hl-coach-info span { font-size: 13px; color: #666; }
+        .hl-coach-card .hl-coach-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; }
+        .hl-coach-card .hl-coach-info span { font-size: 13px; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .hl-view-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
         .hl-hub-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
         .hl-hub-calendar-view .hl-calendar-header { margin-bottom: 8px; font-weight: 600; }

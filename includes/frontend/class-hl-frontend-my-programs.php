@@ -155,58 +155,30 @@ class HL_Frontend_My_Programs {
             } // end foreach assigned_pathways
         }
 
-        // Check if all enrollments are control group — if so, skip guide widget.
-        $all_control = !empty($cards);
-        foreach ($cards as $card) {
-            if (empty($card['cycle']->is_control_group)) {
-                $all_control = false;
-                break;
+        // Add per-cycle guide data (coach/mentor) to each card.
+        $coach_service = new HL_Coach_Assignment_Service();
+        foreach ($cards as &$card) {
+            $card['guide_data'] = null;
+            $card['guide_type'] = null;
+            if (!empty($card['cycle']->is_control_group)) {
+                continue;
+            }
+            $e = $card['enrollment'];
+            $e_roles = json_decode($e->roles ?? '[]', true) ?: array();
+            if (in_array('mentor', $e_roles, true)) {
+                $card['guide_type'] = 'coach';
+                $card['guide_data'] = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->cycle_id);
+            } elseif (in_array('teacher', $e_roles, true)) {
+                $card['guide_type'] = 'mentor';
+                $card['guide_data'] = $this->resolve_mentor_for_teacher($user_id, array($e));
             }
         }
-
-        // Determine user's enrollment roles for widget display.
-        $user_hl_roles = array();
-        foreach ($enrollments as $e) {
-            $e_roles = json_decode($e->roles ?? '[]', true);
-            if (is_array($e_roles)) {
-                $user_hl_roles = array_merge($user_hl_roles, $e_roles);
-            }
-        }
-        $user_hl_roles = array_unique($user_hl_roles);
-        $is_mentor  = in_array('mentor', $user_hl_roles, true);
-        $is_teacher = in_array('teacher', $user_hl_roles, true);
-
-        // Resolve guide person based on role:
-        // - Mentor sees "My Coach" (from coach assignment)
-        // - Teacher sees "My Mentor" (from team membership)
-        // - School Leader sees neither
-        $guide_data = null;
-        $guide_type = null; // 'coach' or 'mentor'
-        if (!$all_control && !empty($enrollments)) {
-            if ($is_mentor) {
-                $guide_type = 'coach';
-                $coach_service = new HL_Coach_Assignment_Service();
-                foreach ($enrollments as $e) {
-                    $coach = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->cycle_id);
-                    if ($coach) {
-                        $guide_data = $coach;
-                        break;
-                    }
-                }
-            } elseif ($is_teacher) {
-                $guide_type = 'mentor';
-                $guide_data = $this->resolve_mentor_for_teacher($user_id, $enrollments);
-            }
-        }
+        unset($card);
 
         // Render.
         ?>
         <div class="hl-dashboard hl-my-programs">
             <h2><?php esc_html_e('My Programs', 'hl-core'); ?></h2>
-
-            <?php if (!$all_control && $guide_type) : ?>
-                <?php $this->render_guide_widget($guide_data, $guide_type); ?>
-            <?php endif; ?>
 
             <?php if (empty($cards)) : ?>
                 <div class="hl-empty-state">
@@ -285,6 +257,21 @@ class HL_Frontend_My_Programs {
                 <p class="hl-program-card-cycle">
                     <?php echo esc_html($cycle->cycle_name); ?>
                 </p>
+                <?php
+                // Per-cycle guide: "My Coach" for mentors, "My Mentor" for teachers.
+                $g_type = $card['guide_type'] ?? null;
+                $g_data = $card['guide_data'] ?? null;
+                if ($g_type && $g_data) :
+                    $g_name = ($g_type === 'coach')
+                        ? ($g_data['coach_name'] ?? '')
+                        : ($g_data['display_name'] ?? '');
+                    $g_label = ($g_type === 'coach') ? __('Coach:', 'hl-core') : __('Mentor:', 'hl-core');
+                    if ($g_name) :
+                ?>
+                    <p class="hl-program-card-guide" style="font-size:13px;color:#64748b;margin:4px 0 8px;">
+                        <strong><?php echo esc_html($g_label); ?></strong> <?php echo esc_html($g_name); ?>
+                    </p>
+                <?php endif; endif; ?>
                 <div class="hl-program-card-progress">
                     <div class="hl-progress-bar-container">
                         <div class="hl-progress-bar <?php echo esc_attr($bar_class); ?>" style="width: <?php echo esc_attr($percent); ?>%"></div>
