@@ -66,10 +66,12 @@ Stages are groups of LearnDash courses representing user-level milestones. A sta
 | Stage | Label | LearnDash Course IDs |
 |-------|-------|---------------------|
 | A | Mentor Stage 1 | MC1 (30293), MC2 (30295) |
+| B | Mentor Stage 2 | MC3 (39732), MC4 (39734) |
 | C | Teacher Stage 1 | TC1 (30280), TC2 (30284), TC3 (30286), TC4 (30288) |
+| D | Teacher Stage 2 | TC5 (39724), TC6 (39726), TC7 (39728), TC8 (39730) |
 | E | Streamlined Stage 1 | TC0 (31037), TC1_S (31332), TC2_S (31333), TC3_S (31334), TC4_S (31335), MC1_S (31387), MC2_S (31388) |
 
-**Only 3 stages.** Stages B (MC3-MC4) and D (TC5-TC8) were removed — no routing rule references them.
+**5 stages.** Stage D is used to differentiate Mentor Phase 2 from Mentor Completion. Stage B is defined for completeness (not currently referenced in routing rules).
 
 **Stage matching is inclusive:** "user has completed ALL required stages (and possibly others)." A user with stages [A, C] matches rules requiring [A], [C], or [A, C].
 
@@ -83,18 +85,20 @@ Rules are evaluated in priority order. The **first matching rule** wins. More sp
 
 | Priority | Role | Required Stages | Pathway Code | Scenario |
 |----------|------|----------------|--------------|----------|
-| 1 | mentor | C + A | b2e-mentor-completion | Has both teacher + mentor stage 1 courses |
-| 2 | mentor | C | b2e-mentor-transition | Teacher promoted to mentor |
-| 3 | mentor | A | b2e-mentor-phase-2 | Returning mentor |
-| 4 | mentor | (none) | b2e-mentor-phase-1 | New mentor |
-| 5 | teacher | C | b2e-teacher-phase-2 | Returning teacher |
-| 6 | teacher | (none) | b2e-teacher-phase-1 | New teacher |
-| 7 | school_leader | E | b2e-streamlined-phase-2 | Returning school leader |
-| 8 | school_leader | (none) | b2e-streamlined-phase-1 | New school leader |
-| 9 | district_leader | E | b2e-streamlined-phase-2 | Returning district leader |
-| 10 | district_leader | (none) | b2e-streamlined-phase-1 | New district leader |
+| 1 | mentor | C + A + D | B2E_MENTOR_COMPLETION | Teacher→Mentor Transition→only needs MC3+MC4 |
+| 2 | mentor | C + A | B2E_MENTOR_PHASE_2 | Returning mentor (completed Mentor Phase 1) |
+| 3 | mentor | C | B2E_MENTOR_TRANSITION | Teacher promoted to mentor |
+| 4 | mentor | (none) | B2E_MENTOR_PHASE_1 | New mentor |
+| 5 | teacher | C | B2E_TEACHER_PHASE_2 | Returning teacher |
+| 6 | teacher | (none) | B2E_TEACHER_PHASE_1 | New teacher |
+| 7 | school_leader | E | B2E_STREAMLINED_PHASE_2 | Returning school leader |
+| 8 | school_leader | (none) | B2E_STREAMLINED_PHASE_1 | New school leader |
+| 9 | district_leader | E | B2E_STREAMLINED_PHASE_2 | Returning district leader |
+| 10 | district_leader | (none) | B2E_STREAMLINED_PHASE_1 | New district leader |
 
-**Precedence matters for mentors:** Rule 1 (C+A) must come before Rule 2 (C) and Rule 3 (A). A mentor with both C and A gets Mentor Completion, not Transition or Phase 2.
+**Precedence matters for mentors:** Rule 1 (C+A+D) must come before Rule 2 (C+A) and Rule 3 (C). Stage A alone is impossible — MC1+MC2 only exist in Mentor Phase 1 which also includes TC1-TC4 (Stage C).
+
+**Mentor Completion path:** Cycle 1: Teacher Phase 1 (earns C) → Cycle 2: Mentor Transition (earns A+D) → Cycle 3: Mentor Completion (just MC3+MC4).
 
 **Rule evaluation algorithm:**
 1. Normalize role to lowercase (e.g., "School Leader" → "school_leader")
@@ -259,13 +263,14 @@ All 9 scenario types from the actual Cycle 1 → Cycle 2 roster:
 |--------|---------|---------|-----------------|----------------|----------|
 | Antkeria Smith | Teacher | Teacher | C | Teacher Phase 2 | Yes |
 | Adyerenys Gonzalez | (new) | Teacher | None | Teacher Phase 1 | Yes |
-| La'Quittia Johnson | Mentor | Mentor | A+C | Mentor Completion | Yes |
+| La'Quittia Johnson | Mentor | Mentor | C+A | Mentor Phase 2 | Yes |
 | Martanae Lurry | Teacher | Mentor | C | Mentor Transition | Yes |
-| Marquita Brown | Mentor | Teacher | A+C | Teacher Phase 2 (has C) | Yes |
+| Marquita Brown | Mentor | Teacher | C+A | Teacher Phase 2 (has C) | Yes |
 | Akia Davis | Director | District Leader | E | Streamlined Phase 2 | Yes |
 | Erin Gallagher | (new) | District Leader | None | Streamlined Phase 1 | Yes |
 | Angela Brown | Director | School Leader | E | Streamlined Phase 2 | Yes |
 | Iyana Baugh | (new) | Teacher | None | Teacher Phase 1 | Yes |
+| Lisa (hypothetical) | Teacher C1, Mentor C2 | Mentor | C+A+D | Mentor Completion | Yes (3-cycle path) |
 
 ---
 
@@ -276,7 +281,9 @@ Two independent adversarial agents stress-tested this design. Issues found and r
 | Finding | Severity | Resolution |
 |---------|----------|------------|
 | sync_role_defaults assigns ALL matching pathways | CRITICAL | Fix 2: restructure to assign ONE + routing first |
-| "Teacher + Stage A" rule is unsafe | CRITICAL | Removed from rules (Stage C covers it) |
+| "Teacher + Stage A" rule is unsafe | CRITICAL | Removed — Stage A alone is impossible |
+| Mentor C+A routed to Completion instead of Phase 2 | CRITICAL | Fixed: C+A → Phase 2, C+A+D → Completion |
+| Stages B and D missing from definitions | IMPORTANT | Added back — Stage D needed for Mentor Completion rule |
 | District Leaders not in Streamlined target_roles | CRITICAL | Fix 4: add to target_roles |
 | Role case mismatch breaks sync for leaders | CRITICAL | Fix 1: normalize all roles to lowercase |
 | Audit logging wrong signature in assignment service | CRITICAL | Fix 3: update to array format |

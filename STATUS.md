@@ -101,7 +101,7 @@ Pick up from the first unchecked `[ ]` item each session.
 
 ### Pathway Routing Engine (Active — April 2026)
 > **Spec:** docs/superpowers/specs/2026-04-01-pathway-routing-design.md | **Plan:** docs/superpowers/plans/2026-04-01-pathway-routing-plan.md
-- [x] **Routing service** — HL_Pathway_Routing_Service with 3 stages (A=Mentor S1, C=Teacher S1, E=Streamlined S1), 10 routing rules, resolve_pathway() checks LearnDash completion at user level.
+- [x] **Routing service** — HL_Pathway_Routing_Service with 5 stages (A=Mentor S1, B=Mentor S2, C=Teacher S1, D=Teacher S2, E=Streamlined S1), 10 routing rules. Stage D differentiates Mentor Phase 2 (C+A) from Mentor Completion (C+A+D). resolve_pathway() checks LearnDash completion at user level.
 - [x] **Bug fix: audit logging** — Pathway assignment service audit calls corrected to array-based format.
 - [x] **Bug fix: sync_role_defaults** — Routing first + target_roles fallback, ONE pathway per enrollment (was assigning ALL matching).
 - [x] **Bug fix: role normalization** — All role storage normalized to lowercase. Import handler + sync comparison fixed.

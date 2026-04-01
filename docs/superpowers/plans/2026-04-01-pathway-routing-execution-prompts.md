@@ -58,7 +58,7 @@ After all 4 tasks, dispatch a final review agent to verify:
 - HL_Pathway_Routing_Service::resolve_pathway() is callable (static method, file is required)
 - sync_role_defaults calls resolve_pathway() correctly
 - resolve_role() returns lowercase everywhere
-- All 3 stages have correct course IDs: A=[30293,30295], C=[30280,30284,30286,30288], E=[31037,31332,31333,31334,31335,31387,31388]
+- All 5 stages have correct course IDs: A=[30293,30295], B=[39732,39734], C=[30280,30284,30286,30288], D=[39724,39726,39728,39730], E=[31037,31332,31333,31334,31335,31387,31388]
 - Routing rules are in correct priority order (C+A before C before A for mentors)
 - No Title Case role strings anywhere in import handler output
 
@@ -230,7 +230,7 @@ TASK 8: Deploy + Fix Live Data + Test
 6. Update STATUS.md — add under the Import Module Redesign section:
    ### Pathway Routing Engine (Active — April 2026)
    > **Spec:** docs/superpowers/specs/2026-04-01-pathway-routing-design.md | **Plan:** docs/superpowers/plans/2026-04-01-pathway-routing-plan.md
-   - [x] **Routing service** — HL_Pathway_Routing_Service with 3 stages (A=Mentor S1, C=Teacher S1, E=Streamlined S1), 10 routing rules, resolve_pathway() checks LearnDash completion at user level.
+   - [x] **Routing service** — HL_Pathway_Routing_Service with 5 stages (A=Mentor S1, B=Mentor S2, C=Teacher S1, D=Teacher S2, E=Streamlined S1), 10 routing rules, resolve_pathway() checks LearnDash completion at user level.
    - [x] **Bug fix: audit logging** — Pathway assignment service audit calls corrected to array-based format.
    - [x] **Bug fix: sync_role_defaults** — Routing first + target_roles fallback, ONE pathway per enrollment (was assigning ALL matching).
    - [x] **Bug fix: role normalization** — All role storage normalized to lowercase. Import handler + sync comparison fixed.
@@ -260,7 +260,7 @@ Read these files and verify the complete routing implementation:
 Run the following checks:
 
 1. ROUTING SERVICE:
-   - Has exactly 3 stages: A (2 courses), C (4 courses), E (7 courses)
+   - Has exactly 5 stages: A (2 courses), B (2 courses), C (4 courses), D (4 courses), E (7 courses)
    - Has exactly 10 routing rules in correct priority order
    - resolve_pathway() is static, accepts (int|null, string, int)
    - normalize_role() handles all formats: "Teacher", "teacher", "School Leader", "school_leader", "DISTRICT_LEADER"
