@@ -321,6 +321,7 @@ class HL_Import_Participant_Handler {
 
                 if ($role_changed || $school_changed) {
                     $preview['status'] = 'UPDATE';
+                    $preview['role_changed'] = $role_changed;
                     $preview['proposed_actions'][] = __('Update enrollment (role or school change)', 'hl-core');
                     $preview['selected'] = true;
                 } else {
@@ -338,6 +339,31 @@ class HL_Import_Participant_Handler {
                 }
                 $preview['status'] = 'CREATE';
                 $preview['selected'] = true;
+            }
+
+            // --- Auto-route pathway if not provided in CSV ---
+            $preview['pathway_source'] = '';
+            if (!empty($raw_pathway)) {
+                $preview['pathway_source'] = 'csv';
+            } elseif (!$has_errors && $preview['status'] !== 'SKIP') {
+                $routed_user_id = $preview['matched_user_id'] ? (int) $preview['matched_user_id'] : null;
+                $routed_pathway_id = HL_Pathway_Routing_Service::resolve_pathway($routed_user_id, $parsed_role, $cycle_id);
+                if ($routed_pathway_id) {
+                    $routed_pw = $wpdb->get_row($wpdb->prepare(
+                        "SELECT pathway_name, pathway_code FROM {$prefix}hl_pathway WHERE pathway_id = %d",
+                        $routed_pathway_id
+                    ));
+                    if ($routed_pw) {
+                        $preview['parsed_pathway'] = $routed_pw->pathway_name;
+                        $preview['routed_pathway_id'] = $routed_pathway_id;
+                        $preview['pathway_source'] = $routed_user_id ? 'routed' : 'default';
+                        $preview['proposed_actions'][] = sprintf(
+                            __('Pathway: %s (%s)', 'hl-core'),
+                            $routed_pw->pathway_name,
+                            $routed_user_id ? __('auto-routed based on course history', 'hl-core') : __('default for new participants', 'hl-core')
+                        );
+                    }
+                }
             }
 
             // Add proposed actions for side effects
@@ -690,17 +716,36 @@ class HL_Import_Participant_Handler {
                 }
 
                 // 6. Pathway Assignment
-                if (!empty($row['parsed_pathway'])) {
+                // On UPDATE with role change: clear stale pathways first
+                if (!empty($row['role_changed'])) {
+                    $wpdb->delete($prefix . 'hl_pathway_assignment', array('enrollment_id' => $enrollment_id));
+                    $wpdb->update(
+                        $prefix . 'hl_enrollment',
+                        array('assigned_pathway_id' => null),
+                        array('enrollment_id' => $enrollment_id)
+                    );
+                }
+
+                // Pathway priority: explicit CSV > routed from validate > resolve at commit time
+                $pathway_source = isset($row['pathway_source']) ? $row['pathway_source'] : '';
+                if ($pathway_source === 'csv' && !empty($row['parsed_pathway'])) {
                     $pw_key = strtolower(trim($row['parsed_pathway']));
-                    $matched_pw = isset($pathway_by_name[$pw_key]) ? $pathway_by_name[$pw_key] : (isset($pathway_by_code[$pw_key]) ? $pathway_by_code[$pw_key] : null);
+                    $matched_pw = isset($pathway_by_name[$pw_key]) ? $pathway_by_name[$pw_key]
+                        : (isset($pathway_by_code[$pw_key]) ? $pathway_by_code[$pw_key] : null);
                     if ($matched_pw) {
                         $pathway_service->assign_pathway($enrollment_id, (int) $matched_pw['pathway_id'], 'explicit');
                     }
+                } elseif ($row['status'] !== 'SKIP') {
+                    if (!empty($row['routed_pathway_id'])) {
+                        $pathway_service->assign_pathway($enrollment_id, (int) $row['routed_pathway_id'], 'role_default');
+                    } else {
+                        $routed_id = HL_Pathway_Routing_Service::resolve_pathway($user_id, $role, $cycle_id);
+                        if ($routed_id) {
+                            $pathway_service->assign_pathway($enrollment_id, $routed_id, 'role_default');
+                        }
+                    }
                 }
             }
-
-            // Run sync_role_defaults for enrollments that didn't get explicit pathway
-            $pathway_service->sync_role_defaults($cycle_id);
 
             $wpdb->query('COMMIT');
 

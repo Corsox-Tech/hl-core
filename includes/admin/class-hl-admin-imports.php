@@ -484,6 +484,7 @@ class HL_Admin_Imports {
                     $base['parsed_classroom']  = isset($row['parsed_classroom']) ? $row['parsed_classroom'] : '';
                     $base['parsed_team']       = isset($row['parsed_team']) ? $row['parsed_team'] : '';
                     $base['parsed_pathway']    = isset($row['parsed_pathway']) ? $row['parsed_pathway'] : '';
+                    $base['pathway_source']    = isset($row['pathway_source']) ? $row['pathway_source'] : '';
                     $base['parsed_coach']      = isset($row['parsed_coach']) ? $row['parsed_coach'] : '';
                     break;
             }
