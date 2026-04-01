@@ -34,6 +34,12 @@ class HL_Frontend_Coach_Availability {
         // Success message after save.
         $show_success = isset($_GET['hl_msg']) && $_GET['hl_msg'] === 'availability_saved';
 
+        // Read coach timezone.
+        $coach_tz = get_user_meta($user_id, 'hl_timezone', true);
+        if (empty($coach_tz)) {
+            $coach_tz = wp_timezone_string();
+        }
+
         $service  = new HL_Coach_Dashboard_Service();
         $existing = $service->get_availability($user_id);
 
@@ -98,6 +104,17 @@ class HL_Frontend_Coach_Availability {
                 </div>
                 <div class="hlca-instructions-text">
                     <?php esc_html_e('Click time slots to toggle your availability. Active slots (highlighted) are open for coaching sessions. Click Save when done.', 'hl-core'); ?>
+                </div>
+            </div>
+
+            <!-- Timezone selector -->
+            <div class="hlca-tz-card">
+                <div class="hlca-tz-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </div>
+                <div class="hlca-tz-body">
+                    <?php HL_Timezone_Helper::render_timezone_select('hlca-tz-select', $coach_tz, 'hlca-tz-dropdown'); ?>
+                    <span class="hlca-tz-hint"><?php esc_html_e('Your availability times are in this timezone', 'hl-core'); ?></span>
                 </div>
             </div>
 
@@ -179,6 +196,7 @@ class HL_Frontend_Coach_Availability {
             <form method="post" class="hlca-save-form">
                 <?php wp_nonce_field('hl_coach_availability_save', 'hl_coach_availability_nonce'); ?>
                 <input type="hidden" name="availability_data" id="hlca-data" value="">
+                <input type="hidden" name="coach_timezone" id="hlca-timezone" value="<?php echo esc_attr($coach_tz); ?>">
                 <button type="submit" class="hlca-btn hlca-btn-save">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                     <?php esc_html_e('Save Availability', 'hl-core'); ?>
@@ -283,6 +301,16 @@ class HL_Frontend_Coach_Availability {
                 if (hoursEl) hoursEl.textContent = (count * 0.5).toFixed(1);
             }
 
+            /* ----- Timezone sync ----- */
+            var tzSelect = document.getElementById('hlca-tz-select');
+            var tzHidden = document.getElementById('hlca-timezone');
+            if (tzSelect && tzHidden) {
+                tzHidden.value = tzSelect.value;
+                tzSelect.addEventListener('change', function() {
+                    tzHidden.value = this.value;
+                });
+            }
+
             // Initialize on load.
             updateAvailabilityData();
 
@@ -332,10 +360,6 @@ class HL_Frontend_Coach_Availability {
         if (!is_array($blocks)) {
             $blocks = array();
         }
-        // Debug: log what was received.
-        error_log('[HL-Core Availability] Raw POST: ' . substr($raw_post, 0, 500));
-        error_log('[HL-Core Availability] Decoded blocks: ' . count($blocks));
-
         $valid_blocks = array();
         foreach ($blocks as $block) {
             $day = isset($block['day_of_week']) ? absint($block['day_of_week']) : 99;
@@ -350,6 +374,14 @@ class HL_Frontend_Coach_Availability {
                 'start_time'  => sanitize_text_field($block['start_time']),
                 'end_time'    => sanitize_text_field($block['end_time']),
             );
+        }
+
+        // Save timezone if provided and valid.
+        if (!empty($_POST['coach_timezone'])) {
+            $tz_value = sanitize_text_field(wp_unslash($_POST['coach_timezone']));
+            if (in_array($tz_value, DateTimeZone::listIdentifiers(), true)) {
+                update_user_meta($user->ID, 'hl_timezone', $tz_value);
+            }
         }
 
         $service = new HL_Coach_Dashboard_Service();
@@ -424,6 +456,14 @@ class HL_Frontend_Coach_Availability {
         .hlca-legend-swatch-active{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%)}
         .hlca-legend-swatch-inactive{background:#f8f9fb;border:1px solid #e2e8f0}
         .hlca-legend-count{margin-left:auto;font-size:13px;color:#8896a6;font-weight:500}
+
+        /* Timezone card */
+        .hlca-tz-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e2e8f0;padding:14px 20px;border-radius:12px;margin-bottom:24px}
+        .hlca-tz-icon{flex-shrink:0;color:#6366f1;opacity:.7}
+        .hlca-tz-body{display:flex;flex-direction:column;gap:4px;flex:1}
+        .hlca-tz-dropdown{border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:14px;font-weight:500;color:#334155;font-family:inherit;cursor:pointer;background:#f8fafc;max-width:360px}
+        .hlca-tz-dropdown:focus{outline:2px solid #6366f1;outline-offset:1px;border-color:#6366f1}
+        .hlca-tz-hint{font-size:12px;color:#94a3b8;font-weight:500}
 
         /* Save form */
         .hlca-save-form{text-align:center;margin-bottom:24px}

@@ -299,6 +299,7 @@ class HL_Microsoft_Graph {
                 'Authorization' => 'Bearer ' . $token,
                 'Content-Type'  => 'application/json',
                 'Accept'        => 'application/json',
+                'Prefer'        => 'outlook.timezone="UTC"',
             ),
         );
 

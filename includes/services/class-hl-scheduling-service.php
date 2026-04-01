@@ -132,15 +132,30 @@ class HL_Scheduling_Service {
                 if (is_wp_error($events)) {
                     $outlook_unavailable = true;
                 } else {
-                    foreach ($events as $event) {
-                        $outlook_busy[] = array(
-                            'start' => new DateTime($event['start']['dateTime'], new DateTimeZone($event['start']['timeZone'] ?? 'UTC')),
-                            'end'   => new DateTime($event['end']['dateTime'], new DateTimeZone($event['end']['timeZone'] ?? 'UTC')),
-                        );
+                    // Filter by showAs: only block on busy, oof, or unknown.
+                    $blocking_statuses = array('busy', 'oof', 'unknown');
+                    try {
+                        $utc_tz = new DateTimeZone('UTC');
+                        foreach ($events as $event) {
+                            $show_as = isset($event['showAs']) ? strtolower($event['showAs']) : 'unknown';
+                            if (!in_array($show_as, $blocking_statuses, true)) {
+                                continue;
+                            }
+                            $outlook_busy[] = array(
+                                'start' => new DateTime($event['start']['dateTime'], $utc_tz),
+                                'end'   => new DateTime($event['end']['dateTime'], $utc_tz),
+                            );
+                        }
+                    } catch (Exception $e) {
+                        $outlook_unavailable = true;
+                        $outlook_busy        = array();
                     }
                     set_transient($cache_key, $outlook_busy, 3 * MINUTE_IN_SECONDS);
                 }
             }
+        } else {
+            // Graph not configured — warn the user.
+            $outlook_unavailable = true;
         }
 
         // Fetch existing HL coaching sessions for this date.
@@ -202,8 +217,8 @@ class HL_Scheduling_Service {
                 'start_time'    => $slot['start']->format('H:i'),
                 'end_time'      => $slot['end']->format('H:i'),
                 'coach_tz'      => $coach_tz_string,
-                'display_label' => $display_start->format('g:i A') . ' - ' . $display_end->format('g:i A T'),
-                'start_utc'     => $slot['start']->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
+                'display_label' => $display_start->format('g:i A') . ' – ' . $display_end->format('g:i A'),
+                'start_utc'     => (clone $slot['start'])->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
             );
         }
 

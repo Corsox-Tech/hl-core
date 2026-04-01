@@ -129,6 +129,10 @@ class HL_Frontend_Schedule_Session {
 
                 <!-- Right: Time Slots -->
                 <div class="hls-slots-panel" id="hls-slots-panel">
+                    <div class="hls-tz-selector">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        <select id="hls-tz-select" aria-label="<?php esc_attr_e('Timezone', 'hl-core'); ?>"></select>
+                    </div>
                     <div id="hls-slots-placeholder" class="hls-slots-placeholder">
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                         <p><?php esc_html_e('Select a date to see available times', 'hl-core'); ?></p>
@@ -215,6 +219,51 @@ class HL_Frontend_Schedule_Session {
             var S = { month: new Date(), date: null, slot: null };
             var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
             var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+            /* ----- Timezone dropdown ----- */
+            (function initTzDropdown() {
+                var sel = document.getElementById('hls-tz-select');
+                if (!sel) return;
+                var commonTzs = ['America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Anchorage','Pacific/Honolulu'];
+                var allTzs;
+                try { allTzs = Intl.supportedValuesOf('timeZone'); } catch(e) {
+                    allTzs = commonTzs.concat(['America/Phoenix','America/Indiana/Indianapolis','America/Detroit','America/Boise','America/Juneau','America/Adak','America/Nome','America/Sitka','America/Yakutat','America/Metlakatla','Europe/London','Europe/Paris','Europe/Berlin','Europe/Moscow','Asia/Tokyo','Asia/Shanghai','Asia/Kolkata','Asia/Dubai','Australia/Sydney','Pacific/Auckland']);
+                }
+                function tzLabel(tz) {
+                    try {
+                        var short = new Intl.DateTimeFormat('en-US', {timeZone: tz, timeZoneName: 'short'}).formatToParts(new Date()).find(function(p){return p.type==='timeZoneName';});
+                        return tz.replace(/_/g,' ') + (short ? ' (' + short.value + ')' : '');
+                    } catch(e) { return tz; }
+                }
+                var commonGroup = document.createElement('optgroup');
+                commonGroup.label = 'Common';
+                commonTzs.forEach(function(tz) {
+                    var opt = document.createElement('option');
+                    opt.value = tz; opt.textContent = tzLabel(tz);
+                    if (tz === C.tz) opt.selected = true;
+                    commonGroup.appendChild(opt);
+                });
+                sel.appendChild(commonGroup);
+                var allGroup = document.createElement('optgroup');
+                allGroup.label = 'All Timezones';
+                var commonSet = {};
+                commonTzs.forEach(function(t){ commonSet[t] = true; });
+                allTzs.forEach(function(tz) {
+                    if (commonSet[tz]) return;
+                    var opt = document.createElement('option');
+                    opt.value = tz; opt.textContent = tzLabel(tz);
+                    if (tz === C.tz) opt.selected = true;
+                    allGroup.appendChild(opt);
+                });
+                sel.appendChild(allGroup);
+                // If browser tz was not found in options, select first common.
+                if (!sel.value || sel.selectedIndex < 0) { sel.value = commonTzs[0]; C.tz = commonTzs[0]; }
+                else { C.tz = sel.value; }
+                sel.addEventListener('change', function() {
+                    C.tz = this.value;
+                    if (S.date) pickDate(S.date);
+                });
+            })();
 
             function fmt(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
             function prettyDate(s) { var p=s.split('-'); var d=new Date(+p[0],p[1]-1,+p[2]); return days[d.getDay()]+', '+months[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear(); }
@@ -823,6 +872,12 @@ class HL_Frontend_Schedule_Session {
         .hls-slots-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px 0;color:#94a3b8;font-size:14px}
         .hls-slots-empty p{margin:0}
         .hls-slots-warning{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fef3c7;border-radius:8px;font-size:13px;color:#92400e;margin-top:12px}
+
+        /* ── Timezone selector ── */
+        .hls-tz-selector{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:14px}
+        .hls-tz-selector svg{flex-shrink:0;color:#6366f1;opacity:.7}
+        .hls-tz-selector select{flex:1;border:none;background:transparent;font-size:13px;font-weight:500;color:#334155;font-family:inherit;cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;padding:2px 0}
+        .hls-tz-selector select:focus{color:#6366f1}
 
         /* ── Slot button ── */
         .hls-slot{display:flex;align-items:center;justify-content:center;padding:12px 16px;border:1.5px solid #e2e8f0!important;border-radius:12px!important;background:#fff!important;cursor:pointer;transition:all .2s;font-family:inherit}
