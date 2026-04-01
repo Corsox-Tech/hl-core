@@ -93,6 +93,9 @@
     --hl-indigo-border:    var(--hl-interactive-border);
     --hl-violet:           #8b5cf6;
     --hl-bg-alt:           #FAFBFC;
+    --hl-bg-secondary:     #F9FAFB;
+    --hl-primary-dark:     #135e96;
+    --hl-surface-alt:      #F3F4F6;
 
     /* Slate scale — used by CRM pages */
     --hl-slate-50:         #f8fafc;
