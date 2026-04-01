@@ -268,7 +268,7 @@ class HL_Frontend_Classroom_Page {
                         );
                         ?>
                     </h3>
-                    <div class="hl-table-filters" style="display:flex; gap:8px; align-items:center;">
+                    <div class="hl-table-filters">
                         <?php if ( ! empty( $children ) ) : ?>
                             <input type="text" class="hl-search-input" data-table="hl-children-table"
                                    placeholder="<?php esc_attr_e( 'Search by name...', 'hl-core' ); ?>">
@@ -296,7 +296,7 @@ class HL_Frontend_Classroom_Page {
                                 <th><?php esc_html_e( 'Age', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Gender', 'hl-core' ); ?></th>
                                 <?php if ( $can_manage_roster ) : ?>
-                                    <th style="width:100px;"><?php esc_html_e( 'Actions', 'hl-core' ); ?></th>
+                                    <th class="hl-col-actions"><?php esc_html_e( 'Actions', 'hl-core' ); ?></th>
                                 <?php endif; ?>
                             </tr>
                         </thead>
@@ -386,30 +386,30 @@ class HL_Frontend_Classroom_Page {
 
     private function render_add_child_form( $classroom_id, $return_to_assessment ) {
         ?>
-        <div id="hl-add-child-form" style="display:none; padding:20px; background:var(--hl-bg-secondary, #f9f9f9); border:1px solid var(--hl-border, #ddd); border-radius:6px; margin-bottom:16px;">
-            <h4 style="margin-top:0;"><?php esc_html_e( 'Add a Child', 'hl-core' ); ?></h4>
+        <div id="hl-add-child-form" class="hl-add-child-panel" style="display:none;">
+            <h4><?php esc_html_e( 'Add a Child', 'hl-core' ); ?></h4>
             <form method="post">
                 <input type="hidden" name="hl_action" value="add_child">
                 <input type="hidden" name="_hl_nonce" value="<?php echo wp_create_nonce( 'hl_add_child_' . $classroom_id ); ?>">
                 <?php if ( $return_to_assessment ) : ?>
                     <input type="hidden" name="return_to_assessment" value="<?php echo absint( $return_to_assessment ); ?>">
                 <?php endif; ?>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div class="hl-form-grid-2col">
                     <div>
                         <label for="hl-first-name"><strong><?php esc_html_e( 'First Name', 'hl-core' ); ?> *</strong></label>
-                        <input type="text" id="hl-first-name" name="first_name" required style="width:100%;">
+                        <input type="text" id="hl-first-name" name="first_name" required>
                     </div>
                     <div>
                         <label for="hl-last-name"><strong><?php esc_html_e( 'Last Name', 'hl-core' ); ?> *</strong></label>
-                        <input type="text" id="hl-last-name" name="last_name" required style="width:100%;">
+                        <input type="text" id="hl-last-name" name="last_name" required>
                     </div>
                     <div>
                         <label for="hl-dob"><strong><?php esc_html_e( 'Date of Birth', 'hl-core' ); ?> *</strong></label>
-                        <input type="date" id="hl-dob" name="dob" required style="width:100%;">
+                        <input type="date" id="hl-dob" name="dob" required>
                     </div>
                     <div>
                         <label for="hl-gender"><strong><?php esc_html_e( 'Gender', 'hl-core' ); ?></strong></label>
-                        <select id="hl-gender" name="gender" style="width:100%;">
+                        <select id="hl-gender" name="gender">
                             <option value=""><?php esc_html_e( '— Select —', 'hl-core' ); ?></option>
                             <option value="male"><?php esc_html_e( 'Male', 'hl-core' ); ?></option>
                             <option value="female"><?php esc_html_e( 'Female', 'hl-core' ); ?></option>
@@ -418,7 +418,7 @@ class HL_Frontend_Classroom_Page {
                         </select>
                     </div>
                 </div>
-                <div style="display:flex; gap:8px;">
+                <div class="hl-btn-row">
                     <button type="submit" class="hl-btn hl-btn-primary hl-btn-sm"><?php esc_html_e( 'Add Child', 'hl-core' ); ?></button>
                     <button type="button" class="hl-btn hl-btn-sm" id="hl-cancel-add-child"><?php esc_html_e( 'Cancel', 'hl-core' ); ?></button>
                 </div>
@@ -433,27 +433,27 @@ class HL_Frontend_Classroom_Page {
 
     private function render_remove_modal( $classroom_id ) {
         ?>
-        <div id="hl-remove-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-            <div style="background:#fff; border-radius:8px; padding:24px; max-width:400px; width:90%; margin:auto; position:relative; top:50%; transform:translateY(-50%);">
-                <h4 style="margin-top:0;"><?php esc_html_e( 'Remove Child', 'hl-core' ); ?></h4>
+        <div id="hl-remove-modal" class="hl-modal-overlay" style="display:none;">
+            <div class="hl-modal-box">
+                <h4><?php esc_html_e( 'Remove Child', 'hl-core' ); ?></h4>
                 <p id="hl-remove-confirm-text"></p>
                 <form method="post">
                     <input type="hidden" name="hl_action" value="remove_child">
                     <input type="hidden" name="_hl_nonce" value="<?php echo wp_create_nonce( 'hl_remove_child_' . $classroom_id ); ?>">
                     <input type="hidden" name="child_id" id="hl-remove-child-id" value="">
-                    <div style="margin-bottom:12px;">
+                    <div class="hl-form-group">
                         <label for="hl-removal-reason"><strong><?php esc_html_e( 'Reason', 'hl-core' ); ?></strong></label>
-                        <select name="removal_reason" id="hl-removal-reason" style="width:100%;">
+                        <select name="removal_reason" id="hl-removal-reason">
                             <option value="left_school"><?php esc_html_e( 'No longer at this school', 'hl-core' ); ?></option>
                             <option value="moved_classroom"><?php esc_html_e( 'Moved to another classroom', 'hl-core' ); ?></option>
                             <option value="other"><?php esc_html_e( 'Other', 'hl-core' ); ?></option>
                         </select>
                     </div>
-                    <div style="margin-bottom:16px;">
+                    <div class="hl-form-group">
                         <label for="hl-removal-note"><strong><?php esc_html_e( 'Note (optional)', 'hl-core' ); ?></strong></label>
-                        <textarea name="removal_note" id="hl-removal-note" rows="2" style="width:100%;"></textarea>
+                        <textarea name="removal_note" id="hl-removal-note" rows="2"></textarea>
                     </div>
-                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                    <div class="hl-btn-row hl-btn-row--end">
                         <button type="button" class="hl-btn hl-btn-sm" id="hl-cancel-remove"><?php esc_html_e( 'Cancel', 'hl-core' ); ?></button>
                         <button type="submit" class="hl-btn hl-btn-danger hl-btn-sm"><?php esc_html_e( 'Confirm Remove', 'hl-core' ); ?></button>
                     </div>

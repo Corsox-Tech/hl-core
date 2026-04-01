@@ -918,7 +918,7 @@ class HL_Frontend_User_Profile {
             ?>
             <div class="hlup-empty-state">
                 <?php if ($show_success) : ?>
-                    <div class="hlup-success-banner" style="margin-bottom:16px;padding:10px 16px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;font-size:13px;">
+                    <div class="hlup-success-banner">
                         <?php esc_html_e('Profile updated successfully.', 'hl-core'); ?>
                     </div>
                 <?php endif; ?>
@@ -926,20 +926,20 @@ class HL_Frontend_User_Profile {
                 <h3><?php echo esc_html($user->display_name); ?></h3>
                 <p class="hlup-empty-email"><?php echo esc_html($user->user_email); ?></p>
                 <?php if ($is_own) : ?>
-                    <form method="post" style="margin-top:20px;text-align:left;max-width:400px;margin-left:auto;margin-right:auto;">
+                    <form method="post" class="hlup-quick-edit-form">
                         <?php wp_nonce_field('hlup_manage_' . $user->ID, '_hlup_nonce'); ?>
                         <input type="hidden" name="hlup_action" value="update_profile">
                         <input type="hidden" name="hlup_user_id" value="<?php echo esc_attr($user->ID); ?>">
                         <input type="hidden" name="hlup_enrollment_id" value="0">
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px;"><?php esc_html_e('Display Name', 'hl-core'); ?></label>
-                            <input type="text" name="hlup_display_name" value="<?php echo esc_attr($user->display_name); ?>" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+                        <div class="hl-form-group">
+                            <label><?php esc_html_e('Display Name', 'hl-core'); ?></label>
+                            <input type="text" name="hlup_display_name" value="<?php echo esc_attr($user->display_name); ?>">
                         </div>
-                        <div style="margin-bottom:16px;">
-                            <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px;"><?php esc_html_e('Email', 'hl-core'); ?></label>
-                            <input type="email" name="hlup_email" value="<?php echo esc_attr($user->user_email); ?>" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+                        <div class="hl-form-group">
+                            <label><?php esc_html_e('Email', 'hl-core'); ?></label>
+                            <input type="email" name="hlup_email" value="<?php echo esc_attr($user->user_email); ?>">
                         </div>
-                        <button type="submit" style="background:linear-gradient(135deg,#1e3a5f,#2d5f8a);color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
+                        <button type="submit" class="hl-btn hl-btn-primary">
                             <?php esc_html_e('Save Changes', 'hl-core'); ?>
                         </button>
                     </form>
@@ -1146,7 +1146,7 @@ class HL_Frontend_User_Profile {
         </div>
 
         <?php if (empty($pathways)) : ?>
-            <div class="hlup-empty-state" style="margin-top:16px;">
+            <div class="hlup-empty-state hlup-empty-state--spaced">
                 <p><?php esc_html_e('No learning plan assigned yet.', 'hl-core'); ?></p>
             </div>
         <?php else : ?>
@@ -1436,7 +1436,7 @@ class HL_Frontend_User_Profile {
 
         <!-- Action Plans -->
         <?php if (!empty($action_plans)) : ?>
-            <div class="hlup-coach-section" style="margin-top:24px;">
+            <div class="hlup-coach-section hlup-coach-section--spaced">
                 <h4 class="hlup-coach-section-title">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     <?php esc_html_e('Action Plans', 'hl-core'); ?>

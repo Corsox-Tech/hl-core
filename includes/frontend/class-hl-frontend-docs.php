@@ -562,7 +562,7 @@ class HL_Frontend_Docs {
         ?>
         <div class="hl-docs-wrapper">
             <div class="hl-docs-not-found">
-                <span class="dashicons dashicons-warning" style="font-size:48px;width:48px;height:48px;color:var(--hl-warning);"></span>
+                <span class="dashicons dashicons-warning"></span>
                 <h2><?php esc_html_e('Article Not Found', 'hl-core'); ?></h2>
                 <p><?php esc_html_e('The documentation article you\'re looking for doesn\'t exist or has been removed.', 'hl-core'); ?></p>
                 <a href="<?php echo esc_url($base_url); ?>" class="hl-docs-back-link">&larr; <?php esc_html_e('Back to Documentation', 'hl-core'); ?></a>

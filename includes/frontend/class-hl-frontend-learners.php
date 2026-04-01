@@ -127,7 +127,7 @@ class HL_Frontend_Learners {
                                     <td><?php echo esc_html( $r['school_name'] ?: '—' ); ?></td>
                                     <td><?php echo esc_html( $r['cycle_name'] ?: '—' ); ?></td>
                                     <td>
-                                        <div class="hl-inline-progress" style="width:110px;">
+                                        <div class="hl-inline-progress">
                                             <div class="hl-progress-inline">
                                                 <div class="hl-progress-bar-container">
                                                     <div class="hl-progress-bar <?php echo $pct >= 100 ? 'hl-progress-complete' : 'hl-progress-active'; ?>" style="width:<?php echo esc_attr( $pct ); ?>%"></div>
