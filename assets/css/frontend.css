@@ -481,7 +481,7 @@ body.buddyboss-theme .entry-content [class*="hl-"] table tr:hover td {
 .hl-badge-in-progress  { background: var(--hl-status-progress-bg); color: var(--hl-status-progress-text); }
 .hl-badge-completed,
 .hl-badge-complete     { background: var(--hl-status-complete-bg); color: var(--hl-status-complete-text); }
-.hl-badge-future       { background: #EDE9FE; color: #5B21B6; }
+.hl-badge-future       { background: var(--hl-interactive-bg); color: var(--hl-interactive-dark); }
 .hl-badge-scheduled    { background: var(--hl-status-progress-bg); color: var(--hl-status-progress-text); }
 .hl-badge-attended     { background: var(--hl-status-complete-bg); color: var(--hl-status-complete-text); }
 .hl-badge-missed       { background: var(--hl-status-archived-bg); color: var(--hl-status-archived-text); }
@@ -1718,104 +1718,6 @@ button.hl-btn-danger:hover,
 }
 
 /* =====================================================
-   29. PROGRAM PAGE
-   ===================================================== */
-
-.hl-program-header {
-    display: flex;
-    gap: 24px;
-    margin-bottom: 28px;
-    flex-wrap: wrap;
-    align-items: flex-start;
-}
-
-.hl-program-hero-image {
-    width: 100%;
-    max-height: 260px;
-    border-radius: var(--hl-radius);
-    overflow: hidden;
-}
-
-.hl-program-hero-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.hl-program-header-info {
-    flex: 1;
-    min-width: 200px;
-}
-
-.hl-program-details {
-    display: flex;
-    gap: 24px;
-    flex-wrap: wrap;
-    background: var(--hl-bg-card);
-    border: 1px solid var(--hl-border-light);
-    border-radius: var(--hl-radius);
-    padding: 22px 28px;
-    margin-bottom: 32px;
-}
-
-.hl-program-detail-item {
-    font-size: 14px;
-    color: var(--hl-text-secondary);
-}
-
-.hl-program-detail-item strong {
-    color: var(--hl-text-heading);
-    font-weight: 600;
-}
-
-.hl-program-objectives {
-    margin-bottom: 28px;
-}
-
-.hl-program-objectives h3 {
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--hl-text-heading);
-    margin: 0 0 12px;
-}
-
-/* --- Program Resources Card --- */
-.hl-program-resources {
-    margin-bottom: 28px;
-}
-
-.hl-resource-card {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    background: var(--hl-bg-card);
-    border: 1px solid var(--hl-border-light);
-    border-left: 4px solid var(--hl-accent);
-    border-radius: var(--hl-radius);
-    padding: 22px 28px;
-}
-
-.hl-resource-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.hl-resource-content strong {
-    display: block;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--hl-text-heading);
-    margin-bottom: 2px;
-}
-
-.hl-resource-content p {
-    font-size: 13px;
-    color: var(--hl-text-secondary);
-    margin: 0;
-    line-height: 1.5;
-}
-
-/* =====================================================
    30. COMPONENT PAGE
    ===================================================== */
 
@@ -2771,123 +2673,6 @@ button.hl-btn-danger:hover,
         flex-direction: column;
         text-align: center;
     }
-}
-
-/* =====================================================
-   DASHBOARD HOME ([hl_dashboard])
-   ===================================================== */
-
-.hl-dashboard-home .hl-dash-welcome {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    background: linear-gradient(135deg, var(--hl-primary) 0%, #1e3a5f 55%, #2d5a88 100%);
-    color: var(--hl-surface);
-    padding: 36px;
-    border-radius: var(--hl-radius);
-    margin-bottom: 36px;
-}
-
-.hl-dashboard-home .hl-dash-welcome-avatar img {
-    border-radius: 50%;
-    width: 64px;
-    height: 64px;
-    object-fit: cover;
-    border: 3px solid rgba(255, 255, 255, 0.3);
-}
-
-.hl-dashboard-home .hl-dash-welcome-text h2 {
-    color: var(--hl-surface);
-    margin: 0 0 4px;
-    font-size: 22px;
-}
-
-.hl-dashboard-home .hl-dash-welcome-text p {
-    color: rgba(255, 255, 255, 0.8);
-    margin: 0;
-    font-size: 15px;
-}
-
-.hl-dashboard-home .hl-dash-section {
-    margin-bottom: 32px;
-}
-
-.hl-dashboard-home .hl-dash-section h3 {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--hl-text-secondary);
-    margin: 0 0 18px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid var(--hl-border-light);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-}
-
-.hl-dashboard-home .hl-dash-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
-    margin-bottom: 32px;
-}
-
-.hl-dashboard-home .hl-dash-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-    padding: 22px;
-    background: var(--hl-surface);
-    border: 1px solid var(--hl-border-light);
-    border-radius: var(--hl-radius);
-    text-decoration: none;
-    color: inherit;
-    transition: var(--hl-transition);
-    box-shadow: var(--hl-shadow);
-}
-
-.hl-dashboard-home .hl-dash-card:hover {
-    border-color: var(--hl-border);
-    box-shadow: var(--hl-shadow-hover);
-    transform: translateY(-2px);
-}
-
-.hl-dashboard-home .hl-dash-card-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--hl-radius-xs);
-    background: var(--hl-bg-hover);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.hl-dashboard-home .hl-dash-card-icon .dashicons {
-    font-size: 22px;
-    width: 22px;
-    height: 22px;
-    color: var(--hl-secondary);
-}
-
-.hl-dashboard-home .hl-dash-card:hover .hl-dash-card-icon {
-    background: var(--hl-secondary);
-}
-
-.hl-dashboard-home .hl-dash-card:hover .hl-dash-card-icon .dashicons {
-    color: var(--hl-surface);
-}
-
-.hl-dashboard-home .hl-dash-card-body h4 {
-    margin: 0 0 4px;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--hl-text-heading);
-}
-
-.hl-dashboard-home .hl-dash-card-body p {
-    margin: 0;
-    font-size: 13px;
-    color: var(--hl-text-secondary);
-    line-height: 1.4;
 }
 
 /* =====================================================
@@ -6477,12 +6262,8 @@ article:has(.hlup-wrapper) > .entry-header {
     margin-bottom: 8px;
 }
 
-/* ---- Buttons (BEM variants — new design system) ----
-   NOTE: Legacy .hl-btn base is at Section 12 (~line 604).
-   These BEM variants (.hl-btn--accent, etc.) layer on top.
-   Do NOT redefine .hl-btn base here — it would silently
-   override the legacy definition and break existing pages.
-   Session 6 will consolidate both into one definition.
+/* ---- Buttons (BEM variants) ----
+   Base .hl-btn is in Section 12. These BEM modifiers layer on top.
    ---------------------------------------------------- */
 .hl-btn--accent {
     background: var(--hl-accent);
@@ -6522,10 +6303,8 @@ article:has(.hlup-wrapper) > .entry-header {
     font-size: 12px;
 }
 
-/* ---- Badges (BEM variants — new design system) ----
-   NOTE: Legacy .hl-badge base is at Section 8 (~line 463).
-   These BEM variants (.hl-badge--success, etc.) layer on top.
-   Do NOT redefine .hl-badge base here — Session 6 consolidates.
+/* ---- Badges (BEM variants) ----
+   Base .hl-badge is in Section 8. These BEM modifiers layer on top.
    ---------------------------------------------------- */
 .hl-badge--success {
     background: var(--hl-status-active-bg);
@@ -6835,10 +6614,8 @@ article:has(.hlup-wrapper) > .entry-header {
     font-size: 14px;
 }
 
-/* ---- Notice (BEM variants — new design system) ----
-   NOTE: Legacy .hl-notice base is at Section 4 (~line 343).
-   These BEM variants (.hl-notice--info, etc.) layer on top.
-   Do NOT redefine .hl-notice base here — Session 6 consolidates.
+/* ---- Notice (BEM variants) ----
+   Base .hl-notice is in Section 4. These BEM modifiers layer on top.
    ---------------------------------------------------- */
 .hl-notice--info {
     background: var(--hl-status-progress-bg);
