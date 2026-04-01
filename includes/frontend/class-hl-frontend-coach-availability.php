@@ -67,7 +67,6 @@ class HL_Frontend_Coach_Availability {
         $start_hour = 7;  // 7 AM
         $end_hour   = 19; // 7 PM (last slot starts at 6:30 PM)
 
-        $this->render_styles();
         ?>
         <div class="hlca-wrapper">
 
@@ -397,90 +396,6 @@ class HL_Frontend_Coach_Availability {
         exit;
     }
 
-    /**
-     * All CSS for the Coach Availability page (inline).
-     */
-    private function render_styles() {
-        ?>
-        <style>
-        /* Wrapper */
-        .hlca-wrapper{max-width:1100px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
-
-        /* Back link */
-        .hlca-back-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#64748b;text-decoration:none;margin-bottom:16px;transition:color .2s}
-        .hlca-back-link:hover{color:#1e3a5f;text-decoration:none}
-
-        /* Hero */
-        .hlca-hero{display:flex;align-items:center;gap:20px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;padding:28px 32px;border-radius:16px;margin-bottom:24px}
-        .hlca-hero-icon{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.12)}
-        .hlca-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px}
-        .hlca-hero-sub{font-size:14px;opacity:.75;margin:4px 0 0}
-
-        /* Success banner */
-        .hlca-success-banner{display:flex;align-items:center;gap:10px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;padding:14px 20px;border-radius:12px;margin-bottom:20px;font-size:14px;font-weight:500}
-        .hlca-success-banner svg{flex-shrink:0;color:#059669}
-
-        /* Instructions card */
-        .hlca-instructions-card{display:flex;align-items:flex-start;gap:12px;background:#f0f7ff;border:1px solid #bfdbfe;padding:16px 20px;border-radius:12px;margin-bottom:24px}
-        .hlca-instructions-icon{flex-shrink:0;color:#3b82f6;margin-top:1px}
-        .hlca-instructions-text{font-size:14px;color:#1e40af;line-height:1.5}
-
-        /* Grid card */
-        .hlca-grid-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:20px;overflow:hidden}
-        .hlca-grid-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-
-        /* Grid layout */
-        .hlca-grid{display:grid;grid-template-columns:70px repeat(7,1fr);gap:2px;min-width:600px;user-select:none;-webkit-user-select:none}
-
-        /* Header cells */
-        .hlca-grid-header{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#475569;padding:10px 4px;background:#f8fafc;border-radius:6px}
-        .hlca-grid-time-header{background:transparent}
-
-        /* Time labels */
-        .hlca-grid-time{display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-size:11px;color:#8896a6;font-weight:500;white-space:nowrap;min-height:28px}
-        .hlca-grid-time-hour{font-weight:600;color:#64748b}
-        .hlca-grid-time-half{font-size:10px;color:#b0bbc8}
-
-        /* Clickable cells */
-        .hlca-cell{min-height:28px;background:#f8f9fb;border-radius:4px;cursor:pointer;transition:background .15s ease,box-shadow .15s ease;position:relative}
-        .hlca-cell:hover{background:#e2e8f0;box-shadow:inset 0 0 0 1px #cbd5e1}
-        .hlca-cell.hlca-active{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
-        .hlca-cell.hlca-active:hover{background:linear-gradient(135deg,#162d4a 0%,#245178 100%)}
-        .hlca-cell:focus{outline:2px solid #3b82f6;outline-offset:1px;z-index:1}
-        .hlca-cell-hour{border-top:1px solid #e2e8f0}
-
-        /* Legend */
-        .hlca-legend{display:flex;align-items:center;gap:24px;margin-bottom:24px;padding:0 4px}
-        .hlca-legend-item{display:flex;align-items:center;gap:8px;font-size:13px;color:#64748b;font-weight:500}
-        .hlca-legend-swatch{display:inline-block;width:18px;height:14px;border-radius:3px}
-        .hlca-legend-swatch-active{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%)}
-        .hlca-legend-swatch-inactive{background:#f8f9fb;border:1px solid #e2e8f0}
-        .hlca-legend-count{margin-left:auto;font-size:13px;color:#8896a6;font-weight:500}
-
-        /* Timezone card */
-        .hlca-tz-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e2e8f0;padding:14px 20px;border-radius:12px;margin-bottom:24px}
-        .hlca-tz-icon{flex-shrink:0;color:#6366f1;opacity:.7}
-        .hlca-tz-body{display:flex;flex-direction:column;gap:4px;flex:1}
-        .hlca-tz-dropdown{border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:14px;font-weight:500;color:#334155;font-family:inherit;cursor:pointer;background:#f8fafc;max-width:360px}
-        .hlca-tz-dropdown:focus{outline:2px solid #6366f1;outline-offset:1px;border-color:#6366f1}
-        .hlca-tz-hint{font-size:12px;color:#94a3b8;font-weight:500}
-
-        /* Save form */
-        .hlca-save-form{text-align:center;margin-bottom:24px}
-        .hlca-btn-save{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;padding:12px 28px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:box-shadow .25s ease,transform .25s ease;font-family:inherit}
-        .hlca-btn-save:hover{box-shadow:0 8px 25px rgba(30,58,95,.25);transform:translateY(-1px)}
-        .hlca-btn-save:active{transform:translateY(0)}
-
-        /* Responsive */
-        @media(max-width:600px){
-            .hlca-hero{flex-direction:column;text-align:center;padding:24px 20px}
-            .hlca-grid-card{padding:16px 12px}
-            .hlca-legend{flex-wrap:wrap;gap:12px}
-            .hlca-legend-count{margin-left:0;width:100%;text-align:center}
-        }
-        </style>
-        <?php
-    }
 
     /**
      * Find the published page that contains a given shortcode.
