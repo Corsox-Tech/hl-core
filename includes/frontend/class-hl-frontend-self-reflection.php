@@ -51,12 +51,12 @@ class HL_Frontend_Self_Reflection {
             HL_Frontend_Classroom_Visit::render_form_styles();
             $msg = sanitize_text_field($_GET['message']);
             if ($msg === 'submitted') {
-                echo '<div class="hlcv-alert" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
+                echo '<div class="hlcv-alert hlcv-alert-success hlcv-alert--standalone">';
                 echo '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
                 echo '<strong>' . esc_html__('Self-reflection submitted successfully!', 'hl-core') . '</strong>';
                 echo '</div>';
             } elseif ($msg === 'saved') {
-                echo '<div class="hlcv-alert" style="background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef;margin-bottom:20px;display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;font-size:14px;max-width:820px;margin-left:auto;margin-right:auto">';
+                echo '<div class="hlcv-alert hlcv-alert-info hlcv-alert--standalone">';
                 echo '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>';
                 echo '<strong>' . esc_html__('Draft saved.', 'hl-core') . '</strong>';
                 echo '</div>';
@@ -200,7 +200,7 @@ class HL_Frontend_Self_Reflection {
                         <p><?php esc_html_e('Select "Yes" for skills you feel you demonstrated during your teaching. Select "No" if you did not demonstrate or are unsure about a skill. Use the Description field to note specific examples or reflections.', 'hl-core'); ?></p>
                     </div>
                 </div>
-                <div class="hlcv-notes" style="margin-top:0;margin-bottom:0">
+                <div class="hlcv-notes hlcv-notes--flush">
                     <div class="hlcv-notes-title">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         <?php esc_html_e('Notes for Clarification', 'hl-core'); ?>
@@ -232,7 +232,7 @@ class HL_Frontend_Self_Reflection {
                     </div>
                 </div>
                 <?php if (!empty($visit_entity['status']) && $visit_entity['status'] === 'completed') : ?>
-                    <div style="margin-top:12px">
+                    <div class="hlcv-info-row">
                         <span class="hlcv-ro-badge hlcv-ro-yes">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
                             <?php esc_html_e('Your leader has visited your classroom', 'hl-core'); ?>
