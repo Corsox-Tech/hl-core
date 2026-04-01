@@ -15,10 +15,13 @@ class HL_Shortcodes {
     private function __construct() {
         add_action('init', array($this, 'register_shortcodes'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
-        // wp_print_styles fires AFTER all wp_enqueue_scripts callbacks (including
-        // BB child theme at 99999 and BP_Nouveau at PHP_INT_MAX). This is the
-        // ONLY hook where we can guarantee BB styles are dequeued and ours are present.
+        // Two-layer defense against BB styles:
+        // 1. Remove BB's enqueue hooks before they fire (template_redirect, early).
+        // 2. wp_print_styles at PHP_INT_MAX as final cleanup.
+        add_action('template_redirect', array($this, 'remove_bb_enqueue_hooks'));
         add_action('wp_print_styles', array($this, 'final_style_override'), PHP_INT_MAX);
+        // Also filter the style tag as absolute last resort — disable BB stylesheets in HTML.
+        add_filter('style_loader_tag', array($this, 'filter_bb_style_tags'), PHP_INT_MAX, 4);
         add_action('template_redirect', array('HL_Frontend_My_Cycle', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Team_Page', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Cycle_Workspace', 'handle_export'));
@@ -120,8 +123,86 @@ class HL_Shortcodes {
             wp_enqueue_style('hl-google-fonts-inter', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null);
             wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array('hl-google-fonts-inter'), HL_CORE_VERSION);
             wp_enqueue_script('hl-frontend', HL_CORE_ASSETS_URL . 'js/frontend.js', array('jquery'), HL_CORE_VERSION, true);
-
+            // Also enqueue dashicons for sidebar icons.
+            wp_enqueue_style('dashicons');
         }
+    }
+
+    /**
+     * Check if the current page is an HL page.
+     */
+    private function is_hl_page() {
+        global $post;
+        if (!is_a($post, 'WP_Post')) return false;
+        return strpos($post->post_content, '[hl_') !== false;
+    }
+
+    /**
+     * Remove BB's enqueue action hooks BEFORE wp_head fires.
+     * Runs on template_redirect (fires before wp_head).
+     * This prevents BB from ever adding its styles to the queue.
+     */
+    public function remove_bb_enqueue_hooks() {
+        if (!$this->is_hl_page()) return;
+
+        global $wp_filter;
+
+        // Remove all wp_enqueue_scripts callbacks from BB theme and platform.
+        if (isset($wp_filter['wp_enqueue_scripts'])) {
+            foreach ($wp_filter['wp_enqueue_scripts']->callbacks as $priority => $hooks) {
+                foreach ($hooks as $tag => $hook) {
+                    $fn = $hook['function'];
+                    $name = '';
+
+                    if (is_string($fn)) {
+                        $name = $fn;
+                    } elseif (is_array($fn) && count($fn) === 2) {
+                        $obj = $fn[0];
+                        $method = $fn[1];
+                        if (is_object($obj)) {
+                            $class = get_class($obj);
+                        } else {
+                            $class = $obj;
+                        }
+                        $name = $class . '::' . $method;
+                    }
+
+                    // Remove any hook from BB theme or BP Nouveau.
+                    $name_lower = strtolower($name);
+                    if (
+                        strpos($name_lower, 'buddyboss') !== false ||
+                        strpos($name_lower, 'bp_nouveau') !== false ||
+                        strpos($name_lower, 'bb_') === 0 ||
+                        $name === 'buddyboss_theme_child_scripts_styles' ||
+                        $name === 'buddyboss_theme_scripts_styles'
+                    ) {
+                        unset($wp_filter['wp_enqueue_scripts']->callbacks[$priority][$tag]);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Filter the <link> tag for BB stylesheets — absolute last resort.
+     * If a BB stylesheet somehow survives the dequeue, this prevents it from rendering.
+     */
+    public function filter_bb_style_tags($tag, $handle, $href, $media) {
+        if (!$this->is_hl_page()) return $tag;
+
+        // Block any stylesheet from BB theme or platform.
+        if (
+            stripos($href, 'buddyboss-theme') !== false ||
+            stripos($href, 'buddyboss-platform') !== false ||
+            stripos($href, 'bp-templates') !== false ||
+            stripos($handle, 'buddyboss') !== false ||
+            stripos($handle, 'bp-nouveau') !== false ||
+            stripos($handle, 'bp-') === 0
+        ) {
+            return '<!-- BB style blocked: ' . esc_attr($handle) . ' -->' . "\n";
+        }
+
+        return $tag;
     }
 
     /**
