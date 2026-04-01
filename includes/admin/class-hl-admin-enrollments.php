@@ -184,10 +184,42 @@ class HL_Admin_Enrollments {
             $data['enrollment_uuid'] = HL_DB_Utils::generate_uuid();
             $data['enrolled_at']     = current_time('mysql');
             $wpdb->insert($wpdb->prefix . 'hl_enrollment', $data);
+            $enrollment_id = $wpdb->insert_id;
             if ($cycle_context) {
                 $redirect = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $cycle_context . '&tab=enrollments&message=enrollment_created');
             } else {
                 $redirect = admin_url('admin.php?page=hl-enrollments&message=created');
+            }
+        }
+
+        // Handle pathway assignment.
+        $new_pathway_id = !empty($_POST['pathway_id']) ? absint($_POST['pathway_id']) : 0;
+        $old_pathway_id = !empty($_POST['_current_pathway_id']) ? absint($_POST['_current_pathway_id']) : 0;
+        if ($enrollment_id && $new_pathway_id !== $old_pathway_id) {
+            $pa_service = new HL_Pathway_Assignment_Service();
+            if ($old_pathway_id) {
+                $pa_service->unassign_pathway($enrollment_id, $old_pathway_id);
+            }
+            if ($new_pathway_id) {
+                $pa_service->assign_pathway($enrollment_id, $new_pathway_id, 'explicit');
+            }
+        }
+
+        // Handle team membership.
+        $new_team_id = !empty($_POST['team_id']) ? absint($_POST['team_id']) : 0;
+        $old_team_id = !empty($_POST['_current_team_id']) ? absint($_POST['_current_team_id']) : 0;
+        if ($enrollment_id && $new_team_id !== $old_team_id) {
+            if ($old_team_id) {
+                $wpdb->delete($wpdb->prefix . 'hl_team_membership', array(
+                    'enrollment_id' => $enrollment_id,
+                    'team_id'       => $old_team_id,
+                ));
+            }
+            if ($new_team_id) {
+                $wpdb->insert($wpdb->prefix . 'hl_team_membership', array(
+                    'enrollment_id' => $enrollment_id,
+                    'team_id'       => $new_team_id,
+                ));
             }
         }
 
@@ -538,6 +570,30 @@ class HL_Admin_Enrollments {
             "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'district' AND status = 'active' ORDER BY name ASC"
         );
 
+        // Get pathways (for cycle-filtered dropdown).
+        $pathways = $wpdb->get_results(
+            "SELECT pathway_id, pathway_name, cycle_id FROM {$wpdb->prefix}hl_pathway WHERE active_status = 1 ORDER BY pathway_name ASC"
+        );
+
+        // Get teams (for cycle-filtered dropdown).
+        $teams = $wpdb->get_results(
+            "SELECT team_id, team_name, cycle_id FROM {$wpdb->prefix}hl_team ORDER BY team_name ASC"
+        );
+
+        // Current pathway assignment and team membership for edit mode.
+        $current_pathway_id = 0;
+        $current_team_id    = 0;
+        if ($is_edit) {
+            $current_pathway_id = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT pathway_id FROM {$wpdb->prefix}hl_pathway_assignment WHERE enrollment_id = %d ORDER BY FIELD(assignment_type, 'explicit', 'role_default') LIMIT 1",
+                $enrollment->enrollment_id
+            ));
+            $current_team_id = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT team_id FROM {$wpdb->prefix}hl_team_membership WHERE enrollment_id = %d LIMIT 1",
+                $enrollment->enrollment_id
+            ));
+        }
+
         // Decode current roles (DB may store lowercase; normalize to Title Case for checkbox matching).
         $current_roles = array();
         if ($is_edit && !empty($enrollment->roles)) {
@@ -611,6 +667,42 @@ class HL_Admin_Enrollments {
             echo '<label><input type="checkbox" name="roles[]" value="' . esc_attr($role) . '"' . $checked . ' /> ' . esc_html($role) . '</label><br />';
         }
         echo '</fieldset></td>';
+        echo '</tr>';
+
+        // Pathway (filtered by cycle).
+        echo '<tr>';
+        echo '<th scope="row"><label for="pathway_id">' . esc_html__('Pathway', 'hl-core') . '</label></th>';
+        echo '<td><select id="pathway_id" name="pathway_id">';
+        echo '<option value="">' . esc_html__('-- Select Pathway --', 'hl-core') . '</option>';
+        if ($pathways) {
+            foreach ($pathways as $pw) {
+                echo '<option value="' . esc_attr($pw->pathway_id) . '"'
+                    . ' data-cycle="' . esc_attr($pw->cycle_id) . '"'
+                    . selected($current_pathway_id, $pw->pathway_id, false) . '>'
+                    . esc_html($pw->pathway_name) . '</option>';
+            }
+        }
+        echo '</select>';
+        echo '<input type="hidden" name="_current_pathway_id" value="' . esc_attr($current_pathway_id) . '" />';
+        echo '</td>';
+        echo '</tr>';
+
+        // Team (filtered by cycle).
+        echo '<tr>';
+        echo '<th scope="row"><label for="team_id">' . esc_html__('Team', 'hl-core') . '</label></th>';
+        echo '<td><select id="team_id" name="team_id">';
+        echo '<option value="">' . esc_html__('-- Select Team --', 'hl-core') . '</option>';
+        if ($teams) {
+            foreach ($teams as $tm) {
+                echo '<option value="' . esc_attr($tm->team_id) . '"'
+                    . ' data-cycle="' . esc_attr($tm->cycle_id) . '"'
+                    . selected($current_team_id, $tm->team_id, false) . '>'
+                    . esc_html($tm->team_name) . '</option>';
+            }
+        }
+        echo '</select>';
+        echo '<input type="hidden" name="_current_team_id" value="' . esc_attr($current_team_id) . '" />';
+        echo '</td>';
         echo '</tr>';
 
         // School
@@ -726,6 +818,49 @@ class HL_Admin_Enrollments {
                     alert('<?php echo esc_js(__('Please select a user from the search results.', 'hl-core')); ?>');
                 }
             });
+        })();
+        </script>
+        <script>
+        // Filter Pathway and Team dropdowns by selected Cycle.
+        (function(){
+            var cycleSel   = document.getElementById('cycle_id');
+            var pathwaySel = document.getElementById('pathway_id');
+            var teamSel    = document.getElementById('team_id');
+            if (!cycleSel || !pathwaySel || !teamSel) return;
+
+            var pwOpts   = Array.from(pathwaySel.querySelectorAll('option[data-cycle]'));
+            var teamOpts = Array.from(teamSel.querySelectorAll('option[data-cycle]'));
+
+            function filterByCycle(cycleId) {
+                // Filter pathway options.
+                var currentPw = pathwaySel.value;
+                var pwVisible = false;
+                pwOpts.forEach(function(opt) {
+                    var show = (!cycleId || opt.dataset.cycle === cycleId);
+                    opt.style.display = show ? '' : 'none';
+                    if (opt.value === currentPw && show) pwVisible = true;
+                });
+                if (!pwVisible) pathwaySel.value = '';
+
+                // Filter team options.
+                var currentTm = teamSel.value;
+                var tmVisible = false;
+                teamOpts.forEach(function(opt) {
+                    var show = (!cycleId || opt.dataset.cycle === cycleId);
+                    opt.style.display = show ? '' : 'none';
+                    if (opt.value === currentTm && show) tmVisible = true;
+                });
+                if (!tmVisible) teamSel.value = '';
+            }
+
+            cycleSel.addEventListener('change', function() {
+                filterByCycle(this.value);
+            });
+
+            // Initial filter on page load.
+            if (cycleSel.value) {
+                filterByCycle(cycleSel.value);
+            }
         })();
         </script>
         <?php
