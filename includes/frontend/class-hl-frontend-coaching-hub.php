@@ -130,24 +130,6 @@ class HL_Frontend_Coaching_Hub {
 
         </div>
 
-        <style>
-        .hl-coaches-section { margin-bottom: 24px; }
-        .hl-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
-        .hl-coach-card { display: flex; align-items: center; gap: 12px; padding: 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; }
-        .hl-coach-card .hl-coach-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; }
-        .hl-coach-card .hl-coach-info span { font-size: 13px; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .hl-view-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
-        .hl-hub-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-        .hl-hub-calendar-view .hl-calendar-header { margin-bottom: 8px; font-weight: 600; }
-        .hl-hub-calendar-view .hl-calendar-dow { padding: 4px; text-align: center; font-weight: 600; font-size: 12px; color: #666; }
-        .hl-hub-calendar-view .hl-calendar-day { padding: 8px; min-height: 60px; border: 1px solid #eee; border-radius: 8px; font-size: 14px; }
-        .hl-hub-calendar-view .hl-calendar-today { background: #f0f7ff; }
-        .hl-hub-calendar-view .hl-calendar-empty { border: none; }
-        .hl-cal-day-num { display: block; font-weight: 600; margin-bottom: 4px; }
-        .hl-cal-dots { display: flex; gap: 3px; flex-wrap: wrap; }
-        .hl-cal-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-        </style>
-
         <script>
         (function($){
             var $rows = $('.hl-coaching-row');
@@ -181,15 +163,15 @@ class HL_Frontend_Coaching_Hub {
             var $calBtn = $('#hl-view-calendar-btn');
 
             $tableBtn.on('click', function() {
-                $tableView.show();
-                $calView.hide();
+                $tableView.removeClass('hl-hidden');
+                $calView.addClass('hl-hidden');
                 $tableBtn.removeClass('hl-btn-secondary').addClass('hl-btn-primary');
                 $calBtn.removeClass('hl-btn-primary').addClass('hl-btn-secondary');
             });
 
             $calBtn.on('click', function() {
-                $tableView.hide();
-                $calView.show();
+                $tableView.addClass('hl-hidden');
+                $calView.removeClass('hl-hidden');
                 $calBtn.removeClass('hl-btn-secondary').addClass('hl-btn-primary');
                 $tableBtn.removeClass('hl-btn-primary').addClass('hl-btn-secondary');
             });
@@ -230,7 +212,7 @@ class HL_Frontend_Coaching_Hub {
                                     echo esc_html( $coach->display_name );
                                 }
                             ?></strong>
-                            <span style="word-break:break-all;overflow-wrap:break-word;"><?php echo esc_html( $coach->user_email ); ?></span>
+                            <span class="hl-coach-email-text"><?php echo esc_html( $coach->user_email ); ?></span>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -258,16 +240,16 @@ class HL_Frontend_Coaching_Hub {
             }
         }
 
-        $status_colors = array(
-            'attended'    => '#4caf50',
-            'scheduled'   => '#2196f3',
-            'missed'      => '#f44336',
-            'cancelled'   => '#9e9e9e',
-            'rescheduled' => '#ff9800',
+        $status_dot_classes = array(
+            'attended'    => 'hl-cal-dot--attended',
+            'scheduled'   => 'hl-cal-dot--scheduled',
+            'missed'      => 'hl-cal-dot--missed',
+            'cancelled'   => 'hl-cal-dot--cancelled',
+            'rescheduled' => 'hl-cal-dot--rescheduled',
         );
 
         ?>
-        <div class="hl-hub-calendar-view" style="display:none;">
+        <div class="hl-hub-calendar-view hl-hidden">
             <div class="hl-calendar-header">
                 <span class="hl-calendar-title"><?php echo esc_html( date( 'F Y', mktime( 0, 0, 0, $month, 1, $year ) ) ); ?></span>
             </div>
@@ -296,9 +278,9 @@ class HL_Frontend_Coaching_Hub {
                             <div class="hl-cal-dots">
                                 <?php foreach ( $day_sessions as $ds ) :
                                     $s_status = $ds['session_status'] ?: 'scheduled';
-                                    $color = isset( $status_colors[ $s_status ] ) ? $status_colors[ $s_status ] : '#999';
+                                    $dot_class = isset( $status_dot_classes[ $s_status ] ) ? $status_dot_classes[ $s_status ] : 'hl-cal-dot--cancelled';
                                 ?>
-                                    <span class="hl-cal-dot" style="background:<?php echo esc_attr( $color ); ?>;" title="<?php echo esc_attr( $ds['session_title'] ?: __( 'Session', 'hl-core' ) ); ?>"></span>
+                                    <span class="hl-cal-dot <?php echo esc_attr( $dot_class ); ?>" title="<?php echo esc_attr( $ds['session_title'] ?: __( 'Session', 'hl-core' ) ); ?>"></span>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
