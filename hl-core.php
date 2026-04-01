@@ -117,6 +117,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-assignment-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scope-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-pathway-assignment-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-pathway-routing-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-child-snapshot-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-rp-session-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-classroom-visit-service.php';
