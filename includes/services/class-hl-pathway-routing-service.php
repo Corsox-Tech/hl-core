@@ -40,16 +40,16 @@ class HL_Pathway_Routing_Service {
      * Each rule: array( role, required_stage_keys, pathway_code )
      */
     private static $routing_rules = array(
-        array('mentor',          array('C', 'A'), 'b2e-mentor-completion'),
-        array('mentor',          array('C'),      'b2e-mentor-transition'),
-        array('mentor',          array('A'),      'b2e-mentor-phase-2'),
-        array('mentor',          array(),          'b2e-mentor-phase-1'),
-        array('teacher',         array('C'),      'b2e-teacher-phase-2'),
-        array('teacher',         array(),          'b2e-teacher-phase-1'),
-        array('school_leader',   array('E'),      'b2e-streamlined-phase-2'),
-        array('school_leader',   array(),          'b2e-streamlined-phase-1'),
-        array('district_leader', array('E'),      'b2e-streamlined-phase-2'),
-        array('district_leader', array(),          'b2e-streamlined-phase-1'),
+        array('mentor',          array('C', 'A'), 'B2E_MENTOR_COMPLETION'),
+        array('mentor',          array('C'),      'B2E_MENTOR_TRANSITION'),
+        array('mentor',          array('A'),      'B2E_MENTOR_PHASE_2'),
+        array('mentor',          array(),          'B2E_MENTOR_PHASE_1'),
+        array('teacher',         array('C'),      'B2E_TEACHER_PHASE_2'),
+        array('teacher',         array(),          'B2E_TEACHER_PHASE_1'),
+        array('school_leader',   array('E'),      'B2E_STREAMLINED_PHASE_2'),
+        array('school_leader',   array(),          'B2E_STREAMLINED_PHASE_1'),
+        array('district_leader', array('E'),      'B2E_STREAMLINED_PHASE_2'),
+        array('district_leader', array(),          'B2E_STREAMLINED_PHASE_1'),
     );
 
     /**
@@ -138,6 +138,7 @@ class HL_Pathway_Routing_Service {
 
     /**
      * Look up a pathway by code within a specific cycle.
+     * Falls back to other cycles in the same Partnership if not found.
      *
      * @param string $pathway_code
      * @param int    $cycle_id
@@ -145,11 +146,38 @@ class HL_Pathway_Routing_Service {
      */
     private static function lookup_pathway_by_code($pathway_code, $cycle_id) {
         global $wpdb;
-        return $wpdb->get_var($wpdb->prepare(
-            "SELECT pathway_id FROM {$wpdb->prefix}hl_pathway
+        $prefix = $wpdb->prefix;
+
+        // First: try exact cycle match
+        $pathway_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT pathway_id FROM {$prefix}hl_pathway
              WHERE pathway_code = %s AND cycle_id = %d AND active_status = 1",
             $pathway_code, $cycle_id
         ));
+
+        if ($pathway_id) {
+            return (int) $pathway_id;
+        }
+
+        // Fallback: look in other cycles within the same Partnership
+        $partnership_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT partnership_id FROM {$prefix}hl_cycle WHERE cycle_id = %d",
+            $cycle_id
+        ));
+
+        if (!$partnership_id) {
+            return null;
+        }
+
+        $pathway_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT p.pathway_id FROM {$prefix}hl_pathway p
+             JOIN {$prefix}hl_cycle c ON p.cycle_id = c.cycle_id
+             WHERE p.pathway_code = %s AND c.partnership_id = %d AND p.active_status = 1
+             ORDER BY c.start_date DESC LIMIT 1",
+            $pathway_code, $partnership_id
+        ));
+
+        return $pathway_id ? (int) $pathway_id : null;
     }
 
     /**
