@@ -399,6 +399,8 @@ Observations are used by Coaches to prepare for Coaching Sessions.
 - teacher_enrollment_id (optional)
 - school_id (optional)
 - classroom_id (optional)
+- instrument_id bigint(20) unsigned NULL
+- instrument_version varchar(20) NULL
 - jfb_form_id
 - jfb_record_id (nullable, set on submission)
 - status in { "draft", "submitted" }
@@ -472,7 +474,7 @@ Coaches and mentors can submit structured form responses during coaching session
 - session_id (FK → hl_coaching_session)
 - submitted_by_user_id (FK → WP User)
 - instrument_id (FK → hl_teacher_assessment_instrument — references coaching_rp_notes, mentoring_rp_notes, coaching_action_plan, or mentoring_action_plan instrument)
-- role_in_session (enum: 'coach', 'mentor') — who submitted this form
+- role_in_session varchar(20) NOT NULL — who submitted this form ('coach', 'mentor')
 - responses_json (longtext) — structured form responses
 - status (enum: 'draft', 'submitted')
 - submitted_at (datetime, nullable)
@@ -517,7 +519,7 @@ RP sessions are structured reflective practice events between a **Mentor** and a
 - rp_session_id (FK → hl_rp_session)
 - submitted_by_user_id (FK → WP User)
 - instrument_id (FK → hl_teacher_assessment_instrument)
-- role_in_session (enum: 'coach', 'mentor') — who submitted this form
+- role_in_session varchar(20) NOT NULL — who submitted this form ('coach', 'mentor')
 - responses_json (longtext) — structured form responses
 - status (enum: 'draft', 'submitted')
 - submitted_at (datetime, nullable)
@@ -576,7 +578,7 @@ Classroom Visits are present only in Leader/Streamlined pathways, where they rep
 - classroom_visit_id (FK → hl_classroom_visit)
 - submitted_by_user_id (FK → WP User)
 - instrument_id (FK → hl_teacher_assessment_instrument — references `classroom_visit_form` instrument)
-- role_in_visit (enum: 'leader', 'teacher') — who submitted this form
+- role_in_visit varchar(20) NOT NULL — who submitted this form ('leader', 'teacher')
 - responses_json (longtext) — structured form responses
 - status (enum: 'draft', 'submitted')
 - submitted_at (datetime, nullable)

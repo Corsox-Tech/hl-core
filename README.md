@@ -3,7 +3,7 @@
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, LearnDash
 **Status:** v1 complete — Phases 1-32 + 35 done. **Deployed to production** (March 2026). Cross-pathway events, forms & coaching enhancements complete (5 new DB tables, 3 new component types, 3 new services, 6 instruments, 5 form renderers). **HL User Profile** — unified profile page replacing BuddyBoss profiles (6 tabs: Overview, Progress, Coaching, Assessments, RP & Observations, Manage), role-based access control, BB redirect, profile links wired across all pages. **Component eligibility rules** — `requires_classroom` + `eligible_roles` per component, ineligible shown as "Not Applicable", excluded from completion %. Architecture expansion in progress: Individual Enrollments (hl_individual_enrollment), Program Progress Matrix report — see B2E_MASTER_REFERENCE.md and Build Queue Phases 33-34.
-(34 shortcode pages incl. dashboard + documentation + 5 coach pages + user profile + schedule-session, 18 admin controllers, 44 DB tables, 23 services, Cycle entity (hl_cycle) with cycle_type (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, **Coaching Hub** with Sessions+Assignments+Coaches tabs, **Settings hub** with Imports+Audit Log+Doc Articles+Email Templates tabs, **Assessment Hub** with vertical sidebar nav (Teacher/Child Assessments + Child/Teacher Instruments), **Admin CSS design system** with modern card layout + status badges + design tokens, **BuddyBoss login fix** suppressing bpnoaccess error/shake, **Cross-pathway events** with 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session controller) + 3 new component types + 6 instruments, **HL User Profile** with 6 tabs + BB redirect + role-based access)
+(34 shortcode pages incl. dashboard + documentation + 5 coach pages + user profile, 18 admin controllers, 44 DB tables, 23 services, Cycle entity (hl_cycle) with cycle_type (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, **Coaching Hub** with Sessions+Assignments+Coaches tabs, **Settings hub** with Imports+Audit Log+Doc Articles+Email Templates tabs, **Assessment Hub** with vertical sidebar nav (Teacher/Child Assessments + Child/Teacher Instruments), **Admin CSS design system** with modern card layout + status badges + design tokens, **BuddyBoss login fix** suppressing bpnoaccess error/shake, **Cross-pathway events** with 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session controller) + 3 new component types + 6 instruments, **HL User Profile** with 6 tabs + BB redirect + role-based access)
 
 ## Overview
 
@@ -26,7 +26,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 - **System:** `hl_import_run`, `hl_audit_log`, `hl_cycle_email_log` (cycle email tracking)
 
 ### Domain Models & Repositories
-All 10 core entities have domain model classes with proper properties and repository classes with full CRUD:
+All 10 core entities have domain model classes with proper properties. 9 of 10 have repository classes with full CRUD (Teacher_Assessment_Instrument has a domain class but no repository):
 - OrgUnit, Partnership, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument, Cycle
 
 ### Services (Business Logic)
@@ -221,11 +221,11 @@ See `STATUS.md` for the current build queue and task tracking.
     /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (9 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component)
     /cli/                        # WP-CLI commands (16 commands: seed-demo, seed-lutheran, seed-palm-beach, seed-beginnings, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children, setup-elcpb-y2, setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav) + data files
-    /services/                   # Business logic (23 services incl. HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Microsoft_Graph, HL_Zoom_Integration, HL_Coach_Dashboard_Service, HL_Scope_Service)
+    /services/                   # Business logic (23 services incl. HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)
     /admin/                      # WP admin pages (18 controllers incl. Partnerships, Cycles, Assessment Hub, Coaching Hub with Coaches tab, Email Templates, Scheduling Settings)
-    /frontend/                   # 34 shortcode page renderers + 6 form/dispatch renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session, Schedule Session) + instrument renderer + teacher assessment renderer
+    /frontend/                   # 34 shortcode page renderers + 5 form/dispatch renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + schedule session renderer + instrument renderer + teacher assessment renderer
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, age group helpers + label remap (legacy)
   /data/                         # Private data files (gitignored)

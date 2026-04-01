@@ -252,7 +252,7 @@ Minimum WP Admin pages:
 
 9) Assessments (Staff-only viewers)
 - child assessment viewer: list instances, view per-child answers, export CSV
-- teacher self-assessment: link to JFB Form Records for response viewing (or embed JFB's viewer)
+- teacher self-assessment: uses custom PHP instrument/renderer system (`HL_Teacher_Assessment_Renderer`) with `responses_json` storage in `hl_teacher_assessment_instance`
 
 10) Reporting
 - staff cycle dashboards + filters

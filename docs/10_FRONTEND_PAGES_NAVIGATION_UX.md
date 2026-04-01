@@ -120,7 +120,7 @@ All front-end pages require the user to be logged in.
 | Dashboard | Any logged-in user — cards shown/hidden by role (see §2.0) |
 | My Programs | Any enrolled participant (sees only their own pathways) |
 | Program Page | The enrolled participant viewing their own pathway |
-| Activity Page | The enrolled participant (if activity is unlocked) |
+| Component Page | The enrolled participant (if component is unlocked) |
 | My Cycle | School Leader (scoped to their school), District Leader (scoped to their district) |
 | Districts Listing | Housman Admin, Coach |
 | Schools Listing | Housman Admin, Coach |

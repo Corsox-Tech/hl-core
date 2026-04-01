@@ -1,5 +1,5 @@
 # Housman Learning Core Plugin — AI Library
-## File: 04_PARTNERSHIPS_PATHWAYS_COMPONENTS_RULES.md
+## File: 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md
 Version: 4.0
 Last Updated: 2026-03-24
 Timezone: America/Bogota
