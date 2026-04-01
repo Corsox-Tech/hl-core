@@ -8357,3 +8357,103 @@ tr.hl-tsa-row-odd td { background-color: var(--hl-bg-subtle) }
     .hl-tsa-scale-row { padding: 12px }
     .hl-tsa-actions .button { width: 100%; text-align: center }
 }
+
+/* --- Instrument Renderer / Child Assessment Form (.hl-ca-*) -------- */
+.hl-ca-form-wrap { max-width: 900px; margin: 0 auto 2em; background: var(--hl-surface); border: 1px solid var(--hl-border); border-radius: var(--hl-radius); box-shadow: var(--hl-shadow); padding: 32px 40px; font-family: var(--hl-font); color: var(--hl-text) }
+.hl-ca-form-wrap p, .hl-ca-form-wrap td, .hl-ca-form-wrap th, .hl-ca-form-wrap label, .hl-ca-form-wrap span, .hl-ca-form-wrap div { color: var(--hl-text); line-height: 1.6 }
+
+.hl-ca-branded-header { text-align: center; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 2px solid var(--hl-border-light) }
+.hl-ca-brand-logo { display: block; text-align: center; margin-bottom: 12px }
+.hl-ca-brand-img { max-width: 176px; height: auto }
+.hl-ca-title { font-size: 22px; font-weight: 700; color: var(--hl-text-heading); margin: 0; line-height: 1.3 }
+.hl-ca-phase-label { color: var(--hl-text-secondary); font-weight: 400 }
+
+.hl-ca-teacher-info { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--hl-border-light) }
+.hl-ca-info-row { margin-bottom: 4px; font-size: 15px }
+.hl-ca-info-label { font-weight: 700; color: var(--hl-text-heading); margin-right: 6px }
+.hl-ca-info-value { color: var(--hl-text) }
+
+.hl-ca-instructions { margin-bottom: 18px }
+.hl-ca-instructions h3 { font-size: 17px; font-weight: 700; color: var(--hl-text-heading); margin: 0 0 8px 0 }
+.hl-ca-instructions p { font-size: 14px; color: var(--hl-text); margin: 0; line-height: 1.7 }
+
+.hl-ca-behavior-key { margin-bottom: 20px }
+table.hl-ca-key-table { width: 100%; border-collapse: collapse; font-size: 14px; border: 1px solid var(--hl-border); border-radius: var(--hl-radius-sm); overflow: hidden }
+table.hl-ca-key-table thead th { background: var(--hl-primary); color: #fff; padding: 12px 16px; font-size: 15px; font-weight: 600; text-align: center; letter-spacing: 0.02em }
+table.hl-ca-key-table tbody td { padding: 10px 16px; border-bottom: 1px solid var(--hl-border-light); vertical-align: top }
+table.hl-ca-key-table tbody tr:last-child td { border-bottom: none }
+.hl-ca-key-label-cell { width: 140px; min-width: 120px; white-space: nowrap }
+.hl-ca-key-label-cell strong { display: block; color: var(--hl-text-heading); font-size: 14px }
+.hl-ca-key-freq { display: block; font-size: 12px; color: var(--hl-text-secondary); margin-top: 2px }
+.hl-ca-key-desc-cell { color: var(--hl-text); line-height: 1.5 }
+
+.hl-ca-question-section { margin-bottom: 18px }
+.hl-ca-question-section h3 { font-size: 16px; font-weight: 700; color: var(--hl-text-heading); margin: 0 0 6px 0 }
+.hl-ca-question-text { font-size: 15px; color: var(--hl-text-heading); line-height: 1.6; margin: 0; font-weight: 600 }
+
+.hl-ca-age-group-section { margin-bottom: 32px; padding-bottom: 16px; border-bottom: 2px solid var(--hl-border-light) }
+.hl-ca-age-group-section:last-of-type { border-bottom: none; margin-bottom: 0 }
+.hl-ca-age-group-header { font-size: 18px; font-weight: 700; color: var(--hl-primary); margin: 24px 0 12px; padding: 8px 12px; background: var(--hl-bg-subtle); border-radius: var(--hl-radius-sm); border-left: 4px solid var(--hl-secondary) }
+
+.hl-ca-skip-wrap { margin-top: 4px }
+.hl-ca-skip-label { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 400; color: var(--hl-text-muted); cursor: pointer; white-space: nowrap }
+.hl-ca-skip-label:hover { color: var(--hl-error) }
+.hl-ca-skip-checkbox { width: 14px; height: 14px; accent-color: var(--hl-error); margin: 0; cursor: pointer }
+.hl-ca-skip-reason { display: block; margin-top: 4px; font-size: 11px; padding: 2px 6px; border: 1px solid var(--hl-border-medium); border-radius: 4px; color: var(--hl-text); max-width: 180px }
+tr.hl-ca-row-skipped td { opacity: 0.45 }
+tr.hl-ca-row-skipped td.hl-ca-child-cell { opacity: 1 }
+tr.hl-ca-row-skipped td.hl-ca-child-cell .hl-ca-skip-wrap { opacity: 1 }
+
+.hl-ca-matrix-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 8px }
+table.hl-ca-matrix { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 500px }
+table.hl-ca-matrix thead th { padding: 12px 16px; font-weight: 600; font-size: 15px; color: var(--hl-text); text-align: center; border-bottom: 2px solid var(--hl-border); white-space: nowrap }
+table.hl-ca-matrix thead th.hl-ca-child-header { text-align: left; min-width: 180px }
+table.hl-ca-matrix tbody td { padding: 10px 16px; vertical-align: middle; text-align: center; border-bottom: 1px solid var(--hl-border-light) }
+table.hl-ca-matrix tbody td.hl-ca-child-cell { text-align: left; font-weight: 500; color: var(--hl-text-heading); white-space: nowrap; min-width: 180px }
+.hl-ca-child-dob { display: block; font-size: 12px; font-weight: 400; color: var(--hl-text-secondary); margin-top: 1px }
+
+table.hl-ca-matrix tbody tr.hl-ca-row-even td { background-color: var(--hl-bg-subtle) }
+table.hl-ca-matrix tbody tr.hl-ca-row-odd td { background-color: var(--hl-surface) }
+table.hl-ca-matrix tbody tr:hover td { background-color: var(--hl-bg-hover) }
+
+.hl-ca-radio-cell { padding: 10px 8px !important }
+.hl-ca-radio { width: 20px; height: 20px; cursor: pointer; accent-color: var(--hl-primary); margin: 0 }
+
+.hl-ca-matrix-multi thead th.hl-ca-question-header { text-align: left; font-size: 13px; max-width: 200px; white-space: normal }
+.hl-ca-input-cell { text-align: left !important }
+.hl-ca-likert-group { display: flex; flex-direction: column; gap: 4px }
+.hl-ca-likert-label { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 2px 0; font-size: 13px }
+.hl-ca-multiselect-group { display: flex; flex-direction: column; gap: 4px }
+.hl-ca-multiselect-label { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 2px 0; font-size: 13px }
+.hl-ca-input-text, .hl-ca-input-number { width: 100%; max-width: 160px; padding: 6px 8px; border: 1px solid var(--hl-border-medium); border-radius: var(--hl-radius-xs); font-size: 14px; transition: border-color 0.2s }
+.hl-ca-input-text:focus, .hl-ca-input-number:focus, .hl-ca-input-select:focus { outline: none; border-color: var(--hl-secondary); box-shadow: 0 0 0 3px rgba(44, 123, 229, 0.1) }
+.hl-ca-input-select { width: 100%; max-width: 180px; padding: 6px 8px; border: 1px solid var(--hl-border-medium); border-radius: var(--hl-radius-xs); font-size: 14px }
+.hl-ca-required { color: var(--hl-error); font-weight: bold; margin-left: 2px }
+
+.hl-ca-actions { display: flex; gap: 12px; justify-content: flex-start; align-items: center; padding: 16px 0 4px; border-top: 1px solid var(--hl-border-light) }
+.hl-ca-btn-draft { min-width: 130px }
+.hl-ca-btn-submit { min-width: 170px; background: var(--hl-primary) !important; color: #fff !important; border-color: var(--hl-primary) !important }
+.hl-ca-btn-submit:hover { background: var(--hl-primary-light) !important; border-color: var(--hl-primary-light) !important; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(26, 43, 71, 0.25) }
+
+.hl-ca-notice { padding: 12px 16px; border-radius: var(--hl-radius-sm); margin: 1em 0 }
+.hl-ca-notice-warning { background: var(--hl-status-paused-bg); border-left: 4px solid var(--hl-warning); color: var(--hl-status-paused-text) }
+
+.hl-ca-validation-error { border-color: var(--hl-error) !important; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15) }
+
+.hl-ca-form-wrap.hl-ca-readonly table.hl-ca-matrix tbody td { font-size: 13px }
+.hl-ca-submitted-banner { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--hl-status-complete-bg); color: var(--hl-status-complete-text); border-radius: var(--hl-radius-sm); margin-bottom: 24px; font-weight: 600; font-size: 14px }
+.hl-ca-submitted-banner .hl-ca-submitted-icon { font-size: 18px }
+.hl-ca-answer-pill { display: inline-block; padding: 3px 12px; border-radius: var(--hl-radius-pill); background: var(--hl-bg); color: var(--hl-text); font-size: 13px; font-weight: 500 }
+
+@media (max-width: 768px) {
+    .hl-ca-form-wrap { padding: 24px 20px; margin: 0 -10px 1.5em; border-radius: var(--hl-radius-sm) }
+    .hl-ca-title { font-size: 18px }
+    .hl-ca-brand-img { max-width: 140px }
+    table.hl-ca-key-table { font-size: 13px }
+    .hl-ca-key-label-cell { min-width: 90px; width: 100px }
+    .hl-ca-actions { flex-direction: column; align-items: stretch }
+    .hl-ca-btn-draft, .hl-ca-btn-submit { min-width: 0; width: 100%; text-align: center }
+    table.hl-ca-matrix thead th { padding: 8px 10px; font-size: 12px }
+    table.hl-ca-matrix tbody td { padding: 8px 10px }
+    table.hl-ca-matrix tbody td.hl-ca-child-cell { min-width: 140px; font-size: 13px }
+}
