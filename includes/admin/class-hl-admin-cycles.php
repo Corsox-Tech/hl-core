@@ -446,12 +446,13 @@ class HL_Admin_Cycles {
             'coaching'    => __('Coaching', 'hl-core'),
             'classrooms'  => __('Classrooms', 'hl-core'),
             'assessments' => __('Assessments', 'hl-core'),
+            'import'      => __('Import', 'hl-core'),
             'emails'      => __('Emails', 'hl-core'),
         );
 
         // Control group cycles don't use coaching or teams.
         if ($cycle->is_control_group) {
-            unset($tabs['coaching'], $tabs['teams']);
+            unset($tabs['coaching'], $tabs['teams'], $tabs['import']);
         }
 
         // Emails tab only for control group cycles.
@@ -462,7 +463,7 @@ class HL_Admin_Cycles {
         // Course-type cycles hide teams/coaching tabs.
         $cycle_type = isset($cycle->cycle_type) ? $cycle->cycle_type : 'program';
         if ($cycle_type === 'course') {
-            unset($tabs['teams'], $tabs['coaching']);
+            unset($tabs['teams'], $tabs['coaching'], $tabs['import']);
         }
 
         echo '<nav class="nav-tab-wrapper" style="margin-top:15px;">';
@@ -496,6 +497,9 @@ class HL_Admin_Cycles {
                 break;
             case 'assessments':
                 $this->render_tab_assessments($cycle);
+                break;
+            case 'import':
+                HL_Admin_Imports::instance()->render_cycle_import_tab($cycle);
                 break;
             case 'emails':
                 $this->render_tab_emails($cycle);
