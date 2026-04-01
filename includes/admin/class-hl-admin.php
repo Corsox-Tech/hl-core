@@ -159,9 +159,10 @@ class HL_Admin {
             wp_enqueue_script('hl-admin-teacher-editor', HL_CORE_ASSETS_URL . 'js/admin-teacher-editor.js', array(), HL_CORE_VERSION, true);
         }
 
-        // Import wizard assets (on hl-settings page, imports tab)
+        // Import wizard assets (on hl-settings page, imports tab, or hl-cycles page, import tab)
         $is_imports = strpos($hook, 'hl-imports') !== false
-                   || (strpos($hook, 'hl-settings') !== false && (!isset($_GET['tab']) || $_GET['tab'] === 'imports'));
+                   || (strpos($hook, 'hl-settings') !== false && (!isset($_GET['tab']) || $_GET['tab'] === 'imports'))
+                   || (strpos($hook, 'hl-cycles') !== false && isset($_GET['tab']) && $_GET['tab'] === 'import');
         if ($is_imports) {
             wp_enqueue_style('hl-admin-import-wizard', HL_CORE_ASSETS_URL . 'css/admin-import-wizard.css', array('hl-admin'), HL_CORE_VERSION);
             wp_enqueue_script('hl-admin-import-wizard', HL_CORE_ASSETS_URL . 'js/admin-import-wizard.js', array('jquery'), HL_CORE_VERSION, true);

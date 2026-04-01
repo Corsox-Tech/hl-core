@@ -26,7 +26,7 @@ class HL_Admin_Settings {
      * Delegates to the active tab's handler.
      */
     public function handle_early_actions() {
-        $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'imports';
+        $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'scheduling';
 
         switch ($tab) {
             case 'audit':
@@ -55,7 +55,7 @@ class HL_Admin_Settings {
      * Main render entry point.
      */
     public function render_page() {
-        $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'imports';
+        $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'scheduling';
 
         $wrap_class = 'wrap hl-admin-wrap';
         if ($tab === 'imports') {
@@ -83,8 +83,15 @@ class HL_Admin_Settings {
                 HL_Admin_Email_Templates::instance()->render_page_content();
                 break;
 
+            case 'imports':
+                echo '<div class="notice notice-info"><p>';
+                echo esc_html__('The Import feature has moved! Go to Cycles → [Your Cycle] → Import tab.', 'hl-core');
+                echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-cycles')) . '">' . esc_html__('Go to Cycles', 'hl-core') . '</a>';
+                echo '</p></div>';
+                break;
+
             default:
-                HL_Admin_Imports::instance()->render_page_content();
+                HL_Admin_Scheduling_Settings::instance()->render_page_content();
                 break;
         }
 
@@ -98,7 +105,7 @@ class HL_Admin_Settings {
      */
     private function render_tabs($active_tab) {
         $tabs = array(
-            'imports'    => __('Imports', 'hl-core'),
+            'imports'    => __('Imports (moved)', 'hl-core'),
             'audit'      => __('Audit Log', 'hl-core'),
             'docs'       => __('Doc Articles', 'hl-core'),
             'scheduling'       => __('Scheduling & Integrations', 'hl-core'),
