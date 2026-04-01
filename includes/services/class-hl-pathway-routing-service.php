@@ -23,9 +23,17 @@ class HL_Pathway_Routing_Service {
             'label'      => 'Mentor Stage 1',
             'course_ids' => array(30293, 30295), // MC1, MC2
         ),
+        'B' => array(
+            'label'      => 'Mentor Stage 2',
+            'course_ids' => array(39732, 39734), // MC3, MC4
+        ),
         'C' => array(
             'label'      => 'Teacher Stage 1',
             'course_ids' => array(30280, 30284, 30286, 30288), // TC1, TC2, TC3, TC4
+        ),
+        'D' => array(
+            'label'      => 'Teacher Stage 2',
+            'course_ids' => array(39724, 39726, 39728, 39730), // TC5, TC6, TC7, TC8
         ),
         'E' => array(
             'label'      => 'Streamlined Stage 1',
@@ -40,16 +48,19 @@ class HL_Pathway_Routing_Service {
      * Each rule: array( role, required_stage_keys, pathway_code )
      */
     private static $routing_rules = array(
-        array('mentor',          array('C', 'A'), 'B2E_MENTOR_COMPLETION'),
-        array('mentor',          array('C'),      'B2E_MENTOR_TRANSITION'),
-        array('mentor',          array('A'),      'B2E_MENTOR_PHASE_2'),
-        array('mentor',          array(),          'B2E_MENTOR_PHASE_1'),
-        array('teacher',         array('C'),      'B2E_TEACHER_PHASE_2'),
-        array('teacher',         array(),          'B2E_TEACHER_PHASE_1'),
-        array('school_leader',   array('E'),      'B2E_STREAMLINED_PHASE_2'),
-        array('school_leader',   array(),          'B2E_STREAMLINED_PHASE_1'),
-        array('district_leader', array('E'),      'B2E_STREAMLINED_PHASE_2'),
-        array('district_leader', array(),          'B2E_STREAMLINED_PHASE_1'),
+        // Mentor rules (most specific first)
+        array('mentor',          array('C', 'A', 'D'), 'B2E_MENTOR_COMPLETION'),   // Teacher→Mentor Transition→now just needs MC3+MC4
+        array('mentor',          array('C', 'A'),      'B2E_MENTOR_PHASE_2'),      // Returning mentor (completed Mentor Phase 1)
+        array('mentor',          array('C'),           'B2E_MENTOR_TRANSITION'),    // Teacher promoted to mentor
+        array('mentor',          array(),              'B2E_MENTOR_PHASE_1'),       // New mentor
+        // Teacher rules
+        array('teacher',         array('C'),           'B2E_TEACHER_PHASE_2'),     // Returning teacher
+        array('teacher',         array(),              'B2E_TEACHER_PHASE_1'),     // New teacher
+        // Leader rules
+        array('school_leader',   array('E'),           'B2E_STREAMLINED_PHASE_2'),
+        array('school_leader',   array(),              'B2E_STREAMLINED_PHASE_1'),
+        array('district_leader', array('E'),           'B2E_STREAMLINED_PHASE_2'),
+        array('district_leader', array(),              'B2E_STREAMLINED_PHASE_1'),
     );
 
     /**
