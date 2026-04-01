@@ -6449,3 +6449,428 @@ article:has(.hlup-wrapper) > .entry-header {
     color: #92400e;
     text-decoration: underline;
 }
+
+/* =====================================================
+   COMPONENT LIBRARY — REUSABLE DESIGN SYSTEM
+   Used across all frontend pages. Refer to the spec at
+   docs/superpowers/specs/2026-04-01-design-system-spec.md
+   ===================================================== */
+
+/* ---- Cards ---- */
+.hl-card {
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-sm);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--hl-shadow);
+}
+.hl-card-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--hl-text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+/* ---- Buttons ---- */
+.hl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border-radius: var(--hl-radius-xs);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--hl-font);
+    cursor: pointer;
+    border: none;
+    transition: var(--hl-transition);
+    text-decoration: none;
+    line-height: 1.4;
+}
+.hl-btn:hover {
+    text-decoration: none;
+}
+.hl-btn--accent {
+    background: var(--hl-accent);
+    color: #fff;
+}
+.hl-btn--accent:hover {
+    background: var(--hl-accent-dark);
+    color: #fff;
+}
+.hl-btn--interactive {
+    background: var(--hl-interactive);
+    color: #fff;
+}
+.hl-btn--interactive:hover {
+    background: var(--hl-interactive-dark);
+    color: #fff;
+}
+.hl-btn--outline {
+    background: transparent;
+    border: 1px solid var(--hl-border);
+    color: var(--hl-text-secondary);
+}
+.hl-btn--outline:hover {
+    border-color: var(--hl-interactive);
+    color: var(--hl-interactive);
+}
+.hl-btn--danger {
+    background: var(--hl-error);
+    color: #fff;
+}
+.hl-btn--danger:hover {
+    background: var(--hl-error-dark);
+    color: #fff;
+}
+.hl-btn--sm {
+    padding: 6px 14px;
+    font-size: 12px;
+}
+
+/* ---- Badges ---- */
+.hl-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: var(--hl-radius-pill);
+    font-size: 11px;
+    font-weight: 600;
+}
+.hl-badge--success {
+    background: var(--hl-status-active-bg);
+    color: var(--hl-status-active-text);
+}
+.hl-badge--warning {
+    background: var(--hl-status-paused-bg);
+    color: var(--hl-status-paused-text);
+}
+.hl-badge--error {
+    background: var(--hl-status-archived-bg);
+    color: var(--hl-status-archived-text);
+}
+.hl-badge--info {
+    background: var(--hl-status-progress-bg);
+    color: var(--hl-status-progress-text);
+}
+.hl-badge--draft {
+    background: var(--hl-status-draft-bg);
+    color: var(--hl-status-draft-text);
+}
+
+/* ---- Pills / Tags ---- */
+.hl-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: var(--hl-radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+}
+.hl-pill--interactive {
+    background: var(--hl-interactive);
+    color: #fff;
+}
+.hl-pill--primary {
+    background: var(--hl-primary);
+    color: #fff;
+}
+.hl-pill--outline {
+    background: transparent;
+    border: 1.5px dashed var(--hl-border);
+    color: var(--hl-text-secondary);
+    cursor: pointer;
+}
+.hl-pill--outline:hover {
+    border-color: var(--hl-interactive);
+    color: var(--hl-interactive);
+}
+
+/* ---- Tabs ---- */
+.hl-tabs-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--hl-border-light);
+    margin-bottom: 24px;
+}
+.hl-tabs-bar__tab {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--hl-text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: var(--hl-transition);
+    text-decoration: none;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+}
+.hl-tabs-bar__tab:hover {
+    color: var(--hl-text-heading);
+    text-decoration: none;
+}
+.hl-tabs-bar__tab--active {
+    color: var(--hl-interactive);
+    border-bottom-color: var(--hl-interactive);
+    font-weight: 600;
+}
+
+/* ---- Hero Banner ---- */
+.hl-hero {
+    background: var(--hl-primary);
+    border-radius: var(--hl-radius);
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+}
+.hl-hero::after {
+    content: '';
+    position: absolute;
+    right: -40px;
+    top: -40px;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.03);
+}
+.hl-hero__tag {
+    display: inline-block;
+    background: var(--hl-accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: var(--hl-radius-pill);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+.hl-hero__title {
+    color: #fff;
+    font-size: 26px;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+.hl-hero__subtitle {
+    color: rgba(255,255,255,0.65);
+    font-size: 14px;
+}
+
+/* ---- Meta Bar ---- */
+.hl-meta-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+.hl-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-sm);
+    padding: 12px 16px;
+    flex: 1;
+    min-width: 160px;
+}
+.hl-meta-item__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--hl-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--hl-text-secondary);
+    font-size: 16px;
+}
+.hl-meta-item__label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--hl-text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.hl-meta-item__value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--hl-text-heading);
+    margin-top: 1px;
+}
+
+/* ---- Tables ---- */
+.hl-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.hl-table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--hl-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--hl-border);
+    background: transparent;
+}
+.hl-table td {
+    padding: 12px 14px;
+    font-size: 14px;
+    color: var(--hl-text);
+    border-bottom: 1px solid var(--hl-border-light);
+}
+.hl-table tr:hover td {
+    background: var(--hl-bg-subtle);
+}
+.hl-table__link {
+    color: var(--hl-interactive);
+    font-weight: 500;
+    text-decoration: none;
+}
+.hl-table__link:hover {
+    color: var(--hl-interactive-dark);
+    text-decoration: underline;
+}
+
+/* ---- Progress Bar ---- */
+.hl-progress {
+    height: 6px;
+    background: var(--hl-border-light);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.hl-progress__fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+.hl-progress__fill--accent {
+    background: var(--hl-accent);
+}
+.hl-progress__fill--interactive {
+    background: var(--hl-interactive);
+}
+.hl-progress__fill--warning {
+    background: var(--hl-warning);
+}
+
+/* ---- Rating Circles ---- */
+.hl-rating {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    margin: 12px 0 4px;
+}
+.hl-rating__circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--hl-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--hl-text-secondary);
+    cursor: pointer;
+    transition: var(--hl-transition);
+}
+.hl-rating__circle:hover {
+    border-color: var(--hl-interactive);
+    color: var(--hl-interactive);
+}
+.hl-rating__circle--selected {
+    background: var(--hl-interactive);
+    border-color: var(--hl-interactive);
+    color: #fff;
+}
+
+/* ---- Breadcrumb ---- */
+.hl-breadcrumb {
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+    margin-bottom: 16px;
+}
+.hl-breadcrumb a {
+    color: var(--hl-interactive);
+    text-decoration: none;
+}
+.hl-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+/* ---- Section Divider ---- */
+.hl-section-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0 16px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--hl-text-heading);
+}
+.hl-section-divider__num {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--hl-interactive-bg);
+    color: var(--hl-interactive);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.hl-section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--hl-border);
+}
+
+/* ---- Empty State ---- */
+.hl-empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--hl-text-muted);
+    font-size: 14px;
+}
+
+/* ---- Notice (token-based) ---- */
+.hl-notice {
+    border-radius: var(--hl-radius-xs);
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+.hl-notice--info {
+    background: var(--hl-status-progress-bg);
+    color: var(--hl-status-progress-text);
+    border: 1px solid rgba(29, 78, 216, 0.15);
+}
+.hl-notice--success {
+    background: var(--hl-status-active-bg);
+    color: var(--hl-status-active-text);
+    border: 1px solid rgba(6, 95, 70, 0.15);
+}
+.hl-notice--warning {
+    background: var(--hl-status-paused-bg);
+    color: var(--hl-status-paused-text);
+    border: 1px solid rgba(146, 64, 14, 0.15);
+}
+.hl-notice--error {
+    background: var(--hl-status-archived-bg);
+    color: var(--hl-status-archived-text);
+    border: 1px solid rgba(153, 27, 27, 0.15);
+}
