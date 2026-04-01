@@ -6866,10 +6866,38 @@ article:has(.hlup-wrapper) > .entry-header {
    Replaces BuddyBoss BuddyPanel for all HL pages.
    ===================================================== */
 
-/* Hide BB sidebar when HL sidebar is present */
+/* Hide BB sidebar, header, footer when HL sidebar is present */
 body.hl-has-sidebar .buddypanel,
 body.hl-has-sidebar #buddypress-sidebar,
 body.hl-has-sidebar .bb-mobile-panel-wrapper {
+    display: none !important;
+}
+
+/* Hide BB top header/navbar — HL sidebar replaces all navigation */
+body.hl-has-sidebar > .site > header,
+body.hl-has-sidebar .site-header-wrapper,
+body.hl-has-sidebar .site-header,
+body.hl-has-sidebar #masthead,
+body.hl-has-sidebar .bb-header,
+body.hl-has-sidebar .header-aside,
+body.hl-has-sidebar .buddyboss-header {
+    display: none !important;
+}
+
+/* Hide BB/Elementor footer */
+body.hl-has-sidebar > .site > footer,
+body.hl-has-sidebar .site-footer,
+body.hl-has-sidebar #colophon,
+body.hl-has-sidebar .bb-footer,
+body.hl-has-sidebar .elementor-location-footer,
+body.hl-has-sidebar footer.footer-wrap {
+    display: none !important;
+}
+
+/* Hide BB page title (redundant — pages have their own hero/title) */
+body.hl-has-sidebar .entry-header,
+body.hl-has-sidebar article > .entry-title,
+body.hl-has-sidebar h1.entry-title {
     display: none !important;
 }
 
@@ -6877,12 +6905,8 @@ body.hl-has-sidebar .bb-mobile-panel-wrapper {
 body.hl-has-sidebar .site {
     display: grid !important;
     grid-template-columns: 240px 1fr !important;
-    grid-template-rows: auto 1fr !important;
+    grid-template-rows: 1fr !important;
     min-height: 100vh !important;
-}
-body.hl-has-sidebar .site > header,
-body.hl-has-sidebar .site > .site-header-wrapper {
-    grid-column: 1 / -1;
 }
 body.hl-has-sidebar #content,
 body.hl-has-sidebar .site-content {
@@ -7066,6 +7090,9 @@ body.hl-has-sidebar .entry-content {
 .hl-hidden {
     display: none;
 }
+
+/* ---- Utility: Spacing ---- */
+.hl-mt-lg { margin-top: 2.5rem; }
 
 /* ---- Classroom Page: Add Child Panel ---- */
 .hl-add-child-panel {
@@ -8056,7 +8083,7 @@ body:has(.hlcmd-wrapper) .entry-header { margin-bottom: 0 !important; min-height
 .hl-rp-session-detail{max-width:860px;margin:0 auto}
 
 /* -- Back Link Block Variant -- */
-.hl-back-link--block{display:block;margin-bottom:8px}
+.hl-back-link--block{display:block;max-width:860px;margin:0 auto 8px}
 
 /* -- My Cycle Assessment Cards (.hlmyc-*) -- */
 .hlmyc-stat-row{display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
