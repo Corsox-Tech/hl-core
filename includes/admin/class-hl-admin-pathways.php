@@ -32,7 +32,7 @@ class HL_Admin_Pathways {
      * Constructor
      */
     private function __construct() {
-        // No hooks needed.
+        add_action('wp_ajax_hl_reorder_components', array($this, 'ajax_reorder_components'));
     }
 
     /**
@@ -1069,9 +1069,13 @@ class HL_Admin_Pathways {
             return;
         }
 
-        echo '<table class="widefat striped">';
+        // Enqueue jQuery UI Sortable for drag-and-drop reordering.
+        wp_enqueue_script('jquery-ui-sortable');
+
+        echo '<table class="widefat striped" id="hl-components-sortable">';
         echo '<thead><tr>';
-        echo '<th>' . esc_html__('Order', 'hl-core') . '</th>';
+        echo '<th style="width:32px;"></th>';
+        echo '<th style="width:30px;">' . esc_html__('#', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Title', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Type', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Linked Resource', 'hl-core') . '</th>';
@@ -1081,7 +1085,9 @@ class HL_Admin_Pathways {
         echo '</tr></thead>';
         echo '<tbody>';
 
+        $position = 0;
         foreach ($components as $act) {
+            $position++;
             if ($in_cycle) {
                 $edit_url = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $context['cycle_id'] . '&tab=pathways&sub=component&pathway_id=' . $pathway->pathway_id . '&component_id=' . $act->component_id);
                 $delete_url = wp_nonce_url(
@@ -1111,8 +1117,9 @@ class HL_Admin_Pathways {
             // Format linked resource
             $linked_display = $this->format_external_ref($act->component_type, $act->external_ref);
 
-            echo '<tr>';
-            echo '<td>' . esc_html($act->ordering_hint) . '</td>';
+            echo '<tr data-component-id="' . esc_attr($act->component_id) . '">';
+            echo '<td class="hl-drag-handle" title="' . esc_attr__('Drag to reorder', 'hl-core') . '"><span class="dashicons dashicons-menu"></span></td>';
+            echo '<td class="hl-position-number">' . esc_html($position) . '</td>';
             echo '<td><strong>' . esc_html($act->title) . '</strong></td>';
             echo '<td>' . esc_html($type_display) . '</td>';
             echo '<td>' . $linked_display . '</td>';
@@ -1126,6 +1133,65 @@ class HL_Admin_Pathways {
         }
 
         echo '</tbody></table>';
+
+        // Drag-and-drop reorder JS + CSS.
+        $reorder_nonce = wp_create_nonce('hl_reorder_components');
+        ?>
+        <script type="text/javascript">
+        (function($) {
+            var $tbody = $('#hl-components-sortable tbody');
+            $tbody.sortable({
+                handle: '.hl-drag-handle',
+                placeholder: 'hl-sortable-placeholder',
+                helper: function(e, tr) {
+                    var $originals = tr.children();
+                    var $helper = tr.clone();
+                    $helper.children().each(function(index) {
+                        $(this).width($originals.eq(index).outerWidth());
+                    });
+                    return $helper;
+                },
+                update: function() {
+                    var order = [];
+                    $tbody.find('tr').each(function(i) {
+                        order.push($(this).data('component-id'));
+                        $(this).find('.hl-position-number').text(i + 1);
+                    });
+                    $.post(ajaxurl, {
+                        action: 'hl_reorder_components',
+                        nonce: '<?php echo esc_js($reorder_nonce); ?>',
+                        pathway_id: <?php echo (int) $pathway->pathway_id; ?>,
+                        order: order
+                    }).done(function(response) {
+                        if (!response.success) {
+                            alert(response.data && response.data.message
+                                ? response.data.message
+                                : '<?php echo esc_js(__('Failed to save component order.', 'hl-core')); ?>');
+                            location.reload();
+                        }
+                    }).fail(function() {
+                        alert('<?php echo esc_js(__('Failed to save component order.', 'hl-core')); ?>');
+                        location.reload();
+                    });
+                }
+            });
+        })(jQuery);
+        </script>
+        <style>
+            #hl-components-sortable .hl-drag-handle {
+                cursor: move; text-align: center; color: #999; width: 32px;
+            }
+            #hl-components-sortable .hl-drag-handle:hover { color: #0073aa; }
+            #hl-components-sortable .hl-drag-handle .dashicons { font-size: 18px; line-height: 1.4; }
+            .hl-sortable-placeholder {
+                height: 40px; background: #f0f6fc !important;
+                outline: 2px dashed #0073aa; outline-offset: -2px;
+            }
+            #hl-components-sortable tbody tr.ui-sortable-helper {
+                background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            }
+        </style>
+        <?php
 
         // =====================================================================
         // Assigned Enrollments section
@@ -1597,12 +1663,19 @@ class HL_Admin_Pathways {
         echo '<td><input type="number" id="weight" name="weight" value="' . esc_attr($is_edit ? $component->weight : '1.0') . '" step="0.1" min="0" class="small-text" /></td>';
         echo '</tr>';
 
-        // Ordering Hint
-        echo '<tr>';
-        echo '<th scope="row"><label for="ordering_hint">' . esc_html__('Ordering Hint', 'hl-core') . '</label></th>';
-        echo '<td><input type="number" id="ordering_hint" name="ordering_hint" value="' . esc_attr($is_edit ? $component->ordering_hint : '0') . '" class="small-text" />';
-        echo '<p class="description">' . esc_html__('Lower values appear first.', 'hl-core') . '</p></td>';
-        echo '</tr>';
+        // Ordering Hint — managed via drag-and-drop on the pathway detail page.
+        // For new components, auto-assign next position at end of list.
+        if ($is_edit) {
+            $ordering_value = $component->ordering_hint;
+        } else {
+            global $wpdb;
+            $max_hint = $wpdb->get_var($wpdb->prepare(
+                "SELECT MAX(ordering_hint) FROM {$wpdb->prefix}hl_component WHERE pathway_id = %d",
+                $pathway->pathway_id
+            ));
+            $ordering_value = ($max_hint !== null) ? intval($max_hint) + 10 : 0;
+        }
+        echo '<input type="hidden" name="ordering_hint" value="' . esc_attr($ordering_value) . '" />';
 
         // =====================================================================
         // Conditional fields based on component type
@@ -2049,6 +2122,61 @@ class HL_Admin_Pathways {
         }
 
         return !empty($parts) ? implode('<br>', $parts) : '<span style="color:#999;">&mdash;</span>';
+    }
+
+    /**
+     * AJAX handler: reorder pathway components via drag-and-drop.
+     *
+     * Expects POST with 'order' (array of component IDs in new order) and 'nonce'.
+     */
+    public function ajax_reorder_components() {
+        check_ajax_referer('hl_reorder_components', 'nonce');
+
+        if (!current_user_can('manage_hl_core')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'hl-core')));
+        }
+
+        $pathway_id = isset($_POST['pathway_id']) ? absint($_POST['pathway_id']) : 0;
+        $order      = isset($_POST['order']) ? array_map('absint', $_POST['order']) : array();
+
+        if ($pathway_id < 1 || empty($order)) {
+            wp_send_json_error(array('message' => __('Missing data.', 'hl-core')));
+        }
+
+        global $wpdb;
+
+        // Verify all submitted component IDs belong to this pathway.
+        $ids_csv = implode(',', array_map('intval', $order));
+        $count   = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_component WHERE pathway_id = %d AND component_id IN ({$ids_csv})",
+            $pathway_id
+        ));
+        if ($count !== count($order)) {
+            wp_send_json_error(array('message' => __('Component/pathway mismatch.', 'hl-core')));
+        }
+
+        $errors = 0;
+        foreach ($order as $position => $component_id) {
+            if ($component_id < 1) {
+                continue;
+            }
+            $result = $wpdb->update(
+                $wpdb->prefix . 'hl_component',
+                array('ordering_hint' => $position * 10),
+                array('component_id' => $component_id),
+                array('%d'),
+                array('%d')
+            );
+            if ($result === false) {
+                $errors++;
+            }
+        }
+
+        if ($errors > 0) {
+            wp_send_json_error(array('message' => sprintf(__('%d component(s) failed to update.', 'hl-core'), $errors)));
+        }
+
+        wp_send_json_success(array('message' => __('Order updated.', 'hl-core')));
     }
 
     /**

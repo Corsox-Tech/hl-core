@@ -21,8 +21,9 @@ class HL_Admin {
         add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
         add_action('admin_init', array($this, 'handle_early_actions'));
 
-        // Eagerly instantiate Cycles so its AJAX hooks register on admin-ajax.php requests.
+        // Eagerly instantiate so AJAX hooks register on admin-ajax.php requests.
         HL_Admin_Cycles::instance();
+        HL_Admin_Pathways::instance();
     }
 
     /**
