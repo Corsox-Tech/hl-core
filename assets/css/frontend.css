@@ -143,6 +143,108 @@ body:has(.hl-dashboard) h1.entry-title {
 }
 
 /* =====================================================
+   1b. GLOBAL FONT & BUDDYBOSS OVERRIDES
+   Force Inter everywhere. Neutralize BB theme styles
+   that bleed into HL Core page content.
+   ===================================================== */
+
+/* Global Inter — all pages are HL Core now */
+body {
+    font-family: var(--hl-font) !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* BB theme resets inside HL containers */
+body.buddyboss-theme .entry-content [class*="hl-"],
+body.buddyboss-theme .entry-content [class*="hlap-"],
+body.buddyboss-theme .entry-content [class*="hlcd-"],
+body.buddyboss-theme .entry-content [class*="hlcm-"],
+body.buddyboss-theme .entry-content [class*="hlcr-"],
+body.buddyboss-theme .entry-content [class*="hlca-"],
+body.buddyboss-theme .entry-content [class*="hlch-"],
+body.buddyboss-theme .entry-content [class*="hlmc-"],
+body.buddyboss-theme .entry-content [class*="hlrn-"],
+body.buddyboss-theme .entry-content [class*="hlss-"],
+body.buddyboss-theme .entry-content [class*="hlup-"] {
+    font-family: var(--hl-font) !important;
+    color: var(--hl-text);
+    line-height: 1.6;
+}
+
+/* BB link color override */
+body.buddyboss-theme .entry-content [class*="hl-"] a:not(.hl-btn):not([class*="hl-btn"]),
+body.buddyboss-theme .entry-content [class*="hl"] a:not(.hl-btn):not([class*="hl-btn"]) {
+    color: var(--hl-interactive);
+    transition: var(--hl-transition);
+}
+body.buddyboss-theme .entry-content [class*="hl-"] a:not(.hl-btn):hover {
+    color: var(--hl-interactive-dark);
+}
+
+/* BB heading overrides */
+body.buddyboss-theme .entry-content [class*="hl-"] h1,
+body.buddyboss-theme .entry-content [class*="hl-"] h2,
+body.buddyboss-theme .entry-content [class*="hl-"] h3,
+body.buddyboss-theme .entry-content [class*="hl-"] h4 {
+    font-family: var(--hl-font) !important;
+    color: var(--hl-text-heading);
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+/* BB form element overrides */
+body.buddyboss-theme .entry-content [class*="hl-"] input[type="text"],
+body.buddyboss-theme .entry-content [class*="hl-"] input[type="email"],
+body.buddyboss-theme .entry-content [class*="hl-"] input[type="number"],
+body.buddyboss-theme .entry-content [class*="hl-"] input[type="search"],
+body.buddyboss-theme .entry-content [class*="hl-"] input[type="date"],
+body.buddyboss-theme .entry-content [class*="hl-"] select,
+body.buddyboss-theme .entry-content [class*="hl-"] textarea {
+    font-family: var(--hl-font) !important;
+    border: 1px solid var(--hl-border) !important;
+    border-radius: var(--hl-radius-xs) !important;
+    padding: 10px 14px !important;
+    font-size: 14px !important;
+    color: var(--hl-text) !important;
+    background: var(--hl-surface) !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+    outline: none !important;
+}
+body.buddyboss-theme .entry-content [class*="hl-"] input:focus,
+body.buddyboss-theme .entry-content [class*="hl-"] select:focus,
+body.buddyboss-theme .entry-content [class*="hl-"] textarea:focus {
+    border-color: var(--hl-interactive) !important;
+    box-shadow: 0 0 0 3px var(--hl-interactive-bg) !important;
+}
+
+/* BB table overrides */
+body.buddyboss-theme .entry-content [class*="hl-"] table {
+    border-collapse: collapse;
+    width: 100%;
+}
+body.buddyboss-theme .entry-content [class*="hl-"] table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--hl-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--hl-border);
+    background: transparent;
+}
+body.buddyboss-theme .entry-content [class*="hl-"] table td {
+    padding: 12px 14px;
+    font-size: 14px;
+    color: var(--hl-text);
+    border-bottom: 1px solid var(--hl-border-light);
+}
+body.buddyboss-theme .entry-content [class*="hl-"] table tr:hover td {
+    background: var(--hl-bg-subtle);
+}
+
+/* =====================================================
    2. BASE / PAGE WRAPPER
    ===================================================== */
 
