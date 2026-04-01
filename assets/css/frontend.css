@@ -6643,70 +6643,114 @@ article:has(.hlup-wrapper) > .entry-header {
    Replaces BuddyBoss BuddyPanel for all HL pages.
    ===================================================== */
 
-/* Hide BB sidebar, header, footer when HL sidebar is present */
+/* =================================================================
+   BB FULL TAKEOVER — Hide EVERYTHING from BuddyBoss theme and
+   replace with HL Core's own sidebar + content layout.
+
+   BB DOM structure:
+     body.bb-buddypanel.buddypanel-open
+       aside.buddypanel              ← HIDE (BB left sidebar)
+       div#page.site                 ← RESET margins (BB adds 230px)
+         header#masthead.site-header ← HIDE (BB top navbar)
+         div#content.site-content
+           div.container
+             div.bb-grid             ← RESET (BB inner grid)
+         footer                      ← HIDE
+   ================================================================= */
+
+/* 1. Hide BB buddypanel sidebar */
 body.hl-has-sidebar .buddypanel,
-body.hl-has-sidebar #buddypress-sidebar,
 body.hl-has-sidebar .bb-mobile-panel-wrapper {
     display: none !important;
 }
 
-/* Hide BB top header/navbar — HL sidebar replaces all navigation */
-body.hl-has-sidebar > .site > header,
-body.hl-has-sidebar .site-header-wrapper,
-body.hl-has-sidebar .site-header,
+/* 2. Hide BB top header/navbar */
 body.hl-has-sidebar #masthead,
-body.hl-has-sidebar .bb-header,
-body.hl-has-sidebar .header-aside,
-body.hl-has-sidebar .buddyboss-header {
+body.hl-has-sidebar .site-header {
     display: none !important;
 }
 
-/* Hide BB/Elementor footer */
-body.hl-has-sidebar > .site > footer,
+/* 3. Hide WP admin bar */
+body.hl-has-sidebar #wpadminbar {
+    display: none !important;
+}
+html.hl-has-sidebar-html {
+    margin-top: 0 !important;
+}
+
+/* 4. Hide BB/Elementor footer */
 body.hl-has-sidebar .site-footer,
 body.hl-has-sidebar #colophon,
-body.hl-has-sidebar .bb-footer,
+body.hl-has-sidebar footer.footer-wrap,
 body.hl-has-sidebar .elementor-location-footer,
-body.hl-has-sidebar footer.footer-wrap {
+body.hl-has-sidebar .bb-footer {
     display: none !important;
 }
 
-/* Hide BB page title (redundant — pages have their own hero/title) */
+/* 5. Hide BB page title */
 body.hl-has-sidebar .entry-header,
-body.hl-has-sidebar article > .entry-title,
 body.hl-has-sidebar h1.entry-title {
     display: none !important;
 }
 
-/* Layout grid: sidebar + content */
-body.hl-has-sidebar .site {
-    display: grid !important;
-    grid-template-columns: 240px 1fr !important;
-    grid-template-rows: 1fr !important;
-    min-height: 100vh !important;
+/* 6. KILL BB's margin-left on #page.site
+   BB sets margin-left: 230px (open) or 68px (closed) on .site
+   to make room for the buddypanel. We must nuke ALL of these. */
+body.hl-has-sidebar .site,
+body.hl-has-sidebar #page,
+body.hl-has-sidebar.bb-buddypanel .site,
+body.hl-has-sidebar.buddypanel-open .site,
+body.hl-has-sidebar.bb-buddypanel:not(.buddypanel-open) .site {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    transition: none !important;
 }
+
+/* 7. Simple layout: sidebar is fixed, content gets margin-left.
+   No grid needed — fixed sidebar doesn't participate in flow. */
+body.hl-has-sidebar .site,
+body.hl-has-sidebar #page {
+    display: block !important;
+    margin-left: 240px !important;
+    min-height: 100vh !important;
+    width: auto !important;
+    max-width: none !important;
+}
+
+/* 8. Content area fills remaining space */
 body.hl-has-sidebar #content,
 body.hl-has-sidebar .site-content {
-    grid-column: 2 !important;
-    min-width: 0;
+    width: 100% !important;
+    min-width: 0 !important;
 }
+
+/* 9. Kill BB inner grid/container constraints */
 body.hl-has-sidebar .bb-grid,
-body.hl-has-sidebar .bb-content {
+body.hl-has-sidebar .site-content-grid {
+    display: block !important;
     max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+body.hl-has-sidebar .container {
+    max-width: 100% !important;
+    width: 100% !important;
     padding: 0 !important;
 }
 
-/* Sidebar base */
+/* Sidebar base — fixed position, always visible */
 .hl-sidebar {
-    position: sticky;
-    top: 0;
-    align-self: start;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
     width: 240px;
     height: 100vh;
     background: var(--hl-primary);
     display: flex;
     flex-direction: column;
-    z-index: 1000;
+    z-index: 9999;
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -6989,8 +7033,9 @@ body.hl-has-sidebar .entry-content {
 
 /* Responsive: collapse sidebar on small screens */
 @media (max-width: 1024px) {
-    body.hl-has-sidebar .site {
-        grid-template-columns: 1fr !important;
+    body.hl-has-sidebar .site,
+    body.hl-has-sidebar #page {
+        margin-left: 0 !important;
     }
     .hl-sidebar {
         transform: translateX(-100%);
@@ -6998,10 +7043,6 @@ body.hl-has-sidebar .entry-content {
     }
     .hl-sidebar.hl-sidebar--open {
         transform: translateX(0);
-    }
-    body.hl-has-sidebar #content,
-    body.hl-has-sidebar .site-content {
-        grid-column: 1 !important;
     }
 }
 
