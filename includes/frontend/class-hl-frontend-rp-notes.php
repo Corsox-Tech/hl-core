@@ -51,7 +51,7 @@ class HL_Frontend_RP_Notes {
         $supervisor_label  = ($context === 'coaching') ? __('Coach', 'hl-core') : __('Mentor', 'hl-core');
         $supervisee_label  = ($context === 'coaching') ? __('Mentor', 'hl-core') : __('Teacher', 'hl-core');
 
-        self::render_styles();
+        // Styles loaded via frontend.css (Session 2)
         ?>
         <div class="hlrn-form-wrapper">
 
@@ -111,7 +111,7 @@ class HL_Frontend_RP_Notes {
                         ?></span>
                     </div>
                 </div>
-                <div class="hlrn-info-row" style="margin-top:12px">
+                <div class="hlrn-info-row">
                     <div class="hlrn-info-cell">
                         <span class="hlrn-info-label"><?php esc_html_e('Session #', 'hl-core'); ?></span>
                         <span class="hlrn-info-value hlrn-session-num"><?php
@@ -119,7 +119,7 @@ class HL_Frontend_RP_Notes {
                         ?></span>
                     </div>
                     <?php if (!empty($progress['current_course'])) : ?>
-                        <div class="hlrn-info-cell" style="grid-column:span 2">
+                        <div class="hlrn-info-cell hlrn-info-cell--wide">
                             <span class="hlrn-info-label"><?php printf(esc_html__('%s\'s Current Course', 'hl-core'), esc_html($supervisee_label)); ?></span>
                             <span class="hlrn-info-value"><?php echo esc_html($progress['current_course']); ?></span>
                         </div>
@@ -232,7 +232,7 @@ class HL_Frontend_RP_Notes {
                                                     <span class="hlrn-badge"><?php echo esc_html($plan_data['domain']); ?></span>
                                                 <?php endif; ?>
                                             </div>
-                                            <div class="hlrn-plan-fields" style="display:grid;gap:6px;margin-top:8px;font-size:12px">
+                                            <div class="hlrn-plan-fields">
                                                 <?php foreach ($field_labels as $fkey => $flabel) :
                                                     if ($fkey === 'domain') continue; // already shown in header
                                                     $fval = isset($plan_data[$fkey]) ? $plan_data[$fkey] : '';
@@ -244,9 +244,9 @@ class HL_Frontend_RP_Notes {
                                                     }
                                                     if (empty($fval) && $fval !== '0') continue;
                                                 ?>
-                                                    <div style="display:flex;gap:8px;line-height:1.4">
-                                                        <span style="font-weight:600;color:#64748b;min-width:140px;flex-shrink:0"><?php echo esc_html($flabel); ?></span>
-                                                        <span style="color:#334155"><?php echo esc_html(wp_trim_words(wp_strip_all_tags($fval), 40)); ?></span>
+                                                    <div class="hlrn-plan-field-row">
+                                                        <span class="hlrn-plan-field-label"><?php echo esc_html($flabel); ?></span>
+                                                        <span class="hlrn-plan-field-value"><?php echo esc_html(wp_trim_words(wp_strip_all_tags($fval), 40)); ?></span>
                                                     </div>
                                                 <?php endforeach; ?>
                                             </div>
@@ -294,39 +294,6 @@ class HL_Frontend_RP_Notes {
                             }
                             ?>
 
-                            <style>
-                            /* Side-by-side CV review */
-                            .hlrn-cvr{font-size:13px}
-                            .hlrn-cvr-meta{display:flex;flex-wrap:wrap;gap:4px 14px;margin-bottom:10px;font-size:12px;color:#64748b}
-                            .hlrn-cvr-meta strong{color:#334155}
-                            .hlrn-cvr-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-                            @media(max-width:900px){.hlrn-cvr-cols{grid-template-columns:1fr}}
-                            .hlrn-cvr-col{border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}
-                            .hlrn-cvr-col-hdr{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
-                            .hlrn-cvr-col-hdr strong{font-size:13px;color:#1e293b}
-                            .hlrn-cvr-col-badge{display:inline-block;padding:1px 7px;border-radius:12px;font-size:10px;font-weight:600}
-                            .hlrn-cvr-col-by{font-size:10px;color:#94a3b8;margin-left:auto;white-space:nowrap}
-                            .hlrn-cvr-col-body{padding:8px 10px}
-                            .hlrn-cvr-empty{padding:20px;text-align:center;color:#94a3b8;font-size:12px}
-                            /* Compact form rendering */
-                            .hlrn-cv-full-data .hlcv-context{margin:4px 0 8px;padding:6px 10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
-                            .hlrn-cv-full-data .hlcv-context-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569;margin-bottom:4px}
-                            .hlrn-cv-full-data .hlcv-pills{display:flex;flex-wrap:wrap;gap:3px}
-                            .hlrn-cv-full-data .hlcv-ro-badge{display:inline-block;padding:1px 7px;border-radius:12px;font-size:10px;font-weight:500}
-                            .hlrn-cv-full-data .hlcv-ro-yes{background:#d1fae5;color:#065f46}
-                            .hlrn-cv-full-data .hlcv-ro-no{background:#fee2e2;color:#991b1b}
-                            .hlrn-cv-full-data .hlcv-domain-flat{margin:6px 0;padding:6px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px}
-                            .hlrn-cv-full-data .hlcv-domain-flat-header{display:flex;align-items:center;gap:5px;margin-bottom:4px}
-                            .hlrn-cv-full-data .hlcv-domain-num{display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#2d5f8a);color:#fff;font-size:9px;font-weight:700;flex-shrink:0}
-                            .hlrn-cv-full-data .hlcv-domain-flat-title{font-size:12px;font-weight:600;color:#1e293b}
-                            .hlrn-cv-full-data .hlcv-indicators-grid{display:flex;flex-direction:column;gap:2px}
-                            .hlrn-cv-full-data .hlcv-ind-row{display:flex;align-items:center;justify-content:space-between;padding:3px 6px;background:#f8fafc;border-radius:4px;border:1px solid #f1f5f9}
-                            .hlrn-cv-full-data .hlcv-ind-label{font-size:11px;color:#334155;flex:1}
-                            .hlrn-cv-full-data .hlcv-domain-desc-ro{margin-top:4px;padding:5px 8px;background:#eff6ff;border-radius:5px;border:1px solid #bfdbfe}
-                            .hlrn-cv-full-data .hlcv-domain-desc-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#3b82f6;margin-bottom:1px}
-                            .hlrn-cv-full-data .hlcv-domain-desc-text{font-size:11px;color:#1e40af;line-height:1.4}
-                            </style>
-
                             <div class="hlrn-prep-card hlrn-cvr">
                                 <!-- Visit context row -->
                                 <div class="hlrn-cvr-meta">
@@ -345,7 +312,7 @@ class HL_Frontend_RP_Notes {
                                         <div class="hlrn-cvr-col-hdr">
                                             <strong><?php esc_html_e('Classroom Visit', 'hl-core'); ?></strong>
                                             <?php if ($observer_sub) : ?>
-                                                <span class="hlrn-cvr-col-badge" style="background:<?php echo $observer_sub['status'] === 'submitted' ? '#d1fae5;color:#065f46' : '#f1f5f9;color:#64748b'; ?>"><?php echo esc_html(ucfirst($observer_sub['status'])); ?></span>
+                                                <span class="hlrn-cvr-col-badge <?php echo $observer_sub['status'] === 'submitted' ? 'hlrn-cvr-col-badge--submitted' : 'hlrn-cvr-col-badge--draft'; ?>"><?php echo esc_html(ucfirst($observer_sub['status'])); ?></span>
                                                 <?php if (!empty($observer_sub['submitted_by_name'])) : ?>
                                                     <span class="hlrn-cvr-col-by"><?php echo esc_html($observer_sub['submitted_by_name']); ?><?php if (!empty($observer_sub['submitted_at'])) echo ' &middot; ' . esc_html(date_i18n('M j', strtotime($observer_sub['submitted_at']))); ?></span>
                                                 <?php endif; ?>
@@ -373,7 +340,7 @@ class HL_Frontend_RP_Notes {
                                         <div class="hlrn-cvr-col-hdr">
                                             <strong><?php esc_html_e('Self-Reflection', 'hl-core'); ?></strong>
                                             <?php if ($reflector_sub) : ?>
-                                                <span class="hlrn-cvr-col-badge" style="background:<?php echo $reflector_sub['status'] === 'submitted' ? '#d1fae5;color:#065f46' : '#f1f5f9;color:#64748b'; ?>"><?php echo esc_html(ucfirst($reflector_sub['status'])); ?></span>
+                                                <span class="hlrn-cvr-col-badge <?php echo $reflector_sub['status'] === 'submitted' ? 'hlrn-cvr-col-badge--submitted' : 'hlrn-cvr-col-badge--draft'; ?>"><?php echo esc_html(ucfirst($reflector_sub['status'])); ?></span>
                                                 <?php if (!empty($reflector_sub['submitted_by_name'])) : ?>
                                                     <span class="hlrn-cvr-col-by"><?php echo esc_html($reflector_sub['submitted_by_name']); ?><?php if (!empty($reflector_sub['submitted_at'])) echo ' &middot; ' . esc_html(date_i18n('M j', strtotime($reflector_sub['submitted_at']))); ?></span>
                                                 <?php endif; ?>
@@ -516,7 +483,7 @@ class HL_Frontend_RP_Notes {
         </div>
 
         <!-- RP Steps Guide button (inline, not fixed — avoids chat widget overlap) -->
-        <div style="text-align:center;margin:20px 0 8px;">
+        <div class="hlrn-guide-trigger">
             <button type="button" id="hlrn-guide-toggle" class="hlrn-guide-btn" title="<?php esc_attr_e('RP Steps Guide', 'hl-core'); ?>">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <?php esc_html_e('RP Steps Guide', 'hl-core'); ?>
@@ -615,127 +582,7 @@ class HL_Frontend_RP_Notes {
         echo '</div>';
     }
 
-    /**
-     * Inline styles for the RP Notes form.
-     */
-    private static function render_styles() {
-        static $rendered = false;
-        if ($rendered) return;
-        $rendered = true;
-        ?>
-        <style>
-        .hlrn-form-wrapper{max-width:820px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
-        .hlrn-hero{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff !important;padding:28px 32px;border-radius:16px;margin-bottom:24px;position:relative;z-index:1;overflow:visible}
-        .hlrn-hero *{color:#fff !important}
-        .hlrn-hero-icon{background:rgba(255,255,255,.15);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center}
-        .hlrn-hero-title{font-size:22px;font-weight:700;margin:0;letter-spacing:-.3px;color:#fff !important}
-        .hlrn-hero-sub{font-size:14px;opacity:.8;margin:4px 0 0;color:rgba(255,255,255,.8) !important}
-
-        .hlrn-alert{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:12px;font-size:14px;margin-bottom:20px}
-        .hlrn-alert-info{background:#e8f4fd;color:#1e5f8a;border:1px solid #b8daef}
-
-        .hlrn-info-card{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:28px}
-        .hlrn-info-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
-        .hlrn-info-cell{display:flex;flex-direction:column;gap:4px}
-        .hlrn-info-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8896a6}
-        .hlrn-info-value{font-size:15px;font-weight:600;color:#1e293b}
-        .hlrn-session-num{display:inline-flex;align-items:center;justify-content:center;background:#1e3a5f;color:#fff;width:28px;height:28px;border-radius:8px;font-size:14px}
-
-        /* Sections */
-        .hlrn-section{background:#fff;border:1px solid #e2e8f0;border-radius:14px;margin-bottom:20px;overflow:hidden}
-        .hlrn-section-auto{background:#fafbfc}
-        .hlrn-section-header{display:flex;align-items:center;gap:12px;padding:16px 20px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-bottom:1px solid #e2e8f0}
-        .hlrn-section-num{background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
-        .hlrn-section-title{font-size:15px;font-weight:600;color:#1e293b;display:block}
-        .hlrn-section-hint{font-size:12px;color:#8896a6;display:block;margin-top:2px}
-        .hlrn-section-body{padding:20px}
-
-        /* Fields */
-        .hlrn-field{margin-bottom:20px}
-        .hlrn-field:last-child{margin-bottom:0}
-        .hlrn-field-label{display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px}
-        .hlrn-readonly-value{background:#f1f5f9;padding:12px 16px;border-radius:12px;font-size:14px;color:#334155;line-height:1.6;min-height:20px}
-        .hlrn-date-input{padding:10px 14px;border:2px solid #e2e8f0;border-radius:12px;font-size:14px;font-weight:500;color:#1e293b;background:#fff;font-family:inherit;transition:border-color .2s}
-        .hlrn-date-input:focus{outline:none;border-color:#2d5f8a;box-shadow:0 0 0 3px rgba(45,95,138,.1)}
-        .hlrn-muted{color:#94a3b8;font-size:14px;margin:0}
-
-        /* Prep cards */
-        .hlrn-prep-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px}
-        .hlrn-prep-card:last-child{margin-bottom:0}
-        .hlrn-prep-card-title{font-size:13px;font-weight:700;color:#475569;margin-bottom:12px;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.5px}
-
-        /* Progress bar */
-        .hlrn-progress{margin-top:4px}
-        .hlrn-progress-info{display:flex;justify-content:space-between;font-size:13px;color:#64748b;margin-bottom:8px}
-        .hlrn-progress-pct{font-weight:700;color:#1e3a5f}
-        .hlrn-progress-bar{height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden}
-        .hlrn-progress-fill{height:100%;background:linear-gradient(90deg,#1e3a5f,#2d5f8a);border-radius:4px;transition:width .5s ease}
-
-        /* Scroll list */
-        .hlrn-scroll-list{max-height:260px;overflow-y:auto}
-        .hlrn-plan-item{padding:12px;border:1px solid #f1f5f9;border-radius:8px;margin-bottom:8px;background:#fafbfc}
-        .hlrn-plan-item:last-child{margin-bottom:0}
-        .hlrn-plan-header{display:flex;align-items:center;gap:8px;margin-bottom:4px}
-        .hlrn-plan-date{font-size:13px;font-weight:600;color:#1e293b}
-        .hlrn-plan-excerpt{font-size:13px;color:#64748b;margin:0;line-height:1.5}
-        .hlrn-badge{display:inline-flex;padding:3px 10px;border-radius:50px;font-size:11px;font-weight:600;background:#e8f4fd;color:#1e5f8a}
-        .hlrn-badge-yes{background:#d1fae5;color:#065f46}
-        .hlrn-badge-no{background:#f1f5f9;color:#64748b}
-
-        /* CV review */
-        .hlrn-cv-sub{border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-top:12px}
-        .hlrn-cv-sub-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-        .hlrn-cv-domain{margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9}
-        .hlrn-cv-domain-name{font-size:12px;font-weight:600;color:#475569;margin-bottom:4px}
-        .hlrn-cv-indicators{display:flex;flex-wrap:wrap;gap:4px}
-
-        /* RP Steps Guide — drawer */
-        .hlrn-guide-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:12px;background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.08);transition:all .2s}
-        .hlrn-guide-btn:hover{box-shadow:0 4px 16px rgba(0,0,0,.12);transform:translateY(-1px)}
-        .hlrn-guide-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998}
-        .hlrn-guide-drawer{position:fixed;top:0;right:0;bottom:0;width:420px;max-width:90vw;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,.15);display:flex;flex-direction:column;overflow:hidden}
-        .hlrn-guide-drawer-header{padding:24px 24px 16px;border-bottom:1px solid #e2e8f0;position:relative}
-        .hlrn-guide-drawer-title{font-size:20px;font-weight:700;color:#1e293b;margin:0}
-        .hlrn-guide-drawer-sub{font-size:13px;color:#64748b;margin:6px 0 0}
-        .hlrn-guide-close{position:absolute;top:16px;right:16px;background:none;border:none;font-size:28px;color:#94a3b8;cursor:pointer;line-height:1;padding:4px}
-        .hlrn-guide-close:hover{color:#1e293b}
-        .hlrn-guide-drawer-body{padding:20px 24px;overflow-y:auto;flex:1}
-        .hlrn-rp-steps{display:flex;flex-direction:column;gap:12px}
-        .hlrn-rp-step{display:flex;gap:12px;padding:14px 16px;background:#f8f9fb;border:1px solid #e2e8f0;border-radius:12px}
-        .hlrn-rp-step-icon{flex-shrink:0;width:32px;height:32px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#64748b}
-        .hlrn-rp-step-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:6px}
-        .hlrn-rp-step-questions{margin:0;padding-left:18px;list-style:disc}
-        .hlrn-rp-step-questions li{font-size:13px;color:#64748b;line-height:1.5;margin-bottom:6px}
-        .hlrn-rp-step-questions li:last-child{margin-bottom:0}
-
-        /* TinyMCE toolbar fix — prevent theme from darkening icons */
-        .hlrn-form-wrapper .mce-toolbar .mce-btn{background:transparent !important;border-color:transparent !important}
-        .hlrn-form-wrapper .mce-toolbar .mce-btn button{background-color:transparent !important;color:#555 !important}
-        .hlrn-form-wrapper .mce-toolbar .mce-btn:hover,.hlrn-form-wrapper .mce-toolbar .mce-btn.mce-active{background:#e2e8f0 !important}
-        .hlrn-form-wrapper .mce-ico{color:#555 !important}
-        .hlrn-form-wrapper .mce-toolbar .mce-btn-group{background:transparent !important}
-        .hlrn-form-wrapper .mce-panel{background:#f8f9fb !important;border-color:#e2e8f0 !important}
-        .hlrn-form-wrapper .mce-edit-area{border-color:#e2e8f0 !important}
-        .hlrn-form-wrapper .mce-edit-area iframe{min-height:80px}
-        .hlrn-form-wrapper .wp-editor-container{border:2px solid #e2e8f0;border-radius:12px;overflow:hidden}
-
-        /* Action buttons */
-        .hlrn-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:32px;padding-top:24px;border-top:1px solid #e2e8f0}
-        .hlrn-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:12px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:inherit}
-        .hlrn-btn-draft{background:#f1f5f9;color:#475569;border:2px solid #e2e8f0}
-        .hlrn-btn-draft:hover{background:#e2e8f0;border-color:#cbd5e1}
-        .hlrn-btn-submit{background:linear-gradient(135deg,#1e3a5f 0%,#2d5f8a 100%);color:#fff;border:2px solid transparent;box-shadow:0 4px 14px rgba(0,0,0,.12)}
-        .hlrn-btn-submit:hover{box-shadow:0 6px 20px rgba(0,0,0,.15);transform:translateY(-1px)}
-
-        @media(max-width:600px){
-            .hlrn-hero{flex-direction:column;text-align:center;padding:24px 20px}
-            .hlrn-info-row{grid-template-columns:1fr 1fr}
-            .hlrn-actions{flex-direction:column}
-            .hlrn-btn{justify-content:center}
-        }
-        </style>
-        <?php
-    }
+    // Styles are in assets/css/frontend.css under "FORMS & INSTRUMENTS (Session 2)"
 
     /**
      * Handle form POST submission.
