@@ -98,6 +98,12 @@ class HL_BuddyBoss_Integration {
         // 3. JS fallback — inject into BuddyPanel via JavaScript if
         //    the PHP hooks didn't fire.
         add_action('wp_footer', array($this, 'render_js_fallback'), 99);
+
+        // 4. HL Custom Sidebar — renders the dark navy sidebar.
+        add_action('wp_footer', array($this, 'render_hl_sidebar'), 5);
+
+        // 5. Body class for sidebar layout.
+        add_filter('body_class', array($this, 'add_sidebar_body_class'));
     }
 
     // =========================================================================
@@ -226,6 +232,105 @@ class HL_BuddyBoss_Integration {
                 top: -2px;
             }
         </style>
+        <?php
+    }
+
+    // =========================================================================
+    // 0a. HL Custom Sidebar
+    // =========================================================================
+
+    /**
+     * Add hl-has-sidebar class to body when the HL sidebar should render.
+     *
+     * @param array $classes Body classes.
+     * @return array
+     */
+    public function add_sidebar_body_class($classes) {
+        if (!is_user_logged_in()) {
+            return $classes;
+        }
+
+        $menu_items = $this->get_menu_items_for_current_user();
+        if (!empty($menu_items)) {
+            $classes[] = 'hl-has-sidebar';
+        }
+
+        return $classes;
+    }
+
+    /**
+     * Render the HL Core custom sidebar.
+     *
+     * Replaces the BuddyBoss BuddyPanel with a custom dark navy sidebar.
+     * Menu items come from the existing get_menu_items_for_current_user().
+     */
+    public function render_hl_sidebar() {
+        if (!is_user_logged_in()) {
+            return;
+        }
+
+        $menu_items = $this->get_menu_items_for_current_user();
+        if (empty($menu_items)) {
+            return;
+        }
+
+        $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
+        $user = wp_get_current_user();
+        $initials = '';
+        if ($user->first_name) {
+            $initials .= strtoupper(substr($user->first_name, 0, 1));
+        }
+        if ($user->last_name) {
+            $initials .= strtoupper(substr($user->last_name, 0, 1));
+        }
+        if (!$initials) {
+            $initials = strtoupper(substr($user->display_name, 0, 2));
+        }
+
+        ?>
+        <nav class="hl-sidebar" id="hl-sidebar">
+            <div class="hl-sidebar__brand">
+                <div class="hl-sidebar__logo">HL</div>
+                <div class="hl-sidebar__title"><?php esc_html_e('Housman Learning', 'hl-core'); ?></div>
+                <div class="hl-sidebar__subtitle"><?php esc_html_e('Learning Hub', 'hl-core'); ?></div>
+            </div>
+            <div class="hl-sidebar__nav">
+                <?php foreach ($menu_items as $item) :
+                    $item_path = trailingslashit(wp_parse_url($item['url'], PHP_URL_PATH) ?: '');
+                    $is_active = ($item_path && $item_path === $current_url);
+                    $active_class = $is_active ? ' hl-sidebar__item--active' : '';
+                ?>
+                    <a href="<?php echo esc_url($item['url']); ?>" class="hl-sidebar__item<?php echo esc_attr($active_class); ?>">
+                        <span class="hl-sidebar__icon dashicons <?php echo esc_attr($item['icon']); ?>"></span>
+                        <span><?php echo esc_html($item['label']); ?></span>
+                        <?php if (!empty($item['badge'])) : ?>
+                            <span class="hl-sidebar__badge"><?php echo (int) $item['badge']; ?></span>
+                        <?php endif; ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+            <div class="hl-sidebar__footer">
+                <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-sidebar__item">
+                    <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
+                    <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>
+                </a>
+            </div>
+        </nav>
+        <script>
+        (function() {
+            var sidebar = document.getElementById('hl-sidebar');
+            var site = document.querySelector('.site');
+            if (sidebar && site) {
+                var content = site.querySelector('#content, .site-content');
+                if (content) {
+                    site.insertBefore(sidebar, content);
+                    sidebar.style.position = 'sticky';
+                    sidebar.style.top = '0';
+                    sidebar.style.alignSelf = 'start';
+                }
+            }
+        })();
+        </script>
         <?php
     }
 
