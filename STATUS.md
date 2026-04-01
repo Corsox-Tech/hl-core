@@ -99,6 +99,16 @@ Pick up from the first unchecked `[ ]` item each session.
 - [ ] **Follow-up: multi-row same email** — Duplicate email in CSV marked ERROR; spec allows multiple rows with same email for different classrooms. Needs merge logic.
 - [ ] **Follow-up: error report field names** — Error report CSV references old field names from pre-redesign handlers.
 
+### Pathway Routing Engine (Active — April 2026)
+> **Spec:** docs/superpowers/specs/2026-04-01-pathway-routing-design.md | **Plan:** docs/superpowers/plans/2026-04-01-pathway-routing-plan.md
+- [x] **Routing service** — HL_Pathway_Routing_Service with 3 stages (A=Mentor S1, C=Teacher S1, E=Streamlined S1), 10 routing rules, resolve_pathway() checks LearnDash completion at user level.
+- [x] **Bug fix: audit logging** — Pathway assignment service audit calls corrected to array-based format.
+- [x] **Bug fix: sync_role_defaults** — Routing first + target_roles fallback, ONE pathway per enrollment (was assigning ALL matching).
+- [x] **Bug fix: role normalization** — All role storage normalized to lowercase. Import handler + sync comparison fixed.
+- [x] **Import integration** — Auto-routes pathway in preview + commit. Clears stale pathways on role-change UPDATE.
+- [x] **Admin form AJAX** — Auto-suggests pathway when cycle + role selected. Admin can override.
+- [x] **Data fix: district_leader** — Added to Streamlined pathway target_roles in seeders + live DB.
+
 ### Admin Enrollment Form Enhancement (April 2026)
 - [x] **Pathway + Team fields on enrollment form** — Admin enrollment form (standalone + Cycle Editor inline) now includes Pathway and Team dropdowns, filtered by selected cycle. On save, creates `hl_pathway_assignment` (explicit) and `hl_team_membership` records. Edit mode pre-selects current values. Prevents blank Pathway/Team/School columns on Cycle enrollments table.
 
