@@ -15,8 +15,10 @@ class HL_Shortcodes {
     private function __construct() {
         add_action('init', array($this, 'register_shortcodes'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
-        // Late-priority dequeue to guarantee BB styles are removed AFTER they're enqueued.
-        add_action('wp_enqueue_scripts', array($this, 'dequeue_bb_styles'), 999);
+        // wp_print_styles fires AFTER all wp_enqueue_scripts callbacks (including
+        // BB child theme at 99999 and BP_Nouveau at PHP_INT_MAX). This is the
+        // ONLY hook where we can guarantee BB styles are dequeued and ours are present.
+        add_action('wp_print_styles', array($this, 'final_style_override'), PHP_INT_MAX);
         add_action('template_redirect', array('HL_Frontend_My_Cycle', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Team_Page', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Cycle_Workspace', 'handle_export'));
@@ -123,54 +125,73 @@ class HL_Shortcodes {
     }
 
     /**
-     * Dequeue ALL BuddyBoss theme stylesheets on HL pages.
-     * Runs at priority 999 to guarantee BB styles are caught AFTER BB enqueues them.
-     * All pages are HL Core now — BB styles only cause interference.
+     * Final style override — runs on wp_print_styles at PHP_INT_MAX.
+     *
+     * This is the LAST possible hook before styles are printed to HTML.
+     * BB child theme enqueues at priority 99999 on wp_enqueue_scripts,
+     * BP_Nouveau at PHP_INT_MAX on wp_enqueue_scripts. All of those have
+     * fired by the time wp_print_styles runs. Nothing can re-add after this.
+     *
+     * Strategy: dequeue EVERY BB stylesheet by scanning source URLs,
+     * then force-enqueue our own CSS if it's missing.
      */
-    public function dequeue_bb_styles() {
+    public function final_style_override() {
         global $post;
         if (!is_a($post, 'WP_Post')) return;
 
         // Check if this is an HL page.
         $content = $post->post_content;
         $is_hl_page = false;
-        $hl_shortcodes = array(
-            'hl_my_progress', 'hl_team_progress', 'hl_cycle_dashboard',
-            'hl_child_assessment', 'hl_teacher_assessment', 'hl_observations',
-            'hl_my_programs', 'hl_program_page', 'hl_component_page',
-            'hl_my_cycle', 'hl_my_track', 'hl_team_page', 'hl_classroom_page',
-            'hl_districts_listing', 'hl_district_page', 'hl_schools_listing',
-            'hl_school_page', 'hl_cycle_workspace', 'hl_track_workspace',
-            'hl_my_coaching', 'hl_cycles_listing', 'hl_tracks_listing',
-            'hl_institutions_listing', 'hl_coaching_hub', 'hl_classrooms_listing',
-            'hl_learners', 'hl_pathways_listing', 'hl_reports_hub', 'hl_my_team',
-            'hl_dashboard', 'hl_docs', 'hl_coach_dashboard', 'hl_coach_mentors',
-            'hl_coach_mentor_detail', 'hl_coach_reports', 'hl_coach_availability',
-            'hl_user_profile', 'hl_track_dashboard',
-        );
-        foreach ($hl_shortcodes as $sc) {
-            if (has_shortcode($content, $sc)) {
-                $is_hl_page = true;
-                break;
-            }
+        // Use a simple strpos check for speed — covers all hl_ shortcodes.
+        if (strpos($content, '[hl_') !== false) {
+            $is_hl_page = true;
         }
 
         if (!$is_hl_page) return;
 
-        // Nuclear: dequeue EVERY stylesheet from BB theme by checking source path.
+        // Dequeue EVERY stylesheet from BB theme/platform by checking source URL.
         global $wp_styles;
         if (!$wp_styles) return;
 
-        foreach ($wp_styles->registered as $handle => $style) {
-            $src = $style->src ?: '';
-            if (
-                stripos($src, 'buddyboss-theme') !== false ||
-                stripos($src, 'buddyboss-platform') !== false ||
-                stripos($handle, 'buddyboss') !== false ||
-                stripos($handle, 'bp-nouveau') !== false
-            ) {
-                wp_dequeue_style($handle);
+        $kill_patterns = array(
+            'buddyboss-theme',
+            'buddyboss-platform',
+            'bp-templates',
+            'bp-nouveau',
+        );
+
+        foreach ($wp_styles->queue as $idx => $handle) {
+            if (!isset($wp_styles->registered[$handle])) continue;
+            $src = $wp_styles->registered[$handle]->src ?: '';
+            $kill = false;
+
+            // Check handle name.
+            if (stripos($handle, 'buddyboss') !== false || stripos($handle, 'bp-') === 0) {
+                $kill = true;
             }
+            // Check source path.
+            foreach ($kill_patterns as $pattern) {
+                if (stripos($src, $pattern) !== false) {
+                    $kill = true;
+                    break;
+                }
+            }
+
+            if ($kill) {
+                unset($wp_styles->queue[$idx]);
+            }
+        }
+
+        // Force-ensure hl-frontend is in the queue (BB may have removed it via dependency conflicts).
+        if (!in_array('hl-frontend', $wp_styles->queue, true)) {
+            if (!isset($wp_styles->registered['hl-google-fonts-inter'])) {
+                wp_register_style('hl-google-fonts-inter', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null);
+            }
+            if (!isset($wp_styles->registered['hl-frontend'])) {
+                wp_register_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array('hl-google-fonts-inter'), HL_CORE_VERSION);
+            }
+            wp_enqueue_style('hl-google-fonts-inter');
+            wp_enqueue_style('hl-frontend');
         }
     }
 
