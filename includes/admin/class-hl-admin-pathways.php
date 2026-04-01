@@ -506,6 +506,9 @@ class HL_Admin_Pathways {
                 break;
 
             case 'coaching_session_attendance':
+            case 'reflective_practice_session':
+            case 'classroom_visit':
+            case 'self_reflection':
                 // No external ref needed
                 break;
         }
@@ -1108,11 +1111,14 @@ class HL_Admin_Pathways {
 
             // Format type label
             $type_labels = array(
-                'learndash_course'           => __('LearnDash Course', 'hl-core'),
-                'teacher_self_assessment'    => __('Self-Assessment', 'hl-core'),
-                'child_assessment'        => __('Child Assessment', 'hl-core'),
+                'learndash_course'            => __('LearnDash Course', 'hl-core'),
+                'teacher_self_assessment'     => __('Self-Assessment', 'hl-core'),
+                'child_assessment'            => __('Child Assessment', 'hl-core'),
                 'coaching_session_attendance' => __('Coaching Attendance', 'hl-core'),
-                'observation'                => __('Observation', 'hl-core'),
+                'observation'                 => __('Observation', 'hl-core'),
+                'reflective_practice_session' => __('Reflective Practice', 'hl-core'),
+                'classroom_visit'             => __('Classroom Visit', 'hl-core'),
+                'self_reflection'             => __('Self-Reflection', 'hl-core'),
             );
             $type_display = isset($type_labels[$act->component_type]) ? $type_labels[$act->component_type] : $act->component_type;
 
@@ -1582,9 +1588,12 @@ class HL_Admin_Pathways {
         $component_types = array(
             'learndash_course'             => __('LearnDash Course', 'hl-core'),
             'teacher_self_assessment'      => __('Teacher Self-Assessment', 'hl-core'),
-            'child_assessment'          => __('Child Assessment', 'hl-core'),
+            'child_assessment'             => __('Child Assessment', 'hl-core'),
             'coaching_session_attendance'   => __('Coaching Session Attendance', 'hl-core'),
             'observation'                  => __('Observation', 'hl-core'),
+            'reflective_practice_session'  => __('Reflective Practice Session', 'hl-core'),
+            'classroom_visit'              => __('Classroom Visit', 'hl-core'),
+            'self_reflection'              => __('Self-Reflection', 'hl-core'),
         );
 
         $jfb_active = HL_JFB_Integration::instance()->is_active();
@@ -1949,9 +1958,12 @@ class HL_Admin_Pathways {
             var fieldMap = {
                 'teacher_self_assessment': ['hl-field-phase'],
                 'observation':             ['hl-field-jfb', 'hl-field-obs-count'],
-                'child_assessment':     ['hl-field-instrument'],
+                'child_assessment':        ['hl-field-instrument'],
                 'learndash_course':        ['hl-field-ld'],
-                'coaching_session_attendance': []
+                'coaching_session_attendance':  [],
+                'reflective_practice_session':  [],
+                'classroom_visit':              [],
+                'self_reflection':              []
             };
 
             function toggleFields() {
