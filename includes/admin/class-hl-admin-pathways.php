@@ -1138,7 +1138,7 @@ class HL_Admin_Pathways {
         $reorder_nonce = wp_create_nonce('hl_reorder_components');
         ?>
         <script type="text/javascript">
-        (function($) {
+        jQuery(document).ready(function($) {
             var $tbody = $('#hl-components-sortable tbody');
             $tbody.sortable({
                 handle: '.hl-drag-handle',
@@ -1175,7 +1175,7 @@ class HL_Admin_Pathways {
                     });
                 }
             });
-        })(jQuery);
+        });
         </script>
         <style>
             #hl-components-sortable .hl-drag-handle {
