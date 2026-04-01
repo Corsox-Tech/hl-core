@@ -893,25 +893,25 @@ class HL_Frontend_My_Cycle {
             <h3 class="hl-section-title"><?php esc_html_e( 'Teacher Assessments', 'hl-core' ); ?></h3>
 
             <!-- Summary Cards -->
-            <div style="display:flex; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
-                <div style="flex:1; min-width:160px; border:1px solid #e5e7eb; border-radius:8px; padding:1rem;">
-                    <div style="font-size:1.75rem; font-weight:700;"><?php echo esc_html( $tsa_total ); ?></div>
-                    <div style="font-size:0.8rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;"><?php esc_html_e( 'Total Instances', 'hl-core' ); ?></div>
+            <div class="hlmyc-stat-row">
+                <div class="hlmyc-stat-card">
+                    <div class="hlmyc-stat-value"><?php echo esc_html( $tsa_total ); ?></div>
+                    <div class="hlmyc-stat-label"><?php esc_html_e( 'Total Instances', 'hl-core' ); ?></div>
                 </div>
-                <div style="flex:1; min-width:160px; border:1px solid #e5e7eb; border-radius:8px; padding:1rem;">
-                    <div style="font-size:1.75rem; font-weight:700; color:#548235;"><?php echo esc_html( $tsa_submitted ); ?></div>
-                    <div style="font-size:0.8rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;"><?php esc_html_e( 'Submitted', 'hl-core' ); ?></div>
+                <div class="hlmyc-stat-card">
+                    <div class="hlmyc-stat-value hlmyc-stat-value--success"><?php echo esc_html( $tsa_submitted ); ?></div>
+                    <div class="hlmyc-stat-label"><?php esc_html_e( 'Submitted', 'hl-core' ); ?></div>
                 </div>
-                <div style="flex:1; min-width:160px; border:1px solid #e5e7eb; border-radius:8px; padding:1rem;">
-                    <div style="font-size:1.75rem; font-weight:700; color:#c0392b;"><?php echo esc_html( $tsa_pending ); ?></div>
-                    <div style="font-size:0.8rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;"><?php esc_html_e( 'Pending', 'hl-core' ); ?></div>
+                <div class="hlmyc-stat-card">
+                    <div class="hlmyc-stat-value hlmyc-stat-value--error"><?php echo esc_html( $tsa_pending ); ?></div>
+                    <div class="hlmyc-stat-label"><?php esc_html_e( 'Pending', 'hl-core' ); ?></div>
                 </div>
             </div>
 
             <?php foreach ( $tsa_by_phase as $phase => $phase_data ) : ?>
-                <div style="border-left:3px solid #2F5496; padding-left:0.75rem; margin:1.5rem 0 0.75rem; font-weight:600;">
+                <div class="hlmyc-phase-divider">
                     <?php echo esc_html( strtoupper( $phase ) . '-Assessment' ); ?>
-                    <span style="font-weight:400; color:#888;">(<?php echo esc_html( count( $phase_data ) ); ?>)</span>
+                    <span class="hlmyc-phase-count">(<?php echo esc_html( count( $phase_data ) ); ?>)</span>
                 </div>
 
                 <div class="hl-table-container">
@@ -954,25 +954,25 @@ class HL_Frontend_My_Cycle {
             <?php if ( ! empty( $ca_instances ) ) : ?>
                 <h3 class="hl-section-title" style="margin-top:2.5rem;"><?php esc_html_e( 'Child Assessments', 'hl-core' ); ?></h3>
 
-                <div style="display:flex; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
-                    <div style="flex:1; min-width:160px; border:1px solid #e5e7eb; border-radius:8px; padding:1rem;">
-                        <div style="font-size:1.75rem; font-weight:700;"><?php echo esc_html( $ca_total ); ?></div>
-                        <div style="font-size:0.8rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;"><?php esc_html_e( 'Total Instances', 'hl-core' ); ?></div>
+                <div class="hlmyc-stat-row">
+                    <div class="hlmyc-stat-card">
+                        <div class="hlmyc-stat-value"><?php echo esc_html( $ca_total ); ?></div>
+                        <div class="hlmyc-stat-label"><?php esc_html_e( 'Total Instances', 'hl-core' ); ?></div>
                     </div>
-                    <div style="flex:1; min-width:160px; border:1px solid #e5e7eb; border-radius:8px; padding:1rem;">
-                        <div style="font-size:1.75rem; font-weight:700; color:#548235;"><?php echo esc_html( $ca_submitted ); ?></div>
-                        <div style="font-size:0.8rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;"><?php esc_html_e( 'Submitted', 'hl-core' ); ?></div>
+                    <div class="hlmyc-stat-card">
+                        <div class="hlmyc-stat-value hlmyc-stat-value--success"><?php echo esc_html( $ca_submitted ); ?></div>
+                        <div class="hlmyc-stat-label"><?php esc_html_e( 'Submitted', 'hl-core' ); ?></div>
                     </div>
-                    <div style="flex:1; min-width:160px; border:1px solid #e5e7eb; border-radius:8px; padding:1rem;">
-                        <div style="font-size:1.75rem; font-weight:700; color:#c0392b;"><?php echo esc_html( $ca_pending ); ?></div>
-                        <div style="font-size:0.8rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;"><?php esc_html_e( 'Pending', 'hl-core' ); ?></div>
+                    <div class="hlmyc-stat-card">
+                        <div class="hlmyc-stat-value hlmyc-stat-value--error"><?php echo esc_html( $ca_pending ); ?></div>
+                        <div class="hlmyc-stat-label"><?php esc_html_e( 'Pending', 'hl-core' ); ?></div>
                     </div>
                 </div>
 
                 <?php foreach ( $ca_by_phase as $phase => $phase_data ) : ?>
-                    <div style="border-left:3px solid #548235; padding-left:0.75rem; margin:1.5rem 0 0.75rem; font-weight:600;">
+                    <div class="hlmyc-phase-divider hlmyc-phase-divider--ca">
                         <?php echo esc_html( strtoupper( $phase ) . '-Assessment' ); ?>
-                        <span style="font-weight:400; color:#888;">(<?php echo esc_html( count( $phase_data ) ); ?>)</span>
+                        <span class="hlmyc-phase-count">(<?php echo esc_html( count( $phase_data ) ); ?>)</span>
                     </div>
 
                     <div class="hl-table-container">
@@ -1074,30 +1074,30 @@ class HL_Frontend_My_Cycle {
 
         ?>
         <div class="hl-tsa-detail-view">
-            <a href="<?php echo esc_url( $back_url ); ?>" style="display:inline-block; margin-bottom:1rem; color:#2271b1; text-decoration:none;">
+            <a href="<?php echo esc_url( $back_url ); ?>" class="hlmyc-back-link">
                 &larr; <?php esc_html_e( 'Back to Assessments', 'hl-core' ); ?>
             </a>
 
-            <div style="background:#f8f9fa; border-radius:12px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;">
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem 2rem; max-width:600px;">
+            <div class="hlmyc-detail-grid">
+                <div class="hlmyc-detail-grid-inner">
                     <div>
-                        <div style="font-size:0.75rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;"><?php esc_html_e( 'Teacher', 'hl-core' ); ?></div>
-                        <div style="font-weight:600;"><?php echo esc_html( $instance['display_name'] ); ?></div>
+                        <div class="hlmyc-detail-label"><?php esc_html_e( 'Teacher', 'hl-core' ); ?></div>
+                        <div class="hlmyc-detail-value"><?php echo esc_html( $instance['display_name'] ); ?></div>
                     </div>
                     <div>
-                        <div style="font-size:0.75rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;"><?php esc_html_e( 'Email', 'hl-core' ); ?></div>
+                        <div class="hlmyc-detail-label"><?php esc_html_e( 'Email', 'hl-core' ); ?></div>
                         <div><?php echo esc_html( $instance['user_email'] ); ?></div>
                     </div>
                     <div>
-                        <div style="font-size:0.75rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;"><?php esc_html_e( 'Phase', 'hl-core' ); ?></div>
-                        <div style="font-weight:600;"><?php echo esc_html( strtoupper( $instance['phase'] ) ); ?></div>
+                        <div class="hlmyc-detail-label"><?php esc_html_e( 'Phase', 'hl-core' ); ?></div>
+                        <div class="hlmyc-detail-value"><?php echo esc_html( strtoupper( $instance['phase'] ) ); ?></div>
                     </div>
                     <div>
-                        <div style="font-size:0.75rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;"><?php esc_html_e( 'Status', 'hl-core' ); ?></div>
+                        <div class="hlmyc-detail-label"><?php esc_html_e( 'Status', 'hl-core' ); ?></div>
                         <div><span class="hl-badge hl-badge-submitted"><?php echo esc_html( ucwords( str_replace( '_', ' ', $instance['status'] ) ) ); ?></span></div>
                     </div>
                     <div>
-                        <div style="font-size:0.75rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;"><?php esc_html_e( 'Submitted', 'hl-core' ); ?></div>
+                        <div class="hlmyc-detail-label"><?php esc_html_e( 'Submitted', 'hl-core' ); ?></div>
                         <div><?php echo $instance['submitted_at'] ? esc_html( date_i18n( 'Y-m-d H:i:s', strtotime( $instance['submitted_at'] ) ) ) : '—'; ?></div>
                     </div>
                 </div>
