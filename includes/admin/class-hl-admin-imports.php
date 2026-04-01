@@ -1,10 +1,10 @@
 <?php if (!defined('ABSPATH')) exit;
 
 /**
- * Admin Imports Page
+ * Admin Imports — Cycle-Scoped Import Wizard
  *
- * AJAX-based import wizard supporting multiple import types:
- * participants, children, classrooms, and teaching assignments.
+ * Renders inside the Cycle Editor as an "Import" tab.
+ * Supports 2 import types: participants and children.
  *
  * @package HL_Core
  */
@@ -27,30 +27,19 @@ class HL_Admin_Imports {
     }
 
     /**
-     * Render the imports admin page (standalone).
+     * Render the import tab inside the Cycle Editor.
+     *
+     * @param object $cycle Cycle row object with cycle_id, cycle_name, etc.
      */
-    public function render_page() {
-        echo '<div class="wrap hl-admin-wrap hl-import-wizard-wrap">';
-        $this->render_page_content();
-        echo '</div>';
-    }
-
-    /**
-     * Render page content without the wrap div (for embedding inside Settings hub).
-     */
-    public function render_page_content() {
-        global $wpdb;
-
-        // Get non-archived cycles for dropdown
-        $cycles = $wpdb->get_results(
-            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle WHERE status != 'archived' ORDER BY cycle_name ASC"
-        );
-
+    public function render_cycle_import_tab($cycle) {
+        $cycle_id = (int) $cycle->cycle_id;
         $import_service = new HL_Import_Service();
-        $runs = $import_service->get_runs();
+        $runs = $import_service->get_runs($cycle_id);
 
+        // Load helper data scoped to this cycle's Partnership
+        $helpers = $this->load_cycle_helpers($cycle_id);
         ?>
-            <h1><?php esc_html_e('Imports', 'hl-core'); ?></h1>
+        <div class="hl-import-wizard-wrap">
 
             <!-- Step Indicator -->
             <div class="hl-import-steps">
@@ -83,27 +72,18 @@ class HL_Admin_Imports {
 
             <!-- Step 1: Upload -->
             <div class="hl-import-panel" id="hl-import-step-1">
-                <h2><?php esc_html_e('Upload CSV', 'hl-core'); ?></h2>
+                <h2><?php esc_html_e('Import Data', 'hl-core'); ?></h2>
+
+                <!-- Hidden cycle_id for JS -->
+                <input type="hidden" id="hl-import-cycle-id" value="<?php echo esc_attr($cycle_id); ?>" />
+
                 <table class="form-table">
-                    <tr>
-                        <th scope="row"><label for="hl-import-cycle"><?php esc_html_e('Cycle', 'hl-core'); ?></label></th>
-                        <td>
-                            <select id="hl-import-cycle" required>
-                                <option value=""><?php esc_html_e('-- Select Cycle --', 'hl-core'); ?></option>
-                                <?php if ($cycles) : foreach ($cycles as $coh) : ?>
-                                    <option value="<?php echo esc_attr($coh->cycle_id); ?>"><?php echo esc_html($coh->cycle_name); ?></option>
-                                <?php endforeach; endif; ?>
-                            </select>
-                        </td>
-                    </tr>
                     <tr>
                         <th scope="row"><label for="hl-import-type"><?php esc_html_e('Import Type', 'hl-core'); ?></label></th>
                         <td>
                             <select id="hl-import-type" required>
                                 <option value="participants"><?php esc_html_e('Participants', 'hl-core'); ?></option>
                                 <option value="children"><?php esc_html_e('Children', 'hl-core'); ?></option>
-                                <option value="classrooms"><?php esc_html_e('Classrooms', 'hl-core'); ?></option>
-                                <option value="teaching_assignments"><?php esc_html_e('Teaching Assignments', 'hl-core'); ?></option>
                             </select>
                         </td>
                     </tr>
@@ -115,25 +95,25 @@ class HL_Admin_Imports {
                         </td>
                     </tr>
                 </table>
+
                 <p>
                     <button type="button" class="button button-primary" id="hl-import-upload-btn">
                         <?php esc_html_e('Upload & Preview', 'hl-core'); ?>
                     </button>
                 </p>
+
+                <!-- Column hints per type -->
                 <div id="hl-import-column-hints">
                     <p class="description" data-type="participants">
-                        <?php esc_html_e('Required columns: email, cycle_roles, school_name (or school_code). Optional: first_name, last_name, district_name, district_code.', 'hl-core'); ?>
+                        <?php esc_html_e('Required: email, role, school. Optional: first_name, last_name, classroom (semicolon-separated), age_group, team, assigned_mentor, assigned_coach, pathway, is_primary_teacher.', 'hl-core'); ?>
                     </p>
                     <p class="description" data-type="children" style="display:none;">
-                        <?php esc_html_e('Required columns: first_name (and/or last_name), school_name (or school_code). Optional: date_of_birth, child_identifier, classroom_name.', 'hl-core'); ?>
-                    </p>
-                    <p class="description" data-type="classrooms" style="display:none;">
-                        <?php esc_html_e('Required columns: classroom_name, school_name (or school_code). Optional: age_band (infant/toddler/preschool/mixed).', 'hl-core'); ?>
-                    </p>
-                    <p class="description" data-type="teaching_assignments" style="display:none;">
-                        <?php esc_html_e('Required columns: email, classroom_name, school_name (or school_code). Optional: is_lead_teacher (yes/no).', 'hl-core'); ?>
+                        <?php esc_html_e('Required: first_name, last_name, classroom. Optional: school, date_of_birth, internal_child_id, ethnicity.', 'hl-core'); ?>
                     </p>
                 </div>
+
+                <!-- Helper Reference Panel -->
+                <?php $this->render_helper_panel($helpers); ?>
             </div>
 
             <!-- Step 2: Preview & Select -->
@@ -180,15 +160,151 @@ class HL_Admin_Imports {
                 </p>
             </div>
 
-            <!-- Import History -->
+            <!-- Import History for this Cycle -->
             <hr />
-            <h2><?php esc_html_e('Import History', 'hl-core'); ?></h2>
+            <h3><?php esc_html_e('Import History', 'hl-core'); ?></h3>
             <?php $this->render_history_table($runs); ?>
+        </div>
         <?php
     }
 
     /**
-     * Render import history table
+     * Load helper reference data scoped to this cycle's Partnership.
+     *
+     * @param int $cycle_id
+     * @return array
+     */
+    private function load_cycle_helpers($cycle_id) {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        // Get cycle's partnership_id
+        $partnership_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT partnership_id FROM {$prefix}hl_cycle WHERE cycle_id = %d",
+            $cycle_id
+        ));
+
+        // Schools linked to this cycle
+        $schools = $wpdb->get_results($wpdb->prepare(
+            "SELECT o.orgunit_id, o.name, o.orgunit_code
+             FROM {$prefix}hl_cycle_school cs
+             JOIN {$prefix}hl_orgunit o ON cs.school_id = o.orgunit_id
+             WHERE cs.cycle_id = %d AND o.status = 'active'
+             ORDER BY o.name ASC",
+            $cycle_id
+        ), ARRAY_A) ?: array();
+
+        // If no direct cycle_school links, try all cycles in the partnership
+        if (empty($schools) && $partnership_id) {
+            $schools = $wpdb->get_results($wpdb->prepare(
+                "SELECT DISTINCT o.orgunit_id, o.name, o.orgunit_code
+                 FROM {$prefix}hl_cycle c
+                 JOIN {$prefix}hl_cycle_school cs ON c.cycle_id = cs.cycle_id
+                 JOIN {$prefix}hl_orgunit o ON cs.school_id = o.orgunit_id
+                 WHERE c.partnership_id = %d AND o.status = 'active'
+                 ORDER BY o.name ASC",
+                $partnership_id
+            ), ARRAY_A) ?: array();
+        }
+
+        // Pathways for this cycle
+        $pathways = $wpdb->get_results($wpdb->prepare(
+            "SELECT pathway_id, pathway_name, pathway_code, target_roles
+             FROM {$prefix}hl_pathway
+             WHERE cycle_id = %d AND active_status = 1
+             ORDER BY pathway_name ASC",
+            $cycle_id
+        ), ARRAY_A) ?: array();
+
+        // Existing teams for this cycle
+        $teams = $wpdb->get_results($wpdb->prepare(
+            "SELECT t.team_id, t.team_name, o.name AS school_name
+             FROM {$prefix}hl_team t
+             JOIN {$prefix}hl_orgunit o ON t.school_id = o.orgunit_id
+             WHERE t.cycle_id = %d AND t.status = 'active'
+             ORDER BY o.name ASC, t.team_name ASC",
+            $cycle_id
+        ), ARRAY_A) ?: array();
+
+        return array(
+            'schools'  => $schools,
+            'pathways' => $pathways,
+            'teams'    => $teams,
+            'roles'    => array('Teacher', 'Mentor', 'School Leader', 'District Leader'),
+        );
+    }
+
+    /**
+     * Render the helper reference panel.
+     *
+     * @param array $helpers
+     */
+    private function render_helper_panel($helpers) {
+        ?>
+        <div class="hl-import-helpers" style="margin-top:20px; padding:15px; background:#f9f9f9; border:1px solid #ddd; border-radius:4px;">
+            <h3 style="margin-top:0;"><?php esc_html_e('Reference: Valid Values for This Cycle', 'hl-core'); ?></h3>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                <div>
+                    <strong><?php esc_html_e('Roles', 'hl-core'); ?></strong>
+                    <ul style="margin:5px 0;">
+                        <?php foreach ($helpers['roles'] as $role) : ?>
+                            <li><code><?php echo esc_html($role); ?></code></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+                <div>
+                    <strong><?php esc_html_e('Schools', 'hl-core'); ?></strong>
+                    <?php if (empty($helpers['schools'])) : ?>
+                        <p class="description"><?php esc_html_e('No schools linked to this cycle. Link schools in the Schools tab first.', 'hl-core'); ?></p>
+                    <?php else : ?>
+                        <ul style="margin:5px 0;">
+                            <?php foreach ($helpers['schools'] as $s) : ?>
+                                <li><code><?php echo esc_html($s['name']); ?></code><?php if ($s['orgunit_code']) echo ' (' . esc_html($s['orgunit_code']) . ')'; ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </div>
+                <div>
+                    <strong><?php esc_html_e('Pathways', 'hl-core'); ?></strong>
+                    <?php if (empty($helpers['pathways'])) : ?>
+                        <p class="description"><?php esc_html_e('No pathways created yet.', 'hl-core'); ?></p>
+                    <?php else : ?>
+                        <ul style="margin:5px 0;">
+                            <?php foreach ($helpers['pathways'] as $p) : ?>
+                                <li>
+                                    <code><?php echo esc_html($p['pathway_name']); ?></code>
+                                    <?php if ($p['pathway_code']) echo ' (' . esc_html($p['pathway_code']) . ')'; ?>
+                                    <?php
+                                    $roles = json_decode($p['target_roles'], true);
+                                    if (is_array($roles) && !empty($roles)) {
+                                        echo ' — ' . esc_html(implode(', ', $roles));
+                                    }
+                                    ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </div>
+                <div>
+                    <strong><?php esc_html_e('Existing Teams', 'hl-core'); ?></strong>
+                    <?php if (empty($helpers['teams'])) : ?>
+                        <p class="description"><?php esc_html_e('No teams yet. Teams will be auto-created during import.', 'hl-core'); ?></p>
+                    <?php else : ?>
+                        <ul style="margin:5px 0;">
+                            <?php foreach ($helpers['teams'] as $t) : ?>
+                                <li><code><?php echo esc_html($t['team_name']); ?></code> — <?php echo esc_html($t['school_name']); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render import history table (unchanged from original, minus cycle column).
      */
     private function render_history_table($runs) {
         if (empty($runs)) {
@@ -200,7 +316,6 @@ class HL_Admin_Imports {
         echo '<thead><tr>';
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Date', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Cycle', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('File', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Type', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
@@ -233,11 +348,10 @@ class HL_Admin_Imports {
             echo '<tr>';
             echo '<td>' . esc_html($run['run_id']) . '</td>';
             echo '<td>' . esc_html($run['created_at']) . '</td>';
-            echo '<td>' . esc_html($run['cycle_name'] ? $run['cycle_name'] : '-') . '</td>';
             echo '<td>' . esc_html($run['file_name']) . '</td>';
             echo '<td>' . esc_html($run['import_type']) . '</td>';
             echo '<td><span class="hl-status-badge ' . esc_attr($status_class) . '">' . esc_html($run['status']) . '</span></td>';
-            echo '<td>' . esc_html($run['actor_name'] ? $run['actor_name'] : '-') . '</td>';
+            echo '<td>' . esc_html(isset($run['actor_name']) ? $run['actor_name'] : '-') . '</td>';
             echo '<td>' . esc_html($summary_text) . '</td>';
             echo '</tr>';
         }
@@ -250,7 +364,7 @@ class HL_Admin_Imports {
     // =========================================================================
 
     /**
-     * AJAX: Upload and parse CSV, create preview
+     * AJAX: Upload and parse CSV, create preview.
      */
     public function ajax_upload() {
         check_ajax_referer('hl_import_upload', 'nonce');
@@ -261,12 +375,12 @@ class HL_Admin_Imports {
 
         $cycle_id = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
         if (!$cycle_id) {
-            wp_send_json_error(array('message' => __('Please select a cycle.', 'hl-core')));
+            wp_send_json_error(array('message' => __('Missing cycle context.', 'hl-core')));
         }
 
         $import_type = isset($_POST['import_type']) ? sanitize_text_field($_POST['import_type']) : 'participants';
-        $valid_types = array('participants', 'children', 'classrooms', 'teaching_assignments');
-        if (!in_array($import_type, $valid_types)) {
+        $valid_types = array('participants', 'children');
+        if (!in_array($import_type, $valid_types, true)) {
             wp_send_json_error(array('message' => __('Invalid import type.', 'hl-core')));
         }
 
@@ -276,11 +390,11 @@ class HL_Admin_Imports {
             "SELECT status FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
             $cycle_id
         ));
-        if ($cycle_status === 'archived') {
-            wp_send_json_error(array('message' => __('Cannot import into an archived cycle.', 'hl-core')));
-        }
         if (!$cycle_status) {
             wp_send_json_error(array('message' => __('Cycle not found.', 'hl-core')));
+        }
+        if ($cycle_status === 'archived') {
+            wp_send_json_error(array('message' => __('Cannot import into an archived cycle.', 'hl-core')));
         }
 
         // Validate file upload
@@ -290,21 +404,13 @@ class HL_Admin_Imports {
 
         $file = $_FILES['file'];
 
-        // Check file size
         if ($file['size'] > HL_Import_Service::MAX_FILE_SIZE) {
             wp_send_json_error(array('message' => __('File exceeds the 2MB size limit.', 'hl-core')));
         }
 
-        // Check extension
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if ($ext !== 'csv') {
             wp_send_json_error(array('message' => __('Only CSV files are supported.', 'hl-core')));
-        }
-
-        // Check MIME type
-        $allowed_mimes = array('text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel');
-        if (!in_array($file['type'], $allowed_mimes)) {
-            wp_send_json_error(array('message' => __('Invalid file type. Please upload a CSV file.', 'hl-core')));
         }
 
         $import_service = new HL_Import_Service();
@@ -315,20 +421,16 @@ class HL_Admin_Imports {
             wp_send_json_error(array('message' => $parsed->get_error_message()));
         }
 
-        // Validate rows based on import type
+        // Validate rows via handler
         switch ($import_type) {
             case 'children':
-                $preview_rows = $import_service->validate_children_rows($parsed['rows'], $cycle_id);
-                break;
-            case 'classrooms':
-                $preview_rows = $import_service->validate_classroom_rows($parsed['rows'], $cycle_id);
-                break;
-            case 'teaching_assignments':
-                $preview_rows = $import_service->validate_teaching_assignment_rows($parsed['rows'], $cycle_id);
+                $handler = new HL_Import_Children_Handler();
+                $preview_rows = $handler->validate($parsed['rows'], $cycle_id);
                 break;
             case 'participants':
             default:
-                $preview_rows = $import_service->validate_participant_rows($parsed['rows'], $cycle_id);
+                $handler = new HL_Import_Participant_Handler();
+                $preview_rows = $handler->validate($parsed['rows'], $cycle_id);
                 break;
         }
 
@@ -341,18 +443,17 @@ class HL_Admin_Imports {
         // Save preview
         $import_service->save_preview($run_id, $preview_rows);
 
-        // Delete temp file
         @unlink($file['tmp_name']);
 
         // Build summary counts
-        $counts = array('CREATE' => 0, 'UPDATE' => 0, 'SKIP' => 0, 'NEEDS_REVIEW' => 0, 'ERROR' => 0);
+        $counts = array('CREATE' => 0, 'UPDATE' => 0, 'SKIP' => 0, 'WARNING' => 0, 'ERROR' => 0);
         foreach ($preview_rows as $row) {
             if (isset($counts[$row['status']])) {
                 $counts[$row['status']]++;
             }
         }
 
-        // Prepare rows for JS based on import type
+        // Prepare rows for JS
         $js_rows = $this->prepare_js_rows($preview_rows, $import_type);
 
         wp_send_json_success(array(
@@ -366,11 +467,7 @@ class HL_Admin_Imports {
     }
 
     /**
-     * Prepare preview rows for JS depending on import type
-     *
-     * @param array  $preview_rows
-     * @param string $import_type
-     * @return array
+     * Prepare preview rows for JS depending on import type.
      */
     private function prepare_js_rows($preview_rows, $import_type) {
         $js_rows = array();
@@ -386,31 +483,13 @@ class HL_Admin_Imports {
 
             switch ($import_type) {
                 case 'children':
-                    $base['parsed_first_name']   = isset($row['parsed_first_name']) ? $row['parsed_first_name'] : '';
-                    $base['parsed_last_name']    = isset($row['parsed_last_name']) ? $row['parsed_last_name'] : '';
-                    $base['parsed_dob']          = isset($row['parsed_dob']) ? $row['parsed_dob'] : '';
+                    $base['parsed_first_name']       = isset($row['parsed_first_name']) ? $row['parsed_first_name'] : '';
+                    $base['parsed_last_name']        = isset($row['parsed_last_name']) ? $row['parsed_last_name'] : '';
+                    $base['parsed_dob']              = isset($row['parsed_dob']) ? $row['parsed_dob'] : '';
                     $base['parsed_child_identifier'] = isset($row['parsed_child_identifier']) ? $row['parsed_child_identifier'] : '';
                     $base['parsed_classroom_name']   = isset($row['parsed_classroom_name']) ? $row['parsed_classroom_name'] : '';
-                    $base['raw_school'] = isset($row['raw_data']['school_name'])
-                        ? $row['raw_data']['school_name']
-                        : (isset($row['raw_data']['school_code']) ? $row['raw_data']['school_code'] : '');
-                    break;
-
-                case 'classrooms':
-                    $base['parsed_classroom_name'] = isset($row['parsed_classroom_name']) ? $row['parsed_classroom_name'] : '';
-                    $base['parsed_age_band']       = isset($row['parsed_age_band']) ? $row['parsed_age_band'] : '';
-                    $base['raw_school'] = isset($row['raw_data']['school_name'])
-                        ? $row['raw_data']['school_name']
-                        : (isset($row['raw_data']['school_code']) ? $row['raw_data']['school_code'] : '');
-                    break;
-
-                case 'teaching_assignments':
-                    $base['parsed_email']          = isset($row['parsed_email']) ? $row['parsed_email'] : '';
-                    $base['parsed_classroom_name'] = isset($row['parsed_classroom_name']) ? $row['parsed_classroom_name'] : '';
-                    $base['parsed_is_lead']        = isset($row['parsed_is_lead']) ? $row['parsed_is_lead'] : false;
-                    $base['raw_school'] = isset($row['raw_data']['school_name'])
-                        ? $row['raw_data']['school_name']
-                        : (isset($row['raw_data']['school_code']) ? $row['raw_data']['school_code'] : '');
+                    $base['raw_school']              = isset($row['raw_school']) ? $row['raw_school'] : '';
+                    $base['parsed_ethnicity']        = isset($row['parsed_ethnicity']) ? $row['parsed_ethnicity'] : '';
                     break;
 
                 case 'participants':
@@ -418,13 +497,12 @@ class HL_Admin_Imports {
                     $base['parsed_email']      = isset($row['parsed_email']) ? $row['parsed_email'] : '';
                     $base['parsed_first_name'] = isset($row['parsed_first_name']) ? $row['parsed_first_name'] : '';
                     $base['parsed_last_name']  = isset($row['parsed_last_name']) ? $row['parsed_last_name'] : '';
-                    $base['parsed_roles']      = isset($row['parsed_roles']) ? $row['parsed_roles'] : array();
-                    $base['raw_school'] = isset($row['raw_data']['school_name'])
-                        ? $row['raw_data']['school_name']
-                        : (isset($row['raw_data']['school_code']) ? $row['raw_data']['school_code'] : '');
-                    $base['raw_district'] = isset($row['raw_data']['district_name'])
-                        ? $row['raw_data']['district_name']
-                        : (isset($row['raw_data']['district_code']) ? $row['raw_data']['district_code'] : '');
+                    $base['parsed_role']       = isset($row['parsed_role']) ? $row['parsed_role'] : '';
+                    $base['raw_school']        = isset($row['raw_school']) ? $row['raw_school'] : '';
+                    $base['parsed_classroom']  = isset($row['parsed_classroom']) ? $row['parsed_classroom'] : '';
+                    $base['parsed_team']       = isset($row['parsed_team']) ? $row['parsed_team'] : '';
+                    $base['parsed_pathway']    = isset($row['parsed_pathway']) ? $row['parsed_pathway'] : '';
+                    $base['parsed_coach']      = isset($row['parsed_coach']) ? $row['parsed_coach'] : '';
                     break;
             }
 
@@ -435,7 +513,7 @@ class HL_Admin_Imports {
     }
 
     /**
-     * AJAX: Commit selected rows
+     * AJAX: Commit selected rows.
      */
     public function ajax_commit() {
         check_ajax_referer('hl_import_commit', 'nonce');
@@ -449,10 +527,9 @@ class HL_Admin_Imports {
             wp_send_json_error(array('message' => __('Missing import run ID.', 'hl-core')));
         }
 
-        // Verify run ownership and get import_type
         global $wpdb;
         $run_row = $wpdb->get_row($wpdb->prepare(
-            "SELECT actor_user_id, import_type FROM {$wpdb->prefix}hl_import_run WHERE run_id = %d AND status = 'preview'",
+            "SELECT actor_user_id, import_type, cycle_id FROM {$wpdb->prefix}hl_import_run WHERE run_id = %d AND status = 'preview'",
             $run_id
         ));
         if (!$run_row) {
@@ -465,30 +542,23 @@ class HL_Admin_Imports {
         $selected_raw = isset($_POST['selected_rows']) ? $_POST['selected_rows'] : array();
         $selected = array_map('absint', (array) $selected_raw);
 
-        $import_service = new HL_Import_Service();
-
-        // Route to the correct commit method based on import_type
         switch ($run_row->import_type) {
             case 'children':
-                $results = $import_service->commit_children_import($run_id, $selected);
-                break;
-            case 'classrooms':
-                $results = $import_service->commit_classroom_import($run_id, $selected);
-                break;
-            case 'teaching_assignments':
-                $results = $import_service->commit_teaching_assignment_import($run_id, $selected);
+                $handler = new HL_Import_Children_Handler();
                 break;
             case 'participants':
             default:
-                $results = $import_service->commit_import($run_id, $selected);
+                $handler = new HL_Import_Participant_Handler();
                 break;
         }
+
+        $results = $handler->commit($run_id, $selected);
 
         wp_send_json_success($results);
     }
 
     /**
-     * AJAX: Generate and return error report URL
+     * AJAX: Generate and return error report URL.
      */
     public function ajax_error_report() {
         check_ajax_referer('hl_import_error_report', 'nonce');
