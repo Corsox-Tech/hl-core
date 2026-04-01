@@ -174,16 +174,8 @@ class HL_Frontend_RP_Session {
         // Determine active tab from URL param (default: rp-notes)
         $active_tab = isset($_GET['tab']) && $_GET['tab'] === 'action-plan' ? 'action-plan' : 'rp-notes';
         ?>
-        <style>
-        .hl-rp-tabs{display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:20px}
-        .hl-rp-tab{padding:10px 20px;font-size:14px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;white-space:nowrap}
-        .hl-rp-tab:hover{color:#475569}
-        .hl-rp-tab.active{color:#1e3a5f;border-bottom-color:#1e3a5f}
-        .hl-rp-tab-panel{display:none}
-        .hl-rp-tab-panel.active{display:block}
-        </style>
-        <div class="hl-rp-session-detail" style="max-width:860px;margin:0 auto">
-            <a href="<?php echo esc_url($back_url); ?>" class="hl-back-link" style="display:block;margin-bottom:8px">&larr; <?php esc_html_e('Back to Teacher List', 'hl-core'); ?></a>
+        <div class="hl-rp-session-detail">
+            <a href="<?php echo esc_url($back_url); ?>" class="hl-back-link hl-back-link--block">&larr; <?php esc_html_e('Back to Teacher List', 'hl-core'); ?></a>
 
             <!-- Tabs -->
             <div class="hl-rp-tabs">

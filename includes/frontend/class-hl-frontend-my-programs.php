@@ -268,7 +268,7 @@ class HL_Frontend_My_Programs {
                     $g_label = ($g_type === 'coach') ? __('Coach:', 'hl-core') : __('Mentor:', 'hl-core');
                     if ($g_name) :
                 ?>
-                    <p class="hl-program-card-guide" style="font-size:13px;color:#64748b;margin:4px 0 8px;">
+                    <p class="hl-program-card-guide">
                         <strong><?php echo esc_html($g_label); ?></strong> <?php echo esc_html($g_name); ?>
                     </p>
                 <?php endif; endif; ?>

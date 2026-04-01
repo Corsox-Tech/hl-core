@@ -604,7 +604,7 @@ class HL_Frontend_Cycle_Workspace {
 
         ?>
         <div class="hl-cw-staff-header">
-            <div class="hl-cw-section-label" style="border: none; margin: 0; padding: 0;">
+            <div class="hl-cw-section-label hl-cw-section-label--plain">
                 <?php esc_html_e( 'Staff Directory', 'hl-core' ); ?>
             </div>
             <input type="text" class="hl-cw-staff-search hl-search-input" data-table="hl-cw-staff-table"
@@ -712,7 +712,7 @@ class HL_Frontend_Cycle_Workspace {
         ?>
         <div class="hl-reports-container">
             <div class="hl-cw-report-header">
-                <div class="hl-cw-section-label" style="border: none; margin: 0; padding: 0;">
+                <div class="hl-cw-section-label hl-cw-section-label--plain">
                     <?php esc_html_e( 'Completion Report', 'hl-core' ); ?>
                 </div>
                 <a href="<?php echo esc_url( $export_url ); ?>" class="hl-cw-export-btn">
@@ -911,7 +911,7 @@ class HL_Frontend_Cycle_Workspace {
                     <tr>
                         <td>
                             <?php if ( $cr_url ) : ?>
-                                <a href="<?php echo esc_url( $cr_url ); ?>" style="color: var(--hl-indigo); text-decoration: none; font-weight: 600;">
+                                <a href="<?php echo esc_url( $cr_url ); ?>" class="hl-cw-table-link">
                                     <?php echo esc_html( $cr->classroom_name ); ?>
                                 </a>
                             <?php else : ?>
