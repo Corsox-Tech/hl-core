@@ -270,23 +270,26 @@ class HL_Pathway_Assignment_Service {
     }
 
     /**
-     * Sync role-based default assignments for a cycle.
+     * Sync pathway assignments for a cycle.
      *
-     * Creates role_default assignments for enrollments that have no explicit
-     * assignments, based on pathway target_roles matching enrollment roles.
+     * For each unassigned enrollment:
+     * 1. Try HL_Pathway_Routing_Service (stage-based routing for B2E cycles)
+     * 2. Fall back to target_roles matching (for non-B2E cycles)
+     * 3. Assign at most ONE pathway per enrollment
      *
      * @param int $cycle_id
-     * @return array Results with 'created' count.
+     * @return array Results with 'created' and 'routed' counts.
      */
     public function sync_role_defaults($cycle_id) {
         global $wpdb;
 
         $cycle_id = absint($cycle_id);
         $created = 0;
+        $routed  = 0;
 
         // Get all active enrollments without any pathway assignments.
         $enrollments = $wpdb->get_results($wpdb->prepare(
-            "SELECT e.enrollment_id, e.roles
+            "SELECT e.enrollment_id, e.user_id, e.roles
              FROM {$wpdb->prefix}hl_enrollment e
              WHERE e.cycle_id = %d AND e.status = 'active'
                AND e.enrollment_id NOT IN (
@@ -295,41 +298,76 @@ class HL_Pathway_Assignment_Service {
             $cycle_id
         ), ARRAY_A);
 
-        // Get all active pathways for this cycle.
+        if (empty($enrollments)) {
+            return array('created' => 0, 'routed' => 0);
+        }
+
+        // Get all active pathways for target_roles fallback.
         $pathways = $wpdb->get_results($wpdb->prepare(
             "SELECT pathway_id, target_roles FROM {$wpdb->prefix}hl_pathway WHERE cycle_id = %d AND active_status = 1",
             $cycle_id
         ), ARRAY_A);
 
-        $role_map = array(
-            'teacher'          => 'Teacher',
-            'mentor'           => 'Mentor',
-            'school_leader'    => 'School Leader',
-            'district_leader'  => 'District Leader',
-        );
-
         foreach ($enrollments as $e) {
             $e_roles = json_decode($e['roles'], true);
-            if (!is_array($e_roles)) continue;
+            if (!is_array($e_roles) || empty($e_roles)) {
+                continue;
+            }
 
-            foreach ($pathways as $pw) {
-                $target_roles = json_decode($pw['target_roles'], true);
-                if (!is_array($target_roles)) continue;
+            $assigned = false;
 
-                foreach ($e_roles as $role) {
-                    $mapped = isset($role_map[$role]) ? $role_map[$role] : ucfirst($role);
-                    if (in_array($mapped, $target_roles, true)) {
+            // Step 1: Try routing service for each role
+            foreach ($e_roles as $role) {
+                $pathway_id = HL_Pathway_Routing_Service::resolve_pathway(
+                    (int) $e['user_id'],
+                    $role,
+                    $cycle_id
+                );
+                if ($pathway_id) {
+                    $result = $this->assign_pathway($e['enrollment_id'], $pathway_id, 'role_default');
+                    if (!is_wp_error($result)) {
+                        $routed++;
+                        $assigned = true;
+                    }
+                    break; // One pathway per enrollment
+                }
+            }
+
+            if ($assigned) {
+                continue;
+            }
+
+            // Step 2: Fall back to target_roles matching (one pathway only)
+            foreach ($e_roles as $role) {
+                $normalized_role = HL_Pathway_Routing_Service::normalize_role($role);
+                if (empty($normalized_role)) {
+                    continue;
+                }
+
+                foreach ($pathways as $pw) {
+                    $target_roles = json_decode($pw['target_roles'], true);
+                    if (!is_array($target_roles)) {
+                        continue;
+                    }
+
+                    // Normalize target_roles for comparison (both sides lowercase)
+                    $target_normalized = array_map(function($r) {
+                        return strtolower(str_replace(' ', '_', trim($r)));
+                    }, $target_roles);
+
+                    if (in_array($normalized_role, $target_normalized, true)) {
                         $result = $this->assign_pathway($e['enrollment_id'], $pw['pathway_id'], 'role_default');
                         if (!is_wp_error($result)) {
                             $created++;
+                            $assigned = true;
                         }
-                        break;
+                        break 2; // One pathway per enrollment — exit both loops
                     }
                 }
             }
         }
 
-        return array('created' => $created);
+        return array('created' => $created, 'routed' => $routed);
     }
 
     /**
