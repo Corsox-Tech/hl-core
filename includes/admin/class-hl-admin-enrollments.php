@@ -39,6 +39,7 @@ class HL_Admin_Enrollments {
      */
     public static function register_ajax_hooks() {
         add_action('wp_ajax_hl_search_users', array(self::instance(), 'ajax_search_users'));
+        add_action('wp_ajax_hl_suggest_pathway', array(self::instance(), 'ajax_suggest_pathway'));
     }
 
     /**
@@ -71,6 +72,51 @@ class HL_Admin_Enrollments {
             );
         }
         wp_send_json_success($results);
+    }
+
+    /**
+     * AJAX: Suggest pathway based on routing service.
+     */
+    public function ajax_suggest_pathway() {
+        check_ajax_referer('hl_suggest_pathway', 'nonce');
+
+        if (!current_user_can('manage_hl_core')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'hl-core')));
+        }
+
+        $user_id  = isset($_POST['user_id']) ? absint($_POST['user_id']) : 0;
+        $role     = isset($_POST['role']) ? sanitize_text_field($_POST['role']) : '';
+        $cycle_id = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
+
+        if (!$role || !$cycle_id) {
+            wp_send_json_error(array('message' => __('Missing required fields.', 'hl-core')));
+        }
+
+        $pathway_id = HL_Pathway_Routing_Service::resolve_pathway(
+            $user_id ?: null,
+            $role,
+            $cycle_id
+        );
+
+        if ($pathway_id) {
+            global $wpdb;
+            $pathway_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT pathway_name FROM {$wpdb->prefix}hl_pathway WHERE pathway_id = %d",
+                $pathway_id
+            ));
+            $source = $user_id ? 'routed' : 'default';
+            wp_send_json_success(array(
+                'pathway_id'   => $pathway_id,
+                'pathway_name' => $pathway_name,
+                'source'       => $source,
+            ));
+        } else {
+            wp_send_json_success(array(
+                'pathway_id'   => 0,
+                'pathway_name' => '',
+                'source'       => 'none',
+            ));
+        }
     }
 
     /**
@@ -202,6 +248,23 @@ class HL_Admin_Enrollments {
             }
             if ($new_pathway_id) {
                 $pa_service->assign_pathway($enrollment_id, $new_pathway_id, 'explicit');
+            }
+        }
+
+        // Auto-route pathway if admin left it blank and this is a new enrollment.
+        if ($enrollment_id && !$new_pathway_id && !$old_pathway_id) {
+            $user_id_for_routing = absint($_POST['user_id']);
+            $first_role = !empty($roles) ? $roles[0] : '';
+            if ($first_role) {
+                $routed_id = HL_Pathway_Routing_Service::resolve_pathway(
+                    $user_id_for_routing,
+                    $first_role,
+                    absint($_POST['cycle_id'])
+                );
+                if ($routed_id) {
+                    $pa_service = isset($pa_service) ? $pa_service : new HL_Pathway_Assignment_Service();
+                    $pa_service->assign_pathway($enrollment_id, $routed_id, 'role_default');
+                }
             }
         }
 
@@ -862,6 +925,56 @@ class HL_Admin_Enrollments {
                 filterByCycle(cycleSel.value);
             }
         })();
+        </script>
+        <script>
+        jQuery(function($) {
+            var suggestTimeout;
+            var $pathwaySelect = $('#pathway_id');
+            var $cycleSelect = $('#cycle_id');
+            var $roleBoxes = $('input[name="roles[]"]');
+            var $suggestLabel = $('<span class="hl-pathway-suggest-label" style="margin-left:8px;font-style:italic;color:#666;font-size:12px;"></span>');
+            $pathwaySelect.after($suggestLabel);
+
+            function suggestPathway() {
+                clearTimeout(suggestTimeout);
+                suggestTimeout = setTimeout(function() {
+                    var cycleId = $cycleSelect.val();
+                    var checkedRoles = [];
+                    $roleBoxes.filter(':checked').each(function() { checkedRoles.push($(this).val()); });
+                    var userId = $('#user_id').val() || 0;
+
+                    if (!cycleId || !checkedRoles.length) {
+                        $suggestLabel.text('');
+                        return;
+                    }
+
+                    $.post(ajaxurl, {
+                        action: 'hl_suggest_pathway',
+                        nonce: '<?php echo wp_create_nonce("hl_suggest_pathway"); ?>',
+                        user_id: userId,
+                        role: checkedRoles[0],
+                        cycle_id: cycleId
+                    }, function(resp) {
+                        if (resp.success && resp.data.pathway_id) {
+                            // Only auto-select if admin hasn't already picked one
+                            if (!$pathwaySelect.val() || $pathwaySelect.val() === '0' || $pathwaySelect.val() === '') {
+                                $pathwaySelect.val(resp.data.pathway_id);
+                            }
+                            var label = resp.data.source === 'routed'
+                                ? '<?php echo esc_js(__("Auto-suggested based on course history", "hl-core")); ?>'
+                                : '<?php echo esc_js(__("Default for new participants", "hl-core")); ?>';
+                            $suggestLabel.text(label);
+                        } else {
+                            $suggestLabel.text('');
+                        }
+                    }).fail(function() { $suggestLabel.text(''); });
+                }, 300);
+            }
+
+            $cycleSelect.on('change', suggestPathway);
+            $roleBoxes.on('change', suggestPathway);
+            $pathwaySelect.on('change', function() { $suggestLabel.text(''); });
+        });
         </script>
         <?php
     }
