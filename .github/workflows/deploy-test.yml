@@ -13,7 +13,8 @@ jobs:
       - name: Create tarball
         run: |
           tar --exclude='.git' --exclude='data' --exclude='vendor' --exclude='node_modules' \
-            -czf /tmp/hl-core.tar.gz -C . .
+            --exclude='.superpowers' --exclude='*.xlsx' \
+            -czf /tmp/hl-core-${{ github.sha }}.tar.gz -C . .
 
       - name: Setup SSH key
         run: |
@@ -23,18 +24,24 @@ jobs:
           ssh-keyscan -H 44.221.6.201 >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Upload and extract
+        env:
+          ARCHIVE: hl-core-${{ github.sha }}.tar.gz
         run: |
-          scp -i ~/.ssh/key.pem /tmp/hl-core.tar.gz bitnami@44.221.6.201:/tmp/hl-core.tar.gz
-          ssh -i ~/.ssh/key.pem bitnami@44.221.6.201 '
+          scp -i ~/.ssh/key.pem /tmp/$ARCHIVE bitnami@44.221.6.201:/tmp/$ARCHIVE
+          ssh -i ~/.ssh/key.pem bitnami@44.221.6.201 "
             cd /opt/bitnami/wordpress/wp-content/plugins &&
             if [ -d hl-core/data ]; then sudo mv hl-core/data /tmp/hl-core-data-backup; fi &&
             sudo rm -rf hl-core &&
             sudo mkdir hl-core &&
-            sudo tar -xzf /tmp/hl-core.tar.gz -C hl-core &&
+            sudo tar -xzf /tmp/$ARCHIVE -C hl-core &&
             if [ -d /tmp/hl-core-data-backup ]; then sudo mv /tmp/hl-core-data-backup hl-core/data; fi &&
             sudo chown -R bitnami:daemon hl-core &&
-            rm /tmp/hl-core.tar.gz
-          '
+            rm /tmp/$ARCHIVE
+          "
+
+      - name: Flush cache
+        run: |
+          ssh -i ~/.ssh/key.pem bitnami@44.221.6.201 'export PATH=/opt/bitnami/php/bin:/opt/bitnami/mariadb/bin:/usr/local/bin:/usr/bin:/bin && wp --path=/opt/bitnami/wordpress cache flush 2>/dev/null; true'
 
       - name: Verify
         run: |
