@@ -70,6 +70,58 @@ class HL_Admin_Imports {
             <!-- Notice Area -->
             <div class="hl-import-notices"></div>
 
+            <!-- Import Guide (collapsible) -->
+            <details class="hl-import-guide" style="margin-bottom:20px; background:#f0f6fc; border:1px solid #c3d9ed; border-radius:4px; padding:0;">
+                <summary style="padding:12px 16px; cursor:pointer; font-weight:600; color:#1d4ed8; font-size:14px;">
+                    <?php esc_html_e('Import Guide & Tips', 'hl-core'); ?>
+                </summary>
+                <div style="padding:4px 16px 16px; font-size:13px; line-height:1.6;">
+                    <h4 style="margin:8px 0 4px;"><?php esc_html_e('Before You Import', 'hl-core'); ?></h4>
+                    <ul style="margin:0 0 12px 18px;">
+                        <li><?php esc_html_e('Schools must already exist and be linked to this Cycle (use the Schools tab).', 'hl-core'); ?></li>
+                        <li><?php esc_html_e('Import Participants first, then Children. Classrooms are created automatically from the Participants import.', 'hl-core'); ?></li>
+                        <li><?php esc_html_e('Pathways are auto-assigned based on role and course completion history. You can override by adding a "pathway" column.', 'hl-core'); ?></li>
+                    </ul>
+
+                    <h4 style="margin:8px 0 4px;"><?php esc_html_e('Participants CSV Columns', 'hl-core'); ?></h4>
+                    <table class="widefat" style="font-size:12px; max-width:700px;">
+                        <thead><tr><th><?php esc_html_e('Column', 'hl-core'); ?></th><th><?php esc_html_e('Required', 'hl-core'); ?></th><th><?php esc_html_e('Notes', 'hl-core'); ?></th></tr></thead>
+                        <tbody>
+                            <tr><td><code>email</code></td><td><strong><?php esc_html_e('Yes', 'hl-core'); ?></strong></td><td><?php esc_html_e('Creates WordPress account if new', 'hl-core'); ?></td></tr>
+                            <tr><td><code>role</code></td><td><strong><?php esc_html_e('Yes', 'hl-core'); ?></strong></td><td><?php esc_html_e('Teacher, Mentor, School Leader, or District Leader', 'hl-core'); ?></td></tr>
+                            <tr><td><code>school</code></td><td><strong><?php esc_html_e('Yes*', 'hl-core'); ?></strong></td><td><?php esc_html_e('Must match an existing school. *Optional for District Leaders.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>first_name</code>, <code>last_name</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Warning if missing. Existing users keep their names.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>classroom</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Semicolon-separated (e.g., "Room A; Room B"). Auto-creates classrooms.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>team</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Auto-creates team if it doesn\'t exist. Assigns as mentor or member based on role.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>assigned_coach</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Coach email. Creates coach assignment for Mentors.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>pathway</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Overrides auto-routing. Use pathway name or code.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>age_group</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('infant, toddler, preschool, k2, or mixed. Applied to new classrooms.', 'hl-core'); ?></td></tr>
+                        </tbody>
+                    </table>
+
+                    <h4 style="margin:12px 0 4px;"><?php esc_html_e('Children CSV Columns', 'hl-core'); ?></h4>
+                    <table class="widefat" style="font-size:12px; max-width:700px;">
+                        <thead><tr><th><?php esc_html_e('Column', 'hl-core'); ?></th><th><?php esc_html_e('Required', 'hl-core'); ?></th><th><?php esc_html_e('Notes', 'hl-core'); ?></th></tr></thead>
+                        <tbody>
+                            <tr><td><code>first_name</code>, <code>last_name</code></td><td><strong><?php esc_html_e('Yes', 'hl-core'); ?></strong></td><td><?php esc_html_e('At least one required.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>classroom</code></td><td><strong><?php esc_html_e('Yes', 'hl-core'); ?></strong></td><td><?php esc_html_e('Must match a classroom created in the Participants import.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>school</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Inferred from classroom if unambiguous.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>date_of_birth</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Any standard date format.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>internal_child_id</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('External system ID. Helps with deduplication on re-import.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>ethnicity</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td></td></tr>
+                        </tbody>
+                    </table>
+
+                    <h4 style="margin:12px 0 4px;"><?php esc_html_e('Tips', 'hl-core'); ?></h4>
+                    <ul style="margin:0 0 0 18px;">
+                        <li><?php esc_html_e('If errors are found, nothing is imported. Fix the CSV and re-upload.', 'hl-core'); ?></li>
+                        <li><?php esc_html_e('Re-importing the same CSV is safe — existing participants will show as SKIP.', 'hl-core'); ?></li>
+                        <li><?php esc_html_e('Float teachers (no fixed classroom) can leave the classroom column empty.', 'hl-core'); ?></li>
+                        <li><?php esc_html_e('Multiple classrooms use semicolons, not commas (e.g., "Room A; Room B").', 'hl-core'); ?></li>
+                    </ul>
+                </div>
+            </details>
+
             <!-- Step 1: Upload -->
             <div class="hl-import-panel" id="hl-import-step-1">
                 <h2><?php esc_html_e('Import Data', 'hl-core'); ?></h2>
