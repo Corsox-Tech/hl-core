@@ -86,6 +86,19 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Frontend Rendering** — 6 files updated: Program Page, My Progress, My Programs, User Profile, Team Progress, Dashboard. Ineligible components show "Not Applicable" with grayed styling, excluded from completion %.
 - [x] **Deployed to test** — Schema verified, smoke test 0 new failures, 5 eval test scenarios pass.
 
+### Import Module Redesign (Active — April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-01-import-redesign-design.md` | **Plan:** `docs/superpowers/plans/2026-04-01-import-redesign-plan.md`
+- [x] **Cycle Editor Import tab** — New "Import" tab in Cycle Editor (hidden for control group + course-type cycles). Replaces Settings → Import.
+- [x] **Admin UI rewrite** — Cycle-scoped wizard (no cycle dropdown), helper panel showing valid roles/schools/pathways/teams per cycle. 2 import types: Participants, Children.
+- [x] **Service decomposition** — `HL_Import_Service` slimmed from 1,824→684 lines (thin orchestrator). New `HL_Import_Participant_Handler` + `HL_Import_Children_Handler`.
+- [x] **Participant handler** — Validates + commits enrollments with auto-creation: classrooms (semicolon-separated), teaching assignments, teams + memberships (mentor/member), coach assignments (`hl_coach_assignment`), pathway assignments (explicit or `sync_role_defaults`). All-or-nothing transaction.
+- [x] **Children handler** — Classroom required, school inferred if unambiguous. Fingerprint dedup. Partnership-scoped validation. All-or-nothing transaction.
+- [x] **JS wizard rewrite** — New columns (role, classroom, team, pathway, coach). WARNING status selectable. Cycle context from hidden input.
+- [x] **Settings deprecation** — Settings → Import shows notice pointing to Cycle Editor. Default tab changed to Scheduling.
+- [x] **Code review fixes** — Stale comments, helper panel query consistency, dead CSS cleanup.
+- [ ] **Follow-up: multi-row same email** — Duplicate email in CSV marked ERROR; spec allows multiple rows with same email for different classrooms. Needs merge logic.
+- [ ] **Follow-up: error report field names** — Error report CSV references old field names from pre-redesign handlers.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
