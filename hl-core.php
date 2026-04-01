@@ -110,6 +110,8 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-observation-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coaching-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-import-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-import-participant-handler.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-import-children-handler.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-reporting-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-audit-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-assignment-service.php';
