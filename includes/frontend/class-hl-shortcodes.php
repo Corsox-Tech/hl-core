@@ -116,6 +116,34 @@ class HL_Shortcodes {
             wp_enqueue_style('hl-google-fonts-inter', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null);
             wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array('hl-google-fonts-inter'), HL_CORE_VERSION);
             wp_enqueue_script('hl-frontend', HL_CORE_ASSETS_URL . 'js/frontend.js', array('jquery'), HL_CORE_VERSION, true);
+
+            // Dequeue ALL BuddyBoss theme stylesheets on HL pages.
+            // All pages are HL Core now — BB styles only cause interference.
+            $bb_styles = array(
+                'buddyboss-theme-css',
+                'buddyboss-theme-template',
+                'buddyboss-theme-fonts',
+                'buddyboss-theme-icons-map',
+                'buddyboss-theme-icons',
+                'buddyboss-theme-magnific-popup-css',
+                'buddyboss-theme-select2-css',
+                'buddyboss-theme-buddypress',
+                'buddyboss-theme-forums',
+                'buddyboss-theme-learndash',
+                'buddyboss-theme-elementor',
+                'buddyboss-theme-docs',
+                'buddyboss-theme-woocommerce',
+                'buddyboss-theme-beaver-builder',
+                'buddyboss-theme-divi-builder',
+                'buddyboss-theme-eventscalendar',
+                'buddyboss-theme-eventscalendar-v2',
+                'buddyboss-theme-wpjobmanager',
+                'bb_theme_block-buddypanel-style-css',
+            );
+            foreach ($bb_styles as $handle) {
+                wp_dequeue_style($handle);
+                wp_deregister_style($handle);
+            }
         }
     }
 

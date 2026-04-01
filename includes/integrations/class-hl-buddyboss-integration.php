@@ -275,8 +275,46 @@ class HL_BuddyBoss_Integration {
         }
 
         $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
+        $user = wp_get_current_user();
+        $display_name = $user->display_name ?: $user->user_login;
+        $initials = '';
+        if ($user->first_name) {
+            $initials .= strtoupper(substr($user->first_name, 0, 1));
+        }
+        if ($user->last_name) {
+            $initials .= strtoupper(substr($user->last_name, 0, 1));
+        }
+        if (!$initials) {
+            $initials = strtoupper(substr($display_name, 0, 2));
+        }
+
+        // Find current page label for breadcrumb.
+        $current_page_label = '';
+        foreach ($menu_items as $item) {
+            $item_path = trailingslashit(wp_parse_url($item['url'], PHP_URL_PATH) ?: '');
+            if ($item_path && $item_path === $current_url) {
+                $current_page_label = $item['label'];
+                break;
+            }
+        }
 
         ?>
+        <!-- HL Top Bar -->
+        <div class="hl-topbar" id="hl-topbar">
+            <div class="hl-breadcrumb">
+                <?php if ($current_page_label) : ?>
+                    <a href="<?php echo esc_url($this->find_shortcode_page_url('hl_dashboard') ?: '/'); ?>">Dashboard</a> &rsaquo;
+                    <span><?php echo esc_html($current_page_label); ?></span>
+                <?php else : ?>
+                    <span>Dashboard</span>
+                <?php endif; ?>
+            </div>
+            <div class="hl-topbar__user">
+                <span><?php echo esc_html($display_name); ?></span>
+                <div class="hl-topbar__avatar"><?php echo esc_html($initials); ?></div>
+            </div>
+        </div>
+
         <nav class="hl-sidebar" id="hl-sidebar">
             <div class="hl-sidebar__brand">
                 <div class="hl-sidebar__logo">HL</div>
@@ -311,10 +349,11 @@ class HL_BuddyBoss_Integration {
             document.body.classList.add('hl-has-sidebar');
             document.documentElement.classList.add('hl-has-sidebar-html');
 
-            // Immediately hide BB elements via JS (belt + suspenders with CSS).
+            // Immediately hide ALL BB elements via JS (belt + suspenders with CSS).
             var hide = ['#masthead', '.site-header', '#wpadminbar', '.site-footer',
                         '#colophon', 'footer.footer-wrap', '.elementor-location-footer',
-                        '.entry-header', 'h1.entry-title', '.buddypanel'];
+                        '.entry-header', 'h1.entry-title', '.buddypanel',
+                        '.bb-mobile-panel-wrapper'];
             hide.forEach(function(sel) {
                 document.querySelectorAll(sel).forEach(function(el) {
                     el.style.display = 'none';
@@ -325,6 +364,14 @@ class HL_BuddyBoss_Integration {
             var site = document.querySelector('#page, .site');
             if (site) {
                 site.style.marginLeft = '240px';
+                site.style.marginRight = '0';
+            }
+
+            // Move top bar to beginning of #content for correct stacking.
+            var topbar = document.getElementById('hl-topbar');
+            var content = document.querySelector('#content, .site-content');
+            if (topbar && content) {
+                content.insertBefore(topbar, content.firstChild);
             }
         })();
         </script>

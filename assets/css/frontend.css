@@ -6866,14 +6866,21 @@ body.buddyboss-theme .hl-sidebar a.hl-sidebar__item--active {
    LAYOUT SHELL — TOP BAR & CONTENT AREA
    ===================================================== */
 
-/* Top bar */
+/* Top bar — fixed at top, offset by sidebar width */
 .hl-topbar {
+    position: fixed;
+    top: 0;
+    left: 240px;
+    right: 0;
+    z-index: 9998;
     background: var(--hl-surface);
     border-bottom: 1px solid var(--hl-border);
     padding: 12px 32px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    font-family: var(--hl-font);
+    height: 56px;
 }
 .hl-topbar__user {
     display: flex;
@@ -6895,12 +6902,15 @@ body.buddyboss-theme .hl-sidebar a.hl-sidebar__item--active {
     font-size: 12px;
 }
 
-/* Content area padding when in sidebar layout */
+/* Content area padding — offset for fixed top bar (56px) */
 body.hl-has-sidebar .entry-content {
-    padding: 24px 32px !important;
+    padding: 80px 32px 24px !important;
     background: var(--hl-bg);
-    min-height: calc(100vh - 60px);
+    min-height: 100vh;
     max-width: none !important;
+}
+body.hl-has-sidebar #content {
+    padding-top: 0 !important;
 }
 
 /* =====================================================
