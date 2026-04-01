@@ -32,8 +32,6 @@ class HL_Frontend_My_Coaching {
             return ob_get_clean();
         }
 
-        self::render_styles();
-
         echo '<div class="hlmc-wrap">';
 
         // Group by cycle.
@@ -78,9 +76,9 @@ class HL_Frontend_My_Coaching {
                 $cycle_name   = $cycle ? $cycle->cycle_name : '';
                 $pathway_name = $pathway ? $pathway->pathway_name : '';
                 echo '<div class="hlmc-cycle-header">';
-                echo '<h3 style="margin:0;font-size:16px;color:#1e3a5f;">' . esc_html($pathway_name) . '</h3>';
+                echo '<h3>' . esc_html($pathway_name) . '</h3>';
                 if ($cycle_name) {
-                    echo '<span style="font-size:13px;color:#64748b;">' . esc_html($cycle_name) . '</span>';
+                    echo '<span class="hlmc-cycle-name">' . esc_html($cycle_name) . '</span>';
                 }
                 echo '</div>';
             }
@@ -303,7 +301,7 @@ class HL_Frontend_My_Coaching {
                         </a>
                     <?php elseif ($is_locked) : ?>
                         <span class="hlmc-btn hlmc-btn-disabled">
-                            <span class="dashicons dashicons-lock" style="font-size:14px;width:14px;height:14px;"></span>
+                            <span class="dashicons dashicons-lock hlmc-lock-icon"></span>
                             <?php esc_html_e('View', 'hl-core'); ?>
                         </span>
                     <?php endif; ?>
@@ -392,56 +390,4 @@ class HL_Frontend_My_Coaching {
     // Styles
     // =========================================================================
 
-    private static function render_styles() {
-        static $done = false;
-        if ($done) return;
-        $done = true;
-        ?>
-        <style>
-        .hlmc-wrap{max-width:720px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
-        .hlmc-empty{text-align:center;padding:40px;color:#94a3b8;font-size:15px}
-
-        /* Cycle header */
-        .hlmc-cycle-header{margin-bottom:12px;padding:12px 0;border-bottom:1px solid #e2e8f0}
-
-        /* Coach card */
-        .hlmc-coach-card{display:flex;align-items:center;gap:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:20px}
-        .hlmc-coach-card img.hlmc-coach-avatar{width:48px;height:48px;border-radius:50%;flex-shrink:0}
-        .hlmc-coach-placeholder{width:48px;height:48px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:20px;color:#94a3b8;flex-shrink:0}
-        .hlmc-coach-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8}
-        .hlmc-coach-name{font-size:16px;font-weight:600;color:#1e293b}
-        .hlmc-coach-email{font-size:13px;color:#2563eb;text-decoration:none}
-
-        /* Sessions table */
-        .hlmc-sessions-table{display:flex;flex-direction:column;gap:8px;margin-bottom:28px}
-        .hlmc-session-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;transition:border-color .15s}
-        .hlmc-session-row:hover{border-color:#cbd5e1}
-        .hlmc-session-locked{opacity:.65}
-        .hlmc-session-info{flex:1;min-width:0}
-        .hlmc-session-title{font-size:15px;font-weight:600;color:#1e293b;margin-bottom:4px}
-        .hlmc-session-num{display:inline-block;font-size:12px;font-weight:700;background:#e2e8f0;color:#475569;padding:2px 8px;border-radius:6px;margin-right:6px;vertical-align:middle}
-        .hlmc-session-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-        .hlmc-status-date{font-size:13px;color:#475569}
-        .hlmc-status-note{font-size:12px;color:#94a3b8;font-style:italic}
-
-        /* Badges */
-        .hlmc-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap}
-        .hlmc-badge-blue{background:#dbeafe;color:#1e40af}
-        .hlmc-badge-green{background:#d1fae5;color:#065f46}
-        .hlmc-badge-gray{background:#f1f5f9;color:#64748b}
-
-        /* Buttons */
-        .hlmc-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;font-family:inherit;text-decoration:none;transition:all .15s}
-        .hlmc-btn-outline{background:#fff;color:#475569;border:1px solid #d1d5db}
-        .hlmc-btn-outline:hover{background:#f8fafc;border-color:#94a3b8;color:#1e293b}
-        .hlmc-btn-disabled{background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;cursor:default}
-
-        @media(max-width:600px){
-            .hlmc-session-row{flex-direction:column;align-items:flex-start}
-            .hlmc-session-action{width:100%}
-            .hlmc-session-action .hlmc-btn{width:100%;justify-content:center}
-        }
-        </style>
-        <?php
-    }
 }
