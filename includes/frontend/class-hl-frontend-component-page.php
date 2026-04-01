@@ -160,8 +160,7 @@ class HL_Frontend_Component_Page {
         <div class="hl-dashboard hl-component-page">
 
             <?php if (!empty($program_page_url)) : ?>
-                <a href="<?php echo esc_url($program_page_url); ?>" class="hl-back-link"
-                   <?php if ($has_own_header) : ?> class="hl-back-link--block" style="max-width:860px;margin:0 auto 8px"<?php endif; ?>>&larr; <?php
+                <a href="<?php echo esc_url($program_page_url); ?>" class="hl-back-link<?php echo $has_own_header ? ' hl-back-link--block' : ''; ?>">&larr; <?php
                     if ($pathway) {
                         printf(esc_html__('Back to %s', 'hl-core'), esc_html($pathway->pathway_name));
                     } else {

@@ -952,7 +952,7 @@ class HL_Frontend_My_Cycle {
             <?php endforeach; ?>
 
             <?php if ( ! empty( $ca_instances ) ) : ?>
-                <h3 class="hl-section-title" style="margin-top:2.5rem;"><?php esc_html_e( 'Child Assessments', 'hl-core' ); ?></h3>
+                <h3 class="hl-section-title hl-mt-lg"><?php esc_html_e( 'Child Assessments', 'hl-core' ); ?></h3>
 
                 <div class="hlmyc-stat-row">
                     <div class="hlmyc-stat-card">
