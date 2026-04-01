@@ -614,61 +614,8 @@ class HL_Frontend_Child_Assessment {
             '0' => 'Never', '1' => 'Rarely', '2' => 'Sometimes', '3' => 'Usually', '4' => 'Almost Always',
         );
 
-        // Inline styles for submitted summary (reuse the renderer's design tokens)
+        // Styles loaded via frontend.css (Session 2)
         ?>
-        <style>
-            .hl-ca-summary-wrap {
-                max-width: 900px;
-                margin: 0 auto 2em;
-                background: var(--hl-surface, #fff);
-                border: 1px solid var(--hl-border, #E5E7EB);
-                border-radius: var(--hl-radius, 12px);
-                box-shadow: var(--hl-shadow, 0 2px 8px rgba(0,0,0,0.06));
-                padding: 40px 48px;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                color: var(--hl-text, #374151);
-                line-height: 1.6;
-            }
-            .hl-ca-summary-wrap .hl-ca-branded-header {
-                text-align: center;
-                margin-bottom: 28px;
-                padding-bottom: 24px;
-                border-bottom: 2px solid var(--hl-border-light, #F3F4F6);
-            }
-            .hl-ca-summary-wrap .hl-ca-brand-logo {
-                display: block;
-                text-align: center;
-                margin-bottom: 16px;
-            }
-            .hl-ca-summary-wrap .hl-ca-brand-img { max-width: 176px; height: auto; }
-            .hl-ca-summary-wrap .hl-ca-title { font-size: 22px; font-weight: 700; color: var(--hl-text-heading, #1A2B47); margin: 0; }
-            .hl-ca-summary-wrap .hl-ca-phase-label { color: var(--hl-text-secondary, #6B7280); font-weight: 400; }
-            .hl-ca-summary-teacher-info { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--hl-border-light, #F3F4F6); }
-            .hl-ca-summary-teacher-info .hl-ca-info-row { margin-bottom: 6px; font-size: 15px; }
-            .hl-ca-summary-teacher-info .hl-ca-info-label { font-weight: 700; color: var(--hl-text-heading, #1A2B47); margin-right: 6px; }
-            .hl-ca-summary-teacher-info .hl-ca-info-value { color: var(--hl-text, #374151); }
-            .hl-ca-submitted-banner { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--hl-status-complete-bg, #D1FAE5); color: var(--hl-status-complete-text, #065F46); border-radius: var(--hl-radius-sm, 8px); margin-bottom: 24px; font-weight: 600; font-size: 14px; }
-            .hl-ca-submitted-banner .hl-ca-submitted-icon { font-size: 18px; }
-            .hl-ca-summary-matrix-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 16px; }
-            table.hl-ca-summary-matrix { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 500px; }
-            table.hl-ca-summary-matrix thead th { padding: 12px 16px; font-weight: 600; font-size: 13px; color: var(--hl-text-secondary, #6B7280); text-align: center; border-bottom: 2px solid var(--hl-border, #E5E7EB); white-space: nowrap; }
-            table.hl-ca-summary-matrix thead th:first-child { text-align: left; min-width: 180px; }
-            table.hl-ca-summary-matrix tbody td { padding: 10px 16px; vertical-align: middle; text-align: center; border-bottom: 1px solid var(--hl-border-light, #F3F4F6); }
-            table.hl-ca-summary-matrix tbody td:first-child { text-align: left; font-weight: 500; color: var(--hl-text-heading, #1A2B47); white-space: nowrap; min-width: 180px; }
-            table.hl-ca-summary-matrix tbody tr:nth-child(even) td { background-color: var(--hl-bg-alt, #FAFBFC); }
-            table.hl-ca-summary-matrix tbody tr:nth-child(odd) td { background-color: var(--hl-surface, #fff); }
-            .hl-ca-summary-child-dob { display: block; font-size: 12px; font-weight: 400; color: var(--hl-text-muted, #9CA3AF); }
-            .hl-ca-answer-pill { display: inline-block; padding: 3px 12px; border-radius: var(--hl-radius-pill, 100px); background: var(--hl-bg, #F4F5F7); color: var(--hl-text, #374151); font-size: 13px; font-weight: 500; }
-            .hl-ca-answer-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--hl-primary, #1A2B47); }
-            .hl-ca-answer-empty { color: var(--hl-text-muted, #9CA3AF); font-size: 13px; }
-            .hl-ca-summary-group-header { font-size: 16px; font-weight: 700; color: var(--hl-primary, #1A2B47); margin: 24px 0 10px; padding: 8px 12px; background: var(--hl-bg-alt, #FAFBFC); border-radius: 8px; border-left: 4px solid var(--hl-secondary, #2C7BE5); }
-            .hl-ca-summary-group-header:first-of-type { margin-top: 0; }
-            .hl-ca-skip-badge { display: inline-block; padding: 2px 8px; border-radius: 100px; background: var(--hl-bg, #F4F5F7); color: var(--hl-text-muted, #9CA3AF); font-size: 11px; font-weight: 500; font-style: italic; }
-            @media (max-width: 768px) {
-                .hl-ca-summary-wrap { padding: 24px 20px; margin: 0 -10px 1.5em; }
-                .hl-ca-summary-wrap .hl-ca-title { font-size: 18px; }
-            }
-        </style>
 
         <div class="hl-dashboard hl-child-assessment hl-assessment-summary">
             <div class="hl-ca-summary-wrap">
@@ -764,7 +711,7 @@ class HL_Frontend_Child_Assessment {
 
             </div>
 
-            <p style="margin-top: 16px;">
+            <p class="hl-ca-actions-row">
                 <?php
                 $back_url = $this->build_program_back_url( $instance );
                 if ( $back_url ) : ?>
@@ -825,7 +772,7 @@ class HL_Frontend_Child_Assessment {
             echo $renderer->render();
             ?>
 
-            <p style="margin-top: 16px;">
+            <p class="hl-ca-actions-row">
                 <?php
                 $back_url = $this->build_program_back_url( $instance );
                 if ( $back_url ) : ?>
@@ -932,7 +879,7 @@ class HL_Frontend_Child_Assessment {
                                 if ( $ts ) { $dob = date( 'n/j/Y', $ts ); }
                             }
                         ?>
-                            <tr<?php echo $is_skipped ? ' style="opacity:0.5;"' : ''; ?>>
+                            <tr<?php echo $is_skipped ? ' class="hl-ca-row-skipped"' : ''; ?>>
                                 <td>
                                     <?php echo esc_html( $child_label ); ?>
                                     <?php if ( $dob ) : ?>
@@ -940,7 +887,7 @@ class HL_Frontend_Child_Assessment {
                                     <?php endif; ?>
                                 </td>
                                 <?php if ( $is_skipped ) : ?>
-                                    <td colspan="<?php echo count( $allowed_values ); ?>" style="text-align:center;">
+                                    <td colspan="<?php echo count( $allowed_values ); ?>" class="hl-ca-skip-cell">
                                         <span class="hl-ca-skip-badge"><?php esc_html_e( 'Skipped', 'hl-core' ); ?></span>
                                     </td>
                                 <?php else : ?>
@@ -985,10 +932,10 @@ class HL_Frontend_Child_Assessment {
                             $answers     = json_decode( $row['answers_json'], true );
                             if ( ! is_array( $answers ) ) { $answers = array(); }
                         ?>
-                            <tr<?php echo $is_skipped ? ' style="opacity:0.5;"' : ''; ?>>
+                            <tr<?php echo $is_skipped ? ' class="hl-ca-row-skipped"' : ''; ?>>
                                 <td><?php echo esc_html( $child_label ); ?></td>
                                 <?php if ( $is_skipped ) : ?>
-                                    <td colspan="<?php echo count( $questions ); ?>" style="text-align:center;">
+                                    <td colspan="<?php echo count( $questions ); ?>" class="hl-ca-skip-cell">
                                         <span class="hl-ca-skip-badge"><?php esc_html_e( 'Skipped', 'hl-core' ); ?></span>
                                     </td>
                                 <?php else : ?>

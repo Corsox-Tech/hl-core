@@ -8209,3 +8209,42 @@ body:has(.hlcmd-wrapper) .entry-header { margin-bottom: 0 !important; min-height
     .hlrn-actions { flex-direction: column }
     .hlrn-btn { justify-content: center }
 }
+
+/* --- Child Assessment Summary (.hl-ca-summary-*) ------------------- */
+.hl-ca-summary-wrap { max-width: 900px; margin: 0 auto 2em; background: var(--hl-surface); border: 1px solid var(--hl-border); border-radius: var(--hl-radius); box-shadow: var(--hl-shadow); padding: 40px 48px; font-family: var(--hl-font); color: var(--hl-text); line-height: 1.6 }
+.hl-ca-summary-wrap .hl-ca-branded-header { text-align: center; margin-bottom: 28px; padding-bottom: 24px; border-bottom: 2px solid var(--hl-border-light) }
+.hl-ca-summary-wrap .hl-ca-brand-logo { display: block; text-align: center; margin-bottom: 16px }
+.hl-ca-summary-wrap .hl-ca-brand-img { max-width: 176px; height: auto }
+.hl-ca-summary-wrap .hl-ca-title { font-size: 22px; font-weight: 700; color: var(--hl-text-heading); margin: 0 }
+.hl-ca-summary-wrap .hl-ca-phase-label { color: var(--hl-text-secondary); font-weight: 400 }
+.hl-ca-summary-teacher-info { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--hl-border-light) }
+.hl-ca-summary-teacher-info .hl-ca-info-row { margin-bottom: 6px; font-size: 15px }
+.hl-ca-summary-teacher-info .hl-ca-info-label { font-weight: 700; color: var(--hl-text-heading); margin-right: 6px }
+.hl-ca-summary-teacher-info .hl-ca-info-value { color: var(--hl-text) }
+.hl-ca-summary-matrix-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 16px }
+table.hl-ca-summary-matrix { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 500px }
+table.hl-ca-summary-matrix thead th { padding: 12px 16px; font-weight: 600; font-size: 13px; color: var(--hl-text-secondary); text-align: center; border-bottom: 2px solid var(--hl-border); white-space: nowrap }
+table.hl-ca-summary-matrix thead th:first-child { text-align: left; min-width: 180px }
+table.hl-ca-summary-matrix tbody td { padding: 10px 16px; vertical-align: middle; text-align: center; border-bottom: 1px solid var(--hl-border-light) }
+table.hl-ca-summary-matrix tbody td:first-child { text-align: left; font-weight: 500; color: var(--hl-text-heading); white-space: nowrap; min-width: 180px }
+table.hl-ca-summary-matrix tbody tr:nth-child(even) td { background-color: var(--hl-bg-subtle) }
+table.hl-ca-summary-matrix tbody tr:nth-child(odd) td { background-color: var(--hl-surface) }
+.hl-ca-summary-child-dob { display: block; font-size: 12px; font-weight: 400; color: var(--hl-text-muted) }
+.hl-ca-answer-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--hl-primary) }
+.hl-ca-answer-empty { color: var(--hl-text-muted); font-size: 13px }
+.hl-ca-summary-group-header { font-size: 16px; font-weight: 700; color: var(--hl-primary); margin: 24px 0 10px; padding: 8px 12px; background: var(--hl-bg-subtle); border-radius: var(--hl-radius-xs); border-left: 4px solid var(--hl-secondary) }
+.hl-ca-summary-group-header:first-of-type { margin-top: 0 }
+.hl-ca-skip-badge { display: inline-block; padding: 2px 8px; border-radius: var(--hl-radius-pill); background: var(--hl-bg); color: var(--hl-text-muted); font-size: 11px; font-weight: 500; font-style: italic }
+.hl-ca-missing-child { margin: 16px 0; padding: 12px 16px; background: var(--hl-bg-subtle); border-radius: var(--hl-radius-xs); border: 1px dashed var(--hl-border) }
+.hl-ca-missing-child a { font-weight: 600; color: var(--hl-secondary); text-decoration: none }
+.hl-ca-missing-child p { margin: 4px 0 0; font-size: 13px; color: var(--hl-text-secondary) }
+@media (max-width: 768px) {
+    .hl-ca-summary-wrap { padding: 24px 20px; margin: 0 -10px 1.5em }
+    .hl-ca-summary-wrap .hl-ca-title { font-size: 18px }
+}
+
+/* Child Assessment utility classes */
+.hl-ca-actions-row { margin-top: 16px }
+.hl-ca-row-skipped { opacity: 0.5 }
+.hl-ca-skip-cell { text-align: center }
+
