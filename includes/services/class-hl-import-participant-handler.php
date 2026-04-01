@@ -482,8 +482,10 @@ class HL_Import_Participant_Handler {
             ), ARRAY_A) ?: array();
             $pathway_by_name = array();
             $pathway_by_code = array();
+            $valid_pathway_ids = array();
             foreach ($pathways as $p) {
                 $pathway_by_name[strtolower(trim($p['pathway_name']))] = $p;
+                $valid_pathway_ids[(int) $p['pathway_id']] = true;
                 if (!empty($p['pathway_code'])) {
                     $pathway_by_code[strtolower(trim($p['pathway_code']))] = $p;
                 }
@@ -735,8 +737,8 @@ class HL_Import_Participant_Handler {
                     if ($matched_pw) {
                         $pathway_service->assign_pathway($enrollment_id, (int) $matched_pw['pathway_id'], 'explicit');
                     }
-                } elseif ($row['status'] !== 'SKIP') {
-                    if (!empty($row['routed_pathway_id'])) {
+                } elseif ($row['status'] === 'CREATE' || $row['status'] === 'WARNING' || !empty($row['role_changed'])) {
+                    if (!empty($row['routed_pathway_id']) && isset($valid_pathway_ids[(int) $row['routed_pathway_id']])) {
                         $pathway_service->assign_pathway($enrollment_id, (int) $row['routed_pathway_id'], 'role_default');
                     } else {
                         $routed_id = HL_Pathway_Routing_Service::resolve_pathway($user_id, $role, $cycle_id);
