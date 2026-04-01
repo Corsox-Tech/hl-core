@@ -6944,12 +6944,12 @@ body.hl-has-sidebar .bb-content {
     margin-bottom: 10px;
 }
 .hl-sidebar__title {
-    color: #fff;
+    color: #fff !important;
     font-size: 15px;
     font-weight: 700;
 }
 .hl-sidebar__subtitle {
-    color: rgba(255,255,255,0.4);
+    color: rgba(255,255,255,0.4) !important;
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.5px;
@@ -6971,28 +6971,34 @@ body.hl-has-sidebar .bb-content {
     padding: 12px 8px 4px;
 }
 
-/* Nav items */
-.hl-sidebar__item {
+/* Nav items — !important needed to override BB theme link colors */
+.hl-sidebar__item,
+.hl-sidebar a.hl-sidebar__item,
+body.buddyboss-theme .hl-sidebar a.hl-sidebar__item {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 10px 12px;
     border-radius: 10px;
-    color: rgba(255,255,255,0.6);
+    color: rgba(255,255,255,0.6) !important;
     font-size: 14px;
     font-weight: 500;
-    text-decoration: none;
+    text-decoration: none !important;
     transition: all 0.15s ease;
     cursor: pointer;
 }
-.hl-sidebar__item:hover {
+.hl-sidebar__item:hover,
+.hl-sidebar a.hl-sidebar__item:hover,
+body.buddyboss-theme .hl-sidebar a.hl-sidebar__item:hover {
     background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.85);
-    text-decoration: none;
+    color: rgba(255,255,255,0.85) !important;
+    text-decoration: none !important;
 }
-.hl-sidebar__item--active {
+.hl-sidebar__item--active,
+.hl-sidebar a.hl-sidebar__item--active,
+body.buddyboss-theme .hl-sidebar a.hl-sidebar__item--active {
     background: rgba(255,255,255,0.1);
-    color: #fff;
+    color: #fff !important;
 }
 .hl-sidebar__icon {
     width: 20px;
