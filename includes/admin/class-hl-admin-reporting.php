@@ -359,7 +359,7 @@ class HL_Admin_Reporting {
             $teams = $team_service->get_teams($team_filters);
         }
 
-        $roles = array('Teacher', 'Mentor', 'School Leader', 'District Leader');
+        $roles = array('teacher', 'mentor', 'school_leader', 'district_leader');
 
         // Fetch partnerships (containers) for the partnership filter.
         global $wpdb;
@@ -438,7 +438,8 @@ class HL_Admin_Reporting {
         echo '<select name="role" id="role" style="width: 100%;">';
         echo '<option value="">' . esc_html__('All Roles', 'hl-core') . '</option>';
         foreach ($roles as $role) {
-            echo '<option value="' . esc_attr($role) . '"' . selected($filters['role'], $role, false) . '>' . esc_html($role) . '</option>';
+            $role_label = ucwords(str_replace('_', ' ', $role));
+            echo '<option value="' . esc_attr($role) . '"' . selected($filters['role'], $role, false) . '>' . esc_html($role_label) . '</option>';
         }
         echo '</select>';
         echo '</div>';
