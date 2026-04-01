@@ -15,6 +15,8 @@ class HL_Shortcodes {
     private function __construct() {
         add_action('init', array($this, 'register_shortcodes'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+        // Late-priority dequeue to guarantee BB styles are removed AFTER they're enqueued.
+        add_action('wp_enqueue_scripts', array($this, 'dequeue_bb_styles'), 999);
         add_action('template_redirect', array('HL_Frontend_My_Cycle', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Team_Page', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Cycle_Workspace', 'handle_export'));
@@ -117,32 +119,57 @@ class HL_Shortcodes {
             wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array('hl-google-fonts-inter'), HL_CORE_VERSION);
             wp_enqueue_script('hl-frontend', HL_CORE_ASSETS_URL . 'js/frontend.js', array('jquery'), HL_CORE_VERSION, true);
 
-            // Dequeue ALL BuddyBoss theme stylesheets on HL pages.
-            // All pages are HL Core now — BB styles only cause interference.
-            $bb_styles = array(
-                'buddyboss-theme-css',
-                'buddyboss-theme-template',
-                'buddyboss-theme-fonts',
-                'buddyboss-theme-icons-map',
-                'buddyboss-theme-icons',
-                'buddyboss-theme-magnific-popup-css',
-                'buddyboss-theme-select2-css',
-                'buddyboss-theme-buddypress',
-                'buddyboss-theme-forums',
-                'buddyboss-theme-learndash',
-                'buddyboss-theme-elementor',
-                'buddyboss-theme-docs',
-                'buddyboss-theme-woocommerce',
-                'buddyboss-theme-beaver-builder',
-                'buddyboss-theme-divi-builder',
-                'buddyboss-theme-eventscalendar',
-                'buddyboss-theme-eventscalendar-v2',
-                'buddyboss-theme-wpjobmanager',
-                'bb_theme_block-buddypanel-style-css',
-            );
-            foreach ($bb_styles as $handle) {
+        }
+    }
+
+    /**
+     * Dequeue ALL BuddyBoss theme stylesheets on HL pages.
+     * Runs at priority 999 to guarantee BB styles are caught AFTER BB enqueues them.
+     * All pages are HL Core now — BB styles only cause interference.
+     */
+    public function dequeue_bb_styles() {
+        global $post;
+        if (!is_a($post, 'WP_Post')) return;
+
+        // Check if this is an HL page.
+        $content = $post->post_content;
+        $is_hl_page = false;
+        $hl_shortcodes = array(
+            'hl_my_progress', 'hl_team_progress', 'hl_cycle_dashboard',
+            'hl_child_assessment', 'hl_teacher_assessment', 'hl_observations',
+            'hl_my_programs', 'hl_program_page', 'hl_component_page',
+            'hl_my_cycle', 'hl_my_track', 'hl_team_page', 'hl_classroom_page',
+            'hl_districts_listing', 'hl_district_page', 'hl_schools_listing',
+            'hl_school_page', 'hl_cycle_workspace', 'hl_track_workspace',
+            'hl_my_coaching', 'hl_cycles_listing', 'hl_tracks_listing',
+            'hl_institutions_listing', 'hl_coaching_hub', 'hl_classrooms_listing',
+            'hl_learners', 'hl_pathways_listing', 'hl_reports_hub', 'hl_my_team',
+            'hl_dashboard', 'hl_docs', 'hl_coach_dashboard', 'hl_coach_mentors',
+            'hl_coach_mentor_detail', 'hl_coach_reports', 'hl_coach_availability',
+            'hl_user_profile', 'hl_track_dashboard',
+        );
+        foreach ($hl_shortcodes as $sc) {
+            if (has_shortcode($content, $sc)) {
+                $is_hl_page = true;
+                break;
+            }
+        }
+
+        if (!$is_hl_page) return;
+
+        // Nuclear: dequeue EVERY stylesheet from BB theme by checking source path.
+        global $wp_styles;
+        if (!$wp_styles) return;
+
+        foreach ($wp_styles->registered as $handle => $style) {
+            $src = $style->src ?: '';
+            if (
+                stripos($src, 'buddyboss-theme') !== false ||
+                stripos($src, 'buddyboss-platform') !== false ||
+                stripos($handle, 'buddyboss') !== false ||
+                stripos($handle, 'bp-nouveau') !== false
+            ) {
                 wp_dequeue_style($handle);
-                wp_deregister_style($handle);
             }
         }
     }
