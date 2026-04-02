@@ -418,7 +418,7 @@ class HL_Frontend_Program_Page {
                                     <div class="hl-pp-cert-title"><?php esc_html_e('Certificate', 'hl-core'); ?></div>
                                     <div class="hl-pp-cert-desc"><?php esc_html_e('Congratulations!', 'hl-core'); ?></div>
                                 </div>
-                                <a href="#" class="hl-pp-cert-btn"><?php esc_html_e('Download', 'hl-core'); ?></a><!-- TODO: wire up real certificate download URL -->
+                                <a href="#" class="hl-pp-cert-btn"><?php esc_html_e('Download', 'hl-core'); ?></a>
                             <?php else : ?>
                                 <div class="hl-pp-cert-icon">&#x1F512;</div>
                                 <div>

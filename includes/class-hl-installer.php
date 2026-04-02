@@ -127,7 +127,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 26;
+        $current_revision = 27;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -155,6 +155,11 @@ class HL_Installer {
             // Rev 26: Remove deprecated 'observation' component type (replaced by 'classroom_visit').
             if ( (int) $stored < 26 ) {
                 self::migrate_remove_observation_component_type();
+            }
+
+            // Rev 27: Add routing_type column to hl_pathway for auto-assignment routing.
+            if ( (int) $stored < 27 ) {
+                self::migrate_pathway_add_routing_type();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -471,8 +476,7 @@ class HL_Installer {
     /**
      * Migration: Add responses_json column to hl_teacher_assessment_instance.
      *
-     * Stores structured JSON responses for custom instrument-based assessments
-     * (as opposed to JFB-powered assessments which store responses in JFB Form Records).
+     * Stores structured JSON responses for custom instrument-based assessments.
      */
     private static function migrate_teacher_assessment_add_responses_json() {
         global $wpdb;
@@ -1351,11 +1355,13 @@ class HL_Installer {
             is_template tinyint(1) NOT NULL DEFAULT 0,
             target_roles text NULL COMMENT 'JSON',
             active_status tinyint(1) NOT NULL DEFAULT 1,
+            routing_type varchar(50) DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (pathway_id),
             UNIQUE KEY pathway_uuid (pathway_uuid),
             UNIQUE KEY cycle_pathway_code (cycle_id, pathway_code),
+            UNIQUE KEY unique_routing_per_cycle (cycle_id, routing_type),
             KEY cycle_id (cycle_id)
         ) $charset_collate;";
 
@@ -1470,7 +1476,7 @@ class HL_Installer {
             KEY cycle_id (cycle_id)
         ) $charset_collate;";
 
-        // Instrument table (children assessment instruments only; teacher self-assessment and observation forms are in JetFormBuilder)
+        // Instrument table (children assessment instruments only)
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_instrument (
             instrument_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             instrument_uuid char(36) NOT NULL,
@@ -1517,9 +1523,8 @@ class HL_Installer {
         ) $charset_collate;";
 
         // DEPRECATED: Teacher Assessment Response table
-        // Responses are now stored in JetFormBuilder Form Records.
-        // This table definition is retained so dbDelta does not drop existing data,
-        // but HL Core no longer writes to it for JFB-powered form types.
+        // Retained so dbDelta does not drop existing data. HL Core no longer writes to this table
+        // — responses are stored in responses_json on hl_teacher_assessment_instance.
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_teacher_assessment_response (
             response_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             instance_id bigint(20) unsigned NOT NULL,
@@ -1605,9 +1610,8 @@ class HL_Installer {
         ) $charset_collate;";
 
         // DEPRECATED: Observation Response table
-        // Responses are now stored in JetFormBuilder Form Records.
-        // This table definition is retained so dbDelta does not drop existing data,
-        // but HL Core no longer writes to it for JFB-powered form types.
+        // Retained so dbDelta does not drop existing data. HL Core no longer writes to this table
+        // — observations use classroom_visit component type with native PHP forms.
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_observation_response (
             response_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             observation_id bigint(20) unsigned NOT NULL,
@@ -2037,7 +2041,7 @@ class HL_Installer {
 
     /**
      * Rev 26: Remove deprecated 'observation' component type.
-     * Replaced by 'classroom_visit' which uses native PHP forms instead of JFB.
+     * Replaced by 'classroom_visit' which uses native PHP forms.
      */
     private static function migrate_remove_observation_component_type() {
         global $wpdb;
@@ -2060,6 +2064,43 @@ class HL_Installer {
                  'coaching_session_attendance',
                  'reflective_practice_session','classroom_visit','self_reflection')
             NOT NULL" );
+    }
+
+    /**
+     * Rev 27: Add routing_type column to hl_pathway for auto-assignment routing.
+     *
+     * routing_type is a VARCHAR(50) that identifies what a pathway represents
+     * (e.g., 'teacher_phase_1') independently of its code or name.
+     * UNIQUE(cycle_id, routing_type) allows NULL — multiple non-routable pathways
+     * coexist per cycle (MySQL InnoDB treats NULL != NULL in UNIQUE indexes).
+     */
+    private static function migrate_pathway_add_routing_type() {
+        global $wpdb;
+        $table = "{$wpdb->prefix}hl_pathway";
+
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return;
+        }
+
+        // Add column if missing.
+        $col_exists = $wpdb->get_row( $wpdb->prepare(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+            $table, 'routing_type'
+        ) );
+        if ( empty( $col_exists ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN routing_type varchar(50) DEFAULT NULL AFTER active_status" );
+        }
+
+        // Add UNIQUE index if missing.
+        $idx_exists = $wpdb->get_row( $wpdb->prepare(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s",
+            $table, 'unique_routing_per_cycle'
+        ) );
+        if ( empty( $idx_exists ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD UNIQUE KEY unique_routing_per_cycle (cycle_id, routing_type)" );
+        }
     }
 
     /**

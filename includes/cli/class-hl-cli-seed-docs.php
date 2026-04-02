@@ -278,7 +278,7 @@ class HL_CLI_Seed_Docs {
 
         $articles[] = array(
             'slug'       => 'observations',
-            'title'      => 'Observations (JetFormBuilder)',
+            'title'      => 'Classroom Visits & Observations',
             'cat_id'     => $cat_ids['coaching-observations'] ?? 0,
             'sort_order' => 3,
             'content'    => $this->content_observations(),
@@ -833,28 +833,26 @@ HTML;
         return <<<'HTML'
 <h2>Overview</h2>
 
-<strong>Observations</strong> are mentor-submitted forms that document classroom visits. Unlike assessments (which use custom PHP forms), observations use <strong>JetFormBuilder</strong> forms — this allows Housman admins to customize observation questions using the visual form editor without developer involvement.
+<strong>Classroom Visits</strong> are peer observation forms submitted by school leaders or mentors to document a classroom visit. They are built into HL Core as native PHP forms — no external form builder required.
 
-<h2>How observations work</h2>
+<h2>How classroom visits work</h2>
 
 <ol>
-<li>An admin creates an observation form in <strong>JetFormBuilder</strong> with the required hidden fields.</li>
-<li>The form is linked to a pathway component (type: <code>observation</code>).</li>
-<li>A mentor opens the observation page and selects a teacher from their team.</li>
-<li>HL Core renders the JFB form with hidden fields pre-populated (enrollment ID, component ID, cycle ID).</li>
-<li>On submit, JFB fires the <code>hl_core_form_submitted</code> hook.</li>
-<li>HL Core updates the observation status and triggers the completion rollup.</li>
+<li>A pathway component of type <code>classroom_visit</code> is added to the relevant pathway.</li>
+<li>The observer opens the component page and selects the teacher being observed.</li>
+<li>HL Core renders the classroom visit form with pre-populated context (cycle, enrollment, teacher).</li>
+<li>On submit, HL Core saves the visit record, updates component state, and triggers the completion rollup.</li>
 </ol>
 
-<h2>Required JFB setup</h2>
+<h2>Component types for observations</h2>
 
-The JetFormBuilder form must include:
 <ul>
-<li><strong>Hidden fields:</strong> <code>hl_enrollment_id</code>, <code>hl_component_id</code>, <code>hl_cycle_id</code>, <code>hl_observation_id</code></li>
-<li><strong>Post-submit action:</strong> "Call Hook" with hook name <code>hl_core_form_submitted</code></li>
+<li><strong>classroom_visit</strong> — Observer-submitted form documenting a classroom visit. School leader or mentor role.</li>
+<li><strong>self_reflection</strong> — Teacher-submitted reflective form (not an observation, but related).</li>
+<li><strong>reflective_practice_session</strong> — RP session form between mentor and teacher.</li>
 </ul>
 
-Without these, HL Core cannot link the form submission back to the correct observation record.
+All three types use native PHP form renderers in HL Core and are configured via the Pathway component editor in the admin.
 HTML;
     }
 
@@ -986,8 +984,8 @@ A custom assessment form powered by HL Core's [hl_doc_link slug="teacher-self-as
 <h3>Child Assessment</h3>
 A per-child assessment matrix using age-group-specific [hl_doc_link slug="child-assessment" text="instruments"].
 
-<h3>Observation</h3>
-A mentor-submitted form using JetFormBuilder. See [hl_doc_link slug="observations" text="Observations"] for setup details.
+<h3>Classroom Visit / Self-Reflection / RP Session</h3>
+Native PHP forms for peer observations, self-reflections, and reflective practice sessions. See [hl_doc_link slug="observations" text="Classroom Visits &amp; Observations"] for details.
 
 <h3>Coaching Session</h3>
 Linked to [hl_doc_link slug="coaching-sessions" text="coaching sessions"]. Completion is managed by coaches when marking sessions as "attended."

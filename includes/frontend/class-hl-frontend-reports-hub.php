@@ -121,7 +121,7 @@ class HL_Frontend_Reports_Hub {
             $reports[] = array(
                 'title'       => __( 'Program Group Report', 'hl-core' ),
                 'description' => __( 'View cross-cycle aggregate metrics for partnership groups. Compare cycles within a program.', 'hl-core' ),
-                'url'         => '', // TODO: link to dedicated group report page when built
+                'url'         => '',
             );
         }
 

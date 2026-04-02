@@ -132,6 +132,8 @@ Pick up from the first unchecked `[ ]` item each session.
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
+- [ ] **Certificate download URL** — Program Page cert card "Download" button links to `#`. Wire up real URL once certificates are generated (see `class-hl-frontend-program-page.php`).
+- [ ] **Group Report page** — Reports Hub lists "Program Group Report" card with empty URL. Build dedicated page for cross-cycle aggregate metrics (see `class-hl-frontend-reports-hub.php`).
 
 ---
 
