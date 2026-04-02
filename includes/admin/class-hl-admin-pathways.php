@@ -358,6 +358,9 @@ class HL_Admin_Pathways {
             'external_ref'   => $external_ref,
         );
 
+        // Complete-by date.
+        $data['complete_by'] = !empty($_POST['complete_by']) ? sanitize_text_field($_POST['complete_by']) : null;
+
         // Eligibility rules.
         $data['requires_classroom'] = !empty($_POST['requires_classroom']) ? 1 : 0;
         $eligible_roles_raw = isset($_POST['eligible_roles']) && is_array($_POST['eligible_roles'])
@@ -1144,7 +1147,20 @@ class HL_Admin_Pathways {
         // Enqueue jQuery UI Sortable for drag-and-drop reordering.
         wp_enqueue_script('jquery-ui-sortable');
 
-        echo '<table class="widefat striped" id="hl-components-sortable">';
+        // Pre-load release dates (fixed_date drip rules) for all components in one query.
+        $component_ids = wp_list_pluck($components, 'component_id');
+        $release_dates = array();
+        if (!empty($component_ids)) {
+            $ids_csv = implode(',', array_map('intval', $component_ids));
+            $drip_rows = $wpdb->get_results(
+                "SELECT component_id, release_at_date FROM {$wpdb->prefix}hl_component_drip_rule WHERE component_id IN ({$ids_csv}) AND drip_type = 'fixed_date'"
+            );
+            foreach ($drip_rows as $dr) {
+                $release_dates[$dr->component_id] = $dr->release_at_date;
+            }
+        }
+
+        echo '<table class="widefat striped" id="hl-components-sortable" style="width:100%;">';
         echo '<thead><tr>';
         echo '<th style="width:32px;"></th>';
         echo '<th style="width:30px;">' . esc_html__('#', 'hl-core') . '</th>';
@@ -1152,6 +1168,8 @@ class HL_Admin_Pathways {
         echo '<th>' . esc_html__('Type', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Linked Resource', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Prerequisites', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Release Date', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Complete By', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Weight', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
         echo '</tr></thead>';
@@ -1196,6 +1214,15 @@ class HL_Admin_Pathways {
             echo '<td>' . esc_html($type_display) . '</td>';
             echo '<td>' . $linked_display . '</td>';
             echo '<td>' . $this->format_prereq_summary($act->component_id) . '</td>';
+
+            // Release date
+            $release_date = isset($release_dates[$act->component_id]) ? date('Y-m-d', strtotime($release_dates[$act->component_id])) : '—';
+            echo '<td>' . esc_html($release_date) . '</td>';
+
+            // Complete by
+            $complete_by = !empty($act->complete_by) ? esc_html($act->complete_by) : '—';
+            echo '<td>' . $complete_by . '</td>';
+
             echo '<td>' . esc_html($act->weight) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
@@ -1777,6 +1804,13 @@ class HL_Admin_Pathways {
         echo '<tr>';
         echo '<th scope="row"><label for="weight">' . esc_html__('Weight', 'hl-core') . '</label></th>';
         echo '<td><input type="number" id="weight" name="weight" value="' . esc_attr($is_edit ? $component->weight : '1.0') . '" step="0.1" min="0" class="small-text" /></td>';
+        echo '</tr>';
+
+        // Complete By
+        echo '<tr>';
+        echo '<th scope="row"><label for="complete_by">' . esc_html__('Complete By', 'hl-core') . '</label></th>';
+        echo '<td><input type="date" id="complete_by" name="complete_by" value="' . esc_attr($is_edit && !empty($component->complete_by) ? $component->complete_by : '') . '" />';
+        echo '<p class="description">' . esc_html__('Suggested deadline for completing this component. Leave blank for no deadline.', 'hl-core') . '</p></td>';
         echo '</tr>';
 
         // Ordering Hint — managed via drag-and-drop on the pathway detail page.
