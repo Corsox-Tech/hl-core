@@ -118,7 +118,7 @@ class HL_CLI_Provision_Lutheran {
 		$partnership_id = $this->provision_partnership( $cycle_id );
 
 		// Step 7: Classrooms.
-		$classrooms = $this->provision_classrooms( $teacher_roster_data, $school_map );
+		$classrooms = $this->provision_classrooms( $teacher_roster_data, $school_map, $cycle_id );
 
 		// Step 8: WP Users (lookup only — no creation).
 		$users = $this->lookup_users( $teacher_roster_data );
@@ -404,7 +404,7 @@ class HL_CLI_Provision_Lutheran {
 	// Step 7: Classrooms
 	// ------------------------------------------------------------------
 
-	private function provision_classrooms( $teacher_roster_data, $school_map ) {
+	private function provision_classrooms( $teacher_roster_data, $school_map, $cycle_id ) {
 		global $wpdb;
 		$prefix     = $wpdb->prefix;
 		$classrooms = array();
@@ -442,12 +442,13 @@ class HL_CLI_Provision_Lutheran {
 						$school_id, $classroom_name
 					) );
 				},
-				function () use ( $classroom_name, $school_id, $age_band ) {
+				function () use ( $classroom_name, $school_id, $age_band, $cycle_id ) {
 					$svc = new HL_Classroom_Service();
 					$id  = $svc->create_classroom( array(
 						'classroom_name' => $classroom_name,
 						'school_id'      => $school_id,
 						'age_band'       => $age_band,
+						'cycle_id'       => $cycle_id,
 					) );
 					return is_wp_error( $id ) ? null : $id;
 				}

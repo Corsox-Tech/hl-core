@@ -68,7 +68,7 @@ class HL_CLI_Seed_Palm_Beach {
 		$cycle_id = $this->seed_cycle( $orgunits );
 
 		// Step 3: Classrooms.
-		$classrooms = $this->seed_classrooms( $orgunits );
+		$classrooms = $this->seed_classrooms( $orgunits, $cycle_id );
 
 		// Step 4: Instruments.
 		$instruments = $this->seed_instruments();
@@ -865,7 +865,7 @@ class HL_CLI_Seed_Palm_Beach {
 	// Step 3: Classrooms
 	// ------------------------------------------------------------------
 
-	private function seed_classrooms( $orgunits ) {
+	private function seed_classrooms( $orgunits, $cycle_id ) {
 		$svc        = new HL_Classroom_Service();
 		$classrooms = array();
 
@@ -875,6 +875,7 @@ class HL_CLI_Seed_Palm_Beach {
 				'classroom_name' => $def[0],
 				'school_id'      => $school_id,
 				'age_band'       => $def[2],
+				'cycle_id'       => $cycle_id,
 			) );
 			if ( is_wp_error( $id ) ) {
 				WP_CLI::warning( 'Classroom creation error: ' . $id->get_error_message() );

@@ -618,8 +618,8 @@ class HL_Import_Participant_Handler {
 
                         // Find or create classroom
                         $classroom = $wpdb->get_row($wpdb->prepare(
-                            "SELECT classroom_id FROM {$prefix}hl_classroom WHERE school_id = %d AND classroom_name = %s",
-                            $school_id, $cn
+                            "SELECT classroom_id FROM {$prefix}hl_classroom WHERE school_id = %d AND classroom_name = %s AND cycle_id = %d",
+                            $school_id, $cn, $cycle_id
                         ));
 
                         if ($classroom) {
@@ -628,6 +628,7 @@ class HL_Import_Participant_Handler {
                             $classroom_data = array(
                                 'school_id'      => $school_id,
                                 'classroom_name' => $cn,
+                                'cycle_id'       => $cycle_id,
                             );
                             if (!empty($row['parsed_age_group'])) {
                                 $classroom_data['age_band'] = $row['parsed_age_group'];

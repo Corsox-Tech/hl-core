@@ -9,8 +9,8 @@ class HL_Classroom_Service {
         $this->repository = new HL_Classroom_Repository();
     }
 
-    public function get_classrooms($school_id = null) {
-        return $this->repository->get_all($school_id);
+    public function get_classrooms($school_id = null, $cycle_id = null) {
+        return $this->repository->get_all($school_id, $cycle_id);
     }
 
     public function get_classroom($classroom_id) {

@@ -127,7 +127,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 27;
+        $current_revision = 28;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -160,6 +160,11 @@ class HL_Installer {
             // Rev 27: Add routing_type column to hl_pathway for auto-assignment routing.
             if ( (int) $stored < 27 ) {
                 self::migrate_pathway_add_routing_type();
+            }
+
+            // Rev 28: Add cycle_id to hl_classroom.
+            if ( (int) $stored < 28 ) {
+                self::migrate_classroom_add_cycle_id();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -1203,6 +1208,7 @@ class HL_Installer {
             classroom_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             classroom_uuid char(36) NOT NULL,
             school_id bigint(20) unsigned NOT NULL,
+            cycle_id bigint(20) unsigned NOT NULL DEFAULT 0,
             classroom_name varchar(255) NOT NULL,
             age_band enum('infant','toddler','preschool','k2','mixed') NULL,
             status enum('active','inactive') DEFAULT 'active',
@@ -1211,8 +1217,9 @@ class HL_Installer {
             PRIMARY KEY (classroom_id),
             UNIQUE KEY classroom_uuid (classroom_uuid),
             KEY school_id (school_id),
+            KEY cycle_id (cycle_id),
             KEY status (status),
-            UNIQUE KEY school_classroom (school_id, classroom_name)
+            UNIQUE KEY school_classroom_cycle (school_id, classroom_name, cycle_id)
         ) $charset_collate;";
         
         // Audit log table
@@ -2101,6 +2108,67 @@ class HL_Installer {
         if ( empty( $idx_exists ) ) {
             $wpdb->query( "ALTER TABLE `{$table}` ADD UNIQUE KEY unique_routing_per_cycle (cycle_id, routing_type)" );
         }
+    }
+
+    /**
+     * Rev 28: Add cycle_id to hl_classroom.
+     *
+     * 1. Add cycle_id column (DEFAULT 0).
+     * 2. Drop old school_classroom UNIQUE, add school_classroom_cycle UNIQUE.
+     * 3. Backfill cycle_id from teaching assignments.
+     */
+    private static function migrate_classroom_add_cycle_id() {
+        global $wpdb;
+        $table = "{$wpdb->prefix}hl_classroom";
+
+        // Add column if missing.
+        $col_exists = $wpdb->get_var( "SHOW COLUMNS FROM `{$table}` LIKE 'cycle_id'" );
+        if ( ! $col_exists ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN cycle_id bigint(20) unsigned NOT NULL DEFAULT 0 AFTER school_id" );
+        }
+
+        // Drop old UNIQUE and add new one with cycle_id (if old index still exists).
+        $old_idx = $wpdb->get_row( $wpdb->prepare(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s",
+            $table, 'school_classroom'
+        ) );
+        if ( $old_idx ) {
+            $wpdb->query( "ALTER TABLE `{$table}` DROP INDEX school_classroom" );
+        }
+
+        $new_idx = $wpdb->get_row( $wpdb->prepare(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s",
+            $table, 'school_classroom_cycle'
+        ) );
+        if ( ! $new_idx ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD UNIQUE KEY school_classroom_cycle (school_id, classroom_name, cycle_id)" );
+        }
+
+        // Add cycle_id index if missing.
+        $cycle_idx = $wpdb->get_row( $wpdb->prepare(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s",
+            $table, 'cycle_id'
+        ) );
+        if ( ! $cycle_idx ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD KEY cycle_id (cycle_id)" );
+        }
+
+        // Backfill cycle_id from teaching assignments.
+        $prefix = $wpdb->prefix;
+        $wpdb->query( "
+            UPDATE {$table} c
+            JOIN (
+                SELECT ta.classroom_id, MAX(e.cycle_id) AS cycle_id
+                FROM {$prefix}hl_teaching_assignment ta
+                JOIN {$prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
+                GROUP BY ta.classroom_id
+            ) sub ON c.classroom_id = sub.classroom_id
+            SET c.cycle_id = sub.cycle_id
+            WHERE c.cycle_id = 0
+        " );
     }
 
     /**

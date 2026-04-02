@@ -1567,13 +1567,14 @@ class HL_Admin_Cycles {
 
         $in_ids = implode(',', array_map('intval', $school_ids));
 
-        $classrooms = $wpdb->get_results(
+        $classrooms = $wpdb->get_results($wpdb->prepare(
             "SELECT c.*, o.name AS school_name
              FROM {$wpdb->prefix}hl_classroom c
              LEFT JOIN {$wpdb->prefix}hl_orgunit o ON c.school_id = o.orgunit_id
-             WHERE c.school_id IN ({$in_ids}) AND c.status = 'active'
-             ORDER BY o.name ASC, c.classroom_name ASC"
-        );
+             WHERE c.school_id IN ({$in_ids}) AND c.cycle_id = %d AND c.status = 'active'
+             ORDER BY o.name ASC, c.classroom_name ASC",
+            $cycle_id
+        ));
 
         // Child counts per classroom.
         $child_counts = array();

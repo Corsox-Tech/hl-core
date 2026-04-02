@@ -265,8 +265,14 @@ class HL_CLI_Seed_Beginnings {
         // Phase A: Shared infrastructure.
         $partnership_id = $this->seed_partnership();
         $org            = $this->seed_orgunits();
-        $classrooms     = $this->seed_classrooms( $org['schools'] );
-        $this->seed_children( $classrooms );
+
+        // Create both cycle records early so cycle_id is available for classrooms.
+        $cycle_ids      = $this->create_cycle_records( $partnership_id, $org );
+
+        $classrooms_c1  = $this->seed_classrooms( $org['schools'], $cycle_ids['cycle_1'] );
+        $classrooms_c2  = $this->seed_classrooms( $org['schools'], $cycle_ids['cycle_2'] );
+        $this->seed_children( $classrooms_c1 );
+        $this->seed_children( $classrooms_c2 );
         $users          = $this->seed_users();
         $instruments    = $this->seed_child_instruments();
         $tsa_ids        = $this->lookup_tsa_instrument_ids();
@@ -274,18 +280,21 @@ class HL_CLI_Seed_Beginnings {
         // Phase B: Cycle 1 (closed).
         WP_CLI::line( '' );
         WP_CLI::line( '--- Cycle 1 (closed) ---' );
-        $c1 = $this->seed_cycle_1( $partnership_id, $org, $users, $classrooms, $instruments, $tsa_ids );
+        $c1 = $this->seed_cycle_1( $partnership_id, $org, $users, $classrooms_c1, $instruments, $tsa_ids, $cycle_ids['cycle_1'] );
 
         // Phase C: Cycle 2 (active).
         WP_CLI::line( '' );
         WP_CLI::line( '--- Cycle 2 (active) ---' );
-        $c2 = $this->seed_cycle_2( $partnership_id, $org, $users, $classrooms, $instruments, $tsa_ids );
+        $c2 = $this->seed_cycle_2( $partnership_id, $org, $users, $classrooms_c2, $instruments, $tsa_ids, $cycle_ids['cycle_2'] );
 
         // Phase D: Coach assignment.
         $this->seed_coach_assignment( $c2['cycle_id'], $org['schools']['boston'] );
 
+        // Combined classrooms for summary.
+        $all_classrooms = array_merge( $classrooms_c1, $classrooms_c2 );
+
         // Summary.
-        $this->print_summary( $partnership_id, $org, $classrooms, $users, $c1, $c2 );
+        $this->print_summary( $partnership_id, $org, $all_classrooms, $users, $c1, $c2 );
     }
 
     // ── Shared Infrastructure (Phase A) ─────────────────────────────
@@ -351,8 +360,11 @@ class HL_CLI_Seed_Beginnings {
 
     /**
      * Create 2 classrooms per school, 8 total.
+     *
+     * @param array $schools  Keyed by school slug => orgunit_id.
+     * @param int   $cycle_id Cycle ID to associate with classrooms.
      */
-    private function seed_classrooms( $schools ) {
+    private function seed_classrooms( $schools, $cycle_id ) {
         $svc = new HL_Classroom_Service();
         $all = array();
         foreach ( self::get_classrooms() as $school_key => $defs ) {
@@ -362,6 +374,7 @@ class HL_CLI_Seed_Beginnings {
                     'classroom_name' => $def['name'],
                     'school_id'      => $school_id,
                     'age_band'       => $def['age_band'],
+                    'cycle_id'       => $cycle_id,
                 ) );
                 if ( ! is_wp_error( $id ) ) {
                     $all[] = array(
@@ -574,18 +587,22 @@ class HL_CLI_Seed_Beginnings {
         return array( 'pre' => $pre_id, 'post' => $post_id );
     }
 
-    // ── Cycle 1 (Phase B) ───────────────────────────────────────────
+    // ── Cycle Records (early creation for classroom cycle_id) ──────
 
     /**
-     * Seed Cycle 1 (closed) — enrollments, teams, pathways, component states, child assessments.
+     * Create both cycle DB records and link schools, so cycle_id is available for classrooms.
+     *
+     * @param int   $partnership_id Partnership ID.
+     * @param array $org            Org structure with district_id and schools.
+     * @return array ['cycle_1' => int, 'cycle_2' => int]
      */
-    private function seed_cycle_1( $partnership_id, $org, $users, $classrooms, $instruments, $tsa_ids ) {
+    private function create_cycle_records( $partnership_id, $org ) {
         global $wpdb;
-        $t = $wpdb->prefix;
+        $t    = $wpdb->prefix;
+        $repo = new HL_Cycle_Repository();
 
-        // Create cycle (closed).
-        $repo     = new HL_Cycle_Repository();
-        $cycle_id = $repo->create( array(
+        // Cycle 1 (closed).
+        $cycle_1_id = $repo->create( array(
             'cycle_name'     => 'Beginnings - Cycle 1 (2025)',
             'cycle_code'     => self::CYCLE_1_CODE,
             'partnership_id' => $partnership_id,
@@ -597,10 +614,44 @@ class HL_CLI_Seed_Beginnings {
         ) );
         foreach ( $org['schools'] as $school_id ) {
             $wpdb->insert( $t . 'hl_cycle_school', array(
-                'cycle_id' => $cycle_id, 'school_id' => $school_id,
+                'cycle_id' => $cycle_1_id, 'school_id' => $school_id,
             ) );
         }
-        WP_CLI::log( "  [B1] Cycle 1 created: id={$cycle_id}, status=closed" );
+        WP_CLI::log( "  [A-pre] Cycle 1 record created: id={$cycle_1_id}, status=closed" );
+
+        // Cycle 2 (active).
+        $cycle_2_id = $repo->create( array(
+            'cycle_name'     => 'Beginnings - Cycle 2 (2026)',
+            'cycle_code'     => self::CYCLE_2_CODE,
+            'partnership_id' => $partnership_id,
+            'cycle_type'     => 'program',
+            'district_id'    => $org['district_id'],
+            'status'         => 'active',
+            'start_date'     => '2026-01-15',
+            'end_date'       => '2026-09-30',
+        ) );
+        foreach ( $org['schools'] as $school_id ) {
+            $wpdb->insert( $t . 'hl_cycle_school', array(
+                'cycle_id' => $cycle_2_id, 'school_id' => $school_id,
+            ) );
+        }
+        WP_CLI::log( "  [A-pre] Cycle 2 record created: id={$cycle_2_id}, status=active" );
+
+        return array( 'cycle_1' => $cycle_1_id, 'cycle_2' => $cycle_2_id );
+    }
+
+    // ── Cycle 1 (Phase B) ───────────────────────────────────────────
+
+    /**
+     * Seed Cycle 1 (closed) — enrollments, teams, pathways, component states, child assessments.
+     *
+     * @param int   $cycle_id Pre-created cycle ID (from create_cycle_records).
+     */
+    private function seed_cycle_1( $partnership_id, $org, $users, $classrooms, $instruments, $tsa_ids, $cycle_id ) {
+        global $wpdb;
+        $t = $wpdb->prefix;
+
+        WP_CLI::log( "  [B1] Using Cycle 1: id={$cycle_id}, status=closed" );
 
         // Enrollments (all 35 Cycle 1 users — does NOT include Natalia).
         $enrollments = $this->seed_enrollments_c1( $cycle_id, $org, $users );
@@ -1203,29 +1254,14 @@ class HL_CLI_Seed_Beginnings {
 
     /**
      * Seed Cycle 2 (active) — enrollments with turnover, 8 pathways, pending child assessments.
+     *
+     * @param int   $cycle_id Pre-created cycle ID (from create_cycle_records).
      */
-    private function seed_cycle_2( $partnership_id, $org, $users, $classrooms, $instruments, $tsa_ids ) {
+    private function seed_cycle_2( $partnership_id, $org, $users, $classrooms, $instruments, $tsa_ids, $cycle_id ) {
         global $wpdb;
         $t = $wpdb->prefix;
 
-        // Create cycle (active).
-        $repo     = new HL_Cycle_Repository();
-        $cycle_id = $repo->create( array(
-            'cycle_name'     => 'Beginnings - Cycle 2 (2026)',
-            'cycle_code'     => self::CYCLE_2_CODE,
-            'partnership_id' => $partnership_id,
-            'cycle_type'     => 'program',
-            'district_id'    => $org['district_id'],
-            'status'         => 'active',
-            'start_date'     => '2026-01-15',
-            'end_date'       => '2026-09-30',
-        ) );
-        foreach ( $org['schools'] as $school_id ) {
-            $wpdb->insert( $t . 'hl_cycle_school', array(
-                'cycle_id' => $cycle_id, 'school_id' => $school_id,
-            ) );
-        }
-        WP_CLI::log( "  [C1] Cycle 2 created: id={$cycle_id}, status=active" );
+        WP_CLI::log( "  [C1] Using Cycle 2: id={$cycle_id}, status=active" );
 
         // Enrollments (with roster changes).
         $enrollments = $this->seed_enrollments_c2( $cycle_id, $org, $users );

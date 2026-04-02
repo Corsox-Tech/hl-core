@@ -550,32 +550,32 @@ class HL_Import_Service {
     /**
      * Load all classrooms grouped by school_id for fast lookup
      *
+     * @param int $cycle_id Optional cycle_id to filter classrooms.
      * @return array school_id => HL_Classroom[]
      */
     public function load_classrooms_by_school($cycle_id = 0) {
-        $repo = new HL_Classroom_Repository();
+        global $wpdb;
+        $prefix = $wpdb->prefix;
 
         if ($cycle_id) {
-            // Only load classrooms from schools in this cycle's partnership
-            $partnership_schools = $this->load_partnership_schools($cycle_id);
-            $school_ids = array_map(function($s) { return (int) $s->orgunit_id; }, $partnership_schools);
-
-            $all = array();
-            foreach ($school_ids as $sid) {
-                $school_classrooms = $repo->get_all($sid);
-                $all = array_merge($all, $school_classrooms);
-            }
+            $rows = $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM {$prefix}hl_classroom WHERE cycle_id = %d ORDER BY classroom_name ASC",
+                $cycle_id
+            ), ARRAY_A);
         } else {
-            $all = $repo->get_all();
+            $rows = $wpdb->get_results(
+                "SELECT * FROM {$prefix}hl_classroom ORDER BY classroom_name ASC",
+                ARRAY_A
+            );
         }
 
         $grouped = array();
-        foreach ($all as $classroom) {
-            $cid = (int) $classroom->school_id;
+        foreach ($rows ?: array() as $row) {
+            $cid = (int) $row['school_id'];
             if (!isset($grouped[$cid])) {
                 $grouped[$cid] = array();
             }
-            $grouped[$cid][] = $classroom;
+            $grouped[$cid][] = new HL_Classroom($row);
         }
         return $grouped;
     }

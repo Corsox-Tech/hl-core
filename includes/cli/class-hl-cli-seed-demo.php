@@ -79,7 +79,7 @@ class HL_CLI_Seed_Demo {
         $cycle_id = $this->seed_cycle( $district_id, $school_a_id, $school_b_id, $partnership_id );
 
         // Step 4: Classrooms
-        $classrooms = $this->seed_classrooms( $school_a_id, $school_b_id );
+        $classrooms = $this->seed_classrooms( $school_a_id, $school_b_id, $cycle_id );
 
         // Step 5: Instruments
         $instruments = $this->seed_instruments();
@@ -452,18 +452,19 @@ class HL_CLI_Seed_Demo {
      *
      * @param int $school_a_id School A.
      * @param int $school_b_id School B.
+     * @param int $cycle_id    Cycle ID.
      * @return array Keyed classroom data.
      */
-    private function seed_classrooms( $school_a_id, $school_b_id ) {
+    private function seed_classrooms( $school_a_id, $school_b_id, $cycle_id ) {
         $svc = new HL_Classroom_Service();
 
         $classrooms = array();
 
         $defs = array(
-            array( 'classroom_name' => 'Infant Room',    'school_id' => $school_a_id, 'age_band' => 'infant' ),
-            array( 'classroom_name' => 'Toddler Room',   'school_id' => $school_a_id, 'age_band' => 'toddler' ),
-            array( 'classroom_name' => 'Preschool Room',  'school_id' => $school_b_id, 'age_band' => 'preschool' ),
-            array( 'classroom_name' => 'Mixed Age Room',  'school_id' => $school_b_id, 'age_band' => 'mixed' ),
+            array( 'classroom_name' => 'Infant Room',    'school_id' => $school_a_id, 'age_band' => 'infant',    'cycle_id' => $cycle_id ),
+            array( 'classroom_name' => 'Toddler Room',   'school_id' => $school_a_id, 'age_band' => 'toddler',   'cycle_id' => $cycle_id ),
+            array( 'classroom_name' => 'Preschool Room',  'school_id' => $school_b_id, 'age_band' => 'preschool', 'cycle_id' => $cycle_id ),
+            array( 'classroom_name' => 'Mixed Age Room',  'school_id' => $school_b_id, 'age_band' => 'mixed',     'cycle_id' => $cycle_id ),
         );
 
         foreach ( $defs as $def ) {

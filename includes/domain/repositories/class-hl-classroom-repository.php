@@ -8,18 +8,27 @@ class HL_Classroom_Repository {
         return $wpdb->prefix . 'hl_classroom';
     }
 
-    public function get_all($school_id = null) {
+    public function get_all($school_id = null, $cycle_id = null) {
         global $wpdb;
+        $where = array();
+        $params = array();
         if ($school_id) {
-            $rows = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$this->table()} WHERE school_id = %d ORDER BY classroom_name ASC",
-                $school_id
-            ), ARRAY_A);
+            $where[] = 'school_id = %d';
+            $params[] = $school_id;
+        }
+        if ($cycle_id) {
+            $where[] = 'cycle_id = %d';
+            $params[] = $cycle_id;
+        }
+        $sql = "SELECT * FROM {$this->table()}";
+        if (!empty($where)) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+        $sql .= ' ORDER BY classroom_name ASC';
+        if (!empty($params)) {
+            $rows = $wpdb->get_results($wpdb->prepare($sql, ...$params), ARRAY_A);
         } else {
-            $rows = $wpdb->get_results(
-                "SELECT * FROM {$this->table()} ORDER BY classroom_name ASC",
-                ARRAY_A
-            );
+            $rows = $wpdb->get_results($sql, ARRAY_A);
         }
         return array_map(function($row) { return new HL_Classroom($row); }, $rows ?: array());
     }

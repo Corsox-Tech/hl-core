@@ -39,22 +39,18 @@ class HL_Import_Children_Handler {
             $school_by_name[strtolower(trim($s->name))] = $s;
         }
 
-        // Load all classrooms grouped by school, filtered to Partnership schools
-        $all_classrooms = $wpdb->get_results(
+        // Load classrooms for this cycle, grouped by school
+        $all_classrooms = $wpdb->get_results($wpdb->prepare(
             "SELECT c.classroom_id, c.classroom_name, c.school_id
              FROM {$prefix}hl_classroom c
-             WHERE c.status = 'active'
+             WHERE c.cycle_id = %d AND c.status = 'active'
              ORDER BY c.classroom_name",
-            ARRAY_A
-        ) ?: array();
+            $cycle_id
+        ), ARRAY_A) ?: array();
 
         // Build lookup: classroom_name_lower => array of {classroom_id, school_id}
         $classroom_lookup = array();
-        $partnership_school_ids = array_keys($partnership_schools);
         foreach ($all_classrooms as $cr) {
-            if (!in_array((int) $cr['school_id'], $partnership_school_ids, true)) {
-                continue;
-            }
             $key = strtolower(trim($cr['classroom_name']));
             $classroom_lookup[$key][] = $cr;
         }

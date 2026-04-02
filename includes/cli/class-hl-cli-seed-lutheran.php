@@ -123,7 +123,7 @@ class HL_CLI_Seed_Lutheran {
 		$partnership_id = $this->seed_partnership( $cycle_id );
 
 		// Step 6: Classrooms.
-		$classrooms = $this->seed_classrooms( $teacher_roster_data, $school_map );
+		$classrooms = $this->seed_classrooms( $teacher_roster_data, $school_map, $cycle_id );
 
 		// Step 7: WP Users (Teachers).
 		$users = $this->seed_users( $teacher_roster_data );
@@ -726,9 +726,10 @@ class HL_CLI_Seed_Lutheran {
 	 *
 	 * @param array $teacher_roster_data Rows from extracted data.
 	 * @param array $school_map          Keyed by school name => orgunit_id.
+	 * @param int   $cycle_id            Cycle ID.
 	 * @return array Keyed by "school_name::classroom_name" => array with classroom_id, school_id, age_band.
 	 */
-	private function seed_classrooms( $teacher_roster_data, $school_map ) {
+	private function seed_classrooms( $teacher_roster_data, $school_map, $cycle_id ) {
 		$svc        = new HL_Classroom_Service();
 		$classrooms = array();
 		$seen       = array();
@@ -762,6 +763,7 @@ class HL_CLI_Seed_Lutheran {
 				'classroom_name' => $classroom_name,
 				'school_id'      => $school_id,
 				'age_band'       => $age_band,
+				'cycle_id'       => $cycle_id,
 			) );
 
 			if ( is_wp_error( $id ) ) {

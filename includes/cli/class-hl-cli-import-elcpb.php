@@ -162,7 +162,7 @@ class HL_CLI_Import_ELCPB {
 		$this->create_teams( $cycle_id, $orgunits, $enrollments );
 
 		// Step 9: Create classrooms.
-		$this->create_classrooms( $orgunits );
+		$this->create_classrooms( $orgunits, $cycle_id );
 
 		// Step 10: Import LearnDash completion data.
 		$this->import_completion_data( $enrollments, $pathways );
@@ -636,7 +636,7 @@ class HL_CLI_Import_ELCPB {
 	// Step 9: Classrooms
 	// ------------------------------------------------------------------
 
-	private function create_classrooms( $orgunits ) {
+	private function create_classrooms( $orgunits, $cycle_id ) {
 		$svc   = new HL_Classroom_Service();
 		$count = 0;
 
@@ -651,6 +651,7 @@ class HL_CLI_Import_ELCPB {
 				'classroom_name' => $def['name'],
 				'school_id'      => $school_id,
 				'age_band'       => $def['age_band'],
+				'cycle_id'       => $cycle_id,
 			) );
 
 			if ( is_wp_error( $id ) ) {
