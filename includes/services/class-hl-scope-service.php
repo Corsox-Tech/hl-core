@@ -155,7 +155,8 @@ class HL_Scope_Service {
     }
 
     /**
-     * Coach scope: active hl_coach_assignment rows + any personal enrollments.
+     * Coach scope: active hl_coach_assignment rows expanded to full
+     * active partnerships + any personal enrollments.
      */
     private static function compute_coach_scope( $user_id, $scope ) {
         global $wpdb;
@@ -172,11 +173,11 @@ class HL_Scope_Service {
             $user_id, $today, $today
         ), ARRAY_A );
 
-        $cycle_ids = array();
+        $assigned_cycle_ids = array();
         $school_ids = array();
 
         foreach ( $assignments as $a ) {
-            $cycle_ids[] = (int) $a['cycle_id'];
+            $assigned_cycle_ids[] = (int) $a['cycle_id'];
 
             switch ( $a['scope_type'] ) {
                 case 'school':
@@ -201,6 +202,20 @@ class HL_Scope_Service {
                     }
                     break;
             }
+        }
+
+        // Expand assigned cycles to ALL cycles in the same active partnerships.
+        // Coaches see everyone across their partnerships, not just their direct assignees.
+        $cycle_ids = self::expand_cycles_to_active_partnerships( $assigned_cycle_ids );
+
+        // Expand school_ids to include all schools with enrollments in expanded cycles.
+        if ( ! empty( $cycle_ids ) ) {
+            $c_in = implode( ',', $cycle_ids );
+            $partner_school_ids = $wpdb->get_col(
+                "SELECT DISTINCT school_id FROM {$prefix}hl_enrollment
+                 WHERE cycle_id IN ({$c_in}) AND status = 'active' AND school_id IS NOT NULL"
+            );
+            $school_ids = array_merge( $school_ids, array_map( 'intval', $partner_school_ids ) );
         }
 
         // Also include any personal enrollments.
@@ -324,5 +339,44 @@ class HL_Scope_Service {
         $scope['enrollment_ids'] = array_values( array_unique( $enrollment_ids ) );
 
         return $scope;
+    }
+
+    /**
+     * Expand a set of cycle IDs to include all cycles in the same active partnerships.
+     *
+     * Used by coach scope: if a coach is assigned to Cycle A in Partnership X,
+     * they can see all cycles in Partnership X (as long as it's active).
+     *
+     * @param int[] $cycle_ids Directly assigned cycle IDs.
+     * @return int[] Expanded cycle IDs (includes originals).
+     */
+    private static function expand_cycles_to_active_partnerships( $cycle_ids ) {
+        if ( empty( $cycle_ids ) ) {
+            return array();
+        }
+
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+        $in = implode( ',', array_map( 'intval', $cycle_ids ) );
+
+        // Get active partnership IDs for the assigned cycles.
+        $partnership_ids = $wpdb->get_col(
+            "SELECT DISTINCT p.partnership_id
+             FROM {$prefix}hl_partnership p
+             JOIN {$prefix}hl_cycle c ON c.partnership_id = p.partnership_id
+             WHERE c.cycle_id IN ({$in}) AND p.status = 'active'"
+        );
+
+        if ( empty( $partnership_ids ) ) {
+            return array_values( array_unique( $cycle_ids ) );
+        }
+
+        // Get ALL cycles in those active partnerships.
+        $p_in = implode( ',', array_map( 'intval', $partnership_ids ) );
+        $all = $wpdb->get_col(
+            "SELECT cycle_id FROM {$prefix}hl_cycle WHERE partnership_id IN ({$p_in})"
+        );
+
+        return array_values( array_unique( array_map( 'intval', array_merge( $cycle_ids, $all ) ) ) );
     }
 }

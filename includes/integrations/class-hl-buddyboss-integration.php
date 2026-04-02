@@ -375,42 +375,56 @@ class HL_BuddyBoss_Integration {
         $is_coach   = in_array('coach', (array) wp_get_current_user()->roles, true);
         // Leader-only = leader but not also a teacher/mentor (no personal program view).
         $is_leader_only = $is_leader && !$is_teacher && !$is_mentor;
+        $is_admin_level = current_user_can('manage_options');
 
         // Define all possible menu items with their visibility rules.
         // Each entry: [ slug, shortcode, label, icon, show_condition ]
-        // Role matrix updated 2026-03-27:
+        // Role matrix updated 2026-04-02:
         //   Teacher:      My Programs, My Team, Classrooms
         //   Mentor:       My Programs, My Coaching, My Team, Classrooms
         //   Leader-only:  My Programs (Streamlined), My School, Classrooms, Reports
         //   Leader+teach: My Programs, My School, Classrooms, Reports
-        //   Coach:        Coach Dashboard, My Mentors, My Availability, Coach Reports, Documentation
+        //   Coach:        Coaching Home, My Programs, My Mentors, Learners, My Availability, Coach Reports, Documentation
         //   Admin:        My Programs, Classrooms, Cycles, Institutions, Learners, Pathways, Coaching Hub, Reports, Documentation
-        $is_coach_only = $is_coach && !$is_staff;
-        $menu_def = array(
-            // --- Personal (require active enrollment) ---
-            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment && ($is_teacher || $is_mentor || $is_leader || $is_staff || $is_coach)),
-            array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $is_mentor && !$is_control_only),
-            array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor || $is_teacher),
-            // --- Leader ---
-            array('my-school',      'hl_my_cycle',             __('My School', 'hl-core'),      'dashicons-building',             $is_leader && !$is_staff),
-            // --- Directories / Management ---
-            array('cycles',         'hl_cycles_listing',       __('Cycles', 'hl-core'),         'dashicons-groups',               $is_staff),
-            array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'dashicons-welcome-learn-more',   $is_staff || $is_leader || $is_teacher || $is_mentor),
-            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'dashicons-id-alt',               $is_staff || $is_coach),
-            // --- Staff tools ---
-            array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       'dashicons-randomize',            false),
-            array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   'dashicons-format-chat',          $is_staff),
-            // --- Coach tools ---
-            array('coaching-home',   'hl_coach_dashboard',      __('Coaching Home', 'hl-core'),    'dashicons-dashboard',            $is_coach),
-            array('coach-mentors',   'hl_coach_mentors',        __('My Mentors', 'hl-core'),       'dashicons-groups',               $is_coach),
-            array('coach-availability', 'hl_coach_availability', __('My Availability', 'hl-core'), 'dashicons-calendar-alt',         $is_coach),
-            array('coach-reports',   'hl_coach_reports',        __('Coach Reports', 'hl-core'),    'dashicons-chart-bar',            $is_coach),
-            array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'dashicons-chart-bar',            $is_staff || $is_leader),
-            // --- Documentation ---
-            array('documentation', 'hl_docs',                 __('Documentation', 'hl-core'),  'dashicons-media-document',       current_user_can('manage_options')),
-            // --- Admin ---
-            array('wp-admin', null, __('WP Admin', 'hl-core'), 'dashicons-admin-generic', current_user_can('manage_options')),
-        );
+
+        // Coaches (not admins) get a dedicated, streamlined menu.
+        if ($is_coach && !$is_admin_level) {
+            $menu_def = array(
+                array('coaching-home',      'hl_coach_dashboard',    __('Coaching Home', 'hl-core'),    'dashicons-dashboard',            true),
+                array('my-programs',        'hl_my_programs',        __('My Programs', 'hl-core'),      'dashicons-portfolio',            $has_enrollment),
+                array('coach-mentors',      'hl_coach_mentors',      __('My Mentors', 'hl-core'),       'dashicons-groups',               true),
+                array('learners',           'hl_learners',           __('Learners', 'hl-core'),         'dashicons-id-alt',               true),
+                array('coach-availability', 'hl_coach_availability', __('My Availability', 'hl-core'),  'dashicons-calendar-alt',         true),
+                array('coach-reports',      'hl_coach_reports',      __('Coach Reports', 'hl-core'),    'dashicons-chart-bar',            true),
+                array('documentation',      'hl_docs',               __('Documentation', 'hl-core'),    'dashicons-media-document',       true),
+            );
+        } else {
+            $menu_def = array(
+                // --- Personal (require active enrollment) ---
+                array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment && ($is_teacher || $is_mentor || $is_leader || $is_staff || $is_coach)),
+                array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $is_mentor && !$is_control_only),
+                array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor || $is_teacher),
+                // --- Leader ---
+                array('my-school',      'hl_my_cycle',             __('My School', 'hl-core'),      'dashicons-building',             $is_leader && !$is_staff),
+                // --- Directories / Management ---
+                array('cycles',         'hl_cycles_listing',       __('Cycles', 'hl-core'),         'dashicons-groups',               $is_staff),
+                array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'dashicons-welcome-learn-more',   $is_staff || $is_leader || $is_teacher || $is_mentor),
+                array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'dashicons-id-alt',               $is_staff),
+                // --- Staff tools ---
+                array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       'dashicons-randomize',            false),
+                array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   'dashicons-format-chat',          $is_staff),
+                // --- Coach tools (when admin also has coach role) ---
+                array('coaching-home',   'hl_coach_dashboard',      __('Coaching Home', 'hl-core'),    'dashicons-dashboard',            $is_coach),
+                array('coach-mentors',   'hl_coach_mentors',        __('My Mentors', 'hl-core'),       'dashicons-groups',               $is_coach),
+                array('coach-availability', 'hl_coach_availability', __('My Availability', 'hl-core'), 'dashicons-calendar-alt',         $is_coach),
+                array('coach-reports',   'hl_coach_reports',        __('Coach Reports', 'hl-core'),    'dashicons-chart-bar',            $is_coach),
+                array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'dashicons-chart-bar',            $is_staff || $is_leader),
+                // --- Documentation ---
+                array('documentation', 'hl_docs',                 __('Documentation', 'hl-core'),  'dashicons-media-document',       $is_admin_level),
+                // --- Admin ---
+                array('wp-admin', null, __('WP Admin', 'hl-core'), 'dashicons-admin-generic', $is_admin_level),
+            );
+        }
 
         $items = array();
         foreach ($menu_def as $def) {
