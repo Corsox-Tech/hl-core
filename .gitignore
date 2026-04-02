@@ -3,3 +3,19 @@ node_modules/
 *.log
 /vendor/
 /data/
+
+# Temporary / working files
+~$*
+*.tmp
+
+# Artifacts — screenshots, spreadsheets, previews
+/*.png
+/*.xlsx
+/email-preview-*.html
+/pathway-routing-diagram.html
+
+# Tool / plugin working directories
+.superpowers/
+.playwright-mcp/
+/_cleanup_audit/
+/scripts/

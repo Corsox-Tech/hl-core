@@ -63,8 +63,6 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-date-utils.php';
         require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-normalization.php';
         require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-age-group-helper.php';
-        require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-label-remap.php';
-
         // Helpers
         require_once HL_CORE_INCLUDES_DIR . 'helpers/class-hl-timezone-helper.php';
         
@@ -128,7 +126,6 @@ class HL_Core {
         
         // Integrations
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-learndash-integration.php';
-        require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-jfb-integration.php';
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-buddyboss-integration.php';
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-microsoft-graph.php';
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-zoom-integration.php';
@@ -250,9 +247,6 @@ class HL_Core {
         // Run schema migrations if needed (checks revision number, no-ops when current).
         HL_Installer::maybe_upgrade();
 
-        // UI label remapping (Track→Cycle, Activity→Component).
-        HL_Label_Remap::init();
-
         // Initialize admin
         if (is_admin()) {
             HL_Admin::instance();
@@ -271,7 +265,6 @@ class HL_Core {
         
         // Initialize integrations
         HL_LearnDash_Integration::instance();
-        HL_JFB_Integration::instance();
         HL_BuddyBoss_Integration::instance();
 
         // Initialize reporting service (registers rollup listener)

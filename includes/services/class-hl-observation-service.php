@@ -7,9 +7,8 @@ if (!defined('ABSPATH')) exit;
  * Business logic for mentor observations: querying, creating, and
  * retrieving observable teachers from team memberships.
  *
- * Observations are JFB-powered: HL Core handles the context/orchestration
- * (who observed whom, in which classroom/cycle) while JetFormBuilder
- * handles the form design, rendering, and response storage.
+ * HL Core handles the context/orchestration (who observed whom, in
+ * which classroom/cycle).
  *
  * @package HL_Core
  */
@@ -353,8 +352,7 @@ class HL_Observation_Service {
      * Find the observation component for a given cycle.
      *
      * Queries for an active observation-type component in the cycle's
-     * pathway. Used to pre-populate the hl_component_id hidden field
-     * when rendering the JFB form.
+     * pathway.
      *
      * @param int $cycle_id
      * @return array|null Component row or null if none found.
