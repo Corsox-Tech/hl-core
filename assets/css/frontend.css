@@ -6971,7 +6971,7 @@ button.hl-btn-danger:hover,
 /* --- Action Plan (.hlap-*) ----------------------------------------- */
 .hlap-form-wrapper { max-width: 820px; margin: 0 auto; font-family: var(--hl-font) }
 .hlap-hero { display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, var(--hl-primary) 0%, var(--hl-primary-light) 100%); color: #fff; padding: 28px 32px; border-radius: var(--hl-radius); margin-bottom: 24px; position: relative; z-index: 1; overflow: visible }
-.hlap-hero-icon { background: rgba(255,255,255,.15); border-radius: var(--hl-radius-sm); padding: 12px; display: flex; align-items: center; justify-content: center }
+.hlap-hero-icon { background: rgba(255,255,255,.12); border-radius: var(--hl-radius-sm); padding: 12px; display: flex; align-items: center; justify-content: center }
 .hlap-hero-title { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.3px; color: #fff }
 .hlap-hero-sub { font-size: 14px; opacity: .8; margin: 4px 0 0 }
 
@@ -7046,7 +7046,7 @@ button.hl-btn-danger:hover,
 .hlcv-form-wrapper { max-width: 820px; margin: 0 auto; font-family: var(--hl-font) }
 .hlcv-hero { display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, var(--hl-primary) 0%, var(--hl-primary-light) 100%); color: #fff !important; padding: 28px 32px; border-radius: var(--hl-radius); margin-bottom: 24px; position: relative; z-index: 1; overflow: visible }
 .hlcv-hero * { color: #fff !important }
-.hlcv-hero-icon { background: rgba(255,255,255,.15); border-radius: var(--hl-radius-sm); padding: 12px; display: flex; align-items: center; justify-content: center }
+.hlcv-hero-icon { background: rgba(255,255,255,.12); border-radius: var(--hl-radius-sm); padding: 12px; display: flex; align-items: center; justify-content: center }
 .hlcv-hero-title { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.3px; color: #fff !important }
 .hlcv-hero-sub { font-size: 14px; opacity: .8; margin: 4px 0 0; color: rgba(255,255,255,.8) !important }
 .hlcv-alert { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-radius: var(--hl-radius-sm); font-size: 14px; margin-bottom: 20px }
@@ -7841,7 +7841,7 @@ a.hlcm-card { cursor: pointer }
 .hlrn-form-wrapper { max-width: 820px; margin: 0 auto; font-family: var(--hl-font) }
 .hlrn-hero { display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, var(--hl-primary) 0%, var(--hl-primary-light) 100%); color: #fff !important; padding: 28px 32px; border-radius: var(--hl-radius); margin-bottom: 24px; position: relative; z-index: 1; overflow: visible }
 .hlrn-hero * { color: #fff !important }
-.hlrn-hero-icon { background: rgba(255,255,255,.15); border-radius: var(--hl-radius-sm); padding: 12px; display: flex; align-items: center; justify-content: center }
+.hlrn-hero-icon { background: rgba(255,255,255,.12); border-radius: var(--hl-radius-sm); padding: 12px; display: flex; align-items: center; justify-content: center }
 .hlrn-hero-title { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.3px; color: #fff !important }
 .hlrn-hero-sub { font-size: 14px; opacity: .8; margin: 4px 0 0; color: rgba(255,255,255,.8) !important }
 .hlrn-alert { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-radius: var(--hl-radius-sm); font-size: 14px; margin-bottom: 20px }
