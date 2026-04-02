@@ -950,6 +950,9 @@ class HL_Frontend_Program_Page {
         } elseif ($avail_status === 'locked') {
             $overlay_class = 'hl-pp-overlay-locked';
             $overlay_text  = __('Locked', 'hl-core');
+        } elseif ($completion_percent >= 100) {
+            $overlay_class = 'hl-pp-overlay-completed';
+            $overlay_text  = __('Completed', 'hl-core');
         } elseif ($completion_percent > 0) {
             $overlay_class = 'hl-pp-overlay-in-progress';
             $overlay_text  = __('In Progress', 'hl-core');
@@ -957,7 +960,7 @@ class HL_Frontend_Program_Page {
 
         // Progress bar fill class.
         $fill_class = 'hl-pp-fill-none';
-        if ($avail_status === 'completed') {
+        if ($avail_status === 'completed' || $completion_percent >= 100) {
             $fill_class = 'hl-pp-fill-complete';
         } elseif ($completion_percent > 0) {
             $fill_class = 'hl-pp-fill-active';
