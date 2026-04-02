@@ -776,7 +776,7 @@ class HL_Import_Participant_Handler {
                             error_log(sprintf('[HL Import] assign_pathway failed: enrollment=%d, pathway=%d, error=%s', $enrollment_id, (int) $matched_pw['pathway_id'], $pw_result->get_error_message()));
                         }
                     }
-                } elseif ($row['status'] === 'CREATE' || $row['status'] === 'WARNING' || !empty($row['role_changed'])) {
+                } elseif (in_array($row['status'], array('CREATE', 'UPDATE', 'WARNING'), true) || !empty($row['role_changed'])) {
                     if (!empty($row['routed_pathway_id']) && isset($valid_pathway_ids[(int) $row['routed_pathway_id']])) {
                         $pw_result = $pathway_service->assign_pathway($enrollment_id, (int) $row['routed_pathway_id'], 'role_default');
                         if (is_wp_error($pw_result)) {
