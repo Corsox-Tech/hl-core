@@ -341,10 +341,17 @@ class HL_Import_Participant_Handler {
                 $role_changed = !in_array($parsed_role, $existing_roles_normalized, true);
                 $school_changed = $preview['matched_school_id'] && (int) $existing['school_id'] !== $preview['matched_school_id'];
 
+                // Check if CSV has side-effect data (classroom, team, pathway, coach)
+                $has_side_effects = !empty($raw_classroom) || !empty($raw_team) || !empty($raw_pathway) || !empty($raw_coach);
+
                 if ($role_changed || $school_changed) {
                     $preview['status'] = 'UPDATE';
                     $preview['role_changed'] = $role_changed;
                     $preview['proposed_actions'][] = __('Update enrollment (role or school change)', 'hl-core');
+                    $preview['selected'] = true;
+                } elseif ($has_side_effects) {
+                    $preview['status'] = 'UPDATE';
+                    $preview['proposed_actions'][] = __('Enrollment exists. Will process classroom, team, pathway, or coach assignments.', 'hl-core');
                     $preview['selected'] = true;
                 } else {
                     $preview['status'] = 'SKIP';
