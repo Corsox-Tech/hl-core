@@ -90,7 +90,7 @@ class HL_Import_Participant_Handler {
         }
 
         // Pre-load existing classrooms
-        $classrooms_by_school = $this->import_service->load_classrooms_by_school();
+        $classrooms_by_school = $this->import_service->load_classrooms_by_school($cycle_id);
 
         foreach ($parsed_rows as $index => $row) {
             $preview = array(

@@ -261,11 +261,31 @@ class HL_Admin_Imports {
             $cycle_id
         ), ARRAY_A) ?: array();
 
+        // Existing classrooms for schools in this cycle's partnership
+        $classrooms_grouped = $import_service->load_classrooms_by_school($cycle_id);
+        $classrooms_flat = array();
+        foreach ($classrooms_grouped as $school_id => $school_classrooms) {
+            foreach ($school_classrooms as $c) {
+                $school_name = '';
+                foreach ($schools as $s) {
+                    if ((int) $s['orgunit_id'] === (int) $school_id) {
+                        $school_name = $s['name'];
+                        break;
+                    }
+                }
+                $classrooms_flat[] = array(
+                    'classroom_name' => $c->classroom_name,
+                    'school_name'    => $school_name,
+                );
+            }
+        }
+
         return array(
-            'schools'  => $schools,
-            'pathways' => $pathways,
-            'teams'    => $teams,
-            'roles'    => array('Teacher', 'Mentor', 'School Leader', 'District Leader'),
+            'schools'    => $schools,
+            'pathways'   => $pathways,
+            'teams'      => $teams,
+            'classrooms' => $classrooms_flat,
+            'roles'      => array('Teacher', 'Mentor', 'School Leader', 'District Leader'),
         );
     }
 
@@ -329,6 +349,18 @@ class HL_Admin_Imports {
                         <ul style="margin:5px 0;">
                             <?php foreach ($helpers['teams'] as $t) : ?>
                                 <li><code><?php echo esc_html($t['team_name']); ?></code> — <?php echo esc_html($t['school_name']); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </div>
+                <div>
+                    <strong><?php esc_html_e('Existing Classrooms', 'hl-core'); ?></strong>
+                    <?php if (empty($helpers['classrooms'])) : ?>
+                        <p class="description"><?php esc_html_e('No classrooms yet. Classrooms will be auto-created during import.', 'hl-core'); ?></p>
+                    <?php else : ?>
+                        <ul style="margin:5px 0; max-height:200px; overflow-y:auto;">
+                            <?php foreach ($helpers['classrooms'] as $c) : ?>
+                                <li><code><?php echo esc_html($c['classroom_name']); ?></code> — <?php echo esc_html($c['school_name']); ?></li>
                             <?php endforeach; ?>
                         </ul>
                     <?php endif; ?>

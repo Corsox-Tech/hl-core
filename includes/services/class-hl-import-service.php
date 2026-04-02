@@ -552,9 +552,23 @@ class HL_Import_Service {
      *
      * @return array school_id => HL_Classroom[]
      */
-    public function load_classrooms_by_school() {
+    public function load_classrooms_by_school($cycle_id = 0) {
         $repo = new HL_Classroom_Repository();
-        $all = $repo->get_all();
+
+        if ($cycle_id) {
+            // Only load classrooms from schools in this cycle's partnership
+            $partnership_schools = $this->load_partnership_schools($cycle_id);
+            $school_ids = array_map(function($s) { return (int) $s->orgunit_id; }, $partnership_schools);
+
+            $all = array();
+            foreach ($school_ids as $sid) {
+                $school_classrooms = $repo->get_all($sid);
+                $all = array_merge($all, $school_classrooms);
+            }
+        } else {
+            $all = $repo->get_all();
+        }
+
         $grouped = array();
         foreach ($all as $classroom) {
             $cid = (int) $classroom->school_id;
