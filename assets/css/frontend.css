@@ -147,23 +147,25 @@ body.hl-app {
     box-sizing: border-box;
 }
 
-/* Default link colors — :where() gives zero specificity so any
-   component rule (hero links, button links, etc.) wins automatically. */
-:where(.hl-app) a:not(.hl-btn):not([class*="hl-btn"]) {
+/* Default link colors — entire selector inside :where() so specificity
+   is truly 0,0,0. Any class-based rule (buttons, hero links) wins. */
+:where(.hl-app a) {
     color: var(--hl-interactive);
     transition: var(--hl-transition);
 }
-:where(.hl-app) a:not(.hl-btn):hover {
+:where(.hl-app a:hover) {
     color: var(--hl-interactive-dark);
 }
 
-/* Default headings */
+/* Default headings — NO color here; headings inherit from their parent.
+   Inside dark heroes they inherit white, on light backgrounds they
+   inherit var(--hl-text) from body. This prevents the heading default
+   from overriding white text inside dark containers. */
 :where(.hl-app) h1,
 :where(.hl-app) h2,
 :where(.hl-app) h3,
 :where(.hl-app) h4 {
     font-family: var(--hl-font);
-    color: var(--hl-text-heading);
     font-weight: 700;
     line-height: 1.3;
 }
