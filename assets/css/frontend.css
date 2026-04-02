@@ -2530,11 +2530,6 @@ button.hl-btn-danger:hover,
     max-width: none;
 }
 
-body:has(.hl-program-page-v2) .entry-header,
-body:has(.hl-program-page-v2) .entry-title {
-    display: none !important;
-}
-
 .hl-program-page-v2 h1,
 .hl-program-page-v2 h2,
 .hl-program-page-v2 h3,
@@ -3255,11 +3250,6 @@ body:has(.hl-program-page-v2) .entry-title {
     max-width: 900px;
     margin: 0 auto;
     padding: 0;
-}
-
-body:has(.hl-dashboard-v2) .entry-header,
-body:has(.hl-dashboard-v2) .entry-title {
-    display: none !important;
 }
 
 /* ---- Welcome Hero ---- */
@@ -4386,15 +4376,6 @@ body:has(.hl-dashboard-v2) .entry-title {
 /* =====================================================================
    User Profile Page (.hlup-*)
    ===================================================================== */
-
-/* Hide BB automatic page title on profile page.
-   :has() targets the parent article when .hlup-wrapper is inside .entry-content. */
-article:has(.hlup-wrapper) > .entry-header {
-    display: none !important;
-    margin: 0 !important;
-    min-height: 0 !important;
-    padding: 0 !important;
-}
 
 /* ── Breadcrumbs ──────────────────────────────────────────────────── */
 
@@ -7331,10 +7312,6 @@ a.hlcm-card { cursor: pointer }
 /* ---------- Coach Mentor Detail (hlcmd-) ---------- */
 
 .hlcmd-wrapper { max-width: 1100px; margin: 0 auto }
-
-body:has(.hlcmd-wrapper) .entry-header .entry-title,
-body:has(.hlcmd-wrapper) article > header .entry-title { display: none !important }
-body:has(.hlcmd-wrapper) .entry-header { margin-bottom: 0 !important; min-height: 0 !important; padding: 0 !important }
 
 .hlcmd-back { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; color: var(--hl-text); text-decoration: none; margin-bottom: 20px; transition: color .2s }
 .hlcmd-back:hover { color: var(--hl-primary); text-decoration: none }
