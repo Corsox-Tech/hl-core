@@ -596,40 +596,53 @@ class HL_Frontend_Classroom_Page {
 
     private function render_header( $classroom, $school, $teacher_names ) {
         ?>
-        <div class="hl-classroom-page-header">
-            <div class="hl-classroom-page-header-info">
-                <h2 class="hl-cycle-title"><?php echo esc_html( $classroom->classroom_name ); ?></h2>
-                <?php if ( $school ) : ?>
-                    <p class="hl-scope-indicator"><?php echo esc_html( $school->name ); ?></p>
-                <?php endif; ?>
-                <div class="hl-track-meta">
-                    <?php if ( ! empty( $classroom->age_band ) ) : ?>
-                        <span class="hl-meta-item">
-                            <strong><?php esc_html_e( 'Age Band:', 'hl-core' ); ?></strong>
-                            <?php echo esc_html( ucfirst( $classroom->age_band ) ); ?>
-                        </span>
-                    <?php endif; ?>
-                    <?php if ( ! empty( $teacher_names ) ) : ?>
-                        <span class="hl-meta-item">
-                            <strong><?php esc_html_e( 'Teacher(s):', 'hl-core' ); ?></strong>
-                            <?php
-                            $links = array();
-                            foreach ( $teacher_names as $t ) {
-                                $url = $t['user_id'] ? $this->get_profile_url( $t['user_id'] ) : '';
-                                if ( $url ) {
-                                    $links[] = '<a href="' . esc_url( $url ) . '" class="hl-profile-link">' . esc_html( $t['name'] ) . '</a>';
-                                } else {
-                                    $links[] = esc_html( $t['name'] );
-                                }
-                            }
-                            echo implode( ', ', $links );
-                            ?>
-                        </span>
-                    <?php endif; ?>
+    <div class="hl-page-hero">
+        <div class="hl-page-hero__icon">
+            <span class="dashicons dashicons-welcome-learn-more"></span>
+        </div>
+        <div class="hl-page-hero__text">
+            <span class="hl-page-hero__tag"><?php esc_html_e( 'Classroom', 'hl-core' ); ?></span>
+            <h2 class="hl-page-hero__title"><?php echo esc_html( $classroom->classroom_name ); ?></h2>
+            <?php if ( $school ) : ?>
+                <p class="hl-page-hero__subtitle"><?php echo esc_html( $school->name ); ?></p>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="hl-meta-bar">
+        <?php if ( ! empty( $classroom->age_band ) ) : ?>
+            <div class="hl-meta-item">
+                <div class="hl-meta-item__icon"><span class="dashicons dashicons-groups"></span></div>
+                <div>
+                    <div class="hl-meta-item__label"><?php esc_html_e( 'Age Band', 'hl-core' ); ?></div>
+                    <div class="hl-meta-item__value"><?php echo esc_html( ucfirst( $classroom->age_band ) ); ?></div>
                 </div>
             </div>
-        </div>
-        <?php
+        <?php endif; ?>
+        <?php if ( ! empty( $teacher_names ) ) : ?>
+            <div class="hl-meta-item">
+                <div class="hl-meta-item__icon"><span class="dashicons dashicons-admin-users"></span></div>
+                <div>
+                    <div class="hl-meta-item__label"><?php esc_html_e( 'Teacher(s)', 'hl-core' ); ?></div>
+                    <div class="hl-meta-item__value">
+                        <?php
+                        $links = array();
+                        foreach ( $teacher_names as $t ) {
+                            $url = $t['user_id'] ? $this->get_profile_url( $t['user_id'] ) : '';
+                            if ( $url ) {
+                                $links[] = '<a href="' . esc_url( $url ) . '" class="hl-profile-link">' . esc_html( $t['name'] ) . '</a>';
+                            } else {
+                                $links[] = esc_html( $t['name'] );
+                            }
+                        }
+                        echo implode( ', ', $links );
+                        ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
     }
 
     // ========================================================================
