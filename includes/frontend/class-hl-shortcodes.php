@@ -35,8 +35,8 @@ class HL_Shortcodes {
      * @return string Template path to use.
      */
     public function use_hl_template($template) {
+        if (!is_singular('page')) return $template;
         global $post;
-        if (!is_a($post, 'WP_Post')) return $template;
         if (strpos($post->post_content, '[hl_') === false) return $template;
         return HL_CORE_PLUGIN_DIR . 'templates/hl-page.php';
     }
@@ -610,6 +610,10 @@ class HL_Shortcodes {
      * has_shortcode() detection failed (e.g. page builders, widgets).
      */
     private function ensure_frontend_assets() {
+        // Template hardcodes these assets — don't double-enqueue.
+        global $post;
+        if (is_a($post, 'WP_Post') && strpos($post->post_content, '[hl_') !== false) return;
+
         if (!wp_style_is('hl-frontend', 'enqueued')) {
             wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
         }
