@@ -180,7 +180,7 @@ class HL_Admin_Pathways {
      */
     private function get_cycle_redirect($cycle_id, $tab = 'pathways', $extra = array()) {
         $args = array_merge(array(
-            'page'   => 'hl-core',
+            'page'   => 'hl-cycles',
             'action' => 'edit',
             'id'     => $cycle_id,
             'tab'    => $tab,
