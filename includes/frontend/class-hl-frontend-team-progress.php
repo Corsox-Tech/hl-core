@@ -355,7 +355,7 @@ class HL_Frontend_Team_Progress {
         <div class="hl-cycle-block" data-cycle-id="<?php echo esc_attr($cycle->cycle_id); ?>">
         <?php if (!$team) : ?>
             <div class="hl-notice hl-notice-info">
-                <?php esc_html_e('You are not assigned to a team in this track.', 'hl-core'); ?>
+                <?php esc_html_e('You are not assigned to a team in this cycle.', 'hl-core'); ?>
             </div>
         <?php else : ?>
             <?php // -- Team header -- ?>

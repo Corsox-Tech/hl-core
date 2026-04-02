@@ -40,7 +40,7 @@ class HL_Frontend_Pathways_Listing {
                        placeholder="<?php esc_attr_e( 'Search pathways...', 'hl-core' ); ?>">
                 <?php if ( count( $cycles ) > 1 ) : ?>
                     <select class="hl-select" id="hl-pathway-track-filter">
-                        <option value=""><?php esc_html_e( 'All Tracks', 'hl-core' ); ?></option>
+                        <option value=""><?php esc_html_e( 'All Cycles', 'hl-core' ); ?></option>
                         <?php foreach ( $cycles as $c ) : ?>
                             <option value="<?php echo esc_attr( $c['cycle_id'] ); ?>">
                                 <?php echo esc_html( $c['cycle_name'] ); ?>
@@ -81,7 +81,7 @@ class HL_Frontend_Pathways_Listing {
                                 <div class="hl-crm-card-meta">
                                     <span class="hl-crm-card-stat">
                                         <strong><?php echo esc_html( $pw['activity_count'] ); ?></strong>
-                                        <?php echo esc_html( _n( 'Activity', 'Activities', (int) $pw['activity_count'], 'hl-core' ) ); ?>
+                                        <?php echo esc_html( _n( 'Component', 'Components', (int) $pw['activity_count'], 'hl-core' ) ); ?>
                                     </span>
                                     <span class="hl-crm-card-stat">
                                         <?php echo esc_html( $roles_label ); ?>

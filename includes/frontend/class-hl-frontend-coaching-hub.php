@@ -61,7 +61,7 @@ class HL_Frontend_Coaching_Hub {
                 </select>
                 <?php if ( count( $cycles ) > 1 ) : ?>
                     <select class="hl-select" id="hl-coaching-track-filter">
-                        <option value=""><?php esc_html_e( 'All Tracks', 'hl-core' ); ?></option>
+                        <option value=""><?php esc_html_e( 'All Cycles', 'hl-core' ); ?></option>
                         <?php foreach ( $cycles as $c ) : ?>
                             <option value="<?php echo esc_attr( $c['cycle_id'] ); ?>">
                                 <?php echo esc_html( $c['cycle_name'] ); ?>

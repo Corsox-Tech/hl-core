@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) exit;
  * Supports three views:
  *   1. List view (default) -- table of all observations with status badges
  *   2. New observation flow (?action=new) -- select teacher, create record
- *   3. Form view (?observation_id=X) -- render JFB form or submitted summary
+ *   3. Form view (?observation_id=X) -- render submitted summary
  *
  * @package HL_Core
  */
@@ -267,7 +267,7 @@ class HL_Frontend_Observations {
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
-                                <p class="description"><?php esc_html_e( 'Select the track this observation is for.', 'hl-core' ); ?></p>
+                                <p class="description"><?php esc_html_e( 'Select the cycle this observation is for.', 'hl-core' ); ?></p>
                             </td>
                         </tr>
                     <?php else : ?>
@@ -427,7 +427,7 @@ class HL_Frontend_Observations {
         $classroom_id          = ! empty( $_POST['classroom_id'] ) ? absint( $_POST['classroom_id'] ) : 0;
 
         if ( ! $mentor_enrollment_id ) {
-            return new WP_Error( 'missing_enrollment', __( 'Please select a track.', 'hl-core' ) );
+            return new WP_Error( 'missing_enrollment', __( 'Please select a cycle.', 'hl-core' ) );
         }
 
         if ( ! $teacher_enrollment_id ) {
@@ -466,10 +466,8 @@ class HL_Frontend_Observations {
     /**
      * Render the form view for a single observation.
      *
-     * If the observation is in 'draft' status and JFB is active, renders
-     * the linked JFB form with hidden fields pre-populated. If already
-     * submitted, shows a read-only summary. If JFB is not active, shows
-     * a warning message.
+     * Draft observations show a contact notice. Submitted observations
+     * show a read-only summary.
      *
      * @param int $observation_id
      * @param int $user_id Current user ID.
@@ -556,7 +554,9 @@ class HL_Frontend_Observations {
             if ( $observation['status'] === 'submitted' ) {
                 $this->render_submitted_summary( $observation );
             } else {
-                $this->render_jfb_form( $observation );
+                echo '<div class="hl-notice hl-notice-info">';
+                esc_html_e( 'This observation form is pending submission. Please contact your Program Manager for assistance.', 'hl-core' );
+                echo '</div>';
             }
             ?>
 
@@ -570,61 +570,7 @@ class HL_Frontend_Observations {
     }
 
     /**
-     * Render the JFB form for a draft observation.
-     *
-     * Finds the observation component in the track, extracts the JFB form
-     * ID from external_ref, and renders the form with hidden fields
-     * pre-populated for the JFB hook listener.
-     *
-     * @param array $observation Observation row with joined data.
-     */
-    private function render_jfb_form( $observation ) {
-        $jfb = HL_JFB_Integration::instance();
-
-        // Check if JFB is active
-        if ( ! $jfb->is_active() ) {
-            ?>
-            <div class="hl-notice hl-notice-warning">
-                <?php esc_html_e( 'JetFormBuilder is required to fill out observations but is not currently active. Please contact your administrator.', 'hl-core' ); ?>
-            </div>
-            <?php
-            return;
-        }
-
-        $cycle_id = absint( $observation['cycle_id'] );
-
-        // Find the observation component and form ID for this track
-        $form_id      = $this->observation_service->get_observation_form_id( $cycle_id );
-        $component    = $this->observation_service->get_observation_activity( $cycle_id );
-        $component_id = $component ? absint( $component['component_id'] ) : 0;
-
-        if ( ! $form_id ) {
-            ?>
-            <div class="hl-notice hl-notice-warning">
-                <?php esc_html_e( 'No observation form has been configured for this track. Please contact your Program Manager.', 'hl-core' ); ?>
-            </div>
-            <?php
-            return;
-        }
-
-        // Pre-populate hidden fields for the JFB hook listener
-        $hidden_fields = array(
-            'hl_observation_id' => absint( $observation['observation_id'] ),
-            'hl_enrollment_id'  => absint( $observation['mentor_enrollment_id'] ),
-            'hl_cycle_id'      => $cycle_id,
-            'hl_component_id'   => $component_id,
-        );
-
-        // Render the JFB form
-        echo $jfb->render_form( $form_id, $hidden_fields );
-    }
-
-    /**
      * Render a read-only summary for a submitted observation.
-     *
-     * Shows the submission date, JFB record reference, and context info.
-     * Actual form responses are stored in JFB Form Records and viewable
-     * via the JFB admin interface.
      *
      * @param array $observation Observation row with joined data.
      */
@@ -673,30 +619,12 @@ class HL_Frontend_Observations {
                         <tr>
                             <th scope="row"><?php esc_html_e( 'Form Record', 'hl-core' ); ?></th>
                             <td>
-                                <?php
-                                if ( current_user_can( 'manage_hl_core' ) ) {
-                                    // Staff can link to the JFB record in admin
-                                    $record_url = admin_url( 'admin.php?page=jet-form-builder-records&record_id=' . absint( $observation['jfb_record_id'] ) );
-                                    printf(
-                                        '<a href="%s" target="_blank">#%d</a>',
-                                        esc_url( $record_url ),
-                                        absint( $observation['jfb_record_id'] )
-                                    );
-                                } else {
-                                    printf( '#%d', absint( $observation['jfb_record_id'] ) );
-                                }
-                                ?>
+                                <?php printf( '#%d', absint( $observation['jfb_record_id'] ) ); ?>
                             </td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
-
-            <?php if ( current_user_can( 'manage_hl_core' ) ) : ?>
-                <p class="description">
-                    <?php esc_html_e( 'Form responses are stored in JetFormBuilder Form Records. Use the JFB admin interface to view full response details.', 'hl-core' ); ?>
-                </p>
-            <?php endif; ?>
         </div>
         <?php
     }

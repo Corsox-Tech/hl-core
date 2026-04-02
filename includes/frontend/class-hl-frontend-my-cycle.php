@@ -743,7 +743,7 @@ class HL_Frontend_My_Cycle {
                                             <table class="hl-table hl-detail-table">
                                                 <thead>
                                                     <tr>
-                                                        <th><?php esc_html_e( 'Activity', 'hl-core' ); ?></th>
+                                                        <th><?php esc_html_e( 'Component', 'hl-core' ); ?></th>
                                                         <th><?php esc_html_e( 'Type', 'hl-core' ); ?></th>
                                                         <th><?php esc_html_e( 'Progress', 'hl-core' ); ?></th>
                                                         <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
@@ -769,7 +769,7 @@ class HL_Frontend_My_Cycle {
                                                 </tbody>
                                             </table>
                                         <?php else : ?>
-                                            <p><?php esc_html_e( 'No activity data available.', 'hl-core' ); ?></p>
+                                            <p><?php esc_html_e( 'No component data available.', 'hl-core' ); ?></p>
                                         <?php endif; ?>
                                     </div>
                                 </td>

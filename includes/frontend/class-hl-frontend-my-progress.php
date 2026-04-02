@@ -30,9 +30,6 @@ class HL_Frontend_My_Progress {
     /** @var HL_LearnDash_Integration */
     private $learndash;
 
-    /** @var HL_JFB_Integration */
-    private $jfb;
-
     /**
      * Component type display labels.
      */
@@ -53,7 +50,6 @@ class HL_Frontend_My_Progress {
         $this->component_repo = new HL_Component_Repository();
         $this->rules_engine   = new HL_Rules_Engine_Service();
         $this->learndash      = HL_LearnDash_Integration::instance();
-        $this->jfb            = HL_JFB_Integration::instance();
     }
 
     /**
@@ -67,17 +63,8 @@ class HL_Frontend_My_Progress {
 
         $user_id = get_current_user_id();
 
-        // ── Check for inline JFB form display ─────────────────────────
-        $open_component_id = isset($_GET['hl_open_component']) ? absint($_GET['hl_open_component']) : 0;
-        if ($open_component_id > 0 && $user_id) {
-            $this->maybe_render_inline_form($open_component_id, $user_id, $atts);
-            $form_output = ob_get_clean();
-            if (!empty($form_output)) {
-                return $form_output;
-            }
-            // If render returned nothing (invalid state), fall through to normal view.
-            ob_start();
-        }
+        // Unused hl_open_component param kept for backward URL compat (no-op).
+
 
         // ── Fetch active enrollments for this user ──────────────────────
         $filters = array(
@@ -442,11 +429,10 @@ class HL_Frontend_My_Progress {
             return '';
         }
 
-        // ── teacher_self_assessment: custom instrument or JFB form ──────
+        // ── teacher_self_assessment: custom instrument form ──────
         if ($type === 'teacher_self_assessment') {
             $external_ref = $component->get_external_ref_array();
 
-            // Custom instrument-based assessment
             if (!empty($external_ref['teacher_instrument_id'])) {
                 $tsa_page_url = apply_filters('hl_core_teacher_assessment_page_url', '');
                 if (empty($tsa_page_url)) {
@@ -456,7 +442,7 @@ class HL_Frontend_My_Progress {
                     // Find instance for this enrollment + phase
                     global $wpdb;
                     $phase = isset($external_ref['phase']) ? $external_ref['phase'] : 'pre';
-                    $enrollment_id_val = isset($ad['enrollment_id']) ? (int) $ad['enrollment_id'] : 0;
+                    $enrollment_id_val = isset($ad['enrollment']) ? (int) $ad['enrollment']->enrollment_id : 0;
                     $instance_id = $enrollment_id_val ? $wpdb->get_var($wpdb->prepare(
                         "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
                          WHERE enrollment_id = %d AND cycle_id = %d AND phase = %s",
@@ -478,24 +464,9 @@ class HL_Frontend_My_Progress {
                     . '</span>';
             }
 
-            // Legacy JFB-powered fallback
-            $form_id = isset($external_ref['form_id']) ? absint($external_ref['form_id']) : 0;
-
-            if (!$form_id) {
-                return '<span class="hl-component-notice">'
-                    . esc_html__('No form has been configured for this component.', 'hl-core')
-                    . '</span>';
-            }
-
-            $open_url = add_query_arg(
-                'hl_open_component',
-                $component->component_id,
-                remove_query_arg('hl_open_component')
-            );
-
-            return '<a href="' . esc_url($open_url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
-                . esc_html__('Open Form', 'hl-core')
-                . '</a>';
+            return '<span class="hl-component-notice">'
+                . esc_html__('No instrument has been configured for this component.', 'hl-core')
+                . '</span>';
         }
 
 
@@ -530,122 +501,6 @@ class HL_Frontend_My_Progress {
     }
 
     /**
-     * Render a JFB form inline for a teacher_self_assessment component.
-     *
-     * Validates:
-     * - The component exists and is teacher_self_assessment type
-     * - The current user has an active enrollment that includes this component
-     * - The component is available (not locked or already completed)
-     * - A valid JFB form_id is configured in external_ref
-     *
-     * Outputs the form wrapped in a "Back to Progress" navigation header.
-     *
-     * @param int   $component_id The component to open.
-     * @param int   $user_id      Current user ID.
-     * @param array $atts         Shortcode attributes (for cycle_id filtering).
-     */
-    private function maybe_render_inline_form($component_id, $user_id, $atts) {
-        // Load the component.
-        $component = $this->component_repo->get_by_id($component_id);
-
-        if (!$component) {
-            return; // Falls through to normal view.
-        }
-
-        // Only teacher_self_assessment components can be rendered inline.
-        if ($component->component_type !== 'teacher_self_assessment') {
-            return;
-        }
-
-        // Check that a JFB form is configured.
-        $external_ref = $component->get_external_ref_array();
-        $form_id      = isset($external_ref['form_id']) ? absint($external_ref['form_id']) : 0;
-
-        if (!$form_id) {
-            return;
-        }
-
-        // Find an active enrollment for this user that includes this component's pathway.
-        $all_enrollments = $this->enrollment_repo->get_all(array('status' => 'active'));
-        $enrollment      = null;
-
-        foreach ($all_enrollments as $e) {
-            if ((int) $e->user_id !== $user_id) {
-                continue;
-            }
-            if (!empty($atts['cycle_id']) && (int) $e->cycle_id !== absint($atts['cycle_id'])) {
-                continue;
-            }
-            if ((int) $e->cycle_id === (int) $component->cycle_id) {
-                $enrollment = $e;
-                break;
-            }
-        }
-
-        if (!$enrollment) {
-            return; // User is not enrolled in the track for this component.
-        }
-
-        // Verify the component is available (not locked, not completed).
-        $availability = $this->rules_engine->compute_availability(
-            $enrollment->enrollment_id,
-            $component->component_id
-        );
-
-        if ($availability['availability_status'] !== 'available') {
-            // Component is locked or already completed — don't show form.
-            ?>
-            <div class="hl-dashboard hl-my-progress">
-                <div class="hl-inline-form-wrapper">
-                    <a href="<?php echo esc_url(remove_query_arg('hl_open_component')); ?>" class="hl-back-link">
-                        &larr; <?php esc_html_e('Back to Progress', 'hl-core'); ?>
-                    </a>
-                    <div class="hl-notice hl-notice-info">
-                        <?php if ($availability['availability_status'] === 'completed') : ?>
-                            <?php esc_html_e('This component has already been completed.', 'hl-core'); ?>
-                        <?php else : ?>
-                            <?php esc_html_e('This component is currently locked.', 'hl-core'); ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-            <?php
-            return;
-        }
-
-        // Build the hidden fields for the JFB form.
-        $hidden_fields = array(
-            'hl_enrollment_id' => $enrollment->enrollment_id,
-            'hl_component_id'  => $component->component_id,
-                  'hl_cycle_id'     => $enrollment->cycle_id,
-        );
-
-        // Render the inline form view.
-        ?>
-        <div class="hl-dashboard hl-my-progress">
-            <div class="hl-inline-form-wrapper">
-                <a href="<?php echo esc_url(remove_query_arg('hl_open_component')); ?>" class="hl-back-link">
-                    &larr; <?php esc_html_e('Back to Progress', 'hl-core'); ?>
-                </a>
-
-                <h2 class="hl-inline-form-title"><?php echo esc_html($component->title); ?></h2>
-
-                <?php if (!empty($component->description)) : ?>
-                    <p class="hl-inline-form-description"><?php echo esc_html($component->description); ?></p>
-                <?php endif; ?>
-
-                <div class="hl-jfb-form-container">
-                    <?php
-                    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_form() returns JFB shortcode output
-                    echo $this->jfb->render_form($form_id, $hidden_fields);
-                    ?>
-                </div>
-            </div>
-        </div>
-        <?php
-    }
-
-    /**
      * Render a friendly empty state when the user has no active enrollments.
      */
     private function render_empty_state() {
@@ -653,7 +508,7 @@ class HL_Frontend_My_Progress {
         <div class="hl-dashboard hl-my-progress">
             <div class="hl-empty-state">
                 <h3><?php esc_html_e('No Active Enrollments', 'hl-core'); ?></h3>
-                <p><?php esc_html_e('You are not currently enrolled in any active tracks. If you believe this is an error, please contact your Program Manager.', 'hl-core'); ?></p>
+                <p><?php esc_html_e('You are not currently enrolled in any active programs. If you believe this is an error, please contact your Program Manager.', 'hl-core'); ?></p>
             </div>
         </div>
         <?php

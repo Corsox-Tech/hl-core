@@ -86,7 +86,7 @@ class HL_Frontend_Reports_Hub {
 
         $reports[] = array(
             'title'       => __( 'Completion Report', 'hl-core' ),
-            'description' => __( 'View participant completion rates by track, school, team, and individual. Export CSV.', 'hl-core' ),
+            'description' => __( 'View participant completion rates by cycle, school, team, and individual. Export CSV.', 'hl-core' ),
             'url'         => $completion_url,
         );
 
@@ -120,7 +120,7 @@ class HL_Frontend_Reports_Hub {
         if ( $scope['is_staff'] || in_array( 'district_leader', $scope['hl_roles'], true ) ) {
             $reports[] = array(
                 'title'       => __( 'Program Group Report', 'hl-core' ),
-                'description' => __( 'View cross-track aggregate metrics for partnership groups. Compare tracks within a program.', 'hl-core' ),
+                'description' => __( 'View cross-cycle aggregate metrics for partnership groups. Compare cycles within a program.', 'hl-core' ),
                 'url'         => '', // TODO: link to dedicated group report page when built
             );
         }

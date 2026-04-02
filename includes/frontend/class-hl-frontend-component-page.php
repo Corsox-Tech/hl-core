@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) exit;
  *
  * Renders a single component for the logged-in participant.
  * Depending on component type:
- * - JFB-powered (teacher_self_assessment, observation): embeds JFB form
+ * - teacher_self_assessment: renders custom instrument form
  * - child_assessment: links to [hl_child_assessment] page
  * - learndash_course: redirects to the LD course permalink
  * - coaching_session_attendance: shows managed-by-coach notice
@@ -31,9 +31,6 @@ class HL_Frontend_Component_Page {
     /** @var HL_Rules_Engine_Service */
     private $rules_engine;
 
-    /** @var HL_JFB_Integration */
-    private $jfb;
-
     /**
      * Component type display labels.
      */
@@ -52,7 +49,6 @@ class HL_Frontend_Component_Page {
         $this->enrollment_repo = new HL_Enrollment_Repository();
         $this->pathway_repo    = new HL_Pathway_Repository();
         $this->rules_engine    = new HL_Rules_Engine_Service();
-        $this->jfb             = HL_JFB_Integration::instance();
     }
 
     /**
@@ -242,15 +238,14 @@ class HL_Frontend_Component_Page {
     private function render_available_view($component, $enrollment) {
         $type = $component->component_type;
 
-        // Teacher self-assessment: custom instrument takes priority over JFB.
+        // Teacher self-assessment: custom instrument form.
         if ($type === 'teacher_self_assessment') {
             $external_ref = $component->get_external_ref_array();
             if (!empty($external_ref['teacher_instrument_id'])) {
                 $this->render_teacher_instrument_redirect($component, $enrollment, $external_ref);
                 return;
             }
-            // Legacy JFB-powered fallback
-            $this->render_jfb_form($component, $enrollment);
+            echo '<div class="hl-notice hl-notice-error">' . esc_html__('No instrument has been configured for this component.', 'hl-core') . '</div>';
             return;
         }
 
@@ -303,34 +298,6 @@ class HL_Frontend_Component_Page {
 
         // Fallback.
         echo '<div class="hl-notice hl-notice-info">' . esc_html__('This component type is not yet supported for inline display.', 'hl-core') . '</div>';
-    }
-
-    /**
-     * Render a JFB form for self-assessment or observation components.
-     */
-    private function render_jfb_form($component, $enrollment) {
-        $external_ref = $component->get_external_ref_array();
-        $form_id      = isset($external_ref['form_id']) ? absint($external_ref['form_id']) : 0;
-
-        if (!$form_id) {
-            echo '<div class="hl-notice hl-notice-error">' . esc_html__('No form has been configured for this component.', 'hl-core') . '</div>';
-            return;
-        }
-
-        $hidden_fields = array(
-            'hl_enrollment_id'  => $enrollment->enrollment_id,
-            'hl_component_id'   => $component->component_id,
-            'hl_cycle_id' => $enrollment->cycle_id,
-        );
-
-        ?>
-        <div class="hl-jfb-form-container">
-            <?php
-            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_form() returns JFB shortcode output
-            echo $this->jfb->render_form($form_id, $hidden_fields);
-            ?>
-        </div>
-        <?php
     }
 
     /**
