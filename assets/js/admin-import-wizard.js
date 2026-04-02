@@ -164,7 +164,14 @@
                 case 'school':    return row.raw_school || '';
                 case 'classroom': return row.parsed_classroom || row.parsed_classroom_name || '';
                 case 'team':      return row.parsed_team || '';
-                case 'pathway':   return row.parsed_pathway || '';
+                case 'pathway':
+                    if (row.pathway_source === 'csv') {
+                        return (row.parsed_pathway || '') + ' [manual]';
+                    }
+                    if (row.pathway_source === 'routed' || row.pathway_source === 'default') {
+                        return (row.parsed_pathway || '') + ' [auto]';
+                    }
+                    return row.parsed_pathway ? row.parsed_pathway : '(none)';
                 case 'dob':       return row.parsed_dob || '';
                 case 'ethnicity': return row.parsed_ethnicity || '';
                 default:          return '';
@@ -188,6 +195,19 @@
                     $('<span>').text(data.unmapped.join(', ')).html() +
                     '</strong></div>'
                 );
+            }
+
+            if (data.no_pathway_count && data.no_pathway_count > 0) {
+                var noPathwayHtml =
+                    '<div class="hl-import-pathway-notice" style="margin:10px 0;padding:12px 16px;background:#fff8e1;border-left:4px solid #f0b429;border-radius:3px;">' +
+                    '<strong style="display:block;margin-bottom:6px;">&#9888; ' + data.no_pathway_count + ' participant(s) have no pathway assigned.</strong>' +
+                    '<p style="margin:0 0 6px;">Pathways for this cycle may not be created yet. You can:</p>' +
+                    '<ul style="margin:0 0 0 18px;">' +
+                    '<li><strong>A. Proceed</strong> — Import will complete successfully. Pathways can be assigned later once created.</li>' +
+                    '<li><strong>B. Cancel</strong> — Go to the Pathways tab, create the required pathways for this cycle, then re-import.</li>' +
+                    '</ul>' +
+                    '</div>';
+                this.$summary.after(noPathwayHtml);
             }
 
             var columns = this.getColumns();
@@ -453,6 +473,7 @@
             this.$errorList.empty();
             this.$notices.empty();
             this.$wrap.find('.hl-import-unmapped').remove();
+            this.$wrap.find('.hl-import-pathway-notice').remove();
         },
 
         showSpinner: function(msg) {

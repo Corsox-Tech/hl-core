@@ -80,7 +80,7 @@ class HL_Admin_Imports {
                     <ul style="margin:0 0 12px 18px;">
                         <li><?php esc_html_e('Schools must already exist and be linked to this Cycle (use the Schools tab).', 'hl-core'); ?></li>
                         <li><?php esc_html_e('Import Participants first, then Children. Classrooms are created automatically from the Participants import.', 'hl-core'); ?></li>
-                        <li><?php esc_html_e('Pathways are auto-assigned based on role and course completion history. You can override by adding a "pathway" column.', 'hl-core'); ?></li>
+                        <li><?php esc_html_e('Pathways are auto-assigned based on role and course completion history. You can override by adding a "pathway" column. If no matching pathway exists in this cycle yet, rows will import without a pathway — you can create pathways first and re-import, or proceed and assign manually later.', 'hl-core'); ?></li>
                     </ul>
 
                     <h4 style="margin:8px 0 4px;"><?php esc_html_e('Participants CSV Columns', 'hl-core'); ?></h4>
@@ -94,7 +94,7 @@ class HL_Admin_Imports {
                             <tr><td><code>classroom</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Semicolon-separated (e.g., "Room A; Room B"). Auto-creates classrooms.', 'hl-core'); ?></td></tr>
                             <tr><td><code>team</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Auto-creates team if it doesn\'t exist. Assigns as mentor or member based on role.', 'hl-core'); ?></td></tr>
                             <tr><td><code>assigned_coach</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Coach email. Creates coach assignment for Mentors.', 'hl-core'); ?></td></tr>
-                            <tr><td><code>pathway</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Overrides auto-routing. Use pathway name or code.', 'hl-core'); ?></td></tr>
+                            <tr><td><code>pathway</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('Overrides auto-routing. Use pathway name or code (case-insensitive). Typos show a "Did you mean?" suggestion.', 'hl-core'); ?></td></tr>
                             <tr><td><code>age_group</code></td><td><?php esc_html_e('No', 'hl-core'); ?></td><td><?php esc_html_e('infant, toddler, preschool, k2, or mixed. Applied to new classrooms.', 'hl-core'); ?></td></tr>
                         </tbody>
                     </table>
@@ -118,6 +118,7 @@ class HL_Admin_Imports {
                         <li><?php esc_html_e('Re-importing the same CSV is safe — existing participants will show as SKIP.', 'hl-core'); ?></li>
                         <li><?php esc_html_e('Float teachers (no fixed classroom) can leave the classroom column empty.', 'hl-core'); ?></li>
                         <li><?php esc_html_e('Multiple classrooms use semicolons, not commas (e.g., "Room A; Room B").', 'hl-core'); ?></li>
+                        <li><?php esc_html_e('If pathways show "no match" in the preview, check the Reference panel on the right — it lists valid pathway names and codes for this cycle.', 'hl-core'); ?></li>
                     </ul>
                 </div>
             </details>
@@ -494,16 +495,28 @@ class HL_Admin_Imports {
             }
         }
 
+        // Count actionable rows with no pathway assigned (routing failed)
+        $no_pathway_count = 0;
+        if ($import_type === 'participants') {
+            foreach ($preview_rows as $row) {
+                if (in_array($row['status'], array('CREATE', 'WARNING'), true)
+                    && empty($row['pathway_source'])) {
+                    $no_pathway_count++;
+                }
+            }
+        }
+
         // Prepare rows for JS
         $js_rows = $this->prepare_js_rows($preview_rows, $import_type);
 
         wp_send_json_success(array(
-            'run_id'      => $run_id,
-            'import_type' => $import_type,
-            'counts'      => $counts,
-            'unmapped'    => $parsed['unmapped'],
-            'rows'        => $js_rows,
-            'total_rows'  => count($js_rows),
+            'run_id'           => $run_id,
+            'import_type'      => $import_type,
+            'counts'           => $counts,
+            'unmapped'         => $parsed['unmapped'],
+            'rows'             => $js_rows,
+            'total_rows'       => count($js_rows),
+            'no_pathway_count' => $no_pathway_count,
         ));
     }
 

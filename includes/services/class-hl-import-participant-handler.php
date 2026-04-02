@@ -288,10 +288,32 @@ class HL_Import_Participant_Handler {
             if (!empty($raw_pathway)) {
                 $pw_key = strtolower($raw_pathway);
                 if (!isset($pathway_by_name[$pw_key]) && !isset($pathway_by_code[$pw_key])) {
-                    $preview['validation_messages'][] = sprintf(
+                    $msg = sprintf(
                         __('Warning: Pathway "%s" not found in this cycle.', 'hl-core'),
                         $raw_pathway
                     );
+                    // Suggest closest match via Levenshtein distance
+                    $all_pathway_keys = array_unique(array_merge(array_keys($pathway_by_name), array_keys($pathway_by_code)));
+                    if (!empty($all_pathway_keys)) {
+                        $best_key  = null;
+                        $best_dist = PHP_INT_MAX;
+                        foreach ($all_pathway_keys as $option) {
+                            $dist = levenshtein($pw_key, $option);
+                            if ($dist < $best_dist) {
+                                $best_dist = $dist;
+                                $best_key  = $option;
+                            }
+                        }
+                        // Only suggest if edit distance is within 40% of input length (minimum threshold of 3)
+                        $max_dist = max(3, (int) floor(strlen($pw_key) * 0.4));
+                        if ($best_key !== null && $best_dist <= $max_dist) {
+                            $suggestion_name = isset($pathway_by_name[$best_key])
+                                ? $pathway_by_name[$best_key]['pathway_name']
+                                : (isset($pathway_by_code[$best_key]) ? $pathway_by_code[$best_key]['pathway_name'] : $best_key);
+                            $msg .= ' ' . sprintf(__('Did you mean "%s"?', 'hl-core'), $suggestion_name);
+                        }
+                    }
+                    $preview['validation_messages'][] = $msg;
                 }
             }
 
