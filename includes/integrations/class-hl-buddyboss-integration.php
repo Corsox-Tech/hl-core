@@ -62,6 +62,11 @@ class HL_BuddyBoss_Integration {
         // 0a2. Template redirect — redirect BB member profiles to HL User Profile.
         add_action('template_redirect', array($this, 'redirect_bb_profile_to_hl'));
 
+        // 1. Inject HL sidebar + topbar on non-HL pages (LearnDash courses, BB community, etc.).
+        add_action('wp_body_open', array($this, 'render_nav_on_theme_pages'));
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_nav_assets_on_theme_pages'));
+        add_filter('body_class', array($this, 'add_nav_body_class'));
+
     }
 
     // =========================================================================
@@ -623,5 +628,172 @@ class HL_BuddyBoss_Integration {
         self::$page_url_cache[$shortcode] = $url;
 
         return $url;
+    }
+
+    // =========================================================================
+    // Nav Shell on BB Theme Pages (LearnDash, Community, etc.)
+    // =========================================================================
+
+    /**
+     * Check if the current page is an HL-template page (has [hl_*] shortcode).
+     * Those pages render their own sidebar via hl-page.php — don't double-render.
+     */
+    private function is_hl_template_page() {
+        global $post;
+        if (!is_a($post, 'WP_Post')) return false;
+        return (strpos($post->post_content, '[hl_') !== false);
+    }
+
+    /**
+     * Check if nav should render: logged in, not HL page, not login/register.
+     */
+    private function should_render_nav() {
+        if (!is_user_logged_in()) return false;
+        if ($this->is_hl_template_page()) return false;
+        if (!is_singular() && !is_archive() && !is_home() && !is_front_page()
+            && !function_exists('bp_is_current_component')) return false;
+        return true;
+    }
+
+    /**
+     * Inject sidebar + topbar HTML on BB theme pages via wp_body_open.
+     */
+    public function render_nav_on_theme_pages() {
+        if (!$this->should_render_nav()) return;
+
+        $menu_items = $this->get_menu_items_for_current_user();
+        if (empty($menu_items)) return;
+
+        $user         = wp_get_current_user();
+        $display_name = $user->display_name ?: $user->user_login;
+        $avatar_url   = get_avatar_url($user->ID, array('size' => 32));
+
+        $initials = '';
+        if ($user->first_name) $initials .= strtoupper(substr($user->first_name, 0, 1));
+        if ($user->last_name)  $initials .= strtoupper(substr($user->last_name, 0, 1));
+        if (!$initials && $display_name) $initials = strtoupper(substr($display_name, 0, 2));
+
+        $current_url   = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
+        $dashboard_url = !empty($menu_items) ? $menu_items[0]['url'] : home_url('/');
+
+        $logo_id  = get_theme_mod('custom_logo');
+        $logo_url = $logo_id ? wp_get_attachment_image_url($logo_id, 'full') : '';
+
+        // Detect "View As" session.
+        $old_user        = function_exists('user_switching_get_old_user') ? user_switching_get_old_user() : null;
+        $switch_back_url = '';
+        if ($old_user) {
+            if (class_exists('BP_Core_Members_Switching') && method_exists('BP_Core_Members_Switching', 'switch_off_url')) {
+                $switch_back_url = BP_Core_Members_Switching::switch_off_url($user);
+            } elseif (function_exists('user_switching_get_switchback_url')) {
+                $switch_back_url = user_switching_get_switchback_url();
+            }
+        }
+
+        ?>
+        <!-- HL Core Nav Shell (injected on BB theme pages) -->
+        <div class="hl-topbar<?php echo $old_user ? ' hl-topbar--view-as' : ''; ?>" id="hl-topbar">
+            <div class="hl-breadcrumb" style="margin-bottom:0;">
+                <span><?php echo esc_html(get_the_title() ?: 'Course'); ?></span>
+            </div>
+            <div class="hl-topbar__user-wrap" id="hl-topbar-user-wrap">
+                <button class="hl-topbar__user-btn" id="hl-topbar-user-btn" type="button" aria-expanded="false">
+                    <span class="hl-topbar__user-name"><?php echo esc_html($display_name); ?></span>
+                    <?php if ($avatar_url) : ?>
+                        <img src="<?php echo esc_url($avatar_url); ?>" alt="" class="hl-topbar__avatar">
+                    <?php else : ?>
+                        <div class="hl-topbar__avatar hl-topbar__avatar--initials"><?php echo esc_html($initials); ?></div>
+                    <?php endif; ?>
+                </button>
+                <div class="hl-topbar__dropdown" id="hl-topbar-dropdown" hidden>
+                    <?php if ($old_user && $switch_back_url) : ?>
+                        <div class="hl-topbar__dropdown-notice">
+                            <?php echo esc_html(sprintf(__('Viewing as %s', 'hl-core'), $display_name)); ?>
+                        </div>
+                        <a href="<?php echo esc_url($switch_back_url); ?>" class="hl-topbar__dropdown-item hl-topbar__dropdown-item--switch-back">
+                            <span class="dashicons dashicons-undo"></span>
+                            <?php echo esc_html(sprintf(__('Return to %s', 'hl-core'), $old_user->display_name)); ?>
+                        </a>
+                        <div class="hl-topbar__dropdown-divider"></div>
+                    <?php endif; ?>
+                    <a href="<?php echo esc_url(admin_url('profile.php')); ?>" class="hl-topbar__dropdown-item">
+                        <span class="dashicons dashicons-admin-users"></span>
+                        <?php esc_html_e('My Account', 'hl-core'); ?>
+                    </a>
+                    <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-topbar__dropdown-item">
+                        <span class="dashicons dashicons-migrate"></span>
+                        <?php esc_html_e('Log Out', 'hl-core'); ?>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <nav class="hl-sidebar" id="hl-sidebar">
+            <div class="hl-sidebar__brand">
+                <?php if ($logo_url) : ?>
+                    <a href="<?php echo esc_url(home_url('/')); ?>" class="hl-sidebar__logo-link">
+                        <img src="<?php echo esc_url($logo_url); ?>" alt="<?php echo esc_attr(get_bloginfo('name')); ?>" class="hl-sidebar__logo-img">
+                    </a>
+                <?php else : ?>
+                    <div class="hl-sidebar__logo">HL</div>
+                    <div class="hl-sidebar__title"><?php esc_html_e('Housman Learning', 'hl-core'); ?></div>
+                    <div class="hl-sidebar__subtitle"><?php esc_html_e('Learning Hub', 'hl-core'); ?></div>
+                <?php endif; ?>
+            </div>
+            <div class="hl-sidebar__nav">
+                <?php foreach ($menu_items as $item) :
+                    $item_path = trailingslashit(wp_parse_url($item['url'], PHP_URL_PATH) ?: '');
+                    $is_active = ($item_path && $item_path === $current_url);
+                    $active_class = $is_active ? ' hl-sidebar__item--active' : '';
+                ?>
+                    <a href="<?php echo esc_url($item['url']); ?>" class="hl-sidebar__item<?php echo esc_attr($active_class); ?>">
+                        <span class="hl-sidebar__icon dashicons <?php echo esc_attr($item['icon']); ?>"></span>
+                        <span><?php echo esc_html($item['label']); ?></span>
+                        <?php if (!empty($item['badge'])) : ?>
+                            <span class="hl-sidebar__badge"><?php echo (int) $item['badge']; ?></span>
+                        <?php endif; ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+            <div class="hl-sidebar__footer">
+                <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-sidebar__item">
+                    <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
+                    <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>
+                </a>
+            </div>
+        </nav>
+        <?php
+    }
+
+    /**
+     * Enqueue frontend.css + sidebar JS on BB theme pages.
+     */
+    public function enqueue_nav_assets_on_theme_pages() {
+        if (!$this->should_render_nav()) return;
+
+        wp_enqueue_style('dashicons');
+        wp_enqueue_style(
+            'hl-core-frontend',
+            HL_CORE_ASSETS_URL . 'css/frontend.css',
+            array(),
+            HL_CORE_VERSION
+        );
+        wp_enqueue_script('jquery');
+        wp_enqueue_script(
+            'hl-core-frontend',
+            HL_CORE_ASSETS_URL . 'js/frontend.js',
+            array('jquery'),
+            HL_CORE_VERSION,
+            true
+        );
+    }
+
+    /**
+     * Add body class for content offset on BB theme pages.
+     */
+    public function add_nav_body_class($classes) {
+        if (!$this->should_render_nav()) return $classes;
+        $classes[] = 'hl-has-nav';
+        return $classes;
     }
 }

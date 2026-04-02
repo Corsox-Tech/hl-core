@@ -2608,14 +2608,15 @@ button.hl-btn-danger:hover,
 .hl-pp-hero-image {
     width: 200px;
     flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
+    position: relative;
 }
 .hl-pp-hero-image img {
-    max-height: 100%;
-    max-width: 100%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: calc(100% - 32px);
+    max-height: calc(100% - 32px);
     object-fit: contain;
     opacity: 0.85;
 }
@@ -6816,6 +6817,28 @@ button.hl-btn-danger:hover,
 @media (min-width: 1920px) {
     .hl-app__content {
         padding: 72px 64px 24px;
+    }
+}
+
+/* =====================================================
+   NAV SHELL ON BB THEME PAGES (LearnDash, Community)
+   Offsets the BB theme content to make room for the
+   HL sidebar + topbar injected via wp_body_open.
+   ===================================================== */
+body.hl-has-nav #page {
+    margin-left: 240px;
+    padding-top: 48px;
+}
+body.hl-has-nav #masthead {
+    display: none;
+}
+body.hl-has-nav .bb-mobile-header {
+    display: none;
+}
+@media (max-width: 1024px) {
+    body.hl-has-nav #page {
+        margin-left: 0;
+        padding-top: 48px;
     }
 }
 
