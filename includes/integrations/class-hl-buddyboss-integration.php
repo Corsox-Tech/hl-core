@@ -388,8 +388,7 @@ class HL_BuddyBoss_Integration {
         $is_coach_only = $is_coach && !$is_staff;
         $menu_def = array(
             // --- Personal (require active enrollment) ---
-            array('my-profile',     'hl_user_profile',         __('My Profile', 'hl-core'),     'dashicons-admin-users',          $has_enrollment || $is_staff || $is_coach),
-            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment && ($is_teacher || $is_mentor || $is_leader || $is_staff)),
+            array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment && ($is_teacher || $is_mentor || $is_leader || $is_staff || $is_coach)),
             array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $is_mentor && !$is_control_only),
             array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor || $is_teacher),
             // --- Leader ---
@@ -397,7 +396,7 @@ class HL_BuddyBoss_Integration {
             // --- Directories / Management ---
             array('cycles',         'hl_cycles_listing',       __('Cycles', 'hl-core'),         'dashicons-groups',               $is_staff),
             array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'dashicons-welcome-learn-more',   $is_staff || $is_leader || $is_teacher || $is_mentor),
-            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'dashicons-id-alt',               $is_staff),
+            array('learners',       'hl_learners',             __('Learners', 'hl-core'),       'dashicons-id-alt',               $is_staff || $is_coach),
             // --- Staff tools ---
             array('pathways',       'hl_pathways_listing',     __('Pathways', 'hl-core'),       'dashicons-randomize',            false),
             array('coaching-hub',   'hl_coaching_hub',         __('Coaching Hub', 'hl-core'),   'dashicons-format-chat',          $is_staff),
