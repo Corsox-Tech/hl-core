@@ -363,6 +363,12 @@ class HL_Import_Participant_Handler {
                             $routed_user_id ? __('auto-routed based on course history', 'hl-core') : __('default for new participants', 'hl-core')
                         );
                     }
+                } else {
+                    $preview['validation_messages'][] = sprintf(
+                        __('Warning: No pathway auto-assigned for role "%s". Ensure pathways exist in this cycle or assign manually via CSV.', 'hl-core'),
+                        $parsed_role
+                    );
+                    $preview['proposed_actions'][] = __('Pathway: none (auto-routing found no match)', 'hl-core');
                 }
             }
 
@@ -735,15 +741,29 @@ class HL_Import_Participant_Handler {
                     $matched_pw = isset($pathway_by_name[$pw_key]) ? $pathway_by_name[$pw_key]
                         : (isset($pathway_by_code[$pw_key]) ? $pathway_by_code[$pw_key] : null);
                     if ($matched_pw) {
-                        $pathway_service->assign_pathway($enrollment_id, (int) $matched_pw['pathway_id'], 'explicit');
+                        $pw_result = $pathway_service->assign_pathway($enrollment_id, (int) $matched_pw['pathway_id'], 'explicit');
+                        if (is_wp_error($pw_result)) {
+                            error_log(sprintf('[HL Import] assign_pathway failed: enrollment=%d, pathway=%d, error=%s', $enrollment_id, (int) $matched_pw['pathway_id'], $pw_result->get_error_message()));
+                        }
                     }
                 } elseif ($row['status'] === 'CREATE' || $row['status'] === 'WARNING' || !empty($row['role_changed'])) {
                     if (!empty($row['routed_pathway_id']) && isset($valid_pathway_ids[(int) $row['routed_pathway_id']])) {
-                        $pathway_service->assign_pathway($enrollment_id, (int) $row['routed_pathway_id'], 'role_default');
+                        $pw_result = $pathway_service->assign_pathway($enrollment_id, (int) $row['routed_pathway_id'], 'role_default');
+                        if (is_wp_error($pw_result)) {
+                            error_log(sprintf('[HL Import] assign_pathway failed: enrollment=%d, pathway=%d, error=%s', $enrollment_id, (int) $row['routed_pathway_id'], $pw_result->get_error_message()));
+                        }
                     } else {
                         $routed_id = HL_Pathway_Routing_Service::resolve_pathway($user_id, $role, $cycle_id);
                         if ($routed_id) {
-                            $pathway_service->assign_pathway($enrollment_id, $routed_id, 'role_default');
+                            $pw_result = $pathway_service->assign_pathway($enrollment_id, $routed_id, 'role_default');
+                            if (is_wp_error($pw_result)) {
+                                error_log(sprintf('[HL Import] assign_pathway failed: enrollment=%d, pathway=%d, error=%s', $enrollment_id, $routed_id, $pw_result->get_error_message()));
+                            }
+                        } else {
+                            error_log(sprintf(
+                                '[HL Import] Pathway routing returned null at commit: user=%d, role=%s, cycle=%d, email=%s',
+                                $user_id, $role, $cycle_id, $email
+                            ));
                         }
                     }
                 }

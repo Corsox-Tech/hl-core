@@ -110,6 +110,10 @@ class HL_Pathway_Routing_Service {
             // (this allows non-B2E cycles to fall through gracefully)
         }
 
+        error_log(sprintf(
+            '[HL Routing] No pathway resolved: user=%s, role=%s, cycle=%d, completed_stages=[%s]',
+            $user_id ?: 'new', $normalized_role, $cycle_id, implode(',', $completed_stages)
+        ));
         return null;
     }
 
@@ -188,7 +192,14 @@ class HL_Pathway_Routing_Service {
             $pathway_code, $partnership_id
         ));
 
-        return $pathway_id ? (int) $pathway_id : null;
+        if ($pathway_id) {
+            error_log(sprintf(
+                '[HL Routing] Cross-cycle fallback used: code=%s, target_cycle=%d, resolved_pathway=%d (from another cycle in same partnership)',
+                $pathway_code, $cycle_id, $pathway_id
+            ));
+            return (int) $pathway_id;
+        }
+        return null;
     }
 
     /**
