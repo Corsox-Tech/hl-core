@@ -280,11 +280,12 @@ body.hl-app {
    3. TYPOGRAPHY
    ===================================================== */
 
+/* Heading weight/line-height — NO color here; headings inherit from
+   their parent so white-on-dark heroes work without specificity fights. */
 .hl-dashboard h1,
 .hl-dashboard h2,
 .hl-dashboard h3,
 .hl-dashboard h4 {
-    color: var(--hl-text-heading);
     font-weight: 700;
     line-height: 1.3;
 }
