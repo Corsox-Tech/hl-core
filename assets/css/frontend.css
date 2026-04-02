@@ -118,37 +118,15 @@
 }
 
 /* =====================================================
-   0. BUDDYBOSS FIXED-HEADER OFFSET
-   BuddyBoss uses a fixed/sticky header that overlaps page
-   content. scroll-padding-top ensures in-page anchors,
-   scrollIntoView, and browser scroll restoration clear it.
+   0. SCROLL OFFSET FOR FIXED TOPBAR
    ===================================================== */
 html {
-    scroll-padding-top: 80px;
+    scroll-padding-top: 70px;
 }
 
 /* =====================================================
-   1. HIDE BUDDYBOSS THEME PAGE TITLE ON HL PAGES
-   ===================================================== */
-
-.hl-dashboard ~ .entry-title,
-.hl-dashboard ~ h1.entry-title,
-.entry-header:has(+ .entry-content .hl-dashboard),
-.hl-dashboard + .entry-title {
-    display: none !important;
-}
-
-body:has(.hl-dashboard) .entry-header .entry-title,
-body:has(.hl-dashboard) article > .entry-title,
-body:has(.hl-dashboard) .bb-grid > .entry-title,
-body:has(.hl-dashboard) h1.entry-title {
-    display: none !important;
-}
-
-/* =====================================================
-   1b. GLOBAL FONT & BUDDYBOSS OVERRIDES
-   Force Inter everywhere. Neutralize BB theme styles
-   that bleed into HL Core page content.
+   1b. GLOBAL FONT & BASE STYLES
+   Typography, links, headings, form elements, tables.
    ===================================================== */
 
 /* Global Inter — all pages are HL Core now */
@@ -158,75 +136,74 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* BB theme resets inside HL containers */
-body.buddyboss-theme .entry-content [class*="hl-"],
-body.buddyboss-theme .entry-content [class*="hlap-"],
-body.buddyboss-theme .entry-content [class*="hlcd-"],
-body.buddyboss-theme .entry-content [class*="hlcm-"],
-body.buddyboss-theme .entry-content [class*="hlcr-"],
-body.buddyboss-theme .entry-content [class*="hlca-"],
-body.buddyboss-theme .entry-content [class*="hlch-"],
-body.buddyboss-theme .entry-content [class*="hlmc-"],
-body.buddyboss-theme .entry-content [class*="hlrn-"],
-body.buddyboss-theme .entry-content [class*="hlss-"],
-body.buddyboss-theme .entry-content [class*="hlup-"] {
-    font-family: var(--hl-font) !important;
+/* Base resets inside HL app */
+.hl-app [class*="hl-"],
+.hl-app [class*="hlap-"],
+.hl-app [class*="hlcd-"],
+.hl-app [class*="hlcm-"],
+.hl-app [class*="hlcr-"],
+.hl-app [class*="hlca-"],
+.hl-app [class*="hlch-"],
+.hl-app [class*="hlmc-"],
+.hl-app [class*="hlrn-"],
+.hl-app [class*="hlss-"],
+.hl-app [class*="hlup-"] {
+    font-family: var(--hl-font);
     color: var(--hl-text);
     line-height: 1.6;
 }
 
-/* BB link color override */
-body.buddyboss-theme .entry-content [class*="hl-"] a:not(.hl-btn):not([class*="hl-btn"]),
-body.buddyboss-theme .entry-content [class*="hl-"] a:not(.hl-btn):not([class*="hl-btn"]) {
+/* Link colors */
+.hl-app [class*="hl-"] a:not(.hl-btn):not([class*="hl-btn"]) {
     color: var(--hl-interactive);
     transition: var(--hl-transition);
 }
-body.buddyboss-theme .entry-content [class*="hl-"] a:not(.hl-btn):hover {
+.hl-app [class*="hl-"] a:not(.hl-btn):hover {
     color: var(--hl-interactive-dark);
 }
 
-/* BB heading overrides */
-body.buddyboss-theme .entry-content [class*="hl-"] h1,
-body.buddyboss-theme .entry-content [class*="hl-"] h2,
-body.buddyboss-theme .entry-content [class*="hl-"] h3,
-body.buddyboss-theme .entry-content [class*="hl-"] h4 {
-    font-family: var(--hl-font) !important;
+/* Headings */
+.hl-app [class*="hl-"] h1,
+.hl-app [class*="hl-"] h2,
+.hl-app [class*="hl-"] h3,
+.hl-app [class*="hl-"] h4 {
+    font-family: var(--hl-font);
     color: var(--hl-text-heading);
     font-weight: 700;
     line-height: 1.3;
 }
 
-/* BB form element overrides */
-body.buddyboss-theme .entry-content [class*="hl-"] input[type="text"],
-body.buddyboss-theme .entry-content [class*="hl-"] input[type="email"],
-body.buddyboss-theme .entry-content [class*="hl-"] input[type="number"],
-body.buddyboss-theme .entry-content [class*="hl-"] input[type="search"],
-body.buddyboss-theme .entry-content [class*="hl-"] input[type="date"],
-body.buddyboss-theme .entry-content [class*="hl-"] select,
-body.buddyboss-theme .entry-content [class*="hl-"] textarea {
-    font-family: var(--hl-font) !important;
-    border: 1px solid var(--hl-border) !important;
-    border-radius: var(--hl-radius-xs) !important;
-    padding: 10px 14px !important;
-    font-size: 14px !important;
-    color: var(--hl-text) !important;
-    background: var(--hl-surface) !important;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
-    outline: none !important;
+/* Form elements */
+.hl-app [class*="hl-"] input[type="text"],
+.hl-app [class*="hl-"] input[type="email"],
+.hl-app [class*="hl-"] input[type="number"],
+.hl-app [class*="hl-"] input[type="search"],
+.hl-app [class*="hl-"] input[type="date"],
+.hl-app [class*="hl-"] select,
+.hl-app [class*="hl-"] textarea {
+    font-family: var(--hl-font);
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-xs);
+    padding: 10px 14px;
+    font-size: 14px;
+    color: var(--hl-text);
+    background: var(--hl-surface);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    outline: none;
 }
-body.buddyboss-theme .entry-content [class*="hl-"] input:focus,
-body.buddyboss-theme .entry-content [class*="hl-"] select:focus,
-body.buddyboss-theme .entry-content [class*="hl-"] textarea:focus {
-    border-color: var(--hl-interactive) !important;
-    box-shadow: 0 0 0 3px var(--hl-interactive-bg) !important;
+.hl-app [class*="hl-"] input:focus,
+.hl-app [class*="hl-"] select:focus,
+.hl-app [class*="hl-"] textarea:focus {
+    border-color: var(--hl-interactive);
+    box-shadow: 0 0 0 3px var(--hl-interactive-bg);
 }
 
-/* BB table overrides */
-body.buddyboss-theme .entry-content [class*="hl-"] table {
+/* Tables */
+.hl-app [class*="hl-"] table {
     border-collapse: collapse;
     width: 100%;
 }
-body.buddyboss-theme .entry-content [class*="hl-"] table th {
+.hl-app [class*="hl-"] table th {
     text-align: left;
     padding: 10px 14px;
     font-size: 11px;
@@ -237,13 +214,13 @@ body.buddyboss-theme .entry-content [class*="hl-"] table th {
     border-bottom: 2px solid var(--hl-border);
     background: transparent;
 }
-body.buddyboss-theme .entry-content [class*="hl-"] table td {
+.hl-app [class*="hl-"] table td {
     padding: 12px 14px;
     font-size: 14px;
     color: var(--hl-text);
     border-bottom: 1px solid var(--hl-border-light);
 }
-body.buddyboss-theme .entry-content [class*="hl-"] table tr:hover td {
+.hl-app [class*="hl-"] table tr:hover td {
     background: var(--hl-bg-subtle);
 }
 
@@ -6643,103 +6620,6 @@ article:has(.hlup-wrapper) > .entry-header {
    Replaces BuddyBoss BuddyPanel for all HL pages.
    ===================================================== */
 
-/* =================================================================
-   BB FULL TAKEOVER — Hide EVERYTHING from BuddyBoss theme and
-   replace with HL Core's own sidebar + content layout.
-
-   BB DOM structure:
-     body.bb-buddypanel.buddypanel-open
-       aside.buddypanel              ← HIDE (BB left sidebar)
-       div#page.site                 ← RESET margins (BB adds 230px)
-         header#masthead.site-header ← HIDE (BB top navbar)
-         div#content.site-content
-           div.container
-             div.bb-grid             ← RESET (BB inner grid)
-         footer                      ← HIDE
-   ================================================================= */
-
-/* 1. Hide BB buddypanel sidebar */
-body.hl-has-sidebar .buddypanel,
-body.hl-has-sidebar .bb-mobile-panel-wrapper {
-    display: none !important;
-}
-
-/* 2. Hide BB top header/navbar */
-body.hl-has-sidebar #masthead,
-body.hl-has-sidebar .site-header {
-    display: none !important;
-}
-
-/* 3. Hide WP admin bar */
-body.hl-has-sidebar #wpadminbar {
-    display: none !important;
-}
-html.hl-has-sidebar-html {
-    margin-top: 0 !important;
-}
-
-/* 4. Hide BB/Elementor footer */
-body.hl-has-sidebar .site-footer,
-body.hl-has-sidebar #colophon,
-body.hl-has-sidebar footer.footer-wrap,
-body.hl-has-sidebar .elementor-location-footer,
-body.hl-has-sidebar .bb-footer {
-    display: none !important;
-}
-
-/* 5. Hide BB page title */
-body.hl-has-sidebar .entry-header,
-body.hl-has-sidebar h1.entry-title {
-    display: none !important;
-}
-
-/* 6. KILL BB's margin-left on #page.site
-   BB sets margin-left: 230px (open) or 68px (closed) on .site
-   to make room for the buddypanel. We must nuke ALL of these. */
-body.hl-has-sidebar .site,
-body.hl-has-sidebar #page,
-body.hl-has-sidebar.bb-buddypanel .site,
-body.hl-has-sidebar.buddypanel-open .site,
-body.hl-has-sidebar.bb-buddypanel:not(.buddypanel-open) .site {
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    transition: none !important;
-}
-
-/* 7. Simple layout: sidebar is fixed, content gets margin-left.
-   No grid needed — fixed sidebar doesn't participate in flow. */
-body.hl-has-sidebar .site,
-body.hl-has-sidebar #page {
-    display: block !important;
-    margin-left: 240px !important;
-    min-height: 100vh !important;
-    width: auto !important;
-    max-width: none !important;
-}
-
-/* 8. Content area fills remaining space */
-body.hl-has-sidebar #content,
-body.hl-has-sidebar .site-content {
-    width: 100% !important;
-    min-width: 0 !important;
-}
-
-/* 9. Kill BB inner grid/container constraints */
-body.hl-has-sidebar .bb-grid,
-body.hl-has-sidebar .site-content-grid {
-    display: block !important;
-    max-width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-}
-body.hl-has-sidebar .container {
-    max-width: 100% !important;
-    width: 100% !important;
-    padding: 0 !important;
-}
-
 /* Sidebar base — fixed position, always visible */
 .hl-sidebar {
     position: fixed !important;
@@ -6802,10 +6682,9 @@ body.hl-has-sidebar .container {
     padding: 12px 8px 4px;
 }
 
-/* Nav items — !important needed to override BB theme link colors */
+/* Nav items */
 .hl-sidebar__item,
-.hl-sidebar a.hl-sidebar__item,
-body.buddyboss-theme .hl-sidebar a.hl-sidebar__item {
+.hl-sidebar a.hl-sidebar__item {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -6819,15 +6698,13 @@ body.buddyboss-theme .hl-sidebar a.hl-sidebar__item {
     cursor: pointer;
 }
 .hl-sidebar__item:hover,
-.hl-sidebar a.hl-sidebar__item:hover,
-body.buddyboss-theme .hl-sidebar a.hl-sidebar__item:hover {
+.hl-sidebar a.hl-sidebar__item:hover {
     background: rgba(255,255,255,0.06);
     color: rgba(255,255,255,0.85) !important;
     text-decoration: none !important;
 }
 .hl-sidebar__item--active,
-.hl-sidebar a.hl-sidebar__item--active,
-body.buddyboss-theme .hl-sidebar a.hl-sidebar__item--active {
+.hl-sidebar a.hl-sidebar__item--active {
     background: rgba(255,255,255,0.1);
     color: #fff !important;
 }
@@ -6902,15 +6779,12 @@ body.buddyboss-theme .hl-sidebar a.hl-sidebar__item--active {
     font-size: 12px;
 }
 
-/* Content area padding — offset for fixed top bar (56px) */
-body.hl-has-sidebar .entry-content {
-    padding: 80px 32px 24px !important;
+/* Content area — offset for fixed topbar (56px) + sidebar (240px) */
+.hl-app__content {
+    margin-left: 240px;
+    padding: 80px 32px 24px;
     background: var(--hl-bg);
     min-height: 100vh;
-    max-width: none !important;
-}
-body.hl-has-sidebar #content {
-    padding-top: 0 !important;
 }
 
 /* =====================================================
@@ -7043,9 +6917,8 @@ body.hl-has-sidebar #content {
 
 /* Responsive: collapse sidebar on small screens */
 @media (max-width: 1024px) {
-    body.hl-has-sidebar .site,
-    body.hl-has-sidebar #page {
-        margin-left: 0 !important;
+    .hl-app__content {
+        margin-left: 0;
     }
     .hl-sidebar {
         transform: translateX(-100%);
@@ -7053,6 +6926,9 @@ body.hl-has-sidebar #content {
     }
     .hl-sidebar.hl-sidebar--open {
         transform: translateX(0);
+    }
+    .hl-topbar {
+        left: 0;
     }
 }
 
