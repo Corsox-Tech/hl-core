@@ -6814,8 +6814,17 @@ button.hl-btn-danger:hover,
     padding: 72px 32px 24px;
     background: var(--hl-bg);
     min-height: 100vh;
-    max-width: 1200px;
     box-sizing: border-box;
+}
+@media (min-width: 1600px) {
+    .hl-app__content {
+        padding: 72px 48px 24px;
+    }
+}
+@media (min-width: 1920px) {
+    .hl-app__content {
+        padding: 72px 64px 24px;
+    }
 }
 
 /* =====================================================
