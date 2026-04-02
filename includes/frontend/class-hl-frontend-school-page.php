@@ -158,27 +158,31 @@ class HL_Frontend_School_Page {
 
     private function render_header( $school, $parent_district, $district_page_url ) {
         ?>
-        <div class="hl-crm-detail-header">
-            <div class="hl-crm-detail-header-info">
-                <h2 class="hl-cycle-title"><?php echo esc_html( $school->name ); ?></h2>
-                <?php if ( $parent_district ) :
-                    $d_url = $district_page_url
-                        ? add_query_arg( 'id', $parent_district->orgunit_id, $district_page_url )
-                        : '';
-                ?>
-                    <p class="hl-scope-indicator">
-                        <?php if ( $d_url ) : ?>
-                            <a href="<?php echo esc_url( $d_url ); ?>">
-                                <?php echo esc_html( $parent_district->name ); ?>
-                            </a>
-                        <?php else : ?>
-                            <?php echo esc_html( $parent_district->name ); ?>
-                        <?php endif; ?>
-                    </p>
-                <?php endif; ?>
-            </div>
+    <div class="hl-page-hero">
+        <div class="hl-page-hero__icon">
+            <span class="dashicons dashicons-building"></span>
         </div>
-        <?php
+        <div class="hl-page-hero__text">
+            <span class="hl-page-hero__tag"><?php esc_html_e( 'School', 'hl-core' ); ?></span>
+            <h2 class="hl-page-hero__title"><?php echo esc_html( $school->name ); ?></h2>
+            <?php if ( $parent_district ) :
+                $d_url = $district_page_url
+                    ? add_query_arg( 'id', $parent_district->orgunit_id, $district_page_url )
+                    : '';
+            ?>
+                <p class="hl-page-hero__subtitle">
+                    <?php if ( $d_url ) : ?>
+                        <a href="<?php echo esc_url( $d_url ); ?>" style="color: rgba(255,255,255,0.65); text-decoration: underline;">
+                            <?php echo esc_html( $parent_district->name ); ?>
+                        </a>
+                    <?php else : ?>
+                        <?php echo esc_html( $parent_district->name ); ?>
+                    <?php endif; ?>
+                </p>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
     }
 
     // ========================================================================
