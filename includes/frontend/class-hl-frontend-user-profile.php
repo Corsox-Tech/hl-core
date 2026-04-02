@@ -265,23 +265,25 @@ class HL_Frontend_User_Profile {
         }
 
         // Detect if current session is switched (return-to-original).
-        $old_user = null;
-        if (function_exists('user_switching_get_old_user')) {
+        $old_user        = null;
+        $profile_switch_back_url = '';
+        if (class_exists('BP_Core_Members_Switching')) {
+            $old_user = BP_Core_Members_Switching::get_old_user();
+            if ($old_user) {
+                $profile_switch_back_url = BP_Core_Members_Switching::switch_back_url($old_user);
+            }
+        } elseif (function_exists('user_switching_get_old_user')) {
             $old_user = user_switching_get_old_user();
+            if ($old_user) {
+                $profile_switch_back_url = user_switching_get_switchback_url();
+            }
         }
 
         ?>
         <div class="hlup-wrapper">
 
-            <?php if ($old_user) : ?>
-                <?php
-                $switch_back_url = '';
-                if (class_exists('BP_Core_Members_Switching') && method_exists('BP_Core_Members_Switching', 'switch_off_url')) {
-                    $switch_back_url = BP_Core_Members_Switching::switch_off_url(wp_get_current_user());
-                } elseif (function_exists('user_switching_get_switchback_url')) {
-                    $switch_back_url = user_switching_get_switchback_url();
-                }
-                ?>
+            <?php if ($old_user && $profile_switch_back_url) : ?>
+                <?php $switch_back_url = $profile_switch_back_url; ?>
                 <?php if ($switch_back_url) : ?>
                 <div class="hlup-switch-banner">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 1 1 0 8h-1"/></svg>

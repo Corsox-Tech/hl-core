@@ -21,13 +21,17 @@ $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
 $user = wp_get_current_user();
 $display_name = $user->display_name ?: $user->user_login;
 
-// Detect "View As" session (User Switching / BuddyBoss Members Switching).
-$old_user         = function_exists('user_switching_get_old_user') ? user_switching_get_old_user() : null;
-$switch_back_url  = '';
-if ($old_user) {
-    if (class_exists('BP_Core_Members_Switching') && method_exists('BP_Core_Members_Switching', 'switch_off_url')) {
-        $switch_back_url = BP_Core_Members_Switching::switch_off_url($user);
-    } elseif (function_exists('user_switching_get_switchback_url')) {
+// Detect "View As" session (BuddyBoss Members Switching or User Switching plugin).
+$old_user        = null;
+$switch_back_url = '';
+if (class_exists('BP_Core_Members_Switching')) {
+    $old_user = BP_Core_Members_Switching::get_old_user();
+    if ($old_user) {
+        $switch_back_url = BP_Core_Members_Switching::switch_back_url($old_user);
+    }
+} elseif (function_exists('user_switching_get_old_user')) {
+    $old_user = user_switching_get_old_user();
+    if ($old_user) {
         $switch_back_url = user_switching_get_switchback_url();
     }
 }
