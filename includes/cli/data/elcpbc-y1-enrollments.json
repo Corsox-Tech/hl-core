@@ -1,0 +1,436 @@
+[
+    {
+        "enrollment_id": "197",
+        "user_id": "279",
+        "user_email": "Micheline.Alcin@elcpalmbeach.org",
+        "roles": "[\"district_leader\"]",
+        "school_name": null
+    },
+    {
+        "enrollment_id": "198",
+        "user_id": "280",
+        "user_email": "akia.davis@elcpalmbeach.org",
+        "roles": "[\"district_leader\"]",
+        "school_name": null
+    },
+    {
+        "enrollment_id": "199",
+        "user_id": "281",
+        "user_email": "aruna.gilbert@elcpalmbeach.org",
+        "roles": "[\"district_leader\"]",
+        "school_name": null
+    },
+    {
+        "enrollment_id": "200",
+        "user_id": "282",
+        "user_email": "crystal.a.f@aol.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "King's Kids"
+    },
+    {
+        "enrollment_id": "201",
+        "user_id": "283",
+        "user_email": "lifespancowart@aol.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Life Span"
+    },
+    {
+        "enrollment_id": "202",
+        "user_id": "284",
+        "user_email": "beauty.brown28330@gmail.com",
+        "roles": "[\"mentor\"]",
+        "school_name": "Life Span"
+    },
+    {
+        "enrollment_id": "203",
+        "user_id": "285",
+        "user_email": "sheenawillis85@gmail.com",
+        "roles": "[\"mentor\"]",
+        "school_name": "WeeCare"
+    },
+    {
+        "enrollment_id": "204",
+        "user_id": "286",
+        "user_email": "victoriaashanderson561@gmail.com",
+        "roles": "[\"mentor\"]",
+        "school_name": "Stepping Stones"
+    },
+    {
+        "enrollment_id": "205",
+        "user_id": "287",
+        "user_email": "quittia18@yahoo.com",
+        "roles": "[\"mentor\"]",
+        "school_name": "ABC Playschool"
+    },
+    {
+        "enrollment_id": "206",
+        "user_id": "288",
+        "user_email": "scottmyrtice1960@gmail.com",
+        "roles": "[\"mentor\"]",
+        "school_name": "Bright IDEAS"
+    },
+    {
+        "enrollment_id": "207",
+        "user_id": "289",
+        "user_email": "violablackmon5@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "WeeCare"
+    },
+    {
+        "enrollment_id": "208",
+        "user_id": "290",
+        "user_email": "syricketts@gmail.com",
+        "roles": "[\"school_leader\"]",
+        "school_name": "ABC Playschool"
+    },
+    {
+        "enrollment_id": "209",
+        "user_id": "291",
+        "user_email": "bideas4@aol.com",
+        "roles": "[\"school_leader\"]",
+        "school_name": "Bright IDEAS"
+    },
+    {
+        "enrollment_id": "210",
+        "user_id": "292",
+        "user_email": "harmoni_2107@yahoo.com",
+        "roles": "[\"school_leader\"]",
+        "school_name": "King's Kids"
+    },
+    {
+        "enrollment_id": "211",
+        "user_id": "293",
+        "user_email": "lifespanbrown@aol.com",
+        "roles": "[\"school_leader\"]",
+        "school_name": "Life Span"
+    },
+    {
+        "enrollment_id": "212",
+        "user_id": "294",
+        "user_email": "steppingsto3401@bellsouth.net",
+        "roles": "[\"school_leader\"]",
+        "school_name": "Stepping Stones"
+    },
+    {
+        "enrollment_id": "213",
+        "user_id": "295",
+        "user_email": "analena01@gmail.com",
+        "roles": "[\"school_leader\"]",
+        "school_name": "WeeCare"
+    },
+    {
+        "enrollment_id": "214",
+        "user_id": "296",
+        "user_email": "jendavis12344@gmail.com",
+        "roles": "[\"mentor\"]",
+        "school_name": "King's Kids"
+    },
+    {
+        "enrollment_id": "215",
+        "user_id": "297",
+        "user_email": "thelmabuddington@yahoo.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "King's Kids"
+    },
+    {
+        "enrollment_id": "216",
+        "user_id": "298",
+        "user_email": "nakaiya890@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "King's Kids"
+    },
+    {
+        "enrollment_id": "217",
+        "user_id": "299",
+        "user_email": "ttoy1649@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "King's Kids"
+    },
+    {
+        "enrollment_id": "218",
+        "user_id": "301",
+        "user_email": "Msmotiv8ed@yahoo.com",
+        "roles": "[\"mentor\"]",
+        "school_name": "King's Kids"
+    },
+    {
+        "enrollment_id": "219",
+        "user_id": "302",
+        "user_email": "Parketracy69@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "ABC Playschool"
+    },
+    {
+        "enrollment_id": "220",
+        "user_id": "303",
+        "user_email": "mendozarebecca0531@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "ABC Playschool"
+    },
+    {
+        "enrollment_id": "221",
+        "user_id": "304",
+        "user_email": "chantehobbs38@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "ABC Playschool"
+    },
+    {
+        "enrollment_id": "222",
+        "user_id": "305",
+        "user_email": "antkeriasmith82@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "ABC Playschool"
+    },
+    {
+        "enrollment_id": "223",
+        "user_id": "306",
+        "user_email": "shortyred0305@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Bright IDEAS"
+    },
+    {
+        "enrollment_id": "224",
+        "user_id": "307",
+        "user_email": "lrawls0522@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Bright IDEAS"
+    },
+    {
+        "enrollment_id": "225",
+        "user_id": "308",
+        "user_email": "leti1805@icloud.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Bright IDEAS"
+    },
+    {
+        "enrollment_id": "226",
+        "user_id": "309",
+        "user_email": "deashantij1@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Bright IDEAS"
+    },
+    {
+        "enrollment_id": "227",
+        "user_id": "310",
+        "user_email": "law7806@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Bright IDEAS"
+    },
+    {
+        "enrollment_id": "228",
+        "user_id": "312",
+        "user_email": "jorannepamelusfleurius@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Life Span"
+    },
+    {
+        "enrollment_id": "229",
+        "user_id": "313",
+        "user_email": "veronica456@live.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "WeeCare"
+    },
+    {
+        "enrollment_id": "230",
+        "user_id": "314",
+        "user_email": "vixamar208@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "WeeCare"
+    },
+    {
+        "enrollment_id": "231",
+        "user_id": "316",
+        "user_email": "mlurry98@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Life Span"
+    },
+    {
+        "enrollment_id": "232",
+        "user_id": "318",
+        "user_email": "shirleneslater7@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Life Span"
+    },
+    {
+        "enrollment_id": "233",
+        "user_id": "319",
+        "user_email": "shawnieshawn1985@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "WeeCare"
+    },
+    {
+        "enrollment_id": "234",
+        "user_id": "320",
+        "user_email": "carlawilliams717@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "WeeCare"
+    },
+    {
+        "enrollment_id": "235",
+        "user_id": "322",
+        "user_email": "cyariwil2@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Life Span"
+    },
+    {
+        "enrollment_id": "236",
+        "user_id": "323",
+        "user_email": "robin_byrdsong@yahoo.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "WeeCare"
+    },
+    {
+        "enrollment_id": "237",
+        "user_id": "324",
+        "user_email": "northend_fullham@aol.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "WeeCare"
+    },
+    {
+        "enrollment_id": "238",
+        "user_id": "325",
+        "user_email": "shannola45@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "WeeCare"
+    },
+    {
+        "enrollment_id": "239",
+        "user_id": "326",
+        "user_email": "frozenaperry59@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Stepping Stones"
+    },
+    {
+        "enrollment_id": "240",
+        "user_id": "327",
+        "user_email": "zoeelizabeth0204@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Stepping Stones"
+    },
+    {
+        "enrollment_id": "241",
+        "user_id": "328",
+        "user_email": "Deliaacct@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Stepping Stones"
+    },
+    {
+        "enrollment_id": "242",
+        "user_id": "329",
+        "user_email": "jimenez.marieang@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Stepping Stones"
+    },
+    {
+        "enrollment_id": "243",
+        "user_id": "330",
+        "user_email": "shirleywilliswilson@gmail.com",
+        "roles": "[\"mentor\"]",
+        "school_name": "Stepping Stones"
+    },
+    {
+        "enrollment_id": "244",
+        "user_id": "341",
+        "user_email": "arlene.waters@palmbeachschools.org",
+        "roles": "[\"teacher\"]",
+        "school_name": "Stepping Stones"
+    },
+    {
+        "enrollment_id": "245",
+        "user_id": "342",
+        "user_email": "candacetalton@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "King's Kids"
+    },
+    {
+        "enrollment_id": "246",
+        "user_id": "343",
+        "user_email": "ednajgrant@yahoo.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Bright IDEAS"
+    },
+    {
+        "enrollment_id": "247",
+        "user_id": "344",
+        "user_email": "ms.lisatalton@yahoo.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "King's Kids"
+    },
+    {
+        "enrollment_id": "248",
+        "user_id": "345",
+        "user_email": "martinhershel0621@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Life Span"
+    },
+    {
+        "enrollment_id": "249",
+        "user_id": "346",
+        "user_email": "jenarriak@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "King's Kids"
+    },
+    {
+        "enrollment_id": "250",
+        "user_id": "347",
+        "user_email": "shanelsmith37@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Stepping Stones"
+    },
+    {
+        "enrollment_id": "251",
+        "user_id": "339",
+        "user_email": "nateriajones@icloud.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "ABC Playschool"
+    },
+    {
+        "enrollment_id": "252",
+        "user_id": "340",
+        "user_email": "dixonbetty299@gmail.com",
+        "roles": "[\"mentor\"]",
+        "school_name": "WeeCare"
+    },
+    {
+        "enrollment_id": "253",
+        "user_id": "348",
+        "user_email": "marshallquaysha5@icloud.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "ABC Playschool"
+    },
+    {
+        "enrollment_id": "254",
+        "user_id": "350",
+        "user_email": "Jerri159@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Stepping Stones"
+    },
+    {
+        "enrollment_id": "255",
+        "user_id": "367",
+        "user_email": "erin.gallagher@elcpalmbeach.org",
+        "roles": "[\"district_leader\"]",
+        "school_name": null
+    },
+    {
+        "enrollment_id": "256",
+        "user_id": "358",
+        "user_email": "ltnmcfrl@aol.com",
+        "roles": "[\"school_leader\"]",
+        "school_name": "ABC Playschool"
+    },
+    {
+        "enrollment_id": "257",
+        "user_id": "1408",
+        "user_email": "tashapagan1045@gmail.com",
+        "roles": "[\"mentor\"]",
+        "school_name": "Bright IDEAS"
+    },
+    {
+        "enrollment_id": "258",
+        "user_id": "1490",
+        "user_email": "zariahxlynn@gmail.com",
+        "roles": "[\"teacher\"]",
+        "school_name": "Stepping Stones"
+    }
+]

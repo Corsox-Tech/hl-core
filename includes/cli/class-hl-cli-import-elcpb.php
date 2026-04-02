@@ -326,12 +326,17 @@ class HL_CLI_Import_ELCPB {
 				continue;
 			}
 
-			// Determine role from LD group membership.
-			$role = $this->determine_role( $user_id );
+			// Check production data override first, then fall back to LD group detection.
+			$wp_user = get_user_by( 'id', $user_id );
+			$override_role = $wp_user ? $this->get_prod_role_override( $wp_user->user_email ) : null;
+			$role = $override_role ? $override_role : $this->determine_role( $user_id );
 			if ( ! $role ) {
 				WP_CLI::warning( "  User {$user_id} not in any recognized LD group — skipping." );
 				$skipped++;
 				continue;
+			}
+			if ( $override_role ) {
+				WP_CLI::log( "    Role override applied for {$wp_user->user_email}: {$override_role}" );
 			}
 
 			// Determine school from LD institution meta.
@@ -375,6 +380,33 @@ class HL_CLI_Import_ELCPB {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Get corrected role from production data snapshot.
+	 * Returns null if email not found (fall back to LD detection).
+	 */
+	private function get_prod_role_override( $user_email ) {
+		static $overrides = null;
+		if ( $overrides === null ) {
+			$json_path = __DIR__ . '/data/elcpbc-y1-enrollments.json';
+			if ( file_exists( $json_path ) ) {
+				$data = json_decode( file_get_contents( $json_path ), true );
+				$overrides = array();
+				if ( is_array( $data ) ) {
+					foreach ( $data as $row ) {
+						$roles = json_decode( $row['roles'], true );
+						$role  = is_array( $roles ) && ! empty( $roles ) ? $roles[0] : null;
+						if ( $role ) {
+							$overrides[ strtolower( trim( $row['user_email'] ) ) ] = $role;
+						}
+					}
+				}
+			} else {
+				$overrides = array();
+			}
+		}
+		return isset( $overrides[ strtolower( trim( $user_email ) ) ] ) ? $overrides[ strtolower( trim( $user_email ) ) ] : null;
 	}
 
 	/**
@@ -629,6 +661,56 @@ class HL_CLI_Import_ELCPB {
 	}
 
 	// ------------------------------------------------------------------
+	// Production completion snapshot loader
+	// ------------------------------------------------------------------
+
+	/**
+	 * Load corrected completion data from production snapshot.
+	 *
+	 * The JSON files contain prod enrollment IDs which differ from test IDs,
+	 * so we join via user email to create a portable lookup.
+	 *
+	 * @return array Keyed by "email_lower|component_title" => state data.
+	 */
+	private function load_prod_completion_data() {
+		static $data = null;
+		if ( $data !== null ) {
+			return $data;
+		}
+		$data = array();
+
+		$enroll_path = __DIR__ . '/data/elcpbc-y1-enrollments.json';
+		$comp_path   = __DIR__ . '/data/elcpbc-y1-completion.json';
+		if ( ! file_exists( $enroll_path ) || ! file_exists( $comp_path ) ) {
+			return $data;
+		}
+
+		$enrollments = json_decode( file_get_contents( $enroll_path ), true );
+		$completions = json_decode( file_get_contents( $comp_path ), true );
+		if ( ! is_array( $enrollments ) || ! is_array( $completions ) ) {
+			return $data;
+		}
+
+		// Build enrollment_id → email map.
+		$eid_to_email = array();
+		foreach ( $enrollments as $e ) {
+			$eid_to_email[ $e['enrollment_id'] ] = strtolower( trim( $e['user_email'] ) );
+		}
+
+		// Build email|title → state map.
+		foreach ( $completions as $row ) {
+			$email = isset( $eid_to_email[ $row['enrollment_id'] ] ) ? $eid_to_email[ $row['enrollment_id'] ] : null;
+			if ( ! $email ) {
+				continue;
+			}
+			$key = $email . '|' . $row['component_title'];
+			$data[ $key ] = $row;
+		}
+
+		return $data;
+	}
+
+	// ------------------------------------------------------------------
 	// Step 10: LearnDash completion data
 	// ------------------------------------------------------------------
 
@@ -636,6 +718,10 @@ class HL_CLI_Import_ELCPB {
 		global $wpdb;
 		$count_complete    = 0;
 		$count_in_progress = 0;
+		$count_from_prod   = 0;
+
+		// Load corrected production completion data (keyed by email|title).
+		$prod_completion = $this->load_prod_completion_data();
 
 		foreach ( $enrollments['all'] as $e ) {
 			$role = $e['role'];
@@ -644,6 +730,10 @@ class HL_CLI_Import_ELCPB {
 			}
 
 			$components = $pathways[ $role ]['components'];
+
+			// Resolve user email once per enrollment for prod snapshot lookup.
+			$user_data  = get_userdata( $e['user_id'] );
+			$user_email = $user_data ? strtolower( trim( $user_data->user_email ) ) : '';
 
 			foreach ( $components as $key => $component_id ) {
 				// Skip non-LD components.
@@ -668,52 +758,96 @@ class HL_CLI_Import_ELCPB {
 					continue; // Placeholder component (e.g., End of Program Reflection with no course_id).
 				}
 
-				// Query LearnDash user activity.
-				$activity = $wpdb->get_row(
+				// Look up component title for prod snapshot matching.
+				$component_title = $wpdb->get_var(
 					$wpdb->prepare(
-						"SELECT activity_status, activity_completed
-						 FROM {$wpdb->prefix}learndash_user_activity
-						 WHERE user_id = %d AND post_id = %d AND activity_type = 'course'
-						 LIMIT 1",
-						$e['user_id'],
-						$course_id
+						"SELECT title FROM {$wpdb->prefix}hl_component WHERE component_id = %d",
+						$component_id
 					)
 				);
 
-				if ( ! $activity ) {
-					continue; // Not started — don't create a state record.
-				}
+				// Check production snapshot first (corrected data).
+				$prod_key   = $user_email . '|' . $component_title;
+				$prod_state = ( $user_email && $component_title && isset( $prod_completion[ $prod_key ] ) )
+					? $prod_completion[ $prod_key ]
+					: null;
 
-				if ( (int) $activity->activity_status === 1 ) {
-					// Complete.
-					$completed_at = $activity->activity_completed
-						? gmdate( 'Y-m-d H:i:s', (int) $activity->activity_completed )
-						: current_time( 'mysql', true );
+				if ( $prod_state ) {
+					// Use production-corrected data.
+					$pct    = (int) $prod_state['completion_percent'];
+					$status = $prod_state['completion_status'];
 
-					$wpdb->insert( $wpdb->prefix . 'hl_component_state', array(
+					// Skip not_started records — no state row needed.
+					if ( $pct === 0 && $status === 'not_started' ) {
+						continue;
+					}
+
+					$insert = array(
 						'enrollment_id'     => $e['enrollment_id'],
 						'component_id'      => $component_id,
-						'completion_percent' => 100,
-						'completion_status'  => 'complete',
-						'completed_at'      => $completed_at,
-						'last_computed_at'  => current_time( 'mysql', true ),
-					) );
-					$count_complete++;
+						'completion_percent' => $pct,
+						'completion_status'  => $status,
+						'last_computed_at'   => current_time( 'mysql', true ),
+					);
+					if ( ! empty( $prod_state['completed_at'] ) ) {
+						$insert['completed_at'] = $prod_state['completed_at'];
+					}
+					$wpdb->insert( $wpdb->prefix . 'hl_component_state', $insert );
+
+					if ( $pct === 100 ) {
+						$count_complete++;
+					} elseif ( $pct > 0 ) {
+						$count_in_progress++;
+					}
+					$count_from_prod++;
 				} else {
-					// In progress.
-					$wpdb->insert( $wpdb->prefix . 'hl_component_state', array(
-						'enrollment_id'     => $e['enrollment_id'],
-						'component_id'      => $component_id,
-						'completion_percent' => 50,
-						'completion_status'  => 'in_progress',
-						'last_computed_at'  => current_time( 'mysql', true ),
-					) );
-					$count_in_progress++;
+					// Fall back to LearnDash activity query.
+					$activity = $wpdb->get_row(
+						$wpdb->prepare(
+							"SELECT activity_status, activity_completed
+							 FROM {$wpdb->prefix}learndash_user_activity
+							 WHERE user_id = %d AND post_id = %d AND activity_type = 'course'
+							 LIMIT 1",
+							$e['user_id'],
+							$course_id
+						)
+					);
+
+					if ( ! $activity ) {
+						continue; // Not started — don't create a state record.
+					}
+
+					if ( (int) $activity->activity_status === 1 ) {
+						// Complete.
+						$completed_at = $activity->activity_completed
+							? gmdate( 'Y-m-d H:i:s', (int) $activity->activity_completed )
+							: current_time( 'mysql', true );
+
+						$wpdb->insert( $wpdb->prefix . 'hl_component_state', array(
+							'enrollment_id'     => $e['enrollment_id'],
+							'component_id'      => $component_id,
+							'completion_percent' => 100,
+							'completion_status'  => 'complete',
+							'completed_at'      => $completed_at,
+							'last_computed_at'  => current_time( 'mysql', true ),
+						) );
+						$count_complete++;
+					} else {
+						// In progress.
+						$wpdb->insert( $wpdb->prefix . 'hl_component_state', array(
+							'enrollment_id'     => $e['enrollment_id'],
+							'component_id'      => $component_id,
+							'completion_percent' => 50,
+							'completion_status'  => 'in_progress',
+							'last_computed_at'  => current_time( 'mysql', true ),
+						) );
+						$count_in_progress++;
+					}
 				}
 			}
 		}
 
-		WP_CLI::log( "  [10] LD completion imported: {$count_complete} complete, {$count_in_progress} in-progress" );
+		WP_CLI::log( "  [10] LD completion imported: {$count_complete} complete, {$count_in_progress} in-progress ({$count_from_prod} from prod snapshot)" );
 	}
 
 	// ------------------------------------------------------------------
