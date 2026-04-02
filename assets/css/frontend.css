@@ -6834,6 +6834,34 @@ article:has(.hlup-wrapper) > .entry-header {
     color: var(--hl-text-secondary);
 }
 
+/* --- View-As topbar indicator --- */
+.hl-topbar--view-as {
+    border-bottom: 2px solid #f59e0b;
+}
+.hl-topbar__dropdown-notice {
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #92400e;
+    background: #fef3c7;
+}
+.hl-topbar__dropdown-item--switch-back {
+    color: #d97706 !important;
+    font-weight: 600;
+}
+.hl-topbar__dropdown-item--switch-back .dashicons {
+    color: #d97706 !important;
+}
+.hl-topbar__dropdown-item--switch-back:hover {
+    background: #fef3c7 !important;
+}
+.hl-topbar__dropdown-divider {
+    height: 1px;
+    background: var(--hl-border);
+}
+
 /* Content area — offset for fixed topbar (48px) + sidebar (240px) */
 .hl-app__content {
     margin-left: 240px;

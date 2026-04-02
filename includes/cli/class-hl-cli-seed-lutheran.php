@@ -1070,6 +1070,7 @@ class HL_CLI_Seed_Lutheran {
 			'cycle_id'     => $cycle_id,
 			'target_roles'  => array( 'teacher' ),
 			'active_status' => 1,
+			'routing_type'  => null,
 		) );
 
 		// Component 1: Teacher Self-Assessment (Pre).

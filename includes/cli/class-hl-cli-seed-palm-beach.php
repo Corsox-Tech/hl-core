@@ -1354,6 +1354,7 @@ class HL_CLI_Seed_Palm_Beach {
 			'cycle_id'     => $cycle_id,
 			'target_roles'  => array( 'teacher' ),
 			'active_status' => 1,
+			'routing_type'  => null,
 		) );
 
 		$ta = array();
@@ -1369,6 +1370,7 @@ class HL_CLI_Seed_Palm_Beach {
 			'cycle_id'     => $cycle_id,
 			'target_roles'  => array( 'mentor' ),
 			'active_status' => 1,
+			'routing_type'  => null,
 		) );
 
 		$ma = array();
@@ -1749,6 +1751,7 @@ class HL_CLI_Seed_Palm_Beach {
 			'cycle_id'     => $control_cycle_id,
 			'target_roles'  => array( 'teacher' ),
 			'active_status' => 1,
+			'routing_type'  => null,
 		) );
 
 		$teacher_pre_instrument_id  = isset( $instruments['teacher_b2e_pre'] ) ? $instruments['teacher_b2e_pre'] : 0;

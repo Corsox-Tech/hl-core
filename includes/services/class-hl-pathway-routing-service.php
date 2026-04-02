@@ -10,6 +10,10 @@ if (!defined('ABSPATH')) exit;
  * Stage definitions and routing rules are hardcoded for the B2E program.
  * For non-B2E cycles, returns null (callers fall back to target_roles matching).
  *
+ * Routing rules reference `routing_type` values (e.g., 'teacher_phase_1'),
+ * which are looked up in the `hl_pathway` table by (routing_type, cycle_id).
+ * This decouples routing from pathway_code, which can vary across clones/renames.
+ *
  * @package HL_Core
  */
 class HL_Pathway_Routing_Service {
@@ -45,23 +49,42 @@ class HL_Pathway_Routing_Service {
      * Routing rules evaluated in priority order. First match wins.
      * Stage matching is INCLUSIVE: user must have completed ALL listed stages (and possibly others).
      *
-     * Each rule: array( role, required_stage_keys, pathway_code )
+     * Each rule: array( role, required_stage_keys, routing_type )
      */
     private static $routing_rules = array(
         // Mentor rules (most specific first)
-        array('mentor',          array('C', 'A', 'D'), 'B2E_MENTOR_COMPLETION'),   // Teacher→Mentor Transition→now just needs MC3+MC4
-        array('mentor',          array('C', 'A'),      'B2E_MENTOR_PHASE_2'),      // Returning mentor (completed Mentor Phase 1)
-        array('mentor',          array('C'),           'B2E_MENTOR_TRANSITION'),    // Teacher promoted to mentor
-        array('mentor',          array(),              'B2E_MENTOR_PHASE_1'),       // New mentor
+        array('mentor',          array('C', 'A', 'D'), 'mentor_completion'),       // Teacher→Mentor Transition→now just needs MC3+MC4
+        array('mentor',          array('C', 'A'),      'mentor_phase_2'),          // Returning mentor (completed Mentor Phase 1)
+        array('mentor',          array('C'),           'mentor_transition'),        // Teacher promoted to mentor
+        array('mentor',          array(),              'mentor_phase_1'),           // New mentor
         // Teacher rules
-        array('teacher',         array('C'),           'B2E_TEACHER_PHASE_2'),     // Returning teacher
-        array('teacher',         array(),              'B2E_TEACHER_PHASE_1'),     // New teacher
-        // Leader rules
-        array('school_leader',   array('E'),           'B2E_STREAMLINED_PHASE_2'),
-        array('school_leader',   array(),              'B2E_STREAMLINED_PHASE_1'),
-        array('district_leader', array('E'),           'B2E_STREAMLINED_PHASE_2'),
-        array('district_leader', array(),              'B2E_STREAMLINED_PHASE_1'),
+        array('teacher',         array('C'),           'teacher_phase_2'),          // Returning teacher
+        array('teacher',         array(),              'teacher_phase_1'),          // New teacher
+        // Leader rules — school_leader and district_leader share streamlined pathways
+        array('school_leader',   array('E'),           'streamlined_phase_2'),
+        array('school_leader',   array(),              'streamlined_phase_1'),
+        array('district_leader', array('E'),           'streamlined_phase_2'),
+        array('district_leader', array(),              'streamlined_phase_1'),
     );
+
+    /**
+     * Valid routing_type values and their human-readable labels.
+     * Used by admin UI dropdowns and validation.
+     *
+     * @return array Associative array of routing_type => label.
+     */
+    public static function get_valid_routing_types() {
+        return array(
+            'teacher_phase_1'      => 'Teacher Phase 1 (new teachers)',
+            'teacher_phase_2'      => 'Teacher Phase 2 (returning teachers)',
+            'mentor_phase_1'       => 'Mentor Phase 1 (new mentors)',
+            'mentor_phase_2'       => 'Mentor Phase 2 (returning mentors)',
+            'mentor_transition'    => 'Mentor Transition (teacher promoted to mentor)',
+            'mentor_completion'    => 'Mentor Completion (completing mentors)',
+            'streamlined_phase_1'  => 'Streamlined Phase 1 (new leaders)',
+            'streamlined_phase_2'  => 'Streamlined Phase 2 (returning leaders)',
+        );
+    }
 
     /**
      * Resolve the correct pathway for a user being enrolled in a cycle.
@@ -82,7 +105,7 @@ class HL_Pathway_Routing_Service {
 
         // Find first matching rule
         foreach (self::$routing_rules as $rule) {
-            list($rule_role, $required_stages, $pathway_code) = $rule;
+            list($rule_role, $required_stages, $routing_type) = $rule;
 
             if ($rule_role !== $normalized_role) {
                 continue;
@@ -101,12 +124,12 @@ class HL_Pathway_Routing_Service {
                 continue;
             }
 
-            // Match found — look up pathway by code in this cycle
-            $pathway_id = self::lookup_pathway_by_code($pathway_code, $cycle_id);
+            // Match found — look up pathway by routing_type in this cycle
+            $pathway_id = self::lookup_pathway_by_routing_type($routing_type, $cycle_id);
             if ($pathway_id) {
                 return $pathway_id;
             }
-            // Pathway code doesn't exist in this cycle — continue to next rule
+            // routing_type doesn't exist in this cycle — continue to next rule
             // (this allows non-B2E cycles to fall through gracefully)
         }
 
@@ -152,54 +175,27 @@ class HL_Pathway_Routing_Service {
     }
 
     /**
-     * Look up a pathway by code within a specific cycle.
-     * Falls back to other cycles in the same Partnership if not found.
+     * Look up a pathway by routing_type within a specific cycle.
      *
-     * @param string $pathway_code
+     * No cross-cycle fallback — each cycle must have its own pathways
+     * with routing_type set via admin UI or seeder.
+     *
+     * @param string $routing_type
      * @param int    $cycle_id
      * @return int|null Pathway ID or null.
      */
-    private static function lookup_pathway_by_code($pathway_code, $cycle_id) {
+    private static function lookup_pathway_by_routing_type($routing_type, $cycle_id) {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
-        // First: try exact cycle match
         $pathway_id = $wpdb->get_var($wpdb->prepare(
             "SELECT pathway_id FROM {$prefix}hl_pathway
-             WHERE pathway_code = %s AND cycle_id = %d AND active_status = 1",
-            $pathway_code, $cycle_id
+             WHERE routing_type = %s AND cycle_id = %d AND active_status = 1
+             LIMIT 1",
+            $routing_type, $cycle_id
         ));
 
-        if ($pathway_id) {
-            return (int) $pathway_id;
-        }
-
-        // Fallback: look in other cycles within the same Partnership
-        $partnership_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT partnership_id FROM {$prefix}hl_cycle WHERE cycle_id = %d",
-            $cycle_id
-        ));
-
-        if (!$partnership_id) {
-            return null;
-        }
-
-        $pathway_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT p.pathway_id FROM {$prefix}hl_pathway p
-             JOIN {$prefix}hl_cycle c ON p.cycle_id = c.cycle_id
-             WHERE p.pathway_code = %s AND c.partnership_id = %d AND p.active_status = 1
-             ORDER BY c.start_date DESC LIMIT 1",
-            $pathway_code, $partnership_id
-        ));
-
-        if ($pathway_id) {
-            error_log(sprintf(
-                '[HL Routing] Cross-cycle fallback used: code=%s, target_cycle=%d, resolved_pathway=%d (from another cycle in same partnership)',
-                $pathway_code, $cycle_id, $pathway_id
-            ));
-            return (int) $pathway_id;
-        }
-        return null;
+        return $pathway_id ? (int) $pathway_id : null;
     }
 
     /**

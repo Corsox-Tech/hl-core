@@ -975,6 +975,7 @@ class HL_CLI_Seed_Demo {
             'cycle_id'    => $cycle_id,
             'target_roles' => array( 'teacher' ),
             'active_status' => 1,
+            'routing_type' => null,
         ) );
 
         $teacher_components = array();
@@ -1051,6 +1052,7 @@ class HL_CLI_Seed_Demo {
             'cycle_id'    => $cycle_id,
             'target_roles' => array( 'mentor' ),
             'active_status' => 1,
+            'routing_type' => null,
         ) );
 
         $mentor_components = array();

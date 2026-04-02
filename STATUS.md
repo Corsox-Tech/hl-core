@@ -1,6 +1,6 @@
 # STATUS.md — HL Core Build Status
 
-**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 34 shortcode pages (+ 4 backward-compatible aliases), 18 admin controllers, 44 DB tables, 23 services, 16 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools).
+**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 34 shortcode pages (+ 4 backward-compatible aliases), 18 admin controllers, 44 DB tables, 23 services, 17 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools).
 
 ---
 
@@ -108,6 +108,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Import integration** — Auto-routes pathway in preview + commit. Clears stale pathways on role-change UPDATE.
 - [x] **Admin form AJAX** — Auto-suggests pathway when cycle + role selected. Admin can override.
 - [x] **Data fix: district_leader** — Added to Streamlined pathway target_roles in seeders + live DB.
+- [x] **routing_type column** — New `routing_type` VARCHAR(50) on `hl_pathway` with UNIQUE(cycle_id, routing_type). Schema revision 26→27. Routing rules now use `routing_type` instead of `pathway_code`. Partnership fallback removed. Admin form dropdown with per-cycle uniqueness. Clone copies routing_type with conflict handling. All B2E seeders updated. Migration CLI: `wp hl-core migrate-routing-types`.
 
 ### Admin Enrollment Form Enhancement (April 2026)
 - [x] **Pathway + Team fields on enrollment form** — Admin enrollment form (standalone + Cycle Editor inline) now includes Pathway and Team dropdowns, filtered by selected cycle. On save, creates `hl_pathway_assignment` (explicit) and `hl_team_membership` records. Edit mode pre-selects current values. Prevents blank Pathway/Team/School columns on Cycle enrollments table.

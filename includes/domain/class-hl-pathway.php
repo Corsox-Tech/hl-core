@@ -16,6 +16,7 @@ class HL_Pathway {
     public $expiration_date;
     public $is_template;
     public $active_status;
+    public $routing_type;
     public $created_at;
     public $updated_at;
 

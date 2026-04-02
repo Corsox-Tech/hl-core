@@ -326,6 +326,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 			'cycle_id'      => $cycle_id,
 			'target_roles'  => array( 'teacher' ),
 			'active_status' => 1,
+			'routing_type'  => 'teacher_phase_1',
 		) );
 
 		$n = 0;
@@ -369,6 +370,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 			'cycle_id'      => $cycle_id,
 			'target_roles'  => array( 'teacher' ),
 			'active_status' => 1,
+			'routing_type'  => 'teacher_phase_2',
 		) );
 
 		$n = 0;
@@ -411,6 +413,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 			'cycle_id'      => $cycle_id,
 			'target_roles'  => array( 'mentor' ),
 			'active_status' => 1,
+			'routing_type'  => 'mentor_phase_1',
 		) );
 
 		$n = 0;
@@ -459,6 +462,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 			'cycle_id'      => $cycle_id,
 			'target_roles'  => array( 'mentor' ),
 			'active_status' => 1,
+			'routing_type'  => 'mentor_phase_2',
 		) );
 
 		$n = 0;
@@ -505,6 +509,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 			'cycle_id'      => $cycle_id,
 			'target_roles'  => array( 'mentor' ),
 			'active_status' => 1,
+			'routing_type'  => 'mentor_transition',
 		) );
 
 		$n = 0;
@@ -549,6 +554,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 			'cycle_id'      => $cycle_id,
 			'target_roles'  => array( 'mentor' ),
 			'active_status' => 1,
+			'routing_type'  => 'mentor_completion',
 		) );
 
 		$n = 0;
@@ -577,6 +583,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 			'cycle_id'      => $cycle_id,
 			'target_roles'  => array( 'school_leader', 'district_leader' ),
 			'active_status' => 1,
+			'routing_type'  => 'streamlined_phase_1',
 		) );
 
 		$n = 0;
@@ -610,6 +617,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 			'cycle_id'      => $cycle_id,
 			'target_roles'  => array( 'school_leader', 'district_leader' ),
 			'active_status' => 1,
+			'routing_type'  => 'streamlined_phase_2',
 		) );
 
 		$n = 0;

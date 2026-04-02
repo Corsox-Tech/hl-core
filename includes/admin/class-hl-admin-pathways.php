@@ -236,6 +236,38 @@ class HL_Admin_Pathways {
         $expiration_raw  = isset($_POST['expiration_date']) ? sanitize_text_field($_POST['expiration_date']) : '';
         $expiration_date = !empty($expiration_raw) ? $expiration_raw : null;
 
+        // Routing type (auto-assignment rule)
+        $routing_type_raw = isset($_POST['routing_type']) ? sanitize_text_field($_POST['routing_type']) : '';
+        $valid_types = HL_Pathway_Routing_Service::get_valid_routing_types();
+        $routing_type = array_key_exists($routing_type_raw, $valid_types) ? $routing_type_raw : null;
+
+        // Uniqueness check: ensure no other pathway in this cycle has this routing_type.
+        if ($routing_type !== null) {
+            $cycle_id_check = absint($_POST['cycle_id']);
+            $conflict = $wpdb->get_var($wpdb->prepare(
+                "SELECT pathway_id FROM {$wpdb->prefix}hl_pathway
+                 WHERE routing_type = %s AND cycle_id = %d AND pathway_id != %d",
+                $routing_type, $cycle_id_check, $pathway_id
+            ));
+            if ($conflict) {
+                $conflict_name = $wpdb->get_var($wpdb->prepare(
+                    "SELECT pathway_name FROM {$wpdb->prefix}hl_pathway WHERE pathway_id = %d",
+                    $conflict
+                ));
+                set_transient('hl_pathway_error', sprintf(
+                    __('This cycle already has a pathway assigned as "%s" (%s). Each auto-assignment rule can only be used once per cycle.', 'hl-core'),
+                    $valid_types[$routing_type], $conflict_name
+                ), 60);
+                $cycle_context = isset($_POST['_hl_cycle_context']) ? absint($_POST['_hl_cycle_context']) : 0;
+                if ($cycle_context) {
+                    wp_redirect($this->get_cycle_redirect($cycle_context, 'pathways', array('sub' => $pathway_id > 0 ? 'edit&pathway_id=' . $pathway_id : 'add', 'message' => 'routing_type_conflict')));
+                } else {
+                    wp_redirect(admin_url('admin.php?page=hl-pathways&action=' . ($pathway_id > 0 ? 'edit&id=' . $pathway_id : 'add') . '&message=routing_type_conflict'));
+                }
+                exit;
+            }
+        }
+
         $data = array(
             'pathway_name'        => sanitize_text_field($_POST['pathway_name']),
             'pathway_code'        => sanitize_text_field($_POST['pathway_code']),
@@ -247,6 +279,7 @@ class HL_Admin_Pathways {
             'featured_image_id'   => $featured_img_id ? $featured_img_id : null,
             'avg_completion_time' => $avg_time,
             'expiration_date'     => $expiration_date,
+            'routing_type'        => $routing_type,
         );
 
         if (empty($data['pathway_code'])) {
@@ -257,6 +290,15 @@ class HL_Admin_Pathways {
 
         if ($pathway_id > 0) {
             $wpdb->update($wpdb->prefix . 'hl_pathway', $data, array('pathway_id' => $pathway_id));
+            if (!empty($wpdb->last_error)) {
+                set_transient('hl_pathway_error', __('Failed to save pathway. A database constraint was violated.', 'hl-core'), 60);
+                if ($cycle_context) {
+                    wp_redirect($this->get_cycle_redirect($cycle_context, 'pathways', array('sub' => 'edit&pathway_id=' . $pathway_id, 'message' => 'db_error')));
+                } else {
+                    wp_redirect(admin_url('admin.php?page=hl-pathways&action=edit&id=' . $pathway_id . '&message=db_error'));
+                }
+                exit;
+            }
             if ($cycle_context) {
                 $redirect = $this->get_cycle_redirect($cycle_context, 'pathways', array('sub' => 'view', 'pathway_id' => $pathway_id, 'message' => 'pathway_saved'));
             } else {
@@ -265,6 +307,15 @@ class HL_Admin_Pathways {
         } else {
             $data['pathway_uuid'] = HL_DB_Utils::generate_uuid();
             $wpdb->insert($wpdb->prefix . 'hl_pathway', $data);
+            if (!empty($wpdb->last_error)) {
+                set_transient('hl_pathway_error', __('Failed to save pathway. A database constraint was violated.', 'hl-core'), 60);
+                if ($cycle_context) {
+                    wp_redirect($this->get_cycle_redirect($cycle_context, 'pathways', array('sub' => 'add', 'message' => 'db_error')));
+                } else {
+                    wp_redirect(admin_url('admin.php?page=hl-pathways&action=add&message=db_error'));
+                }
+                exit;
+            }
             $new_id = $wpdb->insert_id;
             if ($cycle_context) {
                 $redirect = $this->get_cycle_redirect($cycle_context, 'pathways', array('message' => 'pathway_saved'));
@@ -806,6 +857,7 @@ class HL_Admin_Pathways {
                 'created'          => __('Pathway created successfully.', 'hl-core'),
                 'updated'          => __('Pathway updated successfully.', 'hl-core'),
                 'cloned'           => __('Pathway cloned successfully. You are now editing the copy.', 'hl-core'),
+                'pathway_cloned'   => __('Pathway cloned successfully.', 'hl-core'),
                 'clone_error'      => __('Clone failed. Please try again.', 'hl-core'),
                 'template_saved'   => __('Pathway saved as template.', 'hl-core'),
                 'template_removed' => __('Pathway removed from templates.', 'hl-core'),
@@ -814,7 +866,7 @@ class HL_Admin_Pathways {
                 'deleted'           => __('Pathway and its components deleted successfully.', 'hl-core'),
             );
             if (isset($messages[$msg])) {
-                $notice_type = ($msg === 'clone_error') ? 'notice-error' : 'notice-success';
+                $notice_type = in_array($msg, array('clone_error', 'db_error', 'routing_type_conflict'), true) ? 'notice-error' : 'notice-success';
                 echo '<div class="notice ' . $notice_type . ' is-dismissible"><p>' . esc_html($messages[$msg]) . '</p></div>';
             }
             // Show transient error detail for clone.
@@ -825,6 +877,19 @@ class HL_Admin_Pathways {
                     echo '<div class="notice notice-error"><p>' . esc_html($err) . '</p></div>';
                 }
             }
+            // Show routing_type warning after successful clone.
+            $routing_notice = get_transient('hl_clone_routing_notice');
+            if ($routing_notice) {
+                echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html($routing_notice) . '</p></div>';
+                delete_transient('hl_clone_routing_notice');
+            }
+        }
+
+        // Show pathway error transient (e.g. routing_type conflict, DB constraint).
+        $transient_error = get_transient('hl_pathway_error');
+        if ($transient_error) {
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($transient_error) . '</p></div>';
+            delete_transient('hl_pathway_error');
         }
 
         // Cycle breadcrumb.
@@ -964,6 +1029,13 @@ class HL_Admin_Pathways {
             if (isset($messages[$msg])) {
                 echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($messages[$msg]) . '</p></div>';
             }
+        }
+
+        // Show pathway error transient (e.g. routing_type conflict, DB constraint).
+        $transient_error = get_transient('hl_pathway_error');
+        if ($transient_error) {
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($transient_error) . '</p></div>';
+            delete_transient('hl_pathway_error');
         }
 
         if (!$in_cycle) {
@@ -1327,6 +1399,13 @@ class HL_Admin_Pathways {
             echo '<a href="' . esc_url(admin_url('admin.php?page=hl-pathways')) . '">&larr; ' . esc_html__('Back to Pathways', 'hl-core') . '</a>';
         }
 
+        // Show pathway error transient (e.g. routing_type conflict, DB constraint).
+        $transient_error = get_transient('hl_pathway_error');
+        if ($transient_error) {
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($transient_error) . '</p></div>';
+            delete_transient('hl_pathway_error');
+        }
+
         // "Start from Template" section for new pathways.
         if (!$is_edit) {
             $service   = new HL_Pathway_Service();
@@ -1424,6 +1503,43 @@ class HL_Admin_Pathways {
             echo '<label><input type="checkbox" name="target_roles[]" value="' . esc_attr($role) . '"' . $checked . ' /> ' . esc_html($role) . '</label><br />';
         }
         echo '</fieldset></td>';
+        echo '</tr>';
+
+        // Auto-Assignment Rule (routing_type)
+        $valid_routing_types = HL_Pathway_Routing_Service::get_valid_routing_types();
+        $current_routing_type = $is_edit ? ($pathway->routing_type ?? '') : '';
+        $current_cycle_for_form = $in_cycle ? absint($context['cycle_id']) : ($is_edit ? $pathway->cycle_id : 0);
+
+        // Find which routing_types are already taken in this cycle by other pathways.
+        $used_types = array();
+        if ($current_cycle_for_form) {
+            $used_rows = $wpdb->get_results($wpdb->prepare(
+                "SELECT routing_type, pathway_name FROM {$wpdb->prefix}hl_pathway
+                 WHERE cycle_id = %d AND routing_type IS NOT NULL AND pathway_id != %d",
+                $current_cycle_for_form,
+                $is_edit ? $pathway->pathway_id : 0
+            ), ARRAY_A);
+            foreach ($used_rows as $ur) {
+                $used_types[$ur['routing_type']] = $ur['pathway_name'];
+            }
+        }
+
+        echo '<tr>';
+        echo '<th scope="row"><label for="routing_type">' . esc_html__('Auto-Assignment Rule', 'hl-core') . '</label></th>';
+        echo '<td><select id="routing_type" name="routing_type">';
+        echo '<option value="">' . esc_html__('(None — manual assignment only)', 'hl-core') . '</option>';
+        foreach ($valid_routing_types as $type_key => $type_label) {
+            $selected = ($current_routing_type === $type_key) ? ' selected="selected"' : '';
+            $is_used = isset($used_types[$type_key]);
+            $disabled = $is_used ? ' disabled="disabled"' : '';
+            $suffix = $is_used ? sprintf(' (already assigned to "%s")', esc_html($used_types[$type_key])) : '';
+            echo '<option value="' . esc_attr($type_key) . '"' . $selected . $disabled . '>'
+                 . esc_html($type_label) . esc_html($suffix)
+                 . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . esc_html__('Controls which participants are automatically assigned this pathway during import. Each rule can only be used once per cycle.', 'hl-core') . '</p>';
+        echo '</td>';
         echo '</tr>';
 
         // Description (rich text)

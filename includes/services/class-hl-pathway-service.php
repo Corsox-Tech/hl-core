@@ -124,7 +124,7 @@ class HL_Pathway_Service {
             return new WP_Error('not_found', __('Source pathway not found.', 'hl-core'));
         }
 
-        // 2. Create new pathway.
+        // 2. Build new pathway data.
         $new_pathway_data = array(
             'pathway_uuid'        => HL_DB_Utils::generate_uuid(),
             'cycle_id'           => absint($target_cycle_id),
@@ -138,7 +138,27 @@ class HL_Pathway_Service {
             'target_roles'        => $source['target_roles'],
             'is_template'         => 0,
             'active_status'       => 1,
+            'routing_type'        => null,
         );
+
+        // Copy routing_type if set, checking for UNIQUE constraint conflict.
+        $routing_type_notice = null;
+        if (!empty($source['routing_type'])) {
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT pathway_id FROM {$prefix}hl_pathway
+                 WHERE cycle_id = %d AND routing_type = %s",
+                absint($target_cycle_id), $source['routing_type']
+            ));
+            if ($existing) {
+                // Target cycle already has this routing_type — skip it on the copy.
+                $routing_type_notice = sprintf(
+                    'Routing type "%s" already exists in the target cycle. Copied without routing type — assign manually.',
+                    $source['routing_type']
+                );
+            } else {
+                $new_pathway_data['routing_type'] = $source['routing_type'];
+            }
+        }
 
         $wpdb->insert("{$prefix}hl_pathway", $new_pathway_data);
         $new_pathway_id = $wpdb->insert_id;
@@ -246,6 +266,11 @@ class HL_Pathway_Service {
                 $new_pathway_id,
                 sprintf('Pathway cloned from #%d to cycle #%d', $source_pathway_id, $target_cycle_id)
             );
+        }
+
+        // Store routing_type warning for admin display.
+        if ($routing_type_notice) {
+            set_transient('hl_clone_routing_notice', $routing_type_notice, 60);
         }
 
         return $new_pathway_id;

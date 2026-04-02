@@ -20,6 +20,17 @@ $current_url = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
 // User info for topbar.
 $user = wp_get_current_user();
 $display_name = $user->display_name ?: $user->user_login;
+
+// Detect "View As" session (User Switching / BuddyBoss Members Switching).
+$old_user         = function_exists('user_switching_get_old_user') ? user_switching_get_old_user() : null;
+$switch_back_url  = '';
+if ($old_user) {
+    if (class_exists('BP_Core_Members_Switching') && method_exists('BP_Core_Members_Switching', 'switch_off_url')) {
+        $switch_back_url = BP_Core_Members_Switching::switch_off_url($user);
+    } elseif (function_exists('user_switching_get_switchback_url')) {
+        $switch_back_url = user_switching_get_switchback_url();
+    }
+}
 $initials = '';
 if ($user->first_name) {
     $initials .= strtoupper(substr($user->first_name, 0, 1));
@@ -79,7 +90,7 @@ $page_content = do_shortcode($post->post_content);
 
 <?php if ($is_logged_in && !empty($menu_items)) : ?>
     <!-- Top Bar -->
-    <div class="hl-topbar" id="hl-topbar">
+    <div class="hl-topbar<?php echo $old_user ? ' hl-topbar--view-as' : ''; ?>" id="hl-topbar">
         <div class="hl-breadcrumb">
             <?php if ($current_page_label) : ?>
                 <a href="<?php echo esc_url($dashboard_url); ?>">Dashboard</a> &rsaquo;
@@ -98,6 +109,16 @@ $page_content = do_shortcode($post->post_content);
                 <?php endif; ?>
             </button>
             <div class="hl-topbar__dropdown" id="hl-topbar-dropdown" hidden>
+                <?php if ($old_user && $switch_back_url) : ?>
+                    <div class="hl-topbar__dropdown-notice">
+                        <?php echo esc_html(sprintf(__('Viewing as %s', 'hl-core'), $display_name)); ?>
+                    </div>
+                    <a href="<?php echo esc_url($switch_back_url); ?>" class="hl-topbar__dropdown-item hl-topbar__dropdown-item--switch-back">
+                        <span class="dashicons dashicons-undo"></span>
+                        <?php echo esc_html(sprintf(__('Return to %s', 'hl-core'), $old_user->display_name)); ?>
+                    </a>
+                    <div class="hl-topbar__dropdown-divider"></div>
+                <?php endif; ?>
                 <a href="<?php echo esc_url(admin_url('profile.php')); ?>" class="hl-topbar__dropdown-item">
                     <span class="dashicons dashicons-admin-users"></span>
                     <?php esc_html_e('My Account', 'hl-core'); ?>

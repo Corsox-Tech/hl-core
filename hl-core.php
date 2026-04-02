@@ -221,6 +221,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-beginnings.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-diagnose-nav.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-smoke-test.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-migrate-routing-types.php';
         }
     }
     
@@ -297,6 +298,7 @@ class HL_Core {
             HL_CLI_Setup_ELCPB_Y2_V2::register();
             HL_CLI_Seed_Beginnings::register();
             HL_CLI_Smoke_Test::register();
+            HL_CLI_Migrate_Routing_Types::register();
         }
 
         do_action('hl_core_init');
