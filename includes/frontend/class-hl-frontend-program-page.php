@@ -482,7 +482,7 @@ class HL_Frontend_Program_Page {
         // Action button/link.
         $action_html = '';
         if ($avail_status === 'available') {
-            $action_html = $this->get_action_html($component, $enrollment, $pathway, $assess_status);
+            $action_html = $this->get_action_html($component, $enrollment, $pathway, $assess_status, $completion_percent);
         } elseif ($avail_status === 'completed') {
             // Completed assessment components: show "View Responses" link.
             $action_html = $this->get_completed_action_html($component, $enrollment);
@@ -560,20 +560,31 @@ class HL_Frontend_Program_Page {
      * @param object $enrollment
      * @param object $pathway
      * @param string $assess_status Assessment instance status: not_started, draft, submitted.
+     * @param int    $completion_percent Component completion percentage (0-100).
      * @return string Escaped HTML.
      */
-    private function get_action_html($component, $enrollment, $pathway, $assess_status = 'not_started') {
+    private function get_action_html($component, $enrollment, $pathway, $assess_status = 'not_started', $completion_percent = 0) {
         $type = $component->component_type;
 
-        // LearnDash course: direct link.
+        // LearnDash course: direct link with status-aware label.
         if ($type === 'learndash_course') {
             $external_ref = $component->get_external_ref_array();
             $course_id    = isset($external_ref['course_id']) ? absint($external_ref['course_id']) : 0;
             if ($course_id) {
                 $url = get_permalink($course_id);
                 if ($url) {
-                    return '<a href="' . esc_url($url) . '" class="hl-btn hl-btn-sm hl-btn-primary">'
-                        . esc_html__('Start Course', 'hl-core') . '</a>';
+                    if ($completion_percent >= 100) {
+                        $label = __('View Course', 'hl-core');
+                        $btn_class = 'hl-btn-secondary';
+                    } elseif ($completion_percent > 0) {
+                        $label = __('Continue Course', 'hl-core');
+                        $btn_class = 'hl-btn-primary';
+                    } else {
+                        $label = __('Start Course', 'hl-core');
+                        $btn_class = 'hl-btn-primary';
+                    }
+                    return '<a href="' . esc_url($url) . '" class="hl-btn hl-btn-sm ' . esc_attr($btn_class) . '">'
+                        . esc_html($label) . '</a>';
                 }
             }
             return '';
@@ -776,6 +787,20 @@ class HL_Frontend_Program_Page {
     private function get_completed_action_html($component, $enrollment) {
         $type = $component->component_type;
 
+        // Completed LearnDash course: "View Course" link.
+        if ($type === 'learndash_course') {
+            $external_ref = $component->get_external_ref_array();
+            $course_id    = isset($external_ref['course_id']) ? absint($external_ref['course_id']) : 0;
+            if ($course_id) {
+                $url = get_permalink($course_id);
+                if ($url) {
+                    return '<a href="' . esc_url($url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
+                        . esc_html__('View Course', 'hl-core') . '</a>';
+                }
+            }
+            return '';
+        }
+
         if ($type === 'teacher_self_assessment') {
             $tsa_url = $this->find_shortcode_page_url('hl_teacher_assessment');
             if (!empty($tsa_url)) {
@@ -964,7 +989,7 @@ class HL_Frontend_Program_Page {
         $action_html = '';
         $btn_class   = 'hl-pp-btn hl-pp-btn-start';
         if ($avail_status === 'available') {
-            $action_html = $this->get_action_html($component, $enrollment, $pathway, $assess_status);
+            $action_html = $this->get_action_html($component, $enrollment, $pathway, $assess_status, $completion_percent);
             // Replace old button classes with v2 classes.
             $action_html = str_replace(
                 array('hl-btn hl-btn-sm hl-btn-primary', 'hl-btn hl-btn-sm hl-btn-secondary'),
