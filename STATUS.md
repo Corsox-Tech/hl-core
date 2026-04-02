@@ -129,6 +129,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **frontend.css purged** — All `body.buddyboss-theme` and `body.hl-has-sidebar` selectors removed. 9-step BB DOM takeover deleted. Clean `.hl-app__content` layout shell (margin-left, topbar offset).
 - [x] **UI polish** — Direct dashicons link (bypasses wp_print_styles queue), topbar height 56→48px, breadcrumb vertical-centering fix (margin-bottom override in topbar context), sidebar logo uses WP custom logo if set, user avatar via `get_avatar_url()`, user name dropdown (My Account + Logout links), dropdown JS in frontend.js.
 - [x] **Deployed to test + production** — Verified on `academy.housmanlearning.com`.
+- [x] **Design system consistency overhaul** — Reusable `.hl-page-hero` + `.hl-meta-bar` components replace 3 custom page headers (Team, Classroom, School). 10 hero gradients standardized to `var(--hl-primary)` → `var(--hl-primary-light)` tokens. Icon opacity normalized to 0.12. Coach Dashboard padding corrected. CSS specificity war eliminated (body inheritance + `:where()` defaults). 4 critical color bugs fixed (hlcd-link-card, meta item strong). `.hl-btn-small` CSS added. 23 lines dead BB selectors removed. Spec + code quality review passed.
 
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
