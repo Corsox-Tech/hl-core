@@ -15,13 +15,7 @@ class HL_Shortcodes {
     private function __construct() {
         add_action('init', array($this, 'register_shortcodes'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
-        // Two-layer defense against BB styles:
-        // 1. Remove BB's enqueue hooks before they fire (template_redirect, early).
-        // 2. wp_print_styles at PHP_INT_MAX as final cleanup.
-        add_action('template_redirect', array($this, 'remove_bb_enqueue_hooks'));
-        add_action('wp_print_styles', array($this, 'final_style_override'), PHP_INT_MAX);
-        // Also filter the style tag as absolute last resort — disable BB stylesheets in HTML.
-        add_filter('style_loader_tag', array($this, 'filter_bb_style_tags'), PHP_INT_MAX, 4);
+        add_filter('template_include', array($this, 'use_hl_template'));
         add_action('template_redirect', array('HL_Frontend_My_Cycle', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Team_Page', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Cycle_Workspace', 'handle_export'));
@@ -31,6 +25,20 @@ class HL_Shortcodes {
         add_action('template_redirect', array('HL_Frontend_Coach_Reports', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Coach_Availability', 'handle_post_actions'));
         add_action('template_redirect', array('HL_Frontend_User_Profile', 'handle_post_actions'));
+    }
+
+    /**
+     * Intercept HL pages and serve through the plugin's own template.
+     * Bypasses the active theme entirely for pages with [hl_*] shortcodes.
+     *
+     * @param string $template Theme template path.
+     * @return string Template path to use.
+     */
+    public function use_hl_template($template) {
+        global $post;
+        if (!is_a($post, 'WP_Post')) return $template;
+        if (strpos($post->post_content, '[hl_') === false) return $template;
+        return HL_CORE_PLUGIN_DIR . 'templates/hl-page.php';
     }
 
     public function register_shortcodes() {
@@ -81,6 +89,9 @@ class HL_Shortcodes {
         global $post;
         if (!is_a($post, 'WP_Post')) return;
 
+        // Template handles its own assets — skip WP enqueue for HL pages.
+        if (strpos($post->post_content, '[hl_') !== false) return;
+
         $has_shortcode = has_shortcode($post->post_content, 'hl_my_progress')
             || has_shortcode($post->post_content, 'hl_team_progress')
             || has_shortcode($post->post_content, 'hl_cycle_dashboard')
@@ -125,154 +136,6 @@ class HL_Shortcodes {
             wp_enqueue_script('hl-frontend', HL_CORE_ASSETS_URL . 'js/frontend.js', array('jquery'), HL_CORE_VERSION, true);
             // Also enqueue dashicons for sidebar icons.
             wp_enqueue_style('dashicons');
-        }
-    }
-
-    /**
-     * Check if the current page is an HL page.
-     */
-    private function is_hl_page() {
-        global $post;
-        if (!is_a($post, 'WP_Post')) return false;
-        return strpos($post->post_content, '[hl_') !== false;
-    }
-
-    /**
-     * Remove BB's enqueue action hooks BEFORE wp_head fires.
-     * Runs on template_redirect (fires before wp_head).
-     * This prevents BB from ever adding its styles to the queue.
-     */
-    public function remove_bb_enqueue_hooks() {
-        if (!$this->is_hl_page()) return;
-
-        global $wp_filter;
-
-        // Remove all wp_enqueue_scripts callbacks from BB theme and platform.
-        if (isset($wp_filter['wp_enqueue_scripts'])) {
-            foreach ($wp_filter['wp_enqueue_scripts']->callbacks as $priority => $hooks) {
-                foreach ($hooks as $tag => $hook) {
-                    $fn = $hook['function'];
-                    $name = '';
-
-                    if (is_string($fn)) {
-                        $name = $fn;
-                    } elseif (is_array($fn) && count($fn) === 2) {
-                        $obj = $fn[0];
-                        $method = $fn[1];
-                        if (is_object($obj)) {
-                            $class = get_class($obj);
-                        } else {
-                            $class = $obj;
-                        }
-                        $name = $class . '::' . $method;
-                    }
-
-                    // Remove any hook from BB theme or BP Nouveau.
-                    $name_lower = strtolower($name);
-                    if (
-                        strpos($name_lower, 'buddyboss') !== false ||
-                        strpos($name_lower, 'bp_nouveau') !== false ||
-                        strpos($name_lower, 'bb_') === 0 ||
-                        $name === 'buddyboss_theme_child_scripts_styles' ||
-                        $name === 'buddyboss_theme_scripts_styles'
-                    ) {
-                        unset($wp_filter['wp_enqueue_scripts']->callbacks[$priority][$tag]);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Filter the <link> tag for BB stylesheets — absolute last resort.
-     * If a BB stylesheet somehow survives the dequeue, this prevents it from rendering.
-     */
-    public function filter_bb_style_tags($tag, $handle, $href, $media) {
-        if (!$this->is_hl_page()) return $tag;
-
-        // Block any stylesheet from BB theme or platform.
-        if (
-            stripos($href, 'buddyboss-theme') !== false ||
-            stripos($href, 'buddyboss-platform') !== false ||
-            stripos($href, 'bp-templates') !== false ||
-            stripos($handle, 'buddyboss') !== false ||
-            stripos($handle, 'bp-nouveau') !== false ||
-            stripos($handle, 'bp-') === 0
-        ) {
-            return '<!-- BB style blocked: ' . esc_attr($handle) . ' -->' . "\n";
-        }
-
-        return $tag;
-    }
-
-    /**
-     * Final style override — runs on wp_print_styles at PHP_INT_MAX.
-     *
-     * This is the LAST possible hook before styles are printed to HTML.
-     * BB child theme enqueues at priority 99999 on wp_enqueue_scripts,
-     * BP_Nouveau at PHP_INT_MAX on wp_enqueue_scripts. All of those have
-     * fired by the time wp_print_styles runs. Nothing can re-add after this.
-     *
-     * Strategy: dequeue EVERY BB stylesheet by scanning source URLs,
-     * then force-enqueue our own CSS if it's missing.
-     */
-    public function final_style_override() {
-        global $post;
-        if (!is_a($post, 'WP_Post')) return;
-
-        // Check if this is an HL page.
-        $content = $post->post_content;
-        $is_hl_page = false;
-        // Use a simple strpos check for speed — covers all hl_ shortcodes.
-        if (strpos($content, '[hl_') !== false) {
-            $is_hl_page = true;
-        }
-
-        if (!$is_hl_page) return;
-
-        // Dequeue EVERY stylesheet from BB theme/platform by checking source URL.
-        global $wp_styles;
-        if (!$wp_styles) return;
-
-        $kill_patterns = array(
-            'buddyboss-theme',
-            'buddyboss-platform',
-            'bp-templates',
-            'bp-nouveau',
-        );
-
-        foreach ($wp_styles->queue as $idx => $handle) {
-            if (!isset($wp_styles->registered[$handle])) continue;
-            $src = $wp_styles->registered[$handle]->src ?: '';
-            $kill = false;
-
-            // Check handle name.
-            if (stripos($handle, 'buddyboss') !== false || stripos($handle, 'bp-') === 0) {
-                $kill = true;
-            }
-            // Check source path.
-            foreach ($kill_patterns as $pattern) {
-                if (stripos($src, $pattern) !== false) {
-                    $kill = true;
-                    break;
-                }
-            }
-
-            if ($kill) {
-                unset($wp_styles->queue[$idx]);
-            }
-        }
-
-        // Force-ensure hl-frontend is in the queue (BB may have removed it via dependency conflicts).
-        if (!in_array('hl-frontend', $wp_styles->queue, true)) {
-            if (!isset($wp_styles->registered['hl-google-fonts-inter'])) {
-                wp_register_style('hl-google-fonts-inter', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null);
-            }
-            if (!isset($wp_styles->registered['hl-frontend'])) {
-                wp_register_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array('hl-google-fonts-inter'), HL_CORE_VERSION);
-            }
-            wp_enqueue_style('hl-google-fonts-inter');
-            wp_enqueue_style('hl-frontend');
         }
     }
 
