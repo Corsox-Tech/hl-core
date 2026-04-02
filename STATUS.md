@@ -121,6 +121,14 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Session 5: Directory & Profile Pages** — Replaced inline `style=` in 4 PHP files (classroom-page 16 attrs, user-profile 11 attrs, docs 1 icon, learners 1 width). New CSS: `.hl-add-child-panel`, `.hl-form-grid-2col`, `.hl-modal-overlay`/`.hl-modal-box`, `.hl-btn-row`, `.hlup-success-banner`, `.hlup-quick-edit-form`. 12 clean files verified (all `hl-` wrapper classes match BB override selectors). Dynamic progress widths + JS-toggled display:none kept inline.
 - [x] **Session 6: Review & Polish** — Removed 230 lines dead CSS (old Section 29 PROGRAM PAGE, old DASHBOARD HOME V1). Fixed 2 remaining non-functional inline styles (component-page back-link, my-cycle section margin). Updated consolidation notes. Grep audit: 0 `<style>` blocks in frontend PHP, 0 non-functional `style=""` attrs. Visual review of all pages across 3 roles (mentor, coach, school leader) — sidebar, Inter font, inputs, tabs, badges, heroes, tables all consistent. Deployed to test + production.
 
+### BuddyBoss Detachment — Phase A (April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-02-bb-detachment-design.md` | **Plan:** `docs/superpowers/plans/2026-04-02-bb-detachment-plan.md`
+- [x] **HL pages bypass BB template entirely** — `templates/hl-page.php` served via `template_include` filter when page contains `[hl_*]` shortcodes. BB theme files (`header.php`, `footer.php`, etc.) never run → zero CSS conflict. Clean HTML shell: Inter font, dashicons, frontend.css, jQuery, no `wp_head()`/`wp_footer()`.
+- [x] **BB integration stripped** — `HL_BuddyBoss_Integration` lost 669 lines: all BB DOM hooks, sidebar renderer, body class filter, buddypanel hooks, JS fallback. `get_menu_items_for_current_user()` made public. WP Admin link added for `manage_options` users.
+- [x] **frontend.css purged** — All `body.buddyboss-theme` and `body.hl-has-sidebar` selectors removed. 9-step BB DOM takeover deleted. Clean `.hl-app__content` layout shell (margin-left, topbar offset).
+- [x] **UI polish** — Direct dashicons link (bypasses wp_print_styles queue), topbar height 56→48px, breadcrumb vertical-centering fix (margin-bottom override in topbar context), sidebar logo uses WP custom logo if set, user avatar via `get_avatar_url()`, user name dropdown (My Account + Logout links), dropdown JS in frontend.js.
+- [x] **Deployed to test + production** — Verified on `academy.housmanlearning.com`.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)

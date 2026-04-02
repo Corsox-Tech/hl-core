@@ -6654,6 +6654,14 @@ article:has(.hlup-wrapper) > .entry-header {
     font-size: 15px;
     margin-bottom: 10px;
 }
+.hl-sidebar__logo-img {
+    display: block;
+    max-width: 160px;
+    max-height: 64px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
 .hl-sidebar__title {
     color: #fff !important;
     font-size: 15px;
@@ -6757,19 +6765,44 @@ article:has(.hlup-wrapper) > .entry-header {
     align-items: center;
     justify-content: space-between;
     font-family: var(--hl-font);
-    height: 56px;
+    height: 48px;
 }
-.hl-topbar__user {
+.hl-topbar .hl-breadcrumb {
+    margin-bottom: 0;
+}
+/* User dropdown wrapper */
+.hl-topbar__user-wrap {
+    position: relative;
+}
+.hl-topbar__user-btn {
     display: flex;
     align-items: center;
     gap: 10px;
     font-size: 13px;
     color: var(--hl-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-family: var(--hl-font);
+    transition: background 0.15s;
+}
+.hl-topbar__user-btn:hover {
+    background: var(--hl-interactive-bg);
+    color: var(--hl-text);
+}
+.hl-topbar__user-name {
+    font-size: 13px;
 }
 .hl-topbar__avatar {
     width: 32px;
     height: 32px;
     border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.hl-topbar__avatar--initials {
     background: var(--hl-interactive-bg);
     display: flex;
     align-items: center;
@@ -6777,12 +6810,47 @@ article:has(.hlup-wrapper) > .entry-header {
     color: var(--hl-interactive);
     font-weight: 700;
     font-size: 12px;
+    font-family: var(--hl-font);
+}
+.hl-topbar__dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    min-width: 180px;
+    z-index: 10000;
+    overflow: hidden;
+}
+.hl-topbar__dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    color: var(--hl-text) !important;
+    text-decoration: none !important;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.15s;
+}
+.hl-topbar__dropdown-item:hover {
+    background: var(--hl-interactive-bg);
+    text-decoration: none !important;
+}
+.hl-topbar__dropdown-item .dashicons {
+    font-size: 16px !important;
+    width: 16px !important;
+    height: 16px !important;
+    line-height: 16px !important;
+    color: var(--hl-text-secondary);
 }
 
-/* Content area — offset for fixed topbar (56px) + sidebar (240px) */
+/* Content area — offset for fixed topbar (48px) + sidebar (240px) */
 .hl-app__content {
     margin-left: 240px;
-    padding: 80px 32px 24px;
+    padding: 72px 32px 24px;
     background: var(--hl-bg);
     min-height: 100vh;
 }

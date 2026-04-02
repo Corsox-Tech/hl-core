@@ -31,6 +31,13 @@ if (!$initials && $display_name) {
     $initials = strtoupper(substr($display_name, 0, 2));
 }
 
+// User avatar URL (BuddyBoss overrides this with its own avatars).
+$avatar_url = get_avatar_url($user->ID, ['size' => 32]);
+
+// Site logo from WP customizer (Appearance → Customize → Site Identity → Logo).
+$logo_id  = get_theme_mod('custom_logo');
+$logo_url = $logo_id ? wp_get_attachment_image_url($logo_id, 'full') : '';
+
 // Breadcrumb: find current page label from menu items.
 $current_page_label = '';
 foreach ($menu_items as $item) {
@@ -57,7 +64,7 @@ $page_content = do_shortcode($post->post_content);
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <?php wp_print_styles(['dashicons']); ?>
+    <link rel="stylesheet" href="<?php echo esc_url(includes_url('css/dashicons.min.css')); ?>"><?php // Direct link — more reliable than wp_print_styles in a custom template that bypasses wp_head(). ?>
     <link rel="stylesheet" href="<?php echo esc_url(HL_CORE_ASSETS_URL . 'css/frontend.css'); ?>?ver=<?php echo esc_attr(HL_CORE_VERSION); ?>">
     <?php
     // Flush any styles enqueued during do_shortcode() (e.g. hl_docs).
@@ -81,18 +88,38 @@ $page_content = do_shortcode($post->post_content);
                 <span>Dashboard</span>
             <?php endif; ?>
         </div>
-        <div class="hl-topbar__user">
-            <span><?php echo esc_html($display_name); ?></span>
-            <div class="hl-topbar__avatar"><?php echo esc_html($initials); ?></div>
+        <div class="hl-topbar__user-wrap" id="hl-topbar-user-wrap">
+            <button class="hl-topbar__user-btn" id="hl-topbar-user-btn" type="button" aria-expanded="false">
+                <span class="hl-topbar__user-name"><?php echo esc_html($display_name); ?></span>
+                <?php if ($avatar_url) : ?>
+                    <img src="<?php echo esc_url($avatar_url); ?>" alt="" class="hl-topbar__avatar">
+                <?php else : ?>
+                    <div class="hl-topbar__avatar hl-topbar__avatar--initials"><?php echo esc_html($initials); ?></div>
+                <?php endif; ?>
+            </button>
+            <div class="hl-topbar__dropdown" id="hl-topbar-dropdown" hidden>
+                <a href="<?php echo esc_url(admin_url('profile.php')); ?>" class="hl-topbar__dropdown-item">
+                    <span class="dashicons dashicons-admin-users"></span>
+                    <?php esc_html_e('My Account', 'hl-core'); ?>
+                </a>
+                <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-topbar__dropdown-item">
+                    <span class="dashicons dashicons-migrate"></span>
+                    <?php esc_html_e('Log Out', 'hl-core'); ?>
+                </a>
+            </div>
         </div>
     </div>
 
     <!-- Sidebar -->
     <nav class="hl-sidebar" id="hl-sidebar">
         <div class="hl-sidebar__brand">
-            <div class="hl-sidebar__logo">HL</div>
-            <div class="hl-sidebar__title"><?php esc_html_e('Housman Learning', 'hl-core'); ?></div>
-            <div class="hl-sidebar__subtitle"><?php esc_html_e('Learning Hub', 'hl-core'); ?></div>
+            <?php if ($logo_url) : ?>
+                <img src="<?php echo esc_url($logo_url); ?>" alt="<?php echo esc_attr(get_bloginfo('name')); ?>" class="hl-sidebar__logo-img">
+            <?php else : ?>
+                <div class="hl-sidebar__logo">HL</div>
+                <div class="hl-sidebar__title"><?php esc_html_e('Housman Learning', 'hl-core'); ?></div>
+                <div class="hl-sidebar__subtitle"><?php esc_html_e('Learning Hub', 'hl-core'); ?></div>
+            <?php endif; ?>
         </div>
         <div class="hl-sidebar__nav">
             <?php foreach ($menu_items as $item) :

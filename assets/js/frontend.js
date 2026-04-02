@@ -132,6 +132,21 @@
             $(this).text($detail.is(':visible') ? 'Hide' : 'View');
         });
 
+        // === Topbar User Dropdown ===
+        $(document).on('click', '#hl-topbar-user-btn', function(e) {
+            e.stopPropagation();
+            var $dropdown = $('#hl-topbar-dropdown');
+            var isOpen = !$dropdown.prop('hidden');
+            $dropdown.prop('hidden', isOpen);
+            $(this).attr('aria-expanded', !isOpen);
+        });
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#hl-topbar-user-wrap').length) {
+                $('#hl-topbar-dropdown').prop('hidden', true);
+                $('#hl-topbar-user-btn').attr('aria-expanded', 'false');
+            }
+        });
+
     });
 
 })(jQuery);
