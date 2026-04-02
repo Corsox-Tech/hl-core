@@ -258,39 +258,54 @@ class HL_Frontend_Team_Page {
         }
 
         ?>
-        <div class="hl-team-page-header">
-            <div class="hl-team-page-header-info">
-                <h2 class="hl-cycle-title"><?php echo esc_html( $team->team_name ); ?></h2>
-                <?php if ( $school ) : ?>
-                    <p class="hl-scope-indicator"><?php echo esc_html( $school->name ); ?></p>
-                <?php endif; ?>
-                <div class="hl-track-meta">
-                    <?php if ( $cycle ) : ?>
-                        <span class="hl-meta-item">
-                            <strong><?php esc_html_e( 'Cycle:', 'hl-core' ); ?></strong>
-                            <?php echo esc_html( $cycle->cycle_name ); ?>
-                        </span>
-                    <?php endif; ?>
-                    <span class="hl-meta-item">
-                        <strong><?php esc_html_e( 'Members:', 'hl-core' ); ?></strong>
-                        <?php echo esc_html( $member_count ); ?>
-                    </span>
-                    <?php if ( ! empty( $mentor_names ) ) : ?>
-                        <span class="hl-meta-item">
-                            <strong><?php esc_html_e( 'Mentor(s):', 'hl-core' ); ?></strong>
-                            <?php echo esc_html( implode( ', ', $mentor_names ) ); ?>
-                        </span>
-                    <?php endif; ?>
+    <div class="hl-page-hero">
+        <div class="hl-page-hero__icon">
+            <span class="dashicons dashicons-groups"></span>
+        </div>
+        <div class="hl-page-hero__text">
+            <span class="hl-page-hero__tag"><?php esc_html_e( 'Team', 'hl-core' ); ?></span>
+            <h2 class="hl-page-hero__title"><?php echo esc_html( $team->team_name ); ?></h2>
+            <?php if ( $school ) : ?>
+                <p class="hl-page-hero__subtitle"><?php echo esc_html( $school->name ); ?></p>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="hl-meta-bar">
+        <?php if ( $cycle ) : ?>
+            <div class="hl-meta-item">
+                <div class="hl-meta-item__icon"><span class="dashicons dashicons-clock"></span></div>
+                <div>
+                    <div class="hl-meta-item__label"><?php esc_html_e( 'Cycle', 'hl-core' ); ?></div>
+                    <div class="hl-meta-item__value"><?php echo esc_html( $cycle->cycle_name ); ?></div>
                 </div>
             </div>
-            <div class="hl-team-page-header-stats">
-                <div class="hl-metric-card">
-                    <div class="hl-metric-value"><?php echo esc_html( $avg . '%' ); ?></div>
-                    <div class="hl-metric-label"><?php esc_html_e( 'Avg Completion', 'hl-core' ); ?></div>
-                </div>
+        <?php endif; ?>
+        <div class="hl-meta-item">
+            <div class="hl-meta-item__icon"><span class="dashicons dashicons-admin-users"></span></div>
+            <div>
+                <div class="hl-meta-item__label"><?php esc_html_e( 'Members', 'hl-core' ); ?></div>
+                <div class="hl-meta-item__value"><?php echo esc_html( $member_count ); ?></div>
             </div>
         </div>
-        <?php
+        <?php if ( ! empty( $mentor_names ) ) : ?>
+            <div class="hl-meta-item">
+                <div class="hl-meta-item__icon"><span class="dashicons dashicons-businessman"></span></div>
+                <div>
+                    <div class="hl-meta-item__label"><?php esc_html_e( 'Mentor(s)', 'hl-core' ); ?></div>
+                    <div class="hl-meta-item__value"><?php echo esc_html( implode( ', ', $mentor_names ) ); ?></div>
+                </div>
+            </div>
+        <?php endif; ?>
+        <div class="hl-meta-item">
+            <div class="hl-meta-item__icon"><span class="dashicons dashicons-chart-area"></span></div>
+            <div>
+                <div class="hl-meta-item__label"><?php esc_html_e( 'Avg Completion', 'hl-core' ); ?></div>
+                <div class="hl-meta-item__value"><?php echo esc_html( $avg . '%' ); ?></div>
+            </div>
+        </div>
+    </div>
+    <?php
     }
 
     // ========================================================================
