@@ -1425,44 +1425,48 @@ class HL_Admin_Cycles {
         echo '<a href="' . esc_url(admin_url('admin.php?page=hl-coaching&tab=assignments&cycle_id=' . $cycle_id)) . '" class="button button-primary">' . esc_html__('Manage Coach Assignments', 'hl-core') . '</a>';
         echo '</div>';
 
-        $assignments = $wpdb->get_results($wpdb->prepare(
-            "SELECT ca.*, u.display_name AS coach_name
-             FROM {$wpdb->prefix}hl_coach_assignment ca
-             LEFT JOIN {$wpdb->users} u ON ca.coach_user_id = u.ID
-             WHERE ca.cycle_id = %d
-             ORDER BY ca.effective_from DESC",
-            $cycle_id
+        // Get all mentor enrollments for this cycle.
+        $mentors = $wpdb->get_results($wpdb->prepare(
+            "SELECT e.enrollment_id, e.status AS enrollment_status, u.display_name AS mentor_name
+             FROM {$wpdb->prefix}hl_enrollment e
+             JOIN {$wpdb->users} u ON e.user_id = u.ID
+             WHERE e.cycle_id = %d
+               AND e.roles LIKE %s
+             ORDER BY u.display_name ASC",
+            $cycle_id,
+            '%"mentor"%'
         ));
 
-        echo '<h3>' . esc_html__('Coach Assignments', 'hl-core') . '</h3>';
-        if (empty($assignments)) {
-            echo '<p>' . esc_html__('No coach assignments for this cycle.', 'hl-core') . '</p>';
+        echo '<h3>' . esc_html__('Mentor Coach Assignments', 'hl-core') . '</h3>';
+        if (empty($mentors)) {
+            echo '<p>' . esc_html__('No mentors enrolled in this cycle.', 'hl-core') . '</p>';
         } else {
+            $coach_service = new HL_Coach_Assignment_Service();
+
             echo '<table class="widefat striped">';
             echo '<thead><tr>';
+            echo '<th>' . esc_html__('Mentor', 'hl-core') . '</th>';
             echo '<th>' . esc_html__('Coach', 'hl-core') . '</th>';
-            echo '<th>' . esc_html__('Scope', 'hl-core') . '</th>';
-            echo '<th>' . esc_html__('From', 'hl-core') . '</th>';
-            echo '<th>' . esc_html__('To', 'hl-core') . '</th>';
+            echo '<th>' . esc_html__('Assignment Level', 'hl-core') . '</th>';
             echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
             echo '</tr></thead><tbody>';
 
-            foreach ($assignments as $a) {
-                $today  = current_time('Y-m-d');
-                $active = ($a->effective_from <= $today && (empty($a->effective_to) || $a->effective_to >= $today));
+            foreach ($mentors as $m) {
+                $coach = $coach_service->get_coach_for_enrollment($m->enrollment_id, $cycle_id);
 
                 echo '<tr>';
-                echo '<td><strong>' . esc_html($a->coach_name) . '</strong></td>';
-                echo '<td><code>' . esc_html($a->scope_type) . '</code> #' . esc_html($a->scope_id) . '</td>';
-                echo '<td>' . esc_html($a->effective_from) . '</td>';
-                echo '<td>' . esc_html($a->effective_to ?: '-') . '</td>';
-                echo '<td>';
-                if ($active) {
-                    echo '<span class="hl-status-badge active">' . esc_html__('Active', 'hl-core') . '</span>';
+                echo '<td><strong>' . esc_html($m->mentor_name) . '</strong></td>';
+
+                if ($coach) {
+                    echo '<td>' . esc_html($coach['coach_name']) . '</td>';
+                    echo '<td><code>' . esc_html($coach['scope_type']) . '</code></td>';
+                    echo '<td><span class="hl-status-badge active">' . esc_html__('Assigned', 'hl-core') . '</span></td>';
                 } else {
-                    echo '<span class="hl-status-badge inactive">' . esc_html__('Ended', 'hl-core') . '</span>';
+                    echo '<td>-</td>';
+                    echo '<td>-</td>';
+                    echo '<td><span class="hl-status-badge inactive">' . esc_html__('Unassigned', 'hl-core') . '</span></td>';
                 }
-                echo '</td>';
+
                 echo '</tr>';
             }
 
