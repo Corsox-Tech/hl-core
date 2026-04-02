@@ -136,17 +136,27 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* Global box-sizing reset for HL app */
+.hl-app *,
+.hl-app *::before,
+.hl-app *::after {
+    box-sizing: border-box;
+}
+
 /* Base resets inside HL app */
 .hl-app [class*="hl-"],
 .hl-app [class*="hlap-"],
 .hl-app [class*="hlcd-"],
 .hl-app [class*="hlcm-"],
+.hl-app [class*="hlcmd-"],
 .hl-app [class*="hlcr-"],
 .hl-app [class*="hlca-"],
+.hl-app [class*="hlcv-"],
 .hl-app [class*="hlch-"],
 .hl-app [class*="hlmc-"],
 .hl-app [class*="hlrn-"],
 .hl-app [class*="hlss-"],
+.hl-app [class*="hls-"],
 .hl-app [class*="hlup-"] {
     font-family: var(--hl-font);
     color: var(--hl-text);
@@ -224,6 +234,11 @@ body {
     background: var(--hl-bg-subtle);
 }
 
+/* Dashicons — prevent HL font reset from overriding icon font-family */
+.hl-app .dashicons {
+    font-family: dashicons !important;
+}
+
 /* =====================================================
    2. BASE / PAGE WRAPPER
    ===================================================== */
@@ -231,7 +246,7 @@ body {
 .hl-dashboard {
     margin: 0 auto;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
+    font-family: var(--hl-font);
     color: var(--hl-text-heading);
     line-height: 1.5;
 }
@@ -242,54 +257,38 @@ body {
     box-sizing: border-box;
 }
 
-.entry-content .hl-dashboard,
-.bb-grid .hl-dashboard,
-.site-content .hl-dashboard {
+.hl-app__content .hl-dashboard {
     padding: 0;
     margin-left: auto;
     margin-right: auto;
 }
 
-/* ---- Global: HL Core pages use fullwidth-content page template ----
-   All HL Core shortcode pages use BuddyBoss's "Fullwidth Content" template
-   which strips the theme's container/padding. We add back a single,
-   consistent content constraint here so ALL pages align the same way.
-
-   ONE rule controls width + padding for every HL Core page.
-   Individual wrappers must NOT set their own max-width — that creates
-   misalignment. Internal elements can constrain for readability.
+/* ---- Global: content constraint for HL Core pages ----
+   .hl-app__content provides a single, consistent width cap for all
+   HL pages. Individual sub-wrappers fill their parent — they must
+   NOT set their own max-width (that creates misalignment).
    ---------------------------------------------------------------------- */
-.page-template-page-fullwidth-content .entry-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px 30px 40px;
-}
-@media (min-width: 1024px) {
-    .page-template-page-fullwidth-content .entry-content {
-        padding: 20px 40px 40px;
-    }
-}
 
 /* ---- Override: strip hardcoded max-width from ALL sub-wrappers ----
    These wrappers had 720px-1100px max-widths that conflict with the
-   entry-content constraint. Force them all to fill their parent so
+   content area constraint. Force them to fill their parent so
    every element aligns to the same left/right edges.
    ---------------------------------------------------------------------- */
-.page-template-page-fullwidth-content .hlap-form-wrapper,
-.page-template-page-fullwidth-content .hlrn-form-wrapper,
-.page-template-page-fullwidth-content .hlcv-form-wrapper,
-.page-template-page-fullwidth-content .hls-scheduler,
-.page-template-page-fullwidth-content .hls-session,
-.page-template-page-fullwidth-content .hlmc-wrap,
-.page-template-page-fullwidth-content .hlca-wrapper,
-.page-template-page-fullwidth-content .hlcd-wrapper,
-.page-template-page-fullwidth-content .hlcm-wrapper,
-.page-template-page-fullwidth-content .hlcr-wrapper,
-.page-template-page-fullwidth-content .hlcmd-wrapper,
-.page-template-page-fullwidth-content .hl-rp-session-detail,
-.page-template-page-fullwidth-content .hl-docs-wrapper,
-.page-template-page-fullwidth-content .hl-back-link,
-.page-template-page-fullwidth-content .hlcv-alert {
+.hl-app__content .hlap-form-wrapper,
+.hl-app__content .hlrn-form-wrapper,
+.hl-app__content .hlcv-form-wrapper,
+.hl-app__content .hls-scheduler,
+.hl-app__content .hls-session,
+.hl-app__content .hlmc-wrap,
+.hl-app__content .hlca-wrapper,
+.hl-app__content .hlcd-wrapper,
+.hl-app__content .hlcm-wrapper,
+.hl-app__content .hlcr-wrapper,
+.hl-app__content .hlcmd-wrapper,
+.hl-app__content .hl-rp-session-detail,
+.hl-app__content .hl-docs-wrapper,
+.hl-app__content .hl-back-link,
+.hl-app__content .hlcv-alert {
     max-width: none !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
@@ -6654,10 +6653,14 @@ article:has(.hlup-wrapper) > .entry-header {
     font-size: 15px;
     margin-bottom: 10px;
 }
+.hl-sidebar__logo-link {
+    display: block;
+    text-decoration: none !important;
+}
 .hl-sidebar__logo-img {
     display: block;
-    max-width: 160px;
-    max-height: 64px;
+    max-width: 136px;
+    max-height: 54px;
     width: auto;
     height: auto;
     object-fit: contain;
@@ -6853,6 +6856,8 @@ article:has(.hlup-wrapper) > .entry-header {
     padding: 72px 32px 24px;
     background: var(--hl-bg);
     min-height: 100vh;
+    max-width: 1200px;
+    box-sizing: border-box;
 }
 
 /* =====================================================

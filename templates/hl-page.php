@@ -114,7 +114,9 @@ $page_content = do_shortcode($post->post_content);
     <nav class="hl-sidebar" id="hl-sidebar">
         <div class="hl-sidebar__brand">
             <?php if ($logo_url) : ?>
-                <img src="<?php echo esc_url($logo_url); ?>" alt="<?php echo esc_attr(get_bloginfo('name')); ?>" class="hl-sidebar__logo-img">
+                <a href="<?php echo esc_url(home_url('/')); ?>" class="hl-sidebar__logo-link">
+                    <img src="<?php echo esc_url($logo_url); ?>" alt="<?php echo esc_attr(get_bloginfo('name')); ?>" class="hl-sidebar__logo-img">
+                </a>
             <?php else : ?>
                 <div class="hl-sidebar__logo">HL</div>
                 <div class="hl-sidebar__title"><?php esc_html_e('Housman Learning', 'hl-core'); ?></div>
