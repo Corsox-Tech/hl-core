@@ -195,8 +195,8 @@ class HL_Admin_Coach_Assignments {
             echo '<th>' . esc_html__('Cycle', 'hl-core') . '</th>';
         }
         echo '<th>' . esc_html__('Coach', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Scope', 'hl-core') . '</th>';
-        echo '<th>' . esc_html__('Scope Name', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Type', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Assigned To', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('From', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('To', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
@@ -227,7 +227,9 @@ class HL_Admin_Coach_Assignments {
                 echo '<td>' . esc_html($a['cycle_name'] ?? '-') . '</td>';
             }
             echo '<td>' . esc_html($a['coach_name'] ?? '-') . '</td>';
-            echo '<td><code>' . esc_html($a['scope_type']) . '</code></td>';
+            $scope_labels = array('school' => __('School-wide', 'hl-core'), 'team' => __('Team', 'hl-core'), 'enrollment' => __('Individual', 'hl-core'));
+            $scope_label = isset($scope_labels[$a['scope_type']]) ? $scope_labels[$a['scope_type']] : $a['scope_type'];
+            echo '<td>' . esc_html($scope_label) . '</td>';
             echo '<td>' . esc_html($scope_name) . '</td>';
             echo '<td>' . esc_html($a['effective_from']) . '</td>';
             echo '<td>' . esc_html($a['effective_to'] ?: '—') . '</td>';
@@ -278,19 +280,21 @@ class HL_Admin_Coach_Assignments {
         echo '</select></td></tr>';
 
         // Scope type
-        echo '<tr><th scope="row"><label for="scope_type">' . esc_html__('Scope Level', 'hl-core') . '</label></th>';
+        echo '<tr><th scope="row"><label for="scope_type">' . esc_html__('Assignment Type', 'hl-core') . '</label></th>';
         echo '<td><select id="scope_type" name="scope_type" required>';
-        echo '<option value="school">' . esc_html__('School (default for all participants at a school)', 'hl-core') . '</option>';
-        echo '<option value="team">' . esc_html__('Team (overrides school default)', 'hl-core') . '</option>';
-        echo '<option value="enrollment">' . esc_html__('Enrollment (override for one participant)', 'hl-core') . '</option>';
-        echo '</select></td></tr>';
-
-        // Scope ID — dynamic dropdown filtered by cycle + scope type
-        echo '<tr><th scope="row"><label for="scope_id">' . esc_html__('Scope', 'hl-core') . '</label></th>';
-        echo '<td><select id="scope_id" name="scope_id" required>';
-        echo '<option value="">' . esc_html__('-- Select Cycle and Scope Level first --', 'hl-core') . '</option>';
+        echo '<option value="school">' . esc_html__('School-wide — all participants at a school', 'hl-core') . '</option>';
+        echo '<option value="team">' . esc_html__('Team — all participants in a team (overrides school)', 'hl-core') . '</option>';
+        echo '<option value="enrollment">' . esc_html__('Individual — one specific participant (overrides team & school)', 'hl-core') . '</option>';
         echo '</select>';
-        echo '<p class="description" id="scope_id_hint">' . esc_html__('Select a cycle and scope level above to populate this list.', 'hl-core') . '</p>';
+        echo '<p class="description">' . esc_html__('More specific assignments override broader ones. Individual overrides Team, Team overrides School.', 'hl-core') . '</p>';
+        echo '</td></tr>';
+
+        // Scope entity — dynamic dropdown filtered by cycle + assignment type
+        echo '<tr><th scope="row"><label for="scope_id">' . esc_html__('Assign To', 'hl-core') . '</label></th>';
+        echo '<td><select id="scope_id" name="scope_id" required>';
+        echo '<option value="">' . esc_html__('-- Select Cycle and Assignment Type first --', 'hl-core') . '</option>';
+        echo '</select>';
+        echo '<p class="description" id="scope_id_hint">' . esc_html__('Select a cycle and assignment type above to see available options.', 'hl-core') . '</p>';
         echo '</td></tr>';
 
         // Effective from
