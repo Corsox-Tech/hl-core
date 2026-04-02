@@ -1851,116 +1851,6 @@ button.hl-btn-danger:hover,
 }
 
 /* =====================================================
-   35. TEAM PAGE HEADER
-   ===================================================== */
-
-.hl-team-page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 28px;
-    background: linear-gradient(135deg, var(--hl-primary) 0%, #1e3a5f 55%, #2d5a88 100%);
-    border: none;
-    border-radius: var(--hl-radius);
-    padding: 32px 36px;
-    margin-bottom: 32px;
-    flex-wrap: wrap;
-    color: var(--hl-surface);
-}
-
-.hl-team-page-header-info {
-    flex: 1;
-    min-width: 200px;
-}
-
-.hl-team-page-header .hl-partnership-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--hl-surface);
-    margin: 0 0 6px;
-}
-
-.hl-team-page-header .hl-scope-indicator {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.7);
-    margin: 0 0 8px;
-    font-style: italic;
-}
-
-.hl-team-page-header .hl-partnership-meta {
-    color: rgba(255, 255, 255, 0.75);
-}
-
-.hl-team-page-header .hl-meta-item strong {
-    color: var(--hl-text);
-}
-
-.hl-team-page-header-stats {
-    display: flex;
-    gap: 12px;
-}
-
-.hl-team-page-header-stats .hl-metric-card {
-    min-width: 120px;
-    text-align: center;
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.hl-team-page-header-stats .hl-metric-value {
-    color: var(--hl-surface);
-}
-
-.hl-team-page-header-stats .hl-metric-label {
-    color: rgba(255, 255, 255, 0.7);
-}
-
-/* =====================================================
-   36. CLASSROOM PAGE HEADER
-   ===================================================== */
-
-.hl-classroom-page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 28px;
-    background: linear-gradient(135deg, var(--hl-primary) 0%, #1e3a5f 55%, #2d5a88 100%);
-    border: none;
-    border-radius: var(--hl-radius);
-    padding: 32px 36px;
-    margin-bottom: 32px;
-    flex-wrap: wrap;
-    color: var(--hl-surface);
-}
-
-.hl-classroom-page-header-info {
-    flex: 1;
-    min-width: 200px;
-}
-
-.hl-classroom-page-header .hl-partnership-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--hl-surface);
-    margin: 0 0 6px;
-}
-
-.hl-classroom-page-header .hl-scope-indicator {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.7);
-    margin: 0 0 8px;
-    font-style: italic;
-}
-
-.hl-classroom-page-header .hl-partnership-meta {
-    color: rgba(255, 255, 255, 0.75);
-}
-
-.hl-classroom-page-header .hl-meta-item strong {
-    color: var(--hl-text);
-}
-
-/* =====================================================
    37. CRM DIRECTORY — SHARED STYLES
    ===================================================== */
 
@@ -2553,17 +2443,6 @@ button.hl-btn-danger:hover,
         gap: 6px;
     }
 
-    .hl-team-page-header,
-    .hl-classroom-page-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
-        padding: 20px;
-    }
-
-    .hl-team-page-header-stats {
-        flex-wrap: wrap;
-    }
 
     .hl-form-actions {
         flex-direction: column;
@@ -6472,13 +6351,7 @@ article:has(.hlup-wrapper) > .entry-header {
     }
 }
 
-/* ---- Meta Bar ---- */
-.hl-meta-bar {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-}
+/* ---- Meta Bar ---- (defined above in Page Hero section) */
 .hl-meta-item {
     display: flex;
     align-items: center;
