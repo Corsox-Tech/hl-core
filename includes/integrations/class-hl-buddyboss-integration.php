@@ -662,9 +662,8 @@ class HL_BuddyBoss_Integration {
      */
     private function is_hl_template_page() {
         // Lesson + course pages use our custom templates with built-in nav.
-        // URL check for lessons (LD Focus Mode corrupts is_singular).
-        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
-        if (strpos($request_uri, '/lessons/') !== false || is_singular('sfwd-courses')) {
+        // Focus Mode redirect is disabled by HL_Shortcodes, so is_singular works.
+        if (is_singular(array('sfwd-lessons', 'sfwd-courses'))) {
             return true;
         }
 

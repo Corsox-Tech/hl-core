@@ -15,8 +15,11 @@ class HL_Shortcodes {
     private function __construct() {
         add_action('init', array($this, 'register_shortcodes'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
-        // Priority 99999: must run AFTER all other template_include filters
-        // (BB at 999, LD focus mode at 99, JetMenu/JetTabs at 9999).
+        // Disable LD Focus Mode redirect BEFORE it fires (priority < 99).
+        // Focus Mode does a 302 redirect from lesson URLs to course URLs,
+        // which prevents our lesson template from ever loading.
+        add_action('template_redirect', array($this, 'disable_ld_focus_mode_redirect'), 1);
+        // Priority 99999: must run AFTER all other template_include filters.
         add_filter('template_include', array($this, 'use_hl_template'), 99999);
         add_action('wp_enqueue_scripts', array($this, 'dequeue_bb_ld_assets_on_ld_pages'), 9999);
         add_action('template_redirect', array('HL_Frontend_My_Cycle', 'handle_export'));
@@ -37,6 +40,33 @@ class HL_Shortcodes {
      * @param string $template Theme template path.
      * @return string Template path to use.
      */
+    /**
+     * Disable LD Focus Mode redirect on lesson pages.
+     *
+     * LD Focus Mode does a 302 redirect from lesson URLs to the parent
+     * course URL, preventing our lesson template from loading. We remove
+     * the Focus Mode template_include filter entirely — our ld-lesson.php
+     * template is the focus experience.
+     */
+    public function disable_ld_focus_mode_redirect() {
+        if (!is_singular(array('sfwd-lessons', 'sfwd-topic', 'sfwd-quiz'))) {
+            return;
+        }
+        // Remove LD's focus mode template filter (priority 99).
+        remove_filter('template_include', 'learndash_30_focus_mode', 99);
+
+        // Remove BB's focus mode override (priority 999).
+        if (function_exists('buddyboss_theme')) {
+            $bb_theme = buddyboss_theme();
+            if ($bb_theme && method_exists($bb_theme, 'learndash_helper')) {
+                $bb_ld = $bb_theme->learndash_helper();
+                if ($bb_ld) {
+                    remove_filter('template_include', array($bb_ld, 'ld_30_focus_mode_template'), 999);
+                }
+            }
+        }
+    }
+
     public function use_hl_template($template) {
         // HL shortcode pages — full plugin template takeover.
         if (is_singular('page')) {
@@ -46,13 +76,14 @@ class HL_Shortcodes {
             }
         }
 
-        // LearnDash pages — detect by URL path because LD Focus Mode
-        // corrupts is_singular(): lessons show as sfwd-courses when
-        // Focus Mode is active. URL detection is reliable.
-        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
-        if (strpos($request_uri, '/lessons/') !== false) {
+        // LearnDash lesson pages — custom template with course outline panel.
+        // Focus Mode redirect is disabled by disable_ld_focus_mode_redirect()
+        // so is_singular('sfwd-lessons') now works correctly.
+        if (is_singular('sfwd-lessons')) {
             return HL_CORE_PLUGIN_DIR . 'templates/ld-lesson.php';
         }
+
+        // LearnDash course pages — custom template with course info sidebar.
         if (is_singular('sfwd-courses')) {
             return HL_CORE_PLUGIN_DIR . 'templates/ld-course.php';
         }
@@ -72,10 +103,8 @@ class HL_Shortcodes {
      */
     public function dequeue_bb_ld_assets_on_ld_pages() {
         // Only dequeue on LD pages using our custom templates.
-        // Use URL check for lessons (Focus Mode corrupts is_singular).
-        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
-        $is_lesson = (strpos($request_uri, '/lessons/') !== false);
-        if (!$is_lesson && !is_singular('sfwd-courses')) {
+        // Focus Mode redirect is disabled, so is_singular works correctly.
+        if (!is_singular(array('sfwd-lessons', 'sfwd-courses'))) {
             return;
         }
 
