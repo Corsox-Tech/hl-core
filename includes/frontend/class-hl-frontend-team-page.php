@@ -401,12 +401,12 @@ class HL_Frontend_Team_Page {
         $activity_detail = array();
         $activities      = array();
 
-        if ( ! empty( $enrollment_ids ) && method_exists( $this->reporting_service, 'get_cycle_activity_detail' ) ) {
-            $activity_detail = $this->reporting_service->get_cycle_activity_detail(
+        if ( ! empty( $enrollment_ids ) && method_exists( $this->reporting_service, 'get_cycle_component_detail' ) ) {
+            $activity_detail = $this->reporting_service->get_cycle_component_detail(
                 $cycle->cycle_id,
                 $enrollment_ids
             );
-            $activities = $this->reporting_service->get_cycle_activities( $cycle->cycle_id );
+            $activities = $this->reporting_service->get_cycle_components( $cycle->cycle_id );
         }
 
         // CSV export URL.
@@ -450,7 +450,7 @@ class HL_Frontend_Team_Page {
                                     return ucwords( str_replace( '_', ' ', $r ) );
                                 }, $roles_raw ) )
                                 : '';
-                            $completion = round( floatval( $p['track_completion_percent'] ) );
+                            $completion = round( floatval( $p['cycle_completion_percent'] ) );
                             $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
                         ?>
                             <tr class="hl-report-row"

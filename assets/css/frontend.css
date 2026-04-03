@@ -451,7 +451,8 @@ body.hl-app {
    9. META ITEMS
    ===================================================== */
 
-.hl-partnership-meta {
+.hl-partnership-meta,
+.hl-cycle-meta {
     display: flex;
     gap: 18px;
     flex-wrap: wrap;
@@ -662,7 +663,8 @@ button.hl-btn-danger:hover,
 
 .hl-progress-header,
 .hl-team-header,
-.hl-my-partnership-header {
+.hl-my-partnership-header,
+.hl-my-cycle-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -678,14 +680,16 @@ button.hl-btn-danger:hover,
 
 .hl-progress-header-info,
 .hl-team-header-info,
-.hl-my-partnership-header-info {
+.hl-my-partnership-header-info,
+.hl-my-cycle-header-info {
     flex: 1;
     min-width: 200px;
 }
 
 .hl-progress-header .hl-partnership-title,
 .hl-team-header .hl-team-title,
-.hl-my-partnership-header .hl-partnership-title {
+.hl-my-partnership-header .hl-partnership-title,
+.hl-my-cycle-header .hl-cycle-title {
     font-size: 24px;
     font-weight: 800;
     color: var(--hl-surface);
@@ -694,17 +698,20 @@ button.hl-btn-danger:hover,
 }
 
 .hl-progress-header .hl-partnership-meta,
-.hl-my-partnership-header .hl-partnership-meta {
+.hl-my-partnership-header .hl-partnership-meta,
+.hl-my-cycle-header .hl-cycle-meta {
     color: rgba(255, 255, 255, 0.75);
 }
 
 .hl-progress-header .hl-meta-item strong,
-.hl-my-partnership-header .hl-meta-item strong {
+.hl-my-partnership-header .hl-meta-item strong,
+.hl-my-cycle-header .hl-meta-item strong {
     color: var(--hl-text);
 }
 
 .hl-progress-header .hl-badge,
-.hl-my-partnership-header .hl-badge {
+.hl-my-partnership-header .hl-badge,
+.hl-my-cycle-header .hl-badge {
     background: rgba(255, 255, 255, 0.15);
     color: var(--hl-surface);
 }
@@ -729,18 +736,21 @@ button.hl-btn-danger:hover,
     stroke: var(--hl-accent);
 }
 
-.hl-my-partnership-header .hl-scope-indicator {
+.hl-my-partnership-header .hl-scope-indicator,
+.hl-my-cycle-header .hl-scope-indicator {
     font-size: 14px;
     color: rgba(255, 255, 255, 0.7);
     margin: 0 0 8px;
     font-style: italic;
 }
 
-.hl-my-partnership-header .hl-partnership-selector label {
+.hl-my-partnership-header .hl-partnership-selector label,
+.hl-my-cycle-header .hl-cycle-selector label {
     color: rgba(255, 255, 255, 0.8);
 }
 
-.hl-my-partnership-header .hl-partnership-selector .hl-select {
+.hl-my-partnership-header .hl-partnership-selector .hl-select,
+.hl-my-cycle-header .hl-cycle-selector .hl-select {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.25);
     color: var(--hl-surface);
@@ -770,13 +780,15 @@ button.hl-btn-danger:hover,
    15. PARTNERSHIP SELECTOR
    ===================================================== */
 
-.hl-partnership-selector {
+.hl-partnership-selector,
+.hl-cycle-selector {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.hl-partnership-selector label {
+.hl-partnership-selector label,
+.hl-cycle-selector label {
     font-size: 14px;
     font-weight: 600;
     color: var(--hl-text-secondary);
@@ -2322,7 +2334,8 @@ button.hl-btn-danger:hover,
 @media (max-width: 768px) {
     .hl-progress-header,
     .hl-team-header,
-    .hl-my-partnership-header {
+    .hl-my-partnership-header,
+    .hl-my-cycle-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 16px;
@@ -2466,7 +2479,8 @@ button.hl-btn-danger:hover,
         align-items: flex-start;
     }
 
-    .hl-partnership-selector {
+    .hl-partnership-selector,
+    .hl-cycle-selector {
         width: 100%;
     }
 

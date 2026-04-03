@@ -38,6 +38,15 @@ class HL_Frontend_My_Coaching {
         $cycle_repo   = new HL_Cycle_Repository();
         $pathway_repo = new HL_Pathway_Repository();
 
+        // Sort enrollments so active cycles appear first.
+        usort($enrollments, function ($a, $b) use ($cycle_repo) {
+            $ca = $cycle_repo->get_by_id((int) $a->cycle_id);
+            $cb = $cycle_repo->get_by_id((int) $b->cycle_id);
+            $sa = ($ca && $ca->status === 'active') ? 0 : 1;
+            $sb = ($cb && $cb->status === 'active') ? 0 : 1;
+            return $sa - $sb;
+        });
+
         foreach ($enrollments as $enrollment) {
             $cycle_id      = (int) $enrollment->cycle_id;
             $enrollment_id = (int) $enrollment->enrollment_id;

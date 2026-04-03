@@ -403,7 +403,7 @@ class HL_BuddyBoss_Integration {
                 // --- Personal (require active enrollment) ---
                 array('my-programs',    'hl_my_programs',          __('My Programs', 'hl-core'),    'dashicons-portfolio',            $has_enrollment && ($is_teacher || $is_mentor || $is_leader || $is_staff || $is_coach)),
                 array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $is_mentor && !$is_control_only),
-                array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor || $is_teacher),
+                array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor),
                 // --- Leader ---
                 array('my-school',      'hl_my_cycle',             __('My School', 'hl-core'),      'dashicons-building',             $is_leader && !$is_staff),
                 // --- Directories / Management ---

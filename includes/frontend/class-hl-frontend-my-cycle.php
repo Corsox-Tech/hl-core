@@ -162,8 +162,18 @@ class HL_Frontend_My_Cycle {
         }
 
         if ( ! $active_enrollment ) {
-            $active_enrollment = $leader_enrollments[0];
-            $active_cycle_id  = (int) $active_enrollment->cycle_id;
+            // Prefer enrollment whose cycle is active.
+            foreach ( $leader_enrollments as $enrollment ) {
+                $c = $this->cycle_repo->get_by_id( (int) $enrollment->cycle_id );
+                if ( $c && 'active' === $c->status ) {
+                    $active_enrollment = $enrollment;
+                    break;
+                }
+            }
+            if ( ! $active_enrollment ) {
+                $active_enrollment = $leader_enrollments[0];
+            }
+            $active_cycle_id = (int) $active_enrollment->cycle_id;
         }
 
         $cycle = $this->cycle_repo->get_by_id( $active_cycle_id );
