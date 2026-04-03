@@ -8680,48 +8680,158 @@ body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__
     min-width: 0;
 }
 
-/* --- BB course layout overrides (BB's LD sidebar integration) --- */
-/* BB uses a flex grid with .bb-grid for content + sidebar */
-.hl-app .bb-grid {
-    display: flex;
-    gap: 32px;
-    flex-wrap: nowrap;
-}
-.hl-app .bb-learndash-content-wrap {
-    flex: 1;
-    min-width: 0; /* prevent overflow */
-}
-.hl-app .bb-single-course-sidebar {
+/* --- Custom course sidebar (replaces BB sidebar) --- */
+.hl-course-sidebar {
     width: 320px;
     flex-shrink: 0;
     position: sticky;
-    top: 72px; /* below topbar */
+    top: 72px; /* below topbar (48px + 24px padding) */
     align-self: flex-start;
-}
-.hl-app .bb-single-course-sidebar .bb-ld-sticky-sidebar {
-    position: static; /* BB makes this sticky too — we handle it on the parent */
-}
-/* Hide BB's banner/header since we have our own topbar */
-.hl-app .bb-vw-container.bb-learndash-banner { display: none; }
-/* Hide BB course meta row (we have our own breadcrumb) */
-.hl-app .bb-course-single-meta { display: none; }
-/* Fix BB enrollment widget inside sidebar */
-.hl-app .bb-enroll-widget { font-family: var(--hl-font); }
-/* Ensure sidebar preview image fits */
-.hl-app .bb-course-preview-wrap img {
-    max-width: 100%;
-    height: auto;
+    background: var(--hl-surface);
     border-radius: var(--hl-radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
 }
-/* Style BB course volume list (Course Includes) */
-.hl-app .bb-course-volume-list {
+
+/* Course image */
+.hl-course-sidebar__image-wrap {
+    width: 100%;
+    overflow: hidden;
+}
+.hl-course-sidebar__image-wrap img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Progress bar */
+.hl-course-sidebar__progress {
+    padding: 16px 20px 0;
+}
+.hl-course-sidebar__progress-bar {
+    height: 8px;
+    background: var(--hl-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.hl-course-sidebar__progress-fill {
+    height: 100%;
+    background: var(--hl-success);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+.hl-course-sidebar__progress-text {
+    display: block;
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--hl-success);
+}
+
+/* Action button */
+.hl-course-sidebar__action {
+    padding: 16px 20px;
+}
+.hl-course-sidebar__btn {
+    display: block;
+    width: 100%;
+    padding: 14px 20px;
+    text-align: center;
+    border-radius: var(--hl-radius);
+    background: var(--hl-primary);
+    color: #fff;
     font-family: var(--hl-font);
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    box-sizing: border-box;
 }
+.hl-course-sidebar__btn:hover {
+    background: var(--hl-primary-dark);
+    color: #fff;
+}
+.hl-course-sidebar__btn--secondary {
+    background: transparent;
+    color: var(--hl-primary);
+    border: 1px solid var(--hl-primary);
+    margin-top: 8px;
+}
+.hl-course-sidebar__btn--secondary:hover {
+    background: rgba(63, 81, 181, 0.05);
+    color: var(--hl-primary-dark);
+}
+.hl-course-sidebar__btn--disabled {
+    background: var(--hl-border);
+    color: var(--hl-text-muted);
+    cursor: default;
+}
+.hl-course-sidebar__badge--complete {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-radius: var(--hl-radius);
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+/* Course includes section */
+.hl-course-sidebar__includes {
+    padding: 0 20px 20px;
+    border-top: 1px solid var(--hl-border);
+    margin-top: 4px;
+}
+.hl-course-sidebar__includes-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--hl-text-secondary);
+    margin: 16px 0 12px;
+}
+.hl-course-sidebar__includes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.hl-course-sidebar__includes-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 14px;
+    color: var(--hl-text);
+    border-bottom: 1px solid var(--hl-border);
+}
+.hl-course-sidebar__includes-list li:last-child {
+    border-bottom: none;
+}
+.hl-course-sidebar__includes-list .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--hl-text-muted);
+}
+
+/* --- Course page layout (content + sidebar flex row) --- */
+.hl-course-layout {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+}
+.hl-course-content {
+    flex: 1;
+    min-width: 0; /* prevent overflow */
+}
+
 /* Hide BB masthead remnants */
 .hl-app #masthead,
-.hl-app .site-header,
-.hl-app .bb-mobile-header { display: none !important; }
+.hl-app .site-header { display: none !important; }
 
 /* --- LD Icon Font (kept as fallback — LD CSS also loads it) --- */
 @font-face {
@@ -9359,6 +9469,14 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     }
     body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__reopen {
         left: 0;
+    }
+    /* Course sidebar stacks below content on smaller screens */
+    .hl-course-layout {
+        flex-direction: column;
+    }
+    .hl-course-sidebar {
+        width: 100%;
+        position: static;
     }
 }
 @media (max-width: 768px) {

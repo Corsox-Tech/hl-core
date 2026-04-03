@@ -650,13 +650,14 @@ class HL_BuddyBoss_Integration {
     /**
      * Check if the current page uses an HL-managed template.
      *
-     * Returns true for pages with [hl_*] shortcodes (rendered by hl-page.php)
-     * AND for LearnDash lesson pages (rendered by ld-lesson.php).
-     * Course pages (sfwd-courses) use BB theme + hl-has-nav overlay — NOT excluded.
+     * Returns true for pages with [hl_*] shortcodes (rendered by hl-page.php),
+     * LearnDash lesson pages (rendered by ld-lesson.php), and LearnDash
+     * course pages (rendered by ld-course.php). All of these templates
+     * include their own sidebar + topbar, so BB's nav overlay is skipped.
      */
     private function is_hl_template_page() {
-        // Lesson pages use our custom template with built-in nav.
-        if (is_singular('sfwd-lessons')) {
+        // Lesson + course pages use our custom templates with built-in nav.
+        if (is_singular('sfwd-lessons') || is_singular('sfwd-courses')) {
             return true;
         }
 

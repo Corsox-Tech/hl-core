@@ -72,6 +72,84 @@ $courses_url = get_post_type_archive_link('sfwd-courses');
 if (!$courses_url) {
     $courses_url = home_url('/courses/');
 }
+
+// =========================================================================
+// Course Info Sidebar Data
+// =========================================================================
+$course_id = get_the_ID();
+$user_id   = get_current_user_id();
+
+// Featured image.
+$thumbnail = get_the_post_thumbnail($course_id, 'large', array('class' => 'hl-course-sidebar__image'));
+
+// Check enrollment.
+$has_access = function_exists('sfwd_lms_has_access') ? sfwd_lms_has_access($course_id, $user_id) : false;
+
+// Progress (only meaningful if enrolled).
+$pct       = 0;
+$completed = 0;
+$total     = 0;
+if ($has_access && function_exists('learndash_course_progress')) {
+    $progress = learndash_course_progress(array(
+        'user_id'   => $user_id,
+        'course_id' => $course_id,
+        'array'     => true,
+    ));
+    $pct       = !empty($progress['percentage']) ? (int) $progress['percentage'] : 0;
+    $completed = !empty($progress['completed']) ? (int) $progress['completed'] : 0;
+    $total     = !empty($progress['total']) ? (int) $progress['total'] : 0;
+}
+
+// Content counts.
+$lessons      = array();
+$lesson_count = 0;
+$topic_count  = 0;
+$quiz_count   = 0;
+if (function_exists('learndash_get_course_lessons_list')) {
+    $lessons = learndash_get_course_lessons_list($course_id, $user_id, array('num' => 0));
+    $lesson_count = is_array($lessons) ? count($lessons) : 0;
+}
+
+// Topics count (sum across all lessons).
+if (is_array($lessons) && function_exists('learndash_get_topic_list')) {
+    foreach ($lessons as $lesson_item) {
+        $topics = learndash_get_topic_list($lesson_item['post']->ID, $course_id);
+        if (is_array($topics)) {
+            $topic_count += count($topics);
+        }
+    }
+}
+
+// Quizzes.
+if (function_exists('learndash_get_course_quiz_list')) {
+    $quizzes    = learndash_get_course_quiz_list($course_id);
+    $quiz_count = is_array($quizzes) ? count($quizzes) : 0;
+}
+
+// Certificate.
+$has_cert = false;
+if (function_exists('learndash_get_setting')) {
+    $cert_id  = learndash_get_setting($course_id, 'certificate');
+    $has_cert = !empty($cert_id);
+}
+
+// Resume link (next incomplete lesson).
+$resume_url = '';
+if ($has_access && function_exists('learndash_get_next_incomplete_step_id')) {
+    $next_step = learndash_get_next_incomplete_step_id($user_id, $course_id);
+    if ($next_step) {
+        $resume_url = get_permalink($next_step);
+    }
+}
+// Fallback: first lesson.
+if ($has_access && empty($resume_url) && !empty($lessons)) {
+    $resume_url = get_permalink($lessons[0]['post']->ID);
+}
+
+// Remove BB's template part override so LD's own clean templates render.
+if (class_exists('BuddyBossTheme\LearndashHelper')) {
+    remove_filter('learndash_30_get_template_part', array(BuddyBossTheme\LearndashHelper::instance(), 'ld_30_get_template_part'), 10);
+}
 ?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
@@ -179,15 +257,71 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
 <?php endif; ?>
 
 <main class="hl-app__content">
-    <?php
-    // LearnDash hooks into the_content filter to render all course markup
-    // (progress bar, lesson list, tabs, etc.) inside div.learndash-wrapper.
-    if (have_posts()) :
-        while (have_posts()) : the_post();
-            the_content();
-        endwhile;
-    endif;
-    ?>
+    <div class="hl-course-layout">
+        <!-- Main Course Content -->
+        <div class="hl-course-content">
+            <?php
+            // LearnDash hooks into the_content filter to render all course markup
+            // (progress bar, lesson list, tabs, etc.) inside div.learndash-wrapper.
+            if (have_posts()) :
+                while (have_posts()) : the_post();
+                    the_content();
+                endwhile;
+            endif;
+            ?>
+        </div>
+
+        <!-- Course Info Sidebar -->
+        <aside class="hl-course-sidebar">
+            <?php if ($thumbnail) : ?>
+            <!-- Course image -->
+            <div class="hl-course-sidebar__image-wrap">
+                <?php echo $thumbnail; ?>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($has_access && $total > 0) : ?>
+            <!-- Progress -->
+            <div class="hl-course-sidebar__progress">
+                <div class="hl-course-sidebar__progress-bar">
+                    <div class="hl-course-sidebar__progress-fill" style="width: <?php echo $pct; ?>%"></div>
+                </div>
+                <span class="hl-course-sidebar__progress-text"><?php echo $pct; ?>% Complete</span>
+            </div>
+            <?php endif; ?>
+
+            <!-- Action button -->
+            <div class="hl-course-sidebar__action">
+                <?php if ($has_access && $pct >= 100) : ?>
+                    <span class="hl-course-sidebar__badge hl-course-sidebar__badge--complete">Completed</span>
+                    <a href="<?php echo esc_url($resume_url); ?>" class="hl-course-sidebar__btn hl-course-sidebar__btn--secondary">Review Course</a>
+                <?php elseif ($has_access) : ?>
+                    <a href="<?php echo esc_url($resume_url); ?>" class="hl-course-sidebar__btn"><?php echo $pct > 0 ? 'Continue' : 'Start Course'; ?></a>
+                <?php else : ?>
+                    <span class="hl-course-sidebar__btn hl-course-sidebar__btn--disabled">Not Enrolled</span>
+                <?php endif; ?>
+            </div>
+
+            <!-- Course includes -->
+            <div class="hl-course-sidebar__includes">
+                <h4 class="hl-course-sidebar__includes-title">COURSE INCLUDES</h4>
+                <ul class="hl-course-sidebar__includes-list">
+                    <?php if ($lesson_count > 0) : ?>
+                    <li><span class="dashicons dashicons-media-text"></span> <?php echo $lesson_count; ?> Lesson<?php echo $lesson_count !== 1 ? 's' : ''; ?></li>
+                    <?php endif; ?>
+                    <?php if ($topic_count > 0) : ?>
+                    <li><span class="dashicons dashicons-editor-ul"></span> <?php echo $topic_count; ?> Topic<?php echo $topic_count !== 1 ? 's' : ''; ?></li>
+                    <?php endif; ?>
+                    <?php if ($quiz_count > 0) : ?>
+                    <li><span class="dashicons dashicons-forms"></span> <?php echo $quiz_count; ?> Quiz<?php echo $quiz_count !== 1 ? 'zes' : ''; ?></li>
+                    <?php endif; ?>
+                    <?php if ($has_cert) : ?>
+                    <li><span class="dashicons dashicons-awards"></span> Course Certificate</li>
+                    <?php endif; ?>
+                </ul>
+            </div>
+        </aside>
+    </div>
 </main>
 
 <?php
