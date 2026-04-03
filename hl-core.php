@@ -124,7 +124,8 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-dashboard-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scheduling-email-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scheduling-service.php';
-        
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-tour-service.php';
+
         // Integrations
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-learndash-integration.php';
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-buddyboss-integration.php';
@@ -275,6 +276,9 @@ class HL_Core {
         // Initialize scheduling service (registers AJAX hooks)
         HL_Scheduling_Service::instance();
         HL_Admin_Scheduling_Settings::instance();
+
+        // Initialize tour service (registers AJAX hooks)
+        HL_Tour_Service::instance();
 
         // Auto-generate child assessment instances when teaching assignments change
         add_action('hl_core_teaching_assignment_changed', function ($cycle_id) {
