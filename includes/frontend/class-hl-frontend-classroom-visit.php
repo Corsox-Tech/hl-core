@@ -434,7 +434,7 @@ class HL_Frontend_Classroom_Visit {
             $stitle = isset($section['title']) ? strtolower($section['title']) : '';
 
             // Context section (checkboxes)
-            if ($key === 'context' || $type === 'checkboxes' || $stitle === 'context') {
+            if ($key === 'context' || $type === 'checkboxes' || $type === 'context_checkboxes' || $stitle === 'context') {
                 self::render_context_section($section, $responses, $is_readonly, $prefix);
             }
             // Domain indicators — new per-domain format (indicator_checklist)

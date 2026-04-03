@@ -898,6 +898,34 @@ class HL_Admin_Instruments {
                 }
                 $section_type = sanitize_text_field($s['type'] ?? 'likert');
 
+                // context_checkboxes: save with fields format for frontend compat.
+                if ($section_type === 'context_checkboxes') {
+                    $ctx_keys   = isset($s['context_keys']) && is_array($s['context_keys']) ? $s['context_keys'] : array();
+                    $ctx_labels = isset($s['context_labels']) && is_array($s['context_labels']) ? $s['context_labels'] : array();
+                    $options    = array();
+                    foreach ($ctx_keys as $i => $ck) {
+                        $ck = sanitize_text_field($ck);
+                        $cl = isset($ctx_labels[$i]) ? sanitize_text_field($ctx_labels[$i]) : '';
+                        if ($ck !== '' && $cl !== '') {
+                            $options[$ck] = $cl;
+                        }
+                    }
+                    $sections[] = array(
+                        'key'    => $section_key,
+                        'title'  => sanitize_text_field($s['title'] ?? ''),
+                        'type'   => 'context_checkboxes',
+                        'fields' => array(
+                            array(
+                                'key'     => 'context_activities',
+                                'type'    => 'multiselect',
+                                'label'   => 'Activities observed',
+                                'options' => $options,
+                            ),
+                        ),
+                    );
+                    continue;
+                }
+
                 // indicator_checklist sections use the visit-form JSON shape
                 // (key, title, type, indicators) so the frontend renderer works.
                 if ($section_type === 'indicator_checklist') {
@@ -1311,13 +1339,38 @@ class HL_Admin_Instruments {
         $items         = isset($section['items']) ? $section['items'] : array();
         $indicators    = isset($section['indicators']) ? $section['indicators'] : array();
         $retrospective = !empty($section['retrospective']);
-        $is_indicator  = ($type === 'indicator_checklist');
         $prefix        = 'sections[' . $index . ']';
 
-        $meta_count = $is_indicator ? count($indicators) : count($items);
-        $meta_label = $is_indicator
-            ? sprintf(__('%d indicators', 'hl-core'), $meta_count)
-            : sprintf(__('%d items', 'hl-core'), $meta_count);
+        // Detect context sections: they have fields with multiselect options and no explicit type.
+        if ( ! $type || $type === 'likert' ) {
+            if ( ! empty( $section['fields'] ) || $section_key === 'context' ) {
+                $type = 'context_checkboxes';
+            }
+        }
+
+        // Extract context checkbox options from fields format.
+        $context_options = array();
+        if ( $type === 'context_checkboxes' && ! empty( $section['fields'] ) ) {
+            foreach ( $section['fields'] as $field ) {
+                if ( isset( $field['options'] ) && is_array( $field['options'] ) ) {
+                    $context_options = $field['options'];
+                }
+            }
+        }
+
+        $is_indicator  = ( $type === 'indicator_checklist' );
+        $is_context    = ( $type === 'context_checkboxes' );
+
+        if ( $is_indicator ) {
+            $meta_count = count( $indicators );
+            $meta_label = sprintf( __( '%d indicators', 'hl-core' ), $meta_count );
+        } elseif ( $is_context ) {
+            $meta_count = count( $context_options );
+            $meta_label = sprintf( __( '%d options', 'hl-core' ), $meta_count );
+        } else {
+            $meta_count = count( $items );
+            $meta_label = sprintf( __( '%d items', 'hl-core' ), $meta_count );
+        }
 
         ?>
         <div class="hl-te-section-panel" data-section-index="<?php echo esc_attr($index); ?>">
@@ -1343,7 +1396,8 @@ class HL_Admin_Instruments {
                         <th><label><?php echo $is_indicator ? esc_html__('Domain Name', 'hl-core') : esc_html__('Title', 'hl-core'); ?></label></th>
                         <td><input type="text" name="<?php echo esc_attr($prefix); ?>[title]" value="<?php echo esc_attr($title); ?>" class="regular-text hl-te-section-title-input" /></td>
                     </tr>
-                    <tr class="hl-te-row-scored-only" <?php echo $is_indicator ? 'style="display:none;"' : ''; ?>>
+                    <?php $hide_scored = $is_indicator || $is_context; ?>
+                    <tr class="hl-te-row-scored-only" <?php echo $hide_scored ? 'style="display:none;"' : ''; ?>>
                         <th><label><?php esc_html_e('Description', 'hl-core'); ?></label></th>
                         <td>
                             <div class="hl-te-richtext-wrap">
@@ -1364,10 +1418,11 @@ class HL_Admin_Instruments {
                                 <option value="likert" <?php selected($type, 'likert'); ?>><?php esc_html_e('Likert', 'hl-core'); ?></option>
                                 <option value="scale" <?php selected($type, 'scale'); ?>><?php esc_html_e('Scale (0-10)', 'hl-core'); ?></option>
                                 <option value="indicator_checklist" <?php selected($type, 'indicator_checklist'); ?>><?php esc_html_e('Domains & Indicators (Yes/No)', 'hl-core'); ?></option>
+                                <option value="context_checkboxes" <?php selected($type, 'context_checkboxes'); ?>><?php esc_html_e('Context Checkboxes', 'hl-core'); ?></option>
                             </select>
                         </td>
                     </tr>
-                    <tr class="hl-te-row-scored-only" <?php echo $is_indicator ? 'style="display:none;"' : ''; ?>>
+                    <tr class="hl-te-row-scored-only" <?php echo $hide_scored ? 'style="display:none;"' : ''; ?>>
                         <th><label><?php esc_html_e('Scale Key', 'hl-core'); ?></label></th>
                         <td>
                             <select name="<?php echo esc_attr($prefix); ?>[scale_key]" class="hl-te-scale-key-select">
@@ -1378,7 +1433,7 @@ class HL_Admin_Instruments {
                             </select>
                         </td>
                     </tr>
-                    <tr class="hl-te-row-scored-only" <?php echo $is_indicator ? 'style="display:none;"' : ''; ?>>
+                    <tr class="hl-te-row-scored-only" <?php echo $hide_scored ? 'style="display:none;"' : ''; ?>>
                         <th><label><?php esc_html_e('Retrospective', 'hl-core'); ?></label></th>
                         <td>
                             <label>
@@ -1390,7 +1445,7 @@ class HL_Admin_Instruments {
                 </table>
 
                 <!-- Items table (likert/scale types) -->
-                <div class="hl-te-items-wrap" <?php echo $is_indicator ? 'style="display:none;"' : ''; ?>>
+                <div class="hl-te-items-wrap" <?php echo $hide_scored ? 'style="display:none;"' : ''; ?>>
                     <h4><?php esc_html_e('Items', 'hl-core'); ?></h4>
                     <table class="widefat hl-te-items-table">
                         <thead>
@@ -1429,6 +1484,30 @@ class HL_Admin_Instruments {
                         </tbody>
                     </table>
                     <p><button type="button" class="button button-small hl-te-add-indicator"><?php esc_html_e('+ Add Indicator', 'hl-core'); ?></button></p>
+                </div>
+
+                <!-- Context options (context_checkboxes type) -->
+                <div class="hl-te-context-wrap" <?php echo $is_context ? '' : 'style="display:none;"'; ?>>
+                    <h4><?php esc_html_e('Checkbox Options', 'hl-core'); ?></h4>
+                    <table class="widefat hl-te-context-table">
+                        <thead>
+                            <tr>
+                                <th style="width:200px;"><?php esc_html_e('Key', 'hl-core'); ?></th>
+                                <th><?php esc_html_e('Label', 'hl-core'); ?></th>
+                                <th style="width:80px;"><?php esc_html_e('Actions', 'hl-core'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody class="hl-te-context-body">
+                            <?php foreach ($context_options as $opt_key => $opt_label) : ?>
+                                <tr class="hl-te-context-row">
+                                    <td><input type="text" name="<?php echo esc_attr($prefix); ?>[context_keys][]" value="<?php echo esc_attr($opt_key); ?>" class="widefat" /></td>
+                                    <td><input type="text" name="<?php echo esc_attr($prefix); ?>[context_labels][]" value="<?php echo esc_attr($opt_label); ?>" class="widefat" /></td>
+                                    <td><button type="button" class="button-link button-link-delete hl-te-remove-context-opt"><?php esc_html_e('Remove', 'hl-core'); ?></button></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <p><button type="button" class="button button-small hl-te-add-context-opt"><?php esc_html_e('+ Add Option', 'hl-core'); ?></button></p>
                 </div>
             </div>
         </div>

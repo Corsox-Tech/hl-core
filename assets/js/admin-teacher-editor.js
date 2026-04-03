@@ -137,28 +137,39 @@
         var val = typeSelect.value;
         var isScale     = val === 'scale';
         var isIndicator = val === 'indicator_checklist';
+        var isContext    = val === 'context_checkboxes';
+        var isSpecial   = isIndicator || isContext;
 
         // Anchor fields only for scale type
         sectionPanel.querySelectorAll('.hl-te-anchor-fields').forEach(function (el) {
             el.style.display = isScale ? 'flex' : 'none';
         });
-        // Hide scored-only rows (description, scale key, retrospective) for indicators
+        // Hide scored-only rows for non-scored types
         sectionPanel.querySelectorAll('.hl-te-row-scored-only').forEach(function (el) {
-            el.style.display = isIndicator ? 'none' : '';
+            el.style.display = isSpecial ? 'none' : '';
         });
-        // Items table vs indicators list
-        var itemsWrap = sectionPanel.querySelector('.hl-te-items-wrap');
+        // Toggle content panels
+        var itemsWrap      = sectionPanel.querySelector('.hl-te-items-wrap');
         var indicatorsWrap = sectionPanel.querySelector('.hl-te-indicators-wrap');
-        if (itemsWrap) itemsWrap.style.display = isIndicator ? 'none' : '';
-        if (indicatorsWrap) indicatorsWrap.style.display = isIndicator ? '' : 'none';
+        var contextWrap    = sectionPanel.querySelector('.hl-te-context-wrap');
+        if (itemsWrap)      itemsWrap.style.display      = isSpecial ? 'none' : '';
+        if (indicatorsWrap) indicatorsWrap.style.display  = isIndicator ? '' : 'none';
+        if (contextWrap)    contextWrap.style.display     = isContext ? '' : 'none';
         // Update header meta label
         var meta = sectionPanel.querySelector('.hl-te-section-header-meta');
-        if (meta && isIndicator) {
-            var count = sectionPanel.querySelectorAll('.hl-te-indicator-row').length;
-            meta.textContent = count + ' ' + (i18n.indicators || 'indicators');
-        } else if (meta) {
-            var count = sectionPanel.querySelectorAll('.hl-te-item-row').length;
-            meta.textContent = count + ' ' + (i18n.items || 'items');
+        if (meta) {
+            var count, label;
+            if (isIndicator) {
+                count = sectionPanel.querySelectorAll('.hl-te-indicator-row').length;
+                label = i18n.indicators || 'indicators';
+            } else if (isContext) {
+                count = sectionPanel.querySelectorAll('.hl-te-context-row').length;
+                label = i18n.options || 'options';
+            } else {
+                count = sectionPanel.querySelectorAll('.hl-te-item-row').length;
+                label = i18n.items || 'items';
+            }
+            meta.textContent = count + ' ' + label;
         }
     }
 
@@ -296,6 +307,38 @@
             btn.addEventListener('click', function () {
                 if (confirm(i18n.removeIndicator || 'Remove this indicator?')) {
                     btn.closest('.hl-te-indicator-row').remove();
+                }
+            });
+        });
+
+        // Add context option
+        container.querySelectorAll('.hl-te-add-context-opt').forEach(function (btn) {
+            if (btn._hlBound) return;
+            btn._hlBound = true;
+            btn.addEventListener('click', function () {
+                var panel = btn.closest('.hl-te-section-panel');
+                var secIdx = panel.getAttribute('data-section-index');
+                var tbody = panel.querySelector('.hl-te-context-body');
+
+                var tr = document.createElement('tr');
+                tr.className = 'hl-te-context-row';
+                tr.innerHTML =
+                    '<td><input type="text" name="sections[' + secIdx + '][context_keys][]" value="" class="widefat" placeholder="e.g. free_play" /></td>' +
+                    '<td><input type="text" name="sections[' + secIdx + '][context_labels][]" value="" class="widefat" placeholder="e.g. Free Play" /></td>' +
+                    '<td><button type="button" class="button-link button-link-delete hl-te-remove-context-opt">' + escHtml(i18n.remove || 'Remove') + '</button></td>';
+
+                tbody.appendChild(tr);
+                initRemoveHandlers(tr);
+            });
+        });
+
+        // Remove context option
+        container.querySelectorAll('.hl-te-remove-context-opt').forEach(function (btn) {
+            if (btn._hlBound) return;
+            btn._hlBound = true;
+            btn.addEventListener('click', function () {
+                if (confirm(i18n.removeOption || 'Remove this option?')) {
+                    btn.closest('.hl-te-context-row').remove();
                 }
             });
         });
@@ -471,6 +514,7 @@
                             '<option value="likert">' + escHtml(i18n.likert || 'Likert') + '</option>' +
                             '<option value="scale">' + escHtml(i18n.scaleType || 'Scale (0-10)') + '</option>' +
                             '<option value="indicator_checklist">' + escHtml(i18n.indicatorChecklist || 'Domains & Indicators (Yes/No)') + '</option>' +
+                            '<option value="context_checkboxes">' + escHtml(i18n.contextCheckboxes || 'Context Checkboxes') + '</option>' +
                         '</select></td></tr>' +
                         '<tr class="hl-te-row-scored-only"><th><label>' + escHtml(i18n.scaleKeyField || 'Scale Key') + '</label></th>' +
                         '<td><select name="' + prefix + '[scale_key]" class="hl-te-scale-key-select">' + scaleOpts + '</select></td></tr>' +
@@ -497,6 +541,18 @@
                             '<tbody class="hl-te-indicators-body"></tbody>' +
                         '</table>' +
                         '<p><button type="button" class="button button-small hl-te-add-indicator">' + escHtml(i18n.addIndicator || '+ Add Indicator') + '</button></p>' +
+                    '</div>' +
+                    '<div class="hl-te-context-wrap" style="display:none;">' +
+                        '<h4>' + escHtml(i18n.checkboxOptions || 'Checkbox Options') + '</h4>' +
+                        '<table class="widefat hl-te-context-table">' +
+                            '<thead><tr>' +
+                                '<th style="width:200px;">' + escHtml(i18n.keyLabel || 'Key') + '</th>' +
+                                '<th>' + escHtml(i18n.labelLabel || 'Label') + '</th>' +
+                                '<th style="width:80px;">' + escHtml(i18n.actions || 'Actions') + '</th>' +
+                            '</tr></thead>' +
+                            '<tbody class="hl-te-context-body"></tbody>' +
+                        '</table>' +
+                        '<p><button type="button" class="button button-small hl-te-add-context-opt">' + escHtml(i18n.addOption || '+ Add Option') + '</button></p>' +
                     '</div>' +
                 '</div>';
 
