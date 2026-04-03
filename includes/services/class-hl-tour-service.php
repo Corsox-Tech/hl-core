@@ -62,6 +62,13 @@ class HL_Tour_Service {
 
             $tour['steps'] = $this->repo->get_steps( $tour['tour_id'] );
 
+            // Defense-in-depth: sanitize step content at output time.
+            foreach ( $tour['steps'] as &$step ) {
+                $step['title']       = esc_html( $step['title'] );
+                $step['description'] = wp_kses_post( $step['description'] );
+            }
+            unset( $step );
+
             // If this is the active in-progress tour, include it fully.
             if ( $active_tour_slug && $tour['slug'] === $active_tour_slug ) {
                 $result['active_tour'] = $tour;

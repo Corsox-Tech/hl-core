@@ -137,9 +137,7 @@
     }
 
     function fetchAndStartTour(slug, tourId, startStepIndex) {
-        ajaxPost('hl_tour_get_steps', { tour_id: tourId }, function(success) {});
-        // For manual starts from dropdown, we need to fetch full data.
-        // Use AJAX to get the full tour, then start.
+        // Fetch full tour data via AJAX, then start.
         var xhr = new XMLHttpRequest();
         xhr.open('POST', DATA.ajax_url, true);
         xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
@@ -281,6 +279,8 @@
                 },
                 _hlInteractive: isInteractive,
                 _hlTargetSelector: s.target_selector,
+                _hlProgressCurrent: visibleCounter,
+                _hlProgressTotal: totalVisible,
                 disableActiveInteraction: isInteractive ? false : true
             });
         }
@@ -296,10 +296,12 @@
                         title: finalStep._hlStep.title,
                         description: finalStep._hlStep.description,
                         side: 'bottom',
-                        showButtons: ['close'],
+                        showButtons: ['next', 'close'],
                         progressText: totalVisible + ' ' + (i18n.of || 'of') + ' ' + totalVisible
                     },
                     _hlFinal: true,
+                    _hlProgressCurrent: totalVisible,
+                    _hlProgressTotal: totalVisible,
                     disableActiveInteraction: true
                 });
             }
@@ -366,31 +368,31 @@
                     var existing = footer.querySelector('.hl-tour-progress-bar');
                     if (!existing) {
                         var activeStep = options.state.activeStep;
-                        var progressText = activeStep && activeStep.popover ? activeStep.popover.progressText : '';
-                        if (progressText) {
-                            var parts = progressText.split(' ');
-                            var current = parseInt(parts[0], 10);
-                            var total = parseInt(parts[parts.length - 1], 10);
-                            if (current > 0 && total > 0) {
-                                var pct = Math.round((current / total) * 100);
-                                var bar = document.createElement('div');
-                                bar.className = 'hl-tour-progress-bar';
-                                bar.style.cssText = 'width:100%;height:3px;background:#e5e7eb;border-radius:2px;margin-top:8px;overflow:hidden;';
-                                var fill = document.createElement('div');
-                                fill.style.cssText = 'height:100%;border-radius:2px;transition:width 0.3s ease;width:' + pct + '%;background:' + (styles.progress_color || '#6366f1') + ';';
-                                bar.appendChild(fill);
-                                footer.appendChild(bar);
-                            }
+                        var current = activeStep ? activeStep._hlProgressCurrent : 0;
+                        var total   = activeStep ? activeStep._hlProgressTotal   : 0;
+                        if (current > 0 && total > 0) {
+                            var pct = Math.round((current / total) * 100);
+                            var bar = document.createElement('div');
+                            bar.className = 'hl-tour-progress-bar';
+                            bar.style.cssText = 'width:100%;height:3px;background:#e5e7eb;border-radius:2px;margin-top:8px;overflow:hidden;';
+                            var fill = document.createElement('div');
+                            fill.style.cssText = 'height:100%;border-radius:2px;transition:width 0.3s ease;width:' + pct + '%;background:' + (styles.progress_color || '#6366f1') + ';';
+                            bar.appendChild(fill);
+                            footer.appendChild(bar);
                         }
                     }
                 }
             },
 
             onHighlightStarted: function(element, step, options) {
-                // Offset scroll for the fixed 48px topbar.
+                // Offset scroll for the fixed 48px topbar — only when element is near/behind it.
+                if (!element) return;
                 setTimeout(function() {
-                    window.scrollBy(0, -80);
-                }, 100);
+                    var rect = element.getBoundingClientRect();
+                    if (rect.top < 80) {
+                        window.scrollBy({ top: -80, behavior: 'smooth' });
+                    }
+                }, 300);
             },
 
             onNextClick: function(element, step, options) {
@@ -520,7 +522,7 @@
                     title: i18n.replay_title || 'Replay This Tour',
                     description: i18n.replay_desc || 'You can revisit this tour anytime by clicking here.',
                     side: 'bottom',
-                    showButtons: ['close']
+                    showButtons: ['next', 'close']
                 },
                 disableActiveInteraction: true
             }],
@@ -537,6 +539,10 @@
                     desc.style.color = styles.desc_color || '#6B7280';
                     desc.style.fontSize = (styles.desc_font_size || 14) + 'px';
                 }
+            },
+            onNextClick: function() {
+                markSeenAndCleanup(tour.tour_id);
+                finalDriver.destroy();
             },
             onCloseClick: function() {
                 markSeenAndCleanup(tour.tour_id);
