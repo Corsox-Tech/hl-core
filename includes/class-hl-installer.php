@@ -127,7 +127,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 28;
+        $current_revision = 29;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -1897,6 +1897,53 @@ class HL_Installer {
             PRIMARY KEY (availability_id),
             KEY coach_user_id (coach_user_id),
             KEY coach_day (coach_user_id, day_of_week)
+        ) $charset_collate;";
+
+        // --- Guided Tours ---
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_tour (
+            tour_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            title varchar(255) NOT NULL,
+            slug varchar(100) NOT NULL,
+            trigger_type enum('first_login','page_visit','manual_only') NOT NULL,
+            trigger_page_url varchar(500) NULL,
+            target_roles text NULL COMMENT 'JSON array of HL roles, NULL = all',
+            start_page_url varchar(500) NOT NULL,
+            status enum('active','draft','archived') NOT NULL DEFAULT 'draft',
+            hide_on_mobile tinyint(1) NOT NULL DEFAULT 0,
+            sort_order int NOT NULL DEFAULT 0,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (tour_id),
+            UNIQUE KEY slug (slug),
+            KEY status (status),
+            KEY trigger_type (trigger_type),
+            KEY sort_order (sort_order)
+        ) $charset_collate;";
+
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_tour_step (
+            step_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            tour_id bigint(20) unsigned NOT NULL,
+            step_order int NOT NULL DEFAULT 0,
+            title varchar(255) NOT NULL,
+            description text NOT NULL,
+            page_url varchar(500) NULL,
+            target_selector varchar(500) NULL,
+            position enum('top','bottom','left','right','auto') NOT NULL DEFAULT 'auto',
+            step_type enum('informational','interactive') NOT NULL DEFAULT 'informational',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (step_id),
+            KEY tour_step_order (tour_id, step_order)
+        ) $charset_collate;";
+
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_tour_seen (
+            seen_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) unsigned NOT NULL,
+            tour_id bigint(20) unsigned NOT NULL,
+            seen_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (seen_id),
+            UNIQUE KEY user_tour (user_id, tour_id),
+            KEY tour_id (tour_id)
         ) $charset_collate;";
 
         return $tables;
