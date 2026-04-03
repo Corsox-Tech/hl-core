@@ -32,6 +32,13 @@ class HL_Cycle {
                 $this->$key = $value;
             }
         }
+        // Ensure integer IDs for strict comparisons.
+        if ( $this->cycle_id !== null ) {
+            $this->cycle_id = absint( $this->cycle_id );
+        }
+        if ( $this->partnership_id !== null ) {
+            $this->partnership_id = absint( $this->partnership_id );
+        }
     }
 
     public function to_array() {
