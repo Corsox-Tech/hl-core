@@ -1683,67 +1683,87 @@ class HL_Admin_Instruments {
      */
     private function render_teacher_preview($instrument_row) {
         $back_url = admin_url('admin.php?page=hl-instruments&tab=teacher&action=edit&id=' . $instrument_row->instrument_id);
-        $phase    = isset($_GET['phase']) && $_GET['phase'] === 'post' ? 'post' : 'pre';
+        $sections = json_decode($instrument_row->sections, true) ?: array();
+
+        // Detect if this instrument uses visit-form section types.
+        $is_visit_form = false;
+        foreach ($sections as $sec) {
+            $sec_type = isset($sec['type']) ? $sec['type'] : '';
+            if (in_array($sec_type, array('indicator_checklist', 'context_checkboxes', 'domain_indicators'), true)) {
+                $is_visit_form = true;
+                break;
+            }
+        }
 
         echo '<div style="margin-bottom: 15px; display: flex; align-items: center; gap: 12px;">';
         echo '<a href="' . esc_url($back_url) . '" class="button">&larr; ' . esc_html__('Back to Editor', 'hl-core') . '</a>';
 
-        // Phase toggle links.
-        $pre_url  = admin_url('admin.php?page=hl-instruments&tab=teacher&action=preview&id=' . $instrument_row->instrument_id . '&phase=pre');
-        $post_url = admin_url('admin.php?page=hl-instruments&tab=teacher&action=preview&id=' . $instrument_row->instrument_id . '&phase=post');
-        echo '<span style="margin-left: 8px;">' . esc_html__('Phase:', 'hl-core') . ' ';
-        echo ($phase === 'pre')
-            ? '<strong>' . esc_html__('Pre', 'hl-core') . '</strong>'
-            : '<a href="' . esc_url($pre_url) . '">' . esc_html__('Pre', 'hl-core') . '</a>';
-        echo ' | ';
-        echo ($phase === 'post')
-            ? '<strong>' . esc_html__('Post', 'hl-core') . '</strong>'
-            : '<a href="' . esc_url($post_url) . '">' . esc_html__('Post', 'hl-core') . '</a>';
-        echo '</span>';
+        if (! $is_visit_form) {
+            // Phase toggle only relevant for scored instruments.
+            $phase    = isset($_GET['phase']) && $_GET['phase'] === 'post' ? 'post' : 'pre';
+            $pre_url  = admin_url('admin.php?page=hl-instruments&tab=teacher&action=preview&id=' . $instrument_row->instrument_id . '&phase=pre');
+            $post_url = admin_url('admin.php?page=hl-instruments&tab=teacher&action=preview&id=' . $instrument_row->instrument_id . '&phase=post');
+            echo '<span style="margin-left: 8px;">' . esc_html__('Phase:', 'hl-core') . ' ';
+            echo ($phase === 'pre')
+                ? '<strong>' . esc_html__('Pre', 'hl-core') . '</strong>'
+                : '<a href="' . esc_url($pre_url) . '">' . esc_html__('Pre', 'hl-core') . '</a>';
+            echo ' | ';
+            echo ($phase === 'post')
+                ? '<strong>' . esc_html__('Post', 'hl-core') . '</strong>'
+                : '<a href="' . esc_url($post_url) . '">' . esc_html__('Post', 'hl-core') . '</a>';
+            echo '</span>';
+        }
         echo '</div>';
 
-        echo '<h1>' . esc_html(sprintf(__('Preview: %s (%s)', 'hl-core'), $instrument_row->instrument_name, ucfirst($phase))) . '</h1>';
+        echo '<h1>' . esc_html(sprintf(__('Preview: %s', 'hl-core'), $instrument_row->instrument_name)) . '</h1>';
         echo '<div class="notice notice-info"><p>' . esc_html__('This is a read-only preview showing how the instrument will appear to teachers.', 'hl-core') . '</p></div>';
-
-        // Build the domain model from the DB row.
-        $instrument = new HL_Teacher_Assessment_Instrument((array) $instrument_row);
-        $fake_instance = (object) array('instance_id' => 0);
-
-        // For POST preview, generate fake PRE responses so the "Before" column is populated.
-        $pre_responses = array();
-        if ($phase === 'post') {
-            foreach ($instrument->get_sections() as $section) {
-                $section_key = isset($section['section_key']) ? $section['section_key'] : '';
-                if (!empty($section['items']) && is_array($section['items'])) {
-                    foreach ($section['items'] as $item) {
-                        $item_key = isset($item['key']) ? $item['key'] : '';
-                        if ($item_key) {
-                            $pre_responses[$section_key][$item_key] = '3';
-                        }
-                    }
-                }
-            }
-        }
 
         // Enqueue frontend CSS for the preview.
         wp_enqueue_style('hl-frontend', HL_CORE_ASSETS_URL . 'css/frontend.css', array(), HL_CORE_VERSION);
 
-        $renderer = new HL_Teacher_Assessment_Renderer(
-            $instrument,
-            $fake_instance,
-            $phase,
-            array(),
-            $pre_responses,
-            true,
-            array(
-                'show_instrument_name' => true,
-                'show_program_name'    => false,
-            )
-        );
+        if ($is_visit_form) {
+            // Use the classroom visit form renderer for indicator/context instruments.
+            echo '<div class="hl-instrument-preview" style="max-width: 900px; pointer-events: none;">';
+            HL_Frontend_Classroom_Visit::render_visit_form_sections($sections, array(), true, 'hl_cv_preview');
+            echo '</div>';
+        } else {
+            // Scored instrument — use the teacher assessment renderer.
+            $phase = isset($_GET['phase']) && $_GET['phase'] === 'post' ? 'post' : 'pre';
+            $instrument = new HL_Teacher_Assessment_Instrument((array) $instrument_row);
+            $fake_instance = (object) array('instance_id' => 0);
 
-        echo '<div class="hl-instrument-preview" style="max-width: 900px;">';
-        echo $renderer->render();
-        echo '</div>';
+            $pre_responses = array();
+            if ($phase === 'post') {
+                foreach ($instrument->get_sections() as $section) {
+                    $section_key = isset($section['section_key']) ? $section['section_key'] : '';
+                    if (!empty($section['items']) && is_array($section['items'])) {
+                        foreach ($section['items'] as $item) {
+                            $item_key = isset($item['key']) ? $item['key'] : '';
+                            if ($item_key) {
+                                $pre_responses[$section_key][$item_key] = '3';
+                            }
+                        }
+                    }
+                }
+            }
+
+            $renderer = new HL_Teacher_Assessment_Renderer(
+                $instrument,
+                $fake_instance,
+                $phase,
+                array(),
+                $pre_responses,
+                true,
+                array(
+                    'show_instrument_name' => true,
+                    'show_program_name'    => false,
+                )
+            );
+
+            echo '<div class="hl-instrument-preview" style="max-width: 900px;">';
+            echo $renderer->render();
+            echo '</div>';
+        }
     }
 
     // =====================================================================
