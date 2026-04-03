@@ -15,7 +15,9 @@ class HL_Shortcodes {
     private function __construct() {
         add_action('init', array($this, 'register_shortcodes'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
-        add_filter('template_include', array($this, 'use_hl_template'), 1001);
+        // Priority 99999: must run AFTER all other template_include filters
+        // (BB at 999, LD focus mode at 99, JetMenu/JetTabs at 9999).
+        add_filter('template_include', array($this, 'use_hl_template'), 99999);
         add_action('wp_enqueue_scripts', array($this, 'dequeue_bb_ld_assets_on_ld_pages'), 9999);
         add_action('template_redirect', array('HL_Frontend_My_Cycle', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Team_Page', 'handle_export'));
