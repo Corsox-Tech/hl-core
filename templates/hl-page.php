@@ -65,6 +65,14 @@ foreach ($menu_items as $item) {
 // Dashboard URL for breadcrumb link — first menu item is the logical "home".
 $dashboard_url = !empty($menu_items) ? $menu_items[0]['url'] : home_url('/');
 
+// Element Picker mode — inject picker script, skip tour loading.
+$is_picker_mode = isset( $_GET['hl_picker'] ) && $_GET['hl_picker'] === '1';
+if ( $is_picker_mode && current_user_can( 'manage_hl_core' ) ) {
+    if ( ! empty( $_GET['hl_view_as'] ) ) {
+        $GLOBALS['hl_view_as_role'] = sanitize_text_field( $_GET['hl_view_as'] );
+    }
+}
+
 // Render shortcode content (may enqueue per-shortcode assets).
 global $post;
 $page_content = do_shortcode($post->post_content);
@@ -205,5 +213,45 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
 wp_print_scripts();
 ?>
 <script src="<?php echo esc_url(HL_CORE_ASSETS_URL . 'js/frontend.js'); ?>?ver=<?php echo esc_attr(HL_CORE_VERSION); ?>"></script>
+<?php
+// Guided Tours — only for logged-in users, skip in picker mode.
+if ( is_user_logged_in() && ! ( $is_picker_mode && current_user_can( 'manage_hl_core' ) ) ) :
+    $tour_service = HL_Tour_Service::instance();
+    $user_id      = get_current_user_id();
+    $user_roles   = $tour_service->get_user_hl_roles( $user_id );
+    $current_page = $_SERVER['REQUEST_URI'];
+
+    // Check active tour slug (passed via URL param by hl-tour.js during page transitions).
+    $active_slug = isset( $_GET['hl_active_tour'] ) ? sanitize_text_field( $_GET['hl_active_tour'] ) : null;
+
+    $tour_context = $tour_service->get_tours_for_context( $current_page, $user_id, $user_roles, $active_slug );
+    $global_styles = $tour_service->get_global_styles();
+?>
+    <link rel="stylesheet" href="<?php echo esc_url( HL_CORE_ASSETS_URL . 'css/vendor/driver.css' ); ?>?v=1.4.0">
+    <script src="<?php echo esc_url( HL_CORE_ASSETS_URL . 'js/vendor/driver.js' ); ?>?v=1.4.0"></script>
+    <script>
+        window.hlTourData = <?php echo wp_json_encode( array(
+            'auto_trigger' => $tour_context['auto_trigger'],
+            'available'    => $tour_context['available'],
+            'active_tour'  => $tour_context['active_tour'],
+            'styles'       => $global_styles,
+            'ajax_url'     => admin_url( 'admin-ajax.php' ),
+            'nonce'        => wp_create_nonce( 'hl_tour_nonce' ),
+            'i18n'         => array(
+                'next'          => __( 'Next', 'hl-core' ),
+                'prev'          => __( 'Back', 'hl-core' ),
+                'done'          => __( 'Done', 'hl-core' ),
+                'of'            => __( 'of', 'hl-core' ),
+                'replay_title'  => __( 'Replay This Tour', 'hl-core' ),
+                'replay_desc'   => __( 'You can revisit this tour anytime by clicking here.', 'hl-core' ),
+                'no_tours'      => __( 'No tours available for this page.', 'hl-core' ),
+            ),
+        ) ); ?>;
+    </script>
+    <script src="<?php echo esc_url( HL_CORE_ASSETS_URL . 'js/hl-tour.js' ); ?>?ver=<?php echo esc_attr( HL_CORE_VERSION ); ?>"></script>
+<?php endif; ?>
+<?php if ( $is_picker_mode && current_user_can( 'manage_hl_core' ) ) : ?>
+    <script src="<?php echo esc_url( HL_CORE_ASSETS_URL . 'js/hl-element-picker.js' ); ?>?ver=<?php echo esc_attr( HL_CORE_VERSION ); ?>"></script>
+<?php endif; ?>
 </body>
 </html>
