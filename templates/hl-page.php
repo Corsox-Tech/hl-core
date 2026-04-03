@@ -70,7 +70,11 @@ $has_picker_param = isset( $_GET['hl_picker'] ) && $_GET['hl_picker'] === '1';
 $is_picker_mode   = $has_picker_param && current_user_can( 'manage_hl_core' );
 if ( $is_picker_mode ) {
     if ( ! empty( $_GET['hl_view_as'] ) ) {
-        $GLOBALS['hl_view_as_role'] = sanitize_text_field( $_GET['hl_view_as'] );
+        $view_as_candidate = sanitize_text_field( $_GET['hl_view_as'] );
+        $valid_view_as_roles = array( 'teacher', 'mentor', 'school_leader', 'district_leader', 'coach' );
+        if ( in_array( $view_as_candidate, $valid_view_as_roles, true ) ) {
+            $GLOBALS['hl_view_as_role'] = $view_as_candidate;
+        }
     }
 }
 

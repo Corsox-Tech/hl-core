@@ -9,6 +9,49 @@
 (function() {
     'use strict';
 
+    // ─── Polyfills ───
+
+    // CSS.escape polyfill (CSSWG spec) for older browsers.
+    if (!window.CSS || !CSS.escape) {
+        window.CSS = window.CSS || {};
+        CSS.escape = function(value) {
+            var str = String(value);
+            var length = str.length;
+            var result = '';
+            for (var i = 0; i < length; i++) {
+                var ch = str.charCodeAt(i);
+                if (ch === 0) { result += '\uFFFD'; continue; }
+                if ((ch >= 0x0001 && ch <= 0x001F) || ch === 0x007F ||
+                    (i === 0 && ch >= 0x0030 && ch <= 0x0039) ||
+                    (i === 1 && ch >= 0x0030 && ch <= 0x0039 && str.charCodeAt(0) === 0x002D)) {
+                    result += '\\' + ch.toString(16) + ' ';
+                    continue;
+                }
+                if (i === 0 && length === 1 && ch === 0x002D) { result += '\\' + str.charAt(i); continue; }
+                if (ch >= 0x0080 || ch === 0x002D || ch === 0x005F ||
+                    (ch >= 0x0030 && ch <= 0x0039) || (ch >= 0x0041 && ch <= 0x005A) ||
+                    (ch >= 0x0061 && ch <= 0x007A)) {
+                    result += str.charAt(i);
+                    continue;
+                }
+                result += '\\' + str.charAt(i);
+            }
+            return result;
+        };
+    }
+
+    // Element.closest polyfill for older browsers.
+    if (!Element.prototype.closest) {
+        Element.prototype.closest = function(sel) {
+            var el = this;
+            while (el && el.nodeType === 1) {
+                if (el.matches(sel)) return el;
+                el = el.parentElement;
+            }
+            return null;
+        };
+    }
+
     // ─── Constants ───
 
     var HIGHLIGHT_COLOR  = '#4F46E5';
@@ -77,10 +120,11 @@
     var prevBoxShadow  = '';
 
     function highlight(el) {
-        if (hoveredEl && hoveredEl !== el) {
+        if (!el || isIgnored(el)) return;
+        if (hoveredEl === el) return; // Already highlighted.
+        if (hoveredEl) {
             clearHighlight(hoveredEl);
         }
-        if (!el || isIgnored(el)) return;
         hoveredEl = el;
         prevOutline   = el.style.outline;
         prevBoxShadow = el.style.boxShadow;
