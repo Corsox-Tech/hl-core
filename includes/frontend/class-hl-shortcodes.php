@@ -75,8 +75,8 @@ class HL_Shortcodes {
         //       learndash_template_style_css, learndash-ld30-shortcodes-style
         //       (LD core styles needed for sidebar/enrollment panel rendering).
         $css_dequeue = array(
-            // BuddyBoss theme CSS — source of LD layout conflicts.
-            'buddyboss-theme-learndash',
+            // BuddyBoss main theme CSS — conflicts with our shell layout.
+            // KEEP buddyboss-theme-learndash (styles course sidebar, enrollment panel).
             'buddyboss-theme-css',
             'buddyboss-theme-main-css',
             'buddyboss-theme-fonts',

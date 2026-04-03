@@ -8638,8 +8638,9 @@ body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__
    ===================================================== */
 
 /* --- Global typography: force Inter on all LD elements --- */
+/* Exception: .ld-icon elements use the ld-icons font (icon font). */
 .hl-app .learndash-wrapper,
-.hl-app .learndash-wrapper * {
+.hl-app .learndash-wrapper *:not([class*="ld-icon"]):not(.dashicons) {
     font-family: var(--hl-font);
 }
 
@@ -8678,6 +8679,49 @@ body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__
     flex: 1;
     min-width: 0;
 }
+
+/* --- BB course layout overrides (BB's LD sidebar integration) --- */
+/* BB uses a flex grid with .bb-grid for content + sidebar */
+.hl-app .bb-grid {
+    display: flex;
+    gap: 32px;
+    flex-wrap: nowrap;
+}
+.hl-app .bb-learndash-content-wrap {
+    flex: 1;
+    min-width: 0; /* prevent overflow */
+}
+.hl-app .bb-single-course-sidebar {
+    width: 320px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 72px; /* below topbar */
+    align-self: flex-start;
+}
+.hl-app .bb-single-course-sidebar .bb-ld-sticky-sidebar {
+    position: static; /* BB makes this sticky too — we handle it on the parent */
+}
+/* Hide BB's banner/header since we have our own topbar */
+.hl-app .bb-vw-container.bb-learndash-banner { display: none; }
+/* Hide BB course meta row (we have our own breadcrumb) */
+.hl-app .bb-course-single-meta { display: none; }
+/* Fix BB enrollment widget inside sidebar */
+.hl-app .bb-enroll-widget { font-family: var(--hl-font); }
+/* Ensure sidebar preview image fits */
+.hl-app .bb-course-preview-wrap img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--hl-radius);
+}
+/* Style BB course volume list (Course Includes) */
+.hl-app .bb-course-volume-list {
+    font-family: var(--hl-font);
+    font-size: 14px;
+}
+/* Hide BB masthead remnants */
+.hl-app #masthead,
+.hl-app .site-header,
+.hl-app .bb-mobile-header { display: none !important; }
 
 /* --- LD Icon Font (kept as fallback — LD CSS also loads it) --- */
 @font-face {
