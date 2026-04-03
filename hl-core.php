@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Housman Learning Core
+ * Plugin Name: Housman LMS
  * Plugin URI: https://housmanlearning.com
  * Description: System-of-record for Housman Learning Academy Partnership management
  * Version: 1.0.0

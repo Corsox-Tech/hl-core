@@ -109,8 +109,8 @@ class HL_Admin {
     }
 
     public function create_menu() {
-        // Top-level menu — "HL Core" with dashicon
-        add_menu_page('HL Core', 'HL Core', 'manage_hl_core', 'hl-cycles', array(HL_Admin_Cycles::instance(), 'render_page'), 'dashicons-welcome-learn-more', 30);
+        // Top-level menu — "Housman LMS" at top of sidebar (position 3, above LearnDash)
+        add_menu_page('Housman LMS', 'Housman LMS', 'manage_hl_core', 'hl-cycles', array(HL_Admin_Cycles::instance(), 'render_page'), 'dashicons-welcome-learn-more', 3);
 
         // Rename the auto-generated first submenu from "HL Core" to "Cycles"
         // (WordPress duplicates the parent label as the first submenu item)
