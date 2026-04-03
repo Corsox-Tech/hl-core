@@ -131,6 +131,13 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Deployed to test + production** — Verified on `academy.housmanlearning.com`.
 - [x] **Design system consistency overhaul** — Reusable `.hl-page-hero` + `.hl-meta-bar` components replace 3 custom page headers (Team, Classroom, School). 10 hero gradients standardized to `var(--hl-primary)` → `var(--hl-primary-light)` tokens. Icon opacity normalized to 0.12. Coach Dashboard padding corrected. CSS specificity war eliminated (body inheritance + `:where()` defaults). 4 critical color bugs fixed (hlcd-link-card, meta item strong). `.hl-btn-small` CSS added. 23 lines dead BB selectors removed. Spec + code quality review passed.
 
+### Guided Tours System (April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-03-guided-tours-design.md` | **Plan:** `docs/superpowers/plans/2026-04-03-guided-tours-plan.md`
+- [x] **Phase 1 — DB schema + Repository + Service** — 3 new tables (`hl_tour`, `hl_tour_step`, `hl_tour_seen`), schema rev 28→29. `HL_Tour_Repository` (CRUD for tours, steps, seen tracking). `HL_Tour_Service` (context resolution, role matching, global styles, 3 AJAX endpoints: mark_seen, get_steps, save_step_order). Registered in `hl-core.php`.
+- [ ] **Phase 2A — Admin UI** — Tours tab in Settings hub (list, editor, styles subtabs).
+- [ ] **Phase 2B — Visual Element Picker** — Iframe-based picker with "View as Role" for non-technical admins.
+- [ ] **Phase 3 — Frontend Tour Engine** — Driver.js integration, multi-page state, topbar "?" button, auto-trigger logic.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)

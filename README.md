@@ -219,6 +219,9 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Session 5: Directory & Profile Pages** — Extracted inline styles from 4 PHP files (classroom-page, user-profile, docs, learners). 12 clean files verified against BB override selectors.
 - **Session 6: Review & Polish** — Removed 230 lines dead CSS (old Section 29 PROGRAM PAGE, old DASHBOARD HOME V1). Fixed remaining non-functional inline styles. Grep audit confirmed 0 `<style>` blocks and 0 non-functional `style=""` attrs in all frontend PHP files. Visual review across 3 roles (mentor, coach, school leader) passed all 9 design system criteria.
 
+### Guided Tours System (In Progress — Phase 1 Complete)
+- **Phase 1 — DB + Repository + Service** — 3 new tables (`hl_tour`, `hl_tour_step`, `hl_tour_seen`), schema rev 29. `HL_Tour_Repository` with full CRUD for tours, steps, and seen tracking. `HL_Tour_Service` with context resolution (page + role + trigger matching), global styles management, validation, and 3 AJAX endpoints (`hl_tour_mark_seen`, `hl_tour_get_steps`, `hl_tour_save_step_order`).
+
 ---
 
 ## Build Queue
@@ -232,11 +235,11 @@ See `STATUS.md` for the current build queue and task tracking.
 /hl-core/
   hl-core.php                    # Plugin bootstrap (singleton)
   /includes/
-    class-hl-installer.php       # DB schema (44 tables, revision 25) + activation + migrations
+    class-hl-installer.php       # DB schema (47 tables, revision 29) + activation + migrations
     /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
-    /domain/repositories/        # CRUD repositories (9 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component)
+    /domain/repositories/        # CRUD repositories (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Tour)
     /cli/                        # WP-CLI commands (16 commands: seed-demo, seed-lutheran, seed-palm-beach, seed-beginnings, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children, setup-elcpb-y2, setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav) + data files
-    /services/                   # Business logic (23 services incl. HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service)
+    /services/                   # Business logic (24 services incl. HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service, HL_Tour_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)
     /admin/                      # WP admin pages (18 controllers incl. Partnerships, Cycles, Assessment Hub, Coaching Hub with Coaches tab, Email Templates, Scheduling Settings)
