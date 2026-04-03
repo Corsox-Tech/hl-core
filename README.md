@@ -219,9 +219,10 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Session 5: Directory & Profile Pages** — Extracted inline styles from 4 PHP files (classroom-page, user-profile, docs, learners). 12 clean files verified against BB override selectors.
 - **Session 6: Review & Polish** — Removed 230 lines dead CSS (old Section 29 PROGRAM PAGE, old DASHBOARD HOME V1). Fixed remaining non-functional inline styles. Grep audit confirmed 0 `<style>` blocks and 0 non-functional `style=""` attrs in all frontend PHP files. Visual review across 3 roles (mentor, coach, school leader) passed all 9 design system criteria.
 
-### Guided Tours System (In Progress — Phase 2A Complete)
+### Guided Tours System (In Progress — Phase 2B Complete)
 - **Phase 1 — DB + Repository + Service** — 3 new tables (`hl_tour`, `hl_tour_step`, `hl_tour_seen`), schema rev 29. `HL_Tour_Repository` with full CRUD for tours, steps, and seen tracking. `HL_Tour_Service` with context resolution (page + role + trigger matching), global styles management, validation, and 3 AJAX endpoints (`hl_tour_mark_seen`, `hl_tour_get_steps`, `hl_tour_save_step_order`).
 - **Phase 2A — Admin UI** — `HL_Admin_Tours` singleton in Settings hub "Tours" tab with 3 subtabs. **Tours List**: status filter pills (All/Active/Draft/Archived with counts), table with title, trigger type badge, target roles, status badge, step count, sort order; row actions (Edit/Duplicate/Archive). **Tour Editor**: tour settings (title, slug auto-gen, status, trigger type with conditional page URL, target roles checkboxes, start page URL, sort order, hide on mobile); sortable step cards (jQuery UI Sortable) with title, description (wp_kses_post), page URL, target selector + element picker placeholder, position pills (top/bottom/left/right/auto), step type toggle (informational/interactive); add/remove steps. Activation validates step count. Enum validation on all DB fields. **Tour Styles**: WP Iris color pickers (tooltip bg, title/desc colors, button colors, progress bar), font size inputs, live preview mockup, reset to defaults. `hl-tour-admin.js` + conditional asset enqueue.
+- **Phase 2B — Visual Element Picker** — `hl-element-picker.js` injected into iframe via `?hl_picker=1` (loaded by `hl-page.php`). Hover highlighting (2px solid indigo + box-shadow), click-to-lock selection, 4-tier selector generation algorithm (id > unique hl-* class > ancestor hl-* path > full DOM path fallback with instability warning). Toolbar with selector display, Cancel, and "Use This Element" buttons. postMessage with origin validation. Admin modal (`hl-tour-admin.js`) with "View as Role" dropdown (Teacher/Mentor/School Leader/District Leader/Coach) reloads iframe with `&hl_view_as=` param. `HL_Tour_Service::is_picker_mode()` + `get_view_as_role()` static helpers. `get_user_hl_roles()` override in both `HL_Tour_Service` and `HL_BuddyBoss_Integration` returns view-as role in picker mode for accurate page rendering.
 
 ---
 
@@ -250,7 +251,7 @@ See `STATUS.md` for the current build queue and task tracking.
   /data/                         # Private data files (gitignored)
   /assets/
     /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css
-    /js/                         # admin-import-wizard.js, admin-teacher-editor.js, hl-tour-admin.js, frontend.js, frontend-docs.js
+    /js/                         # admin-import-wizard.js, admin-teacher-editor.js, hl-tour-admin.js, hl-element-picker.js, frontend.js, frontend-docs.js
   /docs/                         # AI library (11 spec documents + B2E_MASTER_REFERENCE.md)
 ```
 
