@@ -416,81 +416,68 @@ class HL_RP_Session_Service {
                 'label'      => 'Emotional Climate & Teacher Presence',
                 'skills'     => array(
                     'Demonstrate calm, emotionally regulated presence',
-                    'Model attentive, engaged, and supportive behavior',
+                    'Be attentive, engaged, and supportive of children\'s needs',
                 ),
                 'indicators' => array(
-                    'Teacher demonstrates a calm, emotionally regulated presence',
-                    'Teacher models attentive, engaged, and supportive behavior',
-                    'Teacher creates a warm, welcoming classroom atmosphere',
-                    'Teacher responds to children\'s emotions with empathy',
-                    'Teacher maintains composure during challenging moments',
-                    'Teacher uses a warm, encouraging tone of voice',
+                    'Teacher demonstrated calm, emotionally regulated presence',
+                    'Teacher was attentive, engaged, and supportive of children\'s needs',
                 ),
             ),
             'ecsel_language' => array(
                 'label'      => 'ECSEL Language & Emotional Communication',
                 'skills'     => array(
-                    'Consistently use emotion language to label/validate feelings',
-                    'Use Causal Talk (CT) to connect emotions, behavior, experiences',
+                    'Consistently use emotion language to label and validate feelings',
+                    'Use Causal Talk (CT) to connect emotions, behavior, and experiences',
                 ),
                 'indicators' => array(
-                    'Teacher uses emotion language to label and validate feelings',
-                    'Teacher uses Causal Talk (CT) to connect emotions, behavior, and experiences',
-                    'Teacher encourages children to express emotions verbally',
-                    'Teacher validates children\'s emotional experiences',
+                    'Teacher consistently used emotion language to label and validate feelings',
+                    'Teacher used Causal Talk* (CT) to connect emotions, behavior, and experiences',
                 ),
             ),
             'co_regulation' => array(
                 'label'      => 'Co-Regulation & Emotional Support',
                 'skills'     => array(
-                    'Use Causal Talk in Emotional Experience (CTEE) for heightened emotions',
-                    'Guide children toward regulation before problem-solving',
+                    'Use Causal Talk in the Emotional Experience (CTEE) to support children through heightened emotions',
+                    'Guide children toward regulation (co-regulation) prior to engaging in problem-solving',
                 ),
                 'indicators' => array(
-                    'Teacher uses CTEE strategies during heightened emotional moments',
-                    'Teacher guides children toward regulation before problem-solving',
-                    'Teacher provides physical comfort and proximity when appropriate',
-                    'Teacher helps children identify and use calming strategies',
+                    'Teacher used Causal Talk in the Emotional Experience* (CTEE) to support children through heightened emotions',
+                    'Teacher effectively guided children toward regulation (co-regulation) prior to engaging in problem-solving',
                 ),
             ),
             'social_skills' => array(
                 'label'      => 'Social Skills, Empathy & Inclusion',
                 'skills'     => array(
-                    'Model/encourage empathy, cooperation, respect',
-                    'Classroom interactions reflect inclusion and respect',
-                    'Guide children through conflict resolution steps',
+                    'Model and actively encourage empathy, cooperation, and respect',
+                    'Reflect inclusion and respect for individual differences in classroom interactions',
+                    'Model and guide children through steps of conflict resolution',
                 ),
                 'indicators' => array(
-                    'Teacher models and encourages empathy, cooperation, and respect',
-                    'Classroom interactions reflect inclusion and respect for all children',
-                    'Teacher guides children through conflict resolution steps',
-                    'Teacher facilitates positive peer interactions',
+                    'Teacher modeled and actively encouraged empathy, cooperation, and respect',
+                    'Teacher\'s classroom interactions reflected inclusion and respect for individual differences',
+                    'Teacher modeled and guided children through steps of conflict resolution',
                 ),
             ),
             'ecsel_tools' => array(
                 'label'      => 'Use of Developmentally-Appropriate ECSEL Tools',
                 'skills'     => array(
-                    'ECSEL tools visible, accessible, intentionally placed',
-                    'Use tools appropriately for emotion knowledge/conflict resolution',
+                    'Ensure ECSEL tools are visible, accessible, and intentionally placed within appropriate classroom areas',
+                    'Use ECSEL tools appropriately to support students\' development of emotion knowledge and/or conflict resolution skills',
                 ),
                 'indicators' => array(
-                    'ECSEL tools are visible, accessible, and intentionally placed',
-                    'Teacher uses ECSEL tools appropriately for emotion knowledge',
-                    'Teacher uses ECSEL tools for conflict resolution',
-                    'Teacher introduces and references tools during daily activities',
+                    'ECSEL tools* were visible, accessible and intentionally placed within appropriate classroom areas',
+                    'Teacher used ECSEL tools* appropriately to support students\' development of emotion knowledge and/or conflict resolution skills',
                 ),
             ),
             'daily_integration' => array(
                 'label'      => 'Integration into Daily Learning',
                 'skills'     => array(
-                    'Embed tools, language, strategies in play/routines/learning',
+                    'Embed ECSEL tools, language, and/or strategies within play, routines, or learning activities',
                     'Use emotional moments as learning opportunities',
                 ),
                 'indicators' => array(
-                    'Teacher embeds ECSEL tools, language, and strategies in play and routines',
-                    'Teacher uses emotional moments as learning opportunities',
-                    'Teacher integrates SEL into daily classroom activities',
-                    'Teacher connects ECSEL practices to curriculum goals',
+                    'Teacher embedded ECSEL tools*, language, and/or strategies within play, routines, or learning activities',
+                    'Teacher used emotional moments as learning opportunities',
                 ),
             ),
         );
@@ -700,6 +687,12 @@ class HL_RP_Session_Service {
             ));
 
             if ($existing) {
+                // Update sections to reflect latest domain/indicator definitions.
+                $wpdb->update(
+                    $table,
+                    array( 'sections' => $inst['sections'] ),
+                    array( 'instrument_id' => (int) $existing )
+                );
                 $ids[$inst['instrument_key']] = (int) $existing;
                 continue;
             }
