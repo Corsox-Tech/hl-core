@@ -459,25 +459,48 @@
 
         // Set up interactive step listeners after driver starts.
         driverObj.drive(0);
-        setupInteractiveListeners(driverObj, driverSteps);
+        setupInteractiveListeners(driverObj, driverSteps, tour);
     }
 
-    function setupInteractiveListeners(driverObj, driverSteps) {
+    function setupInteractiveListeners(driverObj, driverSteps, tour) {
         // For each interactive step, add a click listener on the target element.
         for (var i = 0; i < driverSteps.length; i++) {
             if (driverSteps[i]._hlInteractive && driverSteps[i]._hlTargetSelector) {
                 (function(stepIndex, selector) {
                     var el = document.querySelector(selector);
                     if (el) {
-                        var handler = function() {
+                        // Check if the next step requires page navigation.
+                        var nextStep = driverSteps[stepIndex + 1];
+                        var nextNeedsNav = nextStep && nextStep._hlNavigate;
+
+                        var handler = function(e) {
                             el.removeEventListener('click', handler);
-                            // Only advance if this is the currently active step.
                             var currentIndex = driverObj.getActiveIndex();
-                            if (currentIndex === stepIndex) {
+                            if (currentIndex !== stepIndex) return;
+
+                            if (nextNeedsNav) {
+                                // Next step is on a different page. Prevent the natural
+                                // link click so we can save state and navigate with the
+                                // ?hl_active_tour= param for PHP to include tour data.
+                                e.preventDefault();
+                                e.stopPropagation();
+                                lsSet({
+                                    tour_slug: tour.slug,
+                                    tour_id: tour.tour_id,
+                                    step_index: nextStep._hlNextIndex,
+                                    start_page_url: tour.start_page_url,
+                                    status: 'navigating'
+                                });
+                                // Navigate to the target page (use the element's href if
+                                // it's a link, otherwise use the step's page URL).
+                                var href = el.href || el.closest('a[href]')?.href || nextStep._hlPageUrl;
+                                var separator = href.indexOf('?') >= 0 ? '&' : '?';
+                                window.location.href = href + separator + 'hl_active_tour=' + encodeURIComponent(tour.slug);
+                            } else {
                                 driverObj.moveNext();
                             }
                         };
-                        el.addEventListener('click', handler);
+                        el.addEventListener('click', handler, true); // useCapture to fire before navigation
                     }
                 })(i, driverSteps[i]._hlTargetSelector);
             }
