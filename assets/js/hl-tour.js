@@ -195,7 +195,11 @@
         return visible;
     }
 
+    var _destroying = false; // Guard against onDestroyStarted re-entry.
+
     function initTour(tour, startFromIndex) {
+        _destroying = false;
+
         // Mobile check.
         if (parseInt(tour.hide_on_mobile, 10) === 1 && window.innerWidth < 640) {
             return;
@@ -438,6 +442,9 @@
             },
 
             onDestroyStarted: function(element, step, options) {
+                if (_destroying) return; // Prevent infinite re-entry.
+                _destroying = true;
+
                 var activeStep = options.state.activeStep;
                 if (activeStep && activeStep._hlFinal) {
                     markSeenAndCleanup(tour.tour_id);
@@ -507,6 +514,7 @@
         }
 
         var styles = DATA.styles || {};
+        var _finalDestroying = false;
         var finalDriver = window.driver.js.driver({
             showProgress: false,
             animate: true,
@@ -549,6 +557,8 @@
                 finalDriver.destroy();
             },
             onDestroyStarted: function() {
+                if (_finalDestroying) return;
+                _finalDestroying = true;
                 markSeenAndCleanup(tour.tour_id);
                 finalDriver.destroy();
             }
