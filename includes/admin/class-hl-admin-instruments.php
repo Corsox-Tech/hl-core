@@ -890,12 +890,27 @@ class HL_Admin_Instruments {
 
         // Build sections from structured POST fields
         $sections = array();
+        $used_keys = array();
         if (!empty($_POST['sections']) && is_array($_POST['sections'])) {
             foreach ($_POST['sections'] as $s) {
                 $section_key  = sanitize_text_field($s['section_key'] ?? '');
+                $section_title = sanitize_text_field($s['title'] ?? '');
+
+                // Auto-generate key from title for new sections.
+                if (empty($section_key) && !empty($section_title)) {
+                    $base = sanitize_title($section_title);
+                    $base = str_replace('-', '_', $base);
+                    $section_key = $base;
+                    $suffix = 2;
+                    while (in_array($section_key, $used_keys, true)) {
+                        $section_key = $base . '_' . $suffix;
+                        $suffix++;
+                    }
+                }
                 if (empty($section_key)) {
                     continue;
                 }
+                $used_keys[] = $section_key;
                 $section_type = sanitize_text_field($s['type'] ?? 'likert');
 
                 // context_checkboxes: save with fields format for frontend compat.
@@ -903,9 +918,13 @@ class HL_Admin_Instruments {
                     $ctx_keys   = isset($s['context_keys']) && is_array($s['context_keys']) ? $s['context_keys'] : array();
                     $ctx_labels = isset($s['context_labels']) && is_array($s['context_labels']) ? $s['context_labels'] : array();
                     $options    = array();
-                    foreach ($ctx_keys as $i => $ck) {
-                        $ck = sanitize_text_field($ck);
-                        $cl = isset($ctx_labels[$i]) ? sanitize_text_field($ctx_labels[$i]) : '';
+                    foreach ($ctx_labels as $i => $cl) {
+                        $cl = sanitize_text_field($cl);
+                        $ck = isset($ctx_keys[$i]) ? sanitize_text_field($ctx_keys[$i]) : '';
+                        // Auto-generate key from label for new options.
+                        if (empty($ck) && !empty($cl)) {
+                            $ck = str_replace('-', '_', sanitize_title($cl));
+                        }
                         if ($ck !== '' && $cl !== '') {
                             $options[$ck] = $cl;
                         }
@@ -1390,7 +1409,15 @@ class HL_Admin_Instruments {
                 <table class="form-table">
                     <tr>
                         <th><label><?php echo $is_indicator ? esc_html__('Domain Key', 'hl-core') : esc_html__('Section Key', 'hl-core'); ?></label></th>
-                        <td><input type="text" name="<?php echo esc_attr($prefix); ?>[section_key]" value="<?php echo esc_attr($section_key); ?>" class="regular-text" required /></td>
+                        <td>
+                            <?php if ($section_key) : ?>
+                                <code style="font-size:13px;padding:4px 8px;background:#f0f0f1;display:inline-block;"><?php echo esc_html($section_key); ?></code>
+                                <input type="hidden" name="<?php echo esc_attr($prefix); ?>[section_key]" value="<?php echo esc_attr($section_key); ?>" />
+                                <p class="description"><?php esc_html_e('Key is locked to protect existing response data.', 'hl-core'); ?></p>
+                            <?php else : ?>
+                                <input type="text" name="<?php echo esc_attr($prefix); ?>[section_key]" value="" class="regular-text hl-te-auto-key" placeholder="<?php esc_attr_e('Auto-generated from title', 'hl-core'); ?>" />
+                            <?php endif; ?>
+                        </td>
                     </tr>
                     <tr>
                         <th><label><?php echo $is_indicator ? esc_html__('Domain Name', 'hl-core') : esc_html__('Title', 'hl-core'); ?></label></th>
@@ -1500,7 +1527,10 @@ class HL_Admin_Instruments {
                         <tbody class="hl-te-context-body">
                             <?php foreach ($context_options as $opt_key => $opt_label) : ?>
                                 <tr class="hl-te-context-row">
-                                    <td><input type="text" name="<?php echo esc_attr($prefix); ?>[context_keys][]" value="<?php echo esc_attr($opt_key); ?>" class="widefat" /></td>
+                                    <td>
+                                        <code style="font-size:12px;padding:3px 6px;background:#f0f0f1;"><?php echo esc_html($opt_key); ?></code>
+                                        <input type="hidden" name="<?php echo esc_attr($prefix); ?>[context_keys][]" value="<?php echo esc_attr($opt_key); ?>" />
+                                    </td>
                                     <td><input type="text" name="<?php echo esc_attr($prefix); ?>[context_labels][]" value="<?php echo esc_attr($opt_label); ?>" class="widefat" /></td>
                                     <td><button type="button" class="button-link button-link-delete hl-te-remove-context-opt"><?php esc_html_e('Remove', 'hl-core'); ?></button></td>
                                 </tr>
