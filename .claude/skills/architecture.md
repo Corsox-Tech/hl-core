@@ -276,11 +276,11 @@ Housman measures program impact by comparing:
     /Lutheran - Control Group/   # Lutheran spreadsheets (.xlsx)
   /docs/                         # Spec documents (11 files, read-only reference)
   /includes/
-    class-hl-installer.php       # DB schema (44 tables, revision 25) + activation + migrations
+    class-hl-installer.php       # DB schema (44 tables, revision 27) + activation + migrations
     /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (9 classes)
-    /cli/                        # WP-CLI commands (16 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav, seed-beginnings) + data files
-    /services/                   # Business logic (23 services incl. HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service)
+    /cli/                        # WP-CLI commands (17 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav, seed-beginnings, migrate-routing-types) + data files
+    /services/                   # Business logic (23 services incl. HL_Pathway_Routing_Service, HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)
     /admin/                      # WP admin pages (18 controllers incl. Coaching Hub with Coaches tab, Email Templates, Scheduling Settings)

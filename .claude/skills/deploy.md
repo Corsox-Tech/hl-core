@@ -144,4 +144,5 @@ node_modules/
 - `wp hl-core seed-palm-beach [--clean]` — ELC Palm Beach program data (12 schools, 47 teachers, 286 children, code: ELC-PB-2026)
 - `wp hl-core nuke --confirm="DELETE ALL DATA"` — **DESTRUCTIVE: Deletes ALL HL Core data** (all hl_* tables truncated, seeded users removed, auto-increment reset). Safety gate: only runs if site URL contains `staging.academy.housmanlearning.com`, `test.academy.housmanlearning.com`, or `.local`.
 - `wp hl-core create-pages [--force] [--status=draft]` — Creates all shortcode WordPress pages
+- `wp hl-core migrate-routing-types [--dry-run]` — Populates `routing_type` on existing pathways from pathway_code patterns (idempotent, safe to re-run)
 

@@ -54,12 +54,15 @@ A Pathway is defined by:
 - pathway_name (e.g., "Teacher Pathway - Year 1")
 - pathway_code (unique within Cycle)
 - target_roles (optional convenience metadata; not a permission system)
+- routing_type (VARCHAR(50), nullable, unique within Cycle — cycle-independent identifier for auto-assignment routing, e.g., 'teacher_phase_1')
 - active_status
 
 ## 2.2 Pathway Assignment
 Participants receive Pathways via Enrollment.
 
-Default v1 assignment rules:
+**Auto-assignment routing** (primary): `HL_Pathway_Routing_Service` determines the correct pathway based on the participant's role and LearnDash course completion stages. Routing rules reference the pathway's `routing_type` column (not `pathway_code`), making routing independent of pathway naming/cloning. 8 valid routing types cover 10 priority-ordered rules across 4 roles (teacher, mentor, school_leader, district_leader).
+
+Fallback assignment rules:
 - If Enrollment has Cycle Role Teacher → assign configured Teacher Pathway (default)
 - If Enrollment has Cycle Role Mentor → assign configured Mentor Pathway (default)
 - Leaders: manual assignment by Housman Admin (and/or Coach if permitted)
