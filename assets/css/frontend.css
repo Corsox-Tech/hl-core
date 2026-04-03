@@ -8239,3 +8239,866 @@ table.hl-ca-matrix tbody tr:hover td { background-color: var(--hl-bg-hover) }
     table.hl-ca-matrix tbody td { padding: 8px 10px }
     table.hl-ca-matrix tbody td.hl-ca-child-cell { min-width: 140px; font-size: 13px }
 }
+
+
+/* =====================================================
+   COLLAPSIBLE SIDEBAR
+   Toggle between 240px (expanded) and 60px (collapsed).
+   Body class .hl-sidebar-is-collapsed drives offsets.
+   ===================================================== */
+
+/* Collapse toggle button */
+.hl-sidebar__collapse-btn {
+    position: absolute;
+    top: 16px;
+    right: -12px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--hl-primary);
+    border: 2px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    z-index: 10000;
+    transition: background 0.15s, color 0.15s;
+    padding: 0;
+    line-height: 1;
+}
+.hl-sidebar__collapse-btn:hover {
+    background: var(--hl-interactive);
+    color: #fff;
+}
+
+/* Sidebar transition */
+.hl-sidebar {
+    transition: width 0.25s ease;
+}
+
+/* Collapsed state */
+.hl-sidebar--collapsed {
+    width: 60px;
+}
+.hl-sidebar--collapsed .hl-sidebar__brand {
+    padding: 16px 10px;
+    display: flex;
+    justify-content: center;
+}
+.hl-sidebar--collapsed .hl-sidebar__logo-img {
+    max-width: 32px;
+    max-height: 32px;
+}
+.hl-sidebar--collapsed .hl-sidebar__title,
+.hl-sidebar--collapsed .hl-sidebar__subtitle {
+    display: none;
+}
+.hl-sidebar--collapsed .hl-sidebar__nav {
+    padding: 4px 6px;
+}
+.hl-sidebar--collapsed .hl-sidebar__section-label {
+    display: none;
+}
+.hl-sidebar--collapsed .hl-sidebar__item,
+.hl-sidebar--collapsed .hl-sidebar a.hl-sidebar__item {
+    justify-content: center;
+    padding: 10px 0;
+    gap: 0;
+}
+.hl-sidebar--collapsed .hl-sidebar__item span:not(.hl-sidebar__icon) {
+    display: none;
+}
+.hl-sidebar--collapsed .hl-sidebar__badge {
+    display: none;
+}
+
+/* Tooltip on hover for collapsed items */
+.hl-sidebar--collapsed .hl-sidebar__item {
+    position: relative;
+}
+.hl-sidebar--collapsed .hl-sidebar__item:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: #1a1f2e;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: var(--hl-radius-xs);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 10001;
+    box-shadow: var(--hl-shadow-md);
+    pointer-events: none;
+}
+
+/* Content offset when sidebar collapsed */
+body.hl-sidebar-is-collapsed .hl-app__content {
+    margin-left: 60px;
+}
+body.hl-sidebar-is-collapsed .hl-topbar {
+    left: 60px;
+}
+
+/* BB theme pages — collapsed sidebar */
+body.hl-has-nav.hl-sidebar-is-collapsed #page {
+    margin-left: 60px;
+}
+
+/* Collapsed sidebar footer */
+.hl-sidebar--collapsed .hl-sidebar__footer {
+    padding: 8px 6px;
+}
+.hl-sidebar--collapsed .hl-sidebar__footer .hl-sidebar__item span:not(.hl-sidebar__icon) {
+    display: none;
+}
+
+
+/* =====================================================
+   COURSE OUTLINE PANEL
+   Dark panel between sidebar and lesson content.
+   Shows course structure, progress, and lesson list.
+   ===================================================== */
+
+.hl-course-outline {
+    position: fixed;
+    top: 48px;
+    left: 240px;
+    width: 320px;
+    height: calc(100vh - 48px);
+    background: #1e2433;
+    color: #fff;
+    overflow-y: auto;
+    z-index: 99;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    padding: 20px 0;
+    font-family: var(--hl-font);
+    transition: left 0.25s ease;
+}
+
+/* Adjust when sidebar is collapsed */
+body.hl-sidebar-is-collapsed .hl-course-outline {
+    left: 60px;
+}
+
+/* Collapsed outline — element class toggled by frontend.js */
+.hl-course-outline--collapsed {
+    display: none;
+}
+
+/* Collapsed outline — body class driven (used by inline init script + reopen) */
+body.hl-course-outline-is-collapsed .hl-course-outline {
+    transform: translateX(-100%);
+    pointer-events: none;
+}
+
+/* Outline reopen button — visible when outline is collapsed */
+.hl-course-outline__reopen {
+    display: none;
+    position: fixed;
+    top: 56px;
+    z-index: 1000;
+    background: #1e293b;
+    border: none;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    border-radius: 0 8px 8px 0;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+}
+.hl-course-outline__reopen:hover {
+    background: #334155;
+    color: #fff;
+}
+.hl-course-outline__reopen .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+}
+body.hl-course-outline-is-collapsed .hl-course-outline__reopen {
+    display: flex;
+    left: 240px;
+}
+body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__reopen {
+    left: 60px;
+}
+
+/* Back to Course link */
+.hl-course-outline__back {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px 16px;
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: color 0.15s;
+}
+.hl-course-outline__back:hover {
+    color: rgba(255,255,255,0.85);
+    text-decoration: none;
+}
+.hl-course-outline__back .dashicons {
+    font-size: 14px !important;
+    width: 14px !important;
+    height: 14px !important;
+}
+
+/* Course title */
+.hl-course-outline__title {
+    padding: 0 20px 12px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.35;
+}
+
+/* Progress bar inside outline */
+.hl-course-outline__progress {
+    padding: 0 20px 16px;
+}
+/* Progress text — matches ld-lesson.php HTML classes */
+.hl-course-outline__progress-text {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.8);
+}
+.hl-course-outline__activity {
+    display: block;
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 4px;
+}
+.hl-course-outline__progress-bar {
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.hl-course-outline__progress-fill {
+    height: 100%;
+    background: var(--hl-accent);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+/* Section headers (module names) — matches ld-lesson.php HTML */
+.hl-course-outline__section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px 8px;
+    margin-top: 4px;
+}
+.hl-course-outline__section-bar {
+    width: 3px;
+    height: 16px;
+    background: #f59e0b;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.hl-course-outline__section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: rgba(255,255,255,0.45);
+}
+
+/* Lesson rows */
+.hl-course-outline__lesson {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    color: rgba(255,255,255,0.65);
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 400;
+    transition: background 0.15s, color 0.15s;
+    gap: 10px;
+}
+.hl-course-outline__lesson:hover {
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.9);
+    text-decoration: none;
+}
+/* Current lesson highlight (matches ld-lesson.php HTML class) */
+.hl-course-outline__lesson--current {
+    background: rgba(99,102,241,0.15);
+    color: #a5b4fc;
+    border-left: 3px solid #6366f1;
+    padding-left: 17px; /* 20 - 3 border */
+}
+.hl-course-outline__lesson--current:hover {
+    background: rgba(99,102,241,0.2);
+    color: #c7d2fe;
+}
+
+/* Lesson title (flex child) — matches ld-lesson.php HTML class */
+.hl-course-outline__lesson-title {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Completion check circles — matches ld-lesson.php HTML classes */
+.hl-course-outline__check {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.2);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.hl-course-outline__check--done {
+    background: #22c55e;
+    border-color: #22c55e;
+}
+.hl-course-outline__check--done .dashicons {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+    color: #fff;
+}
+
+/* Toggle button */
+.hl-course-outline__toggle {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--hl-radius-xs);
+    background: rgba(255,255,255,0.08);
+    border: none;
+    color: rgba(255,255,255,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.15s, color 0.15s;
+    padding: 0;
+}
+.hl-course-outline__toggle:hover {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+}
+
+/* Scrollbar styling for outline panel */
+.hl-course-outline::-webkit-scrollbar {
+    width: 4px;
+}
+.hl-course-outline::-webkit-scrollbar-track {
+    background: transparent;
+}
+.hl-course-outline::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+}
+.hl-course-outline::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.25);
+}
+
+/* Responsive: hide outline on tablets and below */
+@media (max-width: 1024px) {
+    .hl-course-outline {
+        display: none;
+    }
+}
+
+
+/* =====================================================
+   LEARNDASH CONTENT STYLING
+   Overrides LearnDash output classes with HL design
+   tokens. Scoped under .hl-app .learndash-wrapper
+   to avoid leaking into admin/other pages.
+   ===================================================== */
+
+/* --- Content area layout for lesson pages --- */
+.hl-ld-lesson .hl-ld-content {
+    margin-left: calc(240px + 320px);
+    padding: 72px 32px 24px;
+    min-height: 100vh;
+    background: var(--hl-bg);
+    box-sizing: border-box;
+}
+body.hl-sidebar-is-collapsed .hl-ld-lesson .hl-ld-content {
+    margin-left: calc(60px + 320px);
+}
+body.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content {
+    margin-left: 240px;
+}
+body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content {
+    margin-left: 60px;
+}
+
+/* Course page content area — just sidebar offset */
+.hl-ld-course .hl-app__content {
+    margin-left: 240px;
+    padding: 72px 32px 24px;
+    min-height: 100vh;
+    background: var(--hl-bg);
+}
+body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
+    margin-left: 60px;
+}
+
+/* --- Lesson content header (counter + badge + nav) --- */
+.hl-ld-content__header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    font-family: var(--hl-font);
+}
+.hl-ld-content__counter {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--hl-text-secondary);
+    letter-spacing: 0.5px;
+}
+.hl-ld-content__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: var(--hl-radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--hl-status-progress-bg);
+    color: var(--hl-status-progress-text);
+}
+.hl-ld-content__badge--progress {
+    background: var(--hl-status-progress-bg, #fef3c7);
+    color: var(--hl-status-progress-text, #92400e);
+}
+.hl-ld-content__badge--complete {
+    background: var(--hl-status-complete-bg);
+    color: var(--hl-status-complete-text);
+}
+.hl-ld-content__nav {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+}
+.hl-ld-content__nav-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--hl-radius-xs);
+    border: 1px solid var(--hl-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--hl-text-secondary);
+    background: var(--hl-surface);
+    transition: background 0.15s, color 0.15s;
+}
+.hl-ld-content__nav-btn:hover {
+    background: var(--hl-bg);
+    color: var(--hl-text);
+    text-decoration: none;
+}
+.hl-ld-content__nav-btn--disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* --- Lesson content body --- */
+.hl-ld-content__body {
+    background: var(--hl-surface, #fff);
+    border: 1px solid var(--hl-border, #e5e7eb);
+    border-radius: 12px;
+    padding: 32px 40px;
+    max-width: 900px;
+}
+.hl-ld-content__body > *:first-child {
+    margin-top: 0;
+}
+
+/* --- Progress bar --- */
+:where(.hl-app .learndash-wrapper) .ld-progress {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--hl-border);
+    overflow: hidden;
+    margin: 8px 0;
+}
+:where(.hl-app .learndash-wrapper) .ld-progress-fill,
+:where(.hl-app .learndash-wrapper) .ld-progress-bar {
+    background: var(--hl-accent);
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* --- Tabs --- */
+:where(.hl-app .learndash-wrapper) .ld-tabs {
+    margin-bottom: 24px;
+    font-family: var(--hl-font);
+}
+:where(.hl-app .learndash-wrapper) .ld-tabs-navigation {
+    display: flex;
+    border-bottom: 2px solid var(--hl-border);
+    gap: 0;
+}
+:where(.hl-app .learndash-wrapper) .ld-tab {
+    padding: 12px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: var(--hl-font);
+    font-weight: 500;
+    color: var(--hl-text-secondary);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s;
+}
+:where(.hl-app .learndash-wrapper) .ld-tab:hover {
+    color: var(--hl-text);
+}
+:where(.hl-app .learndash-wrapper) .ld-tab.ld-active,
+:where(.hl-app .learndash-wrapper) .ld-tab[aria-selected="true"] {
+    color: var(--hl-interactive);
+    border-bottom-color: var(--hl-interactive);
+}
+:where(.hl-app .learndash-wrapper) .ld-tab-content {
+    padding: 20px 0;
+}
+:where(.hl-app .learndash-wrapper) .ld-tab-content:not(.ld-visible) {
+    display: none;
+}
+
+/* --- Lesson list (course page) --- */
+:where(.hl-app .learndash-wrapper) .ld-item-list {
+    background: var(--hl-surface);
+    border-radius: var(--hl-radius-sm);
+    border: 1px solid var(--hl-border);
+    overflow: hidden;
+}
+:where(.hl-app .learndash-wrapper) .ld-section-heading h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    font-family: var(--hl-font);
+    color: var(--hl-text-heading);
+}
+:where(.hl-app .learndash-wrapper) .ld-item-list-item {
+    border-bottom: 1px solid var(--hl-border);
+}
+:where(.hl-app .learndash-wrapper) .ld-item-list-item:last-child {
+    border-bottom: none;
+}
+:where(.hl-app .learndash-wrapper) .ld-item-list-item-preview {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    transition: background 0.15s;
+}
+:where(.hl-app .learndash-wrapper) .ld-item-list-item-preview:hover {
+    background: var(--hl-bg-subtle);
+}
+:where(.hl-app .learndash-wrapper) .ld-item-name {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: var(--hl-text);
+    flex: 1;
+    transition: color 0.15s;
+}
+:where(.hl-app .learndash-wrapper) .ld-item-name:hover {
+    color: var(--hl-interactive);
+    text-decoration: none;
+}
+:where(.hl-app .learndash-wrapper) .ld-item-title {
+    font-weight: 500;
+    font-family: var(--hl-font);
+}
+:where(.hl-app .learndash-wrapper) .ld-item-components {
+    font-size: 12px;
+    color: var(--hl-text-muted);
+}
+
+/* --- Status icons --- */
+:where(.hl-app .learndash-wrapper) .ld-icon {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    align-items: center;
+    justify-content: center;
+}
+:where(.hl-app .learndash-wrapper) .ld-icon-complete {
+    color: var(--hl-accent);
+}
+:where(.hl-app .learndash-wrapper) .ld-icon-incomplete {
+    color: var(--hl-border);
+}
+:where(.hl-app .learndash-wrapper) .ld-icon-progress {
+    color: var(--hl-interactive);
+}
+
+/* --- Expand/collapse buttons --- */
+:where(.hl-app .learndash-wrapper) .ld-expand-button {
+    padding: 8px 16px;
+    border-radius: var(--hl-radius-xs);
+    border: 1px solid var(--hl-border);
+    background: var(--hl-surface);
+    cursor: pointer;
+    font-family: var(--hl-font);
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+    transition: background 0.15s, color 0.15s;
+}
+:where(.hl-app .learndash-wrapper) .ld-expand-button:hover {
+    background: var(--hl-bg);
+    color: var(--hl-text);
+}
+.hl-app .learndash-wrapper .ld-primary-background {
+    background: var(--hl-interactive) !important;
+    color: #fff;
+}
+
+/* --- Table lists (topics/quizzes) --- */
+:where(.hl-app .learndash-wrapper) .ld-table-list {
+    border-radius: var(--hl-radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--hl-border);
+    margin: 16px 0;
+}
+:where(.hl-app .learndash-wrapper) .ld-table-list-header {
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--hl-bg-subtle);
+    font-family: var(--hl-font);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--hl-text-secondary);
+}
+:where(.hl-app .learndash-wrapper) .ld-table-list-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--hl-border);
+    transition: background 0.15s;
+}
+:where(.hl-app .learndash-wrapper) .ld-table-list-item:last-child {
+    border-bottom: none;
+}
+:where(.hl-app .learndash-wrapper) .ld-table-list-item:hover {
+    background: var(--hl-bg-subtle);
+}
+
+/* --- Navigation (prev/next) --- */
+:where(.hl-app .learndash-wrapper) .ld-content-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 0;
+    margin-top: 24px;
+    border-top: 1px solid var(--hl-border);
+}
+:where(.hl-app .learndash-wrapper) .ld-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: var(--hl-radius-xs);
+    background: var(--hl-interactive);
+    color: #fff;
+    text-decoration: none;
+    font-family: var(--hl-font);
+    font-weight: 500;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+:where(.hl-app .learndash-wrapper) .ld-button:hover {
+    background: var(--hl-interactive-dark);
+    color: #fff;
+    text-decoration: none;
+}
+
+/* --- Alerts --- */
+:where(.hl-app .learndash-wrapper) .ld-alert {
+    padding: 16px 20px;
+    border-radius: var(--hl-radius-sm);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--hl-font);
+    font-size: 14px;
+}
+:where(.hl-app .learndash-wrapper) .ld-alert-success {
+    background: var(--hl-status-complete-bg);
+    border: 1px solid #a7f3d0;
+    color: var(--hl-status-complete-text);
+}
+:where(.hl-app .learndash-wrapper) .ld-alert-warning {
+    background: var(--hl-status-paused-bg);
+    border: 1px solid #fde68a;
+    color: var(--hl-status-paused-text);
+}
+
+/* --- Section headings (module dividers) --- */
+:where(.hl-app .learndash-wrapper) .ld-lesson-section-heading {
+    padding: 16px 20px;
+    background: var(--hl-bg);
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--hl-text-secondary);
+    border-bottom: 1px solid var(--hl-border);
+    font-family: var(--hl-font);
+}
+
+/* --- Infobar --- */
+:where(.hl-app .learndash-wrapper) .ld-infobar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--hl-border);
+    font-family: var(--hl-font);
+}
+
+/* --- Assignment list --- */
+:where(.hl-app .learndash-wrapper) .ld-assignment-list {
+    border-radius: var(--hl-radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--hl-border);
+    margin: 16px 0;
+}
+:where(.hl-app .learndash-wrapper) .ld-assignment-upload {
+    padding: 16px 20px;
+    background: var(--hl-bg-subtle);
+    border-bottom: 1px solid var(--hl-border);
+}
+
+/* --- LearnDash typography reset --- */
+:where(.hl-app .learndash-wrapper) h1,
+:where(.hl-app .learndash-wrapper) h2,
+:where(.hl-app .learndash-wrapper) h3,
+:where(.hl-app .learndash-wrapper) h4 {
+    font-family: var(--hl-font);
+    color: var(--hl-text-heading);
+}
+:where(.hl-app .learndash-wrapper) p,
+:where(.hl-app .learndash-wrapper) li,
+:where(.hl-app .learndash-wrapper) td,
+:where(.hl-app .learndash-wrapper) th {
+    font-family: var(--hl-font);
+    color: var(--hl-text);
+    line-height: 1.6;
+}
+:where(.hl-app .learndash-wrapper) a {
+    color: var(--hl-interactive);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+:where(.hl-app .learndash-wrapper) a:hover {
+    color: var(--hl-interactive-dark);
+    text-decoration: underline;
+}
+
+/* --- Course outline — scrollable lesson list container --- */
+.hl-course-outline__lessons {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+/* --- Topbar z-index on lesson pages (above outline panel) --- */
+body.hl-ld-lesson .hl-topbar {
+    left: 240px;
+    z-index: 1001;
+}
+body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
+    left: 60px;
+}
+
+/* --- LearnDash responsive --- */
+@media (max-width: 1200px) {
+    .hl-course-outline {
+        width: 280px;
+    }
+    .hl-ld-lesson .hl-ld-content {
+        margin-left: calc(240px + 280px);
+    }
+    body.hl-sidebar-is-collapsed .hl-ld-lesson .hl-ld-content {
+        margin-left: calc(60px + 280px);
+    }
+    .hl-ld-content__body {
+        padding: 24px 28px;
+    }
+}
+@media (max-width: 1024px) {
+    .hl-ld-lesson .hl-ld-content {
+        margin-left: 0;
+        padding: 60px 16px 24px;
+    }
+    body.hl-sidebar-is-collapsed .hl-ld-lesson .hl-ld-content,
+    body.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content,
+    body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content {
+        margin-left: 0;
+    }
+    .hl-ld-course .hl-app__content,
+    body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
+        margin-left: 0;
+        padding: 60px 16px 24px;
+    }
+    .hl-ld-content__header {
+        flex-wrap: wrap;
+    }
+    .hl-ld-content__nav {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-end;
+    }
+    body.hl-ld-lesson .hl-topbar {
+        left: 0;
+    }
+    body.hl-course-outline-is-collapsed .hl-course-outline__reopen {
+        left: 0;
+    }
+    body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__reopen {
+        left: 0;
+    }
+}
+@media (max-width: 768px) {
+    .hl-ld-content__body {
+        padding: 20px 16px;
+        border-radius: var(--hl-radius-sm);
+    }
+    .hl-ld-lesson .hl-ld-content {
+        padding: 64px 16px 24px;
+    }
+    .hl-course-outline {
+        z-index: 1050;
+    }
+    body.hl-course-outline-is-collapsed .hl-course-outline {
+        transform: translateX(-100%);
+    }
+}

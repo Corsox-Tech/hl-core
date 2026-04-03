@@ -648,10 +648,18 @@ class HL_BuddyBoss_Integration {
     // =========================================================================
 
     /**
-     * Check if the current page is an HL-template page (has [hl_*] shortcode).
-     * Those pages render their own sidebar via hl-page.php — don't double-render.
+     * Check if the current page uses an HL-managed template.
+     *
+     * Returns true for pages with [hl_*] shortcodes (rendered by hl-page.php)
+     * AND for LearnDash post types (rendered by ld-course.php / ld-lesson.php).
+     * Those pages render their own sidebar — don't double-render.
      */
     private function is_hl_template_page() {
+        // LearnDash pages now use our own templates with built-in nav.
+        if (is_singular(array('sfwd-courses', 'sfwd-lessons'))) {
+            return true;
+        }
+
         global $post;
         if (!is_a($post, 'WP_Post')) return false;
         return (strpos($post->post_content, '[hl_') !== false);

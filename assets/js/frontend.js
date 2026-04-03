@@ -174,3 +174,68 @@ function hlTogglePanel(panelId, btn) {
         btn.classList.add('active');
     }
 }
+
+/**
+ * Sidebar collapse/expand toggle.
+ * Works with the inline <script> in the sidebar template that sets body class
+ * immediately on load to prevent FOUC.
+ */
+(function() {
+    var btn = document.getElementById('hl-sidebar-collapse-btn');
+    var sidebar = document.getElementById('hl-sidebar');
+    if (!btn || !sidebar) return;
+
+    btn.addEventListener('click', function() {
+        var isCollapsed = sidebar.classList.toggle('hl-sidebar--collapsed');
+        document.body.classList.toggle('hl-sidebar-is-collapsed', isCollapsed);
+        localStorage.setItem('hl-sidebar-collapsed', isCollapsed ? '1' : '0');
+
+        // Update button icon
+        var icon = btn.querySelector('.dashicons');
+        if (icon) {
+            icon.className = isCollapsed
+                ? 'dashicons dashicons-arrow-right-alt2'
+                : 'dashicons dashicons-arrow-left-alt2';
+        }
+    });
+
+    // Apply saved state on load (supplement the inline script that sets body class)
+    if (localStorage.getItem('hl-sidebar-collapsed') === '1') {
+        sidebar.classList.add('hl-sidebar--collapsed');
+        var icon = btn.querySelector('.dashicons');
+        if (icon) icon.className = 'dashicons dashicons-arrow-right-alt2';
+    }
+})();
+
+/**
+ * Course outline collapse/expand toggle (lesson pages only).
+ * Persists state in localStorage so the outline stays collapsed/expanded
+ * across page navigations within a course.
+ */
+(function() {
+    var btn = document.getElementById('hl-course-outline-toggle');
+    var outline = document.getElementById('hl-course-outline');
+    if (!btn || !outline) return;
+
+    btn.addEventListener('click', function() {
+        var isCollapsed = outline.classList.toggle('hl-course-outline--collapsed');
+        document.body.classList.toggle('hl-course-outline-is-collapsed', isCollapsed);
+        localStorage.setItem('hl-course-outline-collapsed', isCollapsed ? '1' : '0');
+
+        // Update button icon
+        var icon = btn.querySelector('.dashicons');
+        if (icon) {
+            icon.className = isCollapsed
+                ? 'dashicons dashicons-menu'
+                : 'dashicons dashicons-no-alt';
+        }
+    });
+
+    // Apply saved state on load
+    if (localStorage.getItem('hl-course-outline-collapsed') === '1') {
+        outline.classList.add('hl-course-outline--collapsed');
+        document.body.classList.add('hl-course-outline-is-collapsed');
+        var icon = btn.querySelector('.dashicons');
+        if (icon) icon.className = 'dashicons dashicons-menu';
+    }
+})();

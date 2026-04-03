@@ -1,10 +1,17 @@
 <?php
 /**
- * HL Core Page Template
+ * HL Core — LearnDash Course Template
  *
- * Serves all pages containing [hl_*] shortcodes.
- * Bypasses the active theme entirely — outputs a clean HTML document
- * with only HL Core assets. No wp_head()/wp_footer().
+ * Serves all `sfwd-courses` singular pages.
+ * Bypasses the BuddyBoss theme entirely — outputs a clean HTML document
+ * with the HL design system shell (sidebar + topbar) and HL-only CSS.
+ *
+ * Unlike hl-page.php, this template calls wp_head()/wp_footer() because
+ * LearnDash + Grassblade xAPI need their scripts to load via standard
+ * WP enqueue hooks. All BB + LD CSS is dequeued before wp_head() fires
+ * (handled by HL_Shortcodes::dequeue_bb_ld_assets_on_ld_pages() at priority 9999).
+ *
+ * Content is rendered by LearnDash via the_content() filter, not shortcodes.
  *
  * @package HL_Core
  */
@@ -53,44 +60,38 @@ $avatar_url = get_avatar_url($user->ID, ['size' => 32]);
 $logo_id  = get_theme_mod('custom_logo');
 $logo_url = $logo_id ? wp_get_attachment_image_url($logo_id, 'full') : '';
 
-// Breadcrumb: find current page label from menu items.
-$current_page_label = '';
-foreach ($menu_items as $item) {
-    $item_path = trailingslashit(wp_parse_url($item['url'], PHP_URL_PATH) ?: '');
-    if ($item_path && $item_path === $current_url) {
-        $current_page_label = $item['label'];
-        break;
-    }
-}
 // Dashboard URL for breadcrumb link — first menu item is the logical "home".
 $dashboard_url = !empty($menu_items) ? $menu_items[0]['url'] : home_url('/');
 
-// Render shortcode content (may enqueue per-shortcode assets).
+// Course breadcrumb: use the course title.
 global $post;
-$page_content = do_shortcode($post->post_content);
+$course_title = get_the_title();
+
+// Courses archive link for breadcrumb parent.
+$courses_url = get_post_type_archive_link('sfwd-courses');
+if (!$courses_url) {
+    $courses_url = home_url('/courses/');
+}
 ?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>
     <meta charset="<?php bloginfo('charset'); ?>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo esc_html(get_the_title()); ?> — Housman Learning</title>
+    <title><?php echo esc_html($course_title); ?> — Housman Learning</title>
     <?php wp_site_icon(); ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo esc_url(includes_url('css/dashicons.min.css')); ?>"><?php // Direct link — more reliable than wp_print_styles in a custom template that bypasses wp_head(). ?>
+    <link rel="stylesheet" href="<?php echo esc_url(includes_url('css/dashicons.min.css')); ?>">
     <link rel="stylesheet" href="<?php echo esc_url(HL_CORE_ASSETS_URL . 'css/frontend.css'); ?>?ver=<?php echo esc_attr(HL_CORE_VERSION); ?>">
     <?php
-    // Flush any styles enqueued during do_shortcode() (e.g. hl_docs).
-    wp_print_styles();
+    // wp_head() fires here — LD + Grassblade scripts load.
+    // BB + LD CSS already dequeued at priority 9999 by HL_LD_Detach_CSS.
+    wp_head();
     ?>
-    <?php wp_print_scripts(['jquery']); ?>
-    <script>
-        var hlCoreAjax = { ajaxurl: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>' };
-    </script>
 </head>
-<body class="hl-app">
+<body class="hl-app hl-ld-course">
 <script>
 if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
     document.body.classList.add('hl-sidebar-is-collapsed');
@@ -101,12 +102,9 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
     <!-- Top Bar -->
     <div class="hl-topbar<?php echo $old_user ? ' hl-topbar--view-as' : ''; ?>" id="hl-topbar">
         <div class="hl-breadcrumb">
-            <?php if ($current_page_label) : ?>
-                <a href="<?php echo esc_url($dashboard_url); ?>">Dashboard</a> &rsaquo;
-                <span><?php echo esc_html($current_page_label); ?></span>
-            <?php else : ?>
-                <span>Dashboard</span>
-            <?php endif; ?>
+            <a href="<?php echo esc_url($dashboard_url); ?>">Dashboard</a> &rsaquo;
+            <a href="<?php echo esc_url($courses_url); ?>">Courses</a> &rsaquo;
+            <span><?php echo esc_html($course_title); ?></span>
         </div>
         <div class="hl-topbar__user-wrap" id="hl-topbar-user-wrap">
             <button class="hl-topbar__user-btn" id="hl-topbar-user-btn" type="button" aria-expanded="false">
@@ -181,12 +179,20 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
 <?php endif; ?>
 
 <main class="hl-app__content">
-    <?php echo $page_content; ?>
+    <?php
+    // LearnDash hooks into the_content filter to render all course markup
+    // (progress bar, lesson list, tabs, etc.) inside div.learndash-wrapper.
+    if (have_posts()) :
+        while (have_posts()) : the_post();
+            the_content();
+        endwhile;
+    endif;
+    ?>
 </main>
 
 <?php
-// Flush any scripts enqueued during do_shortcode() (e.g. hl_docs).
-wp_print_scripts();
+// wp_footer() fires here — Grassblade SCORM tracking, LD video JS, etc.
+wp_footer();
 ?>
 <script src="<?php echo esc_url(HL_CORE_ASSETS_URL . 'js/frontend.js'); ?>?ver=<?php echo esc_attr(HL_CORE_VERSION); ?>"></script>
 </body>

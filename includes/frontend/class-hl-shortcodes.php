@@ -15,7 +15,8 @@ class HL_Shortcodes {
     private function __construct() {
         add_action('init', array($this, 'register_shortcodes'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
-        add_filter('template_include', array($this, 'use_hl_template'));
+        add_filter('template_include', array($this, 'use_hl_template'), 1001);
+        add_action('wp_enqueue_scripts', array($this, 'dequeue_bb_ld_assets_on_ld_pages'), 9999);
         add_action('template_redirect', array('HL_Frontend_My_Cycle', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Team_Page', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Cycle_Workspace', 'handle_export'));
@@ -35,10 +36,77 @@ class HL_Shortcodes {
      * @return string Template path to use.
      */
     public function use_hl_template($template) {
-        if (!is_singular('page')) return $template;
-        global $post;
-        if (strpos($post->post_content, '[hl_') === false) return $template;
-        return HL_CORE_PLUGIN_DIR . 'templates/hl-page.php';
+        // HL shortcode pages — full plugin template takeover.
+        if (is_singular('page')) {
+            global $post;
+            if (strpos($post->post_content, '[hl_') !== false) {
+                return HL_CORE_PLUGIN_DIR . 'templates/hl-page.php';
+            }
+        }
+
+        // LearnDash post types — serve through plugin LD templates.
+        if (is_singular('sfwd-courses')) {
+            return HL_CORE_PLUGIN_DIR . 'templates/ld-course.php';
+        }
+        if (is_singular('sfwd-lessons')) {
+            return HL_CORE_PLUGIN_DIR . 'templates/ld-lesson.php';
+        }
+
+        return $template;
+    }
+
+    /**
+     * Dequeue unwanted BuddyBoss and LearnDash CSS/JS on LD template pages.
+     *
+     * Runs at priority 9999 on wp_enqueue_scripts so everything is already
+     * enqueued. Preserves LD functional JS (mark-complete, video, cookies)
+     * and all GrassBlade handles.
+     */
+    public function dequeue_bb_ld_assets_on_ld_pages() {
+        if (!is_singular(array('sfwd-courses', 'sfwd-lessons'))) {
+            return;
+        }
+
+        // CSS handles to remove.
+        $css_dequeue = array(
+            'learndash_style',
+            'learndash',
+            'sfwd_front_css',
+            'learndash_quiz_front_css',
+            'learndash_template_style_css',
+            'jquery-dropdown-css',
+            'learndash_pager_css',
+            'learndash-ld30-shortcodes-style',
+            'learndash_lesson_video',
+            'learndash-presenter-mode-style',
+            'buddyboss-theme-learndash',
+            'buddyboss-theme-css',
+            'buddyboss-theme-main-css',
+            'buddyboss-theme-fonts',
+        );
+
+        foreach ($css_dequeue as $handle) {
+            wp_dequeue_style($handle);
+            wp_deregister_style($handle);
+        }
+
+        // JS handles to remove.
+        $js_dequeue = array(
+            'buddyboss-theme-learndash-js',
+            'buddyboss-theme-learndash-sidebar-js',
+            'wpProQuiz_front_javascript',
+            'buddyboss-theme-main-js',
+        );
+
+        foreach ($js_dequeue as $handle) {
+            wp_dequeue_script($handle);
+            wp_deregister_script($handle);
+        }
+
+        // NOTE: The following JS handles are intentionally KEPT:
+        // learndash_template_script_js, learndash-ld30-shortcodes-script,
+        // learndash_video_script_js, learndash_cookie_script_js,
+        // jquery, jquery-cookie, and all grassblade/gb-* handles.
     }
 
     public function register_shortcodes() {
