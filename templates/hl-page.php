@@ -108,6 +108,22 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
                 <span>Dashboard</span>
             <?php endif; ?>
         </div>
+        <?php if ( is_user_logged_in() ) : ?>
+        <div class="hl-topbar__tour-wrap">
+            <button id="hl-tour-trigger" class="hl-topbar__tour-btn" aria-expanded="false" aria-label="<?php esc_attr_e( 'Guided Tours', 'hl-core' ); ?>" title="<?php esc_attr_e( 'Guided Tours', 'hl-core' ); ?>">
+                <span class="dashicons dashicons-editor-help"></span>
+            </button>
+            <div id="hl-tour-dropdown" class="hl-topbar__tour-dropdown" hidden>
+                <div class="hl-tour-dropdown__header"><?php _e( 'Guided Tours', 'hl-core' ); ?></div>
+                <ul class="hl-tour-dropdown__list" id="hl-tour-dropdown-list">
+                    <!-- Populated by JS from hlTourData.available -->
+                </ul>
+                <div class="hl-tour-dropdown__empty" id="hl-tour-dropdown-empty" hidden>
+                    <?php _e( 'No tours available for this page.', 'hl-core' ); ?>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
         <div class="hl-topbar__user-wrap" id="hl-topbar-user-wrap">
             <button class="hl-topbar__user-btn" id="hl-topbar-user-btn" type="button" aria-expanded="false">
                 <span class="hl-topbar__user-name"><?php echo esc_html($display_name); ?></span>

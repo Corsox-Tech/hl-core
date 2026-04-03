@@ -137,6 +137,9 @@
             e.stopPropagation();
             var $dropdown = $('#hl-topbar-dropdown');
             var isOpen = !$dropdown.prop('hidden');
+            // Close tour dropdown if open.
+            $('#hl-tour-dropdown').prop('hidden', true);
+            $('#hl-tour-trigger').attr('aria-expanded', 'false');
             $dropdown.prop('hidden', isOpen);
             $(this).attr('aria-expanded', !isOpen);
         });
@@ -145,6 +148,23 @@
                 $('#hl-topbar-dropdown').prop('hidden', true);
                 $('#hl-topbar-user-btn').attr('aria-expanded', 'false');
             }
+            if (!$(e.target).closest('.hl-topbar__tour-wrap').length) {
+                $('#hl-tour-dropdown').prop('hidden', true);
+                $('#hl-tour-trigger').attr('aria-expanded', 'false');
+            }
+        });
+
+        // === Tour Guide Dropdown ===
+        $(document).on('click', '#hl-tour-trigger', function(e) {
+            e.stopPropagation();
+            var $dropdown = $('#hl-tour-dropdown');
+            var isOpen = !$dropdown.prop('hidden');
+            // Close user dropdown if open.
+            $('#hl-topbar-dropdown').prop('hidden', true);
+            $('#hl-topbar-user-btn').attr('aria-expanded', 'false');
+            // Toggle tour dropdown.
+            $dropdown.prop('hidden', isOpen);
+            $(this).attr('aria-expanded', !isOpen);
         });
 
     });
