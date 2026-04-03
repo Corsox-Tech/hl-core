@@ -892,18 +892,41 @@ class HL_Admin_Instruments {
         $sections = array();
         if (!empty($_POST['sections']) && is_array($_POST['sections'])) {
             foreach ($_POST['sections'] as $s) {
-                $section_key = sanitize_text_field($s['section_key'] ?? '');
+                $section_key  = sanitize_text_field($s['section_key'] ?? '');
                 if (empty($section_key)) {
                     continue;
                 }
+                $section_type = sanitize_text_field($s['type'] ?? 'likert');
+
+                // indicator_checklist sections use the visit-form JSON shape
+                // (key, title, type, indicators) so the frontend renderer works.
+                if ($section_type === 'indicator_checklist') {
+                    $indicators = array();
+                    if (!empty($s['indicators']) && is_array($s['indicators'])) {
+                        foreach ($s['indicators'] as $ind) {
+                            $ind = sanitize_text_field(wp_unslash($ind));
+                            if ($ind !== '') {
+                                $indicators[] = $ind;
+                            }
+                        }
+                    }
+                    $sections[] = array(
+                        'key'        => $section_key,
+                        'title'      => sanitize_text_field($s['title'] ?? ''),
+                        'type'       => 'indicator_checklist',
+                        'indicators' => $indicators,
+                    );
+                    continue;
+                }
+
+                // Scored section types (likert, scale)
                 $section = array(
                     'section_key' => $section_key,
                     'title'       => sanitize_text_field($s['title'] ?? ''),
                     'description' => wp_kses_post(wp_unslash($s['description'] ?? '')),
-                    'type'        => sanitize_text_field($s['type'] ?? 'likert'),
+                    'type'        => $section_type,
                     'scale_key'   => sanitize_text_field($s['scale_key'] ?? ''),
                 );
-                // Preserve retrospective flag (POST instruments use dual-column layout)
                 if (!empty($s['retrospective'])) {
                     $section['retrospective'] = true;
                 }
@@ -919,7 +942,6 @@ class HL_Admin_Instruments {
                             'key'  => $item_key,
                             'text' => wp_kses_post(wp_unslash($item['text'] ?? '')),
                         );
-                        // Preserve left_anchor / right_anchor for scale items
                         if (isset($item['left_anchor'])) {
                             $item_entry['left_anchor'] = sanitize_text_field($item['left_anchor']);
                         }
@@ -1280,14 +1302,22 @@ class HL_Admin_Instruments {
      * Render a single section accordion panel.
      */
     private function render_teacher_section_panel($index, $section, $scale_keys) {
-        $section_key   = isset($section['section_key']) ? $section['section_key'] : '';
+        // Handle both admin format (section_key) and visit form format (key).
+        $section_key   = isset($section['section_key']) ? $section['section_key'] : (isset($section['key']) ? $section['key'] : '');
         $title         = isset($section['title']) ? $section['title'] : '';
         $description   = isset($section['description']) ? $section['description'] : '';
         $type          = isset($section['type']) ? $section['type'] : 'likert';
         $scale_key     = isset($section['scale_key']) ? $section['scale_key'] : '';
         $items         = isset($section['items']) ? $section['items'] : array();
+        $indicators    = isset($section['indicators']) ? $section['indicators'] : array();
         $retrospective = !empty($section['retrospective']);
+        $is_indicator  = ($type === 'indicator_checklist');
         $prefix        = 'sections[' . $index . ']';
+
+        $meta_count = $is_indicator ? count($indicators) : count($items);
+        $meta_label = $is_indicator
+            ? sprintf(__('%d indicators', 'hl-core'), $meta_count)
+            : sprintf(__('%d items', 'hl-core'), $meta_count);
 
         ?>
         <div class="hl-te-section-panel" data-section-index="<?php echo esc_attr($index); ?>">
@@ -1297,7 +1327,7 @@ class HL_Admin_Instruments {
                     <?php echo esc_html($title ?: __('(Untitled Section)', 'hl-core')); ?>
                 </span>
                 <span class="hl-te-section-header-meta">
-                    <?php echo esc_html(sprintf(__('%d items', 'hl-core'), count($items))); ?>
+                    <?php echo esc_html($meta_label); ?>
                 </span>
                 <span class="hl-te-panel-actions">
                     <button type="button" class="button-link hl-te-remove-section"><?php esc_html_e('Remove', 'hl-core'); ?></button>
@@ -1306,14 +1336,14 @@ class HL_Admin_Instruments {
             <div class="hl-te-section-body">
                 <table class="form-table">
                     <tr>
-                        <th><label><?php esc_html_e('Section Key', 'hl-core'); ?></label></th>
+                        <th><label><?php echo $is_indicator ? esc_html__('Domain Key', 'hl-core') : esc_html__('Section Key', 'hl-core'); ?></label></th>
                         <td><input type="text" name="<?php echo esc_attr($prefix); ?>[section_key]" value="<?php echo esc_attr($section_key); ?>" class="regular-text" required /></td>
                     </tr>
                     <tr>
-                        <th><label><?php esc_html_e('Title', 'hl-core'); ?></label></th>
+                        <th><label><?php echo $is_indicator ? esc_html__('Domain Name', 'hl-core') : esc_html__('Title', 'hl-core'); ?></label></th>
                         <td><input type="text" name="<?php echo esc_attr($prefix); ?>[title]" value="<?php echo esc_attr($title); ?>" class="regular-text hl-te-section-title-input" /></td>
                     </tr>
-                    <tr>
+                    <tr class="hl-te-row-scored-only" <?php echo $is_indicator ? 'style="display:none;"' : ''; ?>>
                         <th><label><?php esc_html_e('Description', 'hl-core'); ?></label></th>
                         <td>
                             <div class="hl-te-richtext-wrap">
@@ -1333,10 +1363,11 @@ class HL_Admin_Instruments {
                             <select name="<?php echo esc_attr($prefix); ?>[type]" class="hl-te-section-type-select">
                                 <option value="likert" <?php selected($type, 'likert'); ?>><?php esc_html_e('Likert', 'hl-core'); ?></option>
                                 <option value="scale" <?php selected($type, 'scale'); ?>><?php esc_html_e('Scale (0-10)', 'hl-core'); ?></option>
+                                <option value="indicator_checklist" <?php selected($type, 'indicator_checklist'); ?>><?php esc_html_e('Domains & Indicators (Yes/No)', 'hl-core'); ?></option>
                             </select>
                         </td>
                     </tr>
-                    <tr>
+                    <tr class="hl-te-row-scored-only" <?php echo $is_indicator ? 'style="display:none;"' : ''; ?>>
                         <th><label><?php esc_html_e('Scale Key', 'hl-core'); ?></label></th>
                         <td>
                             <select name="<?php echo esc_attr($prefix); ?>[scale_key]" class="hl-te-scale-key-select">
@@ -1347,7 +1378,7 @@ class HL_Admin_Instruments {
                             </select>
                         </td>
                     </tr>
-                    <tr>
+                    <tr class="hl-te-row-scored-only" <?php echo $is_indicator ? 'style="display:none;"' : ''; ?>>
                         <th><label><?php esc_html_e('Retrospective', 'hl-core'); ?></label></th>
                         <td>
                             <label>
@@ -1358,22 +1389,47 @@ class HL_Admin_Instruments {
                     </tr>
                 </table>
 
-                <h4><?php esc_html_e('Items', 'hl-core'); ?></h4>
-                <table class="widefat hl-te-items-table">
-                    <thead>
-                        <tr>
-                            <th style="width:180px;"><?php esc_html_e('Item Key', 'hl-core'); ?></th>
-                            <th><?php esc_html_e('Item Text', 'hl-core'); ?></th>
-                            <th style="width:80px;"><?php esc_html_e('Actions', 'hl-core'); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody class="hl-te-items-body">
-                        <?php foreach ($items as $item_idx => $item) : ?>
-                            <?php $this->render_teacher_item_row($index, $item_idx, $item); ?>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-                <p><button type="button" class="button button-small hl-te-add-item"><?php esc_html_e('+ Add Item', 'hl-core'); ?></button></p>
+                <!-- Items table (likert/scale types) -->
+                <div class="hl-te-items-wrap" <?php echo $is_indicator ? 'style="display:none;"' : ''; ?>>
+                    <h4><?php esc_html_e('Items', 'hl-core'); ?></h4>
+                    <table class="widefat hl-te-items-table">
+                        <thead>
+                            <tr>
+                                <th style="width:180px;"><?php esc_html_e('Item Key', 'hl-core'); ?></th>
+                                <th><?php esc_html_e('Item Text', 'hl-core'); ?></th>
+                                <th style="width:80px;"><?php esc_html_e('Actions', 'hl-core'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody class="hl-te-items-body">
+                            <?php foreach ($items as $item_idx => $item) : ?>
+                                <?php $this->render_teacher_item_row($index, $item_idx, $item); ?>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <p><button type="button" class="button button-small hl-te-add-item"><?php esc_html_e('+ Add Item', 'hl-core'); ?></button></p>
+                </div>
+
+                <!-- Indicators list (indicator_checklist type) -->
+                <div class="hl-te-indicators-wrap" <?php echo $is_indicator ? '' : 'style="display:none;"'; ?>>
+                    <h4><?php esc_html_e('Indicators', 'hl-core'); ?></h4>
+                    <table class="widefat hl-te-indicators-table">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e('Indicator Text', 'hl-core'); ?></th>
+                                <th style="width:80px;"><?php esc_html_e('Actions', 'hl-core'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody class="hl-te-indicators-body">
+                            <?php foreach ($indicators as $ind_idx => $ind_text) : ?>
+                                <tr class="hl-te-indicator-row">
+                                    <td><input type="text" name="<?php echo esc_attr($prefix); ?>[indicators][]" value="<?php echo esc_attr($ind_text); ?>" class="widefat" /></td>
+                                    <td><button type="button" class="button-link button-link-delete hl-te-remove-indicator"><?php esc_html_e('Remove', 'hl-core'); ?></button></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <p><button type="button" class="button button-small hl-te-add-indicator"><?php esc_html_e('+ Add Indicator', 'hl-core'); ?></button></p>
+                </div>
             </div>
         </div>
         <?php

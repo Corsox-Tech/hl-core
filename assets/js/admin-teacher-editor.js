@@ -129,26 +129,46 @@
         });
     }
 
-    // ─── Section type toggle (show/hide anchor fields) ──────
+    // ─── Section type toggle (show/hide fields per type) ────
 
-    function toggleAnchorFields(sectionPanel) {
+    function toggleSectionTypeFields(sectionPanel) {
         var typeSelect = sectionPanel.querySelector('.hl-te-section-type-select');
         if (!typeSelect) return;
-        var isScale = typeSelect.value === 'scale';
+        var val = typeSelect.value;
+        var isScale     = val === 'scale';
+        var isIndicator = val === 'indicator_checklist';
+
+        // Anchor fields only for scale type
         sectionPanel.querySelectorAll('.hl-te-anchor-fields').forEach(function (el) {
             el.style.display = isScale ? 'flex' : 'none';
         });
+        // Hide scored-only rows (description, scale key, retrospective) for indicators
+        sectionPanel.querySelectorAll('.hl-te-row-scored-only').forEach(function (el) {
+            el.style.display = isIndicator ? 'none' : '';
+        });
+        // Items table vs indicators list
+        var itemsWrap = sectionPanel.querySelector('.hl-te-items-wrap');
+        var indicatorsWrap = sectionPanel.querySelector('.hl-te-indicators-wrap');
+        if (itemsWrap) itemsWrap.style.display = isIndicator ? 'none' : '';
+        if (indicatorsWrap) indicatorsWrap.style.display = isIndicator ? '' : 'none';
+        // Update header meta label
+        var meta = sectionPanel.querySelector('.hl-te-section-header-meta');
+        if (meta && isIndicator) {
+            var count = sectionPanel.querySelectorAll('.hl-te-indicator-row').length;
+            meta.textContent = count + ' ' + (i18n.indicators || 'indicators');
+        } else if (meta) {
+            var count = sectionPanel.querySelectorAll('.hl-te-item-row').length;
+            meta.textContent = count + ' ' + (i18n.items || 'items');
+        }
     }
 
     function initSectionTypeToggle(container) {
         container.querySelectorAll('.hl-te-section-type-select').forEach(function (sel) {
             if (sel._hlTypeBound) return;
             sel._hlTypeBound = true;
-            // Initial state
-            toggleAnchorFields(sel.closest('.hl-te-section-panel'));
-            // On change
+            toggleSectionTypeFields(sel.closest('.hl-te-section-panel'));
             sel.addEventListener('change', function () {
-                toggleAnchorFields(sel.closest('.hl-te-section-panel'));
+                toggleSectionTypeFields(sel.closest('.hl-te-section-panel'));
             });
         });
     }
@@ -246,6 +266,37 @@
                 tbody.appendChild(tr);
                 initRichTextInContainer(tr);
                 initRemoveHandlers(tr);
+            });
+        });
+
+        // Add indicator
+        container.querySelectorAll('.hl-te-add-indicator').forEach(function (btn) {
+            if (btn._hlBound) return;
+            btn._hlBound = true;
+            btn.addEventListener('click', function () {
+                var panel = btn.closest('.hl-te-section-panel');
+                var secIdx = panel.getAttribute('data-section-index');
+                var tbody = panel.querySelector('.hl-te-indicators-body');
+
+                var tr = document.createElement('tr');
+                tr.className = 'hl-te-indicator-row';
+                tr.innerHTML =
+                    '<td><input type="text" name="sections[' + secIdx + '][indicators][]" value="" class="widefat" /></td>' +
+                    '<td><button type="button" class="button-link button-link-delete hl-te-remove-indicator">' + escHtml(i18n.remove || 'Remove') + '</button></td>';
+
+                tbody.appendChild(tr);
+                initRemoveHandlers(tr);
+            });
+        });
+
+        // Remove indicator
+        container.querySelectorAll('.hl-te-remove-indicator').forEach(function (btn) {
+            if (btn._hlBound) return;
+            btn._hlBound = true;
+            btn.addEventListener('click', function () {
+                if (confirm(i18n.removeIndicator || 'Remove this indicator?')) {
+                    btn.closest('.hl-te-indicator-row').remove();
+                }
             });
         });
     }
@@ -403,7 +454,7 @@
                         '<td><input type="text" name="' + prefix + '[section_key]" value="" class="regular-text" required /></td></tr>' +
                         '<tr><th><label>' + escHtml(i18n.titleLabel || 'Title') + '</label></th>' +
                         '<td><input type="text" name="' + prefix + '[title]" value="" class="regular-text hl-te-section-title-input" /></td></tr>' +
-                        '<tr><th><label>' + escHtml(i18n.descriptionLabel || 'Description') + '</label></th>' +
+                        '<tr class="hl-te-row-scored-only"><th><label>' + escHtml(i18n.descriptionLabel || 'Description') + '</label></th>' +
                         '<td>' +
                             '<div class="hl-te-richtext-wrap">' +
                                 '<div class="hl-te-richtext-toolbar">' +
@@ -419,20 +470,34 @@
                         '<td><select name="' + prefix + '[type]" class="hl-te-section-type-select">' +
                             '<option value="likert">' + escHtml(i18n.likert || 'Likert') + '</option>' +
                             '<option value="scale">' + escHtml(i18n.scaleType || 'Scale (0-10)') + '</option>' +
+                            '<option value="indicator_checklist">' + escHtml(i18n.indicatorChecklist || 'Domains & Indicators (Yes/No)') + '</option>' +
                         '</select></td></tr>' +
-                        '<tr><th><label>' + escHtml(i18n.scaleKeyField || 'Scale Key') + '</label></th>' +
+                        '<tr class="hl-te-row-scored-only"><th><label>' + escHtml(i18n.scaleKeyField || 'Scale Key') + '</label></th>' +
                         '<td><select name="' + prefix + '[scale_key]" class="hl-te-scale-key-select">' + scaleOpts + '</select></td></tr>' +
                     '</table>' +
-                    '<h4>' + escHtml(i18n.itemsLabel || 'Items') + '</h4>' +
-                    '<table class="widefat hl-te-items-table">' +
-                        '<thead><tr>' +
-                            '<th style="width:180px;">' + escHtml(i18n.itemKey || 'Item Key') + '</th>' +
-                            '<th>' + escHtml(i18n.itemText || 'Item Text') + '</th>' +
-                            '<th style="width:80px;">' + escHtml(i18n.actions || 'Actions') + '</th>' +
-                        '</tr></thead>' +
-                        '<tbody class="hl-te-items-body"></tbody>' +
-                    '</table>' +
-                    '<p><button type="button" class="button button-small hl-te-add-item">' + escHtml(i18n.addItem || '+ Add Item') + '</button></p>' +
+                    '<div class="hl-te-items-wrap">' +
+                        '<h4>' + escHtml(i18n.itemsLabel || 'Items') + '</h4>' +
+                        '<table class="widefat hl-te-items-table">' +
+                            '<thead><tr>' +
+                                '<th style="width:180px;">' + escHtml(i18n.itemKey || 'Item Key') + '</th>' +
+                                '<th>' + escHtml(i18n.itemText || 'Item Text') + '</th>' +
+                                '<th style="width:80px;">' + escHtml(i18n.actions || 'Actions') + '</th>' +
+                            '</tr></thead>' +
+                            '<tbody class="hl-te-items-body"></tbody>' +
+                        '</table>' +
+                        '<p><button type="button" class="button button-small hl-te-add-item">' + escHtml(i18n.addItem || '+ Add Item') + '</button></p>' +
+                    '</div>' +
+                    '<div class="hl-te-indicators-wrap" style="display:none;">' +
+                        '<h4>' + escHtml(i18n.indicatorsLabel || 'Indicators') + '</h4>' +
+                        '<table class="widefat hl-te-indicators-table">' +
+                            '<thead><tr>' +
+                                '<th>' + escHtml(i18n.indicatorText || 'Indicator Text') + '</th>' +
+                                '<th style="width:80px;">' + escHtml(i18n.actions || 'Actions') + '</th>' +
+                            '</tr></thead>' +
+                            '<tbody class="hl-te-indicators-body"></tbody>' +
+                        '</table>' +
+                        '<p><button type="button" class="button button-small hl-te-add-indicator">' + escHtml(i18n.addIndicator || '+ Add Indicator') + '</button></p>' +
+                    '</div>' +
                 '</div>';
 
             sectionsContainer.appendChild(panel);
