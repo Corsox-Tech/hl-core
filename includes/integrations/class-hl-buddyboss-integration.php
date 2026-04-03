@@ -662,7 +662,9 @@ class HL_BuddyBoss_Integration {
      */
     private function is_hl_template_page() {
         // Lesson + course pages use our custom templates with built-in nav.
-        if (is_singular('sfwd-lessons') || is_singular('sfwd-courses')) {
+        // URL check for lessons (LD Focus Mode corrupts is_singular).
+        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+        if (strpos($request_uri, '/lessons/') !== false || is_singular('sfwd-courses')) {
             return true;
         }
 

@@ -46,12 +46,13 @@ class HL_Shortcodes {
             }
         }
 
-        // LearnDash lesson pages — custom template with course outline panel.
-        if (is_singular('sfwd-lessons')) {
+        // LearnDash pages — detect by URL path because LD Focus Mode
+        // corrupts is_singular(): lessons show as sfwd-courses when
+        // Focus Mode is active. URL detection is reliable.
+        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+        if (strpos($request_uri, '/lessons/') !== false) {
             return HL_CORE_PLUGIN_DIR . 'templates/ld-lesson.php';
         }
-
-        // LearnDash course pages — custom template with course info sidebar.
         if (is_singular('sfwd-courses')) {
             return HL_CORE_PLUGIN_DIR . 'templates/ld-course.php';
         }
@@ -71,7 +72,10 @@ class HL_Shortcodes {
      */
     public function dequeue_bb_ld_assets_on_ld_pages() {
         // Only dequeue on LD pages using our custom templates.
-        if (!is_singular('sfwd-lessons') && !is_singular('sfwd-courses')) {
+        // Use URL check for lessons (Focus Mode corrupts is_singular).
+        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+        $is_lesson = (strpos($request_uri, '/lessons/') !== false);
+        if (!$is_lesson && !is_singular('sfwd-courses')) {
             return;
         }
 
