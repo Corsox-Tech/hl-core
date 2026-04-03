@@ -147,12 +147,79 @@
     });
 
     /**
-     * Element Picker Modal — placeholder for Phase 2B.
-     * Phase 2B will replace this with the full iframe-based picker.
+     * Element Picker Modal — opens iframe with ?hl_picker=1 for visual element selection.
      */
     window.openElementPicker = function(pageUrl, $stepCard) {
-        alert('Element Picker coming in Phase 2B.\nFor now, enter the CSS selector manually in the Target Element field.');
-        $stepCard.find('.hl-tour-selector-manual').focus();
+        var siteUrl = hlTourAdmin.site_url;
+        var $modal  = $('#hl-picker-modal');
+
+        // Create modal if not exists.
+        if (!$modal.length) {
+            $modal = $('<div id="hl-picker-modal" class="hl-picker-modal">' +
+                '<div class="hl-picker-modal__header">' +
+                    '<label>View page as: <select id="hl-picker-role">' +
+                        '<option value="">Admin (default)</option>' +
+                        '<option value="teacher">Teacher</option>' +
+                        '<option value="mentor">Mentor</option>' +
+                        '<option value="school_leader">School Leader</option>' +
+                        '<option value="district_leader">District Leader</option>' +
+                        '<option value="coach">Coach</option>' +
+                    '</select></label>' +
+                    '<button type="button" class="hl-picker-modal__close">&times;</button>' +
+                '</div>' +
+                '<iframe id="hl-picker-iframe" class="hl-picker-modal__iframe"></iframe>' +
+            '</div>');
+            $('body').append($modal);
+        }
+
+        function loadIframe(role) {
+            var separator = pageUrl.indexOf('?') > -1 ? '&' : '?';
+            var url = siteUrl + pageUrl + separator + 'hl_picker=1';
+            if (role) {
+                url += '&hl_view_as=' + encodeURIComponent(role);
+            }
+            $('#hl-picker-iframe').attr('src', url);
+        }
+
+        function closeModal() {
+            $modal.removeClass('open');
+            $('#hl-picker-iframe').attr('src', '');
+            $(window).off('message.hlPicker');
+        }
+
+        // Show modal + load iframe.
+        $modal.addClass('open');
+        loadIframe($('#hl-picker-role').val());
+
+        // Role change reloads iframe.
+        $('#hl-picker-role').off('change.hlPicker').on('change.hlPicker', function() {
+            loadIframe($(this).val());
+        });
+
+        // Close button.
+        $modal.find('.hl-picker-modal__close').off('click.hlPicker').on('click.hlPicker', function() {
+            closeModal();
+        });
+
+        // ESC to close.
+        $(document).off('keydown.hlPicker').on('keydown.hlPicker', function(e) {
+            if (e.key === 'Escape' && $modal.hasClass('open')) {
+                closeModal();
+            }
+        });
+
+        // Listen for postMessage from iframe (with origin validation).
+        $(window).off('message.hlPicker').on('message.hlPicker', function(e) {
+            if (e.originalEvent.origin !== window.location.origin) return;
+            var data = e.originalEvent.data;
+            if (data && data.type === 'hl-picker-select') {
+                $stepCard.find('input[name="step_target_selector[]"]').val(data.selector);
+                closeModal();
+            }
+            if (data && data.type === 'hl-picker-cancel') {
+                closeModal();
+            }
+        });
     };
 
 })(jQuery);

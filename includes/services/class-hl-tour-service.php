@@ -137,10 +137,35 @@ class HL_Tour_Service {
         return ! empty( array_intersect( $user_roles, $target ) );
     }
 
+    // ─── View-As-Role (Element Picker) ───
+
+    /**
+     * Check if we're in picker mode (admin viewing page as another role).
+     */
+    public static function is_picker_mode() {
+        return ! empty( $GLOBALS['hl_view_as_role'] ) && current_user_can( 'manage_hl_core' );
+    }
+
+    /**
+     * Get the view-as role override, or null if not in picker mode.
+     */
+    public static function get_view_as_role() {
+        if ( self::is_picker_mode() ) {
+            return sanitize_text_field( $GLOBALS['hl_view_as_role'] );
+        }
+        return null;
+    }
+
     /**
      * Get the current user's HL roles from their active enrollments.
+     * In picker mode, returns the view-as role instead (admin only).
      */
     public function get_user_hl_roles( $user_id ) {
+        // Picker mode: override with the view-as role (admin only).
+        if ( self::is_picker_mode() ) {
+            return array( self::get_view_as_role() );
+        }
+
         global $wpdb;
         $rows = $wpdb->get_col( $wpdb->prepare(
             "SELECT roles FROM {$wpdb->prefix}hl_enrollment WHERE user_id = %d AND status = 'active'",

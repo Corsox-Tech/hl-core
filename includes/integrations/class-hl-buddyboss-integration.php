@@ -465,6 +465,11 @@ class HL_BuddyBoss_Integration {
      * @return string[] e.g. ['teacher', 'school_leader']
      */
     public function get_user_hl_roles($user_id) {
+        // Picker mode: override with the view-as role (admin only).
+        if ( class_exists( 'HL_Tour_Service' ) && HL_Tour_Service::is_picker_mode() ) {
+            return array( HL_Tour_Service::get_view_as_role() );
+        }
+
         $user_id = absint($user_id);
         if (!$user_id) {
             return array();
