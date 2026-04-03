@@ -147,8 +147,15 @@ if ($has_access && empty($resume_url) && !empty($lessons)) {
 }
 
 // Remove BB's template part override so LD's own clean templates render.
-if (class_exists('BuddyBossTheme\LearndashHelper')) {
-    remove_filter('learndash_30_get_template_part', array(BuddyBossTheme\LearndashHelper::instance(), 'ld_30_get_template_part'), 10);
+if (function_exists('buddyboss_theme')) {
+    $bb_theme = buddyboss_theme();
+    if ($bb_theme && method_exists($bb_theme, 'learndash_helper')) {
+        $bb_ld_helper = $bb_theme->learndash_helper();
+        if ($bb_ld_helper) {
+            remove_filter('learndash_30_get_template_part', array($bb_ld_helper, 'ld_30_get_template_part'), 10);
+            remove_filter('learndash_template', array($bb_ld_helper, 'ld_30_template_routes'), 1000);
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
