@@ -160,6 +160,19 @@ class HL_Admin {
             wp_enqueue_script('hl-admin-teacher-editor', HL_CORE_ASSETS_URL . 'js/admin-teacher-editor.js', array(), HL_CORE_VERSION, true);
         }
 
+        // Tours admin page.
+        if (strpos($hook, 'hl-settings') !== false && isset($_GET['tab']) && $_GET['tab'] === 'tours') {
+            wp_enqueue_script('jquery-ui-sortable');
+            wp_enqueue_style('wp-color-picker');
+            wp_enqueue_script('wp-color-picker');
+            wp_enqueue_script('hl-tour-admin', HL_CORE_ASSETS_URL . 'js/hl-tour-admin.js', array('jquery', 'jquery-ui-sortable', 'wp-color-picker'), HL_CORE_VERSION, true);
+            wp_localize_script('hl-tour-admin', 'hlTourAdmin', array(
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce'    => wp_create_nonce('hl_tour_admin_nonce'),
+                'site_url' => site_url(),
+            ));
+        }
+
         // Import wizard assets (on hl-settings page, imports tab, or hl-cycles page, import tab)
         $is_imports = strpos($hook, 'hl-imports') !== false
                    || (strpos($hook, 'hl-settings') !== false && (!isset($_GET['tab']) || $_GET['tab'] === 'imports'))
