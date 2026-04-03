@@ -49,6 +49,7 @@ class HL_Tour_Service {
         $page_path = rtrim( $page_path, '/' ) . '/';
 
         // Get all active tours.
+        // TODO: optimize N+1 queries (steps + has_seen per tour) when tour count grows.
         $all_tours = $this->repo->get_all_tours( array( 'status' => 'active' ) );
 
         foreach ( $all_tours as $tour ) {
@@ -225,7 +226,7 @@ class HL_Tour_Service {
     public function ajax_get_steps() {
         check_ajax_referer( 'hl_tour_nonce', '_nonce' );
 
-        $tour_id = absint( $_GET['tour_id'] ?? $_POST['tour_id'] ?? 0 );
+        $tour_id = absint( $_POST['tour_id'] ?? 0 );
         if ( ! $tour_id ) {
             wp_send_json_error( array( 'message' => __( 'Missing tour ID.', 'hl-core' ) ) );
         }
