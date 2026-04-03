@@ -437,8 +437,12 @@ class HL_Frontend_Classroom_Visit {
             if ($key === 'context' || $type === 'checkboxes' || $stitle === 'context') {
                 self::render_context_section($section, $responses, $is_readonly, $prefix);
             }
-            // Domain indicators section
-            elseif ($type === 'indicator_checklist' || $type === 'domain_indicators') {
+            // Domain indicators — new per-domain format (indicator_checklist)
+            elseif ($type === 'indicator_checklist') {
+                self::render_indicator_section($section, $responses, $is_readonly, $prefix);
+            }
+            // Domain indicators — legacy bundled format (domain_indicators with nested domains array)
+            elseif ($type === 'domain_indicators') {
                 self::render_domain_indicators_section($section, $responses, $is_readonly, $prefix);
             }
         }
