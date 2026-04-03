@@ -134,7 +134,7 @@ Pick up from the first unchecked `[ ]` item each session.
 ### Guided Tours System (April 2026)
 > **Spec:** `docs/superpowers/specs/2026-04-03-guided-tours-design.md` | **Plan:** `docs/superpowers/plans/2026-04-03-guided-tours-plan.md`
 - [x] **Phase 1 — DB schema + Repository + Service** — 3 new tables (`hl_tour`, `hl_tour_step`, `hl_tour_seen`), schema rev 28→29. `HL_Tour_Repository` (CRUD for tours, steps, seen tracking). `HL_Tour_Service` (context resolution, role matching, global styles, 3 AJAX endpoints: mark_seen, get_steps, save_step_order). Registered in `hl-core.php`.
-- [ ] **Phase 2A — Admin UI** — Tours tab in Settings hub (list, editor, styles subtabs).
+- [x] **Phase 2A — Admin UI** — `HL_Admin_Tours` class with 3 subtabs: Tours List (status filter pills, row actions: Edit/Duplicate/Archive), Tour Editor (tour settings form + sortable step cards with position pills, type toggles, element picker placeholder), Tour Styles (WP Iris color pickers, font size inputs, live preview, reset to defaults). Registered in Settings hub. `hl-tour-admin.js` with jQuery UI Sortable, slug auto-gen, trigger_type visibility toggle. Enum validation on all DB fields. Conditional asset loading.
 - [ ] **Phase 2B — Visual Element Picker** — Iframe-based picker with "View as Role" for non-technical admins.
 - [ ] **Phase 3 — Frontend Tour Engine** — Driver.js integration, multi-page state, topbar "?" button, auto-trigger logic.
 

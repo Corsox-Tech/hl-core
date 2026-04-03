@@ -219,8 +219,9 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Session 5: Directory & Profile Pages** — Extracted inline styles from 4 PHP files (classroom-page, user-profile, docs, learners). 12 clean files verified against BB override selectors.
 - **Session 6: Review & Polish** — Removed 230 lines dead CSS (old Section 29 PROGRAM PAGE, old DASHBOARD HOME V1). Fixed remaining non-functional inline styles. Grep audit confirmed 0 `<style>` blocks and 0 non-functional `style=""` attrs in all frontend PHP files. Visual review across 3 roles (mentor, coach, school leader) passed all 9 design system criteria.
 
-### Guided Tours System (In Progress — Phase 1 Complete)
+### Guided Tours System (In Progress — Phase 2A Complete)
 - **Phase 1 — DB + Repository + Service** — 3 new tables (`hl_tour`, `hl_tour_step`, `hl_tour_seen`), schema rev 29. `HL_Tour_Repository` with full CRUD for tours, steps, and seen tracking. `HL_Tour_Service` with context resolution (page + role + trigger matching), global styles management, validation, and 3 AJAX endpoints (`hl_tour_mark_seen`, `hl_tour_get_steps`, `hl_tour_save_step_order`).
+- **Phase 2A — Admin UI** — `HL_Admin_Tours` singleton in Settings hub "Tours" tab with 3 subtabs. **Tours List**: status filter pills (All/Active/Draft/Archived with counts), table with title, trigger type badge, target roles, status badge, step count, sort order; row actions (Edit/Duplicate/Archive). **Tour Editor**: tour settings (title, slug auto-gen, status, trigger type with conditional page URL, target roles checkboxes, start page URL, sort order, hide on mobile); sortable step cards (jQuery UI Sortable) with title, description (wp_kses_post), page URL, target selector + element picker placeholder, position pills (top/bottom/left/right/auto), step type toggle (informational/interactive); add/remove steps. Activation validates step count. Enum validation on all DB fields. **Tour Styles**: WP Iris color pickers (tooltip bg, title/desc colors, button colors, progress bar), font size inputs, live preview mockup, reset to defaults. `hl-tour-admin.js` + conditional asset enqueue.
 
 ---
 
@@ -242,14 +243,14 @@ See `STATUS.md` for the current build queue and task tracking.
     /services/                   # Business logic (24 services incl. HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service, HL_Tour_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)
-    /admin/                      # WP admin pages (18 controllers incl. Partnerships, Cycles, Assessment Hub, Coaching Hub with Coaches tab, Email Templates, Scheduling Settings)
+    /admin/                      # WP admin pages (19 controllers incl. Partnerships, Cycles, Assessment Hub, Coaching Hub with Coaches tab, Email Templates, Scheduling Settings, Tours)
     /frontend/                   # 34 shortcode page renderers + 5 form/dispatch renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + schedule session renderer + instrument renderer + teacher assessment renderer
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, age group helpers + label remap (legacy)
   /data/                         # Private data files (gitignored)
   /assets/
     /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css
-    /js/                         # admin-import-wizard.js, admin-teacher-editor.js, frontend.js, frontend-docs.js
+    /js/                         # admin-import-wizard.js, admin-teacher-editor.js, hl-tour-admin.js, frontend.js, frontend-docs.js
   /docs/                         # AI library (11 spec documents + B2E_MASTER_REFERENCE.md)
 ```
 
