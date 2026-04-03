@@ -30,16 +30,16 @@ class HL_Frontend_Learners {
             && ! in_array( 'school_leader', $scope['hl_roles'], true )
             && ! in_array( 'district_leader', $scope['hl_roles'], true );
 
-        $page       = max( 1, absint( $_GET['paged'] ?? 1 ) );
-        $filter_cycle  = isset( $_GET['cycle_id'] ) ? absint( $_GET['cycle_id'] ) : 0;
-        $filter_school = isset( $_GET['school_id'] ) ? absint( $_GET['school_id'] ) : 0;
-        $filter_role   = isset( $_GET['role'] ) ? sanitize_text_field( $_GET['role'] ) : '';
-        $filter_search = isset( $_GET['q'] ) ? sanitize_text_field( $_GET['q'] ) : '';
+        $page              = max( 1, absint( $_GET['paged'] ?? 1 ) );
+        $filter_partnership = isset( $_GET['partnership_id'] ) ? absint( $_GET['partnership_id'] ) : 0;
+        $filter_school     = isset( $_GET['school_id'] ) ? absint( $_GET['school_id'] ) : 0;
+        $filter_role       = isset( $_GET['role'] ) ? sanitize_text_field( $_GET['role'] ) : '';
+        $filter_search     = isset( $_GET['q'] ) ? sanitize_text_field( $_GET['q'] ) : '';
 
-        $data = $this->get_learners( $scope, $mentor_only, $page, $filter_cycle, $filter_school, $filter_role, $filter_search );
+        $data = $this->get_learners( $scope, $mentor_only, $page, $filter_partnership, $filter_school, $filter_role, $filter_search );
 
-        $cycles = $this->get_cycle_options( $scope );
-        $schools = $this->get_school_options( $scope, $filter_cycle );
+        $partnerships = $this->get_partnership_options( $scope );
+        $schools = $this->get_school_options( $scope );
 
         ?>
         <div class="hl-dashboard hl-learners hl-frontend-wrap">
@@ -52,13 +52,13 @@ class HL_Frontend_Learners {
                 <input type="text" name="q" class="hl-search-input"
                        value="<?php echo esc_attr( $filter_search ); ?>"
                        placeholder="<?php esc_attr_e( 'Search by name or email...', 'hl-core' ); ?>">
-                <?php if ( count( $cycles ) > 1 ) : ?>
-                    <select name="cycle_id" class="hl-select" onchange="this.form.submit();">
-                        <option value=""><?php esc_html_e( 'All Cycles', 'hl-core' ); ?></option>
-                        <?php foreach ( $cycles as $c ) : ?>
-                            <option value="<?php echo esc_attr( $c['cycle_id'] ); ?>"
-                                <?php selected( (int) $c['cycle_id'], $filter_cycle ); ?>>
-                                <?php echo esc_html( $c['cycle_name'] ); ?>
+                <?php if ( ! empty( $partnerships ) ) : ?>
+                    <select name="partnership_id" class="hl-select" onchange="this.form.submit();">
+                        <option value=""><?php esc_html_e( 'All Partnerships', 'hl-core' ); ?></option>
+                        <?php foreach ( $partnerships as $p ) : ?>
+                            <option value="<?php echo esc_attr( $p['partnership_id'] ); ?>"
+                                <?php selected( (int) $p['partnership_id'], $filter_partnership ); ?>>
+                                <?php echo esc_html( $p['partnership_name'] ); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -95,24 +95,28 @@ class HL_Frontend_Learners {
                                 <th><?php esc_html_e( 'Email', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'Role(s)', 'hl-core' ); ?></th>
                                 <th><?php esc_html_e( 'School', 'hl-core' ); ?></th>
-                                <th><?php esc_html_e( 'Cycle', 'hl-core' ); ?></th>
-                                <th><?php esc_html_e( 'Completion', 'hl-core' ); ?></th>
+                                <th><?php esc_html_e( 'Partnership', 'hl-core' ); ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ( $data['rows'] as $r ) :
-                                $roles_arr = json_decode( $r['roles'], true ) ?: array();
+                                // Merge roles from all enrollments into unique list.
+                                $all_roles = array();
+                                foreach ( explode( '||', $r['all_roles'] ?? '' ) as $json ) {
+                                    $decoded = json_decode( $json, true );
+                                    if ( is_array( $decoded ) ) {
+                                        $all_roles = array_merge( $all_roles, $decoded );
+                                    }
+                                }
+                                $all_roles = array_unique( $all_roles );
                                 $roles_display = array_map( function( $rl ) {
                                     return ucfirst( str_replace( '_', ' ', $rl ) );
-                                }, $roles_arr );
-                                $roles_str = implode( ', ', $roles_display );
-                                $pct = isset( $r['overall_percent'] ) ? round( (float) $r['overall_percent'] ) : 0;
+                                }, $all_roles );
+
+                                $schools = array_filter( array_unique( explode( '||', $r['all_schools'] ?? '' ) ) );
+                                $partnerships_list = array_filter( array_unique( explode( '||', $r['all_partnerships'] ?? '' ) ) );
                             ?>
-                                <tr class="hl-learner-row"
-                                    data-search="<?php echo esc_attr( strtolower( $r['display_name'] . ' ' . $r['user_email'] ) ); ?>"
-                                    data-cycle="<?php echo esc_attr( $r['cycle_id'] ); ?>"
-                                    data-school="<?php echo esc_attr( $r['school_id'] ); ?>"
-                                    data-roles="<?php echo esc_attr( strtolower( implode( ',', $roles_arr ) ) ); ?>">
+                                <tr class="hl-learner-row">
                                     <td>
                                         <?php
                                         $profile_url = $this->get_profile_url( $r['user_id'] );
@@ -123,19 +127,9 @@ class HL_Frontend_Learners {
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo esc_html( $r['user_email'] ); ?></td>
-                                    <td><?php echo esc_html( $roles_str ?: '—' ); ?></td>
-                                    <td><?php echo esc_html( $r['school_name'] ?: '—' ); ?></td>
-                                    <td><?php echo esc_html( $r['cycle_name'] ?: '—' ); ?></td>
-                                    <td>
-                                        <div class="hl-inline-progress">
-                                            <div class="hl-progress-inline">
-                                                <div class="hl-progress-bar-container">
-                                                    <div class="hl-progress-bar <?php echo $pct >= 100 ? 'hl-progress-complete' : 'hl-progress-active'; ?>" style="width:<?php echo esc_attr( $pct ); ?>%"></div>
-                                                </div>
-                                            </div>
-                                            <span class="hl-progress-text"><?php echo esc_html( $pct ); ?>%</span>
-                                        </div>
-                                    </td>
+                                    <td><?php echo $roles_display ? implode( '<br>', array_map( 'esc_html', $roles_display ) ) : '—'; ?></td>
+                                    <td><?php echo $schools ? implode( '<br>', array_map( 'esc_html', $schools ) ) : '—'; ?></td>
+                                    <td><?php echo $partnerships_list ? implode( '<br>', array_map( 'esc_html', $partnerships_list ) ) : '—'; ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -165,10 +159,10 @@ class HL_Frontend_Learners {
 
         // Build base URL preserving current filters.
         $base_args = array();
-        if ( ! empty( $_GET['cycle_id'] ) )  $base_args['cycle_id']  = absint( $_GET['cycle_id'] );
-        if ( ! empty( $_GET['school_id'] ) ) $base_args['school_id'] = absint( $_GET['school_id'] );
-        if ( ! empty( $_GET['role'] ) )      $base_args['role']      = sanitize_text_field( $_GET['role'] );
-        if ( ! empty( $_GET['q'] ) )         $base_args['q']         = sanitize_text_field( $_GET['q'] );
+        if ( ! empty( $_GET['partnership_id'] ) ) $base_args['partnership_id'] = absint( $_GET['partnership_id'] );
+        if ( ! empty( $_GET['school_id'] ) )      $base_args['school_id']      = absint( $_GET['school_id'] );
+        if ( ! empty( $_GET['role'] ) )            $base_args['role']           = sanitize_text_field( $_GET['role'] );
+        if ( ! empty( $_GET['q'] ) )               $base_args['q']             = sanitize_text_field( $_GET['q'] );
 
         echo '<div class="hl-pagination">';
         for ( $p = 1; $p <= $total_pages; $p++ ) {
@@ -184,7 +178,7 @@ class HL_Frontend_Learners {
     // Data helpers
     // =========================================================================
 
-    private function get_learners( $scope, $mentor_only, $page, $filter_cycle = 0, $filter_school = 0, $filter_role = '', $filter_search = '' ) {
+    private function get_learners( $scope, $mentor_only, $page, $filter_partnership = 0, $filter_school = 0, $filter_role = '', $filter_search = '' ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
         $offset = ( $page - 1 ) * self::PER_PAGE;
@@ -192,9 +186,8 @@ class HL_Frontend_Learners {
         $base_sql = "FROM {$prefix}hl_enrollment e
                      LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
                      LEFT JOIN {$prefix}hl_orgunit ou ON e.school_id = ou.orgunit_id
-                     LEFT JOIN {$prefix}hl_cycle tr ON e.cycle_id = tr.cycle_id
-                     LEFT JOIN {$prefix}hl_completion_rollup cr
-                         ON cr.enrollment_id = e.enrollment_id";
+                     LEFT JOIN {$prefix}hl_cycle cy ON e.cycle_id = cy.cycle_id
+                     LEFT JOIN {$prefix}hl_partnership p ON cy.partnership_id = p.partnership_id";
 
         $where  = array( "e.status = 'active'" );
         $values = array();
@@ -217,9 +210,9 @@ class HL_Frontend_Learners {
         }
 
         // Server-side filters.
-        if ( $filter_cycle ) {
-            $where[]  = 'e.cycle_id = %d';
-            $values[] = $filter_cycle;
+        if ( $filter_partnership ) {
+            $where[]  = 'cy.partnership_id = %d';
+            $values[] = $filter_partnership;
         }
         if ( $filter_school ) {
             $where[]  = 'e.school_id = %d';
@@ -238,19 +231,20 @@ class HL_Frontend_Learners {
 
         $where_clause = ' WHERE ' . implode( ' AND ', $where );
 
-        // Total count.
-        $count_sql = "SELECT COUNT(*) {$base_sql}{$where_clause}";
+        // Total count (distinct users).
+        $count_sql = "SELECT COUNT(DISTINCT e.user_id) {$base_sql}{$where_clause}";
         if ( ! empty( $values ) ) {
             $count_sql = $wpdb->prepare( $count_sql, $values );
         }
         $total = (int) $wpdb->get_var( $count_sql );
 
-        // Data page.
-        $data_sql = "SELECT e.enrollment_id, e.cycle_id, e.school_id, e.roles,
-                            e.user_id, u.display_name, u.user_email,
-                            ou.name AS school_name, tr.cycle_name,
-                            cr.cycle_completion_percent AS overall_percent
+        // Data page — one row per user, aggregating roles/schools/partnerships.
+        $data_sql = "SELECT e.user_id, u.display_name, u.user_email,
+                            GROUP_CONCAT(DISTINCT e.roles SEPARATOR '||') AS all_roles,
+                            GROUP_CONCAT(DISTINCT ou.name ORDER BY ou.name SEPARATOR '||') AS all_schools,
+                            GROUP_CONCAT(DISTINCT p.partnership_name ORDER BY p.partnership_name SEPARATOR '||') AS all_partnerships
                      {$base_sql}{$where_clause}
+                     GROUP BY e.user_id, u.display_name, u.user_email
                      ORDER BY u.display_name ASC
                      LIMIT %d OFFSET %d";
         $data_values = array_merge( $values, array( self::PER_PAGE, $offset ) );
@@ -259,43 +253,29 @@ class HL_Frontend_Learners {
         return array( 'rows' => $rows, 'total' => $total, 'per_page' => self::PER_PAGE );
     }
 
-    private function get_cycle_options( $scope ) {
+    private function get_partnership_options( $scope ) {
         global $wpdb;
         $prefix = $wpdb->prefix;
         if ( $scope['is_admin'] ) {
             return $wpdb->get_results(
-                "SELECT cycle_id, cycle_name FROM {$prefix}hl_cycle ORDER BY cycle_name ASC",
+                "SELECT partnership_id, partnership_name FROM {$prefix}hl_partnership WHERE status = 'active' ORDER BY partnership_name ASC",
                 ARRAY_A
             ) ?: array();
         }
         if ( empty( $scope['cycle_ids'] ) ) return array();
-        $in = implode( ',', $scope['cycle_ids'] );
+        $in = implode( ',', array_map( 'intval', $scope['cycle_ids'] ) );
         return $wpdb->get_results(
-            "SELECT cycle_id, cycle_name FROM {$prefix}hl_cycle WHERE cycle_id IN ({$in}) ORDER BY cycle_name ASC",
+            "SELECT DISTINCT p.partnership_id, p.partnership_name
+             FROM {$prefix}hl_partnership p
+             INNER JOIN {$prefix}hl_cycle cy ON cy.partnership_id = p.partnership_id
+             WHERE cy.cycle_id IN ({$in})
+             ORDER BY p.partnership_name ASC",
             ARRAY_A
         ) ?: array();
     }
 
-    private function get_school_options( $scope, $filter_cycle = 0 ) {
+    private function get_school_options( $scope ) {
         $repo = new HL_OrgUnit_Repository();
-
-        // When a cycle is selected, only show schools with enrollments in that cycle.
-        if ( $filter_cycle ) {
-            global $wpdb;
-            $ids = $wpdb->get_col( $wpdb->prepare(
-                "SELECT DISTINCT e.school_id FROM {$wpdb->prefix}hl_enrollment e
-                 WHERE e.cycle_id = %d AND e.status = 'active' AND e.school_id IS NOT NULL",
-                $filter_cycle
-            ) );
-            if ( empty( $ids ) ) return array();
-            $all = array();
-            foreach ( $ids as $id ) {
-                $ou = $repo->get_by_id( (int) $id );
-                if ( $ou ) $all[] = $ou;
-            }
-            return HL_Scope_Service::filter_by_ids( $all, 'orgunit_id', $scope['school_ids'], $scope['is_admin'] );
-        }
-
         $all = $repo->get_schools();
         return HL_Scope_Service::filter_by_ids( $all, 'orgunit_id', $scope['school_ids'], $scope['is_admin'] );
     }
