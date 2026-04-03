@@ -9605,3 +9605,36 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
         font-size: 15px;
     }
 }
+
+/* =====================================================
+   HIDE LD FOCUS MODE ELEMENTS (our template replaces them)
+   LD's Focus Mode renders its own header, sidebar, and
+   navigation inside the_content(). We hide these because
+   our ld-lesson.php template has its own course outline
+   panel and lesson header.
+   ===================================================== */
+.hl-app .ld-focus-header,
+.hl-app .ld-focus-sidebar,
+.hl-app .ld-focus-sidebar-wrapper,
+.hl-app .lms-topic-sidebar-wrapper,
+.hl-app .lms-topic-sidebar-data,
+.hl-app #ld-focus-sidebar,
+.hl-app .ld-focus-masthead,
+.hl-app .bb-ld-focus-header,
+.hl-app #learndash-page-content .ld-focus-header {
+    display: none !important;
+}
+/* Hide LD's own lesson navigation (we have our own prev/next) */
+.hl-ld-lesson .ld-content-actions {
+    display: none;
+}
+/* Remove any LD focus mode body padding/margin */
+.hl-app .ld-focus-content {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+/* Ensure LD focus main area takes full width (no sidebar offset) */
+.hl-app .ld-focus-main {
+    margin-left: 0 !important;
+    width: 100% !important;
+}

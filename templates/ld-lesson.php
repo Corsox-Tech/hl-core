@@ -317,6 +317,21 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
     </div>
     <div class="hl-ld-content__body">
         <?php
+        // Remove BB's template part override so LD's own clean templates render.
+        if (function_exists('buddyboss_theme')) {
+            $bb_theme_obj = buddyboss_theme();
+            if ($bb_theme_obj && method_exists($bb_theme_obj, 'learndash_helper')) {
+                $bb_ld = $bb_theme_obj->learndash_helper();
+                if ($bb_ld) {
+                    remove_filter('learndash_30_get_template_part', array($bb_ld, 'ld_30_get_template_part'), 10);
+                    remove_filter('learndash_template', array($bb_ld, 'ld_30_template_routes'), 1000);
+                }
+            }
+        }
+
+        // Disable LD's Focus Mode — we have our own course outline panel.
+        add_filter('learndash_30_focus_mode', '__return_false');
+
         // LearnDash hooks into the_content filter to render lesson markup
         // (video, assignments, mark-complete button, etc.).
         if (have_posts()) :
