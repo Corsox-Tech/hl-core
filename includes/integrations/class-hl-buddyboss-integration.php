@@ -391,7 +391,7 @@ class HL_BuddyBoss_Integration {
         if ($is_coach && !$is_admin_level) {
             $menu_def = array(
                 array('coaching-home',      'hl_coach_dashboard',    __('Coaching Home', 'hl-core'),    'dashicons-dashboard',            true),
-                array('my-programs',        'hl_my_programs',        __('My Programs', 'hl-core'),      'dashicons-portfolio',            $has_enrollment),
+                array('my-programs',        'hl_my_programs',        __('My Programs', 'hl-core'),      'dashicons-portfolio',            true),
                 array('coach-mentors',      'hl_coach_mentors',      __('My Mentors', 'hl-core'),       'dashicons-groups',               true),
                 array('learners',           'hl_learners',           __('Learners', 'hl-core'),         'dashicons-id-alt',               true),
                 array('coach-availability', 'hl_coach_availability', __('My Availability', 'hl-core'),  'dashicons-calendar-alt',         true),

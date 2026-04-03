@@ -125,13 +125,16 @@ class HL_Scope_Service {
 
     private static function compute_scope( $user_id ) {
         $is_admin = user_can( $user_id, 'manage_options' );
-        $is_staff = user_can( $user_id, 'manage_hl_core' );
+        $user_data = get_userdata( $user_id );
+        $is_coach_role = $user_data && in_array( 'coach', (array) $user_data->roles, true );
+        // Coaches are staff-level even if the WP role is missing the capability.
+        $is_staff = user_can( $user_id, 'manage_hl_core' ) || $is_coach_role;
 
         $scope = array(
             'user_id'        => (int) $user_id,
             'is_admin'       => $is_admin,
             'is_staff'       => $is_staff,
-            'is_coach'       => $is_staff && ! $is_admin,
+            'is_coach'       => $is_coach_role || ( $is_staff && ! $is_admin ),
             'cycle_ids'     => array(),
             'school_ids'     => array(),
             'district_ids'   => array(),

@@ -1926,6 +1926,12 @@ class HL_Installer {
                 'hl_view_cohorts' => true,
                 'hl_view_enrollments' => true,
             ));
+        } else {
+            // Ensure existing coach role has required capabilities.
+            $coach_role = get_role('coach');
+            $coach_role->add_cap('manage_hl_core');
+            $coach_role->add_cap('hl_view_cohorts');
+            $coach_role->add_cap('hl_view_enrollments');
         }
     }
     
