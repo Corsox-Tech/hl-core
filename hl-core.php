@@ -155,6 +155,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-cycles.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-audit.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-settings.php';
+            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-tours.php';
         }
         
         // Front-end (shortcodes)
