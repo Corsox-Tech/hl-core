@@ -44,10 +44,11 @@ class HL_Shortcodes {
             }
         }
 
-        // LearnDash post types — serve through plugin LD templates.
-        if (is_singular('sfwd-courses')) {
-            return HL_CORE_PLUGIN_DIR . 'templates/ld-course.php';
-        }
+        // LearnDash lesson pages — custom template with course outline panel.
+        // Course pages (sfwd-courses) stay on the BB theme template — our
+        // sidebar/topbar is injected via hl-has-nav body class approach
+        // (BB integration render_nav_on_theme_pages). This preserves BB's
+        // course sidebar (enrollment panel, course image, course includes).
         if (is_singular('sfwd-lessons')) {
             return HL_CORE_PLUGIN_DIR . 'templates/ld-lesson.php';
         }
@@ -66,7 +67,9 @@ class HL_Shortcodes {
      * and all GrassBlade handles.
      */
     public function dequeue_bb_ld_assets_on_ld_pages() {
-        if (!is_singular(array('sfwd-courses', 'sfwd-lessons'))) {
+        // Only dequeue on lesson pages (custom template).
+        // Course pages use BB theme template — no dequeue needed.
+        if (!is_singular('sfwd-lessons')) {
             return;
         }
 

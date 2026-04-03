@@ -651,12 +651,12 @@ class HL_BuddyBoss_Integration {
      * Check if the current page uses an HL-managed template.
      *
      * Returns true for pages with [hl_*] shortcodes (rendered by hl-page.php)
-     * AND for LearnDash post types (rendered by ld-course.php / ld-lesson.php).
-     * Those pages render their own sidebar — don't double-render.
+     * AND for LearnDash lesson pages (rendered by ld-lesson.php).
+     * Course pages (sfwd-courses) use BB theme + hl-has-nav overlay — NOT excluded.
      */
     private function is_hl_template_page() {
-        // LearnDash pages now use our own templates with built-in nav.
-        if (is_singular(array('sfwd-courses', 'sfwd-lessons'))) {
+        // Lesson pages use our custom template with built-in nav.
+        if (is_singular('sfwd-lessons')) {
             return true;
         }
 
