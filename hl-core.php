@@ -91,7 +91,8 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-child-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-pathway-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-component-repository.php';
-        
+        require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-tour-repository.php';
+
         // Security
         require_once HL_CORE_INCLUDES_DIR . 'security/class-hl-capabilities.php';
         require_once HL_CORE_INCLUDES_DIR . 'security/class-hl-security.php';
