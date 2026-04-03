@@ -8247,35 +8247,40 @@ table.hl-ca-matrix tbody tr:hover td { background-color: var(--hl-bg-hover) }
    Body class .hl-sidebar-is-collapsed drives offsets.
    ===================================================== */
 
-/* Collapse toggle button */
+/* Modern sidebar toggle */
 .hl-sidebar__collapse-btn {
-    position: absolute;
-    top: 16px;
-    right: -12px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: var(--hl-primary);
-    border: 2px solid rgba(255,255,255,0.15);
-    color: rgba(255,255,255,0.7);
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.5);
     cursor: pointer;
-    font-size: 14px;
-    z-index: 10000;
-    transition: background 0.15s, color 0.15s;
+    transition: all 0.2s ease;
+    margin: 8px auto;
     padding: 0;
+    font-size: 16px;
     line-height: 1;
+    z-index: 10000;
 }
 .hl-sidebar__collapse-btn:hover {
-    background: var(--hl-interactive);
-    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Sidebar transition */
+/* Smooth sidebar transition */
 .hl-sidebar {
     transition: width 0.25s ease;
+}
+.hl-app__content {
+    transition: margin-left 0.25s ease;
+}
+.hl-topbar {
+    transition: left 0.25s ease;
 }
 
 /* Collapsed state */
@@ -8638,26 +8643,41 @@ body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__
     min-height: 100vh;
     background: var(--hl-bg);
     box-sizing: border-box;
+    overflow-x: hidden;
+    max-width: calc(100vw - 240px - 320px);
 }
 body.hl-sidebar-is-collapsed .hl-ld-lesson .hl-ld-content {
     margin-left: calc(60px + 320px);
+    max-width: calc(100vw - 60px - 320px);
 }
 body.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content {
     margin-left: 240px;
+    max-width: calc(100vw - 240px);
 }
 body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content {
     margin-left: 60px;
+    max-width: calc(100vw - 60px);
 }
-
 /* Course page content area — just sidebar offset */
 .hl-ld-course .hl-app__content {
     margin-left: 240px;
     padding: 72px 32px 24px;
     min-height: 100vh;
     background: var(--hl-bg);
+    overflow-x: hidden;
+    max-width: calc(100vw - 240px);
+    box-sizing: border-box;
 }
 body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
     margin-left: 60px;
+    max-width: calc(100vw - 60px);
+}
+
+/* Prevent LD wrapper itself from overflowing */
+.hl-app .learndash-wrapper {
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 /* --- Lesson content header (counter + badge + nav) --- */
@@ -9046,9 +9066,11 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     }
     .hl-ld-lesson .hl-ld-content {
         margin-left: calc(240px + 280px);
+        max-width: calc(100vw - 240px - 280px);
     }
     body.hl-sidebar-is-collapsed .hl-ld-lesson .hl-ld-content {
         margin-left: calc(60px + 280px);
+        max-width: calc(100vw - 60px - 280px);
     }
     .hl-ld-content__body {
         padding: 24px 28px;
@@ -9058,16 +9080,19 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     .hl-ld-lesson .hl-ld-content {
         margin-left: 0;
         padding: 60px 16px 24px;
+        max-width: 100vw;
     }
     body.hl-sidebar-is-collapsed .hl-ld-lesson .hl-ld-content,
     body.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content,
     body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content {
         margin-left: 0;
+        max-width: 100vw;
     }
     .hl-ld-course .hl-app__content,
     body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
         margin-left: 0;
         padding: 60px 16px 24px;
+        max-width: 100vw;
     }
     .hl-ld-content__header {
         flex-wrap: wrap;

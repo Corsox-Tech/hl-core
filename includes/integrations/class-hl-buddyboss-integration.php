@@ -712,6 +712,11 @@ class HL_BuddyBoss_Integration {
         }
 
         ?>
+        <script>
+        if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
+            document.body.classList.add('hl-sidebar-is-collapsed');
+        }
+        </script>
         <!-- HL Core Nav Shell (injected on BB theme pages) -->
         <div class="hl-topbar<?php echo $old_user ? ' hl-topbar--view-as' : ''; ?>" id="hl-topbar">
             <div class="hl-breadcrumb" style="margin-bottom:0;">
@@ -767,7 +772,7 @@ class HL_BuddyBoss_Integration {
                     $is_active = ($item_path && $item_path === $current_url);
                     $active_class = $is_active ? ' hl-sidebar__item--active' : '';
                 ?>
-                    <a href="<?php echo esc_url($item['url']); ?>" class="hl-sidebar__item<?php echo esc_attr($active_class); ?>">
+                    <a href="<?php echo esc_url($item['url']); ?>" class="hl-sidebar__item<?php echo esc_attr($active_class); ?>" data-tooltip="<?php echo esc_attr($item['label']); ?>">
                         <span class="hl-sidebar__icon dashicons <?php echo esc_attr($item['icon']); ?>"></span>
                         <span><?php echo esc_html($item['label']); ?></span>
                         <?php if (!empty($item['badge'])) : ?>
@@ -777,6 +782,9 @@ class HL_BuddyBoss_Integration {
                 <?php endforeach; ?>
             </div>
             <div class="hl-sidebar__footer">
+                <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="Collapse sidebar">
+                    <span class="dashicons dashicons-arrow-left-alt2"></span>
+                </button>
                 <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-sidebar__item">
                     <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
                     <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>
