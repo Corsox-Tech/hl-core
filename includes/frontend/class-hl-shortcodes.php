@@ -56,10 +56,13 @@ class HL_Shortcodes {
     }
 
     /**
-     * Dequeue unwanted BuddyBoss and LearnDash CSS/JS on LD template pages.
+     * Dequeue unwanted BuddyBoss CSS/JS on LD template pages.
      *
      * Runs at priority 9999 on wp_enqueue_scripts so everything is already
-     * enqueued. Preserves LD functional JS (mark-complete, video, cookies)
+     * enqueued. KEEPS LearnDash core CSS (needed for sidebar, enrollment
+     * panel, course info rendering). Only dequeues BuddyBoss theme CSS
+     * (source of layout conflicts) and non-essential LD styles.
+     * Preserves LD functional JS (mark-complete, video, cookies)
      * and all GrassBlade handles.
      */
     public function dequeue_bb_ld_assets_on_ld_pages() {
@@ -68,21 +71,20 @@ class HL_Shortcodes {
         }
 
         // CSS handles to remove.
+        // KEEP: learndash_style, learndash, sfwd_front_css,
+        //       learndash_template_style_css, learndash-ld30-shortcodes-style
+        //       (LD core styles needed for sidebar/enrollment panel rendering).
         $css_dequeue = array(
-            'learndash_style',
-            'learndash',
-            'sfwd_front_css',
-            'learndash_quiz_front_css',
-            'learndash_template_style_css',
-            'jquery-dropdown-css',
-            'learndash_pager_css',
-            'learndash-ld30-shortcodes-style',
-            'learndash_lesson_video',
-            'learndash-presenter-mode-style',
+            // BuddyBoss theme CSS — source of LD layout conflicts.
             'buddyboss-theme-learndash',
             'buddyboss-theme-css',
             'buddyboss-theme-main-css',
             'buddyboss-theme-fonts',
+            // Non-essential LD styles.
+            'learndash_quiz_front_css',
+            'jquery-dropdown-css',
+            'learndash_pager_css',
+            'learndash-presenter-mode-style',
         );
 
         foreach ($css_dequeue as $handle) {

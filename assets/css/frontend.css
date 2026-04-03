@@ -8633,8 +8633,101 @@ body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__
    LEARNDASH CONTENT STYLING
    Overrides LearnDash output classes with HL design
    tokens. Scoped under .hl-app .learndash-wrapper
-   to avoid leaking into admin/other pages.
+   (specificity 0,2,0) to beat LD's defaults.
+   LD core CSS is kept — these rules override it.
    ===================================================== */
+
+/* --- Global typography: force Inter on all LD elements --- */
+.hl-app .learndash-wrapper,
+.hl-app .learndash-wrapper * {
+    font-family: var(--hl-font);
+}
+
+/* --- Global layout: LD content fits our shell --- */
+.hl-app .learndash-wrapper {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* --- Color overrides: replace LD green/blue with our tokens --- */
+.hl-app .ld-progress-bar .ld-progress-bar-percentage {
+    background: var(--hl-accent);
+}
+.hl-app .ld-status-complete {
+    background-color: var(--hl-accent);
+    color: #fff;
+}
+.hl-app .ld-status-icon.ld-status-complete {
+    background-color: var(--hl-accent);
+    color: #fff;
+}
+
+/* --- LD modern layout sidebar (floating right panel) --- */
+.hl-app .ld-layout {
+    display: flex;
+    gap: 32px;
+}
+.hl-app .ld-layout__sidebar {
+    width: 320px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 72px; /* below topbar */
+    align-self: flex-start;
+}
+.hl-app .ld-layout__content {
+    flex: 1;
+    min-width: 0;
+}
+
+/* --- LD Icon Font (kept as fallback — LD CSS also loads it) --- */
+@font-face {
+    font-family: "ld-icons";
+    src: url("../../../sfwd-lms/themes/ld30/assets/fonts/ld-icons.eot?e0vk6b");
+    src: url("../../../sfwd-lms/themes/ld30/assets/fonts/ld-icons.eot?e0vk6b#iefix") format("embedded-opentype"),
+         url("../../../sfwd-lms/themes/ld30/assets/fonts/ld-icons.ttf?e0vk6b") format("truetype"),
+         url("../../../sfwd-lms/themes/ld30/assets/fonts/ld-icons.woff?e0vk6b") format("woff"),
+         url("../../../sfwd-lms/themes/ld30/assets/fonts/ld-icons.svg?e0vk6b#ld-icons") format("svg");
+    font-weight: normal;
+    font-style: normal;
+}
+
+/* Base icon class — must use !important per LD convention (browser extensions) */
+.hl-app .learndash-wrapper .ld-icon {
+    font-family: "ld-icons" !important;
+    speak: none;
+    font-style: normal;
+    font-weight: normal;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: inline-block;
+}
+
+/* --- LD Icon Glyphs --- */
+.hl-app .learndash-wrapper .ld-icon-alert:before        { content: "\e90d"; }
+.hl-app .learndash-wrapper .ld-icon-unlocked:before     { content: "\e900"; }
+.hl-app .learndash-wrapper .ld-icon-quiz:before         { content: "\e901"; }
+.hl-app .learndash-wrapper .ld-icon-materials:before    { content: "\e902"; }
+.hl-app .learndash-wrapper .ld-icon-download:before     { content: "\e903"; }
+.hl-app .learndash-wrapper .ld-icon-course-outline:before { content: "\e904"; }
+.hl-app .learndash-wrapper .ld-icon-content:before      { content: "\e905"; }
+.hl-app .learndash-wrapper .ld-icon-complete:before,
+.hl-app .learndash-wrapper .ld-icon-checkmark:before    { content: "\e906"; }
+.hl-app .learndash-wrapper .ld-icon-clock:before        { content: "\e907"; }
+.hl-app .learndash-wrapper .ld-icon-certificate:before  { content: "\e908"; }
+.hl-app .learndash-wrapper .ld-icon-calendar:before     { content: "\e909"; }
+.hl-app .learndash-wrapper .ld-icon-assignment:before   { content: "\e90a"; }
+.hl-app .learndash-wrapper .ld-icon-arrow-up:before     { content: "\e912"; }
+.hl-app .learndash-wrapper .ld-icon-arrow-right:before  { content: "\e913"; }
+.hl-app .learndash-wrapper .ld-icon-arrow-left:before   { content: "\e914"; }
+.hl-app .learndash-wrapper .ld-icon-arrow-down:before   { content: "\e915"; }
+.hl-app .learndash-wrapper .ld-icon-login:before        { content: "\e90c"; }
+.hl-app .learndash-wrapper .ld-icon-remove:before,
+.hl-app .learndash-wrapper .ld-icon-delete:before       { content: "\e90b"; }
+.hl-app .learndash-wrapper .ld-icon-comments:before     { content: "\e917"; }
+.hl-app .learndash-wrapper .ld-icon-search:before       { content: "\e916"; }
 
 /* --- Content area layout for lesson pages --- */
 .hl-ld-lesson .hl-ld-content {
@@ -8675,9 +8768,7 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
 
 /* Prevent LD wrapper itself from overflowing */
 .hl-app .learndash-wrapper {
-    max-width: 100%;
     overflow-x: hidden;
-    box-sizing: border-box;
 }
 
 /* --- Lesson content header (counter + badge + nav) --- */
@@ -8753,32 +8844,70 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
 }
 
 /* --- Progress bar --- */
-:where(.hl-app .learndash-wrapper) .ld-progress {
-    height: 8px;
-    border-radius: 4px;
-    background: var(--hl-border);
-    overflow: hidden;
-    margin: 8px 0;
+.hl-app .learndash-wrapper .ld-progress {
+    display: flex;
+    flex-direction: column;
+    margin: 1em 0;
 }
-:where(.hl-app .learndash-wrapper) .ld-progress-fill,
-:where(.hl-app .learndash-wrapper) .ld-progress-bar {
-    background: var(--hl-accent);
-    height: 100%;
-    border-radius: 4px;
+.hl-app .learndash-wrapper .ld-progress .ld-progress-heading {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75em;
+    line-height: 1em;
+    font-family: var(--hl-font);
+}
+.hl-app .learndash-wrapper .ld-progress .ld-progress-heading .ld-progress-label {
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--hl-text-secondary);
+}
+.hl-app .learndash-wrapper .ld-progress .ld-progress-heading .ld-progress-stats {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+.hl-app .learndash-wrapper .ld-progress .ld-progress-heading .ld-progress-stats .ld-progress-percentage {
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--hl-interactive, #235af3);
+    margin-right: 5px;
+}
+.hl-app .learndash-wrapper .ld-progress .ld-progress-bar {
+    height: 7px;
+    background-color: var(--hl-border, #e2e7ed);
+    border-radius: 7px;
+    margin: 5px 0;
+    overflow: hidden;
+}
+.hl-app .learndash-wrapper .ld-progress .ld-progress-bar .ld-progress-bar-percentage {
+    height: 7px;
+    background: var(--hl-interactive, #235af3);
+    border-radius: 7px;
     transition: width 0.3s ease;
+}
+.hl-app .learndash-wrapper .ld-progress.ld-progress-inline {
+    flex-direction: row-reverse;
+    align-items: center;
+}
+.hl-app .learndash-wrapper .ld-progress.ld-progress-inline .ld-progress-bar {
+    flex: 1 auto;
+    margin-right: 1em;
+}
+.hl-app .learndash-wrapper .ld-progress.ld-progress-inline .ld-status {
+    margin-left: 1em;
 }
 
 /* --- Tabs --- */
-:where(.hl-app .learndash-wrapper) .ld-tabs {
+.hl-app .learndash-wrapper .ld-tabs {
     margin-bottom: 24px;
     font-family: var(--hl-font);
 }
-:where(.hl-app .learndash-wrapper) .ld-tabs-navigation {
+.hl-app .learndash-wrapper .ld-tabs-navigation {
     display: flex;
     border-bottom: 2px solid var(--hl-border);
     gap: 0;
 }
-:where(.hl-app .learndash-wrapper) .ld-tab {
+.hl-app .learndash-wrapper .ld-tab {
     padding: 12px 20px;
     border: none;
     background: none;
@@ -8790,51 +8919,51 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
     margin-bottom: -2px;
     transition: color 0.15s, border-color 0.15s;
 }
-:where(.hl-app .learndash-wrapper) .ld-tab:hover {
+.hl-app .learndash-wrapper .ld-tab:hover {
     color: var(--hl-text);
 }
-:where(.hl-app .learndash-wrapper) .ld-tab.ld-active,
-:where(.hl-app .learndash-wrapper) .ld-tab[aria-selected="true"] {
+.hl-app .learndash-wrapper .ld-tab.ld-active,
+.hl-app .learndash-wrapper .ld-tab[aria-selected="true"] {
     color: var(--hl-interactive);
     border-bottom-color: var(--hl-interactive);
 }
-:where(.hl-app .learndash-wrapper) .ld-tab-content {
+.hl-app .learndash-wrapper .ld-tab-content {
     padding: 20px 0;
 }
-:where(.hl-app .learndash-wrapper) .ld-tab-content:not(.ld-visible) {
+.hl-app .learndash-wrapper .ld-tab-content:not(.ld-visible) {
     display: none;
 }
 
 /* --- Lesson list (course page) --- */
-:where(.hl-app .learndash-wrapper) .ld-item-list {
+.hl-app .learndash-wrapper .ld-item-list {
     background: var(--hl-surface);
     border-radius: var(--hl-radius-sm);
     border: 1px solid var(--hl-border);
     overflow: hidden;
 }
-:where(.hl-app .learndash-wrapper) .ld-section-heading h2 {
+.hl-app .learndash-wrapper .ld-section-heading h2 {
     font-size: 18px;
     font-weight: 700;
     margin: 0;
     font-family: var(--hl-font);
     color: var(--hl-text-heading);
 }
-:where(.hl-app .learndash-wrapper) .ld-item-list-item {
+.hl-app .learndash-wrapper .ld-item-list-item {
     border-bottom: 1px solid var(--hl-border);
 }
-:where(.hl-app .learndash-wrapper) .ld-item-list-item:last-child {
+.hl-app .learndash-wrapper .ld-item-list-item:last-child {
     border-bottom: none;
 }
-:where(.hl-app .learndash-wrapper) .ld-item-list-item-preview {
+.hl-app .learndash-wrapper .ld-item-list-item-preview {
     display: flex;
     align-items: center;
     padding: 14px 20px;
     transition: background 0.15s;
 }
-:where(.hl-app .learndash-wrapper) .ld-item-list-item-preview:hover {
+.hl-app .learndash-wrapper .ld-item-list-item-preview:hover {
     background: var(--hl-bg-subtle);
 }
-:where(.hl-app .learndash-wrapper) .ld-item-name {
+.hl-app .learndash-wrapper .ld-item-name {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -8843,39 +8972,115 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
     flex: 1;
     transition: color 0.15s;
 }
-:where(.hl-app .learndash-wrapper) .ld-item-name:hover {
+.hl-app .learndash-wrapper .ld-item-name:hover {
     color: var(--hl-interactive);
     text-decoration: none;
 }
-:where(.hl-app .learndash-wrapper) .ld-item-title {
+.hl-app .learndash-wrapper .ld-item-title {
     font-weight: 500;
     font-family: var(--hl-font);
 }
-:where(.hl-app .learndash-wrapper) .ld-item-components {
+.hl-app .learndash-wrapper .ld-item-components {
     font-size: 12px;
     color: var(--hl-text-muted);
 }
 
-/* --- Status icons --- */
-:where(.hl-app .learndash-wrapper) .ld-icon {
-    display: inline-flex;
-    width: 20px;
-    height: 20px;
-    align-items: center;
-    justify-content: center;
+/* --- Status icons & badges --- */
+.hl-app .learndash-wrapper .ld-status {
+    border-radius: 12px;
+    background-color: var(--hl-border, #e2e7ed);
+    text-align: center;
+    padding: 5px 12px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-size: 11px;
+    line-height: 1.1;
+    color: var(--hl-text, #333);
+    display: inline-block;
+    margin-bottom: 5px;
+    font-family: var(--hl-font);
 }
-:where(.hl-app .learndash-wrapper) .ld-icon-complete {
-    color: var(--hl-accent);
+.hl-app .learndash-wrapper .ld-status-icon {
+    flex-basis: 26px;
+    flex-shrink: 0;
+    height: 26px;
+    width: 26px;
+    border-radius: 100%;
+    display: inline-block;
+    position: relative;
+    text-align: center;
 }
-:where(.hl-app .learndash-wrapper) .ld-icon-incomplete {
-    color: var(--hl-border);
+.hl-app .learndash-wrapper .ld-status-icon .ld-icon {
+    font-size: 1.5em;
 }
-:where(.hl-app .learndash-wrapper) .ld-icon-progress {
-    color: var(--hl-interactive);
+.hl-app .learndash-wrapper .ld-status-icon .ld-icon:before {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translateY(-50%) translateX(-50%);
+}
+.hl-app .learndash-wrapper .ld-status-icon.ld-status-complete .ld-icon {
+    font-size: 1em;
+}
+.hl-app .learndash-wrapper .ld-status-icon.ld-status-complete {
+    background-color: var(--hl-accent, #235af3);
+    color: #fff;
+}
+.hl-app .learndash-wrapper .ld-status-icon.ld-quiz-complete {
+    color: var(--hl-interactive, #235af3);
+}
+.hl-app .learndash-wrapper .ld-status-complete {
+    background-color: var(--hl-interactive, #235af3);
+    color: #fff;
+}
+.hl-app .learndash-wrapper a.ld-status-complete:link,
+.hl-app .learndash-wrapper a.ld-status-complete:visited,
+.hl-app .learndash-wrapper a.ld-status-complete:focus {
+    color: #fff;
+}
+.hl-app .learndash-wrapper .ld-status-waiting {
+    background-color: #ffd200;
+    color: rgba(0, 0, 0, 0.75);
+}
+.hl-app .learndash-wrapper .ld-status-unlocked {
+    background-color: var(--hl-status-progress-bg, #ebf8fd);
+    color: var(--hl-interactive, #235af3);
+}
+.hl-app .learndash-wrapper .ld-status-alert {
+    background-color: var(--hl-status-progress-bg, #ebf8fd);
+    color: var(--hl-interactive, #235af3);
+}
+.hl-app .learndash-wrapper .ld-status-incomplete.ld-status-icon {
+    border: 4px solid var(--hl-border, #e2e7ed);
+    background-color: var(--hl-surface, #fff);
+}
+.hl-app .learndash-wrapper .ld-status-in-progress {
+    border: 4px solid var(--hl-border, #e2e7ed);
+    border-left-color: var(--hl-interactive, #235af3);
+    border-top-color: var(--hl-interactive, #235af3);
+    transform: rotate(-45deg);
+    background-color: var(--hl-surface, #fff);
+}
+
+/* --- Item icons (quiz/lesson type) --- */
+.hl-app .learndash-wrapper .ld-item-icon {
+    margin-right: 0.25em;
+    flex-shrink: 0;
+    font-size: 1.4em;
+}
+.hl-app .learndash-wrapper .ld-item-icon.quiz-failure {
+    color: #ff3c00;
+}
+.hl-app .learndash-wrapper .ld-item-icon.ld-quiz-complete {
+    color: var(--hl-interactive, #235af3);
+}
+.hl-app .learndash-wrapper .ld-item-icon.ld-quiz-incomplete {
+    color: var(--hl-text-secondary, #333);
 }
 
 /* --- Expand/collapse buttons --- */
-:where(.hl-app .learndash-wrapper) .ld-expand-button {
+.hl-app .learndash-wrapper .ld-expand-button {
     padding: 8px 16px;
     border-radius: var(--hl-radius-xs);
     border: 1px solid var(--hl-border);
@@ -8886,7 +9091,7 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
     color: var(--hl-text-secondary);
     transition: background 0.15s, color 0.15s;
 }
-:where(.hl-app .learndash-wrapper) .ld-expand-button:hover {
+.hl-app .learndash-wrapper .ld-expand-button:hover {
     background: var(--hl-bg);
     color: var(--hl-text);
 }
@@ -8896,13 +9101,13 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
 }
 
 /* --- Table lists (topics/quizzes) --- */
-:where(.hl-app .learndash-wrapper) .ld-table-list {
+.hl-app .learndash-wrapper .ld-table-list {
     border-radius: var(--hl-radius-sm);
     overflow: hidden;
     border: 1px solid var(--hl-border);
     margin: 16px 0;
 }
-:where(.hl-app .learndash-wrapper) .ld-table-list-header {
+.hl-app .learndash-wrapper .ld-table-list-header {
     padding: 12px 20px;
     display: flex;
     align-items: center;
@@ -8913,22 +9118,22 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
     font-weight: 600;
     color: var(--hl-text-secondary);
 }
-:where(.hl-app .learndash-wrapper) .ld-table-list-item {
+.hl-app .learndash-wrapper .ld-table-list-item {
     display: flex;
     align-items: center;
     padding: 12px 20px;
     border-bottom: 1px solid var(--hl-border);
     transition: background 0.15s;
 }
-:where(.hl-app .learndash-wrapper) .ld-table-list-item:last-child {
+.hl-app .learndash-wrapper .ld-table-list-item:last-child {
     border-bottom: none;
 }
-:where(.hl-app .learndash-wrapper) .ld-table-list-item:hover {
+.hl-app .learndash-wrapper .ld-table-list-item:hover {
     background: var(--hl-bg-subtle);
 }
 
 /* --- Navigation (prev/next) --- */
-:where(.hl-app .learndash-wrapper) .ld-content-actions {
+.hl-app .learndash-wrapper .ld-content-actions {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -8936,7 +9141,7 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
     margin-top: 24px;
     border-top: 1px solid var(--hl-border);
 }
-:where(.hl-app .learndash-wrapper) .ld-button {
+.hl-app .learndash-wrapper .ld-button {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -8952,14 +9157,14 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
     cursor: pointer;
     transition: background 0.15s;
 }
-:where(.hl-app .learndash-wrapper) .ld-button:hover {
+.hl-app .learndash-wrapper .ld-button:hover {
     background: var(--hl-interactive-dark);
     color: #fff;
     text-decoration: none;
 }
 
 /* --- Alerts --- */
-:where(.hl-app .learndash-wrapper) .ld-alert {
+.hl-app .learndash-wrapper .ld-alert {
     padding: 16px 20px;
     border-radius: var(--hl-radius-sm);
     margin-bottom: 20px;
@@ -8969,19 +9174,19 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
     font-family: var(--hl-font);
     font-size: 14px;
 }
-:where(.hl-app .learndash-wrapper) .ld-alert-success {
+.hl-app .learndash-wrapper .ld-alert-success {
     background: var(--hl-status-complete-bg);
     border: 1px solid #a7f3d0;
     color: var(--hl-status-complete-text);
 }
-:where(.hl-app .learndash-wrapper) .ld-alert-warning {
+.hl-app .learndash-wrapper .ld-alert-warning {
     background: var(--hl-status-paused-bg);
     border: 1px solid #fde68a;
     color: var(--hl-status-paused-text);
 }
 
 /* --- Section headings (module dividers) --- */
-:where(.hl-app .learndash-wrapper) .ld-lesson-section-heading {
+.hl-app .learndash-wrapper .ld-lesson-section-heading {
     padding: 16px 20px;
     background: var(--hl-bg);
     font-weight: 700;
@@ -8994,7 +9199,7 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
 }
 
 /* --- Infobar --- */
-:where(.hl-app .learndash-wrapper) .ld-infobar {
+.hl-app .learndash-wrapper .ld-infobar {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -9005,40 +9210,40 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
 }
 
 /* --- Assignment list --- */
-:where(.hl-app .learndash-wrapper) .ld-assignment-list {
+.hl-app .learndash-wrapper .ld-assignment-list {
     border-radius: var(--hl-radius-sm);
     overflow: hidden;
     border: 1px solid var(--hl-border);
     margin: 16px 0;
 }
-:where(.hl-app .learndash-wrapper) .ld-assignment-upload {
+.hl-app .learndash-wrapper .ld-assignment-upload {
     padding: 16px 20px;
     background: var(--hl-bg-subtle);
     border-bottom: 1px solid var(--hl-border);
 }
 
 /* --- LearnDash typography reset --- */
-:where(.hl-app .learndash-wrapper) h1,
-:where(.hl-app .learndash-wrapper) h2,
-:where(.hl-app .learndash-wrapper) h3,
-:where(.hl-app .learndash-wrapper) h4 {
+.hl-app .learndash-wrapper h1,
+.hl-app .learndash-wrapper h2,
+.hl-app .learndash-wrapper h3,
+.hl-app .learndash-wrapper h4 {
     font-family: var(--hl-font);
     color: var(--hl-text-heading);
 }
-:where(.hl-app .learndash-wrapper) p,
-:where(.hl-app .learndash-wrapper) li,
-:where(.hl-app .learndash-wrapper) td,
-:where(.hl-app .learndash-wrapper) th {
+.hl-app .learndash-wrapper p,
+.hl-app .learndash-wrapper li,
+.hl-app .learndash-wrapper td,
+.hl-app .learndash-wrapper th {
     font-family: var(--hl-font);
     color: var(--hl-text);
     line-height: 1.6;
 }
-:where(.hl-app .learndash-wrapper) a {
+.hl-app .learndash-wrapper a {
     color: var(--hl-interactive);
     text-decoration: none;
     transition: color 0.15s;
 }
-:where(.hl-app .learndash-wrapper) a:hover {
+.hl-app .learndash-wrapper a:hover {
     color: var(--hl-interactive-dark);
     text-decoration: underline;
 }
