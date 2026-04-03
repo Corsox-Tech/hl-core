@@ -74,7 +74,7 @@ class HL_Admin_Tours {
         if (!current_user_can('manage_hl_core')) {
             return;
         }
-        if (!wp_verify_nonce($_POST['hl_tour_admin_nonce'], 'hl_tour_admin')) {
+        if (!isset($_POST['hl_tour_admin_nonce']) || !wp_verify_nonce($_POST['hl_tour_admin_nonce'], 'hl_tour_admin')) {
             wp_die(__('Security check failed.', 'hl-core'));
         }
 
@@ -136,14 +136,21 @@ class HL_Admin_Tours {
      */
     private function handle_save_tour() {
         $tour_id = absint($_POST['tour_id'] ?? 0);
+        $is_new  = !$tour_id;
+
+        // Validate enum fields against allowed values.
+        $allowed_triggers = array('first_login', 'page_visit', 'manual_only');
+        $allowed_statuses = array('draft', 'active', 'archived');
+        $trigger_type = sanitize_text_field($_POST['tour_trigger_type'] ?? 'manual_only');
+        $status       = sanitize_text_field($_POST['tour_status'] ?? 'draft');
 
         $tour_data = array(
             'title'            => sanitize_text_field($_POST['tour_title'] ?? ''),
             'slug'             => sanitize_title($_POST['tour_slug'] ?? ''),
-            'trigger_type'     => sanitize_text_field($_POST['tour_trigger_type'] ?? 'manual_only'),
+            'trigger_type'     => in_array($trigger_type, $allowed_triggers, true) ? $trigger_type : 'manual_only',
             'trigger_page_url' => esc_url_raw($_POST['tour_trigger_page_url'] ?? ''),
             'start_page_url'   => esc_url_raw($_POST['tour_start_page_url'] ?? ''),
-            'status'           => sanitize_text_field($_POST['tour_status'] ?? 'draft'),
+            'status'           => in_array($status, $allowed_statuses, true) ? $status : 'draft',
             'hide_on_mobile'   => isset($_POST['tour_hide_on_mobile']) ? 1 : 0,
             'sort_order'       => absint($_POST['tour_sort_order'] ?? 0),
         );
@@ -210,6 +217,11 @@ class HL_Admin_Tours {
                 continue; // Skip blank steps.
             }
 
+            $allowed_positions  = array('top', 'bottom', 'left', 'right', 'auto');
+            $allowed_step_types = array('informational', 'interactive');
+            $pos  = sanitize_text_field($step_positions[$i] ?? 'auto');
+            $type = sanitize_text_field($step_types[$i] ?? 'informational');
+
             $step_data = array(
                 'tour_id'         => $tour_id,
                 'step_order'      => $i,
@@ -217,8 +229,8 @@ class HL_Admin_Tours {
                 'description'     => wp_kses_post($step_descriptions[$i] ?? ''),
                 'page_url'        => esc_url_raw($step_page_urls[$i] ?? ''),
                 'target_selector' => sanitize_text_field($step_selectors[$i] ?? ''),
-                'position'        => sanitize_text_field($step_positions[$i] ?? 'auto'),
-                'step_type'       => sanitize_text_field($step_types[$i] ?? 'informational'),
+                'position'        => in_array($pos, $allowed_positions, true) ? $pos : 'auto',
+                'step_type'       => in_array($type, $allowed_step_types, true) ? $type : 'informational',
             );
 
             if ($sid && in_array($sid, $existing_step_ids, true)) {
@@ -253,7 +265,7 @@ class HL_Admin_Tours {
             }
         }
 
-        $notice = $tour_id ? 'tour_saved' : 'tour_created';
+        $notice = $is_new ? 'tour_created' : 'tour_saved';
         wp_safe_redirect(add_query_arg(array(
             'page'      => 'hl-settings',
             'tab'       => 'tours',
@@ -318,18 +330,12 @@ class HL_Admin_Tours {
 
     private function render_list() {
         $status_filter = sanitize_text_field($_GET['status'] ?? '');
-        $filters = array();
-        if ($status_filter) {
-            $filters['status'] = $status_filter;
-        }
 
-        $tours = $this->repo->get_all_tours($filters);
-
-        // Count by status for filter pills.
-        $all_tours    = $this->repo->get_all_tours();
-        $count_all    = count($all_tours);
-        $count_active = 0;
-        $count_draft  = 0;
+        // Single query — filter in PHP to avoid double DB hit.
+        $all_tours      = $this->repo->get_all_tours();
+        $count_all      = count($all_tours);
+        $count_active   = 0;
+        $count_draft    = 0;
         $count_archived = 0;
         foreach ($all_tours as $t) {
             switch ($t['status']) {
@@ -338,6 +344,11 @@ class HL_Admin_Tours {
                 case 'archived': $count_archived++; break;
             }
         }
+
+        // Apply status filter in PHP.
+        $tours = $status_filter
+            ? array_filter($all_tours, function($t) use ($status_filter) { return $t['status'] === $status_filter; })
+            : $all_tours;
 
         $base_url   = admin_url('admin.php?page=hl-settings&tab=tours');
         $editor_url = add_query_arg('subtab', 'editor', $base_url);
@@ -570,7 +581,7 @@ class HL_Admin_Tours {
         </form>
 
         <!-- Step template for JS cloning (hidden) -->
-        <div id="hl-tour-step-template" class="hl-tour-step-card" style="display:none;">
+        <div id="hl-tour-step-template" style="display:none;">
             <?php $this->render_step_card(null, '__INDEX__'); ?>
         </div>
         <?php
