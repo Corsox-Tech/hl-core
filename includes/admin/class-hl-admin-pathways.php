@@ -1685,6 +1685,11 @@ class HL_Admin_Pathways {
      * @return string HTML
      */
     public function format_external_ref($component_type, $external_ref) {
+        // Built-in form types don't need an external resource — show "Built-in" instead of "Not configured".
+        $builtin_types = array( 'self_reflection', 'reflective_practice_session', 'classroom_visit', 'coaching_session_attendance' );
+        if ( empty( $external_ref ) && in_array( $component_type, $builtin_types, true ) ) {
+            return '<span style="color:#666;">' . esc_html__( 'Built-in form', 'hl-core' ) . '</span>';
+        }
         if (empty($external_ref)) {
             return '<span style="color:#999;">' . esc_html__('Not configured', 'hl-core') . '</span>';
         }
