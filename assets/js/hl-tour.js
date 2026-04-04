@@ -142,15 +142,22 @@
         xhr.open('POST', DATA.ajax_url, true);
         xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
         xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4 && xhr.status === 200) {
-                try {
-                    var resp = JSON.parse(xhr.responseText);
-                    if (resp.success && resp.data && resp.data.tour) {
-                        var tour = resp.data.tour;
-                        tour.steps = resp.data.steps || [];
-                        initTour(tour, startStepIndex || 0);
-                    }
-                } catch (e) {}
+            if (xhr.readyState !== 4) return;
+            if (xhr.status !== 200) {
+                console.error('[HL Tour] AJAX failed:', xhr.status, xhr.statusText);
+                return;
+            }
+            try {
+                var resp = JSON.parse(xhr.responseText);
+                if (resp.success && resp.data && resp.data.tour) {
+                    var tour = resp.data.tour;
+                    tour.steps = resp.data.steps || [];
+                    initTour(tour, startStepIndex || 0);
+                } else {
+                    console.error('[HL Tour] AJAX error:', resp.data && resp.data.message || 'Unknown error');
+                }
+            } catch (e) {
+                console.error('[HL Tour] Parse error:', e.message);
             }
         };
         var params = 'action=hl_tour_get_steps&_nonce=' + encodeURIComponent(DATA.nonce) +
