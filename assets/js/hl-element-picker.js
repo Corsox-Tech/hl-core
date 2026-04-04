@@ -293,39 +293,7 @@
         }
     }
 
-    function onClick(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-
-        if (isLocked) return;
-
-        var target = document.elementFromPoint(e.clientX, e.clientY);
-        if (!target || isIgnored(target)) return;
-
-        // Lock selection.
-        isLocked   = true;
-        selectedEl = target;
-        highlight(target);
-
-        var result = generateSelector(target);
-        selectorDisplay.textContent = 'Selected: ' + result.selector;
-        if (!result.stable) {
-            selectorDisplay.textContent += '  (unstable)';
-        }
-        useBtn.style.display = 'inline-block';
-    }
-
-    // Prevent link/form navigation in the iframe, but let clicks propagate
-    // so the onClick handler (bubble phase) can process element selection.
-    function blockNavigation(e) {
-        // Allow clicks on the toolbar buttons.
-        if (e.target.closest && e.target.closest('#' + TOOLBAR_ID)) return;
-        e.preventDefault();
-        // Do NOT call stopPropagation — onClick needs the event to bubble.
-    }
-
-    // ─── PostMessage Communication ───
+// ─── PostMessage Communication ───
 
     function sendToParent(type, data) {
         var msg = { type: type };
@@ -379,13 +347,38 @@
 
     // ─── Initialize ───
 
-    // Block all link clicks and form submissions inside the iframe.
-    document.addEventListener('click', blockNavigation, true);
+    // Single capture-phase click handler: blocks navigation AND handles selection.
+    document.addEventListener('click', function(e) {
+        // Allow toolbar button clicks through.
+        if (e.target.closest && e.target.closest('#' + TOOLBAR_ID)) return;
+
+        // Block all default link/form navigation.
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        // Handle element selection.
+        if (isLocked) return;
+        var target = document.elementFromPoint(e.clientX, e.clientY);
+        if (!target || isIgnored(target)) return;
+
+        // Lock selection.
+        isLocked   = true;
+        selectedEl = target;
+        highlight(target);
+
+        var result = generateSelector(target);
+        selectorDisplay.textContent = 'Selected: ' + result.selector;
+        if (!result.stable) {
+            selectorDisplay.textContent += '  (unstable)';
+        }
+        useBtn.style.display = 'inline-block';
+    }, true);
+
     document.addEventListener('submit', function(e) { e.preventDefault(); }, true);
 
-    // Picker interactions.
+    // Picker hover interaction.
     document.addEventListener('mousemove', onMouseMove, false);
-    document.addEventListener('click', onClick, false);
 
     // Prevent right-click context menu.
     document.addEventListener('contextmenu', function(e) { e.preventDefault(); }, true);
