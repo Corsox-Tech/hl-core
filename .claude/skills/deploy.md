@@ -80,7 +80,7 @@ ssh -i ~/.ssh/hla-test-keypair.pem bitnami@44.221.6.201 'export PATH=/opt/bitnam
 ```bash
 # From local machine:
 cd "C:/Users/MateoGonzalez/Dev Projects Mateo/housman-learning-academy/app/public/wp-content/plugins/hl-core"
-tar --exclude='.git' --exclude='data' --exclude='vendor' --exclude='node_modules' -czf /tmp/hl-core.tar.gz -C .. hl-core
+tar --exclude='.git' --exclude='data' --exclude='./vendor' --exclude='node_modules' --exclude='.superpowers' -czf /tmp/hl-core.tar.gz -C .. hl-core
 scp -i ~/.ssh/hla-test-keypair.pem /tmp/hl-core.tar.gz bitnami@44.221.6.201:/tmp/
 ssh -i ~/.ssh/hla-test-keypair.pem bitnami@44.221.6.201 'cd /opt/bitnami/wordpress/wp-content/plugins && sudo rm -rf hl-core && sudo tar -xzf /tmp/hl-core.tar.gz && sudo chown -R bitnami:daemon hl-core'
 ```
