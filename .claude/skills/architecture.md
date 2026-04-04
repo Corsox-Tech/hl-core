@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: Domain model, roles, coach assignment, partnerships, cycle types, scope service, forms, control groups, cross-pathway events, component types, instruments, form renderer pattern, directory tree
+description: Domain model, roles, coach assignment, partnerships, cycle types, scope service, forms, control groups, cross-pathway events, component types, instruments, form renderer pattern, guided tours, directory tree
 ---
 
 # HL Core Domain Architecture Reference
@@ -266,6 +266,41 @@ Housman measures program impact by comparing:
 - Coaching and Teams tabs auto-hidden in admin and frontend
 - Assessment-only pathway (no course or coaching components)
 
+## Guided Tours System
+
+In-app guided tours built on Driver.js (MIT, 1.4.0). Replaces the limited "Simple Tour Guide" third-party plugin. Tours support unlimited steps, multi-page flows, role-based targeting, interactive steps (click-to-advance), and a visual element picker for non-technical admins.
+
+### 3 DB Tables
+- **`hl_tour`** — Tour definitions (title, slug, trigger_type, target_roles, start_page_url, status, sort_order, hide_on_mobile)
+- **`hl_tour_step`** — Steps within a tour (title, description, page_url, target_selector, position, step_type)
+- **`hl_tour_seen`** — Per-user completion tracking (user_id, tour_id, seen_at). UNIQUE on (user_id, tour_id).
+
+### Trigger Types
+| Type | Behavior |
+|------|----------|
+| `first_login` | Auto-triggers once on any page load when user matches target_roles and has no `hl_tour_seen` record |
+| `page_visit` | Auto-triggers on first visit to `trigger_page_url` for matching roles |
+| `manual_only` | Only available via the topbar "?" dropdown — never auto-triggers |
+
+### Key Classes
+- **`HL_Tour_Repository`** (`includes/domain/repositories/`) — CRUD for tours, steps, seen records
+- **`HL_Tour_Service`** (`includes/services/`) — Tour resolution for page + user + role, seen checks, skip logic
+- **`HL_Admin_Tours`** (`includes/admin/`) — Admin UI: Tours List, Tour Editor, Tour Styles subtabs under Settings > Tours tab
+
+### Frontend
+- **`hl-tour.js`** — Frontend tour controller wrapping Driver.js. Handles auto-triggers, multi-page navigation via localStorage + `?hl_active_tour=` URL param, step skipping for missing DOM elements, and auto-generated final step pointing to the "?" button.
+- **Topbar "?" button** (`#hl-tour-trigger`) — Positioned in the HL topbar (left of user avatar). Dropdown lists available tours for the current page. On mobile renders as a bottom sheet.
+- **`hl-element-picker.js`** — Injected into an iframe via `?hl_picker=1` query param. Lets admins visually click elements to select CSS selectors. Supports "View as Role" dropdown for previewing role-specific elements.
+- **`hl-tour-admin.js`** — Admin-side: step drag-and-drop reordering, element picker modal, color pickers for global styles.
+
+### Asset Files
+- `assets/js/vendor/driver.js` — Driver.js 1.4.0 (bundled locally, MIT)
+- `assets/css/vendor/driver.css` — Driver.js base styles
+- `assets/css/frontend.css` — GUIDED TOURS sections (topbar button, dropdown, bottom sheet mobile styles)
+
+### Global Styling
+Stored in `wp_options` as `hl_tour_styles` (serialized array). Admins configure tooltip colors, font sizes, button colors, and progress bar color via Settings > Tours > Styles subtab. Defaults map to HL design tokens.
+
 ## Architecture Summary
 ```
 /hl-core/
@@ -276,18 +311,18 @@ Housman measures program impact by comparing:
     /Lutheran - Control Group/   # Lutheran spreadsheets (.xlsx)
   /docs/                         # Spec documents (11 files, read-only reference)
   /includes/
-    class-hl-installer.php       # DB schema (44 tables, revision 27) + activation + migrations
+    class-hl-installer.php       # DB schema (47 tables, revision 29) + activation + migrations
     /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
-    /domain/repositories/        # CRUD repositories (9 classes)
+    /domain/repositories/        # CRUD repositories (10 classes incl. HL_Tour_Repository)
     /cli/                        # WP-CLI commands (17 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav, seed-beginnings, migrate-routing-types) + data files
-    /services/                   # Business logic (23 services incl. HL_Pathway_Routing_Service, HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service)
+    /services/                   # Business logic (24 services incl. HL_Tour_Service, HL_Pathway_Routing_Service, HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)
-    /admin/                      # WP admin pages (18 controllers incl. Coaching Hub with Coaches tab, Email Templates, Scheduling Settings)
+    /admin/                      # WP admin pages (19 controllers incl. HL_Admin_Tours, Coaching Hub with Coaches tab, Email Templates, Scheduling Settings)
     /frontend/                   # 34 shortcode page renderers (incl. User Profile, 5 coach pages) + 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + schedule session renderer + instrument/teacher-assessment renderers
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, age group helpers + label remap (legacy)
   /assets/
-    /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css
-    /js/                         # admin-import-wizard.js, admin-teacher-editor.js, frontend.js, frontend-docs.js
+    /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css + vendor/driver.css
+    /js/                         # admin-import-wizard.js, admin-teacher-editor.js, frontend.js, frontend-docs.js, hl-tour.js, hl-tour-admin.js, hl-element-picker.js + vendor/driver.js
 ```
