@@ -9512,8 +9512,10 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
 /* ========================================
    GUIDED TOURS — Driver.js Overrides
    ======================================== */
-.driver-popover-footer button {
-    text-shadow: none;
+.driver-popover-footer button,
+.driver-popover-footer .driver-popover-next-btn,
+.driver-popover-footer .driver-popover-prev-btn {
+    text-shadow: none !important;
 }
 
 /* ========================================
