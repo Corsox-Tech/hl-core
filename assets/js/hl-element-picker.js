@@ -58,7 +58,7 @@
     var HIGHLIGHT_SHADOW = 'rgba(79, 70, 229, 0.25)';
     var TOOLBAR_ID       = 'hl-picker-toolbar';
     var IGNORED_TAGS     = ['SCRIPT', 'STYLE', 'META', 'LINK', 'HEAD', 'HTML', 'NOSCRIPT'];
-    var IGNORED_IDS      = ['hl-sidebar', 'hl-topbar', TOOLBAR_ID];
+    var IGNORED_IDS      = [TOOLBAR_ID];
 
     // ─── State ───
 
