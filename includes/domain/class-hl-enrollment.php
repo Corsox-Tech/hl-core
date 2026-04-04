@@ -11,6 +11,7 @@ class HL_Enrollment {
     public $school_id;
     public $district_id;
     public $status;
+    public $language_preference;
     public $enrolled_at;
     public $created_at;
     public $updated_at;

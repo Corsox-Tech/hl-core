@@ -12,6 +12,7 @@ class HL_Component {
     public $ordering_hint;
     public $weight;
     public $external_ref;
+    public $catalog_id;
     public $complete_by;
     public $visibility;
     public $requires_classroom;

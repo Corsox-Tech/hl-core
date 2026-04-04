@@ -79,6 +79,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-child.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-pathway.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-component.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-course-catalog.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-teacher-assessment-instrument.php';
         
         // Repositories
@@ -91,6 +92,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-child-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-pathway-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-component-repository.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-course-catalog-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-tour-repository.php';
 
         // Security
