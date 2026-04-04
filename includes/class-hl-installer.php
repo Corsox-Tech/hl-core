@@ -1529,20 +1529,9 @@ class HL_Installer {
             KEY instrument_id (instrument_id)
         ) $charset_collate;";
 
-        // DEPRECATED: Teacher Assessment Response table
-        // Retained so dbDelta does not drop existing data. HL Core no longer writes to this table
-        // — responses are stored in responses_json on hl_teacher_assessment_instance.
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_teacher_assessment_response (
-            response_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            instance_id bigint(20) unsigned NOT NULL,
-            question_id varchar(100) NOT NULL,
-            value longtext NULL,
-            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (response_id),
-            KEY instance_id (instance_id),
-            KEY question_id (question_id)
-        ) $charset_collate;";
+        // REMOVED: hl_teacher_assessment_response — deprecated table.
+        // Responses are stored in responses_json on hl_teacher_assessment_instance.
+        // Table retained in live DB but no longer managed by dbDelta.
 
         // Child Assessment Instance table
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_child_assessment_instance (
@@ -1616,20 +1605,9 @@ class HL_Installer {
             KEY classroom_id (classroom_id)
         ) $charset_collate;";
 
-        // DEPRECATED: Observation Response table
-        // Retained so dbDelta does not drop existing data. HL Core no longer writes to this table
-        // — observations use classroom_visit component type with native PHP forms.
-        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_observation_response (
-            response_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            observation_id bigint(20) unsigned NOT NULL,
-            question_id varchar(100) NOT NULL,
-            value longtext NULL,
-            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (response_id),
-            KEY observation_id (observation_id),
-            KEY question_id (question_id)
-        ) $charset_collate;";
+        // REMOVED: hl_observation_response — deprecated table.
+        // Observations use classroom_visit component type with native PHP forms.
+        // Table retained in live DB but no longer managed by dbDelta.
 
         // Observation Attachment table
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_observation_attachment (

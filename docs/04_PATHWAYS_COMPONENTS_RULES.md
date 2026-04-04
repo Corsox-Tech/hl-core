@@ -1,12 +1,12 @@
 # Housman Learning Core Plugin — AI Library
-## File: 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md
+## File: 04_PATHWAYS_COMPONENTS_RULES.md
 Version: 4.0
 Last Updated: 2026-03-24
 Timezone: America/Bogota
 
 ---
 
-> **Note:** This file was originally named for Cohorts/Activities (pre-V3 terms). Content uses current terminology: Partnership/Cycle, Component/Component Type.
+> **Note:** This file was originally named `04_COHORT_PATHWAYS_ACTIVITIES_RULES.md` (pre-V3 terms). Renamed April 2026. Content uses current terminology: Partnership/Cycle, Component/Component Type.
 
 # 0) Purpose
 

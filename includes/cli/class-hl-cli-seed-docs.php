@@ -996,7 +996,7 @@ When adding a component to a pathway, you select the type and then configure typ
 <ul>
 <li><strong>Course components</strong> — select a LearnDash course from the dropdown.</li>
 <li><strong>Assessment components</strong> — select an instrument from the dropdown.</li>
-<li><strong>Observation components</strong> — select a JFB form from the dropdown.</li>
+<li><strong>Observation components</strong> — uses the classroom visit form type.</li>
 </ul>
 
 Each component can have [hl_doc_link slug="prerequisites-drip-rules" text="prerequisites and drip rules"] that control when it becomes available.
@@ -1163,7 +1163,7 @@ HTML;
             ),
             'glossary-observation' => array(
                 'title'   => 'Observation',
-                'content' => 'A mentor-submitted form documenting a classroom visit. Uses JetFormBuilder for the form editor so admins can customize questions. See [hl_doc_link slug="observations"].',
+                'content' => 'A mentor-submitted form documenting a classroom visit. Uses the classroom visit component type with native PHP forms. See [hl_doc_link slug="observations"].',
             ),
             'glossary-coaching-session' => array(
                 'title'   => 'Coaching Session',

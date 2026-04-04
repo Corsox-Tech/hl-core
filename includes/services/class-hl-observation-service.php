@@ -371,10 +371,10 @@ class HL_Observation_Service {
     }
 
     /**
-     * Get the JFB form ID from the observation component's external_ref.
+     * Get the form ID from the observation component's external_ref (legacy JFB column).
      *
      * @param int $cycle_id
-     * @return int|null JFB form ID, or null if not configured.
+     * @return int|null Form ID, or null if not configured.
      */
     public function get_observation_form_id( $cycle_id ) {
         $component = $this->get_observation_component( $cycle_id );

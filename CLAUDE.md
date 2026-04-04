@@ -50,7 +50,7 @@ Hierarchy: **Partnership** (container) → **Cycle** (yearly run). Pathways belo
 
 ### Naming (Post-Rename V3)
 Code, DB, and UI all use the same terms now — no remapping layer needed.
-- `HL_Label_Remap` still exists in code but is **legacy — pending removal**. Do not add new remap entries.
+- `HL_Label_Remap` has been removed from code. No remapping layer exists.
 - `HL_JFB_Integration` still exists but is **legacy — pending full removal**. All forms are now built in PHP. Do not add new JFB references.
 
 ## Code Conventions

@@ -12,7 +12,7 @@ description: Domain model, roles, coach assignment, partnerships, cycle types, s
 | 01_GLOSSARY_CANONICAL_TERMS.md | Terminology definitions including Partnership, Cycle, Control Group |
 | 02_DOMAIN_MODEL_ORG_STRUCTURE.md | Org units, partnerships, enrollments, teams |
 | 03_ROLES_PERMISSIONS_REPORT_VISIBILITY.md | Roles, capabilities, access control |
-| 04_COHORT_PATHWAYS_ACTIVITIES_RULES.md | Pathways, components, prerequisite rules, component eligibility references |
+| 04_PATHWAYS_COMPONENTS_RULES.md | Pathways, components, prerequisite rules, component eligibility references |
 | 05_UNLOCKING_LOGIC_PREREQS_DRIP_OVERRIDES.md | Unlock logic, drip rules, overrides |
 | 06_ASSESSMENTS_CHILDREN_TEACHER_OBSERVATION_COACHING.md | Assessment instruments (custom PHP for teacher + children, JFB for observations only), coaching |
 | 07_IMPORTS_ROSTERS_IDENTITIES_MATCHING.md | CSV import pipeline, identity matching |

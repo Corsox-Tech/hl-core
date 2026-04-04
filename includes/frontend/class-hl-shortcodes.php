@@ -354,7 +354,7 @@ class HL_Shortcodes {
     }
 
     /**
-     * [hl_component_page] - Single component page (JFB form, redirect, etc.)
+     * [hl_component_page] - Single component page (form, redirect, etc.)
      */
     public function render_component_page($atts) {
         if (!is_user_logged_in()) {

@@ -13,7 +13,7 @@ class HL_Reporting_Service {
     }
 
     private function __construct() {
-        // Listen for rollup recomputation requests from JFB, LearnDash, coaching, overrides
+        // Listen for rollup recomputation requests from LearnDash, coaching, overrides
         add_action('hl_core_recompute_rollups', array($this, 'compute_rollups'), 10, 1);
     }
 

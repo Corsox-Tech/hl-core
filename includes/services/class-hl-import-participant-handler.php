@@ -131,6 +131,9 @@ class HL_Import_Participant_Handler {
                 $preview_rows[] = $preview;
                 continue;
             }
+            // TODO: Support multi-row same email for different classrooms (spec allows it for
+            // mixed-age-group scenarios). Currently rejects as ERROR; needs merge logic to combine
+            // classroom assignments into a single enrollment. See STATUS.md Import follow-up.
             if (isset($seen_emails[$email])) {
                 $preview['status'] = 'ERROR';
                 $preview['validation_messages'][] = sprintf(

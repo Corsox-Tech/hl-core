@@ -52,7 +52,11 @@ class HL_Assessment_Service {
     }
 
     /**
-     * Get responses for a teacher assessment instance
+     * Get responses for a teacher assessment instance.
+     *
+     * TODO: Migrate to responses_json on hl_teacher_assessment_instance. This method reads from
+     * the deprecated hl_teacher_assessment_response table. New custom instruments use responses_json
+     * instead. Once all legacy instances are migrated, remove this method and the table reference.
      */
     public function get_teacher_assessment_responses($instance_id) {
         global $wpdb;
@@ -125,6 +129,8 @@ class HL_Assessment_Service {
             return new WP_Error('already_submitted', __('This assessment has already been submitted.', 'hl-core'));
         }
 
+        // TODO: Migrate to responses_json on hl_teacher_assessment_instance.
+        // This writes to the deprecated hl_teacher_assessment_response table.
         // Save responses (upsert pattern)
         foreach ($responses as $question_id => $value) {
             $existing = $wpdb->get_var($wpdb->prepare(
