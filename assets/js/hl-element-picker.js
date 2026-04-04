@@ -316,12 +316,13 @@
         useBtn.style.display = 'inline-block';
     }
 
-    // Prevent ALL default link/form interactions in the iframe.
+    // Prevent link/form navigation in the iframe, but let clicks propagate
+    // so the onClick handler (bubble phase) can process element selection.
     function blockNavigation(e) {
         // Allow clicks on the toolbar buttons.
         if (e.target.closest && e.target.closest('#' + TOOLBAR_ID)) return;
         e.preventDefault();
-        e.stopPropagation();
+        // Do NOT call stopPropagation — onClick needs the event to bubble.
     }
 
     // ─── PostMessage Communication ───
