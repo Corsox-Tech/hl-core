@@ -105,6 +105,12 @@ class HL_Installer {
         // Rev 24: Add scheduling integration columns to hl_coaching_session.
         self::migrate_coaching_scheduling_columns();
 
+        // Rev 30: Add catalog_id column to hl_component.
+        self::migrate_add_component_catalog_id();
+
+        // Rev 30: Add language_preference column to hl_enrollment.
+        self::migrate_add_enrollment_language_preference();
+
         $charset_collate = $wpdb->get_charset_collate();
         $tables = self::get_schema();
 
@@ -127,7 +133,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 29;
+        $current_revision = 30;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -165,6 +171,13 @@ class HL_Installer {
             // Rev 28: Add cycle_id to hl_classroom.
             if ( (int) $stored < 28 ) {
                 self::migrate_classroom_add_cycle_id();
+            }
+
+            // Rev 30: Course Catalog — seed data + backfill components + language preference.
+            if ( (int) $stored < 30 ) {
+                self::seed_course_catalog();
+                self::backfill_component_catalog_ids();
+                self::backfill_enrollment_language_preference();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -1173,6 +1186,7 @@ class HL_Installer {
             school_id bigint(20) unsigned NULL,
             district_id bigint(20) unsigned NULL,
             status enum('active','inactive') DEFAULT 'active',
+            language_preference varchar(5) NOT NULL DEFAULT 'en',
             enrolled_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -1372,6 +1386,27 @@ class HL_Installer {
             KEY cycle_id (cycle_id)
         ) $charset_collate;";
 
+        // Course Catalog table (maps logical courses to EN/ES/PT LearnDash variants)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_course_catalog (
+            catalog_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            catalog_uuid char(36) NOT NULL,
+            catalog_code varchar(50) NOT NULL COMMENT 'Stable lookup key e.g. TC1, MC3, TC1_S',
+            title varchar(255) NOT NULL COMMENT 'Always English course name',
+            ld_course_en bigint(20) unsigned NULL COMMENT 'English LD course post ID',
+            ld_course_es bigint(20) unsigned NULL COMMENT 'Spanish LD course post ID',
+            ld_course_pt bigint(20) unsigned NULL COMMENT 'Portuguese LD course post ID',
+            status enum('active','archived') NOT NULL DEFAULT 'active',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (catalog_id),
+            UNIQUE KEY catalog_uuid (catalog_uuid),
+            UNIQUE KEY catalog_code (catalog_code),
+            UNIQUE KEY ld_course_en (ld_course_en),
+            UNIQUE KEY ld_course_es (ld_course_es),
+            UNIQUE KEY ld_course_pt (ld_course_pt),
+            KEY status (status)
+        ) $charset_collate;";
+
         // Component table
         $tables[] = "CREATE TABLE {$wpdb->prefix}hl_component (
             component_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -1384,6 +1419,7 @@ class HL_Installer {
             ordering_hint int NOT NULL DEFAULT 0,
             weight decimal(5,2) NOT NULL DEFAULT 1.00,
             external_ref longtext NULL COMMENT 'JSON - course_id/instrument_id etc',
+            catalog_id bigint(20) unsigned NULL,
             complete_by date DEFAULT NULL COMMENT 'Suggested completion date (not enforced)',
             visibility enum('all','staff_only') NOT NULL DEFAULT 'all',
             requires_classroom tinyint(1) NOT NULL DEFAULT 0,
@@ -1395,7 +1431,8 @@ class HL_Installer {
             UNIQUE KEY component_uuid (component_uuid),
             KEY cycle_id (cycle_id),
             KEY pathway_id (pathway_id),
-            KEY component_type (component_type)
+            KEY component_type (component_type),
+            KEY catalog_id (catalog_id)
         ) $charset_collate;";
 
         // Component Prerequisite Group table
@@ -3040,5 +3077,221 @@ class HL_Installer {
         if ( $table_exists( $pathway ) && $index_exists( $pathway, 'partnership_pathway_code' ) ) {
             $wpdb->query( "ALTER TABLE `{$pathway}` DROP INDEX `partnership_pathway_code`" );
         }
+    }
+
+    /**
+     * Rev 30: Add catalog_id column to hl_component.
+     *
+     * Links components to the course catalog for language-aware completion tracking.
+     */
+    private static function migrate_add_component_catalog_id() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_component';
+
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return;
+        }
+
+        $col = $wpdb->get_var( "SHOW COLUMNS FROM `{$table}` LIKE 'catalog_id'" );
+        if ( ! $col ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN catalog_id bigint(20) unsigned NULL AFTER external_ref" );
+            $wpdb->query( "ALTER TABLE `{$table}` ADD KEY catalog_id (catalog_id)" );
+        }
+    }
+
+    /**
+     * Rev 30: Add language_preference column to hl_enrollment.
+     *
+     * Controls which LD course variant is displayed to the user (en/es/pt).
+     * Defaults to 'en'. Does not affect completion tracking (language-agnostic).
+     */
+    private static function migrate_add_enrollment_language_preference() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_enrollment';
+
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return;
+        }
+
+        $col = $wpdb->get_var( "SHOW COLUMNS FROM `{$table}` LIKE 'language_preference'" );
+        if ( ! $col ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN language_preference varchar(5) NOT NULL DEFAULT 'en' AFTER status" );
+        }
+    }
+
+    /**
+     * Rev 30: Seed the course catalog with known B2E course mappings.
+     *
+     * Uses INSERT IGNORE — idempotent per entry. On re-run, existing rows are
+     * skipped via any matching UNIQUE key (catalog_code, ld_course_en/es/pt).
+     */
+    private static function seed_course_catalog() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_course_catalog';
+
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return;
+        }
+
+        // Each entry: [catalog_code, title, ld_course_en, ld_course_es, ld_course_pt]
+        $entries = array(
+            // Mastery courses
+            array( 'TC0', 'TC0: Welcome to begin to ECSEL',                31037, 31039, null ),
+            array( 'TC1', 'TC1: Intro to begin to ECSEL',                  30280, 30304, null ),
+            array( 'TC2', 'TC2: Your Own Emotionality',                    30284, 30307, null ),
+            array( 'TC3', 'TC3: Getting to Know Emotion',                  30286, 30309, null ),
+            array( 'TC4', 'TC4: Emotion in the Heat of the Moment',        30288, 30312, null ),
+            array( 'TC5', 'TC5: Connecting Emotion and Early Learning',    39724, 39736, null ),
+            array( 'TC6', 'TC6: Empathy, Acceptance & Prosocial Behaviors', 39726, 39738, null ),
+            array( 'TC7', 'TC7: begin to ECSEL Tools',                     39728, 39740, null ),
+            array( 'TC8', 'TC8: ECSEL in the Everyday Classroom',          39730, 39742, null ),
+            array( 'MC1', 'MC1: Introduction to Reflective Practice',      30293, 30364, null ),
+            array( 'MC2', 'MC2: A Deeper Dive into Reflective Practice',   30295, 31537, null ),
+            array( 'MC3', 'MC3: Extending RP to Co-Workers',               39732, 39254, null ),
+            array( 'MC4', 'MC4: Extending RP to Families',                 39734, 39488, null ),
+            // Streamlined courses (no Spanish equivalents confirmed yet)
+            array( 'TC1_S', 'TC1: Intro to begin to ECSEL (Streamlined)',                  31332, null, null ),
+            array( 'TC2_S', 'TC2: Your Own Emotionality (Streamlined)',                    31333, null, null ),
+            array( 'TC3_S', 'TC3: Getting to Know Emotion (Streamlined)',                  31334, null, null ),
+            array( 'TC4_S', 'TC4: Emotion in the Heat of the Moment (Streamlined)',        31335, null, null ),
+            array( 'TC5_S', 'TC5: Connecting Emotion and Early Learning (Streamlined)',    31336, null, null ),
+            array( 'TC6_S', 'TC6: Empathy, Acceptance & Prosocial Behaviors (Streamlined)', 31337, null, null ),
+            array( 'TC7_S', 'TC7: begin to ECSEL Tools (Streamlined)',                     31338, null, null ),
+            array( 'TC8_S', 'TC8: ECSEL in the Everyday Classroom (Streamlined)',          31339, null, null ),
+            array( 'MC1_S', 'MC1: Introduction to Reflective Practice (Streamlined)',      31387, null, null ),
+            array( 'MC2_S', 'MC2: A Deeper Dive into Reflective Practice (Streamlined)',   31388, null, null ),
+            array( 'MC3_S', 'MC3: Extending RP to Co-Workers (Streamlined)',               31389, null, null ),
+            array( 'MC4_S', 'MC4: Extending RP to Families (Streamlined)',                 31390, null, null ),
+        );
+
+        foreach ( $entries as $entry ) {
+            list( $code, $title, $en, $es, $pt ) = $entry;
+
+            $uuid = HL_DB_Utils::generate_uuid();
+
+            // Build column/value pairs. Use raw SQL for INSERT IGNORE with proper NULL handling.
+            $en_sql = $en !== null ? $wpdb->prepare( '%d', $en ) : 'NULL';
+            $es_sql = $es !== null ? $wpdb->prepare( '%d', $es ) : 'NULL';
+            $pt_sql = $pt !== null ? $wpdb->prepare( '%d', $pt ) : 'NULL';
+
+            $wpdb->query( $wpdb->prepare(
+                "INSERT IGNORE INTO `{$table}` (catalog_uuid, catalog_code, title, ld_course_en, ld_course_es, ld_course_pt)
+                 VALUES (%s, %s, %s, {$en_sql}, {$es_sql}, {$pt_sql})",
+                $uuid, $code, $title
+            ) );
+        }
+    }
+
+    /**
+     * Rev 30: Backfill catalog_id on existing learndash_course components.
+     *
+     * Matches external_ref.course_id against the catalog's EN/ES course IDs.
+     * Only updates rows where catalog_id IS NULL (idempotent).
+     */
+    private static function backfill_component_catalog_ids() {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        $comp_table    = $prefix . 'hl_component';
+        $catalog_table = $prefix . 'hl_course_catalog';
+
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $catalog_table ) ) !== $catalog_table ) {
+            return;
+        }
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $comp_table ) ) !== $comp_table ) {
+            return;
+        }
+
+        $components = $wpdb->get_results(
+            "SELECT component_id, external_ref FROM `{$comp_table}`
+             WHERE component_type = 'learndash_course' AND catalog_id IS NULL AND status = 'active'"
+        );
+
+        if ( empty( $components ) ) {
+            return;
+        }
+
+        foreach ( $components as $comp ) {
+            $ref = json_decode( $comp->external_ref, true );
+            if ( ! is_array( $ref ) || empty( $ref['course_id'] ) ) {
+                continue;
+            }
+
+            $course_id = absint( $ref['course_id'] );
+            if ( $course_id === 0 ) {
+                continue;
+            }
+
+            $catalog_id = $wpdb->get_var( $wpdb->prepare(
+                "SELECT catalog_id FROM `{$catalog_table}`
+                 WHERE ld_course_en = %d OR ld_course_es = %d OR ld_course_pt = %d
+                 LIMIT 1",
+                $course_id, $course_id, $course_id
+            ) );
+
+            if ( $catalog_id ) {
+                // Use raw SQL — $wpdb->update() converts null WHERE values to empty string,
+                // which would never match IS NULL rows.
+                $wpdb->query( $wpdb->prepare(
+                    "UPDATE `{$comp_table}` SET catalog_id = %d
+                     WHERE component_id = %d AND catalog_id IS NULL",
+                    $catalog_id, $comp->component_id
+                ) );
+            } else {
+                error_log( sprintf(
+                    '[HL Migration] Component %d has course_id %d not found in catalog',
+                    $comp->component_id, $course_id
+                ) );
+            }
+        }
+    }
+
+    /**
+     * Rev 30: Backfill language_preference on enrollments for Spanish-group users.
+     *
+     * Best-effort heuristic: users in Spanish LearnDash groups get 'es'.
+     * Admins can correct individual enrollments later.
+     * Only updates rows where language_preference = 'en' (idempotent).
+     */
+    private static function backfill_enrollment_language_preference() {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+
+        $enrollment_table = $prefix . 'hl_enrollment';
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $enrollment_table ) ) !== $enrollment_table ) {
+            return;
+        }
+
+        // Check that the language_preference column exists before querying it.
+        $col = $wpdb->get_var( "SHOW COLUMNS FROM `{$enrollment_table}` LIKE 'language_preference'" );
+        if ( ! $col ) {
+            return;
+        }
+
+        // Spanish LearnDash group IDs (test + production — verify before deploying to new environments).
+        $spanish_groups = array( 33639, 33667 );
+
+        // Find user_ids in Spanish groups via usermeta.
+        $meta_keys = array_map( function ( $gid ) {
+            return 'learndash_group_users_' . $gid;
+        }, $spanish_groups );
+
+        $placeholders = implode( ',', array_fill( 0, count( $meta_keys ), '%s' ) );
+        $spanish_user_ids = $wpdb->get_col( $wpdb->prepare(
+            "SELECT DISTINCT user_id FROM {$prefix}usermeta WHERE meta_key IN ({$placeholders})",
+            $meta_keys
+        ) );
+
+        if ( empty( $spanish_user_ids ) ) {
+            return;
+        }
+
+        $user_placeholders = implode( ',', array_fill( 0, count( $spanish_user_ids ), '%d' ) );
+        $wpdb->query( $wpdb->prepare(
+            "UPDATE `{$enrollment_table}`
+             SET language_preference = 'es'
+             WHERE user_id IN ({$user_placeholders}) AND language_preference = 'en'",
+            $spanish_user_ids
+        ) );
     }
 }

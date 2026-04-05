@@ -68,6 +68,9 @@ class HL_Course_Catalog_Repository {
     public function find_by_ld_course_id($course_id) {
         global $wpdb;
         $course_id = absint($course_id);
+        if ($course_id === 0) {
+            return null;
+        }
         $row = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->table()} WHERE ld_course_en = %d OR ld_course_es = %d OR ld_course_pt = %d LIMIT 1",
             $course_id, $course_id, $course_id
@@ -101,8 +104,12 @@ class HL_Course_Catalog_Repository {
             $data['catalog_uuid'] = HL_DB_Utils::generate_uuid();
         }
         // wpdb->insert() converts PHP null to empty string, not SQL NULL.
-        // Strip null values so the DB column defaults (NULL) are used instead.
-        $data = array_filter($data, function($v) { return $v !== null; });
+        // Strip null language columns so the DB defaults to SQL NULL instead.
+        foreach (array('ld_course_en', 'ld_course_es', 'ld_course_pt') as $col) {
+            if (array_key_exists($col, $data) && $data[$col] === null) {
+                unset($data[$col]);
+            }
+        }
         $result = $wpdb->insert($this->table(), $data);
         if ($result === false) {
             return new WP_Error('db_insert_error', 'Failed to insert course catalog entry: ' . $wpdb->last_error);
@@ -132,10 +139,13 @@ class HL_Course_Catalog_Repository {
 
         if (!empty($null_cols)) {
             $set_clauses = array_map(function($col) { return "{$col} = NULL"; }, $null_cols);
-            $wpdb->query($wpdb->prepare(
+            $null_result = $wpdb->query($wpdb->prepare(
                 "UPDATE {$this->table()} SET " . implode(', ', $set_clauses) . " WHERE catalog_id = %d",
                 $catalog_id
             ));
+            if ($null_result === false) {
+                return new WP_Error('db_update_error', 'Failed to set NULL columns: ' . $wpdb->last_error);
+            }
         }
 
         if (!empty($data)) {
@@ -149,22 +159,30 @@ class HL_Course_Catalog_Repository {
     }
 
     /**
-     * Check if a LD course ID is already used by any language column in another catalog entry.
+     * Archive a catalog entry (soft-delete).
      *
-     * @param int    $course_id
-     * @param string $lang_column One of ld_course_en, ld_course_es, ld_course_pt.
-     * @param int    $exclude_catalog_id Catalog ID to exclude from the check.
+     * @param int $catalog_id
+     * @return HL_Course_Catalog|WP_Error Updated object on success, WP_Error on failure.
+     */
+    public function archive($catalog_id) {
+        return $this->update($catalog_id, array('status' => 'archived'));
+    }
+
+    /**
+     * Check if a LD course ID is already used by any language column in another catalog entry.
+     * Checks all three language columns — per spec, a LD course ID can only belong to ONE catalog entry.
+     *
+     * @param int $course_id
+     * @param int $exclude_catalog_id Catalog ID to exclude from the check.
      * @return int|null Conflicting catalog_id or null.
      */
-    public function find_duplicate_course_id($course_id, $lang_column, $exclude_catalog_id = 0) {
+    public function find_duplicate_course_id($course_id, $exclude_catalog_id = 0) {
         global $wpdb;
 
-        $allowed = array('ld_course_en', 'ld_course_es', 'ld_course_pt');
-        if (!in_array($lang_column, $allowed, true)) {
+        $course_id = absint($course_id);
+        if ($course_id === 0) {
             return null;
         }
-
-        $course_id = absint($course_id);
         $exclude_catalog_id = absint($exclude_catalog_id);
 
         $row = $wpdb->get_row($wpdb->prepare(
@@ -204,11 +222,12 @@ class HL_Course_Catalog_Repository {
         }
 
         global $wpdb;
+        $table = $this->table();
         $result = $wpdb->get_var($wpdb->prepare(
             "SHOW TABLES LIKE %s",
-            $this->table()
+            $table
         ));
-        $exists = ($result !== null);
+        $exists = ($result === $table);
         return $exists;
     }
 }

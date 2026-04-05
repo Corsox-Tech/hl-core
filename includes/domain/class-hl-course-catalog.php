@@ -47,6 +47,9 @@ class HL_Course_Catalog {
      * @return int|null LD course ID or null if nothing available.
      */
     public function resolve_course_id($lang = 'en') {
+        if ($lang === null) {
+            $lang = 'en';
+        }
         $lang = strtolower(trim($lang));
         $allowed = array('en', 'es', 'pt');
         if (!in_array($lang, $allowed, true)) {
