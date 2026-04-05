@@ -19,31 +19,35 @@ if (!defined('ABSPATH')) exit;
 class HL_Pathway_Routing_Service {
 
     /**
-     * Stage definitions: groups of LearnDash course IDs.
-     * A stage is "completed" when ALL courses in the group are done.
+     * Stage definitions: groups of catalog_codes from hl_course_catalog.
+     * A stage is "completed" when ALL catalog entries in the group are done
+     * (at least one language variant completed per entry).
      */
     private static $stages = array(
         'A' => array(
-            'label'      => 'Mentor Stage 1',
-            'course_ids' => array(30293, 30295), // MC1, MC2
+            'label'         => 'Mentor Stage 1',
+            'catalog_codes' => array( 'MC1', 'MC2' ),
         ),
         'B' => array(
-            'label'      => 'Mentor Stage 2',
-            'course_ids' => array(39732, 39734), // MC3, MC4
+            'label'         => 'Mentor Stage 2',
+            'catalog_codes' => array( 'MC3', 'MC4' ),
         ),
         'C' => array(
-            'label'      => 'Teacher Stage 1',
-            'course_ids' => array(30280, 30284, 30286, 30288), // TC1, TC2, TC3, TC4
+            'label'         => 'Teacher Stage 1',
+            'catalog_codes' => array( 'TC1', 'TC2', 'TC3', 'TC4' ),
         ),
         'D' => array(
-            'label'      => 'Teacher Stage 2',
-            'course_ids' => array(39724, 39726, 39728, 39730), // TC5, TC6, TC7, TC8
+            'label'         => 'Teacher Stage 2',
+            'catalog_codes' => array( 'TC5', 'TC6', 'TC7', 'TC8' ),
         ),
         'E' => array(
-            'label'      => 'Streamlined Stage 1',
-            'course_ids' => array(31037, 31332, 31333, 31334, 31335, 31387, 31388), // TC0, TC1_S-TC4_S, MC1_S, MC2_S
+            'label'         => 'Streamlined Stage 1',
+            'catalog_codes' => array( 'TC0', 'TC1_S', 'TC2_S', 'TC3_S', 'TC4_S', 'MC1_S', 'MC2_S' ),
         ),
     );
+
+    /** @var array<string, HL_Course_Catalog>|null Null = not yet loaded. */
+    private static $catalog_cache = null;
 
     /**
      * Routing rules evaluated in priority order. First match wins.
@@ -84,6 +88,74 @@ class HL_Pathway_Routing_Service {
             'streamlined_phase_1'  => 'Streamlined Phase 1 (new leaders)',
             'streamlined_phase_2'  => 'Streamlined Phase 2 (returning leaders)',
         );
+    }
+
+    /**
+     * Lazy-load all catalog entries into a static cache indexed by catalog_code.
+     *
+     * Does NOT cache when the table is absent — the table may not exist yet
+     * during plugin activation (mirrors HL_Course_Catalog_Repository::table_exists() pattern).
+     *
+     * @return array<string, HL_Course_Catalog>
+     */
+    private static function load_catalog_cache() {
+        if ( self::$catalog_cache !== null ) {
+            return self::$catalog_cache;
+        }
+
+        $repo = new HL_Course_Catalog_Repository();
+
+        if ( ! $repo->table_exists() ) {
+            // Do NOT assign to self::$catalog_cache — table may appear later in this request.
+            return array();
+        }
+
+        self::$catalog_cache = $repo->get_all_indexed_by_code();
+        return self::$catalog_cache;
+    }
+
+    /**
+     * Check whether a user has completed a catalog entry in any language variant.
+     *
+     * @param int                      $user_id
+     * @param HL_Course_Catalog        $entry
+     * @param HL_LearnDash_Integration $ld
+     * @return bool
+     */
+    private static function is_catalog_entry_completed( $user_id, HL_Course_Catalog $entry, HL_LearnDash_Integration $ld ) {
+        $course_ids = $entry->get_language_course_ids();
+
+        if ( empty( $course_ids ) ) {
+            return false;
+        }
+
+        foreach ( $course_ids as $lang => $course_id ) {
+            if ( $ld->is_course_completed( $user_id, $course_id ) ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Health check: verify every catalog_code referenced in $stages exists in the DB.
+     *
+     * @return string[] Missing catalog_codes. Empty array = healthy.
+     */
+    public static function is_catalog_ready() {
+        $catalog = self::load_catalog_cache();
+
+        $missing = array();
+        foreach ( self::$stages as $key => $stage ) {
+            foreach ( $stage['catalog_codes'] as $code ) {
+                if ( ! isset( $catalog[ $code ] ) ) {
+                    $missing[] = $code;
+                }
+            }
+        }
+
+        return $missing;
     }
 
     /**
@@ -143,30 +215,48 @@ class HL_Pathway_Routing_Service {
     /**
      * Get which stages a user has completed.
      *
+     * A stage is complete when every catalog entry in its group has been
+     * completed in at least one language variant.
+     *
      * @param int|null $user_id
      * @return string[] Array of completed stage keys (e.g., ['A', 'C']).
      */
-    public static function get_completed_stages($user_id) {
-        if (!$user_id) {
+    public static function get_completed_stages( $user_id ) {
+        if ( ! $user_id ) {
             return array();
         }
 
         $ld = HL_LearnDash_Integration::instance();
-        if (!$ld->is_active()) {
+        if ( ! $ld->is_active() ) {
+            return array();
+        }
+
+        $catalog = self::load_catalog_cache();
+
+        if ( empty( $catalog ) ) {
+            error_log( '[HL Routing] Course catalog is empty — stage completion cannot be evaluated' );
             return array();
         }
 
         $completed = array();
 
-        foreach (self::$stages as $key => $stage) {
+        foreach ( self::$stages as $key => $stage ) {
             $all_done = true;
-            foreach ($stage['course_ids'] as $course_id) {
-                if (!$ld->is_course_completed($user_id, $course_id)) {
+
+            foreach ( $stage['catalog_codes'] as $code ) {
+                if ( ! isset( $catalog[ $code ] ) ) {
+                    error_log( sprintf( '[HL Routing] catalog_code \'%s\' not found in catalog', $code ) );
+                    $all_done = false;
+                    break;
+                }
+
+                if ( ! self::is_catalog_entry_completed( $user_id, $catalog[ $code ], $ld ) ) {
                     $all_done = false;
                     break;
                 }
             }
-            if ($all_done) {
+
+            if ( $all_done ) {
                 $completed[] = $key;
             }
         }
@@ -207,7 +297,7 @@ class HL_Pathway_Routing_Service {
      * @return string Normalized role or empty string.
      */
     public static function normalize_role($role) {
-        $role = strtolower(trim($role));
+        $role = strtolower(trim((string) $role));
         $role = str_replace(' ', '_', $role);
 
         $valid = array('teacher', 'mentor', 'school_leader', 'district_leader');
@@ -217,7 +307,9 @@ class HL_Pathway_Routing_Service {
     /**
      * Get stage definitions (for display/debugging).
      *
-     * @return array
+     * Each stage contains 'catalog_codes' (string[]) — not the former 'course_ids'.
+     *
+     * @return array Keyed by stage letter. Each: array{ label: string, catalog_codes: string[] }.
      */
     public static function get_stage_definitions() {
         return self::$stages;
