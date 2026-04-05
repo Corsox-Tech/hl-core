@@ -1,6 +1,6 @@
 # STATUS.md — HL Core Build Status
 
-**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 20 admin controllers, 48 DB tables, 27 services, 17 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools).
+**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 21 admin controllers, 49 DB tables, 27 services, 17 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools).
 
 ---
 
@@ -37,6 +37,20 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Coach Reports [hl_coach_reports]** — Aggregated completion table with cycle/school filters, CSV export.
 - [x] **Coach Availability [hl_coach_availability]** — Weekly schedule grid with 30-min toggle blocks.
 - [x] **Wiring** — 5 shortcodes registered, 5 pages in create-pages CLI, 3 BuddyBoss sidebar items for Coach role.
+
+### Course Catalog — Multilingual Course Mapping (April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-04-course-catalog-design.md` | **Plan:** `docs/superpowers/plans/2026-04-04-course-catalog.md`
+- [x] **Domain model + Repository** — `HL_Course_Catalog` (10 properties, `resolve_course_id()` with language fallback, `resolve_ld_course_id()` static helper with per-request cache). `HL_Course_Catalog_Repository` (CRUD, reverse lookup by LD course ID, duplicate detection, archive, `get_active_for_dropdown()`). Defensive: null guards on constructors, catalog_code format validation, 0/empty coercion on language columns.
+- [x] **Installer — table, migrations, seed data (rev 30)** — `hl_course_catalog` table (10 columns, 6 indexes incl. UNIQUE on each `ld_course_*`). `catalog_id` column on `hl_component` + `language_preference` on `hl_enrollment` (DDL + ALTER TABLE migration). 25 seed entries (13 mastery + 12 streamlined). Backfill: components matched by `external_ref.course_id`, enrollments by Spanish LD group membership.
+- [x] **Routing service refactor** — `$stages` uses `catalog_codes` (string keys) instead of hardcoded LD course IDs. `load_catalog_cache()` (lazy, non-caching on table-absent). `is_catalog_entry_completed()` checks any language variant. `is_catalog_ready()` health check. `get_completed_stages()` catalog-aware with empty-catalog guard.
+- [x] **LearnDash integration — catalog-aware completion** — `on_course_completed()` uses catalog-first path (find by LD course ID → query components by `catalog_id`), fallback to `external_ref` gated behind `hl_catalog_migration_complete` option. Already-complete components skipped (spec: "nothing changes"). Multi-cycle enrollment support.
+- [x] **Admin Course Catalog page** — `HL_Admin_Course_Catalog` singleton under Housman LMS menu. List view with status filter pills, archive with component-count confirm. Add/edit form with AJAX LD course search (debounced, title-only LIKE), clear buttons for optional languages, auto-uppercase catalog code. Nonce + capability checks on all paths. Audit logging on create/update/archive.
+- [x] **Import module — language column** — Optional `language` CSV column (en/es/pt, default en). Warning on unrecognized values. Re-import diff-check detects language changes. CREATE + UPDATE paths include `language_preference`.
+- [x] **Enrollment edit form — language preference** — Dropdown (en/es/pt) after status field. Strict enum validation on save.
+- [x] **Pathway admin — catalog dropdown** — Component form: catalog entry select with language badges (`[EN] [ES]`). Auto-fills title + `external_ref` from catalog for backward compat.
+- [x] **Frontend language resolution** — `HL_Course_Catalog::resolve_ld_course_id()` static helper with per-request cache. 7 call sites across 4 files (program-page, my-progress, my-programs, component-page). Spanish users see Spanish course links/progress.
+- [x] **Reporting — catalog titles** — `get_component_states()` includes `catalog_id`. Report detail view resolves canonical English title from catalog (batch-loaded, no N+1).
+- [x] **Deployed to test** — Schema rev 30 verified. 25 catalog entries, 103 components backfilled, 4 Spanish enrollments, `catalog_id` index confirmed.
 
 ### Phase 33: Individual Enrollments (B2E Master Reference)
 - [ ] **33.1 — DB: `hl_individual_enrollment` table** — Create table with user_id, course_id, enrolled_at, expires_at, status, enrolled_by, notes.

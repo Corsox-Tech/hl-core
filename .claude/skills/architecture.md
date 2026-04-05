@@ -76,6 +76,22 @@ A Cycle is a time-bounded yearly run within a Partnership. It is the primary ope
 
 Course-type Cycles hide: Teams tab, Coaching tab, Assessment tabs, Pathway editor.
 
+## Course Catalog (Multilingual Course Mapping)
+
+`hl_course_catalog` maps logical courses (e.g., TC1, MC3) to their EN/ES/PT LearnDash course variants. One catalog entry = one component = one completion state, regardless of which language the user completes.
+
+**Key classes:** `HL_Course_Catalog` (domain model, `resolve_ld_course_id()` static helper), `HL_Course_Catalog_Repository` (CRUD + reverse lookup + duplicate detection), `HL_Admin_Course_Catalog` (admin CRUD page with AJAX LD course search).
+
+**Integration points:**
+- **Routing:** `HL_Pathway_Routing_Service::$stages` uses `catalog_codes` (not course IDs). Stage completion checks any language variant.
+- **LD completion:** `on_course_completed()` does catalog-first lookup (by LD course ID → catalog_id → components), with `external_ref` fallback gated behind `hl_catalog_migration_complete` option.
+- **Frontend:** `HL_Course_Catalog::resolve_ld_course_id($component, $enrollment)` resolves language-specific course link based on `$enrollment->language_preference`. Used in 7 call sites across 4 frontend files.
+- **Import:** Optional `language` CSV column sets `hl_enrollment.language_preference`.
+- **Reporting:** Component detail view uses catalog title (canonical English name).
+- **Pathway admin:** Component form shows catalog dropdown with language badges (`[EN] [ES]`).
+
+**Schema:** `catalog_code` (UNIQUE, stable key), `ld_course_en`/`ld_course_es`/`ld_course_pt` (UNIQUE, nullable — MySQL ignores NULLs in UNIQUE), `status` (active/archived). Schema revision 30.
+
 ## Individual Enrollments (PLANNED — Phase 33 in Build Queue)
 
 For individual (non-institutional) course purchases. Stored in `hl_individual_enrollment` (user_id, course_id, enrolled_at, expires_at, status).
@@ -311,14 +327,14 @@ Stored in `wp_options` as `hl_tour_styles` (serialized array). Admins configure 
     /Lutheran - Control Group/   # Lutheran spreadsheets (.xlsx)
   /docs/                         # Spec documents (11 files, read-only reference)
   /includes/
-    class-hl-installer.php       # DB schema (47 tables, revision 29) + activation + migrations
-    /domain/                     # Entity models (10 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Teacher_Assessment_Instrument)
-    /domain/repositories/        # CRUD repositories (10 classes incl. HL_Tour_Repository)
+    class-hl-installer.php       # DB schema (48 tables, revision 30) + activation + migrations
+    /domain/                     # Entity models (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument)
+    /domain/repositories/        # CRUD repositories (11 classes incl. HL_Tour_Repository, HL_Course_Catalog_Repository)
     /cli/                        # WP-CLI commands (17 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav, seed-beginnings, migrate-routing-types) + data files
     /services/                   # Business logic (24 services incl. HL_Tour_Service, HL_Pathway_Routing_Service, HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)
-    /admin/                      # WP admin pages (19 controllers incl. HL_Admin_Tours, Coaching Hub with Coaches tab, Email Templates, Scheduling Settings)
+    /admin/                      # WP admin pages (20 controllers incl. HL_Admin_Tours, HL_Admin_Course_Catalog, Coaching Hub with Coaches tab, Email Templates, Scheduling Settings)
     /frontend/                   # 34 shortcode page renderers (incl. User Profile, 5 coach pages) + 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + schedule session renderer + instrument/teacher-assessment renderers
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, age group helpers + label remap (legacy)
