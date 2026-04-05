@@ -89,6 +89,32 @@ class HL_Course_Catalog {
         return implode(' ', $badges);
     }
 
+    /**
+     * Resolve the LD course ID for a component based on enrollment language.
+     *
+     * Catalog path: uses catalog_id → resolve_course_id(language_preference).
+     * Fallback: external_ref['course_id'] for non-catalog components.
+     *
+     * @param HL_Component  $component
+     * @param object|null   $enrollment  Must have ->language_preference property.
+     * @return int|null LD course post ID.
+     */
+    public static function resolve_ld_course_id($component, $enrollment = null) {
+        if (!empty($component->catalog_id)) {
+            $repo  = new HL_Course_Catalog_Repository();
+            $entry = $repo->get_by_id($component->catalog_id);
+            if ($entry) {
+                $lang = ($enrollment && !empty($enrollment->language_preference))
+                    ? $enrollment->language_preference
+                    : 'en';
+                return $entry->resolve_course_id($lang);
+            }
+        }
+        // Fallback to external_ref.
+        $ref = $component->get_external_ref_array();
+        return isset($ref['course_id']) ? absint($ref['course_id']) : null;
+    }
+
     public function to_array() {
         return get_object_vars($this);
     }

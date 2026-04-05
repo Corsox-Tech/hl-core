@@ -108,8 +108,7 @@ class HL_Frontend_Component_Page {
 
         // For LearnDash courses, redirect directly.
         if ($component->component_type === 'learndash_course') {
-            $external_ref = $component->get_external_ref_array();
-            $course_id    = isset($external_ref['course_id']) ? absint($external_ref['course_id']) : 0;
+            $course_id = HL_Course_Catalog::resolve_ld_course_id($component, $enrollment);
             if ($course_id) {
                 $course_url = get_permalink($course_id);
                 if ($course_url) {

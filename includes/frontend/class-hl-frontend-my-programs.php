@@ -123,10 +123,10 @@ class HL_Frontend_My_Programs {
                 $completion_percent = $state ? (float) $state['completion_percent'] : 0;
 
                 // For LD courses, pull live progress.
-                $external_ref = $component->get_external_ref_array();
-                if ($component->component_type === 'learndash_course' && !empty($external_ref['course_id'])) {
-                    if ($availability['availability_status'] !== 'completed') {
-                        $ld_percent = $this->learndash->get_course_progress_percent($user_id, absint($external_ref['course_id']));
+                if ($component->component_type === 'learndash_course') {
+                    $resolved_course_id = HL_Course_Catalog::resolve_ld_course_id($component, $enrollment);
+                    if ($resolved_course_id && $availability['availability_status'] !== 'completed') {
+                        $ld_percent = $this->learndash->get_course_progress_percent($user_id, $resolved_course_id);
                         if ($ld_percent > $completion_percent) {
                             $completion_percent = $ld_percent;
                         }

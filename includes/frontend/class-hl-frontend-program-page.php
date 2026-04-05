@@ -152,17 +152,18 @@ class HL_Frontend_Program_Page {
             $completion_status  = $state ? $state['completion_status'] : 'not_started';
             $completed_at       = $state ? $state['completed_at'] : null;
 
-            $external_ref = $component->get_external_ref_array();
-            $course_url   = '';
+            $course_url = '';
 
-            if ($component->component_type === 'learndash_course' && !empty($external_ref['course_id'])) {
-                $course_id  = absint($external_ref['course_id']);
-                $course_url = get_permalink($course_id);
+            if ($component->component_type === 'learndash_course') {
+                $course_id = HL_Course_Catalog::resolve_ld_course_id($component, $enrollment);
+                if ($course_id) {
+                    $course_url = get_permalink($course_id);
 
-                if ($availability['availability_status'] !== 'completed') {
-                    $ld_percent = $this->learndash->get_course_progress_percent($user_id, $course_id);
-                    if ($ld_percent > $completion_percent) {
-                        $completion_percent = $ld_percent;
+                    if ($availability['availability_status'] !== 'completed') {
+                        $ld_percent = $this->learndash->get_course_progress_percent($user_id, $course_id);
+                        if ($ld_percent > $completion_percent) {
+                            $completion_percent = $ld_percent;
+                        }
                     }
                 }
             }
@@ -568,8 +569,7 @@ class HL_Frontend_Program_Page {
 
         // LearnDash course: direct link with status-aware label.
         if ($type === 'learndash_course') {
-            $external_ref = $component->get_external_ref_array();
-            $course_id    = isset($external_ref['course_id']) ? absint($external_ref['course_id']) : 0;
+            $course_id = HL_Course_Catalog::resolve_ld_course_id($component, $enrollment);
             if ($course_id) {
                 $url = get_permalink($course_id);
                 if ($url) {
@@ -789,8 +789,7 @@ class HL_Frontend_Program_Page {
 
         // Completed LearnDash course: "View Course" link.
         if ($type === 'learndash_course') {
-            $external_ref = $component->get_external_ref_array();
-            $course_id    = isset($external_ref['course_id']) ? absint($external_ref['course_id']) : 0;
+            $course_id = HL_Course_Catalog::resolve_ld_course_id($component, $enrollment);
             if ($course_id) {
                 $url = get_permalink($course_id);
                 if ($url) {
@@ -923,8 +922,7 @@ class HL_Frontend_Program_Page {
         $is_course   = ($component->component_type === 'learndash_course');
         $course_image = '';
         if ($is_course) {
-            $external_ref = $component->get_external_ref_array();
-            $course_id    = isset($external_ref['course_id']) ? absint($external_ref['course_id']) : 0;
+            $course_id = HL_Course_Catalog::resolve_ld_course_id($component, $enrollment) ?: 0;
             if ($course_id && has_post_thumbnail($course_id)) {
                 $course_image = get_the_post_thumbnail($course_id, 'medium', array('loading' => 'lazy'));
             }

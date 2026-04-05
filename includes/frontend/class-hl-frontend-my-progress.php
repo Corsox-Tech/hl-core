@@ -154,19 +154,20 @@ class HL_Frontend_My_Progress {
                     $completed_at       = $state ? $state['completed_at'] : null;
 
                     // For LearnDash course components, pull live progress from LD.
-                    $external_ref = $component->get_external_ref_array();
-                    $course_id    = null;
-                    $course_url   = '';
+                    $course_id  = null;
+                    $course_url = '';
 
-                    if ($component->component_type === 'learndash_course' && !empty($external_ref['course_id'])) {
-                        $course_id = absint($external_ref['course_id']);
-                        $course_url = get_permalink($course_id);
+                    if ($component->component_type === 'learndash_course') {
+                        $course_id = HL_Course_Catalog::resolve_ld_course_id($component, $enrollment);
+                        if ($course_id) {
+                            $course_url = get_permalink($course_id);
 
-                        // Use LD live percentage for non-completed components.
-                        if ($availability['availability_status'] !== 'completed') {
-                            $ld_percent = $this->learndash->get_course_progress_percent($user_id, $course_id);
-                            if ($ld_percent > $completion_percent) {
-                                $completion_percent = $ld_percent;
+                            // Use LD live percentage for non-completed components.
+                            if ($availability['availability_status'] !== 'completed') {
+                                $ld_percent = $this->learndash->get_course_progress_percent($user_id, $course_id);
+                                if ($ld_percent > $completion_percent) {
+                                    $completion_percent = $ld_percent;
+                                }
                             }
                         }
                     }
