@@ -101,8 +101,16 @@ class HL_Course_Catalog {
      */
     public static function resolve_ld_course_id($component, $enrollment = null) {
         if (!empty($component->catalog_id)) {
-            $repo  = new HL_Course_Catalog_Repository();
-            $entry = $repo->get_by_id($component->catalog_id);
+            // Static cache: catalog data is immutable within a request.
+            static $cache = array();
+            $cid = (int) $component->catalog_id;
+
+            if (!isset($cache[$cid])) {
+                $repo = new HL_Course_Catalog_Repository();
+                $cache[$cid] = $repo->get_by_id($cid);
+            }
+
+            $entry = $cache[$cid];
             if ($entry) {
                 $lang = ($enrollment && !empty($enrollment->language_preference))
                     ? $enrollment->language_preference
