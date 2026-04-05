@@ -65,11 +65,15 @@ class HL_LearnDash_Integration {
     }
 
     /**
-     * Handle LearnDash course completion event
+     * Handle LearnDash course completion event.
      *
-     * Finds all HL Core enrollments for the user, checks if any have
-     * learndash_course components matching the completed course_id,
-     * marks those components complete, and triggers rollup recomputation.
+     * Catalog-first: looks up the completed LD course ID in hl_course_catalog,
+     * then finds components by catalog_id FK. Falls back to external_ref matching
+     * when the catalog path finds nothing AND hl_catalog_migration_complete is not set.
+     *
+     * Completion is language-agnostic — completing any language variant of a catalog
+     * entry marks the component complete. Re-completing (e.g., Spanish after English)
+     * is a no-op per spec: "nothing changes" once the component is already complete.
      */
     public function on_course_completed($data) {
         if (!is_array($data) || empty($data['user']) || empty($data['course'])) {
@@ -82,7 +86,7 @@ class HL_LearnDash_Integration {
         global $wpdb;
         $now = current_time('mysql');
 
-        // Find all active enrollments for this user
+        // Find all active enrollments for this user.
         $enrollments = $wpdb->get_results($wpdb->prepare(
             "SELECT enrollment_id, cycle_id, assigned_pathway_id
              FROM {$wpdb->prefix}hl_enrollment
@@ -94,34 +98,63 @@ class HL_LearnDash_Integration {
             return;
         }
 
-        $enrollment_ids = wp_list_pluck($enrollments, 'enrollment_id');
-
-        // Find all learndash_course components across all tracks these enrollments belong to
-        $cycle_ids = array_unique(wp_list_pluck($enrollments, 'cycle_id'));
+        $cycle_ids          = array_unique(wp_list_pluck($enrollments, 'cycle_id'));
         $cycle_placeholders = implode(',', array_fill(0, count($cycle_ids), '%d'));
 
-        $components = $wpdb->get_results($wpdb->prepare(
-            "SELECT component_id, cycle_id, pathway_id, external_ref
-             FROM {$wpdb->prefix}hl_component
-             WHERE component_type = 'learndash_course'
-               AND cycle_id IN ($cycle_placeholders)
-               AND status = 'active'",
-            $cycle_ids
-        ));
-
-        if (empty($components)) {
-            return;
+        // Build cycle_id → enrollment_id map for the upsert step.
+        $cycle_enrollment_map = array();
+        foreach ($enrollments as $enrollment) {
+            $cycle_enrollment_map[$enrollment->cycle_id] = $enrollment->enrollment_id;
         }
 
-        // Filter to components that reference this specific course_id
         $matching_components = array();
-        foreach ($components as $component) {
-            if (empty($component->external_ref)) {
-                continue;
+
+        // --- Catalog path (preferred) ---
+        $repo = new HL_Course_Catalog_Repository();
+        if ($repo->table_exists()) {
+            $catalog_entry = $repo->find_by_ld_course_id($course_id);
+            if ($catalog_entry) {
+                $components = $wpdb->get_results($wpdb->prepare(
+                    "SELECT component_id, cycle_id, pathway_id
+                     FROM {$wpdb->prefix}hl_component
+                     WHERE catalog_id = %d
+                       AND component_type = 'learndash_course'
+                       AND status = 'active'
+                       AND cycle_id IN ($cycle_placeholders)",
+                    array_merge(array($catalog_entry->catalog_id), $cycle_ids)
+                ));
+                if (!empty($components)) {
+                    $matching_components = $components;
+                }
             }
-            $ref = json_decode($component->external_ref, true);
-            if (is_array($ref) && isset($ref['course_id']) && absint($ref['course_id']) === absint($course_id)) {
-                $matching_components[] = $component;
+        }
+
+        // --- Fallback path (only when catalog matched nothing AND migration not complete) ---
+        // Do NOT set hl_catalog_migration_complete until every active component
+        // has its catalog_id backfilled — premature flag-setting drops completions.
+        if (empty($matching_components) && !get_option('hl_catalog_migration_complete', false)) {
+            $components = $wpdb->get_results($wpdb->prepare(
+                "SELECT component_id, cycle_id, pathway_id, external_ref
+                 FROM {$wpdb->prefix}hl_component
+                 WHERE component_type = 'learndash_course'
+                   AND cycle_id IN ($cycle_placeholders)
+                   AND status = 'active'",
+                $cycle_ids
+            ));
+            foreach (($components ?: array()) as $component) {
+                if (empty($component->external_ref)) {
+                    continue;
+                }
+                $ref = json_decode($component->external_ref, true);
+                if (is_array($ref) && isset($ref['course_id']) && absint($ref['course_id']) === absint($course_id)) {
+                    $matching_components[] = $component;
+                }
+            }
+            if (!empty($matching_components)) {
+                error_log(sprintf(
+                    '[HL LD] Fallback path matched course %d — catalog migration may be incomplete',
+                    $course_id
+                ));
             }
         }
 
@@ -129,13 +162,7 @@ class HL_LearnDash_Integration {
             return;
         }
 
-        // Build a lookup: cycle_id => enrollment_id
-        $cycle_enrollment_map = array();
-        foreach ($enrollments as $enrollment) {
-            $cycle_enrollment_map[$enrollment->cycle_id] = $enrollment->enrollment_id;
-        }
-
-        // For each matching component, mark the corresponding enrollment's component_state as complete
+        // Upsert component_state for each matched component.
         $updated_enrollment_ids = array();
         foreach ($matching_components as $component) {
             $enrollment_id = isset($cycle_enrollment_map[$component->cycle_id])
@@ -146,12 +173,16 @@ class HL_LearnDash_Integration {
                 continue;
             }
 
-            // Upsert component state
-            $existing_state_id = $wpdb->get_var($wpdb->prepare(
-                "SELECT state_id FROM {$wpdb->prefix}hl_component_state
+            // Check existing state — skip if already complete (spec: "nothing changes").
+            $existing_state = $wpdb->get_row($wpdb->prepare(
+                "SELECT state_id, completion_status FROM {$wpdb->prefix}hl_component_state
                  WHERE enrollment_id = %d AND component_id = %d",
                 $enrollment_id, $component->component_id
             ));
+
+            if ($existing_state && $existing_state->completion_status === 'complete') {
+                continue;
+            }
 
             $state_data = array(
                 'completion_percent' => 100,
@@ -160,11 +191,11 @@ class HL_LearnDash_Integration {
                 'last_computed_at'   => $now,
             );
 
-            if ($existing_state_id) {
+            if ($existing_state) {
                 $wpdb->update(
                     $wpdb->prefix . 'hl_component_state',
                     $state_data,
-                    array('state_id' => $existing_state_id)
+                    array('state_id' => $existing_state->state_id)
                 );
             } else {
                 $state_data['enrollment_id'] = $enrollment_id;
@@ -186,7 +217,7 @@ class HL_LearnDash_Integration {
             ));
         }
 
-        // Trigger rollup recomputation for each affected enrollment
+        // Trigger rollup recomputation for each affected enrollment.
         $updated_enrollment_ids = array_unique($updated_enrollment_ids);
         foreach ($updated_enrollment_ids as $eid) {
             do_action('hl_core_recompute_rollups', $eid);
