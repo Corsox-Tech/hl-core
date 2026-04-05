@@ -876,6 +876,14 @@ class HL_Admin_Reporting {
 
         foreach ($components as $component) {
             $title     = isset($component['title'])             ? $component['title']             : __('Untitled', 'hl-core');
+            // Use catalog title for LD components (canonical English name per spec).
+            if (!empty($component['catalog_id'])) {
+                $cat_repo  = new HL_Course_Catalog_Repository();
+                $cat_entry = $cat_repo->get_by_id($component['catalog_id']);
+                if ($cat_entry) {
+                    $title = $cat_entry->title;
+                }
+            }
             $type      = isset($component['component_type'])    ? $component['component_type']    : '';
             $weight    = isset($component['weight'])            ? floatval($component['weight'])  : 1;
             $percent   = isset($component['completion_percent']) ? floatval($component['completion_percent']) : 0;

@@ -303,7 +303,7 @@ class HL_Reporting_Service {
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT s.*, a.title, a.component_type, a.weight, a.ordering_hint, a.external_ref
+            "SELECT s.*, a.title, a.component_type, a.weight, a.ordering_hint, a.external_ref, a.catalog_id
              FROM {$wpdb->prefix}hl_component_state s
              JOIN {$wpdb->prefix}hl_component a ON s.component_id = a.component_id
              WHERE s.enrollment_id = %d
