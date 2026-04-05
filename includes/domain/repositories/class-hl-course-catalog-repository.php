@@ -11,13 +11,16 @@ class HL_Course_Catalog_Repository {
     /**
      * Get all catalog entries, optionally filtered by status.
      *
+     * WARNING: Routing and completion tracking MUST use get_all() without a status
+     * filter — archived entries still participate in routing per spec section 1.
+     *
      * @param string|null $status
      * @return HL_Course_Catalog[]
      */
     public function get_all($status = null) {
         global $wpdb;
 
-        if ($status) {
+        if ($status !== null) {
             $rows = $wpdb->get_results($wpdb->prepare(
                 "SELECT * FROM {$this->table()} WHERE status = %s ORDER BY catalog_code ASC",
                 $status
@@ -93,6 +96,16 @@ class HL_Course_Catalog_Repository {
     }
 
     /**
+     * Get only active catalog entries (for admin dropdowns).
+     * Do NOT use for routing or completion — those need archived entries too.
+     *
+     * @return HL_Course_Catalog[]
+     */
+    public function get_active_for_dropdown() {
+        return $this->get_all('active');
+    }
+
+    /**
      * Create a new catalog entry.
      *
      * @param array $data
@@ -103,10 +116,15 @@ class HL_Course_Catalog_Repository {
         if (empty($data['catalog_uuid'])) {
             $data['catalog_uuid'] = HL_DB_Utils::generate_uuid();
         }
+        // Validate catalog_code format (routing depends on exact matches).
+        if (!empty($data['catalog_code']) && !preg_match('/^[A-Z0-9_]+$/', $data['catalog_code'])) {
+            return new WP_Error('invalid_code', 'catalog_code must match ^[A-Z0-9_]+$');
+        }
+
         // wpdb->insert() converts PHP null to empty string, not SQL NULL.
-        // Strip null language columns so the DB defaults to SQL NULL instead.
+        // Strip null/zero/empty language columns so the DB defaults to SQL NULL instead.
         foreach (array('ld_course_en', 'ld_course_es', 'ld_course_pt') as $col) {
-            if (array_key_exists($col, $data) && $data[$col] === null) {
+            if (array_key_exists($col, $data) && ($data[$col] === null || $data[$col] === 0 || $data[$col] === '')) {
                 unset($data[$col]);
             }
         }
@@ -127,11 +145,21 @@ class HL_Course_Catalog_Repository {
     public function update($catalog_id, $data) {
         global $wpdb;
 
-        // For language columns, PHP null must become SQL NULL (not empty string).
+        $catalog_id = absint($catalog_id);
+        if ($catalog_id === 0) {
+            return new WP_Error('invalid_id', 'Invalid catalog_id for update.');
+        }
+
+        // Validate catalog_code format if being changed.
+        if (!empty($data['catalog_code']) && !preg_match('/^[A-Z0-9_]+$/', $data['catalog_code'])) {
+            return new WP_Error('invalid_code', 'catalog_code must match ^[A-Z0-9_]+$');
+        }
+
+        // For language columns, PHP null/0/'' must become SQL NULL (not empty string).
         // wpdb->update() can't do this, so use a raw query for null-setting columns.
         $null_cols = array();
         foreach (array('ld_course_en', 'ld_course_es', 'ld_course_pt') as $col) {
-            if (array_key_exists($col, $data) && $data[$col] === null) {
+            if (array_key_exists($col, $data) && ($data[$col] === null || $data[$col] === 0 || $data[$col] === '')) {
                 $null_cols[] = $col;
                 unset($data[$col]);
             }

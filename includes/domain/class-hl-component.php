@@ -22,6 +22,7 @@ class HL_Component {
     public $updated_at;
 
     public function __construct($data = array()) {
+        $data = is_array($data) ? $data : array();
         foreach ($data as $key => $value) {
             if (property_exists($this, $key)) {
                 $this->$key = $value;
