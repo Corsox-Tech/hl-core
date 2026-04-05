@@ -210,7 +210,10 @@ class HL_Admin_Enrollments {
             'roles'       => wp_json_encode($roles),
             'school_id'   => !empty($_POST['school_id']) ? absint($_POST['school_id']) : null,
             'district_id' => !empty($_POST['district_id']) ? absint($_POST['district_id']) : null,
-            'status'      => sanitize_text_field($_POST['status']),
+            'status'              => sanitize_text_field($_POST['status']),
+            'language_preference' => in_array($_POST['language_preference'] ?? '', array('en', 'es', 'pt'), true)
+                                     ? $_POST['language_preference']
+                                     : 'en',
         );
 
         $cycle_context = isset($_POST['_hl_cycle_context']) ? absint($_POST['_hl_cycle_context']) : 0;
@@ -803,6 +806,17 @@ class HL_Admin_Enrollments {
         echo '<td><select id="status" name="status">';
         echo '<option value="active"' . selected($current_status, 'active', false) . '>' . esc_html__('Active', 'hl-core') . '</option>';
         echo '<option value="inactive"' . selected($current_status, 'inactive', false) . '>' . esc_html__('Inactive', 'hl-core') . '</option>';
+        echo '</select></td>';
+        echo '</tr>';
+
+        // Language Preference
+        $current_language = $is_edit ? ($enrollment->language_preference ?? 'en') : 'en';
+        echo '<tr>';
+        echo '<th scope="row"><label for="language_preference">' . esc_html__('Language Preference', 'hl-core') . '</label></th>';
+        echo '<td><select id="language_preference" name="language_preference">';
+        echo '<option value="en"' . selected($current_language, 'en', false) . '>' . esc_html__('English', 'hl-core') . '</option>';
+        echo '<option value="es"' . selected($current_language, 'es', false) . '>' . esc_html__('Spanish', 'hl-core') . '</option>';
+        echo '<option value="pt"' . selected($current_language, 'pt', false) . '>' . esc_html__('Portuguese', 'hl-core') . '</option>';
         echo '</select></td>';
         echo '</tr>';
 
