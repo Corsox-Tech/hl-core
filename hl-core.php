@@ -158,6 +158,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-audit.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-settings.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-tours.php';
+            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-course-catalog.php';
         }
         
         // Front-end (shortcodes)
@@ -258,6 +259,7 @@ class HL_Core {
             HL_Admin::instance();
             HL_Admin_Imports::instance(); // Register AJAX hooks for import wizard
             HL_Admin_Enrollments::register_ajax_hooks();
+            HL_Admin_Course_Catalog::register_ajax_hooks();
         }
         
         // Initialize front-end shortcodes

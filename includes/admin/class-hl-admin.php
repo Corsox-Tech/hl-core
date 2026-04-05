@@ -105,6 +105,9 @@ class HL_Admin {
             case 'hl-settings':
                 HL_Admin_Settings::instance()->handle_early_actions();
                 break;
+            case 'hl-course-catalog':
+                HL_Admin_Course_Catalog::instance()->handle_early_actions();
+                break;
         }
     }
 
@@ -130,6 +133,9 @@ class HL_Admin {
         // ── Coaching & Assessments ──────────────────────────────────
         add_submenu_page('hl-cycles', 'Coaching Hub', 'Coaching Hub', 'manage_hl_core', 'hl-coaching', array(HL_Admin_Coaching::instance(), 'render_page'));
         add_submenu_page('hl-cycles', 'Assessments', 'Assessments', 'manage_hl_core', 'hl-assessment-hub', array(HL_Admin_Assessment_Hub::instance(), 'render_page'));
+
+        // ── Course Catalog ──────────────────────────────────────────
+        add_submenu_page('hl-cycles', 'Course Catalog', 'Course Catalog', 'manage_hl_core', 'hl-course-catalog', array(HL_Admin_Course_Catalog::instance(), 'render_page'));
 
         // ── Reporting & Admin tools ──────────────────────────────────
         add_submenu_page('hl-cycles', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
