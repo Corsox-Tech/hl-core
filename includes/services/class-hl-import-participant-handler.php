@@ -64,7 +64,7 @@ class HL_Import_Participant_Handler {
 
         // Pre-load existing enrollments for this cycle
         $existing_enrollments = $wpdb->get_results($wpdb->prepare(
-            "SELECT e.enrollment_id, e.user_id, e.roles, e.school_id, e.status,
+            "SELECT e.enrollment_id, e.user_id, e.roles, e.school_id, e.status, e.language_preference,
                     u.user_email
              FROM {$prefix}hl_enrollment e
              JOIN {$wpdb->users} u ON e.user_id = u.ID
@@ -110,6 +110,7 @@ class HL_Import_Participant_Handler {
                 'parsed_team'         => '',
                 'parsed_pathway'      => '',
                 'parsed_coach'        => '',
+                'parsed_language'     => 'en',
                 'parsed_age_group'    => '',
                 'parsed_is_primary'   => false,
                 'raw_school'          => '',
@@ -285,6 +286,17 @@ class HL_Import_Participant_Handler {
                 }
             }
 
+            // --- Language Preference (optional) ---
+            $raw_language = isset($row['language']) ? strtolower(trim($row['language'])) : '';
+            if (!empty($raw_language) && !in_array($raw_language, array('en', 'es', 'pt'), true)) {
+                $preview['validation_messages'][] = sprintf(
+                    __('Warning: Unrecognized language "%s". Valid: en, es, pt. Defaulting to en.', 'hl-core'),
+                    $raw_language
+                );
+                $raw_language = 'en';
+            }
+            $preview['parsed_language'] = !empty($raw_language) ? $raw_language : 'en';
+
             // --- Pathway (optional) ---
             $raw_pathway = isset($row['pathway']) ? trim($row['pathway']) : '';
             $preview['parsed_pathway'] = $raw_pathway;
@@ -341,16 +353,24 @@ class HL_Import_Participant_Handler {
                 $existing_roles_normalized = array_map(function($r) {
                     return strtolower(str_replace(' ', '_', trim($r)));
                 }, $existing_roles);
-                $role_changed = !in_array($parsed_role, $existing_roles_normalized, true);
+                $role_changed   = !in_array($parsed_role, $existing_roles_normalized, true);
                 $school_changed = $preview['matched_school_id'] && (int) $existing['school_id'] !== $preview['matched_school_id'];
+                $existing_lang  = !empty($existing['language_preference']) ? $existing['language_preference'] : 'en';
+                $language_changed = $preview['parsed_language'] !== $existing_lang;
 
                 // Check if CSV has side-effect data (classroom, team, pathway, coach)
                 $has_side_effects = !empty($raw_classroom) || !empty($raw_team) || !empty($raw_pathway) || !empty($raw_coach);
 
-                if ($role_changed || $school_changed) {
+                if ($role_changed || $school_changed || $language_changed) {
                     $preview['status'] = 'UPDATE';
                     $preview['role_changed'] = $role_changed;
-                    $preview['proposed_actions'][] = __('Update enrollment (role or school change)', 'hl-core');
+                    $preview['proposed_actions'][] = __('Update enrollment (role, school, or language change)', 'hl-core');
+                    if ($language_changed) {
+                        $preview['validation_messages'][] = sprintf(
+                            __('Language: %s → %s', 'hl-core'),
+                            $existing_lang, $preview['parsed_language']
+                        );
+                    }
                     $preview['selected'] = true;
                 } elseif ($has_side_effects) {
                     $preview['status'] = 'UPDATE';
@@ -572,11 +592,12 @@ class HL_Import_Participant_Handler {
 
                 if ($row['status'] === 'CREATE') {
                     $enrollment_data = array(
-                        'cycle_id'  => $cycle_id,
-                        'user_id'   => $user_id,
-                        'roles'     => wp_json_encode(array($role)),
-                        'school_id' => $school_id,
-                        'status'    => 'active',
+                        'cycle_id'            => $cycle_id,
+                        'user_id'             => $user_id,
+                        'roles'               => wp_json_encode(array($role)),
+                        'school_id'           => $school_id,
+                        'status'              => 'active',
+                        'language_preference' => !empty($row['parsed_language']) ? $row['parsed_language'] : 'en',
                     );
                     $enrollment_id = $enrollment_repo->create($enrollment_data);
                     if (!$enrollment_id) {
@@ -594,8 +615,9 @@ class HL_Import_Participant_Handler {
                 } elseif ($row['status'] === 'UPDATE' || $row['status'] === 'WARNING') {
                     $enrollment_id = (int) $row['existing_enrollment_id'];
                     $update_data = array(
-                        'roles'     => wp_json_encode(array($role)),
-                        'school_id' => $school_id,
+                        'roles'               => wp_json_encode(array($role)),
+                        'school_id'           => $school_id,
+                        'language_preference' => !empty($row['parsed_language']) ? $row['parsed_language'] : 'en',
                     );
                     $enrollment_repo->update($enrollment_id, $update_data);
 
