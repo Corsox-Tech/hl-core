@@ -358,6 +358,26 @@ class HL_Admin_Pathways {
             'external_ref'   => $external_ref,
         );
 
+        // Catalog ID for learndash_course components.
+        if ($component_type === 'learndash_course') {
+            $catalog_id = absint($_POST['catalog_id'] ?? 0);
+            if ($catalog_id) {
+                $data['catalog_id'] = $catalog_id;
+                $cat_repo  = new HL_Course_Catalog_Repository();
+                $cat_entry = $cat_repo->get_by_id($catalog_id);
+                if ($cat_entry) {
+                    // Auto-fill title from catalog if empty.
+                    if (empty($data['title'])) {
+                        $data['title'] = $cat_entry->title;
+                    }
+                    // Set external_ref for backward compatibility.
+                    if ($cat_entry->ld_course_en) {
+                        $data['external_ref'] = wp_json_encode(array('course_id' => absint($cat_entry->ld_course_en)));
+                    }
+                }
+            }
+        }
+
         // Complete-by date.
         $data['complete_by'] = !empty($_POST['complete_by']) ? sanitize_text_field($_POST['complete_by']) : null;
 
@@ -540,6 +560,8 @@ class HL_Admin_Pathways {
                 break;
 
             case 'learndash_course':
+                // external_ref is now set from catalog_id in save_component().
+                // This branch handles legacy fallback when no catalog_id is provided.
                 $course_id = isset($_POST['ld_course_id']) ? absint($_POST['ld_course_id']) : 0;
                 if ($course_id) {
                     $ref = array('course_id' => $course_id);
@@ -1911,35 +1933,22 @@ class HL_Admin_Pathways {
         echo '</td>';
         echo '</tr>';
 
-        // --- LearnDash Course selector (for learndash_course) ---
-        $ld_courses = array();
-        if (post_type_exists('sfwd-courses')) {
-            $ld_courses = get_posts(array(
-                'post_type'      => 'sfwd-courses',
-                'post_status'    => 'publish',
-                'posts_per_page' => -1,
-                'orderby'        => 'title',
-                'order'          => 'ASC',
-            ));
-        }
-        $current_course_id = isset($ext_ref['course_id']) ? absint($ext_ref['course_id']) : 0;
+        // --- Course Catalog selector (for learndash_course) ---
+        $catalog_repo = new HL_Course_Catalog_Repository();
+        $catalog_entries = $catalog_repo->get_active_for_dropdown();
+        $current_catalog_id = isset($component->catalog_id) ? absint($component->catalog_id) : 0;
 
         echo '<tr class="hl-component-field hl-field-ld" style="display:none;">';
-        echo '<th scope="row"><label for="ld_course_id">' . esc_html__('LearnDash Course', 'hl-core') . '</label></th>';
+        echo '<th scope="row"><label for="catalog_id">' . esc_html__('Course', 'hl-core') . '</label></th>';
         echo '<td>';
-        if (empty($ld_courses)) {
-            echo '<input type="number" id="ld_course_id" name="ld_course_id" value="' . esc_attr($current_course_id) . '" class="small-text" />';
-            echo '<p class="description">' . esc_html__('Enter the LearnDash course post ID. LearnDash is not active, so courses cannot be listed.', 'hl-core') . '</p>';
-        } else {
-            echo '<select id="ld_course_id" name="ld_course_id">';
-            echo '<option value="0">' . esc_html__('-- Select Course --', 'hl-core') . '</option>';
-            foreach ($ld_courses as $course) {
-                echo '<option value="' . esc_attr($course->ID) . '"' . selected($current_course_id, $course->ID, false) . '>'
-                    . esc_html($course->post_title) . ' (ID: ' . esc_html($course->ID) . ')'
-                    . '</option>';
-            }
-            echo '</select>';
+        echo '<select id="catalog_id" name="catalog_id">';
+        echo '<option value="">' . esc_html__('-- Select Course --', 'hl-core') . '</option>';
+        foreach ($catalog_entries as $entry) {
+            echo '<option value="' . esc_attr($entry->catalog_id) . '"' . selected($current_catalog_id, $entry->catalog_id, false) . '>'
+                . esc_html($entry->title . ' ' . $entry->get_language_badges())
+                . '</option>';
         }
+        echo '</select>';
         echo '</td>';
         echo '</tr>';
 
