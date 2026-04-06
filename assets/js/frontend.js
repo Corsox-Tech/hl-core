@@ -167,6 +167,376 @@
             $(this).attr('aria-expanded', !isOpen);
         });
 
+        // === Feature Tracker ===
+        (function() {
+            var $wrap = $('.hlft-wrapper');
+            if (!$wrap.length) return;
+
+            var nonce   = $wrap.data('nonce');
+            var isAdmin = $wrap.data('is-admin') === 1 || $wrap.data('is-admin') === '1';
+            var currentUuid = null; // UUID of currently viewed ticket in detail modal
+
+            // ── Helpers ──
+
+            function ajax(action, data, callback) {
+                data.action = action;
+                data.nonce  = nonce;
+                $.post(hlCoreAjax.ajaxurl, data, function(resp) {
+                    if (resp.success) {
+                        callback(resp.data);
+                    } else {
+                        showToast(resp.data || 'An error occurred.', true);
+                    }
+                }).fail(function() {
+                    showToast('Request failed. Please try again.', true);
+                });
+            }
+
+            function showToast(msg, isError) {
+                var $t = $('#hlft-toast');
+                $t.text(msg).css('background', isError ? 'var(--hl-error)' : 'var(--hl-primary)').fadeIn(200);
+                setTimeout(function() { $t.fadeOut(300); }, 3000);
+            }
+
+            var typeLabels = { bug: 'Bug', improvement: 'Improvement', feature_request: 'Feature Request' };
+            var statusLabels = { open: 'Open', in_review: 'In Review', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
+
+            // ── Load Tickets ──
+
+            function loadTickets() {
+                var $body = $('#hlft-table-body');
+                var $loading = $('#hlft-table-loading');
+                var $empty = $('#hlft-empty');
+                var $noResults = $('#hlft-no-results');
+                var $table = $('#hlft-table');
+                var $indicator = $('#hlft-filter-indicator');
+
+                $loading.show();
+                $table.css('opacity', '0.5');
+                $empty.hide();
+                $noResults.hide();
+
+                var statusVal = $('#hlft-filter-status').val();
+                var typeVal = $('#hlft-filter-type').val();
+                var priorityVal = $('#hlft-filter-priority').val();
+                var searchVal = $('#hlft-search').val();
+
+                // Show/hide filter indicator
+                var hasFilters = typeVal || statusVal || priorityVal || (searchVal && searchVal.length >= 2);
+                if (!hasFilters && !statusVal) {
+                    $indicator.show();
+                } else {
+                    $indicator.hide();
+                }
+
+                ajax('hl_ticket_list', {
+                    type: typeVal,
+                    status: statusVal || '',
+                    priority: priorityVal,
+                    search: searchVal
+                }, function(data) {
+                    $loading.hide();
+                    $table.css('opacity', '1');
+                    $body.empty();
+
+                    if (data.tickets.length === 0) {
+                        $table.hide();
+                        if (hasFilters) {
+                            $noResults.show();
+                        } else {
+                            $empty.show();
+                        }
+                        return;
+                    }
+
+                    $table.show();
+                    $.each(data.tickets, function(i, t) {
+                        var row = '<tr data-uuid="' + t.ticket_uuid + '">' +
+                            '<td><span class="hlft-type-dot hlft-type-dot--' + t.type + '" title="' + typeLabels[t.type] + '"></span></td>' +
+                            '<td><strong>#' + t.ticket_id + '</strong> ' + $('<span>').text(t.title).html() + '</td>' +
+                            '<td><span class="hlft-priority-badge hlft-priority-badge--' + t.priority + '">' + t.priority + '</span></td>' +
+                            '<td><span class="hlft-submitter"><img class="hlft-avatar" src="' + t.creator_avatar + '" alt=""> ' + $('<span>').text(t.creator_name).html() + '</span></td>' +
+                            '<td><span class="hlft-status-pill hlft-status-pill--' + t.status + '">' + statusLabels[t.status] + '</span></td>' +
+                            '<td>' + t.time_ago + '</td>' +
+                            '</tr>';
+                        $body.append(row);
+                    });
+                });
+            }
+
+            // ── Detail Modal ──
+
+            function openDetail(uuid) {
+                currentUuid = uuid;
+                var $modal = $('#hlft-detail-modal');
+                var $loading = $('#hlft-detail-loading');
+                var $content = $('#hlft-detail-content');
+
+                $modal.show();
+                $loading.show();
+                $content.hide();
+
+                ajax('hl_ticket_get', { ticket_uuid: uuid }, function(t) {
+                    $loading.hide();
+                    $content.show();
+
+                    // Header
+                    $('#hlft-detail-type').attr('class', 'hlft-type-badge hlft-type-badge--' + t.type).text(typeLabels[t.type]);
+                    $('#hlft-detail-title').text('#' + t.ticket_id + ' ' + t.title);
+
+                    // Meta
+                    var meta = '<span class="hlft-priority-badge hlft-priority-badge--' + t.priority + '">' + t.priority + '</span>' +
+                        ' <span class="hlft-status-pill hlft-status-pill--' + t.status + '">' + statusLabels[t.status] + '</span>' +
+                        ' <span>By <img class="hlft-avatar" src="' + t.creator_avatar + '" alt=""> ' + $('<span>').text(t.creator_name).html() + ' &bull; ' + t.time_ago + '</span>';
+                    $('#hlft-detail-meta').html(meta);
+
+                    // Description
+                    $('#hlft-detail-description').html(t.description);
+
+                    // Edit button
+                    var $actions = $('#hlft-detail-actions');
+                    $actions.empty();
+                    if (t.can_edit) {
+                        $actions.html('<button type="button" class="hl-btn hl-btn-small" id="hlft-edit-btn">Edit</button>');
+                    }
+
+                    // Status dropdown (admin only)
+                    if (isAdmin) {
+                        $('#hlft-status-select').val(t.status);
+                    }
+
+                    // Comments
+                    renderComments(t.comments, t.comment_count);
+                });
+            }
+
+            function renderComments(comments, count) {
+                var $list = $('#hlft-comments-list');
+                $list.empty();
+                $('#hlft-comment-count').text(count);
+
+                if (comments.length === 0) {
+                    $list.html('<p class="hlft-comments-empty">No comments yet</p>');
+                    return;
+                }
+
+                $.each(comments, function(i, c) {
+                    var html = '<div class="hlft-comment">' +
+                        '<img class="hlft-avatar" src="' + c.user_avatar + '" alt="">' +
+                        '<div class="hlft-comment__body">' +
+                        '<div class="hlft-comment__header"><span class="hlft-comment__name">' + $('<span>').text(c.user_name).html() + '</span><span class="hlft-comment__time">' + c.time_ago + '</span></div>' +
+                        '<div class="hlft-comment__text">' + $('<span>').text(c.comment_text).html() + '</div>' +
+                        '</div></div>';
+                    $list.append(html);
+                });
+            }
+
+            // ── Create / Edit Modal ──
+
+            function openCreateModal() {
+                $('#hlft-form-title').text('New Ticket');
+                $('#hlft-form-uuid').val('');
+                $('#hlft-form-title-input').val('');
+                $('#hlft-form-type').val('');
+                $('#hlft-form-priority').val('medium');
+                $('#hlft-form-description').val('');
+                $('#hlft-form-submit').text('Submit').prop('disabled', false);
+                $('#hlft-form-modal').show();
+                $('#hlft-form-title-input').focus();
+            }
+
+            function openEditModal(ticket) {
+                $('#hlft-form-title').text('Edit Ticket');
+                $('#hlft-form-uuid').val(ticket.ticket_uuid);
+                $('#hlft-form-title-input').val(ticket.title);
+                $('#hlft-form-type').val(ticket.type);
+                $('#hlft-form-priority').val(ticket.priority);
+                $('#hlft-form-description').val(ticket.description);
+                $('#hlft-form-submit').text('Save Changes').prop('disabled', false);
+                $('#hlft-detail-modal').hide();
+                $('#hlft-form-modal').show();
+                $('#hlft-form-title-input').focus();
+            }
+
+            function closeModal($modal) {
+                $modal.hide();
+                if ($modal.attr('id') === 'hlft-form-modal' && currentUuid) {
+                    // If closing edit modal, reopen detail
+                    // Only if we were editing (uuid was set)
+                    if ($('#hlft-form-uuid').val()) {
+                        openDetail(currentUuid);
+                    }
+                }
+            }
+
+            // ── Event Handlers ──
+
+            // Filter changes
+            $('#hlft-filter-type, #hlft-filter-status, #hlft-filter-priority').on('change', loadTickets);
+
+            // Search (debounced 300ms, min 2 chars)
+            var searchTimer;
+            $('#hlft-search').on('input', function() {
+                clearTimeout(searchTimer);
+                var val = $(this).val();
+                searchTimer = setTimeout(function() {
+                    if (val.length === 0 || val.length >= 2) {
+                        loadTickets();
+                    }
+                }, 300);
+            });
+
+            // Show all (clear default "hide closed" filter)
+            $(document).on('click', '#hlft-show-all', function(e) {
+                e.preventDefault();
+                $('#hlft-filter-status').val('all');
+                loadTickets();
+            });
+
+            // Clear filters
+            $(document).on('click', '#hlft-clear-filters', function(e) {
+                e.preventDefault();
+                $('#hlft-filter-type').val('');
+                $('#hlft-filter-status').val('');
+                $('#hlft-filter-priority').val('');
+                $('#hlft-search').val('');
+                loadTickets();
+            });
+
+            // Row click → open detail
+            $(document).on('click', '#hlft-table-body tr', function() {
+                var uuid = $(this).data('uuid');
+                if (uuid) openDetail(uuid);
+            });
+
+            // New ticket button
+            $('#hlft-new-ticket-btn').on('click', openCreateModal);
+
+            // Edit button (inside detail modal)
+            $(document).on('click', '#hlft-edit-btn', function() {
+                // Fetch fresh ticket data for edit form
+                ajax('hl_ticket_get', { ticket_uuid: currentUuid }, function(t) {
+                    openEditModal(t);
+                });
+            });
+
+            // Form submit (create or update)
+            $('#hlft-ticket-form').on('submit', function(e) {
+                e.preventDefault();
+                var $btn = $('#hlft-form-submit');
+                var uuid = $('#hlft-form-uuid').val();
+                var isEdit = !!uuid;
+
+                $btn.prop('disabled', true).text('Submitting...');
+
+                var data = {
+                    title: $('#hlft-form-title-input').val(),
+                    type: $('#hlft-form-type').val(),
+                    priority: $('#hlft-form-priority').val(),
+                    description: $('#hlft-form-description').val()
+                };
+
+                if (isEdit) {
+                    data.ticket_uuid = uuid;
+                    ajax('hl_ticket_update', data, function(t) {
+                        $btn.prop('disabled', false).text('Save Changes');
+                        $('#hlft-form-modal').hide();
+                        showToast('Ticket updated');
+                        openDetail(t.ticket_uuid);
+                        loadTickets();
+                    });
+                } else {
+                    ajax('hl_ticket_create', data, function(t) {
+                        $btn.prop('disabled', false).text('Submit');
+                        $('#hlft-form-modal').hide();
+                        showToast('Ticket #' + t.ticket_id + ' created');
+                        currentUuid = null;
+                        loadTickets();
+                    });
+                }
+            });
+
+            // Post comment
+            $('#hlft-comment-btn').on('click', function() {
+                var $btn = $(this);
+                var $textarea = $('#hlft-comment-text');
+                var text = $.trim($textarea.val());
+                if (!text) return;
+
+                $btn.prop('disabled', true).text('Posting...');
+
+                ajax('hl_ticket_comment', {
+                    ticket_uuid: currentUuid,
+                    comment_text: text
+                }, function(comment) {
+                    $btn.prop('disabled', false).text('Post');
+                    $textarea.val('');
+
+                    // Remove "no comments" message if present
+                    $('#hlft-comments-list .hlft-comments-empty').remove();
+
+                    // Append new comment
+                    var count = parseInt($('#hlft-comment-count').text(), 10) + 1;
+                    $('#hlft-comment-count').text(count);
+
+                    var html = '<div class="hlft-comment">' +
+                        '<img class="hlft-avatar" src="' + comment.user_avatar + '" alt="">' +
+                        '<div class="hlft-comment__body">' +
+                        '<div class="hlft-comment__header"><span class="hlft-comment__name">' + $('<span>').text(comment.user_name).html() + '</span><span class="hlft-comment__time">' + comment.time_ago + '</span></div>' +
+                        '<div class="hlft-comment__text">' + $('<span>').text(comment.comment_text).html() + '</div>' +
+                        '</div></div>';
+                    $('#hlft-comments-list').append(html);
+                });
+            });
+
+            // Status change (admin only)
+            $('#hlft-status-btn').on('click', function() {
+                var $btn = $(this);
+                var $sel = $('#hlft-status-select');
+                var newStatus = $sel.val();
+
+                $btn.prop('disabled', true);
+                $sel.prop('disabled', true);
+
+                ajax('hl_ticket_status', {
+                    ticket_uuid: currentUuid,
+                    status: newStatus
+                }, function(t) {
+                    $btn.prop('disabled', false);
+                    $sel.prop('disabled', false);
+                    showToast('Status updated to ' + statusLabels[newStatus]);
+
+                    // Update pill in detail modal
+                    $('#hlft-detail-meta .hlft-status-pill').attr('class', 'hlft-status-pill hlft-status-pill--' + t.status).text(statusLabels[t.status]);
+
+                    // Refresh table
+                    loadTickets();
+                });
+            });
+
+            // Close modals
+            $(document).on('click', '[data-close-modal]', function() {
+                closeModal($(this).closest('.hlft-modal'));
+            });
+            $(document).on('click', '.hlft-modal', function(e) {
+                if ($(e.target).hasClass('hlft-modal')) {
+                    closeModal($(this));
+                }
+            });
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    var $visible = $('.hlft-modal:visible').last();
+                    if ($visible.length) {
+                        closeModal($visible);
+                    }
+                }
+            });
+
+            // ── Initial Load ──
+            loadTickets();
+
+        })();
+
     });
 
 })(jQuery);
