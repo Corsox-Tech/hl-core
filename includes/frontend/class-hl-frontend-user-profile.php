@@ -406,8 +406,9 @@ class HL_Frontend_User_Profile {
         // dedicated WP role and their access is determined by hl_coach_assignment,
         // not by per-enrollment role arrays like school_leader/mentor.
         // Check BEFORE the enrollment guard — coaches may have no HL enrollment.
+        // Coaches can view anyone in the same partnership as their assignments.
         if (in_array('coach', (array) wp_get_current_user()->roles, true)) {
-            if ($this->is_coach_of_target($viewer_id, $target_enrollment_ids)) {
+            if ($this->is_coach_in_same_partnership($viewer_id, $target_enrollments)) {
                 return true;
             }
         }
@@ -448,31 +449,43 @@ class HL_Frontend_User_Profile {
     }
 
     /**
-     * Check if viewer is a coach assigned to any of the target's enrollments.
+     * Check if coach shares a partnership with the target user.
+     *
+     * Coaches can view profiles of anyone in the same partnership as their
+     * coach assignments (not just their direct roster).
      */
-    private function is_coach_of_target($coach_user_id, $target_enrollment_ids) {
-        if (empty($target_enrollment_ids)) {
+    private function is_coach_in_same_partnership($coach_user_id, $target_enrollments) {
+        if (empty($target_enrollments)) {
             return false;
         }
 
-        // Use the same roster logic as the coach assignment service:
-        // check enrollment, school, and team scope types.
-        $svc = new HL_Coach_Assignment_Service();
-
-        // Get target enrollments' cycle IDs.
         global $wpdb;
-        $placeholders = implode(',', array_fill(0, count($target_enrollment_ids), '%d'));
-        $cycle_ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT DISTINCT cycle_id FROM {$wpdb->prefix}hl_enrollment
-             WHERE enrollment_id IN ($placeholders)",
-            array_map('intval', $target_enrollment_ids)
+        $prefix = $wpdb->prefix;
+
+        // Get partnership IDs from the coach's active assignments.
+        $today = current_time('Y-m-d');
+        $coach_partnership_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT c.partnership_id
+             FROM {$prefix}hl_coach_assignment ca
+             INNER JOIN {$prefix}hl_cycle c ON ca.cycle_id = c.cycle_id
+             WHERE ca.coach_user_id = %d
+               AND ca.effective_from <= %s
+               AND (ca.effective_to IS NULL OR ca.effective_to >= %s)
+               AND c.partnership_id IS NOT NULL",
+            $coach_user_id, $today, $today
         ));
 
-        // For each cycle, get the coach's roster and check if target is in it.
-        foreach ($cycle_ids as $cid) {
-            $roster = $svc->get_coach_roster($coach_user_id, (int) $cid);
-            $roster_ids = array_map(function ($r) { return (int) $r['enrollment_id']; }, $roster);
-            if (array_intersect($target_enrollment_ids, $roster_ids)) {
+        if (empty($coach_partnership_ids)) {
+            return false;
+        }
+
+        // Check if any of the target's enrollments belong to those partnerships.
+        foreach ($target_enrollments as $e) {
+            $target_partnership_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT partnership_id FROM {$prefix}hl_cycle WHERE cycle_id = %d",
+                $e->cycle_id
+            ));
+            if ($target_partnership_id && in_array($target_partnership_id, $coach_partnership_ids)) {
                 return true;
             }
         }
