@@ -171,6 +171,13 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Admin filter** — Suspension filter dropdown on Enrollments list (All / Suspended Only / Exclude Suspended) with count.
 - [ ] **Deployed to test** — Pending.
 
+### Admin Component Progress Override (April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-06-component-progress-override-design.md` | **Plan:** `docs/superpowers/plans/2026-04-06-component-progress-override.md`
+- [x] **LD sync methods** — `reset_course_progress()` + `mark_course_complete()` on `HL_LearnDash_Integration`. Correct LD API calls (activity table + usermeta), `function_exists()` guards.
+- [x] **POST handler** — `handle_component_actions()` with own nonce/form, pathway validation via `hl_pathway_assignment` join, exempt override cleanup on reset, multi-language LD reset, LD sync failure warning notices.
+- [x] **UI table** — Component Progress section below enrollment edit form. Eligibility filtering, status badges, exempt override display, non-LD info note. Works in both standalone and Cycle Editor contexts.
+- [ ] **Deployed to test** — Pending.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
