@@ -376,15 +376,22 @@ class HL_Frontend_School_Page {
         $prefix = $wpdb->prefix;
 
         $rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT e.user_id, u.display_name, u.user_email, e.roles,
-                    GROUP_CONCAT(DISTINCT t.cycle_name ORDER BY t.start_date DESC SEPARATOR ', ') AS cycle_name
-             FROM {$prefix}hl_enrollment e
-             INNER JOIN {$wpdb->users} u ON e.user_id = u.ID
-             INNER JOIN {$prefix}hl_cycle t ON e.cycle_id = t.cycle_id
-             WHERE e.school_id = %d
-               AND e.status = 'active'
-             GROUP BY e.user_id, u.display_name, u.user_email, e.roles
-             ORDER BY u.display_name ASC",
+            "SELECT sub.user_id, sub.display_name, sub.user_email, sub.roles, sub.cycle_names AS cycle_name
+             FROM (
+                 SELECT e.user_id, u.display_name, u.user_email,
+                        (SELECT e2.roles FROM {$prefix}hl_enrollment e2
+                         INNER JOIN {$prefix}hl_cycle t2 ON e2.cycle_id = t2.cycle_id
+                         WHERE e2.user_id = e.user_id AND e2.school_id = %d AND e2.status = 'active'
+                         ORDER BY t2.start_date DESC LIMIT 1) AS roles,
+                        GROUP_CONCAT(DISTINCT t.cycle_name ORDER BY t.start_date DESC SEPARATOR ', ') AS cycle_names
+                 FROM {$prefix}hl_enrollment e
+                 INNER JOIN {$wpdb->users} u ON e.user_id = u.ID
+                 INNER JOIN {$prefix}hl_cycle t ON e.cycle_id = t.cycle_id
+                 WHERE e.school_id = %d AND e.status = 'active'
+                 GROUP BY e.user_id, u.display_name, u.user_email
+             ) sub
+             ORDER BY sub.display_name ASC",
+            $school_id,
             $school_id
         ), ARRAY_A );
 
