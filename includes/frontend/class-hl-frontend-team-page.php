@@ -291,7 +291,8 @@ class HL_Frontend_Team_Page {
         }
 
         // Activity detail for expandable rows (needs cycle).
-        $activity_detail = array();
+        $activity_detail   = array();
+        $pathway_by_eid    = array();
 
         if ( $cycle ) {
             $enrollment_ids = array_map( function ( $m ) { return $m['enrollment_id']; }, $members );
@@ -301,6 +302,18 @@ class HL_Frontend_Team_Page {
                     $cycle->cycle_id,
                     $enrollment_ids
                 );
+
+                // Get each enrollment's assigned pathway to filter components.
+                global $wpdb;
+                $eid_placeholders = implode( ',', array_fill( 0, count( $enrollment_ids ), '%d' ) );
+                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+                $pa_rows = $wpdb->get_results( $wpdb->prepare(
+                    "SELECT enrollment_id, pathway_id FROM {$wpdb->prefix}hl_pathway_assignment WHERE enrollment_id IN ({$eid_placeholders})",
+                    $enrollment_ids
+                ), ARRAY_A );
+                foreach ( $pa_rows as $pa ) {
+                    $pathway_by_eid[ (int) $pa['enrollment_id'] ] = (int) $pa['pathway_id'];
+                }
             }
         }
 
@@ -390,8 +403,11 @@ class HL_Frontend_Team_Page {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <?php foreach ( $activity_detail[ $eid ] as $aid => $ad ) :
-                                                    if ( isset( $ad['is_eligible'] ) && ! $ad['is_eligible'] ) {
+                                                <?php
+                                                $member_pathway = isset( $pathway_by_eid[ (int) $eid ] ) ? $pathway_by_eid[ (int) $eid ] : 0;
+                                                foreach ( $activity_detail[ $eid ] as $aid => $ad ) :
+                                                    // Only show components from this member's assigned pathway.
+                                                    if ( $member_pathway && isset( $ad['pathway_id'] ) && (int) $ad['pathway_id'] !== $member_pathway ) {
                                                         continue;
                                                     }
                                                     $act_pct    = intval( $ad['completion_percent'] );

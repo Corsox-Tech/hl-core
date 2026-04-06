@@ -500,6 +500,7 @@ class HL_Reporting_Service {
 
                 $result[ $eid ][ $aid ] = array(
                     'component_id'        => $aid,
+                    'pathway_id'         => $component['pathway_id'],
                     'title'              => $component['title'],
                     'component_type'      => $component['component_type'],
                     'weight'             => $component['weight'],
