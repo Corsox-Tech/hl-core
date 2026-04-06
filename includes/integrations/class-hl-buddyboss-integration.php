@@ -895,4 +895,67 @@ class HL_BuddyBoss_Integration {
         $classes[] = 'hl-has-nav';
         return $classes;
     }
+
+    // =========================================================================
+    // BuddyBoss Suspension Helpers
+    // =========================================================================
+
+    /** @var bool|null Whether wp_bp_suspend table exists (cached per request). */
+    private static $bp_suspend_exists = null;
+
+    /**
+     * Check if the wp_bp_suspend table exists (BuddyBoss active).
+     * Cached per request.
+     */
+    public static function bp_suspend_table_exists() {
+        if ( self::$bp_suspend_exists === null ) {
+            global $wpdb;
+            self::$bp_suspend_exists = ( $wpdb->get_var(
+                $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->prefix . 'bp_suspend' )
+            ) !== null );
+        }
+        return self::$bp_suspend_exists;
+    }
+
+    /**
+     * Check if a specific user is suspended in BuddyBoss.
+     *
+     * @param int $user_id WordPress user ID.
+     * @return bool True if suspended.
+     */
+    public static function is_user_suspended( $user_id ) {
+        static $cache = array();
+        $user_id = absint( $user_id );
+        if ( ! $user_id || ! self::bp_suspend_table_exists() ) {
+            return false;
+        }
+        if ( isset( $cache[ $user_id ] ) ) {
+            return $cache[ $user_id ];
+        }
+        global $wpdb;
+        $cache[ $user_id ] = (bool) $wpdb->get_var( $wpdb->prepare(
+            "SELECT 1 FROM {$wpdb->prefix}bp_suspend
+             WHERE item_type = 'user' AND item_id = %d AND user_suspended = 1
+             LIMIT 1",
+            $user_id
+        ) );
+        return $cache[ $user_id ];
+    }
+
+    /**
+     * Get a NOT EXISTS SQL snippet to exclude suspended users from queries.
+     *
+     * @param string $user_id_column SQL column reference, e.g. 'e.user_id'.
+     * @return string SQL snippet with leading AND, or empty string if bp_suspend absent.
+     */
+    public static function get_suspend_not_exists_sql( $user_id_column = 'e.user_id' ) {
+        if ( ! self::bp_suspend_table_exists() ) {
+            return '';
+        }
+        global $wpdb;
+        return " AND NOT EXISTS (
+            SELECT 1 FROM {$wpdb->prefix}bp_suspend
+            WHERE item_type = 'user' AND item_id = {$user_id_column} AND user_suspended = 1
+        )";
+    }
 }
