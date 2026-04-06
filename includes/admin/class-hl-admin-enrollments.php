@@ -124,6 +124,7 @@ class HL_Admin_Enrollments {
      */
     public function handle_early_actions() {
         $this->handle_actions();
+        $this->handle_component_actions();
 
         if (isset($_GET['action']) && $_GET['action'] === 'delete') {
             $this->handle_delete();
@@ -320,6 +321,240 @@ class HL_Admin_Enrollments {
         } else {
             wp_redirect(admin_url('admin.php?page=hl-enrollments&message=deleted'));
         }
+        exit;
+    }
+
+    /**
+     * Handle component progress override actions (reset / mark complete).
+     *
+     * Uses its own nonce (hl_component_progress_nonce), independent of the
+     * enrollment form's hl_enrollment_nonce. Called from handle_early_actions().
+     */
+    private function handle_component_actions() {
+        if (!isset($_POST['hl_component_action'])) {
+            return;
+        }
+
+        if (!isset($_POST['hl_component_progress_nonce']) || !wp_verify_nonce($_POST['hl_component_progress_nonce'], 'hl_component_progress')) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+
+        if (!current_user_can('manage_hl_core')) {
+            wp_die(__('You do not have permission to perform this action.', 'hl-core'));
+        }
+
+        global $wpdb;
+
+        $action        = sanitize_text_field($_POST['hl_component_action']);
+        $enrollment_id = absint($_POST['hl_component_enrollment_id'] ?? 0);
+        $component_id  = absint($_POST['hl_component_id'] ?? 0);
+
+        if (!$enrollment_id || !$component_id) {
+            return;
+        }
+
+        // Validate enrollment exists.
+        $enrollment = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+            $enrollment_id
+        ));
+        if (!$enrollment) {
+            return;
+        }
+
+        // Validate component belongs to enrollment's current pathway (via pathway_assignment join).
+        $valid_component = $wpdb->get_row($wpdb->prepare(
+            "SELECT c.component_id, c.title, c.component_type, c.catalog_id, c.external_ref
+             FROM {$wpdb->prefix}hl_component c
+             JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = c.pathway_id
+             WHERE c.component_id = %d AND pa.enrollment_id = %d",
+            $component_id, $enrollment_id
+        ));
+        if (!$valid_component) {
+            return;
+        }
+
+        $now           = current_time('mysql');
+        $cycle_context = isset($_POST['_hl_cycle_context']) ? absint($_POST['_hl_cycle_context']) : 0;
+        $ld_warning    = false;
+
+        if ($action === 'reset_component') {
+            // 1. Check for and delete exempt override.
+            $exempt_override = $wpdb->get_row($wpdb->prepare(
+                "SELECT override_id FROM {$wpdb->prefix}hl_component_override
+                 WHERE enrollment_id = %d AND component_id = %d AND override_type = 'exempt'",
+                $enrollment_id, $component_id
+            ));
+            if ($exempt_override) {
+                $wpdb->delete($wpdb->prefix . 'hl_component_override', array('override_id' => $exempt_override->override_id));
+                HL_Audit_Service::log('component_override.removed', array(
+                    'entity_type' => 'component_override',
+                    'entity_id'   => $exempt_override->override_id,
+                    'after_data'  => array(
+                        'admin_user_id' => get_current_user_id(),
+                        'enrollment_id' => $enrollment_id,
+                        'component_id'  => $component_id,
+                        'override_type' => 'exempt',
+                        'reason'        => 'Removed during component progress reset',
+                    ),
+                ));
+            }
+
+            // 2. Upsert component_state to not_started.
+            $existing_state = $wpdb->get_row($wpdb->prepare(
+                "SELECT state_id FROM {$wpdb->prefix}hl_component_state
+                 WHERE enrollment_id = %d AND component_id = %d",
+                $enrollment_id, $component_id
+            ));
+
+            if ($existing_state) {
+                $wpdb->query($wpdb->prepare(
+                    "UPDATE {$wpdb->prefix}hl_component_state
+                     SET completion_status = 'not_started', completion_percent = 0,
+                         completed_at = NULL, last_computed_at = %s
+                     WHERE state_id = %d",
+                    $now, $existing_state->state_id
+                ));
+            } else {
+                $wpdb->insert($wpdb->prefix . 'hl_component_state', array(
+                    'enrollment_id'      => $enrollment_id,
+                    'component_id'       => $component_id,
+                    'completion_status'  => 'not_started',
+                    'completion_percent' => 0,
+                    'last_computed_at'   => $now,
+                ));
+            }
+
+            // 3. LD sync: reset ALL language variants.
+            if ($valid_component->component_type === 'learndash_course' && !empty($valid_component->catalog_id)) {
+                $repo = new HL_Course_Catalog_Repository();
+                $catalog_entry = $repo->get_by_id($valid_component->catalog_id);
+                if ($catalog_entry) {
+                    $ld = HL_LearnDash_Integration::instance();
+                    $lang_ids = $catalog_entry->get_language_course_ids();
+                    foreach ($lang_ids as $lang => $ld_course_id) {
+                        if (!$ld->reset_course_progress($enrollment->user_id, $ld_course_id)) {
+                            $ld_warning = true;
+                        }
+                    }
+                }
+            } elseif ($valid_component->component_type === 'learndash_course' && empty($valid_component->catalog_id)) {
+                // Fallback: legacy component with external_ref only.
+                $comp_obj = new HL_Component(array(
+                    'catalog_id'     => null,
+                    'component_type' => 'learndash_course',
+                    'external_ref'   => $valid_component->external_ref,
+                ));
+                $ld_course_id = HL_Course_Catalog::resolve_ld_course_id($comp_obj, $enrollment);
+                if ($ld_course_id) {
+                    $ld = HL_LearnDash_Integration::instance();
+                    if (!$ld->reset_course_progress($enrollment->user_id, $ld_course_id)) {
+                        $ld_warning = true;
+                    }
+                }
+            }
+
+            // 4. Recompute rollups.
+            do_action('hl_core_recompute_rollups', $enrollment_id);
+
+            // 5. Audit log.
+            HL_Audit_Service::log('component_progress.reset', array(
+                'entity_type' => 'component',
+                'entity_id'   => $component_id,
+                'after_data'  => array(
+                    'admin_user_id'   => get_current_user_id(),
+                    'enrollment_id'   => $enrollment_id,
+                    'component_id'    => $component_id,
+                    'component_title' => $valid_component->title,
+                ),
+            ));
+
+            // 6. Redirect.
+            $msg = $ld_warning ? 'component_reset_ld_warning' : 'component_reset';
+            $this->redirect_to_enrollment_edit($enrollment_id, $cycle_context, $msg);
+
+        } elseif ($action === 'complete_component') {
+            // 1. Upsert component_state to complete.
+            $existing_state = $wpdb->get_row($wpdb->prepare(
+                "SELECT state_id FROM {$wpdb->prefix}hl_component_state
+                 WHERE enrollment_id = %d AND component_id = %d",
+                $enrollment_id, $component_id
+            ));
+
+            $state_data = array(
+                'completion_status'  => 'complete',
+                'completion_percent' => 100,
+                'completed_at'       => $now,
+                'last_computed_at'   => $now,
+            );
+
+            if ($existing_state) {
+                $wpdb->update(
+                    $wpdb->prefix . 'hl_component_state',
+                    $state_data,
+                    array('state_id' => $existing_state->state_id)
+                );
+            } else {
+                $state_data['enrollment_id'] = $enrollment_id;
+                $state_data['component_id']  = $component_id;
+                $wpdb->insert($wpdb->prefix . 'hl_component_state', $state_data);
+            }
+
+            // 2. LD sync: mark preferred language variant complete.
+            if ($valid_component->component_type === 'learndash_course') {
+                $comp_obj = new HL_Component(array(
+                    'component_id'   => $valid_component->component_id,
+                    'catalog_id'     => $valid_component->catalog_id,
+                    'component_type' => 'learndash_course',
+                    'external_ref'   => $valid_component->external_ref,
+                ));
+                $ld_course_id = HL_Course_Catalog::resolve_ld_course_id($comp_obj, $enrollment);
+                if ($ld_course_id) {
+                    $ld = HL_LearnDash_Integration::instance();
+                    if (!$ld->mark_course_complete($enrollment->user_id, $ld_course_id)) {
+                        $ld_warning = true;
+                    }
+                }
+            }
+
+            // 3. Recompute rollups.
+            do_action('hl_core_recompute_rollups', $enrollment_id);
+
+            // 4. Audit log.
+            HL_Audit_Service::log('component_progress.manual_complete', array(
+                'entity_type' => 'component',
+                'entity_id'   => $component_id,
+                'after_data'  => array(
+                    'admin_user_id'   => get_current_user_id(),
+                    'enrollment_id'   => $enrollment_id,
+                    'component_id'    => $component_id,
+                    'component_title' => $valid_component->title,
+                ),
+            ));
+
+            // 5. Redirect.
+            $msg = $ld_warning ? 'component_complete_ld_warning' : 'component_complete';
+            $this->redirect_to_enrollment_edit($enrollment_id, $cycle_context, $msg);
+        }
+    }
+
+    /**
+     * Redirect back to enrollment edit page with a message parameter.
+     *
+     * @param int    $enrollment_id
+     * @param int    $cycle_context  Cycle ID if embedded in Cycle Editor, 0 otherwise.
+     * @param string $message        Message key for admin notice.
+     */
+    private function redirect_to_enrollment_edit($enrollment_id, $cycle_context, $message) {
+        if ($cycle_context) {
+            $redirect = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $cycle_context
+                . '&tab=enrollments&sub=edit&enrollment_id=' . $enrollment_id
+                . '&message=' . $message);
+        } else {
+            $redirect = admin_url('admin.php?page=hl-enrollments&action=edit&id=' . $enrollment_id
+                . '&message=' . $message);
+        }
+        wp_redirect($redirect);
         exit;
     }
 
