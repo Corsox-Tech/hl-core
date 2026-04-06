@@ -528,6 +528,8 @@
 .hl-status-badge.archived::before { background: #EF4444; }
 .hl-status-badge.inactive { background: #FEF2F2; color: #991B1B; }
 .hl-status-badge.inactive::before { background: #EF4444; }
+.hl-status-badge.suspended { background: #FEE2E2; color: #dc2626; }
+.hl-status-badge.suspended::before { background: #dc2626; }
 
 /* ---- Type Badges ---- */
 .hl-type-badge {
