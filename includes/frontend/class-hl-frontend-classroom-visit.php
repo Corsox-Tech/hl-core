@@ -703,9 +703,12 @@ class HL_Frontend_Classroom_Visit {
             ? array_map('sanitize_text_field', $raw['context_activities'])
             : array();
 
-        // Domain indicator data — collect any key matching domain_* pattern
+        // Domain indicator data — collect any array-valued key except known non-domain keys.
+        // Indicator_checklist sections use semantic keys (e.g. 'emotional_climate'),
+        // while legacy domain_indicators use 'domain_0', 'domain_1', etc.
+        $skip_keys = array( 'age_group', 'context_activities' );
         foreach ($raw as $key => $value) {
-            if (strpos($key, 'domain_') !== 0 || !is_array($value)) {
+            if ( in_array( $key, $skip_keys, true ) || ! is_array( $value ) ) {
                 continue;
             }
             $domain_key = sanitize_key($key);
