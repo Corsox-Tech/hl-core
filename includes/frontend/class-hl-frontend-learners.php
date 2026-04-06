@@ -189,8 +189,9 @@ class HL_Frontend_Learners {
                      LEFT JOIN {$prefix}hl_cycle cy ON e.cycle_id = cy.cycle_id
                      LEFT JOIN {$prefix}hl_partnership p ON cy.partnership_id = p.partnership_id";
 
-        $where  = array( "e.status = 'active'" );
-        $values = array();
+        $where       = array( "e.status = 'active'" );
+        $values      = array();
+        $suspend_sql = HL_BuddyBoss_Integration::get_suspend_not_exists_sql( 'e.user_id' );
 
         if ( ! $scope['is_admin'] ) {
             if ( $mentor_only && ! empty( $scope['team_ids'] ) ) {
@@ -229,7 +230,7 @@ class HL_Frontend_Learners {
             $values[] = $like;
         }
 
-        $where_clause = ' WHERE ' . implode( ' AND ', $where );
+        $where_clause = ' WHERE ' . implode( ' AND ', $where ) . $suspend_sql;
 
         // Total count (distinct users).
         $count_sql = "SELECT COUNT(DISTINCT e.user_id) {$base_sql}{$where_clause}";
