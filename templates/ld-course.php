@@ -135,15 +135,34 @@ if (function_exists('learndash_get_setting')) {
 
 // Resume link (next incomplete lesson).
 $resume_url = '';
-if ($has_access && function_exists('learndash_get_next_incomplete_step_id')) {
-    $next_step = learndash_get_next_incomplete_step_id($user_id, $course_id);
-    if ($next_step) {
-        $resume_url = get_permalink($next_step);
+if ($has_access) {
+    // 1) LD's built-in next incomplete step.
+    if (function_exists('learndash_get_next_incomplete_step_id')) {
+        $next_step = learndash_get_next_incomplete_step_id($user_id, $course_id);
+        if ($next_step && get_post($next_step)) {
+            $resume_url = get_permalink($next_step);
+        }
     }
-}
-// Fallback: first lesson.
-if ($has_access && empty($resume_url) && !empty($lessons)) {
-    $resume_url = get_permalink($lessons[0]['post']->ID);
+    // 2) Fallback: first lesson (handles both array and object return formats).
+    if (empty($resume_url) && !empty($lessons)) {
+        $first = $lessons[0];
+        $lesson_post = null;
+        if (isset($first['post']) && is_object($first['post'])) {
+            $lesson_post = $first['post'];
+        } elseif (is_object($first) && isset($first->ID)) {
+            $lesson_post = $first;
+        }
+        if ($lesson_post) {
+            $resume_url = get_permalink($lesson_post->ID);
+        }
+    }
+    // 3) Final fallback: LD course steps list.
+    if (empty($resume_url) && function_exists('learndash_get_course_steps')) {
+        $steps = learndash_get_course_steps($course_id);
+        if (!empty($steps)) {
+            $resume_url = get_permalink($steps[0]);
+        }
+    }
 }
 
 // Remove BB's template part override so LD's own clean templates render.
@@ -171,6 +190,9 @@ if (function_exists('buddyboss_theme')) {
     <link rel="stylesheet" href="<?php echo esc_url(includes_url('css/dashicons.min.css')); ?>">
     <link rel="stylesheet" href="<?php echo esc_url(HL_CORE_ASSETS_URL . 'css/frontend.css'); ?>?ver=<?php echo esc_attr(HL_CORE_VERSION); ?>">
     <?php
+    // Hide WP admin bar — our topbar replaces it.
+    // Must use filter (show_admin_bar() call is too late at template time).
+    add_filter('show_admin_bar', '__return_false');
     // wp_head() fires here — LD + Grassblade scripts load.
     // BB + LD CSS already dequeued at priority 9999 by HL_LD_Detach_CSS.
     wp_head();
@@ -255,6 +277,11 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
             <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="Collapse sidebar">
                 <span class="dashicons dashicons-arrow-left-alt2"></span>
             </button>
+            <?php if (shortcode_exists('wpml_language_selector_widget')) : ?>
+            <div class="hl-sidebar__lang-switcher">
+                <?php echo do_shortcode('[wpml_language_selector_widget]'); ?>
+            </div>
+            <?php endif; ?>
             <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-sidebar__item">
                 <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
                 <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>
@@ -264,6 +291,32 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
 <?php endif; ?>
 
 <main class="hl-app__content">
+    <!-- Course Hero Banner -->
+    <div class="hl-page-hero hl-course-hero">
+        <div class="hl-page-hero__icon">
+            <span class="dashicons dashicons-welcome-learn-more"></span>
+        </div>
+        <div class="hl-page-hero__text">
+            <?php if ($has_access && $total > 0) : ?>
+                <span class="hl-page-hero__tag"><?php echo $pct; ?>% Complete</span>
+            <?php elseif ($has_access) : ?>
+                <span class="hl-page-hero__tag">Enrolled</span>
+            <?php endif; ?>
+            <h1 class="hl-page-hero__title"><?php echo esc_html($course_title); ?></h1>
+            <?php if ($lesson_count > 0 || $quiz_count > 0) : ?>
+                <p class="hl-page-hero__subtitle">
+                    <?php
+                    $parts = array();
+                    if ($lesson_count > 0) $parts[] = $lesson_count . ' Lesson' . ($lesson_count !== 1 ? 's' : '');
+                    if ($topic_count > 0)  $parts[] = $topic_count . ' Topic' . ($topic_count !== 1 ? 's' : '');
+                    if ($quiz_count > 0)   $parts[] = $quiz_count . ' Quiz' . ($quiz_count !== 1 ? 'zes' : '');
+                    echo esc_html(implode(' &middot; ', $parts));
+                    ?>
+                </p>
+            <?php endif; ?>
+        </div>
+    </div>
+
     <div class="hl-course-layout">
         <!-- Main Course Content -->
         <div class="hl-course-content">
@@ -301,9 +354,13 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
             <div class="hl-course-sidebar__action">
                 <?php if ($has_access && $pct >= 100) : ?>
                     <span class="hl-course-sidebar__badge hl-course-sidebar__badge--complete">Completed</span>
-                    <a href="<?php echo esc_url($resume_url); ?>" class="hl-course-sidebar__btn hl-course-sidebar__btn--secondary">Review Course</a>
-                <?php elseif ($has_access) : ?>
+                    <?php if ($resume_url) : ?>
+                        <a href="<?php echo esc_url($resume_url); ?>" class="hl-course-sidebar__btn hl-course-sidebar__btn--secondary">Review Course</a>
+                    <?php endif; ?>
+                <?php elseif ($has_access && $resume_url) : ?>
                     <a href="<?php echo esc_url($resume_url); ?>" class="hl-course-sidebar__btn"><?php echo $pct > 0 ? 'Continue' : 'Start Course'; ?></a>
+                <?php elseif ($has_access) : ?>
+                    <span class="hl-course-sidebar__badge" style="display:block;text-align:center;padding:10px;background:#e3f2fd;color:#1565c0;border-radius:var(--hl-radius);font-weight:600;font-size:14px;">Enrolled</span>
                 <?php else : ?>
                     <span class="hl-course-sidebar__btn hl-course-sidebar__btn--disabled">Not Enrolled</span>
                 <?php endif; ?>

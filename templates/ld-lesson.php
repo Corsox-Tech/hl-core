@@ -112,6 +112,8 @@ $last_activity = !empty($activity->activity_updated)
     : '';
 
 // Current lesson position + prev/next navigation.
+// Re-index to 0-based — LD may return non-sequential keys.
+$lessons = array_values($lessons);
 $lesson_position = 0;
 $total_lessons   = count($lessons);
 foreach ($lessons as $i => $lesson) {
@@ -139,6 +141,9 @@ $is_current_complete = learndash_is_lesson_complete($user->ID, $current_lesson_i
     <link rel="stylesheet" href="<?php echo esc_url(includes_url('css/dashicons.min.css')); ?>">
     <link rel="stylesheet" href="<?php echo esc_url(HL_CORE_ASSETS_URL . 'css/frontend.css'); ?>?ver=<?php echo esc_attr(HL_CORE_VERSION); ?>">
     <?php
+    // Hide WP admin bar — our topbar replaces it.
+    // Must use filter (show_admin_bar() call is too late at template time).
+    add_filter('show_admin_bar', '__return_false');
     // wp_head() fires here — LD + Grassblade scripts load.
     // BB + LD CSS already dequeued at priority 9999 by HL_LD_Detach_CSS.
     wp_head();
@@ -227,6 +232,11 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
             <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="Collapse sidebar">
                 <span class="dashicons dashicons-arrow-left-alt2"></span>
             </button>
+            <?php if (shortcode_exists('wpml_language_selector_widget')) : ?>
+            <div class="hl-sidebar__lang-switcher">
+                <?php echo do_shortcode('[wpml_language_selector_widget]'); ?>
+            </div>
+            <?php endif; ?>
             <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-sidebar__item">
                 <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
                 <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>

@@ -22,6 +22,8 @@ class HL_Shortcodes {
         // Priority 99999: must run AFTER all other template_include filters.
         add_filter('template_include', array($this, 'use_hl_template'), 99999);
         add_action('wp_enqueue_scripts', array($this, 'dequeue_bb_ld_assets_on_ld_pages'), 9999);
+        // Second pass: catch styles enqueued after wp_enqueue_scripts (e.g. on wp_print_styles).
+        add_action('wp_print_styles', array($this, 'dequeue_bb_ld_assets_on_ld_pages'), 9999);
         add_action('template_redirect', array('HL_Frontend_My_Cycle', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Team_Page', 'handle_export'));
         add_action('template_redirect', array('HL_Frontend_Cycle_Workspace', 'handle_export'));
@@ -92,61 +94,83 @@ class HL_Shortcodes {
     }
 
     /**
-     * Dequeue unwanted BuddyBoss CSS/JS on LD template pages.
+     * Dequeue ALL BuddyBoss CSS/JS on LD template pages.
      *
      * Runs at priority 9999 on wp_enqueue_scripts so everything is already
      * enqueued. Applies to both sfwd-lessons and sfwd-courses (both use
-     * our custom templates). KEEPS LearnDash core CSS needed for content
-     * rendering. Only dequeues BuddyBoss theme CSS (source of layout
-     * conflicts) and non-essential LD styles. Preserves LD functional JS
-     * (mark-complete, video, cookies) and all GrassBlade handles.
+     * our custom templates that provide complete styling via frontend.css).
+     *
+     * Uses dynamic detection: dequeues any handle whose name or source URL
+     * contains "buddyboss" — no handle list to maintain.
+     *
+     * KEEPS: LearnDash core CSS/JS, GrassBlade xAPI, jQuery, WP core.
      */
     public function dequeue_bb_ld_assets_on_ld_pages() {
-        // Only dequeue on LD pages using our custom templates.
-        // Focus Mode redirect is disabled, so is_singular works correctly.
         if (!is_singular(array('sfwd-lessons', 'sfwd-courses'))) {
             return;
         }
 
-        // CSS handles to remove.
-        // KEEP: learndash_style, learndash, sfwd_front_css,
-        //       learndash_template_style_css, learndash-ld30-shortcodes-style
-        //       (LD core styles needed for sidebar/enrollment panel rendering).
-        $css_dequeue = array(
-            // BuddyBoss main theme CSS — conflicts with our shell layout.
-            // KEEP buddyboss-theme-learndash (styles course sidebar, enrollment panel).
-            'buddyboss-theme-css',
-            'buddyboss-theme-main-css',
-            'buddyboss-theme-fonts',
-            // Non-essential LD styles.
+        global $wp_styles, $wp_scripts;
+
+        // --- CSS: dequeue ALL BuddyBoss theme + platform styles ---
+        if (!empty($wp_styles->registered)) {
+            foreach ($wp_styles->registered as $handle => $style) {
+                $src = $style->src ?? '';
+                if (
+                    strpos($handle, 'buddyboss') !== false ||
+                    strpos($handle, 'bp-nouveau') !== false ||
+                    strpos($src, 'buddyboss-theme') !== false ||
+                    strpos($src, 'buddyboss-platform') !== false
+                ) {
+                    wp_dequeue_style($handle);
+                    wp_deregister_style($handle);
+                }
+            }
+        }
+
+        // --- JS: dequeue ALL BuddyBoss theme + platform scripts ---
+        if (!empty($wp_scripts->registered)) {
+            foreach ($wp_scripts->registered as $handle => $script) {
+                $src = $script->src ?? '';
+                if (
+                    strpos($handle, 'buddyboss-theme') !== false ||
+                    strpos($handle, 'buddyboss-platform') !== false ||
+                    strpos($handle, 'bp-nouveau') !== false ||
+                    strpos($src, 'buddyboss-theme') !== false ||
+                    strpos($src, 'buddyboss-platform') !== false
+                ) {
+                    wp_dequeue_script($handle);
+                    wp_deregister_script($handle);
+                }
+            }
+        }
+
+        // --- BB child theme CSS (handle may be enqueued after dynamic scan) ---
+        wp_dequeue_style('buddyboss-child-css');
+        wp_deregister_style('buddyboss-child-css');
+
+        // --- Non-essential LD styles (quiz chrome, pager, presenter) ---
+        $ld_css_dequeue = array(
             'learndash_quiz_front_css',
             'jquery-dropdown-css',
             'learndash_pager_css',
             'learndash-presenter-mode-style',
         );
-
-        foreach ($css_dequeue as $handle) {
+        foreach ($ld_css_dequeue as $handle) {
             wp_dequeue_style($handle);
             wp_deregister_style($handle);
         }
 
-        // JS handles to remove.
-        $js_dequeue = array(
-            'buddyboss-theme-learndash-js',
-            'buddyboss-theme-learndash-sidebar-js',
-            'wpProQuiz_front_javascript',
-            'buddyboss-theme-main-js',
-        );
+        // --- Non-essential LD JS ---
+        wp_dequeue_script('wpProQuiz_front_javascript');
+        wp_deregister_script('wpProQuiz_front_javascript');
 
-        foreach ($js_dequeue as $handle) {
-            wp_dequeue_script($handle);
-            wp_deregister_script($handle);
-        }
-
-        // NOTE: The following JS handles are intentionally KEPT:
-        // learndash_template_script_js, learndash-ld30-shortcodes-script,
-        // learndash_video_script_js, learndash_cookie_script_js,
-        // jquery, jquery-cookie, and all grassblade/gb-* handles.
+        // NOTE: The following are intentionally KEPT:
+        // CSS: learndash_style, sfwd_front_css, learndash_template_style_css,
+        //      learndash-ld30-shortcodes-style (LD content rendering).
+        // JS:  learndash_template_script_js, learndash-ld30-shortcodes-script,
+        //      learndash_video_script_js, learndash_cookie_script_js,
+        //      jquery, jquery-cookie, all grassblade/gb-* handles.
     }
 
     public function register_shortcodes() {

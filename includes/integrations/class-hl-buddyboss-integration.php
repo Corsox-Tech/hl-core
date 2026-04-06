@@ -792,6 +792,11 @@ class HL_BuddyBoss_Integration {
                 <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="Collapse sidebar">
                     <span class="dashicons dashicons-arrow-left-alt2"></span>
                 </button>
+                <?php if (shortcode_exists('wpml_language_selector_widget')) : ?>
+                <div class="hl-sidebar__lang-switcher">
+                    <?php echo do_shortcode('[wpml_language_selector_widget]'); ?>
+                </div>
+                <?php endif; ?>
                 <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-sidebar__item">
                     <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
                     <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>

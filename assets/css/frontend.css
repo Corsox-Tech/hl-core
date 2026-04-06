@@ -6678,6 +6678,32 @@ button.hl-btn-danger:hover,
     padding: 12px;
     border-top: 1px solid rgba(255,255,255,0.08);
 }
+/* WPML language switcher in sidebar footer */
+.hl-sidebar__lang-switcher {
+    padding: 4px 12px 8px;
+}
+.hl-sidebar__lang-switcher .wpml-ls-statics-shortcode_actions {
+    border: none;
+    background: none;
+}
+.hl-sidebar__lang-switcher .wpml-ls-statics-shortcode_actions a {
+    color: rgba(255,255,255,0.65);
+    font-size: 13px;
+    font-family: var(--hl-font);
+    padding: 6px 8px;
+    border-radius: var(--hl-radius-xs);
+    transition: background 0.15s, color 0.15s;
+}
+.hl-sidebar__lang-switcher .wpml-ls-statics-shortcode_actions a:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.08);
+}
+.hl-sidebar__lang-switcher .wpml-ls-statics-shortcode_actions .wpml-ls-current-language a {
+    color: #fff;
+    font-weight: 600;
+}
+/* Hide when sidebar is collapsed */
+.hl-sidebar--collapsed .hl-sidebar__lang-switcher { display: none; }
 
 /* HL Sidebar dashicons */
 .hl-sidebar .dashicons {
@@ -8386,23 +8412,20 @@ body.hl-has-nav.hl-sidebar-is-collapsed #page {
 .hl-course-outline {
     position: fixed;
     top: 48px;
-    left: 240px;
+    right: 0;
     width: 320px;
     height: calc(100vh - 48px);
     background: #1e2433;
     color: #fff;
     overflow-y: auto;
     z-index: 99;
-    border-right: 1px solid rgba(255,255,255,0.08);
+    border-left: 1px solid rgba(255,255,255,0.08);
     padding: 20px 0;
     font-family: var(--hl-font);
-    transition: left 0.25s ease;
+    transition: right 0.25s ease;
 }
 
-/* Adjust when sidebar is collapsed */
-body.hl-sidebar-is-collapsed .hl-course-outline {
-    left: 60px;
-}
+/* Outline is now on the right — sidebar collapse doesn't affect it */
 
 /* Collapsed outline — element class toggled by frontend.js */
 .hl-course-outline--collapsed {
@@ -8411,7 +8434,7 @@ body.hl-sidebar-is-collapsed .hl-course-outline {
 
 /* Collapsed outline — body class driven (used by inline init script + reopen) */
 body.hl-course-outline-is-collapsed .hl-course-outline {
-    transform: translateX(-100%);
+    transform: translateX(100%);
     pointer-events: none;
 }
 
@@ -8444,10 +8467,9 @@ body.hl-course-outline-is-collapsed .hl-course-outline {
 }
 body.hl-course-outline-is-collapsed .hl-course-outline__reopen {
     display: flex;
-    left: 240px;
-}
-body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__reopen {
-    left: 60px;
+    right: 0;
+    left: auto;
+    border-radius: 8px 0 0 8px;
 }
 
 /* Back to Course link */
@@ -8847,6 +8869,82 @@ body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__
 .hl-app #masthead,
 .hl-app .site-header { display: none !important; }
 
+/* --- BB template part cleanup (course pages) ---
+   BB's learndash-helper injects .bb-vw-container.bb-learndash-banner
+   (the full-bleed blue hero) and wraps content in .bb-grid.
+   Our dequeue removes BB CSS but the HTML still renders.
+   Hide the banner, neutralize the grid wrapper. */
+.hl-ld-course .bb-vw-container { display: none !important; }
+.hl-ld-course .learndash-wrapper .bb-grid {
+    display: block !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+/* Also hide BB sidebar/panel remnants that may render inside LD content */
+.hl-ld-course .bb-single-course-sidebar,
+.hl-ld-course .bb-learndash-content-wrap .bb-course-sidebar,
+.hl-ld-course .lms-topic-sidebar-wrapper { display: none !important; }
+/* Ensure LD content inside BB grid fills available width */
+.hl-ld-course .learndash-wrapper .bb-grid .bb-learndash-content-wrap {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+/* Hide BB's own course header elements */
+.hl-ld-course .bb-lms-header,
+.hl-ld-course .bb-course-header { display: none !important; }
+/* BB moderation popups (Report, Block Member) — normally hidden by
+   MagnificPopup's .mfp-hide, which we dequeued. Restore the hiding. */
+.hl-app .mfp-hide { display: none !important; }
+.hl-app .moderation-popup,
+.hl-app .content-report-popup,
+.hl-app .block-member-popup { display: none !important; }
+/* BB elements on lesson pages */
+.hl-ld-lesson .bb-lms-header,
+.hl-ld-lesson .bb-vw-container { display: none !important; }
+/* LD's built-in prev/next nav — we have our own nav arrows in hl-ld-content__nav */
+.hl-app .learndash_next_prev_link { display: none !important; }
+
+/* --- Course Hero (extends .hl-page-hero for course pages) --- */
+.hl-course-hero {
+    margin-bottom: 24px;
+}
+.hl-course-hero .hl-page-hero__title {
+    font-size: 22px;
+    line-height: 1.3;
+}
+
+/* --- LD infobar cleanup (hide duplicate progress on course page) ---
+   Our sidebar already shows progress + the hero shows the % badge.
+   LD's inline progress bar + "Last activity" text is redundant. */
+.hl-ld-course [class*="learndash-shortcode-wrap-ld_infobar"] { display: none !important; }
+
+/* --- Course Content section polish --- */
+/* LD section heading ("COURSE CONTENT") */
+.hl-ld-course .ld-section-heading {
+    padding: 16px 20px;
+    background: var(--hl-bg-subtle, #f8f9fa);
+    border-bottom: 1px solid var(--hl-border);
+}
+.hl-ld-course .ld-section-heading h2 {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--hl-text-secondary) !important;
+    margin: 0 !important;
+}
+/* BB tab wrapper — neutralize its layout, let LD content flow naturally */
+.hl-ld-course .bb-ld-tabs {
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+/* Hide BB tab navigation (we show course content inline, not in tabs) */
+.hl-ld-course .bb-ld-tabs .bb-ld-tabs-navigation { display: none !important; }
+
 /* --- LD Icon Font (kept as fallback — LD CSS also loads it) --- */
 @font-face {
     font-family: "ld-icons";
@@ -8899,7 +8997,8 @@ body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__
 
 /* --- Content area layout for lesson pages --- */
 .hl-ld-lesson .hl-ld-content {
-    margin-left: calc(240px + 320px);
+    margin-left: 240px;
+    margin-right: 320px;
     padding: 72px 32px 24px;
     min-height: 100vh;
     background: var(--hl-bg);
@@ -8908,15 +9007,16 @@ body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__
     max-width: calc(100vw - 240px - 320px);
 }
 body.hl-sidebar-is-collapsed .hl-ld-lesson .hl-ld-content {
-    margin-left: calc(60px + 320px);
+    margin-left: 60px;
     max-width: calc(100vw - 60px - 320px);
 }
 body.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content {
-    margin-left: 240px;
+    margin-right: 0;
     max-width: calc(100vw - 240px);
 }
 body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content {
     margin-left: 60px;
+    margin-right: 0;
     max-width: calc(100vw - 60px);
 }
 /* Course page content area — just sidebar offset */
