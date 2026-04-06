@@ -871,6 +871,22 @@ class HL_Admin_Enrollments {
      */
     public function render_form($enrollment = null, $context = array()) {
         $is_edit  = ($enrollment !== null);
+
+        // Component progress action notices.
+        if ($is_edit && isset($_GET['message'])) {
+            $cp_msg = sanitize_text_field($_GET['message']);
+            $cp_notices = array(
+                'component_reset'              => array('success', __('Component progress reset to Not Started.', 'hl-core')),
+                'component_complete'           => array('success', __('Component marked as Complete.', 'hl-core')),
+                'component_reset_ld_warning'   => array('warning', __('Component progress reset, but LearnDash course progress could not be synced. The user\'s LearnDash course page may show stale data.', 'hl-core')),
+                'component_complete_ld_warning' => array('warning', __('Component marked as Complete, but LearnDash course progress could not be synced.', 'hl-core')),
+            );
+            if (isset($cp_notices[$cp_msg])) {
+                $type = $cp_notices[$cp_msg][0] === 'warning' ? 'notice-warning' : 'notice-success';
+                echo '<div class="notice ' . esc_attr($type) . ' is-dismissible"><p>' . esc_html($cp_notices[$cp_msg][1]) . '</p></div>';
+            }
+        }
+
         $title    = $is_edit ? __('Edit Enrollment', 'hl-core') : __('Add New Enrollment', 'hl-core');
         $in_cycle = !empty($context['cycle_id']);
 
@@ -1091,6 +1107,182 @@ class HL_Admin_Enrollments {
         submit_button($is_edit ? __('Update Enrollment', 'hl-core') : __('Create Enrollment', 'hl-core'));
 
         echo '</form>';
+
+        // =====================================================================
+        // Component Progress Table (edit mode, admin only)
+        // =====================================================================
+        if ($is_edit && current_user_can('manage_hl_core')) {
+            echo '<hr style="margin:30px 0 20px;" />';
+            echo '<h2>' . esc_html__('Component Progress', 'hl-core') . '</h2>';
+
+            if (!$current_pathway_id) {
+                echo '<p class="description">' . esc_html__('No pathway assigned — assign a pathway to manage component progress.', 'hl-core') . '</p>';
+            } else {
+                // Load active components for the assigned pathway.
+                $cp_components = $wpdb->get_results($wpdb->prepare(
+                    "SELECT component_id, title, component_type, weight, catalog_id,
+                            requires_classroom, eligible_roles, ordering_hint, external_ref
+                     FROM {$wpdb->prefix}hl_component
+                     WHERE pathway_id = %d AND status = 'active'
+                     ORDER BY ordering_hint ASC, component_id ASC",
+                    $current_pathway_id
+                ));
+
+                if (empty($cp_components)) {
+                    echo '<p class="description">' . esc_html__('No active components in this pathway.', 'hl-core') . '</p>';
+                } else {
+                    // Load component states for this enrollment.
+                    $cp_ids = wp_list_pluck($cp_components, 'component_id');
+                    $cp_placeholders = implode(',', array_fill(0, count($cp_ids), '%d'));
+                    $cp_states = $wpdb->get_results($wpdb->prepare(
+                        "SELECT component_id, completion_status, completion_percent, completed_at
+                         FROM {$wpdb->prefix}hl_component_state
+                         WHERE enrollment_id = %d AND component_id IN ($cp_placeholders)",
+                        array_merge(array($enrollment->enrollment_id), $cp_ids)
+                    ));
+                    $cp_state_map = array();
+                    foreach ($cp_states as $s) {
+                        $cp_state_map[$s->component_id] = $s;
+                    }
+
+                    // Load exempt overrides.
+                    $cp_overrides = $wpdb->get_results($wpdb->prepare(
+                        "SELECT component_id FROM {$wpdb->prefix}hl_component_override
+                         WHERE enrollment_id = %d AND override_type = 'exempt'
+                         AND component_id IN ($cp_placeholders)",
+                        array_merge(array($enrollment->enrollment_id), $cp_ids)
+                    ));
+                    $cp_exempt_map = array();
+                    foreach ($cp_overrides as $ov) {
+                        $cp_exempt_map[$ov->component_id] = true;
+                    }
+
+                    // Type labels.
+                    $cp_type_labels = array(
+                        'learndash_course'            => __('LearnDash Course', 'hl-core'),
+                        'teacher_self_assessment'     => __('Teacher Self-Assessment', 'hl-core'),
+                        'child_assessment'            => __('Child Assessment', 'hl-core'),
+                        'coaching_session_attendance'  => __('Coaching Attendance', 'hl-core'),
+                        'classroom_visit'             => __('Classroom Visit', 'hl-core'),
+                        'reflective_practice_session' => __('Reflective Practice', 'hl-core'),
+                        'self_reflection'             => __('Self-Reflection', 'hl-core'),
+                    );
+
+                    $non_ld_types = array('coaching_session_attendance', 'classroom_visit', 'reflective_practice_session', 'self_reflection');
+                    $has_non_ld = false;
+                    $rules_engine = new HL_Rules_Engine_Service();
+
+                    echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-enrollments')) . '">';
+                    wp_nonce_field('hl_component_progress', 'hl_component_progress_nonce');
+                    echo '<input type="hidden" name="hl_component_enrollment_id" value="' . esc_attr($enrollment->enrollment_id) . '" />';
+                    echo '<input type="hidden" name="hl_component_id" value="" />';
+                    if ($in_cycle) {
+                        echo '<input type="hidden" name="_hl_cycle_context" value="' . esc_attr($context['cycle_id']) . '" />';
+                    }
+
+                    echo '<table class="widefat striped" style="max-width:900px;">';
+                    echo '<thead><tr>';
+                    echo '<th>' . esc_html__('Component', 'hl-core') . '</th>';
+                    echo '<th>' . esc_html__('Type', 'hl-core') . '</th>';
+                    echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
+                    echo '<th>' . esc_html__('Progress', 'hl-core') . '</th>';
+                    echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
+                    echo '</tr></thead><tbody>';
+
+                    foreach ($cp_components as $comp) {
+                        $cid = $comp->component_id;
+
+                        // Check eligibility.
+                        $comp_obj = new HL_Component(array(
+                            'requires_classroom' => $comp->requires_classroom,
+                            'eligible_roles'     => $comp->eligible_roles,
+                        ));
+                        $eligible = $rules_engine->check_eligibility($enrollment->enrollment_id, $comp_obj);
+
+                        // State.
+                        $status  = 'not_started';
+                        $percent = 0;
+                        if (isset($cp_state_map[$cid])) {
+                            $status  = $cp_state_map[$cid]->completion_status;
+                            $percent = intval($cp_state_map[$cid]->completion_percent);
+                        }
+
+                        $is_exempt = isset($cp_exempt_map[$cid]);
+
+                        // Type label.
+                        $type_label = isset($cp_type_labels[$comp->component_type])
+                            ? $cp_type_labels[$comp->component_type]
+                            : ucwords(str_replace('_', ' ', $comp->component_type));
+
+                        if (in_array($comp->component_type, $non_ld_types, true)) {
+                            $has_non_ld = true;
+                        }
+
+                        // Status badge.
+                        if (!$eligible) {
+                            $badge = '<span style="background:#f0f0f1;color:#50575e;padding:2px 8px;border-radius:3px;font-size:12px;">'
+                                   . esc_html__('Not Applicable', 'hl-core') . '</span>';
+                        } elseif ($status === 'complete') {
+                            $badge = '<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:3px;font-size:12px;">'
+                                   . esc_html__('Complete', 'hl-core') . '</span>';
+                        } elseif ($status === 'in_progress') {
+                            $badge = '<span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:3px;font-size:12px;">'
+                                   . esc_html__('In Progress', 'hl-core') . '</span>';
+                        } else {
+                            $badge = '<span style="background:#f0f0f1;color:#50575e;padding:2px 8px;border-radius:3px;font-size:12px;">'
+                                   . esc_html__('Not Started', 'hl-core') . '</span>';
+                        }
+
+                        if ($is_exempt) {
+                            $badge .= ' <em style="color:#996800;font-size:11px;">'
+                                    . esc_html__('(Exempt override active)', 'hl-core') . '</em>';
+                        }
+
+                        echo '<tr>';
+                        echo '<td><strong>' . esc_html($comp->title) . '</strong></td>';
+                        echo '<td>' . esc_html($type_label) . '</td>';
+                        echo '<td>' . $badge . '</td>';
+                        echo '<td>' . esc_html($percent) . '%</td>';
+                        echo '<td>';
+
+                        if (!$eligible) {
+                            echo '<button type="button" class="button button-small" disabled>' . esc_html__('Reset', 'hl-core') . '</button> ';
+                            echo '<button type="button" class="button button-small" disabled>' . esc_html__('Mark Complete', 'hl-core') . '</button>';
+                        } else {
+                            $esc_title = esc_js($comp->title);
+
+                            if ($status === 'in_progress' || $status === 'complete') {
+                                echo '<button type="submit" name="hl_component_action" value="reset_component"'
+                                   . ' class="button button-small"'
+                                   . ' onclick="this.form.hl_component_id.value=\'' . esc_attr($cid) . '\';'
+                                   . 'return confirm(\'' . sprintf(esc_js(__('Reset "%s" to Not Started for this user?', 'hl-core')), $esc_title) . '\');">'
+                                   . esc_html__('Reset', 'hl-core') . '</button> ';
+                            }
+
+                            if ($status === 'not_started' || $status === 'in_progress') {
+                                echo '<button type="submit" name="hl_component_action" value="complete_component"'
+                                   . ' class="button button-small button-primary"'
+                                   . ' onclick="this.form.hl_component_id.value=\'' . esc_attr($cid) . '\';'
+                                   . 'return confirm(\'' . sprintf(esc_js(__('Mark "%s" as Complete for this user?', 'hl-core')), $esc_title) . '\');">'
+                                   . esc_html__('Mark Complete', 'hl-core') . '</button>';
+                            }
+                        }
+
+                        echo '</td>';
+                        echo '</tr>';
+                    }
+
+                    echo '</tbody></table>';
+                    echo '</form>';
+
+                    if ($has_non_ld) {
+                        echo '<p class="description" style="margin-top:8px;">'
+                           . esc_html__('Note: activity-based components may recalculate when new activity occurs.', 'hl-core')
+                           . '</p>';
+                    }
+                }
+            }
+        }
 
         // User search autocomplete JS.
         ?>
