@@ -127,6 +127,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scheduling-email-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scheduling-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-tour-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-ticket-service.php';
 
         // Integrations
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-learndash-integration.php';
@@ -205,6 +206,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-coach-availability.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-schedule-session.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-user-profile.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-feature-tracker.php';
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';
@@ -285,6 +287,9 @@ class HL_Core {
         // Initialize tour service (registers AJAX hooks)
         HL_Tour_Service::instance();
 
+        // Initialize feature tracker (registers AJAX hooks)
+        HL_Frontend_Feature_Tracker::instance();
+
         // Auto-generate child assessment instances when teaching assignments change
         add_action('hl_core_teaching_assignment_changed', function ($cycle_id) {
             $service = new HL_Assessment_Service();
@@ -326,8 +331,22 @@ class HL_Core {
     }
 
     /**
-     * Render WPML language switcher as a native <select> dropdown.
-     * Falls back gracefully if WPML is not active.
+     * Get the WPML-aware Dashboard page URL (the LMS "home").
+     */
+    public static function get_dashboard_url() {
+        global $wpdb;
+        $page_id = $wpdb->get_var(
+            "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE '%[hl\_dashboard%' LIMIT 1"
+        );
+        if ($page_id) {
+            $page_id = apply_filters('wpml_object_id', $page_id, 'page', true);
+        }
+        return $page_id ? get_permalink($page_id) : home_url('/');
+    }
+
+    /**
+     * Render WPML language switcher as a custom flag + name dropdown.
+     * Uses inline SVG flags for cross-platform compatibility.
      */
     public static function render_language_switcher() {
         if (!function_exists('icl_get_languages')) {
@@ -337,17 +356,68 @@ class HL_Core {
         if (empty($languages) || count($languages) < 2) {
             return;
         }
+
+        // Inline SVG flag icons (20x15 rounded-rect).
+        $flag_map = array(
+            'en'    => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" width="20" height="15" style="border-radius:2px"><clipPath id="a"><rect width="60" height="30" rx="2"/></clipPath><g clip-path="url(#a)"><rect width="60" height="30" fill="#00247d"/><path d="M0 0l60 30M60 0L0 30" stroke="#fff" stroke-width="6"/><path d="M0 0l60 30M60 0L0 30" stroke="#cf142b" stroke-width="4" clip-path="url(#a)"/><path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/><path d="M30 0v30M0 15h60" stroke="#cf142b" stroke-width="6"/></g></svg>',
+            'es'    => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" width="20" height="15" style="border-radius:2px"><rect width="60" height="30" fill="#fff"/><rect width="60" height="10" fill="#006847"/><rect y="20" width="60" height="10" fill="#ce1126"/><rect x="22" y="10" width="16" height="10" fill="#fff"/><circle cx="30" cy="15" r="3" fill="#8b4513"/></svg>',
+            'pt-br' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" width="20" height="15" style="border-radius:2px"><rect width="60" height="30" fill="#009b3a"/><polygon points="30,3 57,15 30,27 3,15" fill="#fedf00"/><circle cx="30" cy="15" r="7" fill="#002776"/><path d="M23.5 15.5 Q30 11 36.5 15.5" stroke="#fff" stroke-width="1" fill="none"/></svg>',
+        );
+        $name_map = array(
+            'en'    => 'English',
+            'es'    => "Espa\xC3\xB1ol",
+            'pt-br' => "Portugu\xC3\xAAs",
+        );
+
+        $active_lang = null;
+        $other_langs = array();
+        foreach ($languages as $code => $lang) {
+            $lang['flag_svg']     = $flag_map[$code] ?? '';
+            $lang['display_name'] = $name_map[$code] ?? $lang['native_name'];
+            if ($lang['active']) {
+                $active_lang = $lang;
+            } else {
+                $other_langs[] = $lang;
+            }
+        }
+        if (!$active_lang) {
+            return;
+        }
         ?>
-        <div class="hl-sidebar__lang-switcher">
-            <select class="hl-lang-select" onchange="if(this.value)window.location.href=this.value">
-                <?php foreach ($languages as $lang) : ?>
-                    <option value="<?php echo esc_url($lang['url']); ?>"
-                        <?php selected($lang['active']); ?>>
-                        <?php echo esc_html($lang['native_name']); ?>
-                    </option>
+        <div class="hl-lang-switcher" data-open="false">
+            <button type="button" class="hl-lang-switcher__toggle" aria-expanded="false" aria-haspopup="listbox">
+                <span class="hl-lang-switcher__flag"><?php echo $active_lang['flag_svg']; ?></span>
+                <span class="hl-lang-switcher__name"><?php echo esc_html($active_lang['display_name']); ?></span>
+                <svg class="hl-lang-switcher__arrow" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 4l2.5 2.5L7.5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <ul class="hl-lang-switcher__menu" role="listbox">
+                <?php foreach ($other_langs as $lang) : ?>
+                    <li role="option">
+                        <a href="<?php echo esc_url($lang['url']); ?>" class="hl-lang-switcher__option">
+                            <span class="hl-lang-switcher__flag"><?php echo $lang['flag_svg']; ?></span>
+                            <span class="hl-lang-switcher__name"><?php echo esc_html($lang['display_name']); ?></span>
+                        </a>
+                    </li>
                 <?php endforeach; ?>
-            </select>
+            </ul>
         </div>
+        <script>
+        (function(){
+            var el = document.querySelector('.hl-lang-switcher');
+            if (!el) return;
+            var btn = el.querySelector('.hl-lang-switcher__toggle');
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var open = el.getAttribute('data-open') === 'true';
+                el.setAttribute('data-open', open ? 'false' : 'true');
+                btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+            });
+            document.addEventListener('click', function() {
+                el.setAttribute('data-open', 'false');
+                btn.setAttribute('aria-expanded', 'false');
+            });
+        })();
+        </script>
         <?php
     }
 }

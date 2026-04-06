@@ -397,6 +397,7 @@ class HL_BuddyBoss_Integration {
                 array('coach-availability', 'hl_coach_availability', __('My Availability', 'hl-core'),  'dashicons-calendar-alt',         true),
                 array('coach-reports',      'hl_coach_reports',      __('Coach Reports', 'hl-core'),    'dashicons-chart-bar',            true),
                 array('documentation',      'hl_docs',               __('Documentation', 'hl-core'),    'dashicons-media-document',       true),
+                array('feature-tracker', 'hl_feature_tracker', __('Feature Tracker', 'hl-core'), 'dashicons-feedback', true),
             );
         } else {
             $menu_def = array(
@@ -421,6 +422,7 @@ class HL_BuddyBoss_Integration {
                 array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'dashicons-chart-bar',            $is_staff || $is_leader),
                 // --- Documentation ---
                 array('documentation', 'hl_docs',                 __('Documentation', 'hl-core'),  'dashicons-media-document',       $is_admin_level),
+                array('feature-tracker', 'hl_feature_tracker', __('Feature Tracker', 'hl-core'), 'dashicons-feedback', $is_staff),
                 // --- Admin ---
                 array('wp-admin', null, __('WP Admin', 'hl-core'), 'dashicons-admin-generic', $is_admin_level),
             );
@@ -645,6 +647,11 @@ class HL_BuddyBoss_Integration {
             '%[' . $wpdb->esc_like($shortcode) . '%'
         ));
 
+        // Translate to current WPML language so URLs stay in the active language.
+        if ($page_id) {
+            $page_id = apply_filters('wpml_object_id', $page_id, 'page', true);
+        }
+
         $url = $page_id ? get_permalink($page_id) : '';
 
         self::$page_url_cache[$cache_key] = $url;
@@ -706,7 +713,7 @@ class HL_BuddyBoss_Integration {
         if (!$initials && $display_name) $initials = strtoupper(substr($display_name, 0, 2));
 
         $current_url   = trailingslashit(strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
-        $dashboard_url = !empty($menu_items) ? $menu_items[0]['url'] : home_url('/');
+        $dashboard_url = HL_Core::get_dashboard_url();
 
         $logo_id  = get_theme_mod('custom_logo');
         $logo_url = $logo_id ? wp_get_attachment_image_url($logo_id, 'full') : '';
@@ -757,7 +764,7 @@ class HL_BuddyBoss_Integration {
                         <span class="dashicons dashicons-admin-users"></span>
                         <?php esc_html_e('My Account', 'hl-core'); ?>
                     </a>
-                    <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-topbar__dropdown-item">
+                    <a href="<?php echo esc_url(wp_logout_url($dashboard_url)); ?>" class="hl-topbar__dropdown-item">
                         <span class="dashicons dashicons-migrate"></span>
                         <?php esc_html_e('Log Out', 'hl-core'); ?>
                     </a>
@@ -768,7 +775,7 @@ class HL_BuddyBoss_Integration {
         <nav class="hl-sidebar" id="hl-sidebar">
             <div class="hl-sidebar__brand">
                 <?php if ($logo_url) : ?>
-                    <a href="<?php echo esc_url(home_url('/')); ?>" class="hl-sidebar__logo-link">
+                    <a href="<?php echo esc_url($dashboard_url); ?>" class="hl-sidebar__logo-link">
                         <img src="<?php echo esc_url($logo_url); ?>" alt="<?php echo esc_attr(get_bloginfo('name')); ?>" class="hl-sidebar__logo-img">
                     </a>
                 <?php else : ?>
@@ -797,7 +804,7 @@ class HL_BuddyBoss_Integration {
                     <span class="dashicons dashicons-arrow-left-alt2"></span>
                 </button>
                 <?php HL_Core::render_language_switcher(); ?>
-                <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-sidebar__item">
+                <a href="<?php echo esc_url(wp_logout_url($dashboard_url)); ?>" class="hl-sidebar__item">
                     <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
                     <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>
                 </a>

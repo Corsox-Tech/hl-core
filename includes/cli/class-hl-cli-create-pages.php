@@ -161,6 +161,9 @@ class HL_CLI_Create_Pages {
             array( 'title' => 'Mentor Detail',        'shortcode' => 'hl_coach_mentor_detail' ),
             array( 'title' => 'Coach Reports',        'shortcode' => 'hl_coach_reports' ),
             array( 'title' => 'Coach Availability',   'shortcode' => 'hl_coach_availability' ),
+
+            // Feature tracker
+            array( 'title' => 'Feature Tracker',     'shortcode' => 'hl_feature_tracker' ),
         );
     }
 
