@@ -209,8 +209,8 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
     <!-- Top Bar -->
     <div class="hl-topbar<?php echo $old_user ? ' hl-topbar--view-as' : ''; ?>" id="hl-topbar">
         <div class="hl-breadcrumb">
-            <a href="<?php echo esc_url($dashboard_url); ?>">Dashboard</a> &rsaquo;
-            <a href="<?php echo esc_url($courses_url); ?>">Courses</a> &rsaquo;
+            <a href="<?php echo esc_url($dashboard_url); ?>"><?php esc_html_e('Dashboard', 'hl-core'); ?></a> &rsaquo;
+            <a href="<?php echo esc_url($courses_url); ?>"><?php esc_html_e('Courses', 'hl-core'); ?></a> &rsaquo;
             <span><?php echo esc_html($course_title); ?></span>
         </div>
         <div class="hl-topbar__user-wrap" id="hl-topbar-user-wrap">
@@ -274,14 +274,10 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
             <?php endforeach; ?>
         </div>
         <div class="hl-sidebar__footer">
-            <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="Collapse sidebar">
+            <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="<?php esc_attr_e('Collapse sidebar', 'hl-core'); ?>">
                 <span class="dashicons dashicons-arrow-left-alt2"></span>
             </button>
-            <?php if (shortcode_exists('wpml_language_selector_widget')) : ?>
-            <div class="hl-sidebar__lang-switcher">
-                <?php echo do_shortcode('[wpml_language_selector_widget]'); ?>
-            </div>
-            <?php endif; ?>
+            <?php HL_Core::render_language_switcher(); ?>
             <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-sidebar__item">
                 <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
                 <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>
@@ -298,18 +294,18 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
         </div>
         <div class="hl-page-hero__text">
             <?php if ($has_access && $total > 0) : ?>
-                <span class="hl-page-hero__tag"><?php echo $pct; ?>% Complete</span>
+                <span class="hl-page-hero__tag"><?php printf(esc_html__('%d%% Complete', 'hl-core'), $pct); ?></span>
             <?php elseif ($has_access) : ?>
-                <span class="hl-page-hero__tag">Enrolled</span>
+                <span class="hl-page-hero__tag"><?php esc_html_e('Enrolled', 'hl-core'); ?></span>
             <?php endif; ?>
             <h1 class="hl-page-hero__title"><?php echo esc_html($course_title); ?></h1>
             <?php if ($lesson_count > 0 || $quiz_count > 0) : ?>
                 <p class="hl-page-hero__subtitle">
                     <?php
                     $parts = array();
-                    if ($lesson_count > 0) $parts[] = $lesson_count . ' Lesson' . ($lesson_count !== 1 ? 's' : '');
-                    if ($topic_count > 0)  $parts[] = $topic_count . ' Topic' . ($topic_count !== 1 ? 's' : '');
-                    if ($quiz_count > 0)   $parts[] = $quiz_count . ' Quiz' . ($quiz_count !== 1 ? 'zes' : '');
+                    if ($lesson_count > 0) $parts[] = sprintf(_n('%d Lesson', '%d Lessons', $lesson_count, 'hl-core'), $lesson_count);
+                    if ($topic_count > 0)  $parts[] = sprintf(_n('%d Topic', '%d Topics', $topic_count, 'hl-core'), $topic_count);
+                    if ($quiz_count > 0)   $parts[] = sprintf(_n('%d Quiz', '%d Quizzes', $quiz_count, 'hl-core'), $quiz_count);
                     echo esc_html(implode(' &middot; ', $parts));
                     ?>
                 </p>
@@ -346,41 +342,41 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
                 <div class="hl-course-sidebar__progress-bar">
                     <div class="hl-course-sidebar__progress-fill" style="width: <?php echo $pct; ?>%"></div>
                 </div>
-                <span class="hl-course-sidebar__progress-text"><?php echo $pct; ?>% Complete</span>
+                <span class="hl-course-sidebar__progress-text"><?php printf(esc_html__('%d%% Complete', 'hl-core'), $pct); ?></span>
             </div>
             <?php endif; ?>
 
             <!-- Action button -->
             <div class="hl-course-sidebar__action">
                 <?php if ($has_access && $pct >= 100) : ?>
-                    <span class="hl-course-sidebar__badge hl-course-sidebar__badge--complete">Completed</span>
+                    <span class="hl-course-sidebar__badge hl-course-sidebar__badge--complete"><?php esc_html_e('Completed', 'hl-core'); ?></span>
                     <?php if ($resume_url) : ?>
-                        <a href="<?php echo esc_url($resume_url); ?>" class="hl-course-sidebar__btn hl-course-sidebar__btn--secondary">Review Course</a>
+                        <a href="<?php echo esc_url($resume_url); ?>" class="hl-course-sidebar__btn hl-course-sidebar__btn--secondary"><?php esc_html_e('Review Course', 'hl-core'); ?></a>
                     <?php endif; ?>
                 <?php elseif ($has_access && $resume_url) : ?>
-                    <a href="<?php echo esc_url($resume_url); ?>" class="hl-course-sidebar__btn"><?php echo $pct > 0 ? 'Continue' : 'Start Course'; ?></a>
+                    <a href="<?php echo esc_url($resume_url); ?>" class="hl-course-sidebar__btn"><?php echo $pct > 0 ? esc_html__('Continue', 'hl-core') : esc_html__('Start Course', 'hl-core'); ?></a>
                 <?php elseif ($has_access) : ?>
-                    <span class="hl-course-sidebar__badge" style="display:block;text-align:center;padding:10px;background:#e3f2fd;color:#1565c0;border-radius:var(--hl-radius);font-weight:600;font-size:14px;">Enrolled</span>
+                    <span class="hl-course-sidebar__badge" style="display:block;text-align:center;padding:10px;background:#e3f2fd;color:#1565c0;border-radius:var(--hl-radius);font-weight:600;font-size:14px;"><?php esc_html_e('Enrolled', 'hl-core'); ?></span>
                 <?php else : ?>
-                    <span class="hl-course-sidebar__btn hl-course-sidebar__btn--disabled">Not Enrolled</span>
+                    <span class="hl-course-sidebar__btn hl-course-sidebar__btn--disabled"><?php esc_html_e('Not Enrolled', 'hl-core'); ?></span>
                 <?php endif; ?>
             </div>
 
             <!-- Course includes -->
             <div class="hl-course-sidebar__includes">
-                <h4 class="hl-course-sidebar__includes-title">COURSE INCLUDES</h4>
+                <h4 class="hl-course-sidebar__includes-title"><?php esc_html_e('COURSE INCLUDES', 'hl-core'); ?></h4>
                 <ul class="hl-course-sidebar__includes-list">
                     <?php if ($lesson_count > 0) : ?>
-                    <li><span class="dashicons dashicons-media-text"></span> <?php echo $lesson_count; ?> Lesson<?php echo $lesson_count !== 1 ? 's' : ''; ?></li>
+                    <li><span class="dashicons dashicons-media-text"></span> <?php printf(_n('%d Lesson', '%d Lessons', $lesson_count, 'hl-core'), $lesson_count); ?></li>
                     <?php endif; ?>
                     <?php if ($topic_count > 0) : ?>
-                    <li><span class="dashicons dashicons-editor-ul"></span> <?php echo $topic_count; ?> Topic<?php echo $topic_count !== 1 ? 's' : ''; ?></li>
+                    <li><span class="dashicons dashicons-editor-ul"></span> <?php printf(_n('%d Topic', '%d Topics', $topic_count, 'hl-core'), $topic_count); ?></li>
                     <?php endif; ?>
                     <?php if ($quiz_count > 0) : ?>
-                    <li><span class="dashicons dashicons-forms"></span> <?php echo $quiz_count; ?> Quiz<?php echo $quiz_count !== 1 ? 'zes' : ''; ?></li>
+                    <li><span class="dashicons dashicons-forms"></span> <?php printf(_n('%d Quiz', '%d Quizzes', $quiz_count, 'hl-core'), $quiz_count); ?></li>
                     <?php endif; ?>
                     <?php if ($has_cert) : ?>
-                    <li><span class="dashicons dashicons-awards"></span> Course Certificate</li>
+                    <li><span class="dashicons dashicons-awards"></span> <?php esc_html_e('Course Certificate', 'hl-core'); ?></li>
                     <?php endif; ?>
                 </ul>
             </div>

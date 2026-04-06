@@ -6678,29 +6678,34 @@ button.hl-btn-danger:hover,
     padding: 12px;
     border-top: 1px solid rgba(255,255,255,0.08);
 }
-/* WPML language switcher in sidebar footer */
+/* WPML language switcher dropdown in sidebar footer */
 .hl-sidebar__lang-switcher {
     padding: 4px 12px 8px;
 }
-.hl-sidebar__lang-switcher .wpml-ls-statics-shortcode_actions {
-    border: none;
-    background: none;
-}
-.hl-sidebar__lang-switcher .wpml-ls-statics-shortcode_actions a {
-    color: rgba(255,255,255,0.65);
-    font-size: 13px;
-    font-family: var(--hl-font);
-    padding: 6px 8px;
-    border-radius: var(--hl-radius-xs);
-    transition: background 0.15s, color 0.15s;
-}
-.hl-sidebar__lang-switcher .wpml-ls-statics-shortcode_actions a:hover {
-    color: #fff;
+.hl-lang-select {
+    width: 100%;
+    padding: 8px 12px;
     background: rgba(255,255,255,0.08);
-}
-.hl-sidebar__lang-switcher .wpml-ls-statics-shortcode_actions .wpml-ls-current-language a {
     color: #fff;
-    font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--hl-radius-xs);
+    font-family: var(--hl-font);
+    font-size: 13px;
+    cursor: pointer;
+    appearance: auto;
+    transition: background 0.15s, border-color 0.15s;
+}
+.hl-lang-select:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.25);
+}
+.hl-lang-select:focus {
+    outline: none;
+    border-color: var(--hl-interactive);
+}
+.hl-lang-select option {
+    background: #1e2433;
+    color: #fff;
 }
 /* Hide when sidebar is collapsed */
 .hl-sidebar--collapsed .hl-sidebar__lang-switcher { display: none; }

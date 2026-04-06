@@ -324,6 +324,32 @@ class HL_Core {
             dirname(plugin_basename(HL_CORE_PLUGIN_FILE)) . '/languages'
         );
     }
+
+    /**
+     * Render WPML language switcher as a native <select> dropdown.
+     * Falls back gracefully if WPML is not active.
+     */
+    public static function render_language_switcher() {
+        if (!function_exists('icl_get_languages')) {
+            return;
+        }
+        $languages = icl_get_languages('skip_missing=0&orderby=code');
+        if (empty($languages) || count($languages) < 2) {
+            return;
+        }
+        ?>
+        <div class="hl-sidebar__lang-switcher">
+            <select class="hl-lang-select" onchange="if(this.value)window.location.href=this.value">
+                <?php foreach ($languages as $lang) : ?>
+                    <option value="<?php echo esc_url($lang['url']); ?>"
+                        <?php selected($lang['active']); ?>>
+                        <?php echo esc_html($lang['native_name']); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <?php
+    }
 }
 
 /**

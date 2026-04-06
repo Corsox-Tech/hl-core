@@ -163,8 +163,8 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
     <!-- Top Bar -->
     <div class="hl-topbar<?php echo $old_user ? ' hl-topbar--view-as' : ''; ?>" id="hl-topbar">
         <div class="hl-breadcrumb">
-            <a href="<?php echo esc_url($dashboard_url); ?>">Dashboard</a> &rsaquo;
-            <a href="<?php echo esc_url($courses_url); ?>">Courses</a> &rsaquo;
+            <a href="<?php echo esc_url($dashboard_url); ?>"><?php esc_html_e('Dashboard', 'hl-core'); ?></a> &rsaquo;
+            <a href="<?php echo esc_url($courses_url); ?>"><?php esc_html_e('Courses', 'hl-core'); ?></a> &rsaquo;
             <a href="<?php echo esc_url($course_url); ?>"><?php echo esc_html($course_title); ?></a> &rsaquo;
             <span><?php echo esc_html($lesson_title); ?></span>
         </div>
@@ -229,14 +229,10 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
             <?php endforeach; ?>
         </div>
         <div class="hl-sidebar__footer">
-            <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="Collapse sidebar">
+            <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="<?php esc_attr_e('Collapse sidebar', 'hl-core'); ?>">
                 <span class="dashicons dashicons-arrow-left-alt2"></span>
             </button>
-            <?php if (shortcode_exists('wpml_language_selector_widget')) : ?>
-            <div class="hl-sidebar__lang-switcher">
-                <?php echo do_shortcode('[wpml_language_selector_widget]'); ?>
-            </div>
-            <?php endif; ?>
+            <?php HL_Core::render_language_switcher(); ?>
             <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-sidebar__item">
                 <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
                 <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>
@@ -246,18 +242,18 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
 <?php endif; ?>
 
 <!-- Course Outline Reopen Button (visible when outline is collapsed) -->
-<button class="hl-course-outline__reopen" id="hl-course-outline-reopen" type="button" title="Show course outline">
+<button class="hl-course-outline__reopen" id="hl-course-outline-reopen" type="button" title="<?php esc_attr_e('Show course outline', 'hl-core'); ?>">
     <span class="dashicons dashicons-list-view"></span>
 </button>
 
 <!-- Course Outline Panel -->
 <aside class="hl-course-outline" id="hl-course-outline">
-    <button class="hl-course-outline__toggle" id="hl-course-outline-toggle" type="button" title="Hide course outline">
+    <button class="hl-course-outline__toggle" id="hl-course-outline-toggle" type="button" title="<?php esc_attr_e('Hide course outline', 'hl-core'); ?>">
         <span class="dashicons dashicons-no-alt"></span>
     </button>
 
     <a href="<?php echo esc_url($course_url); ?>" class="hl-course-outline__back">
-        <span class="dashicons dashicons-arrow-left-alt2"></span> Back to Course
+        <span class="dashicons dashicons-arrow-left-alt2"></span> <?php esc_html_e('Back to Course', 'hl-core'); ?>
     </a>
 
     <h2 class="hl-course-outline__title"><?php echo esc_html($course_title); ?></h2>
@@ -266,9 +262,9 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
         <div class="hl-course-outline__progress-bar">
             <div class="hl-course-outline__progress-fill" style="width: <?php echo (int) $completion_pct; ?>%"></div>
         </div>
-        <span class="hl-course-outline__progress-text"><?php echo (int) $completion_pct; ?>% Complete</span>
+        <span class="hl-course-outline__progress-text"><?php printf(esc_html__('%d%% Complete', 'hl-core'), (int) $completion_pct); ?></span>
         <?php if ($last_activity) : ?>
-            <span class="hl-course-outline__activity">Last activity on <?php echo esc_html($last_activity); ?></span>
+            <span class="hl-course-outline__activity"><?php printf(esc_html__('Last activity on %s', 'hl-core'), esc_html($last_activity)); ?></span>
         <?php endif; ?>
     </div>
 
@@ -306,20 +302,20 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
 <!-- Main Content -->
 <main class="hl-ld-content">
     <div class="hl-ld-content__header">
-        <span class="hl-ld-content__counter">Lesson <?php echo (int) $lesson_position; ?> of <?php echo (int) $total_lessons; ?></span>
+        <span class="hl-ld-content__counter"><?php printf(esc_html__('Lesson %1$d of %2$d', 'hl-core'), (int) $lesson_position, (int) $total_lessons); ?></span>
         <?php if ($is_current_complete) : ?>
-            <span class="hl-ld-content__badge hl-ld-content__badge--complete">Completed</span>
+            <span class="hl-ld-content__badge hl-ld-content__badge--complete"><?php esc_html_e('Completed', 'hl-core'); ?></span>
         <?php else : ?>
-            <span class="hl-ld-content__badge hl-ld-content__badge--progress">In Progress</span>
+            <span class="hl-ld-content__badge hl-ld-content__badge--progress"><?php esc_html_e('In Progress', 'hl-core'); ?></span>
         <?php endif; ?>
         <div class="hl-ld-content__nav">
             <?php if ($prev_lesson) : ?>
-                <a href="<?php echo esc_url(get_permalink($prev_lesson['post']->ID)); ?>" class="hl-ld-content__nav-btn" title="Previous lesson">&#8249;</a>
+                <a href="<?php echo esc_url(get_permalink($prev_lesson['post']->ID)); ?>" class="hl-ld-content__nav-btn" title="<?php esc_attr_e('Previous lesson', 'hl-core'); ?>">&#8249;</a>
             <?php else : ?>
                 <span class="hl-ld-content__nav-btn hl-ld-content__nav-btn--disabled">&#8249;</span>
             <?php endif; ?>
             <?php if ($next_lesson) : ?>
-                <a href="<?php echo esc_url(get_permalink($next_lesson['post']->ID)); ?>" class="hl-ld-content__nav-btn" title="Next lesson">&#8250;</a>
+                <a href="<?php echo esc_url(get_permalink($next_lesson['post']->ID)); ?>" class="hl-ld-content__nav-btn" title="<?php esc_attr_e('Next lesson', 'hl-core'); ?>">&#8250;</a>
             <?php else : ?>
                 <span class="hl-ld-content__nav-btn hl-ld-content__nav-btn--disabled">&#8250;</span>
             <?php endif; ?>

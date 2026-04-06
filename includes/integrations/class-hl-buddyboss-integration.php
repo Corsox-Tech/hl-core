@@ -630,8 +630,12 @@ class HL_BuddyBoss_Integration {
      * @return string Page permalink or empty string if not found.
      */
     private function find_shortcode_page_url($shortcode) {
-        if (isset(self::$page_url_cache[$shortcode])) {
-            return self::$page_url_cache[$shortcode];
+        // Include WPML language in cache key so language switches within the
+        // same request (e.g. login redirect) don't serve stale URLs.
+        $lang = defined('ICL_LANGUAGE_CODE') ? ICL_LANGUAGE_CODE : 'en';
+        $cache_key = $shortcode . '_' . $lang;
+        if (isset(self::$page_url_cache[$cache_key])) {
+            return self::$page_url_cache[$cache_key];
         }
 
         global $wpdb;
@@ -643,7 +647,7 @@ class HL_BuddyBoss_Integration {
 
         $url = $page_id ? get_permalink($page_id) : '';
 
-        self::$page_url_cache[$shortcode] = $url;
+        self::$page_url_cache[$cache_key] = $url;
 
         return $url;
     }
@@ -789,14 +793,10 @@ class HL_BuddyBoss_Integration {
                 <?php endforeach; ?>
             </div>
             <div class="hl-sidebar__footer">
-                <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="Collapse sidebar">
+                <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="<?php esc_attr_e('Collapse sidebar', 'hl-core'); ?>">
                     <span class="dashicons dashicons-arrow-left-alt2"></span>
                 </button>
-                <?php if (shortcode_exists('wpml_language_selector_widget')) : ?>
-                <div class="hl-sidebar__lang-switcher">
-                    <?php echo do_shortcode('[wpml_language_selector_widget]'); ?>
-                </div>
-                <?php endif; ?>
+                <?php HL_Core::render_language_switcher(); ?>
                 <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-sidebar__item">
                     <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
                     <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>
