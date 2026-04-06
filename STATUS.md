@@ -163,6 +163,14 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **CSS + JS** — `.hlft-*` design system section, jQuery AJAX handlers with `esc()` XSS protection, modal logic, debounced search.
 - [ ] **Deployed to test** — Pending.
 
+### Suspended User Handling (April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-06-suspended-users-design.md` | **Plan:** `docs/superpowers/plans/2026-04-06-suspended-users.md`
+- [x] **Central helper** — `HL_BuddyBoss_Integration::is_user_suspended()` + `get_suspend_not_exists_sql()` with per-request cache and graceful degradation.
+- [x] **Frontend filtering** — Suspended users hidden from Learners, Team Page, Coach Mentors, Reports. User Profile blocked for non-admins.
+- [x] **Admin badges** — Red "Suspended" badge on Enrollments, Assessments, Coaching pages.
+- [x] **Admin filter** — Suspension filter dropdown on Enrollments list (All / Suspended Only / Exclude Suspended) with count.
+- [ ] **Deployed to test** — Pending.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
