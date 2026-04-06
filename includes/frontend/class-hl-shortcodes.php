@@ -208,6 +208,7 @@ class HL_Shortcodes {
         add_shortcode('hl_coach_reports', array($this, 'render_coach_reports'));
         add_shortcode('hl_coach_availability', array($this, 'render_coach_availability'));
         add_shortcode('hl_user_profile', array($this, 'render_user_profile'));
+        add_shortcode('hl_feature_tracker', array($this, 'render_feature_tracker'));
 
         // Backward-compatible aliases for pre-Rename-V3 shortcode names.
         // Production pages may still contain the old shortcode names.
@@ -733,6 +734,18 @@ class HL_Shortcodes {
         $this->ensure_frontend_assets();
         $atts = shortcode_atts(array(), $atts, 'hl_user_profile');
         $renderer = new HL_Frontend_User_Profile();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_feature_tracker] - Feature Tracker page for admins and coaches
+     */
+    public function render_feature_tracker($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
+        }
+        $this->ensure_frontend_assets();
+        $renderer = new HL_Frontend_Feature_Tracker();
         return $renderer->render($atts);
     }
 
