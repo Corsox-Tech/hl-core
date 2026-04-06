@@ -4,9 +4,9 @@ if (!defined('ABSPATH')) exit;
 /**
  * Renderer for the [hl_team_page] shortcode.
  *
- * Displays a single team detail view with two tabs:
- * - Team Members: table with name, email, role, completion %
- * - Report: completion report with per-activity detail expansion and CSV export
+ * Displays a single team detail view with a unified table:
+ * - Columns: #, Name, Email, Role (badge), Completion, Details (expandable)
+ * - Includes search filter and CSV export
  *
  * Access: Housman Admin, Coach, School Leaders, District Leaders, Team Members.
  * URL: ?id={team_id}
@@ -120,18 +120,6 @@ class HL_Frontend_Team_Page {
         // Breadcrumb URL.
         $back_url = $this->build_back_url( $team );
 
-        // Active tab.
-        $active_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'members';
-        $valid_tabs = array( 'members', 'report' );
-        if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
-            $active_tab = 'members';
-        }
-
-        $tabs = array(
-            'members' => __( 'Team Members', 'hl-core' ),
-            'report'  => __( 'Report', 'hl-core' ),
-        );
-
         ?>
         <div class="hl-dashboard hl-team-page hl-frontend-wrap">
 
@@ -147,27 +135,7 @@ class HL_Frontend_Team_Page {
 
             <?php $this->render_header( $team, $cycle, $school ); ?>
 
-            <div class="hl-track-tabs">
-                <?php foreach ( $tabs as $key => $label ) : ?>
-                    <button class="hl-tab hl-track-tab <?php echo $active_tab === $key ? 'active' : ''; ?>"
-                            data-target="hl-tab-<?php echo esc_attr( $key ); ?>">
-                        <?php echo esc_html( $label ); ?>
-                    </button>
-                <?php endforeach; ?>
-            </div>
-
-            <?php foreach ( $tabs as $key => $label ) : ?>
-                <div id="hl-tab-<?php echo esc_attr( $key ); ?>"
-                     class="hl-track-content <?php echo $active_tab === $key ? 'active' : ''; ?>">
-                    <?php
-                    if ( $key === 'members' ) {
-                        $this->render_members_tab( $team );
-                    } else {
-                        $this->render_report_tab( $team, $cycle );
-                    }
-                    ?>
-                </div>
-            <?php endforeach; ?>
+            <?php $this->render_team_table( $team, $cycle ); ?>
 
         </div>
         <?php
@@ -309,10 +277,10 @@ class HL_Frontend_Team_Page {
     }
 
     // ========================================================================
-    // Tab: Team Members
+    // Unified Team Table
     // ========================================================================
 
-    private function render_members_tab( $team ) {
+    private function render_team_table( $team, $cycle ) {
         $members = $this->team_repo->get_members( $team->team_id );
 
         if ( empty( $members ) ) {
@@ -322,33 +290,66 @@ class HL_Frontend_Team_Page {
             return;
         }
 
+        // Activity detail for expandable rows (needs cycle).
+        $activity_detail = array();
+        $activities      = array();
+
+        if ( $cycle ) {
+            $enrollment_ids = array_map( function ( $m ) { return $m['enrollment_id']; }, $members );
+
+            if ( ! empty( $enrollment_ids ) && method_exists( $this->reporting_service, 'get_cycle_component_detail' ) ) {
+                $activity_detail = $this->reporting_service->get_cycle_component_detail(
+                    $cycle->cycle_id,
+                    $enrollment_ids
+                );
+                $activities = $this->reporting_service->get_cycle_components( $cycle->cycle_id );
+            }
+        }
+
+        // CSV export URL.
+        $export_url = add_query_arg( array(
+            'hl_export_action' => 'team_csv',
+            'team_id'          => $team->team_id,
+            '_wpnonce'         => wp_create_nonce( 'hl_team_export' ),
+        ) );
+
         ?>
         <div class="hl-table-container">
             <div class="hl-table-header">
                 <h3 class="hl-section-title"><?php esc_html_e( 'Team Members', 'hl-core' ); ?></h3>
-                <div class="hl-table-filters">
+                <div class="hl-table-header-actions">
                     <input type="text" class="hl-search-input" data-table="hl-team-members-table"
                            placeholder="<?php esc_attr_e( 'Search by name...', 'hl-core' ); ?>">
+                    <a href="<?php echo esc_url( $export_url ); ?>" class="hl-btn hl-btn-sm hl-btn-primary hl-export-btn">
+                        <?php esc_html_e( 'Download CSV', 'hl-core' ); ?>
+                    </a>
                 </div>
             </div>
 
-            <table class="hl-table" id="hl-team-members-table">
+            <table class="hl-table hl-reports-table" id="hl-team-members-table">
                 <thead>
                     <tr>
+                        <th>#</th>
                         <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
                         <th><?php esc_html_e( 'Email', 'hl-core' ); ?></th>
                         <th><?php esc_html_e( 'Role', 'hl-core' ); ?></th>
                         <th><?php esc_html_e( 'Completion', 'hl-core' ); ?></th>
+                        <th><?php esc_html_e( 'Details', 'hl-core' ); ?></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ( $members as $m ) :
-                        $completion = round( $this->reporting_service->get_enrollment_completion( $m['enrollment_id'] ) );
+                    <?php
+                    $row_num = 0;
+                    foreach ( $members as $m ) :
+                        $row_num++;
+                        $eid        = $m['enrollment_id'];
+                        $completion = round( $this->reporting_service->get_enrollment_completion( $eid ) );
                         $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
-                        $roles_raw  = json_decode( $m['roles'], true );
                         $role_label = ucwords( str_replace( '_', ' ', $m['membership_type'] ) );
                     ?>
-                        <tr data-name="<?php echo esc_attr( strtolower( $m['display_name'] ?? '' ) ); ?>">
+                        <tr class="hl-report-row"
+                            data-name="<?php echo esc_attr( strtolower( $m['display_name'] ?? '' ) ); ?>">
+                            <td><?php echo esc_html( $row_num ); ?></td>
                             <td><strong><?php
                                 $profile_url = $this->get_profile_url( $m['user_id'] ?? 0 );
                                 if ( $profile_url ) {
@@ -370,161 +371,54 @@ class HL_Frontend_Team_Page {
                                     <span class="hl-progress-text"><?php echo esc_html( $completion . '%' ); ?></span>
                                 </div>
                             </td>
+                            <td>
+                                <button class="hl-btn hl-btn-sm hl-btn-secondary hl-detail-toggle"
+                                        data-target="hl-team-detail-<?php echo esc_attr( $eid ); ?>">
+                                    <?php esc_html_e( 'View', 'hl-core' ); ?>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="hl-detail-row" id="hl-team-detail-<?php echo esc_attr( $eid ); ?>">
+                            <td colspan="6">
+                                <div class="hl-detail-content">
+                                    <?php if ( isset( $activity_detail[ $eid ] ) && ! empty( $activities ) ) : ?>
+                                        <table class="hl-table hl-detail-table">
+                                            <thead>
+                                                <tr>
+                                                    <th><?php esc_html_e( 'Component', 'hl-core' ); ?></th>
+                                                    <th><?php esc_html_e( 'Type', 'hl-core' ); ?></th>
+                                                    <th><?php esc_html_e( 'Progress', 'hl-core' ); ?></th>
+                                                    <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ( $activities as $act ) :
+                                                    $aid        = $act['component_id'];
+                                                    $ad         = isset( $activity_detail[ $eid ][ $aid ] ) ? $activity_detail[ $eid ][ $aid ] : null;
+                                                    $act_pct    = $ad ? intval( $ad['completion_percent'] ) : 0;
+                                                    $act_status = $ad ? $ad['completion_status'] : 'not_started';
+                                                    $status_lbl = ucwords( str_replace( '_', ' ', $act_status ) );
+                                                    $status_cls = 'hl-badge-' . str_replace( '_', '-', $act_status );
+                                                    $type_lbl   = ucwords( str_replace( '_', ' ', $act['component_type'] ) );
+                                                ?>
+                                                    <tr>
+                                                        <td><?php echo esc_html( $act['title'] ); ?></td>
+                                                        <td><span class="hl-activity-type"><?php echo esc_html( $type_lbl ); ?></span></td>
+                                                        <td><?php echo esc_html( $act_pct . '%' ); ?></td>
+                                                        <td><span class="hl-badge <?php echo esc_attr( $status_cls ); ?>"><?php echo esc_html( $status_lbl ); ?></span></td>
+                                                    </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    <?php else : ?>
+                                        <p><?php esc_html_e( 'No component data available.', 'hl-core' ); ?></p>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
-        </div>
-        <?php
-    }
-
-    // ========================================================================
-    // Tab: Report
-    // ========================================================================
-
-    private function render_report_tab( $team, $cycle ) {
-        if ( ! $cycle ) {
-            echo '<div class="hl-empty-state"><p>'
-                . esc_html__( 'Cycle data unavailable.', 'hl-core' )
-                . '</p></div>';
-            return;
-        }
-
-        $filters      = array(
-            'cycle_id' => $cycle->cycle_id,
-            'team_id'   => $team->team_id,
-        );
-        $participants = $this->reporting_service->get_participant_report( $filters );
-
-        // Activity detail for expandable rows.
-        $enrollment_ids  = wp_list_pluck( $participants, 'enrollment_id' );
-        $activity_detail = array();
-        $activities      = array();
-
-        if ( ! empty( $enrollment_ids ) && method_exists( $this->reporting_service, 'get_cycle_component_detail' ) ) {
-            $activity_detail = $this->reporting_service->get_cycle_component_detail(
-                $cycle->cycle_id,
-                $enrollment_ids
-            );
-            $activities = $this->reporting_service->get_cycle_components( $cycle->cycle_id );
-        }
-
-        // CSV export URL.
-        $export_url = add_query_arg( array(
-            'hl_export_action' => 'team_csv',
-            'team_id'          => $team->team_id,
-            '_wpnonce'         => wp_create_nonce( 'hl_team_export' ),
-        ) );
-
-        ?>
-        <div class="hl-table-container hl-reports-container">
-            <div class="hl-table-header">
-                <h3 class="hl-section-title"><?php esc_html_e( 'Team Completion Report', 'hl-core' ); ?></h3>
-                <a href="<?php echo esc_url( $export_url ); ?>" class="hl-btn hl-btn-sm hl-btn-primary hl-export-btn">
-                    <?php esc_html_e( 'Download CSV', 'hl-core' ); ?>
-                </a>
-            </div>
-
-            <?php if ( empty( $participants ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No participants found.', 'hl-core' ); ?></p></div>
-            <?php else : ?>
-                <table class="hl-table hl-reports-table" id="hl-team-report-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
-                            <th><?php esc_html_e( 'Role', 'hl-core' ); ?></th>
-                            <th><?php esc_html_e( 'Completed', 'hl-core' ); ?></th>
-                            <th><?php esc_html_e( 'Details', 'hl-core' ); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        $row_num = 0;
-                        foreach ( $participants as $p ) :
-                            $row_num++;
-                            $eid        = $p['enrollment_id'];
-                            $roles_raw  = json_decode( $p['roles'], true );
-                            $roles_str  = is_array( $roles_raw )
-                                ? implode( ', ', array_map( function ( $r ) {
-                                    return ucwords( str_replace( '_', ' ', $r ) );
-                                }, $roles_raw ) )
-                                : '';
-                            $completion = round( floatval( $p['cycle_completion_percent'] ) );
-                            $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
-                        ?>
-                            <tr class="hl-report-row"
-                                data-name="<?php echo esc_attr( strtolower( $p['display_name'] ) ); ?>">
-                                <td><?php echo esc_html( $row_num ); ?></td>
-                                <td><strong><?php
-                                    $profile_url = $this->get_profile_url( $p['user_id'] ?? 0 );
-                                    if ( $profile_url ) {
-                                        echo '<a href="' . esc_url( $profile_url ) . '" class="hl-profile-link">' . esc_html( $p['display_name'] ) . '</a>';
-                                    } else {
-                                        echo esc_html( $p['display_name'] );
-                                    }
-                                ?></strong></td>
-                                <td><?php echo esc_html( $roles_str ); ?></td>
-                                <td>
-                                    <div class="hl-inline-progress">
-                                        <div class="hl-progress-inline">
-                                            <div class="hl-progress-bar-container">
-                                                <div class="hl-progress-bar <?php echo esc_attr( $pclass ); ?>"
-                                                     style="width: <?php echo esc_attr( $completion ); ?>%"></div>
-                                            </div>
-                                        </div>
-                                        <span class="hl-progress-text"><?php echo esc_html( $completion . '%' ); ?></span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <button class="hl-btn hl-btn-sm hl-btn-secondary hl-detail-toggle"
-                                            data-target="hl-team-detail-<?php echo esc_attr( $eid ); ?>">
-                                        <?php esc_html_e( 'View', 'hl-core' ); ?>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr class="hl-detail-row" id="hl-team-detail-<?php echo esc_attr( $eid ); ?>">
-                                <td colspan="5">
-                                    <div class="hl-detail-content">
-                                        <?php if ( isset( $activity_detail[ $eid ] ) && ! empty( $activities ) ) : ?>
-                                            <table class="hl-table hl-detail-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th><?php esc_html_e( 'Component', 'hl-core' ); ?></th>
-                                                        <th><?php esc_html_e( 'Type', 'hl-core' ); ?></th>
-                                                        <th><?php esc_html_e( 'Progress', 'hl-core' ); ?></th>
-                                                        <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ( $activities as $act ) :
-                                                        $aid        = $act['component_id'];
-                                                        $ad         = isset( $activity_detail[ $eid ][ $aid ] ) ? $activity_detail[ $eid ][ $aid ] : null;
-                                                        $act_pct    = $ad ? intval( $ad['completion_percent'] ) : 0;
-                                                        $act_status = $ad ? $ad['completion_status'] : 'not_started';
-                                                        $status_lbl = ucwords( str_replace( '_', ' ', $act_status ) );
-                                                        $status_cls = 'hl-badge-' . str_replace( '_', '-', $act_status );
-                                                        $type_lbl   = ucwords( str_replace( '_', ' ', $act['component_type'] ) );
-                                                    ?>
-                                                        <tr>
-                                                            <td><?php echo esc_html( $act['title'] ); ?></td>
-                                                            <td><span class="hl-activity-type"><?php echo esc_html( $type_lbl ); ?></span></td>
-                                                            <td><?php echo esc_html( $act_pct . '%' ); ?></td>
-                                                            <td><span class="hl-badge <?php echo esc_attr( $status_cls ); ?>"><?php echo esc_html( $status_lbl ); ?></span></td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
-                                        <?php else : ?>
-                                            <p><?php esc_html_e( 'No component data available.', 'hl-core' ); ?></p>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php endif; ?>
         </div>
         <?php
     }

@@ -971,6 +971,12 @@ button.hl-btn-danger:hover,
     align-items: center;
 }
 
+.hl-table-header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
 .hl-table {
     width: 100%;
     border-collapse: separate;
