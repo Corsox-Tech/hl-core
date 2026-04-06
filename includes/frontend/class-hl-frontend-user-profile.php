@@ -231,6 +231,17 @@ class HL_Frontend_User_Profile {
         $is_own_profile = ($current_user_id === $target_user_id);
 
         // ── Access control ───────────────────────────────────────────
+
+        // Block access to suspended user profiles (admins can still view).
+        if ( $target_user_id !== $current_user_id
+             && ! current_user_can( 'manage_hl_core' )
+             && HL_BuddyBoss_Integration::is_user_suspended( $target_user_id ) ) {
+            echo '<div class="hl-notice hl-notice-warning">'
+                . esc_html__( 'This user is not available.', 'hl-core' )
+                . '</div>';
+            return ob_get_clean();
+        }
+
         if (!$this->can_view_profile($current_user_id, $target_user_id, $enrollments)) {
             echo '<div class="hl-notice hl-notice-error">'
                 . esc_html__('You do not have permission to view this profile.', 'hl-core')
