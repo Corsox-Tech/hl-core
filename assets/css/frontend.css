@@ -6678,64 +6678,73 @@ button.hl-btn-danger:hover,
     padding: 12px;
     border-top: 1px solid rgba(255,255,255,0.08);
 }
-/* WPML language switcher — flag + name dropdown */
+/* Topbar right-side actions group */
+.hl-topbar__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+/* WPML language switcher — flag + name dropdown (topbar, light bg) */
 .hl-lang-switcher {
     position: relative;
-    padding: 4px 12px 8px;
 }
 .hl-lang-switcher__toggle {
     display: flex;
     align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 8px 12px;
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.85);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 8px;
+    gap: 6px;
+    padding: 6px 10px;
+    background: transparent;
+    color: var(--hl-text-secondary);
+    border: 1px solid var(--hl-border);
+    border-radius: 6px;
     font-family: var(--hl-font);
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
 }
 .hl-lang-switcher__toggle:hover {
-    background: rgba(255,255,255,0.12);
-    border-color: rgba(255,255,255,0.2);
-    color: #fff;
+    background: var(--hl-bg);
+    border-color: var(--hl-text-secondary);
+    color: var(--hl-text);
 }
 .hl-lang-switcher__flag {
-    font-size: 16px;
-    line-height: 1;
     flex-shrink: 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+.hl-lang-switcher__flag svg {
+    display: block;
 }
 .hl-lang-switcher__name {
-    flex: 1;
     text-align: left;
 }
 .hl-lang-switcher__arrow {
     flex-shrink: 0;
-    color: rgba(255,255,255,0.5);
+    color: var(--hl-text-secondary);
     transition: transform 0.2s;
 }
 .hl-lang-switcher[data-open="true"] .hl-lang-switcher__arrow {
     transform: rotate(180deg);
 }
-/* Dropdown menu */
+/* Dropdown menu — opens downward from topbar */
 .hl-lang-switcher__menu {
     display: none;
     position: absolute;
-    bottom: calc(100% + 4px);
-    left: 12px;
-    right: 12px;
-    background: #1e2a3a;
-    border: 1px solid rgba(255,255,255,0.12);
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 160px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
     border-radius: 8px;
     padding: 4px;
     margin: 0;
     list-style: none;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.3);
-    z-index: 100;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    z-index: 10000;
 }
 .hl-lang-switcher[data-open="true"] .hl-lang-switcher__menu {
     display: block;
@@ -6749,7 +6758,7 @@ button.hl-btn-danger:hover,
     align-items: center;
     gap: 8px;
     padding: 8px 10px;
-    color: rgba(255,255,255,0.8);
+    color: var(--hl-text-secondary);
     text-decoration: none;
     border-radius: 6px;
     font-size: 13px;
@@ -6757,12 +6766,10 @@ button.hl-btn-danger:hover,
     transition: background 0.12s, color 0.12s;
 }
 .hl-lang-switcher__option:hover {
-    background: rgba(255,255,255,0.1);
-    color: #fff;
+    background: var(--hl-bg);
+    color: var(--hl-text);
     text-decoration: none;
 }
-/* Hide when sidebar is collapsed */
-.hl-sidebar--collapsed .hl-lang-switcher { display: none; }
 
 /* HL Sidebar dashicons */
 .hl-sidebar .dashicons {
@@ -9684,7 +9691,6 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     position: relative;
     display: flex;
     align-items: center;
-    margin-right: 8px;
 }
 .hl-topbar__tour-btn {
     background: none;
@@ -9849,15 +9855,18 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     box-shadow: var(--hl-shadow);
 }
 .hlft-table thead th {
-    padding: 10px 14px;
-    font-size: 12px;
-    font-weight: 600;
+    padding: 8px 10px;
+    font-size: 11px;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--hl-text-secondary);
-    background: var(--hl-bg);
+    color: var(--hl-text-heading);
+    background: var(--hl-primary);
+    background: linear-gradient(135deg, var(--hl-primary), var(--hl-primary-light));
+    color: rgba(255,255,255,0.9);
     border-bottom: 1px solid var(--hl-border);
     text-align: left;
+    white-space: nowrap;
 }
 .hlft-table tbody tr {
     cursor: pointer;
@@ -9867,17 +9876,17 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     background: var(--hl-bg);
 }
 .hlft-table tbody td {
-    padding: 12px 14px;
-    font-size: 14px;
+    padding: 8px 10px;
+    font-size: 13px;
     color: var(--hl-text);
     border-bottom: 1px solid var(--hl-border);
     vertical-align: middle;
 }
-.hlft-th-type { width: 48px; }
-.hlft-th-priority { width: 90px; }
-.hlft-th-status { width: 110px; }
-.hlft-th-date { width: 100px; }
-.hlft-th-submitter { width: 160px; }
+.hlft-th-type { width: 36px; }
+.hlft-th-priority { width: 80px; }
+.hlft-th-status { width: 100px; }
+.hlft-th-date { width: 90px; white-space: nowrap; }
+.hlft-th-submitter { width: 150px; }
 
 /* Type dot */
 .hlft-type-dot {
