@@ -380,13 +380,14 @@ class HL_Coach_Assignment_Service {
         }
 
         $in_ids = implode(',', $enrollment_ids);
+        $suspend_sql = HL_BuddyBoss_Integration::get_suspend_not_exists_sql( 'e.user_id' );
 
         return $wpdb->get_results(
             "SELECT e.enrollment_id, e.cycle_id, e.roles, e.school_id,
                     u.ID AS user_id, u.display_name, u.user_email
              FROM {$wpdb->prefix}hl_enrollment e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.enrollment_id IN ({$in_ids}) AND e.status = 'active'
+             WHERE e.enrollment_id IN ({$in_ids}) AND e.status = 'active' {$suspend_sql}
              ORDER BY u.display_name ASC",
             ARRAY_A
         ) ?: array();
