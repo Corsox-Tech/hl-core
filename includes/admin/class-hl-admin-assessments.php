@@ -396,7 +396,10 @@ class HL_Admin_Assessments {
 
             echo '<tr data-phase="' . esc_attr($inst['phase']) . '" data-school="' . esc_attr($inst['school_name'] ?? '') . '" data-status="' . esc_attr($inst['status']) . '">';
             echo '<td>' . esc_html($inst['instance_id']) . '</td>';
-            echo '<td><a href="' . esc_url($user_edit_url) . '">' . esc_html($inst['display_name']) . '</a></td>';
+            $suspended_badge = HL_BuddyBoss_Integration::is_user_suspended( (int) $inst['user_id'] )
+                ? ' <span class="hl-status-badge suspended">' . esc_html__( 'Suspended', 'hl-core' ) . '</span>'
+                : '';
+            echo '<td><a href="' . esc_url($user_edit_url) . '">' . esc_html($inst['display_name']) . '</a>' . $suspended_badge . '</td>';
             echo '<td>' . esc_html($inst['user_email']) . '</td>';
             echo '<td>' . esc_html($inst['school_name'] ?? '-') . '</td>';
             echo '<td><span style="text-transform:uppercase;font-weight:600;">' . esc_html($inst['phase']) . '</span></td>';
@@ -567,9 +570,12 @@ class HL_Admin_Assessments {
             $age_band_display = $inst['instrument_age_band'] ? ucfirst($inst['instrument_age_band']) : '<em style="color:#b32d2e;">' . esc_html__('Needs Review', 'hl-core') . '</em>';
             $instrument_display = $inst['instrument_id'] ? esc_html($inst['instrument_id'] . ' (v' . $inst['instrument_version'] . ')') : '-';
 
+            $suspended_badge = HL_BuddyBoss_Integration::is_user_suspended( (int) $inst['user_id'] )
+                ? ' <span class="hl-status-badge suspended">' . esc_html__( 'Suspended', 'hl-core' ) . '</span>'
+                : '';
             echo '<tr>';
             echo '<td>' . esc_html($inst['instance_id']) . '</td>';
-            echo '<td><a href="' . esc_url($user_edit_url) . '">' . esc_html($inst['display_name']) . '</a></td>';
+            echo '<td><a href="' . esc_url($user_edit_url) . '">' . esc_html($inst['display_name']) . '</a>' . $suspended_badge . '</td>';
             echo '<td><span style="text-transform:uppercase;font-weight:600;">' . esc_html($inst_phase) . '</span></td>';
             echo '<td>' . esc_html($inst['classroom_name']) . '</td>';
             echo '<td>' . esc_html($inst['school_name']) . '</td>';
