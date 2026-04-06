@@ -408,7 +408,7 @@ class HL_Admin_Coaching {
         } else {
             // Get all sessions across cycles
             $sessions = $wpdb->get_results(
-                "SELECT cs.*, u_coach.display_name as coach_name, u_mentor.display_name as mentor_name, t.cycle_name
+                "SELECT cs.*, u_coach.display_name as coach_name, u_mentor.display_name as mentor_name, e.user_id AS mentor_user_id, t.cycle_name
                  FROM {$wpdb->prefix}hl_coaching_session cs
                  LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
                  JOIN {$wpdb->prefix}hl_enrollment e ON cs.mentor_enrollment_id = e.enrollment_id
@@ -467,7 +467,11 @@ class HL_Admin_Coaching {
             if (!$filter_cycle) {
                 echo '<td>' . esc_html(isset($session['cycle_name']) ? $session['cycle_name'] : '-') . '</td>';
             }
-            echo '<td>' . esc_html($session['mentor_name'] ?: '-') . '</td>';
+            $mentor_uid = isset($session['mentor_user_id']) ? (int) $session['mentor_user_id'] : 0;
+            $mentor_badge = $mentor_uid && HL_BuddyBoss_Integration::is_user_suspended($mentor_uid)
+                ? ' <span class="hl-status-badge suspended">' . esc_html__('Suspended', 'hl-core') . '</span>'
+                : '';
+            echo '<td>' . esc_html($session['mentor_name'] ?: '-') . $mentor_badge . '</td>';
             echo '<td>' . esc_html($session['coach_name'] ?: '-') . '</td>';
             echo '<td>' . $status_badge . '</td>';
             echo '<td>' . esc_html($obs_count) . '</td>';

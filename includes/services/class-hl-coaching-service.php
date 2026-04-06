@@ -24,7 +24,7 @@ class HL_Coaching_Service {
     public function get_by_cycle($cycle_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT cs.*, u_coach.display_name as coach_name, u_mentor.display_name as mentor_name
+            "SELECT cs.*, u_coach.display_name as coach_name, u_mentor.display_name as mentor_name, e.user_id AS mentor_user_id
              FROM {$wpdb->prefix}hl_coaching_session cs
              LEFT JOIN {$wpdb->users} u_coach ON cs.coach_user_id = u_coach.ID
              JOIN {$wpdb->prefix}hl_enrollment e ON cs.mentor_enrollment_id = e.enrollment_id
