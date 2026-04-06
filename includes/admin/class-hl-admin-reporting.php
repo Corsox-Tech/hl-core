@@ -776,7 +776,10 @@ class HL_Admin_Reporting {
             $detail_url = $this->page_url(array_merge($filters, array('enrollment_id' => $enrollment_id)));
 
             echo '<tr>';
-            echo '<td><strong>' . esc_html($display_name) . '</strong></td>';
+            $user_id_val = isset($p['user_id']) ? (int) $p['user_id'] : 0;
+            $suspended_badge = $user_id_val && HL_BuddyBoss_Integration::is_user_suspended($user_id_val)
+                ? ' <span class="hl-status-badge suspended">' . esc_html__('Suspended', 'hl-core') . '</span>' : '';
+            echo '<td><strong>' . esc_html($display_name) . '</strong>' . $suspended_badge . '</td>';
             echo '<td>' . esc_html($user_email) . '</td>';
             echo '<td>' . $roles_display . '</td>';
             echo '<td>' . esc_html($school_name) . '</td>';
@@ -832,7 +835,9 @@ class HL_Admin_Reporting {
         echo '<table class="form-table" style="margin: 0;">';
 
         echo '<tr><th>' . esc_html__('Name', 'hl-core') . '</th>';
-        echo '<td><strong>' . esc_html($enrollment['display_name']) . '</strong></td></tr>';
+        $detail_suspended = isset($enrollment['user_id']) && HL_BuddyBoss_Integration::is_user_suspended((int) $enrollment['user_id'])
+            ? ' <span class="hl-status-badge suspended">' . esc_html__('Suspended', 'hl-core') . '</span>' : '';
+        echo '<td><strong>' . esc_html($enrollment['display_name']) . '</strong>' . $detail_suspended . '</td></tr>';
 
         echo '<tr><th>' . esc_html__('Email', 'hl-core') . '</th>';
         echo '<td>' . esc_html($enrollment['user_email']) . '</td></tr>';
