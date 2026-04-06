@@ -18,14 +18,14 @@
 |------|--------|--------|
 | `includes/integrations/class-hl-buddyboss-integration.php` | Modify | Add 3 static helper methods before closing `}` (~line 898) |
 | `includes/frontend/class-hl-frontend-learners.php` | Modify | Add NOT EXISTS to WHERE clause (~line 192) |
-| `includes/frontend/class-hl-frontend-my-team.php` | Modify | Add NOT EXISTS to WHERE clause (~line 127) |
 | `includes/domain/repositories/class-hl-team-repository.php` | Modify | Add NOT EXISTS to `get_members()` query (~line 98) |
-| `includes/services/class-hl-coach-assignment-service.php` | Modify | Add NOT EXISTS to `get_coach_roster()` query (~line 389) |
+| `includes/services/class-hl-coach-assignment-service.php` | Modify | Add NOT EXISTS to `get_coach_roster()` query (~line 389). This is the delegation point for Coach Mentors (spec says `class-hl-frontend-coach-mentors.php` but that class calls `HL_Coach_Dashboard_Service::get_mentors_for_coach()` which calls `get_coach_roster()`) |
 | `includes/services/class-hl-reporting-service.php` | Modify | Add NOT EXISTS to participant report query (~line 398) |
+| `includes/services/class-hl-coaching-service.php` | Modify | Add `e.user_id AS mentor_user_id` to `get_by_cycle()` SELECT clause |
 | `includes/frontend/class-hl-frontend-user-profile.php` | Modify | Add suspended check before profile render (~line 234) |
-| `includes/admin/class-hl-admin-enrollments.php` | Modify | Add badge to display_name (~line 550), add filter pill (~line 471) |
+| `includes/admin/class-hl-admin-enrollments.php` | Modify | Add badge to display_name (~line 550), add filter dropdown with count (~line 471), add query filter |
 | `includes/admin/class-hl-admin-assessments.php` | Modify | Add badge to display_name (~lines 399, 572) |
-| `includes/admin/class-hl-admin-coaching.php` | Modify | Add badge to mentor/coach names (~lines 470-471) |
+| `includes/admin/class-hl-admin-coaching.php` | Modify | Add badge to mentor names (~line 470), add `e.user_id AS mentor_user_id` to fallback query (~line 411) |
 | `assets/css/admin.css` | Modify | Add `.hl-status-badge.suspended` style (~line 530) |
 
 ---
@@ -158,30 +158,7 @@ git commit -m "feat(suspended-users): exclude suspended users from Learners list
 
 ---
 
-## Task 3: Frontend — My Team
-
-**Files:**
-- Modify: `includes/frontend/class-hl-frontend-my-team.php:127`
-
-- [ ] **Step 1: Add suspension filter to team query**
-
-In `get_user_teams()`, the query at lines 113-130 has a WHERE clause at line 127:
-
-```sql
-WHERE e.user_id = %d AND e.status = 'active'
-```
-
-This query lists the current user's teams (not other users), so it does NOT need suspension filtering — the current user wouldn't be on this page if they were suspended. **Skip this file.**
-
-However, the member count subquery counts ALL members including suspended ones. The count is cosmetic (e.g., "Members: 4") so filtering is optional. **Skip — not worth the complexity for a count.**
-
-- [ ] **Step 2: Mark as not needed**
-
-No changes to this file. The user's own teams are not affected by other users' suspension status in a meaningful way.
-
----
-
-## Task 4: Frontend — Team Repository (Team Page members)
+## Task 3: Frontend — Team Repository (Team Page members)
 
 **Files:**
 - Modify: `includes/domain/repositories/class-hl-team-repository.php:91-101`
@@ -204,20 +181,18 @@ public function get_members($team_id) {
 }
 ```
 
-Replace with:
+Replace with (note: build SQL string first, THEN prepare — `$suspend_sql` must not go through `prepare()`):
 
 ```php
 public function get_members($team_id) {
     global $wpdb;
     $suspend_sql = HL_BuddyBoss_Integration::get_suspend_not_exists_sql( 'e.user_id' );
-    return $wpdb->get_results($wpdb->prepare(
-        "SELECT tm.*, e.user_id, e.roles, u.display_name, u.user_email
-         FROM {$this->membership_table()} tm
-         JOIN {$wpdb->prefix}hl_enrollment e ON tm.enrollment_id = e.enrollment_id
-         LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-         WHERE tm.team_id = %d {$suspend_sql} ORDER BY tm.membership_type ASC",
-        $team_id
-    ), ARRAY_A) ?: array();
+    $sql = "SELECT tm.*, e.user_id, e.roles, u.display_name, u.user_email
+            FROM {$this->membership_table()} tm
+            JOIN {$wpdb->prefix}hl_enrollment e ON tm.enrollment_id = e.enrollment_id
+            LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+            WHERE tm.team_id = %d {$suspend_sql} ORDER BY tm.membership_type ASC";
+    return $wpdb->get_results( $wpdb->prepare( $sql, $team_id ), ARRAY_A ) ?: array();
 }
 ```
 
@@ -230,7 +205,7 @@ git commit -m "feat(suspended-users): exclude suspended users from team members 
 
 ---
 
-## Task 5: Frontend — Coach Roster (Coach Mentors)
+## Task 4: Frontend — Coach Roster (Coach Mentors)
 
 **Files:**
 - Modify: `includes/services/class-hl-coach-assignment-service.php:384-392`
@@ -275,7 +250,7 @@ git commit -m "feat(suspended-users): exclude suspended users from coach mentor 
 
 ---
 
-## Task 6: Frontend — Reporting Service
+## Task 5: Frontend — Reporting Service
 
 **Files:**
 - Modify: `includes/services/class-hl-reporting-service.php`
@@ -309,7 +284,7 @@ git commit -m "feat(suspended-users): exclude suspended users from completion re
 
 ---
 
-## Task 7: Frontend — User Profile Access
+## Task 6: Frontend — User Profile Access
 
 **Files:**
 - Modify: `includes/frontend/class-hl-frontend-user-profile.php:234`
@@ -350,7 +325,7 @@ git commit -m "feat(suspended-users): block access to suspended user profiles fo
 
 ---
 
-## Task 8: Admin — CSS Badge
+## Task 7: Admin — CSS Badge
 
 **Files:**
 - Modify: `assets/css/admin.css:530` (after the last `.hl-status-badge.*` rule)
@@ -373,7 +348,7 @@ git commit -m "feat(suspended-users): add .hl-status-badge.suspended CSS"
 
 ---
 
-## Task 9: Admin — Enrollment List Badge + Filter
+## Task 8: Admin — Enrollment List Badge + Filter
 
 **Files:**
 - Modify: `includes/admin/class-hl-admin-enrollments.php` (lines 471, 550)
@@ -383,11 +358,21 @@ git commit -m "feat(suspended-users): add .hl-status-badge.suspended CSS"
 Find the Role dropdown section (around line 471, after the closing `</select></div>` for the Role filter). Add a new filter:
 
 ```php
-echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#646970;margin-bottom:2px;">' . esc_html__( 'Suspension', 'hl-core' ) . '</label>';
-echo '<select name="suspended" style="min-width:130px;">';
+// Count suspended enrollments for filter label.
+$suspended_count = 0;
+if ( HL_BuddyBoss_Integration::bp_suspend_table_exists() ) {
+    $suspended_count = (int) $wpdb->get_var(
+        "SELECT COUNT(DISTINCT e.enrollment_id)
+         FROM {$wpdb->prefix}hl_enrollment e
+         INNER JOIN {$wpdb->prefix}bp_suspend s ON s.item_type = 'user' AND s.item_id = e.user_id AND s.user_suspended = 1
+         WHERE e.status = 'active'"
+    );
+}
 $f_suspended = isset( $_GET['suspended'] ) ? sanitize_text_field( $_GET['suspended'] ) : '';
+echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#646970;margin-bottom:2px;">' . esc_html__( 'Suspension', 'hl-core' ) . '</label>';
+echo '<select name="suspended" style="min-width:160px;">';
 echo '<option value="">' . esc_html__( 'All Users', 'hl-core' ) . '</option>';
-echo '<option value="only"' . selected( $f_suspended, 'only', false ) . '>' . esc_html__( 'Suspended Only', 'hl-core' ) . '</option>';
+echo '<option value="only"' . selected( $f_suspended, 'only', false ) . '>' . sprintf( esc_html__( 'Suspended Only (%d)', 'hl-core' ), $suspended_count ) . '</option>';
 echo '<option value="exclude"' . selected( $f_suspended, 'exclude', false ) . '>' . esc_html__( 'Exclude Suspended', 'hl-core' ) . '</option>';
 echo '</select></div>';
 ```
@@ -396,18 +381,26 @@ echo '</select></div>';
 
 Find where the WHERE clause is built for the enrollment list (around lines 340-365). Add after the existing filters:
 
+Find where the WHERE clause is assembled (the `$wheres` array or similar). Add the suspension filter alongside existing filters. Then find where `$where_sql` is finalized and append for the exclude case:
+
 ```php
 // Suspension filter.
 $f_suspended = isset( $_GET['suspended'] ) ? sanitize_text_field( $_GET['suspended'] ) : '';
+$suspend_extra_sql = '';
 if ( $f_suspended === 'only' && HL_BuddyBoss_Integration::bp_suspend_table_exists() ) {
     $where_parts[] = "EXISTS (SELECT 1 FROM {$wpdb->prefix}bp_suspend WHERE item_type = 'user' AND item_id = e.user_id AND user_suspended = 1)";
 } elseif ( $f_suspended === 'exclude' ) {
-    $suspend_sql = HL_BuddyBoss_Integration::get_suspend_not_exists_sql( 'e.user_id' );
-    // Append $suspend_sql to the final WHERE string (it includes the leading AND).
+    $suspend_extra_sql = HL_BuddyBoss_Integration::get_suspend_not_exists_sql( 'e.user_id' );
 }
 ```
 
-Note: Read the actual WHERE assembly pattern in the file — it may use `$where_parts[]` array or string concatenation. Match that pattern.
+Then where `$where_sql` is built (e.g., `$where_sql = !empty($wheres) ? ' WHERE ' . implode(' AND ', $wheres) : '';`), append:
+
+```php
+$where_sql .= $suspend_extra_sql;
+```
+
+This works because `get_suspend_not_exists_sql()` returns `" AND NOT EXISTS (...)"` with a leading AND, or empty string if BB table absent.
 
 - [ ] **Step 3: Add "Suspended" badge next to display_name**
 
@@ -435,7 +428,7 @@ git commit -m "feat(suspended-users): add Suspended badge + filter to admin enro
 
 ---
 
-## Task 10: Admin — Assessments Badge
+## Task 9: Admin — Assessments Badge
 
 **Files:**
 - Modify: `includes/admin/class-hl-admin-assessments.php` (lines 399, 572)
@@ -476,7 +469,7 @@ git commit -m "feat(suspended-users): add Suspended badge to admin assessment li
 
 ---
 
-## Task 11: Admin — Coaching Badge
+## Task 10: Admin — Coaching Badge
 
 **Files:**
 - Modify: `includes/admin/class-hl-admin-coaching.php` (lines 470-471)
@@ -492,7 +485,21 @@ echo '<td>' . esc_html($session['coach_name'] ?: '-') . '</td>';
 
 For the mentor line, the user_id comes from the enrollment. Check if the query result includes a `mentor_user_id` or if it can be derived. Read the query at lines 411-417 to check available columns. If `e.user_id` is available as a column (it joins enrollment for the mentor), add the badge. If only display_name is available and no user_id, check `$session` array keys.
 
-For the mentor, add:
+**First**, add `e.user_id AS mentor_user_id` to the coaching session query. Find the SELECT clause at lines 411-417:
+
+```sql
+SELECT cs.*, u_coach.display_name as coach_name, u_mentor.display_name as mentor_name, t.cycle_name
+```
+
+Change to:
+
+```sql
+SELECT cs.*, u_coach.display_name as coach_name, u_mentor.display_name as mentor_name, e.user_id AS mentor_user_id, t.cycle_name
+```
+
+Also check `includes/services/class-hl-coaching-service.php` — its `get_by_cycle()` method has a similar query. Add `e.user_id AS mentor_user_id` there too.
+
+**Then**, update the mentor name rendering at line 470:
 
 ```php
 $mentor_uid = isset($session['mentor_user_id']) ? (int) $session['mentor_user_id'] : 0;
@@ -501,8 +508,6 @@ $mentor_badge = $mentor_uid && HL_BuddyBoss_Integration::is_user_suspended($ment
     : '';
 echo '<td>' . esc_html($session['mentor_name'] ?: '-') . $mentor_badge . '</td>';
 ```
-
-Note: If the query doesn't include `user_id` for the mentor, you'll need to add `e.user_id AS mentor_user_id` to the SELECT clause at line 411.
 
 - [ ] **Step 2: Commit**
 
@@ -513,7 +518,7 @@ git commit -m "feat(suspended-users): add Suspended badge to admin coaching sess
 
 ---
 
-## Task 12: Deploy + Docs
+## Task 11: Deploy + Docs
 
 - [ ] **Step 1: Update STATUS.md**
 
