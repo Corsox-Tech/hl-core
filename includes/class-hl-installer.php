@@ -1961,6 +1961,38 @@ class HL_Installer {
             KEY tour_id (tour_id)
         ) $charset_collate;";
 
+        // Feature Tracker: tickets
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_ticket (
+            ticket_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            ticket_uuid char(36) NOT NULL,
+            title varchar(255) NOT NULL,
+            description longtext NOT NULL,
+            type enum('bug','improvement','feature_request') NOT NULL,
+            priority enum('low','medium','high','critical') NOT NULL DEFAULT 'medium',
+            status enum('open','in_review','in_progress','resolved','closed') NOT NULL DEFAULT 'open',
+            creator_user_id bigint(20) unsigned NOT NULL,
+            resolved_at datetime NULL DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (ticket_id),
+            UNIQUE KEY ticket_uuid (ticket_uuid),
+            KEY status (status),
+            KEY creator_user_id (creator_user_id),
+            KEY type (type),
+            KEY priority (priority)
+        ) $charset_collate;";
+
+        // Feature Tracker: ticket comments
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_ticket_comment (
+            comment_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            ticket_id bigint(20) unsigned NOT NULL,
+            user_id bigint(20) unsigned NOT NULL,
+            comment_text text NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (comment_id),
+            KEY ticket_id (ticket_id)
+        ) $charset_collate;";
+
         return $tables;
     }
 
