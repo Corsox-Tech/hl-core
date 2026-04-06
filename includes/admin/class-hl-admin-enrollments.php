@@ -335,6 +335,7 @@ class HL_Admin_Enrollments {
         $f_role        = isset($_GET['role']) ? sanitize_text_field($_GET['role']) : '';
         $f_school      = isset($_GET['school_id']) ? absint($_GET['school_id']) : 0;
         $f_search      = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+        $f_suspended   = isset( $_GET['suspended'] ) ? sanitize_text_field( $_GET['suspended'] ) : '';
 
         // Build WHERE clauses.
         $wheres = array();
@@ -362,7 +363,16 @@ class HL_Admin_Enrollments {
             $params[] = $like;
         }
 
+        // Suspension filter.
+        $suspend_extra_sql = '';
+        if ( $f_suspended === 'only' && HL_BuddyBoss_Integration::bp_suspend_table_exists() ) {
+            $wheres[] = "EXISTS (SELECT 1 FROM {$wpdb->prefix}bp_suspend WHERE item_type = 'user' AND item_id = e.user_id AND user_suspended = 1)";
+        } elseif ( $f_suspended === 'exclude' ) {
+            $suspend_extra_sql = HL_BuddyBoss_Integration::get_suspend_not_exists_sql( 'e.user_id' );
+        }
+
         $where_sql = !empty($wheres) ? ' WHERE ' . implode(' AND ', $wheres) : '';
+        $where_sql .= $suspend_extra_sql;
 
         $sql = "SELECT e.*, t.cycle_name, t.partnership_id, u.display_name, u.user_email
                 FROM {$wpdb->prefix}hl_enrollment e
@@ -470,6 +480,24 @@ class HL_Admin_Enrollments {
         }
         echo '</select></div>';
 
+        // Suspension filter with count.
+        $suspended_count = 0;
+        if ( HL_BuddyBoss_Integration::bp_suspend_table_exists() ) {
+            $suspended_count = (int) $wpdb->get_var(
+                "SELECT COUNT(DISTINCT e.enrollment_id)
+                 FROM {$wpdb->prefix}hl_enrollment e
+                 INNER JOIN {$wpdb->prefix}bp_suspend s ON s.item_type = 'user' AND s.item_id = e.user_id AND s.user_suspended = 1
+                 WHERE e.status = 'active'"
+            );
+        }
+        $f_suspended = isset( $_GET['suspended'] ) ? sanitize_text_field( $_GET['suspended'] ) : '';
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#646970;margin-bottom:2px;">' . esc_html__( 'Suspension', 'hl-core' ) . '</label>';
+        echo '<select name="suspended" style="min-width:160px;">';
+        echo '<option value="">' . esc_html__( 'All Users', 'hl-core' ) . '</option>';
+        echo '<option value="only"' . selected( $f_suspended, 'only', false ) . '>' . sprintf( esc_html__( 'Suspended Only (%d)', 'hl-core' ), $suspended_count ) . '</option>';
+        echo '<option value="exclude"' . selected( $f_suspended, 'exclude', false ) . '>' . esc_html__( 'Exclude Suspended', 'hl-core' ) . '</option>';
+        echo '</select></div>';
+
         // School.
         echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#646970;margin-bottom:2px;">' . esc_html__('School', 'hl-core') . '</label>';
         echo '<select name="school_id" style="min-width:180px;">';
@@ -487,7 +515,7 @@ class HL_Admin_Enrollments {
 
         echo '<div>';
         submit_button(__('Filter', 'hl-core'), 'secondary', 'submit', false);
-        if ($f_partnership || $f_cycle || $f_role || $f_school || $f_search) {
+        if ($f_partnership || $f_cycle || $f_role || $f_school || $f_search || $f_suspended) {
             echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-enrollments')) . '" class="button">' . esc_html__('Clear', 'hl-core') . '</a>';
         }
         echo '</div>';
@@ -546,8 +574,11 @@ class HL_Admin_Enrollments {
                 ? 'color:#00a32a;font-weight:600;'
                 : 'color:#b32d2e;font-weight:600;';
 
+            $suspended_badge = HL_BuddyBoss_Integration::is_user_suspended( (int) $enrollment->user_id )
+                ? ' <span class="hl-status-badge suspended">' . esc_html__( 'Suspended', 'hl-core' ) . '</span>'
+                : '';
             echo '<tr>';
-            echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($enrollment->display_name) . '</a></strong></td>';
+            echo '<td><strong><a href="' . esc_url($edit_url) . '">' . esc_html($enrollment->display_name) . '</a></strong>' . $suspended_badge . '</td>';
             echo '<td>' . esc_html($enrollment->user_email) . '</td>';
             echo '<td>' . esc_html($enrollment->cycle_name) . '</td>';
             echo '<td>' . esc_html($roles_display) . '</td>';
