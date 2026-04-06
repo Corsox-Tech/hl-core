@@ -154,6 +154,15 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Bug fixes** — Infinite recursion in `onDestroyStarted`, interactive step cross-page navigation (preventDefault + save state before redirect), button text-shadow override in frontend.css, deploy tar exclude fix for `vendor/` directory.
 - [x] **Deployed to test + production** — All phases verified on `academy.housmanlearning.com`.
 
+### Feature Tracker (April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-06-feature-tracker-design.md` | **Plan:** `docs/superpowers/plans/2026-04-06-feature-tracker.md`
+- [x] **DB schema** — `hl_ticket` + `hl_ticket_comment` tables added to `get_schema()`.
+- [x] **Ticket Service** — `HL_Ticket_Service` with CRUD, permissions (2hr edit window, admin email constant), search/filter, status transitions, comments, audit logging.
+- [x] **Frontend page** — `HL_Frontend_Feature_Tracker` shortcode `[hl_feature_tracker]`, 6 AJAX endpoints, modal UI (detail, create, edit), filter bar, search, toast notifications.
+- [x] **Plugin wiring** — Loaded in `hl-core.php`, sidebar menu item for coaches + admins, CLI create-pages entry.
+- [x] **CSS + JS** — `.hlft-*` design system section, jQuery AJAX handlers with `esc()` XSS protection, modal logic, debounced search.
+- [ ] **Deployed to test** — Pending.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)

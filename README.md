@@ -11,7 +11,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 
 ## What's Implemented
 
-### Database Schema (47 active custom tables + 2 deprecated + 1 planned)
+### Database Schema (49 active custom tables + 2 deprecated + 1 planned)
 - **Org & Partnership/Cycle:** `hl_orgunit`, `hl_cycle` (with `is_control_group` flag + `cycle_type` column: program/course), `hl_cycle_school`, `hl_partnership` (program-level container)
 - **Individual Enrollments (PLANNED):** `hl_individual_enrollment` (user_id, course_id, enrolled_at, expires_at, status) — for standalone course purchases
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
@@ -25,6 +25,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 - **Coaching:** `hl_coaching_session`, `hl_coaching_session_observation`, `hl_coaching_attachment`, `hl_coaching_session_submission`, `hl_coach_assignment` (coach scope assignments), `hl_coach_availability` (recurring weekly schedule blocks)
 - **Cross-Pathway Events:** `hl_rp_session`, `hl_rp_session_submission`, `hl_classroom_visit`, `hl_classroom_visit_submission`
 - **Guided Tours:** `hl_tour` (tour definitions with trigger type, target roles, status), `hl_tour_step` (ordered steps with element selector, position, step type), `hl_tour_seen` (per-user seen tracking)
+- **Feature Tracker:** `hl_ticket` (tickets with type/priority/status enums, 2hr edit window, admin-gated status changes), `hl_ticket_comment` (flat comments per ticket)
 - **System:** `hl_import_run`, `hl_audit_log`, `hl_cycle_email_log` (cycle email tracking)
 
 ### Domain Models & Repositories
@@ -63,6 +64,7 @@ All 11 core entities have domain model classes with proper properties. 10 of 11 
 - **MicrosoftGraph** - Microsoft Graph API client: client credentials OAuth2 flow, calendar CRUD (calendarView, create/update/delete events), token caching via transients, coach email resolution (hl_microsoft_email usermeta override).
 - **ZoomIntegration** - Zoom Server-to-Server OAuth client: S2S account credentials flow, meeting CRUD (create/update/delete), token caching, coach email resolution (hl_zoom_email usermeta override).
 - **TourService** - Guided tour context resolution: matches tours to current page + user roles + trigger type, seen tracking (mark_seen AJAX), global styles CRUD, step reorder (save_step_order AJAX), step data delivery (get_steps AJAX), element picker mode detection (is_picker_mode + get_view_as_role)
+- **TicketService** - Feature Tracker ticket CRUD + comments, permission checks (2hr edit window for creators, admin-gated status changes via ADMIN_EMAIL constant), search/filter with enum whitelisting + esc_like, status transitions with resolved_at lifecycle, audit logging on all mutations
 - **ChildSnapshotService** - Freeze child age groups per cycle for assessment consistency
 - **ScopeService** - Role-based data filtering (see Scope Service section below)
 
@@ -223,6 +225,14 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Session 5: Directory & Profile Pages** — Extracted inline styles from 4 PHP files (classroom-page, user-profile, docs, learners). 12 clean files verified against BB override selectors.
 - **Session 6: Review & Polish** — Removed 230 lines dead CSS (old Section 29 PROGRAM PAGE, old DASHBOARD HOME V1). Fixed remaining non-functional inline styles. Grep audit confirmed 0 `<style>` blocks and 0 non-functional `style=""` attrs in all frontend PHP files. Visual review across 3 roles (mentor, coach, school leader) passed all 9 design system criteria.
 
+### Feature Tracker (Complete — April 2026)
+- **Single-page AJAX app** — `[hl_feature_tracker]` shortcode, `HL_Frontend_Feature_Tracker` singleton with 6 AJAX endpoints (`hl_ticket_list`, `hl_ticket_get`, `hl_ticket_create`, `hl_ticket_update`, `hl_ticket_comment`, `hl_ticket_status`). Nonce `hl_feature_tracker` + `manage_hl_core` capability on all endpoints. No `nopriv` handlers.
+- **Ticket types** — Bug, Improvement, Feature Request. **Priorities** — Low, Medium, High, Critical. **Statuses** — Open, In Review, In Progress, Resolved, Closed.
+- **Permissions** — Creator can edit within 2 hours (non-terminal tickets). `HL_Ticket_Service::ADMIN_EMAIL` (`mateo@corsox.com`) has full control (edit any ticket, change status). Specific "edit window expired" error message.
+- **UI** — Filterable table (type/status/priority dropdowns + debounced search), "Closed tickets hidden — show all" indicator, detail modal (640px, 85vh, scroll), create/edit modal with type helper text, flat comments with avatars, toast notifications. All server values HTML-escaped via `esc()` helper. Description rendered as `.text()` (plain text V1).
+- **Sidebar** — "Feature Tracker" menu item with `dashicons-feedback` icon for coaches and admins.
+- **Audit logging** — All mutations (create, update, status change, comment) logged via `HL_Audit_Service`.
+
 ### Guided Tours System (Complete — Deployed)
 - **Phase 1 — DB + Repository + Service** — 3 new tables (`hl_tour`, `hl_tour_step`, `hl_tour_seen`), schema rev 28→29. `HL_Tour_Repository` with full CRUD for tours, steps, and seen tracking. `HL_Tour_Service` with context resolution (page + role + trigger matching), global styles management, validation, and 3 AJAX endpoints (`hl_tour_mark_seen`, `hl_tour_get_steps`, `hl_tour_save_step_order`).
 - **Phase 2A — Admin UI** — `HL_Admin_Tours` singleton in Settings hub "Tours" tab with 3 subtabs. **Tours List**: status filter pills (All/Active/Draft/Archived with counts), table with title, trigger type badge, target roles, status badge, step count, sort order; row actions (Edit/Duplicate/Archive). **Tour Editor**: tour settings (title, slug auto-gen, status, trigger type with conditional page URL, target roles checkboxes, start page URL, sort order, hide on mobile); sortable step cards (jQuery UI Sortable) with title, TinyMCE description, page URL, target selector + element picker button, position pills (top/bottom/left/right/auto), step type toggle (informational/interactive); add/remove steps. Activation validates step count. Enum validation on all DB fields. **Tour Styles**: WP Iris color pickers (tooltip bg, title/desc colors, button colors, progress bar), font size inputs, live preview mockup, reset to defaults. `hl-tour-admin.js` + conditional asset enqueue.
@@ -242,7 +252,7 @@ See `STATUS.md` for the current build queue and task tracking.
 /hl-core/
   hl-core.php                    # Plugin bootstrap (singleton)
   /includes/
-    class-hl-installer.php       # DB schema (48 tables, revision 30) + activation + migrations
+    class-hl-installer.php       # DB schema (51 tables, revision 30) + activation + migrations
     /domain/                     # Entity models (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Tour)
     /cli/                        # WP-CLI commands (16 commands: seed-demo, seed-lutheran, seed-palm-beach, seed-beginnings, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children, setup-elcpb-y2, setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav) + data files
