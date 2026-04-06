@@ -201,6 +201,9 @@
             var typeLabels = { bug: 'Bug', improvement: 'Improvement', feature_request: 'Feature Request' };
             var statusLabels = { open: 'Open', in_review: 'In Review', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
 
+            // Escape HTML entities for safe string interpolation.
+            function esc(str) { return $('<span>').text(String(str == null ? '' : str)).html(); }
+
             // ── Load Tickets ──
 
             function loadTickets() {
@@ -221,9 +224,9 @@
                 var priorityVal = $('#hlft-filter-priority').val();
                 var searchVal = $('#hlft-search').val();
 
-                // Show/hide filter indicator
+                // Show/hide filter indicator (default: "Closed tickets hidden")
                 var hasFilters = typeVal || statusVal || priorityVal || (searchVal && searchVal.length >= 2);
-                if (!hasFilters && !statusVal) {
+                if (!hasFilters) {
                     $indicator.show();
                 } else {
                     $indicator.hide();
@@ -251,13 +254,13 @@
 
                     $table.show();
                     $.each(data.tickets, function(i, t) {
-                        var row = '<tr data-uuid="' + t.ticket_uuid + '">' +
-                            '<td><span class="hlft-type-dot hlft-type-dot--' + t.type + '" title="' + typeLabels[t.type] + '"></span></td>' +
-                            '<td><strong>#' + t.ticket_id + '</strong> ' + $('<span>').text(t.title).html() + '</td>' +
-                            '<td><span class="hlft-priority-badge hlft-priority-badge--' + t.priority + '">' + t.priority + '</span></td>' +
-                            '<td><span class="hlft-submitter"><img class="hlft-avatar" src="' + t.creator_avatar + '" alt=""> ' + $('<span>').text(t.creator_name).html() + '</span></td>' +
-                            '<td><span class="hlft-status-pill hlft-status-pill--' + t.status + '">' + statusLabels[t.status] + '</span></td>' +
-                            '<td>' + t.time_ago + '</td>' +
+                        var row = '<tr data-uuid="' + esc(t.ticket_uuid) + '">' +
+                            '<td><span class="hlft-type-dot hlft-type-dot--' + esc(t.type) + '" title="' + esc(typeLabels[t.type] || '') + '"></span></td>' +
+                            '<td><strong>#' + esc(t.ticket_id) + '</strong> ' + esc(t.title) + '</td>' +
+                            '<td><span class="hlft-priority-badge hlft-priority-badge--' + esc(t.priority) + '">' + esc(t.priority) + '</span></td>' +
+                            '<td><span class="hlft-submitter"><img class="hlft-avatar" src="' + esc(t.creator_avatar) + '" alt=""> ' + esc(t.creator_name) + '</span></td>' +
+                            '<td><span class="hlft-status-pill hlft-status-pill--' + esc(t.status) + '">' + esc(statusLabels[t.status] || '') + '</span></td>' +
+                            '<td>' + esc(t.time_ago) + '</td>' +
                             '</tr>';
                         $body.append(row);
                     });
@@ -285,13 +288,13 @@
                     $('#hlft-detail-title').text('#' + t.ticket_id + ' ' + t.title);
 
                     // Meta
-                    var meta = '<span class="hlft-priority-badge hlft-priority-badge--' + t.priority + '">' + t.priority + '</span>' +
-                        ' <span class="hlft-status-pill hlft-status-pill--' + t.status + '">' + statusLabels[t.status] + '</span>' +
-                        ' <span>By <img class="hlft-avatar" src="' + t.creator_avatar + '" alt=""> ' + $('<span>').text(t.creator_name).html() + ' &bull; ' + t.time_ago + '</span>';
+                    var meta = '<span class="hlft-priority-badge hlft-priority-badge--' + esc(t.priority) + '">' + esc(t.priority) + '</span>' +
+                        ' <span class="hlft-status-pill hlft-status-pill--' + esc(t.status) + '">' + esc(statusLabels[t.status] || '') + '</span>' +
+                        ' <span>By <img class="hlft-avatar" src="' + esc(t.creator_avatar) + '" alt=""> ' + esc(t.creator_name) + ' &bull; ' + esc(t.time_ago) + '</span>';
                     $('#hlft-detail-meta').html(meta);
 
-                    // Description
-                    $('#hlft-detail-description').html(t.description);
+                    // Description (plain text in V1 — no rich text editor)
+                    $('#hlft-detail-description').text(t.description);
 
                     // Edit button
                     var $actions = $('#hlft-detail-actions');
@@ -322,10 +325,10 @@
 
                 $.each(comments, function(i, c) {
                     var html = '<div class="hlft-comment">' +
-                        '<img class="hlft-avatar" src="' + c.user_avatar + '" alt="">' +
+                        '<img class="hlft-avatar" src="' + esc(c.user_avatar) + '" alt="">' +
                         '<div class="hlft-comment__body">' +
-                        '<div class="hlft-comment__header"><span class="hlft-comment__name">' + $('<span>').text(c.user_name).html() + '</span><span class="hlft-comment__time">' + c.time_ago + '</span></div>' +
-                        '<div class="hlft-comment__text">' + $('<span>').text(c.comment_text).html() + '</div>' +
+                        '<div class="hlft-comment__header"><span class="hlft-comment__name">' + esc(c.user_name) + '</span><span class="hlft-comment__time">' + esc(c.time_ago) + '</span></div>' +
+                        '<div class="hlft-comment__text">' + esc(c.comment_text) + '</div>' +
                         '</div></div>';
                     $list.append(html);
                 });
@@ -480,10 +483,10 @@
                     $('#hlft-comment-count').text(count);
 
                     var html = '<div class="hlft-comment">' +
-                        '<img class="hlft-avatar" src="' + comment.user_avatar + '" alt="">' +
+                        '<img class="hlft-avatar" src="' + esc(comment.user_avatar) + '" alt="">' +
                         '<div class="hlft-comment__body">' +
-                        '<div class="hlft-comment__header"><span class="hlft-comment__name">' + $('<span>').text(comment.user_name).html() + '</span><span class="hlft-comment__time">' + comment.time_ago + '</span></div>' +
-                        '<div class="hlft-comment__text">' + $('<span>').text(comment.comment_text).html() + '</div>' +
+                        '<div class="hlft-comment__header"><span class="hlft-comment__name">' + esc(comment.user_name) + '</span><span class="hlft-comment__time">' + esc(comment.time_ago) + '</span></div>' +
+                        '<div class="hlft-comment__text">' + esc(comment.comment_text) + '</div>' +
                         '</div></div>';
                     $('#hlft-comments-list').append(html);
                 });

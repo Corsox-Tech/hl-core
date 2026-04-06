@@ -745,7 +745,7 @@ class HL_Shortcodes {
             return '<div class="hl-notice hl-notice-warning">' . __('Please log in to view this page.', 'hl-core') . '</div>';
         }
         $this->ensure_frontend_assets();
-        $renderer = new HL_Frontend_Feature_Tracker();
+        $renderer = HL_Frontend_Feature_Tracker::instance();
         return $renderer->render($atts);
     }
 
