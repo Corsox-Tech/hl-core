@@ -90,13 +90,12 @@ class HL_Team_Repository {
 
     public function get_members($team_id) {
         global $wpdb;
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT tm.*, e.user_id, e.roles, u.display_name, u.user_email
-             FROM {$this->membership_table()} tm
-             JOIN {$wpdb->prefix}hl_enrollment e ON tm.enrollment_id = e.enrollment_id
-             LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE tm.team_id = %d ORDER BY tm.membership_type ASC",
-            $team_id
-        ), ARRAY_A) ?: array();
+        $suspend_sql = HL_BuddyBoss_Integration::get_suspend_not_exists_sql( 'e.user_id' );
+        $sql = "SELECT tm.*, e.user_id, e.roles, u.display_name, u.user_email
+                FROM {$this->membership_table()} tm
+                JOIN {$wpdb->prefix}hl_enrollment e ON tm.enrollment_id = e.enrollment_id
+                LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+                WHERE tm.team_id = %d {$suspend_sql} ORDER BY tm.membership_type ASC";
+        return $wpdb->get_results( $wpdb->prepare( $sql, $team_id ), ARRAY_A ) ?: array();
     }
 }
