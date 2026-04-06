@@ -258,23 +258,19 @@ class HL_LearnDash_Integration {
         learndash_delete_course_progress($course_id, $user_id);
 
         // Also reset wp_learndash_user_activity row (not cleared by the above).
-        if (function_exists('learndash_get_user_activity') && function_exists('learndash_update_user_activity')) {
-            $activity = learndash_get_user_activity(array(
-                'user_id'       => $user_id,
-                'course_id'     => $course_id,
-                'post_id'       => $course_id,
-                'activity_type' => 'course',
+        // Pass identifying keys directly — do NOT cast the activity object to array
+        // because learndash_get_user_activity may return an LDLMS_Model_Activity
+        // object whose (array) cast produces mangled property keys.
+        if (function_exists('learndash_update_user_activity')) {
+            learndash_update_user_activity(array(
+                'user_id'            => $user_id,
+                'course_id'          => $course_id,
+                'post_id'            => $course_id,
+                'activity_type'      => 'course',
+                'activity_status'    => false,
+                'activity_completed' => 0,
+                'activity_updated'   => time(),
             ));
-            if (!empty($activity)) {
-                learndash_update_user_activity(array_merge(
-                    (array) $activity,
-                    array(
-                        'activity_status'    => false,
-                        'activity_completed' => 0,
-                        'activity_updated'   => time(),
-                    )
-                ));
-            }
         }
 
         return true;

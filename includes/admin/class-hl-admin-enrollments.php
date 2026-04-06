@@ -432,9 +432,14 @@ class HL_Admin_Enrollments {
                 if ($catalog_entry) {
                     $ld = HL_LearnDash_Integration::instance();
                     $lang_ids = $catalog_entry->get_language_course_ids();
-                    foreach ($lang_ids as $lang => $ld_course_id) {
-                        if (!$ld->reset_course_progress($enrollment->user_id, $ld_course_id)) {
-                            $ld_warning = true;
+                    if (empty($lang_ids)) {
+                        // Catalog entry exists but has no LD course IDs — treat as sync failure.
+                        $ld_warning = true;
+                    } else {
+                        foreach ($lang_ids as $lang => $ld_course_id) {
+                            if (!$ld->reset_course_progress($enrollment->user_id, $ld_course_id)) {
+                                $ld_warning = true;
+                            }
                         }
                     }
                 }
