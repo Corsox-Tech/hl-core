@@ -199,6 +199,7 @@
             }
 
             var typeLabels = { bug: 'Bug', improvement: 'Improvement', feature_request: 'Feature Request' };
+            var typeIcons = { bug: '\uD83D\uDC1E', improvement: '\u2728', feature_request: '\uD83D\uDE80' }; // 🐞 ✨ 🚀
             var statusLabels = { open: 'Open', in_review: 'In Review', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
 
             // Escape HTML entities for safe string interpolation.
@@ -255,7 +256,7 @@
                     $table.show();
                     $.each(data.tickets, function(i, t) {
                         var row = '<tr data-uuid="' + esc(t.ticket_uuid) + '">' +
-                            '<td><span class="hlft-type-dot hlft-type-dot--' + esc(t.type) + '" title="' + esc(typeLabels[t.type] || '') + '"></span></td>' +
+                            '<td class="hlft-td-type" title="' + esc(typeLabels[t.type] || '') + '">' + (typeIcons[t.type] || '') + '</td>' +
                             '<td><strong>#' + esc(t.ticket_id) + '</strong> ' + esc(t.title) + '</td>' +
                             '<td><span class="hlft-priority-badge hlft-priority-badge--' + esc(t.priority) + '">' + esc(t.priority) + '</span></td>' +
                             '<td><span class="hlft-submitter"><img class="hlft-avatar" src="' + esc(t.creator_avatar) + '" alt=""> ' + esc(t.creator_name) + '</span></td>' +
@@ -284,7 +285,7 @@
                     $content.show();
 
                     // Header
-                    $('#hlft-detail-type').attr('class', 'hlft-type-badge hlft-type-badge--' + t.type).text(typeLabels[t.type]);
+                    $('#hlft-detail-type').attr('class', 'hlft-type-badge hlft-type-badge--' + t.type).text((typeIcons[t.type] || '') + ' ' + typeLabels[t.type]);
                     $('#hlft-detail-title').text('#' + t.ticket_id + ' ' + t.title);
 
                     // Meta

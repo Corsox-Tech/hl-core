@@ -9880,11 +9880,13 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     border-bottom: 1px solid var(--hl-border);
     vertical-align: middle;
 }
-.hlft-th-type { width: 36px; }
-.hlft-th-priority { width: 80px; }
-.hlft-th-status { width: 100px; }
-.hlft-th-date { width: 90px; white-space: nowrap; }
-.hlft-th-submitter { width: 150px; }
+.hlft-th-type { width: 40px; text-align: center; }
+.hlft-th-title { width: auto; }
+.hlft-th-priority { width: 90px; white-space: nowrap; }
+.hlft-th-submitter { width: 150px; white-space: nowrap; }
+.hlft-th-status { width: 120px; white-space: nowrap; }
+.hlft-th-date { width: 110px; white-space: nowrap; }
+.hlft-td-type { font-size: 18px; text-align: center; }
 
 /* Type dot */
 .hlft-type-dot {
@@ -9921,6 +9923,7 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;
+    white-space: nowrap;
 }
 .hlft-status-pill--open { background: rgba(var(--hl-interactive-rgb, 99,102,241), 0.12); color: var(--hl-interactive); }
 .hlft-status-pill--in_review { background: rgba(var(--hl-warning-rgb, 245,158,11), 0.12); color: var(--hl-warning-dark, #b45309); }
