@@ -414,18 +414,11 @@ class HL_Admin_Cycles {
                 'cycle_saved'        => __('Cycle saved successfully.', 'hl-core'),
                 'cycle_deleted'      => __('Cycle deleted successfully.', 'hl-core'),
                 'cycle_delete_error' => __('Cannot delete cycle: it still has linked pathways.', 'hl-core'),
-                'component_reset'              => __('Component progress reset to Not Started.', 'hl-core'),
-                'component_complete'           => __('Component marked as Complete.', 'hl-core'),
-                'component_reset_ld_warning'   => __('Component progress reset, but LearnDash course progress could not be synced.', 'hl-core'),
-                'component_complete_ld_warning' => __('Component marked as Complete, but LearnDash course progress could not be synced.', 'hl-core'),
             );
             if (isset($messages[$msg])) {
-                $ld_warn_msgs = array('component_reset_ld_warning', 'component_complete_ld_warning');
-                $error_msgs   = array('clone_error', 'cycle_delete_error');
+                $error_msgs = array('clone_error', 'cycle_delete_error');
                 if (in_array($msg, $error_msgs, true)) {
                     $notice_type = 'notice-error';
-                } elseif (in_array($msg, $ld_warn_msgs, true)) {
-                    $notice_type = 'notice-warning';
                 } else {
                     $notice_type = 'notice-success';
                 }
