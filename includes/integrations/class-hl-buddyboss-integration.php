@@ -67,6 +67,9 @@ class HL_BuddyBoss_Integration {
         add_action('wp_enqueue_scripts', array($this, 'enqueue_nav_assets_on_theme_pages'));
         add_filter('body_class', array($this, 'add_nav_body_class'));
 
+        // 2. Allow coaches to "View As" participants via BB Members Switching.
+        add_filter('map_meta_cap', array($this, 'allow_coach_view_as'), 20, 4);
+
     }
 
     // =========================================================================
@@ -94,6 +97,51 @@ class HL_BuddyBoss_Integration {
 
         return strpos($name, 'buddyboss') !== false
             || strpos($tpl, 'buddyboss') !== false;
+    }
+
+    // =========================================================================
+    // 2. Coach "View As" — allow coaches to switch to participants
+    // =========================================================================
+
+    /**
+     * Grant coaches the ability to switch to participants via BB Members Switching.
+     *
+     * Coaches can switch to any enrolled user EXCEPT other coaches and administrators.
+     * Runs at priority 20 (after User Switching's own map_meta_cap at 10).
+     *
+     * @param string[] $caps    Required primitive capabilities.
+     * @param string   $cap     The meta capability being checked.
+     * @param int      $user_id The user being checked.
+     * @param array    $args    Additional arguments (target user ID for switch_to_user).
+     * @return string[]
+     */
+    public function allow_coach_view_as( $caps, $cap, $user_id, $args ) {
+        if ( 'switch_to_user' !== $cap ) {
+            return $caps;
+        }
+
+        $user = new WP_User( $user_id );
+        if ( ! in_array( 'coach', (array) $user->roles, true ) ) {
+            return $caps;
+        }
+
+        $target_user_id = $args[0] ?? 0;
+        if ( ! $target_user_id || $target_user_id === $user_id ) {
+            return $caps;
+        }
+
+        $target = new WP_User( $target_user_id );
+
+        // Block switching to admins and other coaches.
+        if ( user_can( $target_user_id, 'manage_options' )
+            || in_array( 'administrator', (array) $target->roles, true )
+            || in_array( 'coach', (array) $target->roles, true )
+        ) {
+            return array( 'do_not_allow' );
+        }
+
+        // Allow — map to a capability every logged-in user has.
+        return array( 'exist' );
     }
 
     // =========================================================================
@@ -353,7 +401,7 @@ class HL_BuddyBoss_Integration {
      *   My Cycle: district_leader, school_leader, or mentor role
      *
      * Directory/management pages:
-     *   Tracks, Institutions: staff OR district_leader OR school_leader
+     *   Tracks, Schools: staff OR district_leader OR school_leader
      *   Classrooms: staff OR district_leader OR school_leader OR teacher
      *   Learners: staff OR district_leader OR school_leader OR mentor
      *   Pathways: staff only
@@ -368,13 +416,14 @@ class HL_BuddyBoss_Integration {
      * @return array<int, array{slug: string, label: string, url: string, icon: string}>
      */
     private function build_menu_items(array $roles, bool $is_staff, bool $has_enrollment, bool $is_control_only = false) {
-        $is_leader  = in_array('school_leader', $roles, true)
-                   || in_array('district_leader', $roles, true);
+        $is_district_leader = in_array('district_leader', $roles, true);
+        $is_leader  = in_array('school_leader', $roles, true) || $is_district_leader;
         $is_mentor  = in_array('mentor', $roles, true);
         $is_teacher = in_array('teacher', $roles, true);
         $is_coach   = in_array('coach', (array) wp_get_current_user()->roles, true);
         // Leader-only = leader but not also a teacher/mentor (no personal program view).
         $is_leader_only = $is_leader && !$is_teacher && !$is_mentor;
+        $my_school_label = $is_district_leader ? __('My District', 'hl-core') : __('My School', 'hl-core');
         $is_admin_level = current_user_can('manage_options');
 
         // Define all possible menu items with their visibility rules.
@@ -385,7 +434,7 @@ class HL_BuddyBoss_Integration {
         //   Leader-only:  My Programs (Streamlined), My School, Classrooms, Reports
         //   Leader+teach: My Programs, My School, Classrooms, Reports
         //   Coach:        Coaching Home, My Programs, My Mentors, Learners, My Availability, Coach Reports, Documentation
-        //   Admin:        My Programs, Classrooms, Cycles, Institutions, Learners, Pathways, Coaching Hub, Reports, Documentation
+        //   Admin:        My Programs, Classrooms, Cycles, Schools, Learners, Pathways, Coaching Hub, Reports, Documentation
 
         // Coaches (not admins) get a dedicated, streamlined menu.
         if ($is_coach && !$is_admin_level) {
@@ -406,7 +455,7 @@ class HL_BuddyBoss_Integration {
                 array('my-coaching',    'hl_my_coaching',          __('My Coaching', 'hl-core'),    'dashicons-video-alt2',           $is_mentor && !$is_control_only),
                 array('my-team',        'hl_my_team',              __('My Team', 'hl-core'),        'dashicons-groups',               $is_mentor),
                 // --- Leader ---
-                array('my-school',      'hl_my_cycle',             __('My School', 'hl-core'),      'dashicons-building',             $is_leader && !$is_staff),
+                array('my-school',      'hl_my_cycle',             $my_school_label,                'dashicons-building',             $is_leader && !$is_staff),
                 // --- Directories / Management ---
                 array('cycles',         'hl_cycles_listing',       __('Cycles', 'hl-core'),         'dashicons-groups',               $is_staff),
                 array('classrooms',     'hl_classrooms_listing',   __('Classrooms', 'hl-core'),     'dashicons-welcome-learn-more',   $is_staff || $is_leader || $is_teacher || $is_mentor),
@@ -740,34 +789,37 @@ class HL_BuddyBoss_Integration {
             <div class="hl-breadcrumb" style="margin-bottom:0;">
                 <span><?php echo esc_html(get_the_title() ?: 'Course'); ?></span>
             </div>
-            <div class="hl-topbar__user-wrap" id="hl-topbar-user-wrap">
-                <button class="hl-topbar__user-btn" id="hl-topbar-user-btn" type="button" aria-expanded="false">
-                    <span class="hl-topbar__user-name"><?php echo esc_html($display_name); ?></span>
-                    <?php if ($avatar_url) : ?>
-                        <img src="<?php echo esc_url($avatar_url); ?>" alt="" class="hl-topbar__avatar">
-                    <?php else : ?>
-                        <div class="hl-topbar__avatar hl-topbar__avatar--initials"><?php echo esc_html($initials); ?></div>
-                    <?php endif; ?>
-                </button>
-                <div class="hl-topbar__dropdown" id="hl-topbar-dropdown" hidden>
-                    <?php if ($old_user && $switch_back_url) : ?>
-                        <div class="hl-topbar__dropdown-notice">
-                            <?php echo esc_html(sprintf(__('Viewing as %s', 'hl-core'), $display_name)); ?>
-                        </div>
-                        <a href="<?php echo esc_url($switch_back_url); ?>" class="hl-topbar__dropdown-item hl-topbar__dropdown-item--switch-back">
-                            <span class="dashicons dashicons-undo"></span>
-                            <?php echo esc_html(sprintf(__('Return to %s', 'hl-core'), $old_user->display_name)); ?>
+            <div class="hl-topbar__actions">
+                <?php HL_Core::render_language_switcher(); ?>
+                <div class="hl-topbar__user-wrap" id="hl-topbar-user-wrap">
+                    <button class="hl-topbar__user-btn" id="hl-topbar-user-btn" type="button" aria-expanded="false">
+                        <span class="hl-topbar__user-name"><?php echo esc_html($display_name); ?></span>
+                        <?php if ($avatar_url) : ?>
+                            <img src="<?php echo esc_url($avatar_url); ?>" alt="" class="hl-topbar__avatar">
+                        <?php else : ?>
+                            <div class="hl-topbar__avatar hl-topbar__avatar--initials"><?php echo esc_html($initials); ?></div>
+                        <?php endif; ?>
+                    </button>
+                    <div class="hl-topbar__dropdown" id="hl-topbar-dropdown" hidden>
+                        <?php if ($old_user && $switch_back_url) : ?>
+                            <div class="hl-topbar__dropdown-notice">
+                                <?php echo esc_html(sprintf(__('Viewing as %s', 'hl-core'), $display_name)); ?>
+                            </div>
+                            <a href="<?php echo esc_url($switch_back_url); ?>" class="hl-topbar__dropdown-item hl-topbar__dropdown-item--switch-back">
+                                <span class="dashicons dashicons-undo"></span>
+                                <?php echo esc_html(sprintf(__('Return to %s', 'hl-core'), $old_user->display_name)); ?>
+                            </a>
+                            <div class="hl-topbar__dropdown-divider"></div>
+                        <?php endif; ?>
+                        <a href="<?php echo esc_url(admin_url('profile.php')); ?>" class="hl-topbar__dropdown-item">
+                            <span class="dashicons dashicons-admin-users"></span>
+                            <?php esc_html_e('My Account', 'hl-core'); ?>
                         </a>
-                        <div class="hl-topbar__dropdown-divider"></div>
-                    <?php endif; ?>
-                    <a href="<?php echo esc_url(admin_url('profile.php')); ?>" class="hl-topbar__dropdown-item">
-                        <span class="dashicons dashicons-admin-users"></span>
-                        <?php esc_html_e('My Account', 'hl-core'); ?>
-                    </a>
-                    <a href="<?php echo esc_url(wp_logout_url($dashboard_url)); ?>" class="hl-topbar__dropdown-item">
-                        <span class="dashicons dashicons-migrate"></span>
-                        <?php esc_html_e('Log Out', 'hl-core'); ?>
-                    </a>
+                        <a href="<?php echo esc_url(wp_logout_url($dashboard_url)); ?>" class="hl-topbar__dropdown-item">
+                            <span class="dashicons dashicons-migrate"></span>
+                            <?php esc_html_e('Log Out', 'hl-core'); ?>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -803,7 +855,6 @@ class HL_BuddyBoss_Integration {
                 <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="<?php esc_attr_e('Collapse sidebar', 'hl-core'); ?>">
                     <span class="dashicons dashicons-arrow-left-alt2"></span>
                 </button>
-                <?php HL_Core::render_language_switcher(); ?>
                 <a href="<?php echo esc_url(wp_logout_url($dashboard_url)); ?>" class="hl-sidebar__item">
                     <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
                     <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>

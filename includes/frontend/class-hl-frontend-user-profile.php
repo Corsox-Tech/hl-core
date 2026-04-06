@@ -258,7 +258,7 @@ class HL_Frontend_User_Profile {
         $can_switch = class_exists('BP_Core_Members_Switching')
                       && ($is_admin || $is_coach)
                       && !$is_own_profile
-                      && !user_can($target_user_id, 'manage_hl_core'); // Don't allow switching to admins.
+                      && !user_can($target_user_id, 'manage_hl_core'); // Don't allow switching to admins or coaches.
         $switch_url = '';
         if ($can_switch) {
             $switch_url = BP_Core_Members_Switching::switch_to_url($target_user);
@@ -777,10 +777,15 @@ class HL_Frontend_User_Profile {
             $crumbs[] = '<a href="' . esc_url($dashboard_url) . '">' . esc_html__('Dashboard', 'hl-core') . '</a>';
         }
 
-        // If viewer came from My School, link back.
+        // If viewer came from My School / My District, link back.
         $school_url = $this->find_shortcode_page_url('hl_my_cycle');
         if ($school_url) {
-            $crumbs[] = '<a href="' . esc_url($school_url) . '">' . esc_html__('My School', 'hl-core') . '</a>';
+            $bb = HL_BuddyBoss_Integration::instance();
+            $viewer_roles = $bb ? $bb->get_user_hl_roles(get_current_user_id()) : array();
+            $school_label = in_array('district_leader', $viewer_roles, true)
+                ? __('My District', 'hl-core')
+                : __('My School', 'hl-core');
+            $crumbs[] = '<a href="' . esc_url($school_url) . '">' . esc_html($school_label) . '</a>';
         }
 
         // Current page — user name.

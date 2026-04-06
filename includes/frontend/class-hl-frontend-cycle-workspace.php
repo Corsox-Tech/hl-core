@@ -723,7 +723,7 @@ class HL_Frontend_Cycle_Workspace {
             <div class="hl-cw-report-filters hl-report-filters">
                 <?php if ( ! empty( $school_options ) ) : ?>
                     <select class="hl-report-filter" data-filter="school">
-                        <option value=""><?php esc_html_e( 'All Institutions', 'hl-core' ); ?></option>
+                        <option value=""><?php esc_html_e( 'All Schools', 'hl-core' ); ?></option>
                         <?php foreach ( $school_options as $co ) : ?>
                             <option value="<?php echo esc_attr( $co ); ?>"><?php echo esc_html( $co ); ?></option>
                         <?php endforeach; ?>
@@ -753,7 +753,7 @@ class HL_Frontend_Cycle_Workspace {
                             <th><?php esc_html_e( 'Name', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Team', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Role', 'hl-core' ); ?></th>
-                            <th><?php esc_html_e( 'Institution', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'School', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Completed', 'hl-core' ); ?></th>
                             <th><?php esc_html_e( 'Details', 'hl-core' ); ?></th>
                         </tr>

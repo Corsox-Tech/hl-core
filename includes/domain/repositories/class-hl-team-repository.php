@@ -31,7 +31,7 @@ class HL_Team_Repository {
         if ($where) {
             $sql .= ' WHERE ' . implode(' AND ', $where);
         }
-        $sql .= ' ORDER BY team_name ASC';
+        $sql .= ' ORDER BY school_id ASC, team_name ASC';
 
         if ($values) {
             $sql = $wpdb->prepare($sql, $values);

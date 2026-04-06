@@ -88,6 +88,7 @@ class HL_Frontend_Dashboard {
             'has_program_track' => false,
             'is_mentor'         => false,
             'is_leader'         => false,
+            'is_district_leader' => false,
             'is_teacher'        => false,
             'enrollments'       => array(),
         );
@@ -124,6 +125,9 @@ class HL_Frontend_Dashboard {
             }
             if ( in_array( 'school_leader', $roles, true ) || in_array( 'district_leader', $roles, true ) ) {
                 $context['is_leader'] = true;
+            }
+            if ( in_array( 'district_leader', $roles, true ) ) {
+                $context['is_district_leader'] = true;
             }
         }
 
@@ -248,7 +252,7 @@ class HL_Frontend_Dashboard {
 
                 $this->render_nav_card(
                     'hl_institutions_listing',
-                    __( 'Institutions', 'hl-core' ),
+                    __( 'Schools', 'hl-core' ),
                     __( 'View districts and schools.', 'hl-core' ),
                     'dashicons-building'
                 );
@@ -494,10 +498,16 @@ class HL_Frontend_Dashboard {
                 <div class="hl-dv2-section-label"><?php esc_html_e( 'Leadership', 'hl-core' ); ?></div>
                 <div class="hl-dv2-grid">
                     <?php
+                    $my_school_label = $context['is_district_leader']
+                        ? __( 'My District', 'hl-core' )
+                        : __( 'My School', 'hl-core' );
+                    $my_school_desc = $context['is_district_leader']
+                        ? __( 'View your district staff, schools, and reports', 'hl-core' )
+                        : __( 'View your school staff, classrooms, and reports', 'hl-core' );
                     $this->render_nav_card_v2(
                         'hl_my_cycle',
-                        __( 'My School', 'hl-core' ),
-                        __( 'View your school staff, classrooms, and reports', 'hl-core' ),
+                        $my_school_label,
+                        $my_school_desc,
                         '&#x1F3EB;',
                         'hl-dv2-icon-cycle'
                     );
@@ -578,7 +588,7 @@ class HL_Frontend_Dashboard {
                 );
                 $this->render_nav_card_v2(
                     'hl_institutions_listing',
-                    __( 'Institutions', 'hl-core' ),
+                    __( 'Schools', 'hl-core' ),
                     __( 'View districts and schools', 'hl-core' ),
                     '&#x1F3DB;',
                     'hl-dv2-icon-institutions'

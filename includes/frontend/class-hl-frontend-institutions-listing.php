@@ -57,12 +57,12 @@ class HL_Frontend_Institutions_Listing {
         <div class="hl-dashboard hl-institutions-listing hl-frontend-wrap">
 
             <div class="hl-crm-page-header">
-                <h2 class="hl-crm-page-title"><?php esc_html_e( 'Institutions', 'hl-core' ); ?></h2>
+                <h2 class="hl-crm-page-title"><?php esc_html_e( 'Schools', 'hl-core' ); ?></h2>
             </div>
 
             <div class="hl-filters-bar">
                 <input type="text" class="hl-search-input" id="hl-inst-search"
-                       placeholder="<?php esc_attr_e( 'Search institutions...', 'hl-core' ); ?>">
+                       placeholder="<?php esc_attr_e( 'Search schools...', 'hl-core' ); ?>">
                 <div class="hl-toggle-group">
                     <button class="hl-tab hl-inst-toggle active" data-view="all"><?php esc_html_e( 'All', 'hl-core' ); ?></button>
                     <button class="hl-tab hl-inst-toggle" data-view="districts"><?php esc_html_e( 'Districts', 'hl-core' ); ?></button>
@@ -71,7 +71,7 @@ class HL_Frontend_Institutions_Listing {
             </div>
 
             <?php if ( empty( $districts ) && empty( $schools ) ) : ?>
-                <div class="hl-empty-state"><p><?php esc_html_e( 'No institutions found.', 'hl-core' ); ?></p></div>
+                <div class="hl-empty-state"><p><?php esc_html_e( 'No schools found.', 'hl-core' ); ?></p></div>
             <?php else : ?>
 
                 <!-- Districts Section -->
@@ -177,7 +177,7 @@ class HL_Frontend_Institutions_Listing {
                 <?php endif; ?>
 
                 <div class="hl-empty-state hl-no-results">
-                    <p><?php esc_html_e( 'No institutions match your search.', 'hl-core' ); ?></p>
+                    <p><?php esc_html_e( 'No schools match your search.', 'hl-core' ); ?></p>
                 </div>
 
             <?php endif; ?>

@@ -123,7 +123,7 @@ class HL_CLI_Create_Pages {
 
             // Directory / listing pages
             array( 'title' => 'Cycles',           'shortcode' => 'hl_cycles_listing' ),
-            array( 'title' => 'Institutions',          'shortcode' => 'hl_institutions_listing' ),
+            array( 'title' => 'Schools',               'shortcode' => 'hl_institutions_listing' ),
             array( 'title' => 'Classrooms',            'shortcode' => 'hl_classrooms_listing' ),
             array( 'title' => 'Learners',              'shortcode' => 'hl_learners' ),
             array( 'title' => 'Pathways',              'shortcode' => 'hl_pathways_listing' ),

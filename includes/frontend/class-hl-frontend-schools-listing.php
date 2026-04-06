@@ -48,7 +48,7 @@ class HL_Frontend_Schools_Listing {
         <div class="hl-dashboard hl-schools-listing hl-frontend-wrap">
 
             <div class="hl-crm-page-header">
-                <h2 class="hl-crm-page-title"><?php esc_html_e( 'Institutions', 'hl-core' ); ?></h2>
+                <h2 class="hl-crm-page-title"><?php esc_html_e( 'Schools', 'hl-core' ); ?></h2>
             </div>
 
             <?php if ( empty( $schools ) ) : ?>

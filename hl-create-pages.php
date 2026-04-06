@@ -20,7 +20,7 @@ $pages = array(
     array( 'title' => 'My Coaching',       'shortcode' => 'hl_my_coaching' ),
     array( 'title' => 'My Cohort',         'shortcode' => 'hl_my_cohort' ),
     array( 'title' => 'School Districts',  'shortcode' => 'hl_districts_listing' ),
-    array( 'title' => 'Institutions',      'shortcode' => 'hl_centers_listing' ),
+    array( 'title' => 'Schools',           'shortcode' => 'hl_centers_listing' ),
 );
 
 echo "HL Core — Creating shortcode pages\n";

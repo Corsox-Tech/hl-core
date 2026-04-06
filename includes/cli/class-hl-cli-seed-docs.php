@@ -458,7 +458,7 @@ In addition to any participant cards (if enrolled), staff see an <strong>Adminis
 
 <ul>
 <li><strong>Cycles</strong> — All cycles in the system.</li>
-<li><strong>Institutions</strong> — Districts and schools.</li>
+<li><strong>Schools</strong> — Districts and schools.</li>
 <li><strong>Learners</strong> — Participant directory.</li>
 <li><strong>Pathways</strong> — Pathway configuration.</li>
 <li><strong>Coaching Hub</strong> — All coaching sessions.</li>
