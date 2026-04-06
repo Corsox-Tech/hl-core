@@ -236,4 +236,79 @@ class HL_LearnDash_Integration {
         }
         return $results;
     }
+
+    /**
+     * Reset a user's LearnDash course progress.
+     *
+     * Clears usermeta/quiz history via LD API, then also resets the
+     * wp_learndash_user_activity row which learndash_delete_course_progress
+     * does NOT clear.
+     *
+     * @param int $user_id
+     * @param int $course_id LD course post ID.
+     * @return bool True on success, false if LD functions unavailable.
+     */
+    public function reset_course_progress($user_id, $course_id) {
+        if (!function_exists('learndash_delete_course_progress')) {
+            error_log(sprintf('[HL Core] reset_course_progress: learndash_delete_course_progress not available (user=%d, course=%d)', $user_id, $course_id));
+            return false;
+        }
+
+        // Argument order is ($course_id, $user_id) — confirmed in sfwd-lms source.
+        learndash_delete_course_progress($course_id, $user_id);
+
+        // Also reset wp_learndash_user_activity row (not cleared by the above).
+        if (function_exists('learndash_get_user_activity') && function_exists('learndash_update_user_activity')) {
+            $activity = learndash_get_user_activity(array(
+                'user_id'       => $user_id,
+                'course_id'     => $course_id,
+                'post_id'       => $course_id,
+                'activity_type' => 'course',
+            ));
+            if (!empty($activity)) {
+                learndash_update_user_activity(array_merge(
+                    (array) $activity,
+                    array(
+                        'activity_status'    => false,
+                        'activity_completed' => 0,
+                        'activity_updated'   => time(),
+                    )
+                ));
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Mark a LearnDash course as complete for a user.
+     *
+     * Uses learndash_update_user_activity() directly — does NOT use
+     * learndash_process_mark_complete() (takes step ID, not course ID)
+     * and does NOT iterate steps (would re-fire learndash_course_completed
+     * hook causing duplicate downstream actions).
+     *
+     * @param int $user_id
+     * @param int $course_id LD course post ID.
+     * @return bool True on success, false if LD functions unavailable.
+     */
+    public function mark_course_complete($user_id, $course_id) {
+        if (!function_exists('learndash_update_user_activity')) {
+            error_log(sprintf('[HL Core] mark_course_complete: learndash_update_user_activity not available (user=%d, course=%d)', $user_id, $course_id));
+            return false;
+        }
+
+        learndash_update_user_activity(array(
+            'user_id'            => $user_id,
+            'course_id'          => $course_id,
+            'post_id'            => $course_id,
+            'activity_type'      => 'course',
+            'activity_status'    => true,
+            'activity_completed' => time(),
+            'activity_updated'   => time(),
+            'activity_started'   => time(),
+        ));
+
+        return true;
+    }
 }
