@@ -484,6 +484,7 @@ class HL_Ticket_Service {
         $row = $this->enrich_ticket_for_list( $row );
         $row['comments']     = $this->get_comments( $row['ticket_id'] );
         $row['comment_count'] = count( $row['comments'] );
+        $row['attachments']  = $this->get_attachments( (int) $row['ticket_id'] );
         return $row;
     }
 
@@ -495,6 +496,91 @@ class HL_Ticket_Service {
         $row['user_name']   = $user ? $user->display_name : __( 'Unknown User', 'hl-core' );
         $row['user_avatar'] = get_avatar_url( $row['user_id'], array( 'size' => 64 ) );
         $row['time_ago']    = human_time_diff( strtotime( $row['created_at'] ), strtotime( current_time( 'mysql' ) ) ) . ' ago';
+        $row['attachments'] = $this->get_attachments( null, (int) $row['comment_id'] );
         return $row;
+    }
+
+    // ─── Attachments ───
+
+    /**
+     * Get attachments for a ticket or comment.
+     *
+     * @param int|null $ticket_id  Ticket ID (for ticket-level attachments).
+     * @param int|null $comment_id Comment ID (for comment-level attachments).
+     * @return array[]
+     */
+    public function get_attachments( $ticket_id = null, $comment_id = null ) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_ticket_attachment';
+
+        if ( $comment_id ) {
+            return $wpdb->get_results( $wpdb->prepare(
+                "SELECT * FROM {$table} WHERE comment_id = %d ORDER BY created_at ASC",
+                $comment_id
+            ), ARRAY_A ) ?: array();
+        }
+
+        if ( $ticket_id ) {
+            return $wpdb->get_results( $wpdb->prepare(
+                "SELECT * FROM {$table} WHERE ticket_id = %d AND comment_id IS NULL ORDER BY created_at ASC",
+                $ticket_id
+            ), ARRAY_A ) ?: array();
+        }
+
+        return array();
+    }
+
+    /**
+     * Upload and attach a file to a ticket or comment.
+     *
+     * @param string $ticket_uuid Ticket UUID.
+     * @param array  $file        $_FILES entry.
+     * @param int|null $comment_id Optional comment ID.
+     * @return array|WP_Error Attachment data or error.
+     */
+    public function add_attachment( $ticket_uuid, $file, $comment_id = null ) {
+        $ticket = $this->get_ticket_raw( $ticket_uuid );
+        if ( ! $ticket ) {
+            return new WP_Error( 'not_found', __( 'Ticket not found.', 'hl-core' ) );
+        }
+
+        // Validate file type (images only).
+        $allowed = array( 'image/jpeg', 'image/png', 'image/gif', 'image/webp' );
+        if ( ! in_array( $file['type'], $allowed, true ) ) {
+            return new WP_Error( 'invalid_type', __( 'Only image files (JPG, PNG, GIF, WebP) are allowed.', 'hl-core' ) );
+        }
+
+        // Max 5MB.
+        if ( $file['size'] > 5 * 1024 * 1024 ) {
+            return new WP_Error( 'file_too_large', __( 'File must be 5MB or smaller.', 'hl-core' ) );
+        }
+
+        // Use WP upload handling.
+        if ( ! function_exists( 'wp_handle_upload' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+
+        $upload = wp_handle_upload( $file, array( 'test_form' => false ) );
+        if ( isset( $upload['error'] ) ) {
+            return new WP_Error( 'upload_failed', $upload['error'] );
+        }
+
+        global $wpdb;
+        $wpdb->insert( $wpdb->prefix . 'hl_ticket_attachment', array(
+            'ticket_id'  => $ticket['ticket_id'],
+            'comment_id' => $comment_id ? absint( $comment_id ) : null,
+            'user_id'    => get_current_user_id(),
+            'file_url'   => $upload['url'],
+            'file_name'  => sanitize_file_name( $file['name'] ),
+            'mime_type'  => $upload['type'],
+            'created_at' => current_time( 'mysql' ),
+        ) );
+
+        return array(
+            'attachment_id' => $wpdb->insert_id,
+            'file_url'      => $upload['url'],
+            'file_name'     => sanitize_file_name( $file['name'] ),
+            'mime_type'     => $upload['type'],
+        );
     }
 }

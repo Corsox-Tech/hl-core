@@ -1993,6 +1993,21 @@ class HL_Installer {
             KEY ticket_id (ticket_id)
         ) $charset_collate;";
 
+        // Feature Tracker: ticket attachments (images)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_ticket_attachment (
+            attachment_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            ticket_id bigint(20) unsigned NOT NULL,
+            comment_id bigint(20) unsigned NULL,
+            user_id bigint(20) unsigned NOT NULL,
+            file_url varchar(500) NOT NULL,
+            file_name varchar(255) NOT NULL,
+            mime_type varchar(100) NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (attachment_id),
+            KEY ticket_id (ticket_id),
+            KEY comment_id (comment_id)
+        ) $charset_collate;";
+
         return $tables;
     }
 

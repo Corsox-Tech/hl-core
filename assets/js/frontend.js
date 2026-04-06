@@ -296,6 +296,9 @@
                     // Description (plain text in V1 — no rich text editor)
                     $('#hlft-detail-description').text(t.description);
 
+                    // Ticket-level attachments
+                    renderAttachments($('#hlft-detail-attachments'), t.attachments || []);
+
                     // Edit button
                     var $actions = $('#hlft-detail-actions');
                     $actions.empty();
@@ -324,17 +327,95 @@
                 }
 
                 $.each(comments, function(i, c) {
+                    var attachHtml = buildAttachmentsHtml(c.attachments || []);
                     var html = '<div class="hlft-comment">' +
                         '<img class="hlft-avatar" src="' + esc(c.user_avatar) + '" alt="">' +
                         '<div class="hlft-comment__body">' +
                         '<div class="hlft-comment__header"><span class="hlft-comment__name">' + esc(c.user_name) + '</span><span class="hlft-comment__time">' + esc(c.time_ago) + '</span></div>' +
                         '<div class="hlft-comment__text">' + esc(c.comment_text) + '</div>' +
+                        attachHtml +
                         '</div></div>';
                     $list.append(html);
                 });
             }
 
+            // ── Attachment Helpers ──
+
+            function buildAttachmentsHtml(attachments) {
+                if (!attachments || !attachments.length) return '';
+                var html = '<div class="hlft-attachments">';
+                $.each(attachments, function(i, a) {
+                    html += '<img class="hlft-attachment-thumb" src="' + esc(a.file_url) + '" alt="' + esc(a.file_name) + '" data-full="' + esc(a.file_url) + '">';
+                });
+                html += '</div>';
+                return html;
+            }
+
+            function renderAttachments($container, attachments) {
+                $container.empty();
+                if (!attachments || !attachments.length) return;
+                $container.html(buildAttachmentsHtml(attachments));
+            }
+
+            // Upload files and return array of attachment objects via callback
+            function uploadFiles(files, ticketUuid, commentId, callback) {
+                var results = [];
+                var pending = files.length;
+                if (!pending) { callback(results); return; }
+
+                $.each(files, function(i, file) {
+                    var fd = new FormData();
+                    fd.append('action', 'hl_ticket_upload');
+                    fd.append('nonce', nonce);
+                    fd.append('ticket_uuid', ticketUuid);
+                    fd.append('file', file);
+                    if (commentId) fd.append('comment_id', commentId);
+
+                    $.ajax({
+                        url: hlCoreAjax.ajaxurl,
+                        type: 'POST',
+                        data: fd,
+                        processData: false,
+                        contentType: false,
+                        success: function(resp) {
+                            if (resp.success) results.push(resp.data);
+                            pending--;
+                            if (pending === 0) callback(results);
+                        },
+                        error: function() {
+                            pending--;
+                            if (pending === 0) callback(results);
+                        }
+                    });
+                });
+            }
+
+            // Show file preview thumbnails
+            function showFilePreview($container, files) {
+                $container.empty();
+                $.each(files, function(i, f) {
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        $container.append('<img src="' + e.target.result + '" alt="">');
+                    };
+                    reader.readAsDataURL(f);
+                });
+            }
+
+            // Lightbox — click thumbnail to see full image
+            $(document).on('click', '.hlft-attachment-thumb', function(e) {
+                e.stopPropagation();
+                var src = $(this).data('full') || $(this).attr('src');
+                $('body').append('<div class="hlft-lightbox"><img src="' + esc(src) + '"></div>');
+            });
+            $(document).on('click', '.hlft-lightbox', function() {
+                $(this).remove();
+            });
+
             // ── Create / Edit Modal ──
+
+            var pendingFormFiles = [];
+            var pendingCommentFiles = [];
 
             function openCreateModal() {
                 $('#hlft-form-title').text('New Ticket');
@@ -343,6 +424,9 @@
                 $('#hlft-form-type').val('');
                 $('#hlft-form-priority').val('medium');
                 $('#hlft-form-description').val('');
+                $('#hlft-form-file').val('');
+                $('#hlft-form-preview').empty();
+                pendingFormFiles = [];
                 $('#hlft-form-submit').text('Submit').prop('disabled', false);
                 $('#hlft-form-modal').show();
                 $('#hlft-form-title-input').focus();
@@ -412,6 +496,18 @@
                 if (uuid) openDetail(uuid);
             });
 
+            // File attach buttons
+            $('#hlft-form-attach-btn').on('click', function() { $('#hlft-form-file').click(); });
+            $('#hlft-form-file').on('change', function() {
+                pendingFormFiles = Array.from(this.files || []);
+                showFilePreview($('#hlft-form-preview'), pendingFormFiles);
+            });
+            $('#hlft-comment-attach-btn').on('click', function() { $('#hlft-comment-file').click(); });
+            $('#hlft-comment-file').on('change', function() {
+                pendingCommentFiles = Array.from(this.files || []);
+                showFilePreview($('#hlft-comment-preview'), pendingCommentFiles);
+            });
+
             // New ticket button
             $('#hlft-new-ticket-btn').on('click', openCreateModal);
 
@@ -450,11 +546,23 @@
                     });
                 } else {
                     ajax('hl_ticket_create', data, function(t) {
-                        $btn.prop('disabled', false).text('Submit');
-                        $('#hlft-form-modal').hide();
-                        showToast('Ticket #' + t.ticket_id + ' created');
-                        currentUuid = null;
-                        loadTickets();
+                        // Upload pending files if any
+                        if (pendingFormFiles.length) {
+                            uploadFiles(pendingFormFiles, t.ticket_uuid, null, function() {
+                                pendingFormFiles = [];
+                                $btn.prop('disabled', false).text('Submit');
+                                $('#hlft-form-modal').hide();
+                                showToast('Ticket #' + t.ticket_id + ' created');
+                                currentUuid = null;
+                                loadTickets();
+                            });
+                        } else {
+                            $btn.prop('disabled', false).text('Submit');
+                            $('#hlft-form-modal').hide();
+                            showToast('Ticket #' + t.ticket_id + ' created');
+                            currentUuid = null;
+                            loadTickets();
+                        }
                     });
                 }
             });
@@ -464,30 +572,46 @@
                 var $btn = $(this);
                 var $textarea = $('#hlft-comment-text');
                 var text = $.trim($textarea.val());
-                if (!text) return;
+                if (!text && !pendingCommentFiles.length) return;
 
                 $btn.prop('disabled', true).text('Posting...');
 
                 ajax('hl_ticket_comment', {
                     ticket_uuid: currentUuid,
-                    comment_text: text
+                    comment_text: text || '(image attached)'
                 }, function(comment) {
-                    $btn.prop('disabled', false).text('Post');
-                    $textarea.val('');
+                    function finishComment(attachments) {
+                        $btn.prop('disabled', false).text('Post');
+                        $textarea.val('');
+                        $('#hlft-comment-file').val('');
+                        $('#hlft-comment-preview').empty();
+                        pendingCommentFiles = [];
 
-                    // Remove "no comments" message if present
-                    $('#hlft-comments-list .hlft-comments-empty').remove();
+                        // Remove "no comments" message if present
+                        $('#hlft-comments-list .hlft-comments-empty').remove();
 
-                    // Append new comment
-                    var count = parseInt($('#hlft-comment-count').text(), 10) + 1;
-                    $('#hlft-comment-count').text(count);
+                        // Append new comment
+                        var count = parseInt($('#hlft-comment-count').text(), 10) + 1;
+                        $('#hlft-comment-count').text(count);
 
-                    var html = '<div class="hlft-comment">' +
-                        '<img class="hlft-avatar" src="' + esc(comment.user_avatar) + '" alt="">' +
-                        '<div class="hlft-comment__body">' +
-                        '<div class="hlft-comment__header"><span class="hlft-comment__name">' + esc(comment.user_name) + '</span><span class="hlft-comment__time">' + esc(comment.time_ago) + '</span></div>' +
-                        '<div class="hlft-comment__text">' + esc(comment.comment_text) + '</div>' +
-                        '</div></div>';
+                        var attachHtml = buildAttachmentsHtml(attachments);
+                        var html = '<div class="hlft-comment">' +
+                            '<img class="hlft-avatar" src="' + esc(comment.user_avatar) + '" alt="">' +
+                            '<div class="hlft-comment__body">' +
+                            '<div class="hlft-comment__header"><span class="hlft-comment__name">' + esc(comment.user_name) + '</span><span class="hlft-comment__time">' + esc(comment.time_ago) + '</span></div>' +
+                            '<div class="hlft-comment__text">' + esc(comment.comment_text) + '</div>' +
+                            attachHtml +
+                            '</div></div>';
+                        $('#hlft-comments-list').append(html);
+                    }
+
+                    if (pendingCommentFiles.length) {
+                        uploadFiles(pendingCommentFiles, currentUuid, comment.comment_id, function(uploaded) {
+                            finishComment(uploaded);
+                        });
+                    } else {
+                        finishComment([]);
+                    }
                     $('#hlft-comments-list').append(html);
                 });
             });

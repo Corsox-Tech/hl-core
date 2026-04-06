@@ -31,6 +31,7 @@ class HL_Frontend_Feature_Tracker {
         add_action( 'wp_ajax_hl_ticket_update',  array( $this, 'ajax_ticket_update' ) );
         add_action( 'wp_ajax_hl_ticket_comment', array( $this, 'ajax_ticket_comment' ) );
         add_action( 'wp_ajax_hl_ticket_status',  array( $this, 'ajax_ticket_status' ) );
+        add_action( 'wp_ajax_hl_ticket_upload',  array( $this, 'ajax_ticket_upload' ) );
     }
 
     // ─── Shortcode Render ───
@@ -132,6 +133,7 @@ class HL_Frontend_Feature_Tracker {
                         <div id="hlft-detail-content" style="display:none;">
                             <div class="hlft-meta-row" id="hlft-detail-meta"></div>
                             <div class="hlft-description" id="hlft-detail-description"></div>
+                            <div class="hlft-attachments" id="hlft-detail-attachments"></div>
                             <div class="hlft-detail-actions" id="hlft-detail-actions"></div>
 
                             <!-- Status change (admin only) -->
@@ -154,7 +156,14 @@ class HL_Frontend_Feature_Tracker {
                                 <h3 id="hlft-comments-header"><?php esc_html_e( 'Comments', 'hl-core' ); ?> (<span id="hlft-comment-count">0</span>)</h3>
                                 <div id="hlft-comments-list"></div>
                                 <div class="hlft-comment-form">
-                                    <textarea id="hlft-comment-text" rows="3" placeholder="<?php esc_attr_e( 'Write a comment...', 'hl-core' ); ?>"></textarea>
+                                    <div class="hlft-comment-form__input">
+                                        <textarea id="hlft-comment-text" rows="3" placeholder="<?php esc_attr_e( 'Write a comment...', 'hl-core' ); ?>"></textarea>
+                                        <div class="hlft-comment-form__attach">
+                                            <input type="file" id="hlft-comment-file" accept="image/*" multiple style="display:none;">
+                                            <button type="button" class="hlft-attach-icon" id="hlft-comment-attach-btn" title="<?php esc_attr_e( 'Attach image', 'hl-core' ); ?>"><span class="dashicons dashicons-paperclip"></span></button>
+                                            <div class="hlft-upload-preview" id="hlft-comment-preview"></div>
+                                        </div>
+                                    </div>
                                     <button type="button" class="hl-btn hl-btn-primary hl-btn-small" id="hlft-comment-btn"><?php esc_html_e( 'Post', 'hl-core' ); ?></button>
                                 </div>
                             </div>
@@ -198,6 +207,15 @@ class HL_Frontend_Feature_Tracker {
                             <div class="hlft-form-group">
                                 <label for="hlft-form-description"><?php esc_html_e( 'Description', 'hl-core' ); ?> <span class="required">*</span></label>
                                 <textarea id="hlft-form-description" rows="6" required></textarea>
+                            </div>
+                            <div class="hlft-form-group">
+                                <label><?php esc_html_e( 'Attachments', 'hl-core' ); ?></label>
+                                <div class="hlft-upload-area" id="hlft-form-upload-area">
+                                    <input type="file" id="hlft-form-file" accept="image/*" multiple style="display:none;">
+                                    <button type="button" class="hl-btn hl-btn-small" id="hlft-form-attach-btn"><span class="dashicons dashicons-paperclip"></span> <?php esc_html_e( 'Attach Images', 'hl-core' ); ?></button>
+                                    <span class="hlft-upload-hint"><?php esc_html_e( 'JPG, PNG, GIF, WebP — max 5MB each', 'hl-core' ); ?></span>
+                                    <div class="hlft-upload-preview" id="hlft-form-preview"></div>
+                                </div>
                             </div>
                             <div class="hlft-form-actions">
                                 <button type="submit" class="hl-btn hl-btn-primary" id="hlft-form-submit"><?php esc_html_e( 'Submit', 'hl-core' ); ?></button>
@@ -322,6 +340,25 @@ class HL_Frontend_Feature_Tracker {
         $status = isset( $_POST['status'] ) ? sanitize_text_field( $_POST['status'] ) : '';
 
         $result = HL_Ticket_Service::instance()->change_status( $uuid, $status );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
+        }
+
+        wp_send_json_success( $result );
+    }
+
+    public function ajax_ticket_upload() {
+        $this->verify_ajax();
+
+        if ( empty( $_FILES['file'] ) ) {
+            wp_send_json_error( __( 'No file uploaded.', 'hl-core' ) );
+        }
+
+        $uuid       = isset( $_POST['ticket_uuid'] ) ? sanitize_text_field( $_POST['ticket_uuid'] ) : '';
+        $comment_id = ! empty( $_POST['comment_id'] ) ? absint( $_POST['comment_id'] ) : null;
+
+        $result = HL_Ticket_Service::instance()->add_attachment( $uuid, $_FILES['file'], $comment_id );
 
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( $result->get_error_message() );
