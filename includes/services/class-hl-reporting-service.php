@@ -376,7 +376,8 @@ class HL_Reporting_Service {
             $params[] = '%"' . $wpdb->esc_like( $role ) . '"%';
         }
 
-        $where_sql = implode( ' AND ', $where );
+        $where_sql   = implode( ' AND ', $where );
+        $suspend_sql = HL_BuddyBoss_Integration::get_suspend_not_exists_sql( 'e.user_id' );
 
         $sql = "SELECT
                     e.enrollment_id,
@@ -395,7 +396,7 @@ class HL_Reporting_Service {
                 LEFT JOIN {$prefix}hl_team t ON tm.team_id = t.team_id AND t.cycle_id = e.cycle_id
                 LEFT JOIN {$prefix}hl_orgunit school_ou ON t.school_id = school_ou.orgunit_id
                 LEFT JOIN {$prefix}hl_orgunit enroll_ou ON e.school_id = enroll_ou.orgunit_id
-                WHERE {$where_sql}
+                WHERE {$where_sql} {$suspend_sql}
                 GROUP BY e.enrollment_id
                 ORDER BY u.display_name ASC";
 
