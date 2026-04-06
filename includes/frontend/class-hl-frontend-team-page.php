@@ -292,7 +292,6 @@ class HL_Frontend_Team_Page {
 
         // Activity detail for expandable rows (needs cycle).
         $activity_detail = array();
-        $activities      = array();
 
         if ( $cycle ) {
             $enrollment_ids = array_map( function ( $m ) { return $m['enrollment_id']; }, $members );
@@ -302,7 +301,6 @@ class HL_Frontend_Team_Page {
                     $cycle->cycle_id,
                     $enrollment_ids
                 );
-                $activities = $this->reporting_service->get_cycle_components( $cycle->cycle_id );
             }
         }
 
@@ -381,7 +379,7 @@ class HL_Frontend_Team_Page {
                         <tr class="hl-detail-row" id="hl-team-detail-<?php echo esc_attr( $eid ); ?>">
                             <td colspan="6">
                                 <div class="hl-detail-content">
-                                    <?php if ( isset( $activity_detail[ $eid ] ) && ! empty( $activities ) ) : ?>
+                                    <?php if ( ! empty( $activity_detail[ $eid ] ) ) : ?>
                                         <table class="hl-table hl-detail-table">
                                             <thead>
                                                 <tr>
@@ -392,17 +390,18 @@ class HL_Frontend_Team_Page {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <?php foreach ( $activities as $act ) :
-                                                    $aid        = $act['component_id'];
-                                                    $ad         = isset( $activity_detail[ $eid ][ $aid ] ) ? $activity_detail[ $eid ][ $aid ] : null;
-                                                    $act_pct    = $ad ? intval( $ad['completion_percent'] ) : 0;
-                                                    $act_status = $ad ? $ad['completion_status'] : 'not_started';
+                                                <?php foreach ( $activity_detail[ $eid ] as $aid => $ad ) :
+                                                    if ( isset( $ad['is_eligible'] ) && ! $ad['is_eligible'] ) {
+                                                        continue;
+                                                    }
+                                                    $act_pct    = intval( $ad['completion_percent'] );
+                                                    $act_status = $ad['completion_status'];
                                                     $status_lbl = ucwords( str_replace( '_', ' ', $act_status ) );
                                                     $status_cls = 'hl-badge-' . str_replace( '_', '-', $act_status );
-                                                    $type_lbl   = ucwords( str_replace( '_', ' ', $act['component_type'] ) );
+                                                    $type_lbl   = ucwords( str_replace( '_', ' ', $ad['component_type'] ) );
                                                 ?>
                                                     <tr>
-                                                        <td><?php echo esc_html( $act['title'] ); ?></td>
+                                                        <td><?php echo esc_html( $ad['title'] ); ?></td>
                                                         <td><span class="hl-activity-type"><?php echo esc_html( $type_lbl ); ?></span></td>
                                                         <td><?php echo esc_html( $act_pct . '%' ); ?></td>
                                                         <td><span class="hl-badge <?php echo esc_attr( $status_cls ); ?>"><?php echo esc_html( $status_lbl ); ?></span></td>

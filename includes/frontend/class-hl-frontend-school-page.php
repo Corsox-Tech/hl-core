@@ -86,7 +86,7 @@ class HL_Frontend_School_Page {
                     if ( $parent_district ) {
                         printf( esc_html__( 'Back to %s', 'hl-core' ), esc_html( $parent_district->name ) );
                     } else {
-                        esc_html_e( 'Back to Institutions', 'hl-core' );
+                        esc_html_e( 'Back to Schools', 'hl-core' );
                     }
                     ?>
                 </a>
@@ -376,13 +376,14 @@ class HL_Frontend_School_Page {
         $prefix = $wpdb->prefix;
 
         $rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT e.enrollment_id, u.display_name, u.user_email, e.roles,
-                    t.cycle_name
+            "SELECT e.user_id, u.display_name, u.user_email, e.roles,
+                    GROUP_CONCAT(DISTINCT t.cycle_name ORDER BY t.start_date DESC SEPARATOR ', ') AS cycle_name
              FROM {$prefix}hl_enrollment e
              INNER JOIN {$wpdb->users} u ON e.user_id = u.ID
              INNER JOIN {$prefix}hl_cycle t ON e.cycle_id = t.cycle_id
              WHERE e.school_id = %d
                AND e.status = 'active'
+             GROUP BY e.user_id, u.display_name, u.user_email, e.roles
              ORDER BY u.display_name ASC",
             $school_id
         ), ARRAY_A );
