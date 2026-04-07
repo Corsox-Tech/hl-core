@@ -178,7 +178,7 @@
 
             // ── Helpers ──
 
-            function ajax(action, data, callback) {
+            function ajax(action, data, callback, errCallback) {
                 data.action = action;
                 data.nonce  = nonce;
                 $.post(hlCoreAjax.ajaxurl, data, function(resp) {
@@ -186,9 +186,11 @@
                         callback(resp.data);
                     } else {
                         showToast(resp.data || 'An error occurred.', true);
+                        if (errCallback) errCallback();
                     }
                 }).fail(function() {
                     showToast('Request failed. Please try again.', true);
+                    if (errCallback) errCallback();
                 });
             }
 
@@ -753,6 +755,11 @@
                     return;
                 }
 
+                // Error recovery: re-enable submit button on AJAX failure.
+                var resetBtn = function() {
+                    $btn.prop('disabled', false).text(isEdit ? 'Save Changes' : 'Submit');
+                };
+
                 if (isEdit) {
                     data.ticket_uuid = uuid;
                     ajax('hl_ticket_update', data, function(t) {
@@ -772,10 +779,9 @@
                             openDetail(t.ticket_uuid);
                             loadTickets();
                         }
-                    });
+                    }, resetBtn);
                 } else {
                     ajax('hl_ticket_create', data, function(t) {
-                        // Upload pending files if any
                         if (pendingFormFiles.length) {
                             uploadFiles(pendingFormFiles, t.ticket_uuid, null, function() {
                                 pendingFormFiles = [];
@@ -792,7 +798,7 @@
                             currentUuid = null;
                             loadTickets();
                         }
-                    });
+                    }, resetBtn);
                 }
             });
 
@@ -841,6 +847,8 @@
                     } else {
                         finishComment([]);
                     }
+                }, function() {
+                    $btn.prop('disabled', false).text('Post');
                 });
             });
 
@@ -866,6 +874,9 @@
 
                     // Refresh table
                     loadTickets();
+                }, function() {
+                    $btn.prop('disabled', false);
+                    $sel.prop('disabled', false);
                 });
             });
 
