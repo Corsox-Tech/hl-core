@@ -41,7 +41,7 @@ class HL_Assessment_Service {
     public function get_teacher_assessment($instance_id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
-            "SELECT tai.*, u.display_name, u.user_email, e.user_id, e.roles, t.cycle_name
+            "SELECT tai.*, u.display_name, u.user_email, e.user_id, e.roles, e.language_preference, t.cycle_name
              FROM {$wpdb->prefix}hl_teacher_assessment_instance tai
              JOIN {$wpdb->prefix}hl_enrollment e ON tai.enrollment_id = e.enrollment_id
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID

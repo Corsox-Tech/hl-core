@@ -8255,6 +8255,14 @@ tr.hl-tsa-row-odd td { background-color: var(--hl-bg-subtle) }
 .hl-tsa-form-wrap .hl-tsa-nav .hl-tsa-btn-next:hover { background: var(--hl-primary-dark, #135e96) !important; border-color: var(--hl-primary-dark, #135e96) !important }
 .hl-tsa-form-wrap .hl-tsa-btn-next::after { content: '\00a0\2192' }
 
+/* Text (open-ended) section */
+.hl-tsa-text-section { display: flex; flex-direction: column; gap: 24px }
+.hl-tsa-text-item { display: flex; flex-direction: column; gap: 8px }
+.hl-tsa-text-label { font-weight: 500; font-size: 0.95em; color: var(--hl-text); line-height: 1.5 }
+.hl-tsa-textarea { width: 100%; min-height: 100px; padding: 12px 14px; border: 1px solid var(--hl-border-medium); border-radius: var(--hl-radius-xs); font-family: inherit; font-size: 0.95em; line-height: 1.5; resize: vertical; transition: border-color 0.15s ease }
+.hl-tsa-textarea:focus { border-color: var(--hl-primary); outline: none; box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15) }
+.hl-tsa-text-readonly { padding: 12px 14px; background: var(--hl-bg-subtle); border-radius: var(--hl-radius-xs); font-size: 0.95em; line-height: 1.6; color: var(--hl-text); min-height: 60px; white-space: pre-wrap }
+
 .hl-tsa-skip-overlay { position: fixed; inset: 0; z-index: 100000; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; padding: 20px }
 .hl-tsa-skip-modal { background: var(--hl-surface); border-radius: var(--hl-radius); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); max-width: 480px; width: 100%; padding: 32px; text-align: center }
 .hl-tsa-skip-modal p { font-size: 1em; line-height: 1.6; color: var(--hl-text); margin: 0 0 24px }

@@ -292,10 +292,10 @@ class HL_Frontend_Teacher_Assessment {
             return;
         }
 
-        // Load the teacher assessment instrument
-        $instrument = $this->assessment_service->get_teacher_instrument( absint( $instance['instrument_id'] ) );
+        // Load the teacher assessment instrument (try language-specific version first).
+        $base_instrument = $this->assessment_service->get_teacher_instrument( absint( $instance['instrument_id'] ) );
 
-        if ( ! $instrument ) {
+        if ( ! $base_instrument ) {
             ?>
             <div class="hl-notice hl-notice-error">
                 <?php esc_html_e( 'The assessment instrument could not be loaded. Please contact your Program Manager.', 'hl-core' ); ?>
@@ -304,6 +304,8 @@ class HL_Frontend_Teacher_Assessment {
             return;
         }
 
+        $lang_pref = ! empty( $instance['language_preference'] ) ? $instance['language_preference'] : null;
+        $instrument = $this->resolve_translated_instrument( $base_instrument, $lang_pref );
         $phase = $instance['phase'];
 
         // Decode existing responses for this instance
@@ -424,20 +426,37 @@ class HL_Frontend_Teacher_Assessment {
             ? __( 'Post-Program Self-Assessment', 'hl-core' )
             : __( 'Pre-Program Self-Assessment', 'hl-core' );
 
+        $back_url = $this->build_program_back_url( $instance );
         ?>
-        <div class="hl-assessment-header">
-            <div class="hl-assessment-meta">
-                <span class="hl-meta-item">
-                    <strong><?php esc_html_e( 'Program:', 'hl-core' ); ?></strong>
-                    <?php echo esc_html( $instance['cycle_name'] ); ?>
-                </span>
-                <span class="hl-meta-item">
-                    <strong><?php esc_html_e( 'Submitted:', 'hl-core' ); ?></strong>
-                    <?php echo esc_html( $this->format_date( $instance['submitted_at'] ) ); ?>
-                </span>
-                <span class="hl-meta-item">
-                    <?php $this->render_status_badge( 'submitted' ); ?>
-                </span>
+        <?php if ( $back_url ) : ?>
+            <a href="<?php echo esc_url( $back_url ); ?>" class="hl-back-link">&larr; <?php esc_html_e( 'Back to My Program', 'hl-core' ); ?></a>
+        <?php endif; ?>
+
+        <div class="hl-tsa-submitted-hero">
+            <div class="hl-tsa-submitted-hero__text">
+                <div class="hl-tsa-submitted-hero__badge"><?php echo esc_html( $phase_label ); ?></div>
+                <h1 class="hl-tsa-submitted-hero__title"><?php esc_html_e( 'Teacher Self-Assessment', 'hl-core' ); ?></h1>
+                <p class="hl-tsa-submitted-hero__subtitle"><?php echo esc_html( $instance['cycle_name'] ); ?></p>
+            </div>
+            <div class="hl-tsa-submitted-hero__icon">
+                <span class="dashicons dashicons-yes-alt"></span>
+            </div>
+        </div>
+
+        <div class="hl-tsa-submitted-meta">
+            <div class="hl-tsa-submitted-meta__card">
+                <div class="hl-tsa-submitted-meta__icon"><span class="dashicons dashicons-calendar-alt"></span></div>
+                <div class="hl-tsa-submitted-meta__detail">
+                    <span class="hl-tsa-submitted-meta__label"><?php esc_html_e( 'Submitted', 'hl-core' ); ?></span>
+                    <span class="hl-tsa-submitted-meta__value"><?php echo esc_html( $this->format_date( $instance['submitted_at'] ) ); ?></span>
+                </div>
+            </div>
+            <div class="hl-tsa-submitted-meta__card">
+                <div class="hl-tsa-submitted-meta__icon hl-tsa-submitted-meta__icon--green"><span class="dashicons dashicons-saved"></span></div>
+                <div class="hl-tsa-submitted-meta__detail">
+                    <span class="hl-tsa-submitted-meta__label"><?php esc_html_e( 'Status', 'hl-core' ); ?></span>
+                    <span class="hl-tsa-submitted-meta__value"><?php esc_html_e( 'Submitted', 'hl-core' ); ?></span>
+                </div>
             </div>
         </div>
 
@@ -539,6 +558,43 @@ class HL_Frontend_Teacher_Assessment {
             'id'         => $pathway_id,
             'enrollment' => $enrollment_id,
         ), $program_url );
+    }
+
+    /**
+     * Resolve a language-specific instrument based on enrollment language preference.
+     *
+     * Uses enrollment language_preference first (matches course catalog pattern),
+     * falls back to WPML page language, then to English.
+     *
+     * @param HL_Teacher_Assessment_Instrument $base      Base (English) instrument.
+     * @param string|null                      $lang_pref Enrollment language_preference (en/es/pt).
+     * @return HL_Teacher_Assessment_Instrument Translated or base instrument.
+     */
+    private function resolve_translated_instrument( $base, $lang_pref = null ) {
+        // Map enrollment language_preference values to WPML language codes.
+        $lang_map = array( 'es' => 'es', 'pt' => 'pt-br' );
+
+        $lang = null;
+        if ( $lang_pref && isset( $lang_map[ $lang_pref ] ) ) {
+            $lang = $lang_map[ $lang_pref ];
+        } elseif ( $lang_pref && $lang_pref !== 'en' ) {
+            $lang = $lang_pref;
+        }
+
+        // Fall back to WPML page language if no enrollment preference.
+        if ( ! $lang && defined( 'ICL_LANGUAGE_CODE' ) && ICL_LANGUAGE_CODE !== 'en' ) {
+            $lang = ICL_LANGUAGE_CODE;
+        }
+
+        if ( ! $lang ) {
+            return $base;
+        }
+
+        $translated = $this->assessment_service->get_teacher_instrument_by_key(
+            $base->instrument_key . '_' . $lang
+        );
+
+        return $translated ? $translated : $base;
     }
 
     private function format_date( $date_string ) {

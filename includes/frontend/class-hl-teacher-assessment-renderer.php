@@ -214,10 +214,12 @@ class HL_Teacher_Assessment_Renderer {
 
             <?php
             $retrospective = ! empty( $section['retrospective'] );
-            if ( $type === 'scale' ) {
+            if ( $type === 'text' ) {
+                $this->render_text_section( $section_key, $items );
+            } elseif ( $type === 'scale' ) {
                 $this->render_scale_section( $section_key, $items, $labels, $retrospective );
             } else {
-                $this->render_likert_section( $section_key, $items, $labels, $retrospective );
+                $this->render_likert_section( $section_key, $items, $labels, $retrospective, $section );
             }
             ?>
 
@@ -244,7 +246,7 @@ class HL_Teacher_Assessment_Renderer {
      * PRE: single-column table with radio buttons.
      * POST: dual-column table (Before + Now).
      */
-    private function render_likert_section( $section_key, $items, $labels, $retrospective = false ) {
+    private function render_likert_section( $section_key, $items, $labels, $retrospective = false, $section = array() ) {
         // Labels is an indexed array like ["Strongly Disagree", ..., "Strongly Agree"]
         $num_options = count( $labels );
         if ( $num_options < 2 ) {
@@ -254,6 +256,10 @@ class HL_Teacher_Assessment_Renderer {
 
         $is_post = $retrospective;
 
+        // Custom retrospective column headers (fall back to defaults).
+        $before_label = ! empty( $section['before_label'] ) ? $section['before_label'] : __( 'Prior Assessment Cycle', 'hl-core' );
+        $now_label    = ! empty( $section['now_label'] )    ? $section['now_label']    : __( 'Past Two Weeks', 'hl-core' );
+
         ?>
         <div class="hl-tsa-table-wrap">
             <table class="hl-tsa-likert-table">
@@ -262,10 +268,10 @@ class HL_Teacher_Assessment_Renderer {
                         <th class="hl-tsa-item-col"><?php esc_html_e( 'Statement', 'hl-core' ); ?></th>
                         <?php if ( $is_post ) : ?>
                             <th class="hl-tsa-group-header" colspan="<?php echo esc_attr( $num_options ); ?>">
-                                <?php esc_html_e( 'Prior Assessment Cycle', 'hl-core' ); ?>
+                                <?php echo esc_html( $before_label ); ?>
                             </th>
                             <th class="hl-tsa-group-header hl-tsa-now-header" colspan="<?php echo esc_attr( $num_options ); ?>">
-                                <?php esc_html_e( 'Past Two Weeks', 'hl-core' ); ?>
+                                <?php echo esc_html( $now_label ); ?>
                             </th>
                         <?php else : ?>
                             <?php foreach ( $labels as $label ) : ?>
@@ -488,6 +494,38 @@ class HL_Teacher_Assessment_Renderer {
                     </div>
                 <?php endif; ?>
             </div>
+            <?php endforeach; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render a text (open-ended) section with textarea inputs.
+     */
+    private function render_text_section( $section_key, $items ) {
+        ?>
+        <div class="hl-tsa-text-section">
+            <?php foreach ( $items as $item ) :
+                $item_key    = isset( $item['key'] ) ? $item['key'] : '';
+                $current_val = isset( $this->existing_responses[ $section_key ][ $item_key ] )
+                    ? $this->existing_responses[ $section_key ][ $item_key ] : '';
+                $name        = 'resp[' . esc_attr( $section_key ) . '][' . esc_attr( $item_key ) . ']';
+            ?>
+                <div class="hl-tsa-text-item">
+                    <label class="hl-tsa-text-label" for="<?php echo esc_attr( 'hl_tsa_' . $section_key . '_' . $item_key ); ?>">
+                        <?php echo esc_html( $item['text'] ); ?>
+                    </label>
+                    <?php if ( $this->read_only ) : ?>
+                        <div class="hl-tsa-text-readonly"><?php echo nl2br( esc_html( $current_val ) ); ?></div>
+                    <?php else : ?>
+                        <textarea
+                            name="<?php echo esc_attr( $name ); ?>"
+                            id="<?php echo esc_attr( 'hl_tsa_' . $section_key . '_' . $item_key ); ?>"
+                            class="hl-tsa-textarea"
+                            rows="4"
+                        ><?php echo esc_textarea( $current_val ); ?></textarea>
+                    <?php endif; ?>
+                </div>
             <?php endforeach; ?>
         </div>
         <?php

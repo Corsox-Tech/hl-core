@@ -75,6 +75,28 @@ class HL_Instrument_Renderer {
         } else {
             $this->questions = array();
         }
+        $this->questions = self::normalize_questions( $this->questions );
+    }
+
+    /**
+     * Normalize question keys to a consistent format.
+     *
+     * Maps 'key' → 'question_id' and 'prompt' → 'prompt_text' so the
+     * renderer can handle both Lutheran-style and ELCPB-style instruments.
+     *
+     * @param array $questions Raw question array.
+     * @return array Normalized questions.
+     */
+    private static function normalize_questions( $questions ) {
+        foreach ( $questions as &$q ) {
+            if ( isset( $q['key'] ) && ! isset( $q['question_id'] ) ) {
+                $q['question_id'] = $q['key'];
+            }
+            if ( isset( $q['prompt'] ) && ! isset( $q['prompt_text'] ) ) {
+                $q['prompt_text'] = $q['prompt'];
+            }
+        }
+        return $questions;
     }
 
     /**
@@ -127,20 +149,38 @@ class HL_Instrument_Renderer {
             $children_by_group[ $group ][] = $child;
         }
 
-        // 4. Load correct instrument for each age group.
+        // 4. Load correct instrument for each age group (language-aware).
         $instruments_by_group = array();
+        $lang = self::resolve_instrument_language( $instance );
         foreach ( array_keys( $children_by_group ) as $group ) {
             $instrument_type = HL_Age_Group_Helper::get_instrument_type_for_age_group( $group );
             if ( $instrument_type ) {
-                $instrument = $wpdb->get_row( $wpdb->prepare(
-                    "SELECT * FROM {$wpdb->prefix}hl_instrument
-                     WHERE instrument_type = %s
-                     AND (effective_to IS NULL OR effective_to >= CURDATE())
-                     ORDER BY effective_from DESC LIMIT 1",
-                    $instrument_type
-                ) );
-                if ( $instrument ) {
-                    $instruments_by_group[ $group ] = $instrument;
+                // Try language-specific instrument first (e.g., children_infant_es).
+                if ( $lang ) {
+                    $instrument = $wpdb->get_row( $wpdb->prepare(
+                        "SELECT * FROM {$wpdb->prefix}hl_instrument
+                         WHERE instrument_type = %s
+                         AND (effective_to IS NULL OR effective_to >= CURDATE())
+                         ORDER BY effective_from DESC LIMIT 1",
+                        $instrument_type . '_' . $lang
+                    ) );
+                    if ( $instrument ) {
+                        $instruments_by_group[ $group ] = $instrument;
+                    }
+                }
+
+                // Fall back to base instrument.
+                if ( ! isset( $instruments_by_group[ $group ] ) ) {
+                    $instrument = $wpdb->get_row( $wpdb->prepare(
+                        "SELECT * FROM {$wpdb->prefix}hl_instrument
+                         WHERE instrument_type = %s
+                         AND (effective_to IS NULL OR effective_to >= CURDATE())
+                         ORDER BY effective_from DESC LIMIT 1",
+                        $instrument_type
+                    ) );
+                    if ( $instrument ) {
+                        $instruments_by_group[ $group ] = $instrument;
+                    }
                 }
             }
 
@@ -149,6 +189,7 @@ class HL_Instrument_Renderer {
                 $instrument = $wpdb->get_row(
                     "SELECT * FROM {$wpdb->prefix}hl_instrument
                      WHERE instrument_type LIKE 'children_%'
+                     AND instrument_type NOT LIKE '%\\_es' AND instrument_type NOT LIKE '%\\_pt-br'
                      AND (effective_to IS NULL OR effective_to >= CURDATE())
                      ORDER BY effective_from DESC LIMIT 1"
                 );
@@ -177,13 +218,47 @@ class HL_Instrument_Renderer {
             $raw = isset( $instr->questions ) ? $instr->questions : '[]';
             if ( is_string( $raw ) ) {
                 $decoded = json_decode( $raw, true );
-                $renderer->questions_by_age_group[ $group ] = is_array( $decoded ) ? $decoded : array();
+                $renderer->questions_by_age_group[ $group ] = self::normalize_questions( is_array( $decoded ) ? $decoded : array() );
             } else {
-                $renderer->questions_by_age_group[ $group ] = is_array( $raw ) ? $raw : array();
+                $renderer->questions_by_age_group[ $group ] = self::normalize_questions( is_array( $raw ) ? $raw : array() );
             }
         }
 
         return $renderer;
+    }
+
+    /**
+     * Resolve the language code for instrument loading.
+     *
+     * Uses enrollment language_preference first, falls back to WPML page language.
+     *
+     * @param array $instance Instance data (may contain enrollment_id).
+     * @return string|null Language suffix (e.g., 'es', 'pt-br') or null for English.
+     */
+    private static function resolve_instrument_language( $instance ) {
+        $lang_map = array( 'es' => 'es', 'pt' => 'pt-br' );
+
+        // Try enrollment language_preference.
+        if ( ! empty( $instance['enrollment_id'] ) ) {
+            global $wpdb;
+            $pref = $wpdb->get_var( $wpdb->prepare(
+                "SELECT language_preference FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+                $instance['enrollment_id']
+            ) );
+            if ( $pref && isset( $lang_map[ $pref ] ) ) {
+                return $lang_map[ $pref ];
+            }
+            if ( $pref && $pref !== 'en' ) {
+                return $pref;
+            }
+        }
+
+        // Fall back to WPML page language.
+        if ( defined( 'ICL_LANGUAGE_CODE' ) && ICL_LANGUAGE_CODE !== 'en' ) {
+            return ICL_LANGUAGE_CODE;
+        }
+
+        return null;
     }
 
     /**
@@ -1000,13 +1075,25 @@ class HL_Instrument_Renderer {
      * The DB stores numeric values (0-4). These map to descriptive labels
      * for display in the matrix column headers and behavior key.
      */
-    private static $likert_labels = array(
-        '0' => 'Never',
-        '1' => 'Rarely',
-        '2' => 'Sometimes',
-        '3' => 'Usually',
-        '4' => 'Almost Always',
-    );
+    private static $likert_labels = null;
+
+    /**
+     * Get translated Likert scale labels.
+     *
+     * @return array
+     */
+    private static function get_likert_labels() {
+        if ( self::$likert_labels === null ) {
+            self::$likert_labels = array(
+                '0' => __( 'Never', 'hl-core' ),
+                '1' => __( 'Rarely', 'hl-core' ),
+                '2' => __( 'Sometimes', 'hl-core' ),
+                '3' => __( 'Usually', 'hl-core' ),
+                '4' => __( 'Almost Always', 'hl-core' ),
+            );
+        }
+        return self::$likert_labels;
+    }
 
     /**
      * Parse allowed_values from a question definition.
@@ -1037,8 +1124,9 @@ class HL_Instrument_Renderer {
         if ( empty( $allowed_values ) ) {
             return false;
         }
+        $labels = self::get_likert_labels();
         foreach ( $allowed_values as $val ) {
-            if ( ! isset( self::$likert_labels[ (string) $val ] ) ) {
+            if ( ! isset( $labels[ (string) $val ] ) ) {
                 return false;
             }
         }
@@ -1052,7 +1140,8 @@ class HL_Instrument_Renderer {
      * @return string Display label (Never...Almost Always) or the value itself.
      */
     private function get_likert_label( $value ) {
-        return isset( self::$likert_labels[ (string) $value ] ) ? self::$likert_labels[ (string) $value ] : $value;
+        $labels = self::get_likert_labels();
+        return isset( $labels[ (string) $value ] ) ? $labels[ (string) $value ] : $value;
     }
 
     /**

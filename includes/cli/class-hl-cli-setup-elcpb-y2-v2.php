@@ -330,7 +330,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 		) );
 
 		$n = 0;
-		$tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',  'teacher_self_assessment', ++$n, array( 'phase' => 'pre' ) );
+		$tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',  'teacher_self_assessment', ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => 1 ) );
 		$ca_pre  = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Pre)',          'child_assessment',        ++$n, array( 'phase' => 'pre' ) );
 		$tc0     = $this->cmp( $svc, $pid, $cycle_id, 'TC0: Welcome',                   'learndash_course',        ++$n, array( 'course_id' => self::TC0 ) );
 		$tc1     = $this->cmp( $svc, $pid, $cycle_id, 'TC1: Intro to begin to ECSEL',   'learndash_course',        ++$n, array( 'course_id' => self::TC1 ) );
@@ -346,7 +346,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 		$this->cmp( $svc, $pid, $cycle_id, 'Self-Reflection #4',                        'self_reflection',         ++$n, array( 'visit_number' => 4 ) );
 		$this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #4',             'reflective_practice_session', ++$n, array( 'session_number' => 4 ) );
 		$this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Post)',                    'child_assessment',        ++$n, array( 'phase' => 'post' ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',             'teacher_self_assessment', ++$n, array( 'phase' => 'post' ) );
+		$this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',             'teacher_self_assessment', ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => 2 ) );
 
 		// Prerequisites: course chain TC0→TC1→TC2→TC3→TC4, first course blocked by TSA Pre.
 		$this->add_prereq( $tc0, $tsa_pre );
@@ -374,7 +374,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 		) );
 
 		$n = 0;
-		$tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',  'teacher_self_assessment', ++$n, array( 'phase' => 'pre' ) );
+		$tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',  'teacher_self_assessment', ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => 1 ) );
 		$ca_pre  = $this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Pre)',          'child_assessment',        ++$n, array( 'phase' => 'pre' ) );
 		$tc5     = $this->cmp( $svc, $pid, $cycle_id, 'TC5: Connecting Emotion and Early Learning', 'learndash_course', ++$n, array( 'course_id' => self::TC5 ) );
 		$this->cmp( $svc, $pid, $cycle_id, 'Self-Reflection #1',                        'self_reflection',         ++$n, array( 'visit_number' => 1 ) );
@@ -389,7 +389,7 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 		$this->cmp( $svc, $pid, $cycle_id, 'Self-Reflection #4',                        'self_reflection',         ++$n, array( 'visit_number' => 4 ) );
 		$this->cmp( $svc, $pid, $cycle_id, 'Reflective Practice Session #4',             'reflective_practice_session', ++$n, array( 'session_number' => 4 ) );
 		$this->cmp( $svc, $pid, $cycle_id, 'Child Assessment (Post)',                    'child_assessment',        ++$n, array( 'phase' => 'post' ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',             'teacher_self_assessment', ++$n, array( 'phase' => 'post' ) );
+		$this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',             'teacher_self_assessment', ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => 2 ) );
 
 		// Prerequisites: course chain TC5→TC6→TC7→TC8, first course blocked by TSA Pre.
 		$this->add_prereq( $tc5, $tsa_pre );
@@ -558,10 +558,10 @@ class HL_CLI_Setup_ELCPB_Y2_V2 {
 		) );
 
 		$n = 0;
-		$tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',                       'teacher_self_assessment', ++$n, array( 'phase' => 'pre' ) );
+		$tsa_pre = $this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Pre)',                       'teacher_self_assessment', ++$n, array( 'phase' => 'pre', 'teacher_instrument_id' => 1 ) );
 		$mc3     = $this->cmp( $svc, $pid, $cycle_id, 'MC3: Extending RP to Communication with Co-Workers',  'learndash_course',        ++$n, array( 'course_id' => self::MC3 ) );
 		$mc4     = $this->cmp( $svc, $pid, $cycle_id, 'MC4: Extending RP to Communication with Families',    'learndash_course',        ++$n, array( 'course_id' => self::MC4 ) );
-		$this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                                  'teacher_self_assessment', ++$n, array( 'phase' => 'post' ) );
+		$this->cmp( $svc, $pid, $cycle_id, 'Teacher Self-Assessment (Post)',                                  'teacher_self_assessment', ++$n, array( 'phase' => 'post', 'teacher_instrument_id' => 2 ) );
 
 		// Prerequisites: TSA Pre → MC3 → MC4.
 		$this->add_prereq( $mc3, $tsa_pre );

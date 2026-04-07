@@ -394,6 +394,7 @@ class HL_Admin_Instruments {
         $instruments = $wpdb->get_results(
             "SELECT * FROM {$wpdb->prefix}hl_instrument
              WHERE instrument_type LIKE 'children_%'
+             AND instrument_type NOT LIKE '%\\_es' AND instrument_type NOT LIKE '%\\_pt-br'
              ORDER BY name ASC"
         );
 
@@ -1089,7 +1090,9 @@ class HL_Admin_Instruments {
         global $wpdb;
 
         $instruments = $wpdb->get_results(
-            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument ORDER BY instrument_name ASC"
+            "SELECT * FROM {$wpdb->prefix}hl_teacher_assessment_instrument
+             WHERE instrument_key NOT LIKE '%\\_es' AND instrument_key NOT LIKE '%\\_pt-br'
+             ORDER BY instrument_name ASC"
         );
 
         if (isset($_GET['message'])) {

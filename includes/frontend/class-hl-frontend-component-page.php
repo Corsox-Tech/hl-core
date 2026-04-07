@@ -345,12 +345,14 @@ class HL_Frontend_Component_Page {
             return;
         }
 
-        // Load the instrument.
-        $instrument = $assessment_service->get_teacher_instrument(absint($instance['instrument_id']));
-        if (!$instrument) {
+        // Load the instrument (try language-specific version first).
+        $base_instrument = $assessment_service->get_teacher_instrument(absint($instance['instrument_id']));
+        if (!$base_instrument) {
             echo '<div class="hl-notice hl-notice-error">' . esc_html__('Assessment instrument could not be loaded.', 'hl-core') . '</div>';
             return;
         }
+        $lang_pref = ! empty( $enrollment->language_preference ) ? $enrollment->language_preference : null;
+        $instrument = $this->resolve_translated_instrument($assessment_service, $base_instrument, $lang_pref);
 
         // Decode existing responses.
         $existing_responses = array();
@@ -417,6 +419,44 @@ class HL_Frontend_Component_Page {
         );
         // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- renderer returns safe HTML
         echo $renderer->render();
+    }
+
+    /**
+     * Resolve a language-specific instrument based on enrollment language preference.
+     *
+     * Uses enrollment language_preference first (matches course catalog pattern),
+     * falls back to WPML page language, then to English.
+     *
+     * @param HL_Assessment_Service              $service   Assessment service.
+     * @param HL_Teacher_Assessment_Instrument    $base      Base (English) instrument.
+     * @param string|null                         $lang_pref Enrollment language_preference (en/es/pt).
+     * @return HL_Teacher_Assessment_Instrument Translated or base instrument.
+     */
+    private function resolve_translated_instrument($service, $base, $lang_pref = null) {
+        // Map enrollment language_preference values to WPML language codes.
+        $lang_map = array( 'es' => 'es', 'pt' => 'pt-br' );
+
+        $lang = null;
+        if ( $lang_pref && isset( $lang_map[ $lang_pref ] ) ) {
+            $lang = $lang_map[ $lang_pref ];
+        } elseif ( $lang_pref && $lang_pref !== 'en' ) {
+            $lang = $lang_pref;
+        }
+
+        // Fall back to WPML page language if no enrollment preference.
+        if ( ! $lang && defined( 'ICL_LANGUAGE_CODE' ) && ICL_LANGUAGE_CODE !== 'en' ) {
+            $lang = ICL_LANGUAGE_CODE;
+        }
+
+        if ( ! $lang ) {
+            return $base;
+        }
+
+        $translated = $service->get_teacher_instrument_by_key(
+            $base->instrument_key . '_' . $lang
+        );
+
+        return $translated ? $translated : $base;
     }
 
     /**

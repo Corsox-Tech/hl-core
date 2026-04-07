@@ -48,6 +48,9 @@ Hierarchy: **Partnership** (container) → **Cycle** (yearly run). Pathways belo
 - **Learning Plan** = client-facing term for Pathway. Three plans: Teacher, Mentor, Leader.
 - No `hl_cohort` table — removed in Grand Rename V3. Old `hl_cycle` (Phase entity) also deleted.
 
+### Feature Tracker ("Tickets")
+When the user says "tickets" or "issues" they mean the **Feature Tracker** — an internal ticket system built into HL Core (`[hl_feature_tracker]` shortcode). Admins and coaches submit bugs, improvements, and feature requests. DB tables: `hl_ticket`, `hl_ticket_comment`, `hl_ticket_attachment`. Service: `HL_Ticket_Service`. Frontend: `HL_Frontend_Feature_Tracker`. Spec: `docs/superpowers/specs/2026-04-06-feature-tracker-design.md`. To query tickets from the DB, use WP-CLI on the server: `wp db query "SELECT * FROM wp_hl_ticket"`.
+
 ### Naming (Post-Rename V3)
 Code, DB, and UI all use the same terms now — no remapping layer needed.
 - `HL_Label_Remap` has been removed from code. No remapping layer exists.

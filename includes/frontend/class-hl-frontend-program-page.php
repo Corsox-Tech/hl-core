@@ -280,7 +280,7 @@ class HL_Frontend_Program_Page {
                 <div class="hl-pp-hero-card">
                     <div class="hl-pp-hero-text">
                         <div class="hl-pp-hero-badge"><?php echo esc_html($pathway_label); ?></div>
-                        <h1 class="hl-pp-hero-title"><?php echo esc_html($pathway->pathway_name); ?></h1>
+                        <h1 class="hl-pp-hero-title"><?php echo esc_html($this->translate_pathway_field($pathway, 'pathway_name')); ?></h1>
                         <p class="hl-pp-hero-subtitle"><?php echo esc_html($cycle ? $cycle->cycle_name : ''); ?></p>
                     </div>
                     <?php if ($image_id) : ?>
@@ -297,13 +297,16 @@ class HL_Frontend_Program_Page {
                 <!-- Main Content -->
                 <div class="hl-pp-main">
 
-                    <?php if (!empty($pathway->description)) : ?>
-                        <div class="hl-pp-about"><?php echo wp_kses_post($pathway->description); ?></div>
+                    <?php
+                    $translated_description = $this->translate_pathway_field($pathway, 'description');
+                    if (!empty($translated_description)) : ?>
+                        <div class="hl-pp-about"><?php echo wp_kses_post($translated_description); ?></div>
                     <?php endif; ?>
 
                     <!-- Expandable Sections -->
                     <?php
-                    $has_objectives = !empty($pathway->objectives);
+                    $translated_objectives = $this->translate_pathway_field($pathway, 'objectives');
+                    $has_objectives = !empty($translated_objectives);
                     $has_syllabus   = !empty($pathway->syllabus_url);
                     if ($has_objectives || $has_syllabus) :
                     ?>
@@ -319,7 +322,7 @@ class HL_Frontend_Program_Page {
                         <?php if ($has_objectives) : ?>
                             <div class="hl-pp-panel" id="hl-pp-objectives">
                                 <h3><?php esc_html_e('Program Objectives', 'hl-core'); ?></h3>
-                                <?php echo wp_kses_post($pathway->objectives); ?>
+                                <?php echo wp_kses_post($translated_objectives); ?>
                             </div>
                         <?php endif; ?>
 
@@ -895,6 +898,34 @@ class HL_Frontend_Program_Page {
             <div class="hl-pp-bar-fill" style="width: <?php echo esc_attr($percent); ?>%"></div>
         </div>
         <?php
+    }
+
+    /**
+     * Translate a pathway field via WPML string translation.
+     *
+     * Registers the original string and returns the translated version
+     * for the current WPML language. Falls back to the original if
+     * WPML is not active or no translation exists.
+     *
+     * @param HL_Pathway $pathway The pathway object.
+     * @param string     $field   Field name: pathway_name, description, or objectives.
+     * @return string Translated value (or original).
+     */
+    private function translate_pathway_field($pathway, $field) {
+        $value = isset($pathway->$field) ? $pathway->$field : '';
+        if (empty($value)) {
+            return $value;
+        }
+
+        $name = 'pathway_' . $pathway->pathway_id . '_' . $field;
+
+        // Register string with WPML (idempotent).
+        if (function_exists('icl_register_string')) {
+            icl_register_string('hl-core-pathways', $name, $value);
+        }
+
+        // Return translated version.
+        return apply_filters('wpml_translate_single_string', $value, 'hl-core-pathways', $name);
     }
 
     /**
