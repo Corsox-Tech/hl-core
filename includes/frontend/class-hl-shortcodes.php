@@ -70,9 +70,16 @@ class HL_Shortcodes {
     }
 
     public function use_hl_template($template) {
-        // HL shortcode pages — full plugin template takeover.
+        // Auth shortcode pages — full-bleed template (no sidebar/topbar).
         if (is_singular('page')) {
             global $post;
+            $auth_shortcodes = array('[hl_login]', '[hl_password_reset]', '[hl_profile_setup]');
+            foreach ($auth_shortcodes as $sc) {
+                if (strpos($post->post_content, $sc) !== false) {
+                    return HL_CORE_PLUGIN_DIR . 'templates/hl-auth.php';
+                }
+            }
+            // Existing: regular HL shortcode pages
             if (strpos($post->post_content, '[hl_') !== false) {
                 return HL_CORE_PLUGIN_DIR . 'templates/hl-page.php';
             }
@@ -209,6 +216,9 @@ class HL_Shortcodes {
         add_shortcode('hl_coach_availability', array($this, 'render_coach_availability'));
         add_shortcode('hl_user_profile', array($this, 'render_user_profile'));
         add_shortcode('hl_feature_tracker', array($this, 'render_feature_tracker'));
+        add_shortcode('hl_login',           array('HL_Frontend_Login', 'render'));
+        add_shortcode('hl_password_reset',  array('HL_Frontend_Password_Reset', 'render'));
+        add_shortcode('hl_profile_setup',   array('HL_Frontend_Profile_Setup', 'render'));
 
         // Backward-compatible aliases for pre-Rename-V3 shortcode names.
         // Production pages may still contain the old shortcode names.

@@ -129,6 +129,11 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-tour-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-ticket-service.php';
 
+        // Auth system
+        require_once HL_CORE_INCLUDES_DIR . 'auth/class-hl-auth-repository.php';
+        require_once HL_CORE_INCLUDES_DIR . 'auth/class-hl-auth-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'auth/class-hl-auth-manager.php';
+
         // Integrations
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-learndash-integration.php';
         require_once HL_CORE_INCLUDES_DIR . 'integrations/class-hl-buddyboss-integration.php';
@@ -207,6 +212,9 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-schedule-session.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-user-profile.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-feature-tracker.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-login.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-password-reset.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-profile-setup.php';
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';
@@ -286,6 +294,9 @@ class HL_Core {
 
         // Initialize feature tracker (registers AJAX hooks)
         HL_Frontend_Feature_Tracker::instance();
+
+        // Initialize auth manager (registers hooks)
+        HL_Auth_Manager::instance();
 
         // Auto-generate child assessment instances when teaching assignments change
         add_action('hl_core_teaching_assignment_changed', function ($cycle_id) {
