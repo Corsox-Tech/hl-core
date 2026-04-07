@@ -11012,8 +11012,9 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     gap: 8px;
 }
 
-.hl-phone-cc {
-    width: 110px;
+.hl-phone-cc,
+.hl-auth-field .hl-phone-cc {
+    width: 130px;
     flex-shrink: 0;
 }
 

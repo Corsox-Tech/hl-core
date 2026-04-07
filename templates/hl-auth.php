@@ -12,6 +12,9 @@ if (!defined('ABSPATH')) exit;
 // Prevent caching (spec I8)
 nocache_headers();
 
+// Hide WP admin bar on auth pages
+show_admin_bar(false);
+
 global $post;
 $page_content = do_shortcode($post->post_content);
 ?>
