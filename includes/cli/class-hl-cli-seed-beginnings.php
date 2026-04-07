@@ -681,6 +681,9 @@ class HL_CLI_Seed_Beginnings {
         // Child assessment instances (historical, submitted).
         $this->seed_child_assessments_c1( $cycle_id, $enrollments, $classrooms, $instruments );
 
+        // Enroll users in LearnDash courses.
+        $this->enroll_in_ld_courses( $cycle_id, $enrollments );
+
         return array( 'cycle_id' => $cycle_id, 'enrollments' => $enrollments, 'pathways' => $pathways );
     }
 
@@ -882,6 +885,57 @@ class HL_CLI_Seed_Beginnings {
             'assigned_by_user_id' => get_current_user_id() ?: 1,
             'assignment_type'    => 'explicit',
         ) );
+    }
+
+    /**
+     * Enroll all users in their pathway's LearnDash courses via ld_update_course_access().
+     *
+     * Queries hl_pathway_assignment + hl_component to find learndash_course components
+     * for each enrollment, then grants LD course access.
+     */
+    private function enroll_in_ld_courses( $cycle_id, $enrollments ) {
+        if ( ! function_exists( 'ld_update_course_access' ) ) {
+            WP_CLI::warning( 'ld_update_course_access() not available — skipping LD enrollment.' );
+            return;
+        }
+
+        global $wpdb;
+        $t     = $wpdb->prefix;
+        $count = 0;
+
+        foreach ( $enrollments['all'] as $e ) {
+            $user_id       = (int) $e['user_id'];
+            $enrollment_id = (int) $e['enrollment_id'];
+
+            // Get pathway IDs assigned to this enrollment.
+            $pathway_ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT pathway_id FROM {$t}hl_pathway_assignment WHERE enrollment_id = %d",
+                $enrollment_id
+            ) );
+
+            if ( empty( $pathway_ids ) ) {
+                continue;
+            }
+
+            // Get all learndash_course components in those pathways.
+            $placeholders = implode( ',', array_fill( 0, count( $pathway_ids ), '%d' ) );
+            $query = $wpdb->prepare(
+                "SELECT external_ref FROM {$t}hl_component
+                 WHERE pathway_id IN ($placeholders) AND component_type = 'learndash_course'",
+                ...$pathway_ids
+            );
+            $refs = $wpdb->get_col( $query );
+
+            foreach ( $refs as $ref_json ) {
+                $ref = json_decode( $ref_json, true );
+                if ( ! empty( $ref['course_id'] ) ) {
+                    ld_update_course_access( $user_id, (int) $ref['course_id'] );
+                    $count++;
+                }
+            }
+        }
+
+        WP_CLI::log( "  [LD] LearnDash course enrollments granted: {$count}" );
     }
 
     /**
@@ -1284,6 +1338,9 @@ class HL_CLI_Seed_Beginnings {
 
         // Child assessment instances (pending, Pre only).
         $this->seed_child_assessments_c2( $cycle_id, $enrollments, $classrooms, $instruments );
+
+        // Enroll users in LearnDash courses.
+        $this->enroll_in_ld_courses( $cycle_id, $enrollments );
 
         return array( 'cycle_id' => $cycle_id, 'enrollments' => $enrollments, 'pathways' => $pathways );
     }
