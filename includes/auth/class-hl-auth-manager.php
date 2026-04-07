@@ -143,8 +143,7 @@ class HL_Auth_Manager {
             // PC2: Redirect away from profile setup if already complete
             // (moved from render() -- redirects must happen before output)
             if (strpos($post->post_content, '[hl_profile_setup]') !== false) {
-                if (!current_user_can('manage_options') &&
-                    HL_Auth_Service::is_profile_complete(get_current_user_id())) {
+                if (HL_Auth_Service::is_profile_complete(get_current_user_id())) {
                     wp_safe_redirect(HL_Core::get_dashboard_url());
                     exit;
                 }
@@ -174,11 +173,6 @@ class HL_Auth_Manager {
 
         // --- Profile gate (frontend) (spec C6, C7) ---
         if (!is_user_logged_in()) {
-            return;
-        }
-
-        // Don't gate admins
-        if (current_user_can('manage_options')) {
             return;
         }
 
@@ -561,8 +555,7 @@ class HL_Auth_Manager {
             return;
         }
 
-        // Don't gate admins
-        if (!is_user_logged_in() || current_user_can('manage_options')) {
+        if (!is_user_logged_in()) {
             return;
         }
 
