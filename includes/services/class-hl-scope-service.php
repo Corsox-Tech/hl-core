@@ -223,9 +223,10 @@ class HL_Scope_Service {
 
         // Also include any personal enrollments.
         $own = $wpdb->get_results( $wpdb->prepare(
-            "SELECT enrollment_id, cycle_id, school_id, district_id, roles
-             FROM {$prefix}hl_enrollment
-             WHERE user_id = %d AND status = 'active'",
+            "SELECT e.enrollment_id, e.cycle_id, e.school_id, e.district_id, e.roles
+             FROM {$prefix}hl_enrollment e
+             JOIN {$prefix}hl_cycle c ON e.cycle_id = c.cycle_id
+             WHERE e.user_id = %d AND e.status = 'active' AND c.status != 'archived'",
             $user_id
         ), ARRAY_A );
 
@@ -272,9 +273,10 @@ class HL_Scope_Service {
         $prefix = $wpdb->prefix;
 
         $enrollments = $wpdb->get_results( $wpdb->prepare(
-            "SELECT enrollment_id, cycle_id, school_id, district_id, roles
-             FROM {$prefix}hl_enrollment
-             WHERE user_id = %d AND status = 'active'",
+            "SELECT e.enrollment_id, e.cycle_id, e.school_id, e.district_id, e.roles
+             FROM {$prefix}hl_enrollment e
+             JOIN {$prefix}hl_cycle c ON e.cycle_id = c.cycle_id
+             WHERE e.user_id = %d AND e.status = 'active' AND c.status != 'archived'",
             $user_id
         ), ARRAY_A );
 
