@@ -469,6 +469,10 @@
                 $('#hlft-context-user-chip').hide().empty();
                 $('#hlft-user-search-input').val('');
                 $('#hlft-user-search-results').hide().empty();
+                // Clear stale search state from prior modal sessions.
+                userSearchResults = [];
+                clearTimeout(userSearchTimer);
+                if (userSearchXhr && userSearchXhr.readyState !== 4) { userSearchXhr.abort(); }
                 $('#hlft-form-submit').text('Submit').prop('disabled', false);
                 $('#hlft-form-modal').show();
                 $('#hlft-form-title-input').focus();
@@ -506,6 +510,11 @@
                     $('#hlft-context-user-chip').hide().empty();
                     $('#hlft-user-search-input').val('').show();
                 }
+                // Clear stale search state from prior modal sessions.
+                $('#hlft-user-search-results').hide().empty();
+                userSearchResults = [];
+                clearTimeout(userSearchTimer);
+                if (userSearchXhr && userSearchXhr.readyState !== 4) { userSearchXhr.abort(); }
                 $('#hlft-form-submit').text('Save Changes').prop('disabled', false);
                 $('#hlft-detail-modal').hide();
                 $('#hlft-form-modal').show();
