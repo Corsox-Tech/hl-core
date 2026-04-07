@@ -549,7 +549,11 @@ class HL_Admin_Pathways {
         switch ($component_type) {
             case 'teacher_self_assessment':
                 $phase = isset($_POST['assessment_phase']) ? sanitize_text_field($_POST['assessment_phase']) : 'pre';
+                $teacher_instrument_id = isset($_POST['teacher_instrument_id']) ? absint($_POST['teacher_instrument_id']) : 0;
                 $ref = array( 'phase' => $phase );
+                if ($teacher_instrument_id) {
+                    $ref['teacher_instrument_id'] = $teacher_instrument_id;
+                }
                 break;
 
             case 'child_assessment':
@@ -1869,8 +1873,36 @@ class HL_Admin_Pathways {
         echo '</select></td>';
         echo '</tr>';
 
-        // --- Instrument dropdown (for child_assessment) ---
+        // --- Teacher Instrument dropdown (for teacher_self_assessment) ---
         global $wpdb;
+        $teacher_instruments = $wpdb->get_results(
+            "SELECT instrument_id, instrument_name, instrument_key, instrument_version
+             FROM {$wpdb->prefix}hl_teacher_assessment_instrument
+             WHERE status = 'active'
+             ORDER BY instrument_name ASC"
+        );
+        $current_teacher_instrument_id = isset($ext_ref['teacher_instrument_id']) ? absint($ext_ref['teacher_instrument_id']) : 0;
+
+        echo '<tr class="hl-component-field hl-field-teacher-instrument" style="display:none;">';
+        echo '<th scope="row"><label for="teacher_instrument_id">' . esc_html__('Teacher Assessment Instrument', 'hl-core') . '</label></th>';
+        echo '<td>';
+        if (empty($teacher_instruments)) {
+            echo '<p class="description">' . esc_html__('No teacher assessment instruments found. Create one in the Instruments admin page first.', 'hl-core') . '</p>';
+            echo '<input type="hidden" name="teacher_instrument_id" value="0" />';
+        } else {
+            echo '<select id="teacher_instrument_id" name="teacher_instrument_id">';
+            echo '<option value="0">' . esc_html__('-- Select Instrument --', 'hl-core') . '</option>';
+            foreach ($teacher_instruments as $inst) {
+                $label = sprintf('%s (v%s)', $inst->instrument_name, $inst->instrument_version);
+                echo '<option value="' . esc_attr($inst->instrument_id) . '"' . selected($current_teacher_instrument_id, $inst->instrument_id, false) . '>'
+                    . esc_html($label) . '</option>';
+            }
+            echo '</select>';
+        }
+        echo '</td>';
+        echo '</tr>';
+
+        // --- Instrument dropdown (for child_assessment) ---
         $instruments = $wpdb->get_results(
             "SELECT instrument_id, name, instrument_type, version
              FROM {$wpdb->prefix}hl_instrument
@@ -2125,7 +2157,7 @@ class HL_Admin_Pathways {
             if (!typeSelect) return;
 
             var fieldMap = {
-                'teacher_self_assessment': ['hl-field-phase'],
+                'teacher_self_assessment': ['hl-field-phase', 'hl-field-teacher-instrument'],
                 'child_assessment':        ['hl-field-instrument'],
                 'learndash_course':        ['hl-field-ld'],
                 'coaching_session_attendance':  [],
