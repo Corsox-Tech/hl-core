@@ -19,9 +19,8 @@
         $btn.attr('aria-disabled', 'true').addClass('hl-auth-btn--submitting');
     });
 
-    // PI6: Password strength meter reserved for Phase 2 custom reset form.
-    // The actual password entry happens on wp-login.php?action=rp (WP core),
-    // where we cannot inject JS. No-op for now.
+    // PI6: Password strength meter reserved for future enhancement.
+    // The set-password form now renders on our custom page.
 
     // --- Multi-Step Navigation ---
     var $form = $('#hl-profile-form');

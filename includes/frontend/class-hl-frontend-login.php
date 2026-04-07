@@ -29,6 +29,9 @@ class HL_Frontend_Login {
             $error_message = isset($error_messages[$error_code]) ? $error_messages[$error_code] : '';
         }
 
+        // Success message after password change
+        $password_changed = isset($_GET['hl_password_changed']) && $_GET['hl_password_changed'] === '1';
+
         // Logo
         $logo_id  = get_theme_mod('custom_logo');
         $logo_url = $logo_id ? wp_get_attachment_image_url($logo_id, 'full') : '';
@@ -45,6 +48,12 @@ class HL_Frontend_Login {
 
             <h1 class="hl-auth-title"><?php esc_html_e('Welcome Back', 'hl-core'); ?></h1>
             <p class="hl-auth-subtitle"><?php esc_html_e('Sign in to Housman Learning Academy', 'hl-core'); ?></p>
+
+            <?php if ($password_changed) : ?>
+                <div class="hl-auth-success" role="status">
+                    <?php esc_html_e('Your password has been changed successfully. Please sign in with your new password.', 'hl-core'); ?>
+                </div>
+            <?php endif; ?>
 
             <?php if ($error_message) : ?>
                 <div class="hl-auth-error" role="alert">

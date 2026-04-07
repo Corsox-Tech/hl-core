@@ -114,8 +114,6 @@ class HL_Auth_Manager {
 
         // Actions that MUST stay on wp-login.php
         $allowlist = array(
-            'rp',                        // Password reset form (from email link)
-            'resetpass',                 // Password reset POST handler
             'postpass',                  // Password-protected post access
             'logout',                    // Logout handler
             'confirm_admin_email',       // WP admin email confirmation
@@ -132,6 +130,23 @@ class HL_Auth_Manager {
             $reset_url = HL_Auth_Service::get_password_reset_page_url();
             if ($reset_url) {
                 wp_safe_redirect($reset_url);
+                exit;
+            }
+            return; // Fall back to WP default if our page doesn't exist
+        }
+
+        // For 'rp' / 'resetpass' action (email link click), redirect to custom page
+        if (in_array($action, array('rp', 'resetpass'), true)) {
+            $reset_url = HL_Auth_Service::get_password_reset_page_url();
+            if ($reset_url) {
+                $args = array();
+                if (!empty($_GET['key'])) {
+                    $args['key'] = rawurlencode($_GET['key']);
+                }
+                if (!empty($_GET['login'])) {
+                    $args['login'] = rawurlencode($_GET['login']);
+                }
+                wp_safe_redirect(add_query_arg($args, $reset_url));
                 exit;
             }
             return; // Fall back to WP default if our page doesn't exist
@@ -177,6 +192,7 @@ class HL_Auth_Manager {
         // --- Auth page POST handlers ---
         $this->handle_login_post();
         $this->handle_reset_request_post();
+        $this->handle_set_password_post();
         $this->handle_profile_setup_post();
 
         // --- Already-logged-in redirect on auth pages (spec I22) ---
@@ -361,6 +377,69 @@ class HL_Auth_Manager {
 
         $reset_url = HL_Auth_Service::get_password_reset_page_url();
         wp_safe_redirect(add_query_arg('hl_reset_sent', '1', $reset_url));
+        exit;
+    }
+
+    // =========================================================================
+    // Set New Password POST Handler (from email reset link)
+    // =========================================================================
+
+    private function handle_set_password_post() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') return;
+        if (!is_page()) return;
+        if (!isset($_POST['hl_auth_action']) || $_POST['hl_auth_action'] !== 'set_password') return;
+
+        if (!wp_verify_nonce($_POST['hl_set_password_nonce'] ?? '', 'hl_set_password_action')) {
+            wp_die(__('Security check failed.', 'hl-core'));
+        }
+
+        $reset_key    = sanitize_text_field($_POST['hl_rp_key'] ?? '');
+        $reset_login  = sanitize_text_field($_POST['hl_rp_login'] ?? '');
+        $new_password = $_POST['hl_new_password'] ?? '';
+        $confirm      = $_POST['hl_confirm_password'] ?? '';
+
+        $reset_page_url = HL_Auth_Service::get_password_reset_page_url();
+
+        // Build error redirect URL (preserves key/login so form re-renders)
+        $error_base = add_query_arg(array(
+            'key'   => rawurlencode($reset_key),
+            'login' => rawurlencode($reset_login),
+        ), $reset_page_url);
+
+        // Validate password fields
+        if (empty($new_password)) {
+            wp_safe_redirect(add_query_arg('hl_rp_error', 'password_empty', $error_base));
+            exit;
+        }
+
+        if (strlen($new_password) < 8) {
+            wp_safe_redirect(add_query_arg('hl_rp_error', 'password_short', $error_base));
+            exit;
+        }
+
+        if ($new_password !== $confirm) {
+            wp_safe_redirect(add_query_arg('hl_rp_error', 'password_mismatch', $error_base));
+            exit;
+        }
+
+        // Validate reset key
+        $user = check_password_reset_key($reset_key, $reset_login);
+        if (is_wp_error($user)) {
+            wp_safe_redirect(add_query_arg('hl_rp_error', 'reset_failed', $error_base));
+            exit;
+        }
+
+        // Set the new password
+        reset_password($user, $new_password);
+
+        HL_Audit_Service::log('user.password_reset', array(
+            'entity_type' => 'user',
+            'entity_id'   => $user->ID,
+        ));
+
+        // Redirect to login page with success message
+        $login_url = HL_Auth_Service::get_login_page_url() ?: wp_login_url();
+        wp_safe_redirect(add_query_arg('hl_password_changed', '1', $login_url));
         exit;
     }
 
