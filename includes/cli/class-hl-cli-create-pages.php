@@ -164,6 +164,11 @@ class HL_CLI_Create_Pages {
 
             // Feature tracker
             array( 'title' => 'Feature Tracker',     'shortcode' => 'hl_feature_tracker' ),
+
+            // Auth pages
+            array( 'title' => 'Login',            'shortcode' => 'hl_login' ),
+            array( 'title' => 'Password Reset',   'shortcode' => 'hl_password_reset' ),
+            array( 'title' => 'Profile Setup',    'shortcode' => 'hl_profile_setup' ),
         );
     }
 
