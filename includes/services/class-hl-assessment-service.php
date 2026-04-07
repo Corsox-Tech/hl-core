@@ -853,11 +853,11 @@ class HL_Assessment_Service {
                     continue;
                 }
 
-                // Resolve component_id from enrollment's pathway.
-                $component_id = null;
-                if ($enrollment->pathway_id && isset($phase_components[$p][$enrollment->pathway_id])) {
-                    $component_id = $phase_components[$p][$enrollment->pathway_id];
+                // Only create instances for enrollments whose pathway includes this component.
+                if (!$enrollment->pathway_id || !isset($phase_components[$p][$enrollment->pathway_id])) {
+                    continue;
                 }
+                $component_id = $phase_components[$p][$enrollment->pathway_id];
 
                 $insert_data = array(
                     'instance_uuid'      => HL_DB_Utils::generate_uuid(),
