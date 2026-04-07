@@ -32,6 +32,7 @@ class HL_Frontend_Feature_Tracker {
         add_action( 'wp_ajax_hl_ticket_comment', array( $this, 'ajax_ticket_comment' ) );
         add_action( 'wp_ajax_hl_ticket_status',  array( $this, 'ajax_ticket_status' ) );
         add_action( 'wp_ajax_hl_ticket_upload',  array( $this, 'ajax_ticket_upload' ) );
+        add_action( 'wp_ajax_hl_ticket_user_search', array( $this, 'ajax_user_search' ) );
     }
 
     // ─── Shortcode Render ───
@@ -50,7 +51,22 @@ class HL_Frontend_Feature_Tracker {
         $nonce    = wp_create_nonce( 'hl_feature_tracker' );
         $is_admin = HL_Ticket_Service::instance()->is_ticket_admin();
         ?>
-        <div class="hlft-wrapper" data-nonce="<?php echo esc_attr( $nonce ); ?>" data-is-admin="<?php echo $is_admin ? '1' : '0'; ?>">
+        <?php
+        // Current user's department for the read-only form field.
+        $current_user_dept = get_user_meta( get_current_user_id(), 'housman_learning_department', true );
+        if ( is_array( $current_user_dept ) ) {
+            $current_user_dept = implode( ', ', array_map( 'sanitize_text_field', $current_user_dept ) );
+        } else {
+            $current_user_dept = sanitize_text_field( (string) $current_user_dept );
+        }
+        if ( empty( $current_user_dept ) ) {
+            $current_user_dept = __( 'Not assigned', 'hl-core' );
+        }
+        ?>
+        <div class="hlft-wrapper"
+             data-nonce="<?php echo esc_attr( $nonce ); ?>"
+             data-is-admin="<?php echo $is_admin ? '1' : '0'; ?>"
+             data-user-department="<?php echo esc_attr( $current_user_dept ); ?>">
 
             <!-- Page Hero -->
             <div class="hl-page-hero">
@@ -187,6 +203,37 @@ class HL_Frontend_Feature_Tracker {
                                 <input type="text" id="hlft-form-title-input" maxlength="255" required>
                             </div>
                             <div class="hlft-form-group">
+                                <label for="hlft-form-category"><?php esc_html_e( 'Category', 'hl-core' ); ?> <span class="required">*</span></label>
+                                <select id="hlft-form-category" required>
+                                    <option value="" disabled selected><?php esc_html_e( 'Select category...', 'hl-core' ); ?></option>
+                                    <option value="course_content"><?php esc_html_e( 'Course Content', 'hl-core' ); ?></option>
+                                    <option value="platform_issue"><?php esc_html_e( 'Platform Issue', 'hl-core' ); ?></option>
+                                    <option value="account_access"><?php esc_html_e( 'Account & Access', 'hl-core' ); ?></option>
+                                    <option value="forms_assessments"><?php esc_html_e( 'Forms & Assessments', 'hl-core' ); ?></option>
+                                    <option value="reports_data"><?php esc_html_e( 'Reports & Data', 'hl-core' ); ?></option>
+                                    <option value="other"><?php esc_html_e( 'Other', 'hl-core' ); ?></option>
+                                </select>
+                            </div>
+                            <div class="hlft-form-group">
+                                <label><?php esc_html_e( 'Department', 'hl-core' ); ?></label>
+                                <div class="hlft-dept-readonly" id="hlft-form-department"></div>
+                            </div>
+                            <div class="hlft-form-group">
+                                <label for="hlft-form-context-mode"><?php esc_html_e( 'Encountered as', 'hl-core' ); ?></label>
+                                <select id="hlft-form-context-mode">
+                                    <option value="self"><?php esc_html_e( 'Myself', 'hl-core' ); ?></option>
+                                    <option value="view_as"><?php esc_html_e( 'Viewing as another user', 'hl-core' ); ?></option>
+                                </select>
+                                <div class="hlft-context-user-wrap" id="hlft-context-user-wrap" style="display:none;">
+                                    <input type="hidden" id="hlft-form-context-user-id" value="">
+                                    <div class="hlft-user-search-wrap">
+                                        <input type="text" id="hlft-user-search-input" placeholder="<?php esc_attr_e( 'Search by name...', 'hl-core' ); ?>" autocomplete="off">
+                                        <div class="hlft-user-search-results" id="hlft-user-search-results" style="display:none;"></div>
+                                    </div>
+                                    <div class="hlft-context-user-chip" id="hlft-context-user-chip" style="display:none;"></div>
+                                </div>
+                            </div>
+                            <div class="hlft-form-group">
                                 <label for="hlft-form-type"><?php esc_html_e( 'Type', 'hl-core' ); ?> <span class="required">*</span></label>
                                 <select id="hlft-form-type" required>
                                     <option value=""><?php esc_html_e( 'Select type...', 'hl-core' ); ?></option>
@@ -286,10 +333,13 @@ class HL_Frontend_Feature_Tracker {
         $this->verify_ajax();
 
         $result = HL_Ticket_Service::instance()->create_ticket( array(
-            'title'       => isset( $_POST['title'] ) ? $_POST['title'] : '',
-            'type'        => isset( $_POST['type'] ) ? $_POST['type'] : '',
-            'priority'    => isset( $_POST['priority'] ) ? $_POST['priority'] : 'medium',
-            'description' => isset( $_POST['description'] ) ? $_POST['description'] : '',
+            'title'           => isset( $_POST['title'] ) ? $_POST['title'] : '',
+            'type'            => isset( $_POST['type'] ) ? $_POST['type'] : '',
+            'priority'        => isset( $_POST['priority'] ) ? $_POST['priority'] : 'medium',
+            'description'     => isset( $_POST['description'] ) ? $_POST['description'] : '',
+            'category'        => isset( $_POST['category'] ) ? sanitize_text_field( $_POST['category'] ) : '',
+            'context_mode'    => isset( $_POST['context_mode'] ) ? sanitize_text_field( $_POST['context_mode'] ) : 'self',
+            'context_user_id' => ! empty( $_POST['context_user_id'] ) ? absint( $_POST['context_user_id'] ) : null,
         ) );
 
         if ( is_wp_error( $result ) ) {
@@ -305,10 +355,13 @@ class HL_Frontend_Feature_Tracker {
         $uuid = isset( $_POST['ticket_uuid'] ) ? sanitize_text_field( $_POST['ticket_uuid'] ) : '';
 
         $result = HL_Ticket_Service::instance()->update_ticket( $uuid, array(
-            'title'       => isset( $_POST['title'] ) ? $_POST['title'] : '',
-            'type'        => isset( $_POST['type'] ) ? $_POST['type'] : '',
-            'priority'    => isset( $_POST['priority'] ) ? $_POST['priority'] : '',
-            'description' => isset( $_POST['description'] ) ? $_POST['description'] : '',
+            'title'           => isset( $_POST['title'] ) ? $_POST['title'] : '',
+            'type'            => isset( $_POST['type'] ) ? $_POST['type'] : '',
+            'priority'        => isset( $_POST['priority'] ) ? $_POST['priority'] : '',
+            'description'     => isset( $_POST['description'] ) ? $_POST['description'] : '',
+            'category'        => isset( $_POST['category'] ) ? sanitize_text_field( $_POST['category'] ) : '',
+            'context_mode'    => isset( $_POST['context_mode'] ) ? sanitize_text_field( $_POST['context_mode'] ) : 'self',
+            'context_user_id' => ! empty( $_POST['context_user_id'] ) ? absint( $_POST['context_user_id'] ) : null,
         ) );
 
         if ( is_wp_error( $result ) ) {
@@ -365,5 +418,14 @@ class HL_Frontend_Feature_Tracker {
         }
 
         wp_send_json_success( $result );
+    }
+
+    public function ajax_user_search() {
+        $this->verify_ajax();
+
+        $search = isset( $_POST['search'] ) ? sanitize_text_field( $_POST['search'] ) : '';
+        $results = HL_Ticket_Service::instance()->search_users( $search );
+
+        wp_send_json_success( $results );
     }
 }
