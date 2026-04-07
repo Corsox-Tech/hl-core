@@ -58,12 +58,14 @@ class HL_Auth_Manager {
     /**
      * Prevent BuddyBoss from redirecting guests away from auth pages.
      *
-     * BB hooks bp_core_no_access at template_redirect priority 0, which
+     * BB's bp_private_network_template_redirect() fires on the
+     * 'bp_template_redirect' action and calls bp_core_no_access() which
      * redirects non-logged-in users to wp_login_url(). Since wp_login_url()
      * now returns our custom /login/ page, this creates an infinite redirect
      * loop: /login/ → bb redirect → /login/?redirect_to=... → loop.
      *
-     * This runs at priority -1 (before BB's 0) and removes BB's hook
+     * This runs at template_redirect priority -1 (before everything else)
+     * and removes BB's private network redirect + the bp_core_no_access hook
      * when the current page is one of our auth pages.
      */
     public function allow_auth_pages_for_guests() {
@@ -83,8 +85,13 @@ class HL_Auth_Manager {
         $auth_shortcodes = array('[hl_login]', '[hl_password_reset]', '[hl_profile_setup]');
         foreach ($auth_shortcodes as $sc) {
             if (strpos($post->post_content, $sc) !== false) {
-                // Remove BB's no-access redirect so the auth page can render
+                // Remove BB's redirects so the auth page can render for guests
                 remove_action('template_redirect', 'bp_core_no_access', 0);
+                remove_action('bp_template_redirect', 'bp_private_network_template_redirect', 10);
+                remove_action('bp_template_redirect', 'bp_core_catch_no_access', 1);
+
+                // Also use BB's own pre-check filter as a safety net
+                add_filter('bp_private_network_pre_check', '__return_true');
                 return;
             }
         }
