@@ -26,8 +26,11 @@ class HL_Ticket_Service {
     /** @var string[] Valid priority levels. */
     const VALID_PRIORITIES = array( 'low', 'medium', 'high', 'critical' );
 
-    /** @var string[] Valid statuses. */
-    const VALID_STATUSES = array( 'open', 'in_review', 'in_progress', 'resolved', 'closed' );
+    /** @var string[] Valid statuses (includes draft — checked explicitly in get_tickets()). */
+    const VALID_STATUSES = array( 'draft', 'open', 'in_review', 'in_progress', 'resolved', 'closed' );
+
+    /** @var string Draft status identifier. */
+    const DRAFT_STATUS = 'draft';
 
     /** @var string[] Terminal statuses (no editing by creator). */
     const TERMINAL_STATUSES = array( 'resolved', 'closed' );
@@ -57,6 +60,43 @@ class HL_Ticket_Service {
     }
 
     /**
+     * Resolve a JetEngine user meta value to its human-readable label.
+     *
+     * Includes safety checks for JetEngine not being active, meta_boxes module being
+     * disabled, or the field/option not existing — all fall back to the raw value.
+     *
+     * @param string $meta_key  The JetEngine meta field name.
+     * @param string $raw_value The stored raw option key.
+     * @return string Human-readable label, or $raw_value as fallback.
+     */
+    public function get_jet_meta_label( $meta_key, $raw_value ) {
+        if ( ! function_exists( 'jet_engine' ) || empty( $raw_value ) ) {
+            return $raw_value;
+        }
+        $meta_boxes_module = jet_engine()->meta_boxes;
+        if ( ! is_object( $meta_boxes_module )
+             || ! method_exists( $meta_boxes_module, 'get_registered_fields_for_context' ) ) {
+            return $raw_value;
+        }
+        $meta_boxes = $meta_boxes_module->get_registered_fields_for_context( 'user' );
+        if ( empty( $meta_boxes ) ) {
+            return $raw_value;
+        }
+        foreach ( $meta_boxes as $fields ) {
+            foreach ( $fields as $field ) {
+                if ( isset( $field['name'] ) && $field['name'] === $meta_key && ! empty( $field['options'] ) ) {
+                    foreach ( $field['options'] as $option ) {
+                        if ( isset( $option['key'] ) && $option['key'] === $raw_value ) {
+                            return $option['value'];
+                        }
+                    }
+                }
+            }
+        }
+        return $raw_value;
+    }
+
+    /**
      * Check if the current user can edit a ticket.
      *
      * Rules:
@@ -78,6 +118,11 @@ class HL_Ticket_Service {
 
         if ( in_array( $ticket['status'], self::TERMINAL_STATUSES, true ) ) {
             return false;
+        }
+
+        // Drafts are always editable by their creator (no time limit).
+        if ( $ticket['status'] === self::DRAFT_STATUS ) {
+            return true;
         }
 
         $created = strtotime( $ticket['created_at'] );
@@ -114,14 +159,34 @@ class HL_Ticket_Service {
         }
 
         // Status filter.
+        $current_uid = get_current_user_id();
         if ( ! empty( $args['status'] ) && $args['status'] === 'all' ) {
-            // "all" = no status filter (include closed).
+            // "all" = include all statuses; still hide other users' drafts (admin sees all).
+            if ( ! $this->is_ticket_admin() ) {
+                $where[]  = '(t.status != %s OR t.creator_user_id = %d)';
+                $values[] = self::DRAFT_STATUS;
+                $values[] = $current_uid;
+            }
+        } elseif ( ! empty( $args['status'] ) && $args['status'] === self::DRAFT_STATUS ) {
+            // Draft filter: current user's drafts only (admin sees all drafts).
+            $where[]  = 't.status = %s';
+            $values[] = self::DRAFT_STATUS;
+            if ( ! $this->is_ticket_admin() ) {
+                $where[]  = 't.creator_user_id = %d';
+                $values[] = $current_uid;
+            }
         } elseif ( ! empty( $args['status'] ) && in_array( $args['status'], self::VALID_STATUSES, true ) ) {
+            // Specific non-draft status (open, in_review, etc.) — no draft leakage possible.
             $where[]  = 't.status = %s';
             $values[] = $args['status'];
         } else {
-            // Default: exclude closed.
-            $where[] = "t.status != 'closed'";
+            // Default: exclude closed AND other users' drafts (admin sees all).
+            $where[]  = "t.status != 'closed'";
+            if ( ! $this->is_ticket_admin() ) {
+                $where[]  = '(t.status != %s OR t.creator_user_id = %d)';
+                $values[] = self::DRAFT_STATUS;
+                $values[] = $current_uid;
+            }
         }
 
         // Priority filter.
@@ -191,6 +256,13 @@ class HL_Ticket_Service {
         ), ARRAY_A );
 
         if ( ! $row ) {
+            return null;
+        }
+
+        // Drafts are only visible to their creator and the admin.
+        if ( $row['status'] === self::DRAFT_STATUS
+             && (int) $row['creator_user_id'] !== get_current_user_id()
+             && ! $this->is_ticket_admin() ) {
             return null;
         }
 
@@ -280,6 +352,210 @@ class HL_Ticket_Service {
     }
 
     /**
+     * Save a ticket as a draft (relaxed validation — only title required).
+     *
+     * If $uuid is provided, updates the existing draft. Otherwise creates a new one.
+     * Description, category, and type are all optional (category defaults to 'other',
+     * type defaults to 'bug') to allow saving partial work.
+     *
+     * @param array       $data { title, type, priority, category, description, context_mode, context_user_id }
+     * @param string|null $uuid Existing draft UUID to update, or null to create.
+     * @return array|WP_Error Draft ticket or error.
+     */
+    public function save_draft( $data, $uuid = null ) {
+        global $wpdb;
+
+        $title        = isset( $data['title'] ) ? sanitize_text_field( trim( $data['title'] ) ) : '';
+        $type         = isset( $data['type'] ) && in_array( $data['type'], self::VALID_TYPES, true )
+            ? $data['type'] : 'bug';
+        $priority     = isset( $data['priority'] ) && in_array( $data['priority'], self::VALID_PRIORITIES, true )
+            ? $data['priority'] : 'medium';
+        $description  = isset( $data['description'] ) ? wp_kses_post( trim( $data['description'] ) ) : '';
+        $category     = isset( $data['category'] ) && in_array( $data['category'], self::VALID_CATEGORIES, true )
+            ? $data['category'] : 'other';
+        $context_mode = isset( $data['context_mode'] ) && $data['context_mode'] === 'view_as'
+            ? 'view_as' : 'self';
+        // Use explicit null-check (not empty()) so user ID 0 is not treated as "provided".
+        $context_user = ( $context_mode === 'view_as' && isset( $data['context_user_id'] )
+                          && $data['context_user_id'] !== null && $data['context_user_id'] !== '' )
+            ? absint( $data['context_user_id'] ) : null;
+        // Treat 0 (absint of empty string) as not provided.
+        if ( $context_user === 0 ) {
+            $context_user = null;
+        }
+
+        if ( empty( $title ) ) {
+            return new WP_Error( 'missing_title', __( 'Title is required to save a draft.', 'hl-core' ) );
+        }
+
+        if ( $uuid ) {
+            // Update existing draft.
+            $ticket = $this->get_ticket_raw( $uuid );
+            if ( ! $ticket ) {
+                return new WP_Error( 'not_found', __( 'Ticket not found.', 'hl-core' ) );
+            }
+            if ( $ticket['status'] !== self::DRAFT_STATUS ) {
+                return new WP_Error( 'not_draft', __( 'Only draft tickets can be updated via save draft.', 'hl-core' ) );
+            }
+            $user_id = get_current_user_id();
+            if ( (int) $ticket['creator_user_id'] !== $user_id && ! $this->is_ticket_admin() ) {
+                return new WP_Error( 'forbidden', __( 'You do not have permission to edit this draft.', 'hl-core' ) );
+            }
+
+            // Use a raw query to correctly write NULL for context_user_id.
+            // $wpdb->update() with any format sends '' for PHP null, which MySQL coerces to 0.
+            $ctx_sql      = ( $context_user !== null ) ? 'context_user_id = %d,' : 'context_user_id = NULL,';
+            $update_vals  = array_merge(
+                array( $title, $type, $priority, $category, $description, $context_mode ),
+                $context_user !== null ? array( $context_user ) : array(),
+                array( current_time( 'mysql' ), $uuid )
+            );
+            $wpdb->query(
+                $wpdb->prepare(
+                    "UPDATE {$wpdb->prefix}hl_ticket
+                     SET title = %s, type = %s, priority = %s, category = %s,
+                         description = %s, context_mode = %s, {$ctx_sql} updated_at = %s
+                     WHERE ticket_uuid = %s",
+                    $update_vals
+                )
+            );
+
+            return $this->get_ticket( $uuid );
+        }
+
+        // Create new draft.
+        $new_uuid    = HL_DB_Utils::generate_uuid();
+        $now         = current_time( 'mysql' );
+        $insert_data = array(
+            'ticket_uuid'     => $new_uuid,
+            'title'           => $title,
+            'description'     => $description,
+            'type'            => $type,
+            'priority'        => $priority,
+            'category'        => $category,
+            'status'          => self::DRAFT_STATUS,
+            'creator_user_id' => get_current_user_id(),
+            'context_mode'    => $context_mode,
+            'created_at'      => $now,
+            'updated_at'      => $now,
+        );
+        // Omit context_user_id when null so MySQL uses the column DEFAULT NULL.
+        // $wpdb->insert() with any format sends '' for PHP null, which coerces to 0 in unsigned bigint.
+        if ( $context_user !== null ) {
+            $insert_data['context_user_id'] = $context_user;
+        }
+        $result = $wpdb->insert( $wpdb->prefix . 'hl_ticket', $insert_data );
+
+        if ( ! $result ) {
+            return new WP_Error( 'db_error', __( 'Failed to save draft.', 'hl-core' ) );
+        }
+
+        return $this->get_ticket( $new_uuid );
+    }
+
+    /**
+     * Publish a draft ticket (full validation, then sets status to 'open').
+     *
+     * Accepts updated form data so the user can edit fields before publishing.
+     * Falls back to the stored draft's type/priority/category when not provided.
+     *
+     * @param string $uuid Ticket UUID.
+     * @param array  $data { title, type, category, description, priority, context_mode, context_user_id }
+     * @return array|WP_Error Published ticket or error.
+     */
+    public function publish_draft( $uuid, $data ) {
+        global $wpdb;
+
+        $ticket = $this->get_ticket_raw( $uuid );
+        if ( ! $ticket ) {
+            return new WP_Error( 'not_found', __( 'Ticket not found.', 'hl-core' ) );
+        }
+        if ( $ticket['status'] !== self::DRAFT_STATUS ) {
+            return new WP_Error( 'not_draft', __( 'Only draft tickets can be published.', 'hl-core' ) );
+        }
+        $user_id = get_current_user_id();
+        if ( (int) $ticket['creator_user_id'] !== $user_id && ! $this->is_ticket_admin() ) {
+            return new WP_Error( 'forbidden', __( 'You do not have permission to publish this draft.', 'hl-core' ) );
+        }
+
+        // Apply latest form data; fall back to stored values for unprovided fields.
+        $title       = isset( $data['title'] ) ? sanitize_text_field( trim( $data['title'] ) ) : $ticket['title'];
+        $type        = isset( $data['type'] ) ? sanitize_text_field( $data['type'] ) : '';
+        $type        = in_array( $type, self::VALID_TYPES, true ) ? $type : $ticket['type'];
+        $priority    = isset( $data['priority'] ) && in_array( $data['priority'], self::VALID_PRIORITIES, true )
+            ? $data['priority'] : $ticket['priority'];
+        $description = isset( $data['description'] ) ? wp_kses_post( trim( $data['description'] ) ) : $ticket['description'];
+        $category    = isset( $data['category'] ) ? sanitize_text_field( $data['category'] ) : '';
+        $category    = in_array( $category, self::VALID_CATEGORIES, true ) ? $category : $ticket['category'];
+
+        $context_mode = isset( $data['context_mode'] ) && $data['context_mode'] === 'view_as' ? 'view_as' : 'self';
+        $context_user = null;
+
+        if ( $context_mode === 'self' ) {
+            $context_user = null;
+        } elseif ( $context_mode === 'view_as' ) {
+            $provided_id  = isset( $data['context_user_id'] ) && $data['context_user_id'] !== ''
+                ? absint( $data['context_user_id'] ) : null;
+            $context_user = $provided_id ?: ( ! empty( $ticket['context_user_id'] ) ? (int) $ticket['context_user_id'] : null );
+            if ( ! $context_user ) {
+                return new WP_Error( 'missing_context_user', __( 'Please select the user you were viewing as.', 'hl-core' ) );
+            }
+            if ( ! get_userdata( $context_user ) ) {
+                return new WP_Error( 'invalid_context_user', __( 'The selected user does not exist.', 'hl-core' ) );
+            }
+        }
+
+        // Full validation — same rules as create_ticket().
+        if ( empty( $title ) ) {
+            return new WP_Error( 'missing_title', __( 'Title is required.', 'hl-core' ) );
+        }
+        if ( strlen( $title ) > 255 ) {
+            return new WP_Error( 'title_too_long', __( 'Title must be 255 characters or fewer.', 'hl-core' ) );
+        }
+        if ( ! in_array( $type, self::VALID_TYPES, true ) ) {
+            return new WP_Error( 'invalid_type', __( 'Please select a ticket type before publishing.', 'hl-core' ) );
+        }
+        if ( ! in_array( $category, self::VALID_CATEGORIES, true ) ) {
+            return new WP_Error( 'invalid_category', __( 'Please select a category before publishing.', 'hl-core' ) );
+        }
+        if ( empty( $description ) ) {
+            return new WP_Error( 'missing_description', __( 'Description is required before publishing.', 'hl-core' ) );
+        }
+
+        // Use a raw query to correctly write NULL for context_user_id.
+        // $wpdb->update() with any format sends '' for PHP null, which MySQL coerces to 0.
+        $ctx_sql  = ( $context_user !== null ) ? 'context_user_id = %d,' : 'context_user_id = NULL,';
+        $pub_vals = array_merge(
+            array( $title, $type, $priority, $category, $description, $context_mode ),
+            $context_user !== null ? array( $context_user ) : array(),
+            array( 'open', current_time( 'mysql' ), $uuid )
+        );
+        $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$wpdb->prefix}hl_ticket
+                 SET title = %s, type = %s, priority = %s, category = %s,
+                     description = %s, context_mode = %s, {$ctx_sql} status = %s, updated_at = %s
+                 WHERE ticket_uuid = %s",
+                $pub_vals
+            )
+        );
+
+        HL_Audit_Service::log( 'ticket_published', array(
+            'entity_type' => 'ticket',
+            'entity_id'   => $ticket['ticket_id'],
+            'before_data' => array( 'status' => self::DRAFT_STATUS ),
+            'after_data'  => array(
+                'status'   => 'open',
+                'title'    => $title,
+                'type'     => $type,
+                'category' => $category,
+            ),
+        ) );
+
+        return $this->get_ticket( $uuid );
+    }
+
+    /**
      * Update an existing ticket.
      *
      * @param string $uuid Ticket UUID.
@@ -292,6 +568,11 @@ class HL_Ticket_Service {
         $ticket = $this->get_ticket_raw( $uuid );
         if ( ! $ticket ) {
             return new WP_Error( 'not_found', __( 'Ticket not found.', 'hl-core' ) );
+        }
+
+        // Drafts must be updated via save_draft() or published via publish_draft() — even admins.
+        if ( $ticket['status'] === self::DRAFT_STATUS ) {
+            return new WP_Error( 'use_save_draft', __( 'Draft tickets must be updated via save as draft.', 'hl-core' ) );
         }
 
         if ( ! $this->can_edit( $ticket ) ) {
@@ -384,6 +665,11 @@ class HL_Ticket_Service {
 
         if ( ! $this->is_ticket_admin() ) {
             return new WP_Error( 'forbidden', __( 'Only the admin can change ticket status.', 'hl-core' ) );
+        }
+
+        // Drafts can only be created/updated via save_draft(); never via status change.
+        if ( $new_status === self::DRAFT_STATUS ) {
+            return new WP_Error( 'invalid_status', __( 'Tickets cannot be moved back to draft status.', 'hl-core' ) );
         }
 
         if ( ! in_array( $new_status, self::VALID_STATUSES, true ) ) {
@@ -533,14 +819,19 @@ class HL_Ticket_Service {
         $row['comment_count'] = count( $row['comments'] );
         $row['attachments']   = $this->get_attachments( (int) $row['ticket_id'] );
 
-        // Department from JetEngine user meta.
-        $dept = get_user_meta( $row['creator_user_id'], 'housman_learning_department', true );
-        if ( is_array( $dept ) ) {
-            $dept = implode( ', ', array_map( 'sanitize_text_field', $dept ) );
+        // Department from JetEngine user meta — resolve each slug to its human-readable label.
+        $dept_raw = get_user_meta( $row['creator_user_id'], 'housman_learning_department', true );
+        if ( is_array( $dept_raw ) ) {
+            // Multi-value: resolve each slug individually, then join.
+            $dept_labels = array_map( function( $v ) {
+                return $this->get_jet_meta_label( 'housman_learning_department', sanitize_text_field( $v ) );
+            }, $dept_raw );
+            $dept_label = implode( ', ', $dept_labels );
         } else {
-            $dept = sanitize_text_field( (string) $dept );
+            $dept_raw   = sanitize_text_field( (string) $dept_raw );
+            $dept_label = $this->get_jet_meta_label( 'housman_learning_department', $dept_raw );
         }
-        $row['creator_department'] = ! empty( $dept ) ? $dept : __( 'Not assigned', 'hl-core' );
+        $row['creator_department'] = ! empty( $dept_label ) ? $dept_label : __( 'Not assigned', 'hl-core' );
 
         // Context user resolution (for "Viewing As" feature).
         if ( $row['context_mode'] === 'view_as' && ! empty( $row['context_user_id'] ) ) {
