@@ -24,6 +24,10 @@ class HL_Auth_Manager {
     }
 
     private function __construct() {
+        // 0. Prevent BuddyBoss from redirecting non-logged-in users away from auth pages.
+        // BB hooks bp_core_no_access at template_redirect priority 0, so we must go earlier.
+        add_action('template_redirect', array($this, 'allow_auth_pages_for_guests'), -1);
+
         // 1. Redirect wp-login.php to custom login (spec I9)
         add_action('login_init', array($this, 'intercept_wp_login'));
 
@@ -45,6 +49,45 @@ class HL_Auth_Manager {
         // 7. Filter wp_login_url() and wp_lostpassword_url() (spec Appendix F)
         add_filter('login_url', array($this, 'filter_login_url'), 10, 3);
         add_filter('lostpassword_url', array($this, 'filter_lostpassword_url'), 10, 2);
+    }
+
+    // =========================================================================
+    // 0. Allow auth pages for non-logged-in users (BB private network fix)
+    // =========================================================================
+
+    /**
+     * Prevent BuddyBoss from redirecting guests away from auth pages.
+     *
+     * BB hooks bp_core_no_access at template_redirect priority 0, which
+     * redirects non-logged-in users to wp_login_url(). Since wp_login_url()
+     * now returns our custom /login/ page, this creates an infinite redirect
+     * loop: /login/ → bb redirect → /login/?redirect_to=... → loop.
+     *
+     * This runs at priority -1 (before BB's 0) and removes BB's hook
+     * when the current page is one of our auth pages.
+     */
+    public function allow_auth_pages_for_guests() {
+        if (is_user_logged_in()) {
+            return;
+        }
+
+        if (!is_page()) {
+            return;
+        }
+
+        global $post;
+        if (!$post) {
+            return;
+        }
+
+        $auth_shortcodes = array('[hl_login]', '[hl_password_reset]', '[hl_profile_setup]');
+        foreach ($auth_shortcodes as $sc) {
+            if (strpos($post->post_content, $sc) !== false) {
+                // Remove BB's no-access redirect so the auth page can render
+                remove_action('template_redirect', 'bp_core_no_access', 0);
+                return;
+            }
+        }
     }
 
     // =========================================================================
