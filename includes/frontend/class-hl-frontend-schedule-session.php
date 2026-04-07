@@ -87,6 +87,8 @@ class HL_Frontend_Schedule_Session {
         $settings      = HL_Admin_Scheduling_Settings::get_scheduling_settings();
         $max_lead_days = (int) $settings['max_lead_time_days'];
         $duration      = (int) $settings['session_duration'];
+        $sw_start      = !empty($component->scheduling_window_start) ? $component->scheduling_window_start : '';
+        $sw_end        = !empty($component->scheduling_window_end) ? $component->scheduling_window_end : '';
         $coach_avatar  = get_avatar_url($coach_user_id, array('size' => 80));
         ?>
         <div class="hls-scheduler" id="hls-scheduler">
@@ -109,6 +111,41 @@ class HL_Frontend_Schedule_Session {
                     </span>
                 </div>
             </div>
+
+            <?php if ($sw_start || $sw_end) : ?>
+                <?php
+                $window_label = '';
+                $window_closed = false;
+                $today = current_time('Y-m-d');
+                if ($sw_start && $sw_end) {
+                    $window_label = sprintf(
+                        esc_html__('Schedule between %s – %s', 'hl-core'),
+                        esc_html(date_i18n('M j', strtotime($sw_start))),
+                        esc_html(date_i18n('M j, Y', strtotime($sw_end)))
+                    );
+                    if ($today > $sw_end) {
+                        $window_closed = true;
+                        $window_label = sprintf(
+                            esc_html__('Scheduling window closed (%s – %s)', 'hl-core'),
+                            esc_html(date_i18n('M j', strtotime($sw_start))),
+                            esc_html(date_i18n('M j, Y', strtotime($sw_end)))
+                        );
+                    }
+                } elseif ($sw_start) {
+                    $window_label = sprintf(esc_html__('Available from %s', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($sw_start))));
+                } elseif ($sw_end) {
+                    $window_label = sprintf(esc_html__('Schedule by %s', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($sw_end))));
+                    if ($today > $sw_end) {
+                        $window_closed = true;
+                        $window_label = sprintf(esc_html__('Scheduling window closed (by %s)', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($sw_end))));
+                    }
+                }
+                ?>
+                <div class="hls-window-notice<?php echo $window_closed ? ' hls-window-closed' : ''; ?>">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <?php echo $window_label; ?>
+                </div>
+            <?php endif; ?>
 
             <!-- Two-column layout: calendar + slots -->
             <div class="hls-booking-layout">
@@ -214,7 +251,9 @@ class HL_Frontend_Schedule_Session {
                 component: <?php echo (int) $component_id; ?>,
                 reschedule: <?php echo (int) $reschedule_id; ?>,
                 maxDays: <?php echo (int) $max_lead_days; ?>,
-                tz: Intl.DateTimeFormat().resolvedOptions().timeZone
+                tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                swStart: '<?php echo esc_js($sw_start); ?>',
+                swEnd: '<?php echo esc_js($sw_end); ?>'
             };
             var S = { month: new Date(), date: null, slot: null };
             var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -273,13 +312,34 @@ class HL_Frontend_Schedule_Session {
                 var y=S.month.getFullYear(), m=S.month.getMonth();
                 var now=new Date(); now.setHours(0,0,0,0);
                 var max=new Date(); max.setDate(max.getDate()+C.maxDays);
+
+                // Scheduling window overrides: clamp min/max dates
+                var minDate = now;
+                var maxDate = max;
+                if (C.swStart) {
+                    var sw0 = new Date(C.swStart + 'T00:00:00');
+                    if (sw0 > minDate) minDate = sw0;
+                }
+                if (C.swEnd) {
+                    var sw1 = new Date(C.swEnd + 'T00:00:00');
+                    if (sw1 < maxDate) maxDate = sw1;
+                }
+                // If window has passed, open up all future dates (no max clamp)
+                if (C.swEnd) {
+                    var swEndDate = new Date(C.swEnd + 'T00:00:00');
+                    if (now > swEndDate) {
+                        minDate = now;
+                        maxDate = max;
+                    }
+                }
+
                 t.textContent=months[m]+' '+y;
                 var h='';
                 for(var i=0;i<7;i++) h+='<div class="hls-cal-head">'+days[i]+'</div>';
                 var f=new Date(y,m,1).getDay(), n=new Date(y,m+1,0).getDate();
                 for(var i=0;i<f;i++) h+='<div class="hls-cal-empty"></div>';
                 for(var d=1;d<=n;d++){
-                    var dt=new Date(y,m,d), ds=fmt(dt), past=dt<now, beyond=dt>max, sel=S.date===ds;
+                    var dt=new Date(y,m,d), ds=fmt(dt), past=dt<minDate, beyond=dt>maxDate, sel=S.date===ds;
                     var cls='hls-cal-day';
                     if(past||beyond) cls+=' hls-cal-off';
                     else cls+=' hls-cal-on';

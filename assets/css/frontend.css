@@ -7998,6 +7998,24 @@ a.hlcm-card { cursor: pointer }
     .hls-detail-actions{flex-direction:column}
     .hls-action-btn,.hls-cancel-confirm-btn{width:100%;justify-content:center;text-align:center}
 }
+.hls-window-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    margin: 0 0 16px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    color: #1e40af;
+    font-size: 14px;
+    font-weight: 500;
+}
+.hls-window-notice.hls-window-closed {
+    background: #fef3c7;
+    border-color: #fde68a;
+    color: #92400e;
+}
 
 /* -- RP Session Tabs (.hl-rp-*) -- */
 .hl-rp-tabs{display:flex;gap:0;border-bottom:2px solid var(--hl-border);margin-bottom:20px}
