@@ -794,14 +794,14 @@ class HL_Assessment_Service {
         $phase_components = array();   // phase => [ pathway_id => component_id ]
         foreach ($components as $cmp) {
             $ref = json_decode($cmp->external_ref, true);
-            $phase = isset($ref['phase']) ? $ref['phase'] : null;
-            $inst_id = isset($ref['teacher_instrument_id']) ? absint($ref['teacher_instrument_id']) : 0;
-            if ($phase && $inst_id) {
-                $phase_instrument[$phase] = $inst_id;
-                if (!isset($phase_components[$phase])) {
-                    $phase_components[$phase] = array();
+            $cmp_phase = isset($ref['phase']) ? $ref['phase'] : null;
+            $inst_id   = isset($ref['teacher_instrument_id']) ? absint($ref['teacher_instrument_id']) : 0;
+            if ($cmp_phase && $inst_id) {
+                $phase_instrument[$cmp_phase] = $inst_id;
+                if (!isset($phase_components[$cmp_phase])) {
+                    $phase_components[$cmp_phase] = array();
                 }
-                $phase_components[$phase][$cmp->pathway_id] = $cmp->component_id;
+                $phase_components[$cmp_phase][$cmp->pathway_id] = $cmp->component_id;
             }
         }
 
@@ -834,18 +834,18 @@ class HL_Assessment_Service {
 
         // Get instrument versions.
         $instrument_versions = array();
-        foreach ($phase_instrument as $phase => $inst_id) {
+        foreach ($phase_instrument as $p => $inst_id) {
             $instrument = $this->get_teacher_instrument($inst_id);
-            $instrument_versions[$phase] = $instrument ? $instrument->instrument_version : null;
+            $instrument_versions[$p] = $instrument ? $instrument->instrument_version : null;
         }
 
         foreach ($enrollments as $enrollment) {
-            foreach ($phase_instrument as $phase => $instrument_id) {
+            foreach ($phase_instrument as $p => $instrument_id) {
                 // Check if instance already exists.
                 $existing = $wpdb->get_var($wpdb->prepare(
                     "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
                      WHERE cycle_id = %d AND enrollment_id = %d AND phase = %s",
-                    $cycle_id, $enrollment->enrollment_id, $phase
+                    $cycle_id, $enrollment->enrollment_id, $p
                 ));
 
                 if ($existing) {
@@ -855,8 +855,8 @@ class HL_Assessment_Service {
 
                 // Resolve component_id from enrollment's pathway.
                 $component_id = null;
-                if ($enrollment->pathway_id && isset($phase_components[$phase][$enrollment->pathway_id])) {
-                    $component_id = $phase_components[$phase][$enrollment->pathway_id];
+                if ($enrollment->pathway_id && isset($phase_components[$p][$enrollment->pathway_id])) {
+                    $component_id = $phase_components[$p][$enrollment->pathway_id];
                 }
 
                 $insert_data = array(
@@ -864,9 +864,9 @@ class HL_Assessment_Service {
                     'cycle_id'           => absint($cycle_id),
                     'enrollment_id'      => absint($enrollment->enrollment_id),
                     'component_id'       => $component_id,
-                    'phase'              => $phase,
+                    'phase'              => $p,
                     'instrument_id'      => $instrument_id,
-                    'instrument_version' => $instrument_versions[$phase],
+                    'instrument_version' => $instrument_versions[$p],
                     'status'             => 'not_started',
                 );
 
@@ -875,7 +875,7 @@ class HL_Assessment_Service {
                 if ($insert_result === false) {
                     $result['errors'][] = sprintf(
                         __('Failed to create %s instance for enrollment %d.', 'hl-core'),
-                        strtoupper($phase),
+                        strtoupper($p),
                         $enrollment->enrollment_id
                     );
                 } else {
@@ -889,6 +889,7 @@ class HL_Assessment_Service {
                 'entity_type' => 'teacher_assessment_instance',
                 'cycle_id'    => $cycle_id,
                 'after_data'  => array(
+                    'phase'    => $phase ?: 'both',
                     'created'  => $result['created'],
                     'existing' => $result['existing'],
                 ),

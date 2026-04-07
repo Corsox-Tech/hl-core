@@ -107,6 +107,9 @@ class HL_Admin_Assessments {
 
             $cycle_id = absint($_POST['cycle_id']);
             $phase    = isset($_POST['phase']) ? sanitize_text_field($_POST['phase']) : null;
+            if ($phase && !in_array($phase, array('pre', 'post'), true)) {
+                wp_die(__('Invalid phase.', 'hl-core'));
+            }
             $service  = new HL_Assessment_Service();
             $result   = $service->generate_teacher_assessment_instances($cycle_id, $phase);
 
