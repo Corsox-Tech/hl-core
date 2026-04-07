@@ -419,7 +419,7 @@ class HL_Frontend_Dashboard {
      * V2 Participant section — learning cards visible to enrolled users.
      */
     private function render_participant_section_v2( $context ) {
-        $is_participant = $context['is_teacher'] || $context['is_mentor'];
+        $is_participant = $context['is_teacher'] || $context['is_mentor'] || $context['is_leader'];
         $available_count = $is_participant ? $this->count_available_activities( get_current_user_id() ) : 0;
 
         if ( $is_participant ) : ?>
@@ -436,13 +436,15 @@ class HL_Frontend_Dashboard {
                     $available_count
                 );
 
-                $this->render_nav_card_v2(
-                    'hl_classrooms_listing',
-                    __( 'My Classrooms', 'hl-core' ),
-                    __( 'View your classrooms and children', 'hl-core' ),
-                    '&#x1F3EB;',
-                    'hl-dv2-icon-classrooms'
-                );
+                if ( $context['is_teacher'] || $context['is_mentor'] ) {
+                    $this->render_nav_card_v2(
+                        'hl_classrooms_listing',
+                        __( 'My Classrooms', 'hl-core' ),
+                        __( 'View your classrooms and children', 'hl-core' ),
+                        '&#x1F3EB;',
+                        'hl-dv2-icon-classrooms'
+                    );
+                }
                 ?>
             </div>
         </div>
