@@ -79,20 +79,30 @@ class HL_Frontend_User_Profile {
 
         switch ($action) {
             case 'update_profile':
+                $first_name   = sanitize_text_field($_POST['hlup_first_name'] ?? '');
+                $last_name    = sanitize_text_field($_POST['hlup_last_name'] ?? '');
                 $display_name = sanitize_text_field($_POST['hlup_display_name'] ?? '');
                 $email        = sanitize_email($_POST['hlup_email'] ?? '');
 
-                if ($display_name && $user_id) {
-                    wp_update_user(array('ID' => $user_id, 'display_name' => $display_name));
-                }
-                if ($email && $user_id && is_email($email)) {
-                    wp_update_user(array('ID' => $user_id, 'user_email' => $email));
+                $user_updates = array('ID' => $user_id);
+                if ($first_name)   $user_updates['first_name']   = $first_name;
+                if ($last_name)    $user_updates['last_name']    = $last_name;
+                if ($display_name) $user_updates['display_name'] = $display_name;
+                if ($email && is_email($email)) $user_updates['user_email'] = $email;
+
+                if (count($user_updates) > 1) {
+                    wp_update_user($user_updates);
                 }
 
                 HL_Audit_Service::log('profile.updated', array(
                     'entity_type' => 'user',
                     'entity_id'   => $user_id,
-                    'after_data'  => array('display_name' => $display_name, 'email' => $email),
+                    'after_data'  => array(
+                        'first_name'   => $first_name,
+                        'last_name'    => $last_name,
+                        'display_name' => $display_name,
+                        'email'        => $email,
+                    ),
                 ));
                 break;
 
@@ -172,6 +182,36 @@ class HL_Frontend_User_Profile {
                             'entity_type' => 'user',
                             'entity_id'   => $user_id,
                         ));
+                    }
+                }
+                break;
+
+            case 'update_coach':
+                if ($enrollment_id) {
+                    $enrollment = $enrollment_repo->get_by_id($enrollment_id);
+                    if ($enrollment) {
+                        $coach_service   = new HL_Coach_Assignment_Service();
+                        $new_coach_id    = absint($_POST['hlup_coach_id'] ?? 0);
+                        $current_coach   = $coach_service->get_coach_for_enrollment($enrollment_id, $enrollment->cycle_id);
+                        $current_is_enrollment_scope = $current_coach && $current_coach['scope_type'] === 'enrollment';
+
+                        if ($new_coach_id === 0 && $current_is_enrollment_scope) {
+                            // Unassign: close the enrollment-level assignment.
+                            $coach_service->delete_assignment($current_coach['coach_assignment_id']);
+                        } elseif ($new_coach_id > 0) {
+                            if ($current_is_enrollment_scope) {
+                                // Reassign: close old, create new.
+                                $coach_service->reassign_coach($current_coach['coach_assignment_id'], $new_coach_id);
+                            } else {
+                                // New enrollment-level assignment (overrides inherited).
+                                $coach_service->assign_coach(array(
+                                    'coach_user_id' => $new_coach_id,
+                                    'scope_type'    => 'enrollment',
+                                    'scope_id'      => $enrollment_id,
+                                    'cycle_id'      => $enrollment->cycle_id,
+                                ));
+                            }
+                        }
                     }
                 }
                 break;
@@ -2133,6 +2173,20 @@ class HL_Frontend_User_Profile {
         $current_roles = $enrollment ? $enrollment->get_roles_array() : array();
         $all_roles = array('teacher', 'mentor', 'school_leader', 'district_leader');
 
+        // Load coach data.
+        $current_coach = null;
+        $available_coaches = array();
+        if ($enrollment) {
+            $current_coach = $this->coach_service->get_coach_for_enrollment($enrollment_id, $enrollment->cycle_id);
+            $coach_users = get_users(array('role' => 'coach', 'orderby' => 'display_name', 'order' => 'ASC'));
+            foreach ($coach_users as $cu) {
+                $available_coaches[] = array(
+                    'ID'           => (int) $cu->ID,
+                    'display_name' => $cu->display_name,
+                );
+            }
+        }
+
         ?>
         <?php if ($success) : ?>
             <div class="hlup-manage-flash">
@@ -2150,6 +2204,18 @@ class HL_Frontend_User_Profile {
                 <input type="hidden" name="hlup_enrollment_id" value="<?php echo esc_attr($enrollment_id); ?>">
                 <input type="hidden" name="_hlup_nonce" value="<?php echo esc_attr($nonce_value); ?>">
 
+                <div class="hlup-manage-field-row">
+                    <div class="hlup-manage-field">
+                        <label for="hlup_first_name"><?php esc_html_e('First Name', 'hl-core'); ?></label>
+                        <input type="text" id="hlup_first_name" name="hlup_first_name"
+                               value="<?php echo esc_attr(get_user_meta($user_id, 'first_name', true)); ?>">
+                    </div>
+                    <div class="hlup-manage-field">
+                        <label for="hlup_last_name"><?php esc_html_e('Last Name', 'hl-core'); ?></label>
+                        <input type="text" id="hlup_last_name" name="hlup_last_name"
+                               value="<?php echo esc_attr(get_user_meta($user_id, 'last_name', true)); ?>">
+                    </div>
+                </div>
                 <div class="hlup-manage-field">
                     <label for="hlup_display_name"><?php esc_html_e('Display Name', 'hl-core'); ?></label>
                     <input type="text" id="hlup_display_name" name="hlup_display_name"
@@ -2206,6 +2272,45 @@ class HL_Frontend_User_Profile {
                     </div>
                 </div>
                 <button type="submit" class="hlup-manage-btn primary"><?php esc_html_e('Save Enrollment', 'hl-core'); ?></button>
+            </form>
+        </div>
+
+        <!-- Coach Assignment -->
+        <div class="hlup-manage-section">
+            <h4 class="hlup-manage-section-title"><?php esc_html_e('Coach Assignment', 'hl-core'); ?></h4>
+            <?php
+            $coach_id    = $current_coach ? (int) $current_coach['coach_user_id'] : 0;
+            $coach_scope = $current_coach ? $current_coach['scope_type'] : '';
+            $inherited   = $current_coach && $coach_scope !== 'enrollment';
+            ?>
+            <?php if ($current_coach && $inherited) : ?>
+                <p class="hlup-manage-coach-inherited">
+                    <?php printf(
+                        /* translators: 1: coach name, 2: scope type (school/team) */
+                        esc_html__('Currently inherited from %2$s: %1$s', 'hl-core'),
+                        '<strong>' . esc_html($current_coach['coach_name']) . '</strong>',
+                        esc_html($coach_scope)
+                    ); ?>
+                </p>
+            <?php endif; ?>
+            <form method="post" class="hlup-manage-form">
+                <input type="hidden" name="hlup_action" value="update_coach">
+                <input type="hidden" name="hlup_user_id" value="<?php echo esc_attr($user_id); ?>">
+                <input type="hidden" name="hlup_enrollment_id" value="<?php echo esc_attr($enrollment_id); ?>">
+                <input type="hidden" name="_hlup_nonce" value="<?php echo esc_attr($nonce_value); ?>">
+                <div class="hlup-manage-field">
+                    <label for="hlup_coach_id"><?php esc_html_e('Assigned Coach', 'hl-core'); ?></label>
+                    <select id="hlup_coach_id" name="hlup_coach_id">
+                        <option value="0"><?php esc_html_e('— No Coach —', 'hl-core'); ?></option>
+                        <?php foreach ($available_coaches as $ac) : ?>
+                            <option value="<?php echo esc_attr($ac['ID']); ?>"
+                                <?php selected($coach_id, $ac['ID']); ?>>
+                                <?php echo esc_html($ac['display_name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <button type="submit" class="hlup-manage-btn primary"><?php esc_html_e('Save Coach', 'hl-core'); ?></button>
             </form>
         </div>
 

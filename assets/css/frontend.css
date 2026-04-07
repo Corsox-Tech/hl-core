@@ -5826,6 +5826,16 @@ button.hl-btn-danger:hover,
     gap: 14px;
 }
 
+.hlup-manage-form .hlup-manage-btn {
+    align-self: flex-start;
+}
+
+.hlup-manage-field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
 .hlup-manage-field {
     display: flex;
     flex-direction: column;
@@ -5936,6 +5946,12 @@ button.hl-btn-danger:hover,
     background: #fee2e2;
 }
 
+.hlup-manage-coach-inherited {
+    font-size: 13px;
+    color: var(--hl-text-secondary);
+    margin: 0 0 4px;
+}
+
 /* Pathway list */
 .hlup-manage-pathway-list {
     margin-bottom: 12px;
@@ -6020,6 +6036,10 @@ button.hl-btn-danger:hover,
 
     .hlup-manage-assign-row select {
         width: 100%;
+    }
+
+    .hlup-manage-field-row {
+        grid-template-columns: 1fr;
     }
 }
 
