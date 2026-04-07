@@ -2167,21 +2167,20 @@ class HL_Admin_Cycles {
 
         $sub_action = isset($_POST['sub_action']) ? sanitize_text_field($_POST['sub_action']) : 'send';
         $cycle_id = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
-        $cycle_id = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
 
-        if (!$cycle_id || !$cycle_id) {
-            wp_send_json_error(__('Invalid cycle or cycle.', 'hl-core'));
+        if (!$cycle_id) {
+            wp_send_json_error(__('Invalid cycle.', 'hl-core'));
         }
 
         global $wpdb;
 
-        // Validate cycle belongs to cycle
+        // Validate cycle exists
         $cycle = $wpdb->get_row($wpdb->prepare(
-            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d AND cycle_id = %d",
-            $cycle_id, $cycle_id
+            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+            $cycle_id
         ));
         if (!$cycle) {
-            wp_send_json_error(__('Cycle not found for this cycle.', 'hl-core'));
+            wp_send_json_error(__('Cycle not found.', 'hl-core'));
         }
 
         // Load recipients sub-action
@@ -2231,8 +2230,8 @@ class HL_Admin_Cycles {
             // Check if already sent (belt-and-suspenders)
             $already_sent = $wpdb->get_var($wpdb->prepare(
                 "SELECT log_id FROM {$wpdb->prefix}hl_cycle_email_log
-                 WHERE cycle_id = %d AND cycle_id = %d AND user_id = %d",
-                $cycle_id, $cycle_id, $enr['user_id']
+                 WHERE cycle_id = %d AND user_id = %d",
+                $cycle_id, $enr['user_id']
             ));
             if ($already_sent) {
                 $skipped++;
@@ -2263,9 +2262,9 @@ class HL_Admin_Cycles {
                 // INSERT IGNORE for hard DB-level dedup
                 $wpdb->query($wpdb->prepare(
                     "INSERT IGNORE INTO {$wpdb->prefix}hl_cycle_email_log
-                     (cycle_id, cycle_id, user_id, email_type, recipient_email, sent_at, sent_by)
-                     VALUES (%d, %d, %d, %s, %s, %s, %d)",
-                    $cycle_id, $cycle_id, $enr['user_id'], $email_type,
+                     (cycle_id, user_id, email_type, recipient_email, sent_at, sent_by)
+                     VALUES (%d, %d, %s, %s, %s, %d)",
+                    $cycle_id, $enr['user_id'], $email_type,
                     $enr['user_email'], $now, $current_user_id
                 ));
                 $sent_count++;
@@ -2296,18 +2295,17 @@ class HL_Admin_Cycles {
         }
 
         $cycle_id = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
-        $cycle_id = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
         $user_id  = isset($_POST['user_id'])  ? absint($_POST['user_id'])  : 0;
 
-        if (!$cycle_id || !$cycle_id || !$user_id) {
+        if (!$cycle_id || !$user_id) {
             wp_send_json_error(__('Missing parameters.', 'hl-core'));
         }
 
         global $wpdb;
         $wpdb->delete(
             $wpdb->prefix . 'hl_cycle_email_log',
-            array('cycle_id' => $cycle_id, 'cycle_id' => $cycle_id, 'user_id' => $user_id),
-            array('%d', '%d', '%d')
+            array('cycle_id' => $cycle_id, 'user_id' => $user_id),
+            array('%d', '%d')
         );
 
         wp_send_json_success(array('message' => __('Reset successful.', 'hl-core')));
