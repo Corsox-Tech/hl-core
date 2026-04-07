@@ -492,7 +492,7 @@ class HL_Frontend_Program_Page {
             $action_html = $this->get_completed_action_html($component, $enrollment);
         }
 
-        // Drip date badge for locked components.
+        // Date badge: "Available {date}" when locked by drip, "Complete by {date}" when available.
         $drip_badge = '';
         if ($avail_status === 'locked'
             && !empty($availability['locked_reason'])
@@ -501,6 +501,10 @@ class HL_Frontend_Program_Page {
         ) {
             $drip_badge = '<span class="hl-drip-badge">'
                 . sprintf(esc_html__('Available %s', 'hl-core'), esc_html($this->format_date($availability['next_available_at'])))
+                . '</span>';
+        } elseif ($avail_status === 'available' && !empty($component->complete_by)) {
+            $drip_badge = '<span class="hl-complete-by-badge">'
+                . sprintf(esc_html__('Complete by %s', 'hl-core'), esc_html($this->format_date($component->complete_by)))
                 . '</span>';
         }
         ?>
@@ -1052,7 +1056,7 @@ class HL_Frontend_Program_Page {
         );
         $type_icon = isset($icon_map[$component->component_type]) ? $icon_map[$component->component_type] : '&#x1F4CB;';
 
-        // Drip badge.
+        // Date badge: "Available {date}" when locked by drip, "Complete by {date}" when available.
         $drip_html = '';
         if ($avail_status === 'locked'
             && !empty($availability['locked_reason'])
@@ -1061,6 +1065,10 @@ class HL_Frontend_Program_Page {
         ) {
             $drip_html = '<span class="hl-pp-drip-badge">'
                 . sprintf(esc_html__('Available %s', 'hl-core'), esc_html($this->format_date($availability['next_available_at'])))
+                . '</span>';
+        } elseif ($avail_status === 'available' && !empty($component->complete_by)) {
+            $drip_html = '<span class="hl-pp-complete-by-badge">'
+                . sprintf(esc_html__('Complete by %s', 'hl-core'), esc_html($this->format_date($component->complete_by)))
                 . '</span>';
         }
         ?>
