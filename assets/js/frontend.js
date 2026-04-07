@@ -202,6 +202,19 @@
             var typeIcons = { bug: '\uD83D\uDC1E', improvement: '\u2728', feature_request: '\uD83D\uDE80' }; // 🐞 ✨ 🚀
             var statusLabels = { open: 'Open', in_review: 'In Review', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
 
+            var categoryLabels = {
+                course_content: 'Course Content',
+                platform_issue: 'Platform Issue',
+                account_access: 'Account & Access',
+                forms_assessments: 'Forms & Assessments',
+                reports_data: 'Reports & Data',
+                other: 'Other'
+            };
+
+            var userSearchXhr = null;
+            var userSearchTimer = null;
+            var userSearchResults = [];
+
             // Escape HTML entities for safe string interpolation.
             function esc(str) { return $('<span>').text(String(str == null ? '' : str)).html(); }
 
@@ -291,7 +304,25 @@
                     // Meta
                     var meta = '<span class="hlft-priority-badge hlft-priority-badge--' + esc(t.priority) + '">' + esc(t.priority) + '</span>' +
                         ' <span class="hlft-status-pill hlft-status-pill--' + esc(t.status) + '">' + esc(statusLabels[t.status] || '') + '</span>' +
-                        ' <span>By <img class="hlft-avatar" src="' + esc(t.creator_avatar) + '" alt=""> ' + esc(t.creator_name) + ' &bull; ' + esc(t.time_ago) + '</span>';
+                        ' <span class="hlft-meta-category">' + esc(categoryLabels[t.category] || t.category || '') + '</span>' +
+                        ' <span>By <img class="hlft-avatar" src="' + esc(t.creator_avatar) + '" alt=""> ' + esc(t.creator_name);
+
+                    if (t.creator_department) {
+                        meta += ' &bull; ' + esc(t.creator_department);
+                    }
+
+                    meta += ' &bull; ' + esc(t.time_ago) + '</span>';
+
+                    if (t.context_mode === 'view_as' && t.context_user_name) {
+                        meta += ' <span class="hlft-meta-context">';
+                        if (t.context_user_url) {
+                            meta += 'Viewing as <a href="' + esc(t.context_user_url) + '" target="_blank">' + esc(t.context_user_name) + '</a>';
+                        } else {
+                            meta += 'Viewing as ' + esc(t.context_user_name);
+                        }
+                        meta += '</span>';
+                    }
+
                     $('#hlft-detail-meta').html(meta);
 
                     // Description (plain text in V1 — no rich text editor)
@@ -422,12 +453,22 @@
                 $('#hlft-form-title').text('New Ticket');
                 $('#hlft-form-uuid').val('');
                 $('#hlft-form-title-input').val('');
+                $('#hlft-form-category').prop('selectedIndex', 0);
                 $('#hlft-form-type').val('');
                 $('#hlft-form-priority').val('medium');
                 $('#hlft-form-description').val('');
                 $('#hlft-form-file').val('');
                 $('#hlft-form-preview').empty();
                 pendingFormFiles = [];
+                var dept = $wrap.data('user-department') || 'Not assigned';
+                var deptClass = dept === 'Not assigned' ? ' hlft-dept-empty' : '';
+                $('#hlft-form-department').attr('class', 'hlft-dept-readonly' + deptClass).text(dept);
+                $('#hlft-form-context-mode').val('self');
+                $('#hlft-context-user-wrap').hide();
+                $('#hlft-form-context-user-id').val('');
+                $('#hlft-context-user-chip').hide().empty();
+                $('#hlft-user-search-input').val('');
+                $('#hlft-user-search-results').hide().empty();
                 $('#hlft-form-submit').text('Submit').prop('disabled', false);
                 $('#hlft-form-modal').show();
                 $('#hlft-form-title-input').focus();
@@ -437,9 +478,34 @@
                 $('#hlft-form-title').text('Edit Ticket');
                 $('#hlft-form-uuid').val(ticket.ticket_uuid);
                 $('#hlft-form-title-input').val(ticket.title);
+                $('#hlft-form-category').val(ticket.category || '');
                 $('#hlft-form-type').val(ticket.type);
                 $('#hlft-form-priority').val(ticket.priority);
                 $('#hlft-form-description').val(ticket.description);
+                pendingFormFiles = [];
+                $('#hlft-form-file').val('');
+                $('#hlft-form-preview').empty();
+                var dept = ticket.creator_department || $wrap.data('user-department') || 'Not assigned';
+                var deptClass = dept === 'Not assigned' ? ' hlft-dept-empty' : '';
+                $('#hlft-form-department').attr('class', 'hlft-dept-readonly' + deptClass).text(dept);
+                $('#hlft-form-context-mode').val(ticket.context_mode || 'self');
+                if (ticket.context_mode === 'view_as' && ticket.context_user_name) {
+                    $('#hlft-context-user-wrap').show();
+                    $('#hlft-form-context-user-id').val(ticket.context_user_id);
+                    var chipHtml = '';
+                    if (ticket.context_user_avatar) {
+                        chipHtml += '<img class="hlft-avatar" src="' + esc(ticket.context_user_avatar) + '" alt=""> ';
+                    }
+                    chipHtml += esc(ticket.context_user_name) +
+                        ' <button type="button" class="hlft-chip-remove" title="Remove">&times;</button>';
+                    $('#hlft-context-user-chip').show().html(chipHtml);
+                    $('#hlft-user-search-input').val('').hide();
+                } else {
+                    $('#hlft-context-user-wrap').hide();
+                    $('#hlft-form-context-user-id').val('');
+                    $('#hlft-context-user-chip').hide().empty();
+                    $('#hlft-user-search-input').val('').show();
+                }
                 $('#hlft-form-submit').text('Save Changes').prop('disabled', false);
                 $('#hlft-detail-modal').hide();
                 $('#hlft-form-modal').show();
@@ -491,6 +557,92 @@
                 loadTickets();
             });
 
+            // Context mode toggle
+            $(document).on('change', '#hlft-form-context-mode', function() {
+                if ($(this).val() === 'view_as') {
+                    $('#hlft-context-user-wrap').show();
+                    $('#hlft-user-search-input').show().focus();
+                } else {
+                    $('#hlft-context-user-wrap').hide();
+                    $('#hlft-form-context-user-id').val('');
+                    $('#hlft-context-user-chip').hide().empty();
+                    $('#hlft-user-search-input').val('');
+                    $('#hlft-user-search-results').hide().empty();
+                }
+            });
+
+            // Prevent Enter in user search from submitting the ticket form
+            $(document).on('keydown', '#hlft-user-search-input', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                }
+            });
+
+            // User search autocomplete
+            $(document).on('input', '#hlft-user-search-input', function() {
+                var val = $.trim($(this).val());
+                var $results = $('#hlft-user-search-results');
+
+                clearTimeout(userSearchTimer);
+
+                if (val.length < 3) {
+                    $results.hide().empty();
+                    return;
+                }
+
+                userSearchTimer = setTimeout(function() {
+                    if (userSearchXhr && userSearchXhr.readyState !== 4) {
+                        userSearchXhr.abort();
+                    }
+
+                    $results.show().html('<div class="hlft-user-search-loading">Searching...</div>');
+
+                    userSearchXhr = $.post(hlCoreAjax.ajaxurl, {
+                        action: 'hl_ticket_user_search',
+                        nonce: nonce,
+                        search: val
+                    }, function(resp) {
+                        $results.empty();
+                        userSearchResults = [];
+                        if (!resp.success || !resp.data.length) {
+                            $results.html('<div class="hlft-user-search-empty">No users found</div>');
+                            return;
+                        }
+                        userSearchResults = resp.data;
+                        $.each(resp.data, function(i, u) {
+                            $results.append(
+                                '<div class="hlft-user-search-item" data-index="' + i + '">' +
+                                '<img class="hlft-avatar" src="' + esc(u.avatar_url) + '" alt=""> ' + esc(u.display_name) +
+                                '</div>'
+                            );
+                        });
+                    });
+                }, 300);
+            });
+
+            // Select user from autocomplete
+            $(document).on('click', '.hlft-user-search-item', function() {
+                var idx = $(this).data('index');
+                var u = userSearchResults[idx];
+                if (!u) return;
+
+                $('#hlft-form-context-user-id').val(u.user_id);
+                $('#hlft-user-search-input').val('').hide();
+                $('#hlft-user-search-results').hide().empty();
+                $('#hlft-context-user-chip').show().html(
+                    '<img class="hlft-avatar" src="' + esc(u.avatar_url) + '" alt=""> ' +
+                    esc(u.display_name) +
+                    ' <button type="button" class="hlft-chip-remove" title="Remove">&times;</button>'
+                );
+            });
+
+            // Remove selected context user
+            $(document).on('click', '.hlft-chip-remove', function() {
+                $('#hlft-form-context-user-id').val('');
+                $('#hlft-context-user-chip').hide().empty();
+                $('#hlft-user-search-input').show().val('').focus();
+            });
+
             // Row click → open detail
             $(document).on('click', '#hlft-table-body tr', function() {
                 var uuid = $(this).data('uuid');
@@ -531,19 +683,40 @@
 
                 var data = {
                     title: $('#hlft-form-title-input').val(),
+                    category: $('#hlft-form-category').val(),
                     type: $('#hlft-form-type').val(),
                     priority: $('#hlft-form-priority').val(),
-                    description: $('#hlft-form-description').val()
+                    description: $('#hlft-form-description').val(),
+                    context_mode: $('#hlft-form-context-mode').val(),
+                    context_user_id: $('#hlft-form-context-user-id').val() || ''
                 };
+
+                // Submission guard: view_as mode requires a selected user.
+                if (data.context_mode === 'view_as' && !data.context_user_id) {
+                    showToast('Please select the user you were viewing as.', true);
+                    $btn.prop('disabled', false).text(isEdit ? 'Save Changes' : 'Submit');
+                    return;
+                }
 
                 if (isEdit) {
                     data.ticket_uuid = uuid;
                     ajax('hl_ticket_update', data, function(t) {
-                        $btn.prop('disabled', false).text('Save Changes');
-                        $('#hlft-form-modal').hide();
-                        showToast('Ticket updated');
-                        openDetail(t.ticket_uuid);
-                        loadTickets();
+                        if (pendingFormFiles.length) {
+                            uploadFiles(pendingFormFiles, t.ticket_uuid, null, function() {
+                                pendingFormFiles = [];
+                                $btn.prop('disabled', false).text('Save Changes');
+                                $('#hlft-form-modal').hide();
+                                showToast('Ticket updated');
+                                openDetail(t.ticket_uuid);
+                                loadTickets();
+                            });
+                        } else {
+                            $btn.prop('disabled', false).text('Save Changes');
+                            $('#hlft-form-modal').hide();
+                            showToast('Ticket updated');
+                            openDetail(t.ticket_uuid);
+                            loadTickets();
+                        }
                     });
                 } else {
                     ajax('hl_ticket_create', data, function(t) {
