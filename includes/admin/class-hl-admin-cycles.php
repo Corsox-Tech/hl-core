@@ -2249,10 +2249,10 @@ class HL_Admin_Cycles {
                     $errors[] = $enr['user_email'] . ': ' . $reset_key->get_error_message();
                     continue;
                 }
-                $subject = __('Welcome to Housman Learning Academy — Set Your Password', 'hl-core');
+                $subject = __('Activate Your Housman Learning Academy Account', 'hl-core');
                 $body = $this->build_email_new($first_name, $enr['user_email'], $enr['user_login'], $enr['school_name'], $reset_key);
             } else {
-                $subject = __('Housman Learning Academy — Your Assessment is Ready', 'hl-core');
+                $subject = __('Housman Learning Academy — Log In Now', 'hl-core');
                 $body = $this->build_email_existing($first_name);
             }
 
@@ -2328,23 +2328,16 @@ class HL_Admin_Cycles {
 </td></tr>
 <tr><td style="background:#FFFFFF;padding:40px;">
 <p style="margin:0 0 24px;font-size:18px;font-weight:600;color:#1A2B47;">Hello ' . esc_html($first_name) . ',</p>
-<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been enrolled in a research study through <strong>Housman Learning Academy</strong> as part of the Lutheran Services Florida cycle.</p>
-<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">Your account is ready and your assessment activities are waiting for you. Please log in to get started with your <strong>Teacher Self-Assessment (Pre)</strong>.</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been enrolled in a new program through <strong>Housman Learning Academy</strong>!</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">Your account is ready. Please log in to get started with your program.</p>
 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:32px 0;"><tr><td align="center">
 <a href="' . esc_url($login_url) . '" style="display:inline-block;background:#2ECC71;color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;padding:14px 40px;border-radius:8px;">Log In to Your Account</a>
 </td></tr></table>
-<div style="background:#F4F5F7;border-radius:8px;padding:20px 24px;margin:24px 0 0;">
-<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#1A2B47;">What to expect:</p>
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-<tr><td style="padding:4px 0;font-size:14px;line-height:1.5;color:#374151;"><span style="color:#2ECC71;font-weight:bold;margin-right:8px;">1.</span> Complete the <strong>Teacher Self-Assessment (Pre)</strong></td></tr>
-<tr><td style="padding:4px 0;font-size:14px;line-height:1.5;color:#374151;"><span style="color:#2ECC71;font-weight:bold;margin-right:8px;">2.</span> Complete the <strong>Child Assessment (Pre)</strong> for your classroom</td></tr>
-<tr><td style="padding:4px 0;font-size:14px;line-height:1.5;color:#374151;"><span style="color:#2ECC71;font-weight:bold;margin-right:8px;">3.</span> Post assessments will be available later in the program</td></tr>
-</table></div>
-<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#6B7280;">If you have trouble logging in, please use the <a href="' . esc_url($reset_url) . '" style="color:#2C7BE5;text-decoration:none;">password reset</a> option or contact your program coordinator.</p>
+<p style="margin:0;font-size:14px;line-height:1.5;color:#6B7280;">If you have trouble logging in, please use the <a href="' . esc_url($reset_url) . '" style="color:#2C7BE5;text-decoration:none;">password reset</a> option or contact your program coordinator.</p>
 </td></tr>
 <tr><td style="background:#F4F5F7;padding:24px 40px;text-align:center;border-top:1px solid #E5E7EB;border-radius:0 0 12px 12px;">
 <p style="margin:0 0 8px;font-size:13px;color:#6B7280;">Housman Learning Academy</p>
-<p style="margin:0;font-size:12px;color:#9CA3AF;">This email was sent because you are enrolled in a research cycle.<br>Please do not reply to this email.</p>
+<p style="margin:0;font-size:12px;color:#9CA3AF;">Please do not reply to this email.</p>
 </td></tr>
 </table></body></html>';
     }
@@ -2364,10 +2357,10 @@ class HL_Admin_Cycles {
 </td></tr>
 <tr><td style="background:#FFFFFF;padding:40px;">
 <p style="margin:0 0 24px;font-size:18px;font-weight:600;color:#1A2B47;">Hello ' . esc_html($first_name) . ',</p>
-<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">You have been invited to participate in a research study through <strong>Housman Learning Academy</strong> in cycle with <strong>Lutheran Services Florida</strong>.</p>
-<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">An account has been created for you. To get started, please click the button below to set your password and access your assessments.</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">Welcome to <strong>Housman Learning Academy</strong>! Your learning account has been created, and you\'re just one step away from accessing your courses and resources.</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">To activate your account, select the button below to set your password and get started:</p>
 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:32px 0;"><tr><td align="center">
-<a href="' . esc_url($invite_url) . '" style="display:inline-block;background:#2ECC71;color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;padding:14px 40px;border-radius:8px;">Accept Invitation &amp; Set Password</a>
+<a href="' . esc_url($invite_url) . '" style="display:inline-block;background:#2ECC71;color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;padding:14px 40px;border-radius:8px;">Activate My Account</a>
 </td></tr></table>
 <div style="background:#DBEAFE;border-radius:8px;padding:20px 24px;margin:0 0 24px;border-left:4px solid #2C7BE5;">
 <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#1A2B47;">Your account details:</p>
@@ -2375,19 +2368,13 @@ class HL_Admin_Cycles {
 <tr><td style="padding:2px 12px 2px 0;font-size:14px;color:#6B7280;">Email:</td><td style="padding:2px 0;font-size:14px;font-weight:600;color:#374151;">' . esc_html($email) . '</td></tr>
 <tr><td style="padding:2px 12px 2px 0;font-size:14px;color:#6B7280;">School:</td><td style="padding:2px 0;font-size:14px;font-weight:600;color:#374151;">' . esc_html($school_name ?: '-') . '</td></tr>
 </table></div>
-<div style="background:#F4F5F7;border-radius:8px;padding:20px 24px;margin:0;">
-<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#1A2B47;">What to expect:</p>
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-<tr><td style="padding:4px 0;font-size:14px;line-height:1.5;color:#374151;"><span style="color:#2ECC71;font-weight:bold;margin-right:8px;">1.</span> Set your password using the button above</td></tr>
-<tr><td style="padding:4px 0;font-size:14px;line-height:1.5;color:#374151;"><span style="color:#2ECC71;font-weight:bold;margin-right:8px;">2.</span> Complete the <strong>Teacher Self-Assessment (Pre)</strong></td></tr>
-<tr><td style="padding:4px 0;font-size:14px;line-height:1.5;color:#374151;"><span style="color:#2ECC71;font-weight:bold;margin-right:8px;">3.</span> Complete the <strong>Child Assessment (Pre)</strong> for your classroom</td></tr>
-<tr><td style="padding:4px 0;font-size:14px;line-height:1.5;color:#374151;"><span style="color:#2ECC71;font-weight:bold;margin-right:8px;">4.</span> Post assessments will be available later in the program</td></tr>
-</table></div>
-<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#6B7280;">This invitation link expires in <strong>7 days</strong>. If the link has expired, you can request a new one at the <a href="' . esc_url($reset_url) . '" style="color:#2C7BE5;text-decoration:none;">password reset page</a>.</p>
+<p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#6B7280;">If you didn\'t expect this email or believe it was sent in error, feel free to ignore it.</p>
+<p style="margin:0;font-size:14px;line-height:1.5;color:#374151;">Looking forward to seeing you on Housman Learning Academy!</p>
+<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#6B7280;">This activation link expires in <strong>7 days</strong>. If the link has expired, you can request a new one at the <a href="' . esc_url($reset_url) . '" style="color:#2C7BE5;text-decoration:none;">password reset page</a>.</p>
 </td></tr>
 <tr><td style="background:#F4F5F7;padding:24px 40px;text-align:center;border-top:1px solid #E5E7EB;border-radius:0 0 12px 12px;">
 <p style="margin:0 0 8px;font-size:13px;color:#6B7280;">Housman Learning Academy</p>
-<p style="margin:0;font-size:12px;color:#9CA3AF;">This email was sent because you were invited to participate in a research cycle.<br>Please do not reply to this email.</p>
+<p style="margin:0;font-size:12px;color:#9CA3AF;">Please do not reply to this email.</p>
 </td></tr>
 </table></body></html>';
     }
