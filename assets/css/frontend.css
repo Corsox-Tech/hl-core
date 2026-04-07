@@ -10340,6 +10340,124 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     transition: opacity 0.3s;
 }
 
+/* ── Department Read-Only Field ── */
+.hlft-dept-readonly {
+    padding: 8px 10px;
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-sm);
+    background: #f5f5f5;
+    color: var(--hl-text);
+    font-size: 14px;
+    cursor: default;
+}
+.hlft-dept-empty {
+    color: var(--hl-text-secondary);
+    font-style: italic;
+}
+
+/* ── Category Meta Badge (detail modal) ── */
+.hlft-meta-category {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    font-size: 12px;
+    color: var(--hl-text-secondary);
+}
+
+/* ── Context "Viewing as" (detail modal) ── */
+.hlft-meta-context {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #fff3e0;
+    border: 1px solid #ffe0b2;
+    font-size: 12px;
+    color: #e65100;
+}
+.hlft-meta-context a {
+    color: #e65100;
+    text-decoration: underline;
+}
+
+/* ── Context User Search ── */
+.hlft-context-user-wrap {
+    margin-top: 8px;
+}
+.hlft-user-search-wrap {
+    position: relative;
+}
+.hlft-user-search-wrap input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-sm);
+    font-size: 14px;
+    box-sizing: border-box;
+}
+.hlft-user-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    border-top: none;
+    border-radius: 0 0 var(--hl-radius-sm) var(--hl-radius-sm);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100003;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.hlft-user-search-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.hlft-user-search-item:hover {
+    background: var(--hl-bg-hover, #f0f0f0);
+}
+.hlft-user-search-loading,
+.hlft-user-search-empty {
+    padding: 10px;
+    text-align: center;
+    color: var(--hl-text-secondary);
+    font-size: 13px;
+}
+
+/* ── Context User Chip ── */
+.hlft-context-user-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: var(--hl-surface);
+    border: 1px solid var(--hl-border);
+    font-size: 14px;
+    margin-top: 6px;
+}
+.hlft-context-user-chip .hlft-avatar {
+    width: 20px;
+    height: 20px;
+}
+.hlft-chip-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--hl-text-secondary);
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+}
+.hlft-chip-remove:hover {
+    color: var(--hl-error, #d32f2f);
+}
+
 /* =====================================================
    HIDE LD FOCUS MODE ELEMENTS (our template replaces them)
    LD's Focus Mode renders its own header, sidebar, and
