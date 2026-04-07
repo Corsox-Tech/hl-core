@@ -613,7 +613,6 @@
                     } else {
                         finishComment([]);
                     }
-                    $('#hlft-comments-list').append(html);
                 });
             });
 
