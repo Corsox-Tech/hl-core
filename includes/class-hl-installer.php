@@ -133,7 +133,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 32;
+        $current_revision = 33;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -188,6 +188,11 @@ class HL_Installer {
             // Rev 32: Add hl_user_profile table for auth/profile system.
             if ( (int) $stored < 32 ) {
                 // Table created by dbDelta in get_schema(). No ALTER TABLE needed.
+            }
+
+            // Rev 33: Add 'draft' to hl_ticket.status enum.
+            if ( (int) $stored < 33 ) {
+                self::migrate_ticket_draft_status();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -1979,7 +1984,7 @@ class HL_Installer {
             description longtext NOT NULL,
             type enum('bug','improvement','feature_request') NOT NULL,
             priority enum('low','medium','high','critical') NOT NULL DEFAULT 'medium',
-            status enum('open','in_review','in_progress','resolved','closed') NOT NULL DEFAULT 'open',
+            status enum('draft','open','in_review','in_progress','resolved','closed') NOT NULL DEFAULT 'open',
             creator_user_id bigint(20) unsigned NOT NULL,
             resolved_at datetime NULL DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -3413,5 +3418,35 @@ class HL_Installer {
                 }
             }
         }
+    }
+
+    /**
+     * Rev 33: Add 'draft' to hl_ticket.status ENUM.
+     *
+     * MODIFY COLUMN rewrites the column definition but preserves all existing row values.
+     * Guard prevents running twice if already applied.
+     * Explicit CHARACTER SET + COLLATE ensures charset doesn't drift on MODIFY.
+     */
+    private static function migrate_ticket_draft_status() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_ticket';
+
+        // Check if 'draft' is already in the enum before running.
+        $col = $wpdb->get_row( $wpdb->prepare(
+            "SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = %s
+               AND COLUMN_NAME = 'status'",
+            $table
+        ) );
+
+        // If we can't verify (NULL result), proceed — MODIFY COLUMN is safe to re-run.
+        if ( $col && strpos( $col->COLUMN_TYPE, "'draft'" ) !== false ) {
+            return; // Already applied.
+        }
+
+        $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN `status`
+            enum('draft','open','in_review','in_progress','resolved','closed') NOT NULL DEFAULT 'open'
+            CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" );
     }
 }
