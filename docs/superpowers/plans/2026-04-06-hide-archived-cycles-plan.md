@@ -205,7 +205,30 @@ if ( HL_Security::should_hide_archived() ) {
 }
 ```
 
-### 3B. Sort track blocks for most recent active default (after line 215, before line 217)
+### 3B. Distinct empty state for archived-only users
+
+The existing empty state at line 94 shows "You are not currently enrolled in any active programs." This is misleading for users who DO have enrollments but only in archived cycles. Save a reference to the unfiltered count before filtering:
+
+**Insert before the filter block (before line 91):**
+```php
+$all_enrollment_count = count( $enrollments );
+```
+
+**Then replace the empty check at line 94** with:
+```php
+if ( empty( $enrollments ) ) {
+    if ( $all_enrollment_count > 0 && HL_Security::should_hide_archived() ) {
+        echo '<div class="hl-dashboard hl-my-progress hl-frontend-wrap">';
+        echo '<div class="hl-notice hl-notice-info">'
+            . esc_html__( 'Your enrolled cycles have been archived. Visit My Programs to access your course materials.', 'hl-core' )
+            . '</div></div>';
+        return ob_get_clean();
+    }
+    // Original empty state...
+}
+```
+
+### 3C. Sort track blocks for most recent active default (after line 215, before line 217)
 
 **Insert after the `$track_blocks` foreach loop ends (line 215), before `if (empty($track_blocks))`:**
 ```php
@@ -233,9 +256,13 @@ if ( HL_Security::should_hide_archived() ) {
 }
 ```
 
-### 4B. Sort track blocks (after line 85, before empty check)
+### 4B. Distinct empty state for archived-only mentors
 
-Same `usort` pattern as Step 3B.
+Same pattern as Step 3B. Save unfiltered count, show archived-aware message when all mentor enrollments were filtered.
+
+### 4C. Sort track blocks (after line 85, before empty check)
+
+Same `usort` pattern as Step 3C.
 
 ---
 
