@@ -133,7 +133,11 @@ class HL_Auth_Service {
         } else {
             global $wpdb;
             $roles_json = $wpdb->get_var($wpdb->prepare(
-                "SELECT roles FROM {$wpdb->prefix}hl_enrollment WHERE user_id = %d AND status = 'active' LIMIT 1",
+                "SELECT e.roles
+                 FROM {$wpdb->prefix}hl_enrollment e
+                 JOIN {$wpdb->prefix}hl_cycle c ON e.cycle_id = c.cycle_id
+                 WHERE e.user_id = %d AND e.status = 'active' AND c.status != 'archived'
+                 LIMIT 1",
                 $user->ID
             ));
             $hl_roles = $roles_json ? json_decode($roles_json, true) : array();

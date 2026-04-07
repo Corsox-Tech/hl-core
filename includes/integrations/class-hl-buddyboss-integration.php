@@ -533,7 +533,10 @@ class HL_BuddyBoss_Integration {
         global $wpdb;
 
         $rows = $wpdb->get_col($wpdb->prepare(
-            "SELECT roles FROM {$wpdb->prefix}hl_enrollment WHERE user_id = %d AND status = 'active'",
+            "SELECT e.roles
+             FROM {$wpdb->prefix}hl_enrollment e
+             JOIN {$wpdb->prefix}hl_cycle c ON e.cycle_id = c.cycle_id
+             WHERE e.user_id = %d AND e.status = 'active' AND c.status != 'archived'",
             $user_id
         ));
 
