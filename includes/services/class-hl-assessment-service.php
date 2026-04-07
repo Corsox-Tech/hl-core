@@ -756,6 +756,140 @@ class HL_Assessment_Service {
     }
 
     // =========================================================================
+    // Teacher Assessment Instance Generation
+    // =========================================================================
+
+    /**
+     * Generate teacher assessment instances for a cycle.
+     *
+     * For each active enrollment in the cycle, creates a PRE and POST instance
+     * using the instrument_id from the cycle's teacher_self_assessment components.
+     * Skips enrollments that already have an instance for that phase.
+     *
+     * @param int $cycle_id
+     * @return array ['created' => int, 'existing' => int, 'errors' => array]
+     */
+    public function generate_teacher_assessment_instances($cycle_id) {
+        global $wpdb;
+
+        $result = array('created' => 0, 'existing' => 0, 'errors' => array());
+
+        // Find teacher_self_assessment components for this cycle to get instrument_id per phase.
+        $components = $wpdb->get_results($wpdb->prepare(
+            "SELECT component_id, pathway_id, external_ref
+             FROM {$wpdb->prefix}hl_component
+             WHERE cycle_id = %d AND component_type = 'teacher_self_assessment'",
+            $cycle_id
+        ));
+
+        if (empty($components)) {
+            $result['errors'][] = __('No teacher self-assessment components found for this cycle.', 'hl-core');
+            return $result;
+        }
+
+        // Build phase → instrument_id map from components' external_ref.
+        // Also build pathway_id → component_id map per phase for linking.
+        $phase_instrument = array();   // phase => instrument_id
+        $phase_components = array();   // phase => [ pathway_id => component_id ]
+        foreach ($components as $cmp) {
+            $ref = json_decode($cmp->external_ref, true);
+            $phase = isset($ref['phase']) ? $ref['phase'] : null;
+            $inst_id = isset($ref['teacher_instrument_id']) ? absint($ref['teacher_instrument_id']) : 0;
+            if ($phase && $inst_id) {
+                $phase_instrument[$phase] = $inst_id;
+                if (!isset($phase_components[$phase])) {
+                    $phase_components[$phase] = array();
+                }
+                $phase_components[$phase][$cmp->pathway_id] = $cmp->component_id;
+            }
+        }
+
+        if (empty($phase_instrument)) {
+            $result['errors'][] = __('No teacher self-assessment components with valid instrument configuration found.', 'hl-core');
+            return $result;
+        }
+
+        // Get all active enrollments for this cycle with their pathway assignment.
+        $enrollments = $wpdb->get_results($wpdb->prepare(
+            "SELECT e.enrollment_id, e.user_id, pa.pathway_id
+             FROM {$wpdb->prefix}hl_enrollment e
+             LEFT JOIN {$wpdb->prefix}hl_pathway_assignment pa
+                ON pa.enrollment_id = e.enrollment_id
+             WHERE e.cycle_id = %d AND e.status = 'active'",
+            $cycle_id
+        ));
+
+        if (empty($enrollments)) {
+            return $result;
+        }
+
+        // Get instrument versions.
+        $instrument_versions = array();
+        foreach ($phase_instrument as $phase => $inst_id) {
+            $instrument = $this->get_teacher_instrument($inst_id);
+            $instrument_versions[$phase] = $instrument ? $instrument->instrument_version : null;
+        }
+
+        foreach ($enrollments as $enrollment) {
+            foreach ($phase_instrument as $phase => $instrument_id) {
+                // Check if instance already exists.
+                $existing = $wpdb->get_var($wpdb->prepare(
+                    "SELECT instance_id FROM {$wpdb->prefix}hl_teacher_assessment_instance
+                     WHERE cycle_id = %d AND enrollment_id = %d AND phase = %s",
+                    $cycle_id, $enrollment->enrollment_id, $phase
+                ));
+
+                if ($existing) {
+                    $result['existing']++;
+                    continue;
+                }
+
+                // Resolve component_id from enrollment's pathway.
+                $component_id = null;
+                if ($enrollment->pathway_id && isset($phase_components[$phase][$enrollment->pathway_id])) {
+                    $component_id = $phase_components[$phase][$enrollment->pathway_id];
+                }
+
+                $insert_data = array(
+                    'instance_uuid'      => HL_DB_Utils::generate_uuid(),
+                    'cycle_id'           => absint($cycle_id),
+                    'enrollment_id'      => absint($enrollment->enrollment_id),
+                    'component_id'       => $component_id,
+                    'phase'              => $phase,
+                    'instrument_id'      => $instrument_id,
+                    'instrument_version' => $instrument_versions[$phase],
+                    'status'             => 'not_started',
+                );
+
+                $insert_result = $wpdb->insert($wpdb->prefix . 'hl_teacher_assessment_instance', $insert_data);
+
+                if ($insert_result === false) {
+                    $result['errors'][] = sprintf(
+                        __('Failed to create %s instance for enrollment %d.', 'hl-core'),
+                        strtoupper($phase),
+                        $enrollment->enrollment_id
+                    );
+                } else {
+                    $result['created']++;
+                }
+            }
+        }
+
+        if ($result['created'] > 0) {
+            HL_Audit_Service::log('teacher_assessment.instances_generated', array(
+                'entity_type' => 'teacher_assessment_instance',
+                'cycle_id'    => $cycle_id,
+                'after_data'  => array(
+                    'created'  => $result['created'],
+                    'existing' => $result['existing'],
+                ),
+            ));
+        }
+
+        return $result;
+    }
+
+    // =========================================================================
     // Child Assessment Instance Generation
     // =========================================================================
 

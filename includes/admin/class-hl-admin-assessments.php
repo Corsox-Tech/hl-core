@@ -95,6 +95,31 @@ class HL_Admin_Assessments {
             wp_redirect($redirect);
             exit;
         }
+
+        // Generate teacher assessment instances
+        if (isset($_POST['hl_generate_teacher_nonce'])) {
+            if (!wp_verify_nonce($_POST['hl_generate_teacher_nonce'], 'hl_generate_teacher_instances')) {
+                wp_die(__('Security check failed.', 'hl-core'));
+            }
+            if (!current_user_can('manage_hl_core')) {
+                wp_die(__('You do not have permission to perform this action.', 'hl-core'));
+            }
+
+            $cycle_id = absint($_POST['cycle_id']);
+            $service = new HL_Assessment_Service();
+            $result = $service->generate_teacher_assessment_instances($cycle_id);
+
+            $msg = 'generated';
+            if (!empty($result['errors'])) {
+                $msg = 'generate_errors';
+            } elseif ($result['created'] === 0 && $result['existing'] > 0) {
+                $msg = 'generate_none';
+            }
+
+            $redirect = admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&tab=teacher&message=' . $msg . '&created=' . $result['created'] . '&existing=' . $result['existing']);
+            wp_redirect($redirect);
+            exit;
+        }
     }
 
     /**
@@ -296,6 +321,22 @@ class HL_Admin_Assessments {
     private function render_teacher_tab($cycle_id, $service) {
         $instances = $service->get_teacher_assessments_by_cycle($cycle_id);
 
+        // Action buttons row
+        echo '<div class="hl-top-bar" style="justify-content:flex-start;">';
+
+        // Generate instances button
+        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&tab=teacher')) . '" style="display:inline;">';
+        wp_nonce_field('hl_generate_teacher_instances', 'hl_generate_teacher_nonce');
+        echo '<input type="hidden" name="cycle_id" value="' . esc_attr($cycle_id) . '" />';
+        submit_button(
+            __('Generate Instances for All Enrollments', 'hl-core'),
+            'secondary',
+            'submit',
+            false,
+            array('onclick' => 'return confirm("' . esc_js(__('This will create PRE and POST teacher assessment instances for all active enrollments in this cycle. Continue?', 'hl-core')) . '");')
+        );
+        echo '</form>';
+
         // Export buttons
         $export_completion_url = wp_nonce_url(
             admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&export=teacher'),
@@ -305,9 +346,9 @@ class HL_Admin_Assessments {
             admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&export=teacher_responses'),
             'hl_export_teacher_responses_' . $cycle_id
         );
-        echo '<div class="hl-top-bar">';
         echo '<a href="' . esc_url($export_completion_url) . '" class="button">' . esc_html__('Export Completion CSV', 'hl-core') . '</a>';
         echo '<a href="' . esc_url($export_responses_url) . '" class="button">' . esc_html__('Export Responses CSV', 'hl-core') . '</a>';
+
         echo '</div>';
 
         if (empty($instances)) {
@@ -958,12 +999,16 @@ class HL_Admin_Assessments {
         $msg = sanitize_text_field($_GET['message']);
         $created  = isset($_GET['created']) ? absint($_GET['created']) : 0;
         $existing = isset($_GET['existing']) ? absint($_GET['existing']) : 0;
+        $tab      = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'teacher';
+        $label    = ($tab === 'children') ? __('child assessment', 'hl-core') : __('teacher assessment', 'hl-core');
 
         switch ($msg) {
             case 'generated':
                 echo '<div class="notice notice-success is-dismissible"><p>';
                 echo esc_html(sprintf(
-                    __('child assessment instances generated: %d created, %d already existed.', 'hl-core'),
+                    /* translators: 1: assessment type, 2: created count, 3: existing count */
+                    __('%1$s instances generated: %2$d created, %3$d already existed.', 'hl-core'),
+                    ucfirst($label),
                     $created,
                     $existing
                 ));
@@ -973,8 +1018,9 @@ class HL_Admin_Assessments {
             case 'generate_none':
                 echo '<div class="notice notice-info is-dismissible"><p>';
                 echo esc_html(sprintf(
-                    __('All %d child assessment instances already exist. No new instances created.', 'hl-core'),
-                    $existing
+                    __('All %1$d %2$s instances already exist. No new instances created.', 'hl-core'),
+                    $existing,
+                    $label
                 ));
                 echo '</p></div>';
                 break;
