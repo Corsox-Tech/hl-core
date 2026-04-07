@@ -244,10 +244,6 @@ class HL_Core {
         add_action('plugins_loaded', array($this, 'init'));
         add_action('init', array($this, 'load_textdomain'));
 
-        // Extend password reset key expiration to 7 days (default is 24 hours).
-        add_filter('password_reset_expiration', function () {
-            return 7 * DAY_IN_SECONDS;
-        });
     }
     
     /**
