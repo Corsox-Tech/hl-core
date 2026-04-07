@@ -1964,7 +1964,7 @@ class HL_Admin_Cycles {
                                             }
                                         } catch(e) {}
                                     };
-                                    xhr2.send('action=hl_send_cycle_emails&sub_action=load_recipients&cycle_id=' + cycleId + '&cycle_id=' + cycleSelect.value + '&_wpnonce=' + nonce);
+                                    xhr2.send('action=hl_send_cycle_emails&sub_action=load_recipients&cycle_id=' + cycleId + '&_wpnonce=' + nonce);
                                 } else {
                                     sendBtn.disabled = false;
                                     sendBtn.textContent = '<?php echo esc_js(__('Send to Selected', 'hl-core')); ?> (' + ids.length + ')';
@@ -1975,7 +1975,7 @@ class HL_Admin_Cycles {
                                 alert('Unexpected error.');
                             }
                         };
-                        xhr.send('action=hl_send_cycle_emails&sub_action=send&cycle_id=' + cycleId + '&cycle_id=' + cycleSelect.value + '&user_ids=' + ids.join(',') + '&_wpnonce=' + nonce);
+                        xhr.send('action=hl_send_cycle_emails&sub_action=send&cycle_id=' + cycleId + '&user_ids=' + ids.join(',') + '&_wpnonce=' + nonce);
                     });
                 }
 
@@ -2007,7 +2007,7 @@ class HL_Admin_Cycles {
                                             }
                                         } catch(e) {}
                                     };
-                                    xhr2.send('action=hl_send_cycle_emails&sub_action=load_recipients&cycle_id=' + cycleId + '&cycle_id=' + cycleSelect.value + '&_wpnonce=' + nonce);
+                                    xhr2.send('action=hl_send_cycle_emails&sub_action=load_recipients&cycle_id=' + cycleId + '&_wpnonce=' + nonce);
                                 } else {
                                     btn.style.opacity = '1';
                                     alert(resp.data || 'Error resetting.');
@@ -2016,7 +2016,7 @@ class HL_Admin_Cycles {
                                 btn.style.opacity = '1';
                             }
                         };
-                        xhr.send('action=hl_reset_email_log&cycle_id=' + cycleId + '&cycle_id=' + cycleSelect.value + '&user_id=' + userId + '&_wpnonce=' + resetNonce);
+                        xhr.send('action=hl_reset_email_log&cycle_id=' + cycleId + '&user_id=' + userId + '&_wpnonce=' + resetNonce);
                     });
                 });
 
