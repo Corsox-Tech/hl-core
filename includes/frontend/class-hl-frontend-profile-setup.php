@@ -429,13 +429,19 @@ class HL_Frontend_Profile_Setup {
 
                     <!-- Consent (required) -->
                     <div class="hl-consent-box">
-                        <h3><?php esc_html_e('Research Participation Consent', 'hl-core'); ?></h3>
-                        <div class="hl-consent-text">
-                            <p><?php esc_html_e('By checking this box, you acknowledge that you have read and agree to participate in the Housman Learning research study. Your data will be used for research purposes and handled in accordance with our privacy policy.', 'hl-core'); ?></p>
-                        </div>
                         <label class="hl-consent-check">
                             <input type="checkbox" name="hl_consent" value="1" required>
-                            <span><?php esc_html_e('I agree to the research participation terms', 'hl-core'); ?></span>
+                            <span><?php
+                                // TODO: Update URLs when Terms and Privacy Policy pages are created.
+                                $terms_url    = home_url('/terms-and-conditions/');
+                                $privacy_url  = home_url('/privacy-policy/');
+                                printf(
+                                    /* translators: %1$s = Terms link, %2$s = Privacy Policy link */
+                                    __('I have read and agree to the %1$s and %2$s.', 'hl-core'),
+                                    '<a href="' . esc_url($terms_url) . '" target="_blank" rel="noopener noreferrer">' . esc_html__('Terms and Conditions', 'hl-core') . '</a>',
+                                    '<a href="' . esc_url($privacy_url) . '" target="_blank" rel="noopener noreferrer">' . esc_html__('Privacy Policy', 'hl-core') . '</a>'
+                                );
+                            ?></span>
                         </label>
                     </div>
 
