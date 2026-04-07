@@ -85,8 +85,11 @@ class HL_Frontend_Classroom_Visit {
             return ob_get_clean();
         }
 
-        // Leader sees list of teachers to visit
-        $teachers = $cv_service->get_teachers_for_leader($enrollment_id, $cycle_id);
+        // Leader sees list of teachers to visit.
+        // Eligible roles and classroom requirement come from the component's admin settings.
+        $eligible_roles    = method_exists($component, 'get_eligible_roles_array') ? $component->get_eligible_roles_array() : array();
+        $requires_classroom = !isset($component->requires_classroom) || (bool) $component->requires_classroom;
+        $teachers = $cv_service->get_teachers_for_leader($enrollment_id, $cycle_id, $eligible_roles ?: null, $requires_classroom);
         $selected_teacher_id = isset($_GET['teacher']) ? absint($_GET['teacher']) : 0;
 
         if ($selected_teacher_id) {

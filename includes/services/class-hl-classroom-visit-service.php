@@ -155,16 +155,20 @@ class HL_Classroom_Visit_Service {
     }
 
     /**
-     * Get teacher enrollments in the leader's school(s) within the same cycle.
+     * Get enrollments the leader can visit within the same cycle.
      *
-     * Join path: leader enrollment → user_id → hl_cycle_school for schools in cycle
-     * → hl_teaching_assignment + hl_classroom to find teachers in those schools.
+     * When $eligible_roles is provided (from the component's eligible_roles field),
+     * results are filtered to those roles. When $requires_classroom is true, only
+     * enrollments with a teaching assignment are included; otherwise all enrollments
+     * at the school matching the roles are returned.
      *
-     * @param int $leader_enrollment_id
-     * @param int $cycle_id
+     * @param int        $leader_enrollment_id
+     * @param int        $cycle_id
+     * @param array|null $eligible_roles       Roles from component eligible_roles, or null for no role filter.
+     * @param bool       $requires_classroom   Whether a teaching assignment is required.
      * @return array
      */
-    public function get_teachers_for_leader($leader_enrollment_id, $cycle_id) {
+    public function get_teachers_for_leader($leader_enrollment_id, $cycle_id, $eligible_roles = null, $requires_classroom = true) {
         global $wpdb;
 
         $leader = $wpdb->get_row($wpdb->prepare(
@@ -203,18 +207,40 @@ class HL_Classroom_Visit_Service {
         $placeholders = implode(',', array_fill(0, count($schools), '%d'));
         $args = array_merge(array($cycle_id), $schools);
 
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT DISTINCT e.enrollment_id, e.user_id, u.display_name, u.user_email
-             FROM {$wpdb->prefix}hl_enrollment e
-             JOIN {$wpdb->users} u ON e.user_id = u.ID
-             JOIN {$wpdb->prefix}hl_teaching_assignment ta ON e.enrollment_id = ta.enrollment_id
-             JOIN {$wpdb->prefix}hl_classroom cl ON ta.classroom_id = cl.classroom_id
-             WHERE e.cycle_id = %d
-               AND cl.school_id IN ($placeholders)
-               AND e.status = 'active'
-             ORDER BY u.display_name ASC",
-            ...$args
-        ), ARRAY_A) ?: array();
+        if ($requires_classroom) {
+            $query = "SELECT DISTINCT e.enrollment_id, e.user_id, u.display_name, u.user_email
+                      FROM {$wpdb->prefix}hl_enrollment e
+                      JOIN {$wpdb->users} u ON e.user_id = u.ID
+                      JOIN {$wpdb->prefix}hl_teaching_assignment ta ON e.enrollment_id = ta.enrollment_id
+                      JOIN {$wpdb->prefix}hl_classroom cl ON ta.classroom_id = cl.classroom_id
+                      WHERE e.cycle_id = %d
+                        AND cl.school_id IN ($placeholders)
+                        AND e.status = 'active'";
+        } else {
+            $query = "SELECT DISTINCT e.enrollment_id, e.user_id, u.display_name, u.user_email
+                      FROM {$wpdb->prefix}hl_enrollment e
+                      JOIN {$wpdb->users} u ON e.user_id = u.ID
+                      WHERE e.cycle_id = %d
+                        AND e.school_id IN ($placeholders)
+                        AND e.status = 'active'";
+        }
+
+        // Filter by eligible roles when specified.
+        if (!empty($eligible_roles)) {
+            $role_clauses = array();
+            foreach ($eligible_roles as $role) {
+                $role_clauses[] = 'e.roles LIKE %s';
+                $args[] = '%' . $wpdb->esc_like('"' . sanitize_key($role) . '"') . '%';
+            }
+            $query .= ' AND (' . implode(' OR ', $role_clauses) . ')';
+        }
+
+        $query .= ' ORDER BY u.display_name ASC';
+
+        return $wpdb->get_results(
+            $wpdb->prepare($query, ...$args),
+            ARRAY_A
+        ) ?: array();
     }
 
     /**
