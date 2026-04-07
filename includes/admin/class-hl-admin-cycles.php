@@ -2369,8 +2369,8 @@ class HL_Admin_Cycles {
      */
     private function build_email_existing($first_name) {
         $logo_url  = 'https://academy.housmanlearning.com/wp-content/uploads/2024/09/Housman-Learning-Logo-Horizontal-Color.svg';
-        $login_url = 'https://academy.housmanlearning.com/wp-login.php';
-        $reset_url = 'https://academy.housmanlearning.com/wp-login.php?action=lostpassword';
+        $login_url = wp_login_url();
+        $reset_url = wp_lostpassword_url();
 
         return '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#F4F5F7;">
 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;">
@@ -2405,8 +2405,8 @@ class HL_Admin_Cycles {
      */
     private function build_email_new($first_name, $email, $user_login, $school_name, $reset_key) {
         $logo_url  = 'https://academy.housmanlearning.com/wp-content/uploads/2024/09/Housman-Learning-Logo-Horizontal-Color.svg';
-        $invite_url = 'https://academy.housmanlearning.com/wp-login.php?action=rp&key=' . rawurlencode($reset_key) . '&login=' . rawurlencode($user_login);
-        $reset_url  = 'https://academy.housmanlearning.com/wp-login.php?action=lostpassword';
+        $invite_url = network_site_url('wp-login.php?action=rp&key=' . rawurlencode($reset_key) . '&login=' . rawurlencode($user_login), 'login');
+        $reset_url  = wp_lostpassword_url();
 
         return '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#F4F5F7;">
 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;">

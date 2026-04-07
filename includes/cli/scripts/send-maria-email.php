@@ -11,7 +11,7 @@ if (is_wp_error($reset_key)) {
     exit(1);
 }
 
-$reset_url = 'https://academy.housmanlearning.com/wp-login.php?action=rp&key=' . $reset_key . '&login=' . rawurlencode($maria->user_login);
+$reset_url = network_site_url('wp-login.php?action=rp&key=' . rawurlencode($reset_key) . '&login=' . rawurlencode($maria->user_login), 'login');
 echo "Reset URL: {$reset_url}\n";
 
 $school_name = $wpdb->get_var($wpdb->prepare(
@@ -49,7 +49,7 @@ $body .= '<tr><td style="padding:4px 0;font-size:14px;line-height:1.5;color:#374
 $body .= '<tr><td style="padding:4px 0;font-size:14px;line-height:1.5;color:#374151;"><span style="color:#2ECC71;font-weight:bold;margin-right:8px;">3.</span> Complete the <strong>Child Assessment (Pre)</strong> for your classroom</td></tr>';
 $body .= '<tr><td style="padding:4px 0;font-size:14px;line-height:1.5;color:#374151;"><span style="color:#2ECC71;font-weight:bold;margin-right:8px;">4.</span> Post assessments will be available later in the program</td></tr>';
 $body .= '</table></div>';
-$body .= '<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#6B7280;">This invitation link expires in <strong>48 hours</strong>. If the link has expired, you can request a new one at the <a href="https://academy.housmanlearning.com/wp-login.php?action=lostpassword" style="color:#2C7BE5;text-decoration:none;">password reset page</a>.</p>';
+$body .= '<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#6B7280;">This invitation link expires in <strong>48 hours</strong>. If the link has expired, you can request a new one at the <a href="' . esc_url(wp_lostpassword_url()) . '" style="color:#2C7BE5;text-decoration:none;">password reset page</a>.</p>';
 $body .= '</td></tr>';
 $body .= '<tr><td style="background:#F4F5F7;padding:24px 40px;text-align:center;border-top:1px solid #E5E7EB;border-radius:0 0 12px 12px;">';
 $body .= '<p style="margin:0 0 8px;font-size:13px;color:#6B7280;">Housman Learning Academy</p>';

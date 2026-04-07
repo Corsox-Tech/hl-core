@@ -5,8 +5,8 @@ global $wpdb;
 $headers = array('Content-Type: text/html; charset=UTF-8');
 $logo = '<div style="text-align:center;"><img src="https://academy.housmanlearning.com/wp-content/uploads/2024/09/Housman-Learning-Logo-Horizontal-Color.svg" alt="Housman Learning" width="200" style="display:inline-block;max-width:200px;width:200px;height:auto;" /></div>';
 
-$login_url  = 'https://academy.housmanlearning.com/wp-login.php';
-$reset_page = 'https://academy.housmanlearning.com/wp-login.php?action=lostpassword';
+$login_url  = wp_login_url();
+$reset_page = wp_lostpassword_url();
 
 // ── Email A: Jane (OLD teacher) ──────────────────────────────────────
 $jane = get_user_by('email', 'jane.test.housman@yopmail.com');
@@ -44,7 +44,7 @@ if (!$maria) { echo "ERROR: Maria not found\n"; exit(1); }
 
 $reset_key = get_password_reset_key($maria);
 if (is_wp_error($reset_key)) { echo "ERROR: " . $reset_key->get_error_message() . "\n"; exit(1); }
-$reset_url = 'https://academy.housmanlearning.com/wp-login.php?action=rp&key=' . $reset_key . '&login=' . rawurlencode($maria->user_login);
+$reset_url = network_site_url('wp-login.php?action=rp&key=' . rawurlencode($reset_key) . '&login=' . rawurlencode($maria->user_login), 'login');
 
 $school_name = $wpdb->get_var($wpdb->prepare(
     "SELECT o.name FROM {$wpdb->prefix}hl_orgunit o INNER JOIN {$wpdb->prefix}hl_enrollment e ON e.school_id = o.orgunit_id WHERE e.user_id = %d AND e.cycle_id = 1 LIMIT 1",

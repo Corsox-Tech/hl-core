@@ -12,8 +12,8 @@ $headers = array(
     'From: Housman Learning Academy <noreply@academy.housmanlearning.com>',
 );
 
-$login_url  = 'https://academy.housmanlearning.com/wp-login.php';
-$reset_page = 'https://academy.housmanlearning.com/wp-login.php?action=lostpassword';
+$login_url  = wp_login_url();
+$reset_page = wp_lostpassword_url();
 
 // ── Helper: build the "existing teacher" email ───────────────────────
 function hl_build_existing_email($user) {
@@ -94,7 +94,7 @@ function hl_build_new_email($user, $reset_url, $school_name) {
           <tr><td style="padding:4px 0;font-size:14px;line-height:1.5;color:#374151;"><span style="color:#2ECC71;font-weight:bold;margin-right:8px;">4.</span> Post assessments will be available later in the program</td></tr>
         </table>
       </div>
-      <p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#6B7280;">This invitation link expires in <strong>48 hours</strong>. If the link has expired, you can request a new one at the <a href="https://academy.housmanlearning.com/wp-login.php?action=lostpassword" style="color:#2C7BE5;text-decoration:none;">password reset page</a>.</p>
+      <p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#6B7280;">This invitation link expires in <strong>48 hours</strong>. If the link has expired, you can request a new one at the <a href="' . esc_url(wp_lostpassword_url()) . '" style="color:#2C7BE5;text-decoration:none;">password reset page</a>.</p>
     </td>
   </tr>
   <tr>
@@ -128,7 +128,7 @@ if (is_wp_error($reset_key)) {
     echo "ERROR generating reset key for Maria: " . $reset_key->get_error_message() . "\n";
     exit(1);
 }
-$reset_url = "https://academy.housmanlearning.com/wp-login.php?action=rp&key={$reset_key}&login=" . rawurlencode($maria->user_login);
+$reset_url = network_site_url('wp-login.php?action=rp&key=' . rawurlencode($reset_key) . '&login=' . rawurlencode($maria->user_login), 'login');
 
 $school_name = $wpdb->get_var($wpdb->prepare(
     "SELECT o.name FROM {$wpdb->prefix}hl_orgunit o
