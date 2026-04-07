@@ -204,20 +204,20 @@ class HL_Frontend_Profile_Setup {
                         </div>
                     </div>
 
-                    <!-- Email: read-only -->
-                    <div class="hl-auth-field">
-                        <label for="hl-email"><?php esc_html_e('Email', 'hl-core'); ?> <span class="hl-required">*</span></label>
-                        <input type="email" id="hl-email" name="hl_email" readonly
-                               class="hl-input--readonly"
-                               value="<?php echo esc_attr($user->user_email); ?>">
-                    </div>
-
-                    <!-- Nickname -->
-                    <div class="hl-auth-field">
-                        <label for="hl-nickname"><?php esc_html_e('Nickname', 'hl-core'); ?> <span class="hl-required">*</span></label>
-                        <input type="text" id="hl-nickname" name="hl_nickname" required
-                               placeholder="<?php esc_attr_e('What should we call you?', 'hl-core'); ?>"
-                               value="<?php echo esc_attr($profile->nickname ?? ''); ?>">
+                    <!-- Email + Nickname (same row) -->
+                    <div class="hl-field-row--2col">
+                        <div class="hl-auth-field">
+                            <label for="hl-email"><?php esc_html_e('Email', 'hl-core'); ?> <span class="hl-required">*</span></label>
+                            <input type="email" id="hl-email" name="hl_email" readonly
+                                   class="hl-input--readonly"
+                                   value="<?php echo esc_attr($user->user_email); ?>">
+                        </div>
+                        <div class="hl-auth-field">
+                            <label for="hl-nickname"><?php esc_html_e('Nickname', 'hl-core'); ?> <span class="hl-required">*</span></label>
+                            <input type="text" id="hl-nickname" name="hl_nickname" required
+                                   placeholder="<?php esc_attr_e('What should we call you?', 'hl-core'); ?>"
+                                   value="<?php echo esc_attr($profile->nickname ?? ''); ?>">
+                        </div>
                     </div>
 
                     <!-- Phone Number (OPTIONAL) -->
