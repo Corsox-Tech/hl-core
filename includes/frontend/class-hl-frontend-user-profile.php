@@ -429,7 +429,7 @@ class HL_Frontend_User_Profile {
      * Rules:
      *  - Own profile: always
      *  - Admin/Staff (manage_hl_core): always
-     *  - Coach: assigned mentors (via hl_coach_assignment)
+     *  - Coach: can see anyone EXCEPT other admins and coaches
      *  - Mentor: team members (via hl_team_membership)
      *  - School Leader: staff in their school (via enrollment school_id)
      *
@@ -459,15 +459,9 @@ class HL_Frontend_User_Profile {
             $target_enrollment_ids[] = (int) $e->enrollment_id;
         }
 
-        // Coach uses WP roles (not enrollment roles) because coaches have a
-        // dedicated WP role and their access is determined by hl_coach_assignment,
-        // not by per-enrollment role arrays like school_leader/mentor.
-        // Check BEFORE the enrollment guard — coaches may have no HL enrollment.
-        // Coaches can view anyone in the same partnership as their assignments.
+        // Coach: can see everyone.
         if (in_array('coach', (array) wp_get_current_user()->roles, true)) {
-            if ($this->is_coach_in_same_partnership($viewer_id, $target_enrollments)) {
-                return true;
-            }
+            return true;
         }
 
         // Get viewer's enrollments.
@@ -551,32 +545,16 @@ class HL_Frontend_User_Profile {
     }
 
     /**
-     * Check if the viewer (coach) is directly assigned to any of the target's enrollments
-     * via hl_coach_assignment.
+     * Check if the viewer (coach) can see the target user's detailed tabs.
      *
-     * @param int   $coach_user_id       The coach's WP user ID.
-     * @param int[] $target_enrollment_ids The target user's enrollment IDs.
+     * Coaches can see everyone's tabs.
+     *
+     * @param int   $coach_user_id        The coach's WP user ID.
+     * @param mixed $target               Unused (kept for call-site compat).
      * @return bool
      */
-    private function is_coach_of_target($coach_user_id, $target_enrollment_ids) {
-        if (empty($target_enrollment_ids)) {
-            return false;
-        }
-
-        global $wpdb;
-        $prefix = $wpdb->prefix;
-        $placeholders = implode(',', array_fill(0, count($target_enrollment_ids), '%d'));
-
-        $args = array_merge(array($coach_user_id), $target_enrollment_ids);
-
-        $count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$prefix}hl_coach_assignment
-             WHERE coach_user_id = %d
-             AND mentor_enrollment_id IN ({$placeholders})",
-            $args
-        ));
-
-        return (int) $count > 0;
+    private function is_coach_of_target($coach_user_id, $target = null) {
+        return true;
     }
 
     /**

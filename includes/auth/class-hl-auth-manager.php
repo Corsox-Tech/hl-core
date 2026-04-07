@@ -226,6 +226,16 @@ class HL_Auth_Manager {
             return;
         }
 
+        // Skip profile gate during "View As" sessions (BB Members Switching).
+        // Admins/coaches viewing as another user should not be forced to complete
+        // that user's profile.
+        if (class_exists('BP_Core_Members_Switching') && BP_Core_Members_Switching::get_old_user()) {
+            return;
+        }
+        if (function_exists('user_switching_get_old_user') && user_switching_get_old_user()) {
+            return;
+        }
+
         // Don't gate the profile setup page itself or other auth pages
         if (is_page()) {
             global $post;
@@ -606,6 +616,14 @@ class HL_Auth_Manager {
         }
 
         if (!is_user_logged_in()) {
+            return;
+        }
+
+        // Skip during "View As" sessions
+        if (class_exists('BP_Core_Members_Switching') && BP_Core_Members_Switching::get_old_user()) {
+            return;
+        }
+        if (function_exists('user_switching_get_old_user') && user_switching_get_old_user()) {
             return;
         }
 
