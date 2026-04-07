@@ -106,8 +106,9 @@ class HL_Admin_Assessments {
             }
 
             $cycle_id = absint($_POST['cycle_id']);
-            $service = new HL_Assessment_Service();
-            $result = $service->generate_teacher_assessment_instances($cycle_id);
+            $phase    = isset($_POST['phase']) ? sanitize_text_field($_POST['phase']) : null;
+            $service  = new HL_Assessment_Service();
+            $result   = $service->generate_teacher_assessment_instances($cycle_id, $phase);
 
             $msg = 'generated';
             if (!empty($result['errors'])) {
@@ -324,16 +325,32 @@ class HL_Admin_Assessments {
         // Action buttons row
         echo '<div class="hl-top-bar" style="justify-content:flex-start;">';
 
-        // Generate instances button
-        echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&tab=teacher')) . '" style="display:inline;">';
+        // Generate PRE instances button
+        $form_action = esc_url(admin_url('admin.php?page=hl-assessments&cycle_id=' . $cycle_id . '&tab=teacher'));
+        echo '<form method="post" action="' . $form_action . '" style="display:inline;">';
         wp_nonce_field('hl_generate_teacher_instances', 'hl_generate_teacher_nonce');
         echo '<input type="hidden" name="cycle_id" value="' . esc_attr($cycle_id) . '" />';
+        echo '<input type="hidden" name="phase" value="pre" />';
         submit_button(
-            __('Generate Instances for All Enrollments', 'hl-core'),
+            __('Generate PRE Instances', 'hl-core'),
             'secondary',
             'submit',
             false,
-            array('onclick' => 'return confirm("' . esc_js(__('This will create PRE and POST teacher assessment instances for all active enrollments in this cycle. Continue?', 'hl-core')) . '");')
+            array('onclick' => 'return confirm("' . esc_js(__('This will create PRE teacher assessment instances for all active enrollments in this cycle. Continue?', 'hl-core')) . '");')
+        );
+        echo '</form>';
+
+        // Generate POST instances button
+        echo '<form method="post" action="' . $form_action . '" style="display:inline;">';
+        wp_nonce_field('hl_generate_teacher_instances', 'hl_generate_teacher_nonce');
+        echo '<input type="hidden" name="cycle_id" value="' . esc_attr($cycle_id) . '" />';
+        echo '<input type="hidden" name="phase" value="post" />';
+        submit_button(
+            __('Generate POST Instances', 'hl-core'),
+            'secondary',
+            'submit',
+            false,
+            array('onclick' => 'return confirm("' . esc_js(__('This will create POST teacher assessment instances for all active enrollments in this cycle. Continue?', 'hl-core')) . '");')
         );
         echo '</form>';
 

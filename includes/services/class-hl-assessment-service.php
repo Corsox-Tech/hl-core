@@ -762,14 +762,15 @@ class HL_Assessment_Service {
     /**
      * Generate teacher assessment instances for a cycle.
      *
-     * For each active enrollment in the cycle, creates a PRE and POST instance
+     * For each active enrollment in the cycle, creates instances for the given phase
      * using the instrument_id from the cycle's teacher_self_assessment components.
      * Skips enrollments that already have an instance for that phase.
      *
-     * @param int $cycle_id
+     * @param int         $cycle_id
+     * @param string|null $phase 'pre', 'post', or null for both.
      * @return array ['created' => int, 'existing' => int, 'errors' => array]
      */
-    public function generate_teacher_assessment_instances($cycle_id) {
+    public function generate_teacher_assessment_instances($cycle_id, $phase = null) {
         global $wpdb;
 
         $result = array('created' => 0, 'existing' => 0, 'errors' => array());
@@ -806,6 +807,14 @@ class HL_Assessment_Service {
 
         if (empty($phase_instrument)) {
             $result['errors'][] = __('No teacher self-assessment components with valid instrument configuration found.', 'hl-core');
+            return $result;
+        }
+
+        // Filter to requested phase if specified.
+        if ($phase && isset($phase_instrument[$phase])) {
+            $phase_instrument = array($phase => $phase_instrument[$phase]);
+        } elseif ($phase) {
+            $result['errors'][] = sprintf(__('No teacher self-assessment component found for phase "%s".', 'hl-core'), $phase);
             return $result;
         }
 
