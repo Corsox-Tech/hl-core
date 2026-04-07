@@ -169,6 +169,7 @@ class HL_Frontend_Classrooms_Listing {
                        ou.name AS school_name,
                        COALESCE(cc.child_count, 0) AS child_count
                 FROM {$prefix}hl_classroom c
+                JOIN {$prefix}hl_cycle cy ON c.cycle_id = cy.cycle_id AND cy.status != 'archived'
                 LEFT JOIN {$prefix}hl_orgunit ou ON c.school_id = ou.orgunit_id
                 LEFT JOIN (
                     SELECT classroom_id, COUNT(*) AS child_count
@@ -190,12 +191,11 @@ class HL_Frontend_Classrooms_Listing {
                 $where[]      = "c.school_id IN ({$placeholders})";
                 $values       = array_merge( $values, $scope['school_ids'] );
             } else {
-                // Teacher: only classrooms they're assigned to in non-archived cycles.
+                // Teacher: only classrooms they're assigned to.
                 $where[]  = "c.classroom_id IN (
                     SELECT ta.classroom_id FROM {$prefix}hl_teaching_assignment ta
                     JOIN {$prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
-                    JOIN {$prefix}hl_cycle cy ON e.cycle_id = cy.cycle_id
-                    WHERE e.user_id = %d AND e.status = 'active' AND cy.status != 'archived'
+                    WHERE e.user_id = %d AND e.status = 'active'
                 )";
                 $values[] = $scope['user_id'];
             }
