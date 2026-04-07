@@ -381,6 +381,12 @@ class HL_Admin_Pathways {
         // Complete-by date.
         $data['complete_by'] = !empty($_POST['complete_by']) ? sanitize_text_field($_POST['complete_by']) : null;
 
+        // Scheduling window (coaching sessions only).
+        if ($component_type === 'coaching_session_attendance') {
+            $data['scheduling_window_start'] = !empty($_POST['scheduling_window_start']) ? sanitize_text_field($_POST['scheduling_window_start']) : null;
+            $data['scheduling_window_end']   = !empty($_POST['scheduling_window_end']) ? sanitize_text_field($_POST['scheduling_window_end']) : null;
+        }
+
         // Eligibility rules.
         $data['requires_classroom'] = !empty($_POST['requires_classroom']) ? 1 : 0;
         $eligible_roles_raw = isset($_POST['eligible_roles']) && is_array($_POST['eligible_roles'])
@@ -1965,6 +1971,21 @@ class HL_Admin_Pathways {
         echo '</td>';
         echo '</tr>';
 
+        // --- Scheduling Window (coaching_session_attendance only) ---
+        $sw_start = ($is_edit && !empty($component->scheduling_window_start)) ? $component->scheduling_window_start : '';
+        $sw_end   = ($is_edit && !empty($component->scheduling_window_end)) ? $component->scheduling_window_end : '';
+
+        echo '<tr class="hl-component-field hl-field-scheduling-window" style="display:none;">';
+        echo '<th scope="row">' . esc_html__('Scheduling Window', 'hl-core') . '</th>';
+        echo '<td>';
+        echo '<label for="scheduling_window_start" style="margin-right:8px;">' . esc_html__('Start:', 'hl-core') . '</label>';
+        echo '<input type="date" id="scheduling_window_start" name="scheduling_window_start" value="' . esc_attr($sw_start) . '" style="margin-right:16px;" />';
+        echo '<label for="scheduling_window_end" style="margin-right:8px;">' . esc_html__('End:', 'hl-core') . '</label>';
+        echo '<input type="date" id="scheduling_window_end" name="scheduling_window_end" value="' . esc_attr($sw_end) . '" />';
+        echo '<p class="description">' . esc_html__('Date range during which this coaching session should be scheduled. Both are optional.', 'hl-core') . '</p>';
+        echo '</td>';
+        echo '</tr>';
+
         // --- Course Catalog selector (for learndash_course) ---
         $catalog_repo = new HL_Course_Catalog_Repository();
         $catalog_entries = $catalog_repo->get_active_for_dropdown();
@@ -2160,7 +2181,7 @@ class HL_Admin_Pathways {
                 'teacher_self_assessment': ['hl-field-phase', 'hl-field-teacher-instrument'],
                 'child_assessment':        ['hl-field-instrument'],
                 'learndash_course':        ['hl-field-ld'],
-                'coaching_session_attendance':  [],
+                'coaching_session_attendance':  ['hl-field-scheduling-window'],
                 'reflective_practice_session':  [],
                 'classroom_visit':              [],
                 'self_reflection':              []

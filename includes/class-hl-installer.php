@@ -1436,6 +1436,8 @@ class HL_Installer {
             external_ref longtext NULL COMMENT 'JSON - course_id/instrument_id etc',
             catalog_id bigint(20) unsigned NULL,
             complete_by date DEFAULT NULL COMMENT 'Suggested completion date (not enforced)',
+            scheduling_window_start date DEFAULT NULL COMMENT 'Coaching sessions: earliest bookable date',
+            scheduling_window_end date DEFAULT NULL COMMENT 'Coaching sessions: latest bookable date',
             visibility enum('all','staff_only') NOT NULL DEFAULT 'all',
             requires_classroom tinyint(1) NOT NULL DEFAULT 0,
             eligible_roles text NULL,

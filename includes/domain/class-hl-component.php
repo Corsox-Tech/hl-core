@@ -14,6 +14,8 @@ class HL_Component {
     public $external_ref;
     public $catalog_id;
     public $complete_by;
+    public $scheduling_window_start;
+    public $scheduling_window_end;
     public $visibility;
     public $requires_classroom;
     public $eligible_roles;
