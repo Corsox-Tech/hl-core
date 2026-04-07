@@ -551,6 +551,35 @@ class HL_Frontend_User_Profile {
     }
 
     /**
+     * Check if the viewer (coach) is directly assigned to any of the target's enrollments
+     * via hl_coach_assignment.
+     *
+     * @param int   $coach_user_id       The coach's WP user ID.
+     * @param int[] $target_enrollment_ids The target user's enrollment IDs.
+     * @return bool
+     */
+    private function is_coach_of_target($coach_user_id, $target_enrollment_ids) {
+        if (empty($target_enrollment_ids)) {
+            return false;
+        }
+
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+        $placeholders = implode(',', array_fill(0, count($target_enrollment_ids), '%d'));
+
+        $args = array_merge(array($coach_user_id), $target_enrollment_ids);
+
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$prefix}hl_coach_assignment
+             WHERE coach_user_id = %d
+             AND mentor_enrollment_id IN ({$placeholders})",
+            $args
+        ));
+
+        return (int) $count > 0;
+    }
+
+    /**
      * Check if any target school belongs to the viewer's district.
      */
     private function target_in_district($district_id, $target_school_ids) {
