@@ -10,8 +10,8 @@
 
 | User type | Archived cycle visibility |
 |-----------|--------------------------|
-| **Admin** (`manage_hl_core`) | Full visibility everywhere. Default to most recent active cycle. |
-| **Coach** (active enrollment with `coach` role) | Full visibility everywhere. Default to most recent active cycle. |
+| **Admin** (`manage_hl_core` capability) | Full visibility everywhere. Default to most recent active cycle. |
+| **Coach** (WP role `coach`, which also has `manage_hl_core`) | Full visibility everywhere. Default to most recent active cycle. |
 | **Everyone else** (teacher, mentor, school/district leader) | Archived cycles hidden everywhere **except** My Programs and Reports. |
 
 ### How "archived" is determined
@@ -24,22 +24,22 @@ All cycle selectors (pills, dropdowns, tabs) default to the **most recent active
 
 ## Central Helper
 
-Add to `HL_Security` (existing auth helper class in `includes/core/class-hl-security.php`):
+Add to `HL_Security` (existing auth helper class in `includes/security/class-hl-security.php`):
 
 ```php
-public static function should_hide_archived(): bool
+public static function should_hide_archived(): bool {
+    return ! current_user_can( 'manage_hl_core' );
+}
 ```
 
-Returns `true` when the current user is NOT admin and NOT coach. When `true`, pages must filter out enrollments/cycles where `hl_cycle.status = 'archived'`.
-
-Coach detection: query `hl_enrollment` for an active enrollment where `roles` JSON contains `"coach"`.
+Returns `true` when the current user is NOT admin and NOT coach. Both admins and coaches have the `manage_hl_core` capability (assigned in `HL_Installer`), so a single capability check covers both roles. No DB query needed.
 
 ## Pages to Modify
 
 ### 1. User Profile (`class-hl-frontend-user-profile.php`)
 - **Cycle pills**: Filter out enrollments whose cycle is archived when `should_hide_archived()`.
 - **Default enrollment**: Pick the enrollment whose cycle has the most recent `start_date` among active cycles, instead of the first enrollment in the list.
-- **Enrollment resolution**: If a URL param points to an archived enrollment and user can't see archived, redirect to the default active enrollment.
+- **Enrollment resolution**: If a URL param points to an archived enrollment and user can't see archived, silently fall back to the default active enrollment (no HTTP redirect — let existing fallback logic handle it).
 
 ### 2. My Progress (`class-hl-frontend-my-progress.php`)
 - **Cycle tabs**: Skip enrollments whose cycle is archived when `should_hide_archived()`.
@@ -80,8 +80,30 @@ Coach detection: query `hl_enrollment` for an active enrollment where `roles` JS
 | **Dashboard** (`hl_dashboard`) | Already scoped to active enrollments. No change needed. |
 | **Team Page** (`hl_team_page`) | Scoped to a specific team/cycle via URL. Access controlled by team membership. |
 
+## Shared Enrollment Filter Helper
+
+Add to `HL_Security` alongside `should_hide_archived()`:
+
+```php
+public static function filter_enrollments_by_cycle_status( array $enrollments, HL_Cycle_Repository $cycle_repo ): array
+```
+
+Takes an array of enrollment objects/rows, batch-fetches their cycle statuses in one query, and removes enrollments whose cycle is archived. Every page uses this instead of implementing its own filter loop.
+
+Also add to `HL_Cycle_Repository`:
+
+```php
+public function get_statuses_by_ids( array $cycle_ids ): array
+```
+
+Returns `[ cycle_id => status, ... ]` in a single query. Avoids the N+1 problem of calling `get_by_id()` per enrollment.
+
+## Edge Case: All Enrollments Archived
+
+When `should_hide_archived()` is `true` and all of a user's enrollments are in archived cycles, pages must show a distinct empty state: "Your enrolled cycles have been archived. Visit My Programs to access your course materials." — NOT the generic "No enrollments" message, which would be misleading.
+
 ## Implementation Notes
 
-- The `should_hide_archived()` check happens in the frontend rendering layer only. No changes to repositories or services — they continue returning all data. This keeps backend/reporting logic untouched.
-- Each page filters in its own `render()` method or data-fetching helper using a simple `if/continue` or `array_filter` pattern after calling the helper.
-- The helper is stateless — no caching needed, just checks `current_user_can()` and a single enrollment query for coach detection.
+- The `should_hide_archived()` check happens in the frontend rendering layer only. No changes to existing repository query behavior — they continue returning all data. The only repository addition is the `get_statuses_by_ids()` batch helper.
+- Each page calls the shared `filter_enrollments_by_cycle_status()` helper rather than implementing its own filter loop. This keeps filtering logic DRY and consistent.
+- The helper is stateless and requires no caching — `current_user_can()` is a fast in-memory check.
