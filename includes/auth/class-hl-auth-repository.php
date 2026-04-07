@@ -127,11 +127,8 @@ class HL_Auth_Repository {
      * @return bool
      */
     public static function is_complete($user_id) {
-        // Check cache first (spec I12/I17)
-        $cached = wp_cache_get('profile_complete_' . $user_id, 'hl_profiles');
-        if ($cached !== false) {
-            return (bool) $cached;
-        }
+        // NOTE: Caching is handled by HL_Auth_Service::is_profile_complete().
+        // This method does the raw DB check only.
 
         global $wpdb;
         $table = $wpdb->prefix . 'hl_user_profile';
@@ -175,8 +172,6 @@ class HL_Auth_Repository {
             return false;
         }
 
-        // Cache positive result (negative results not cached so re-check happens after form submit)
-        wp_cache_set('profile_complete_' . $user_id, 1, 'hl_profiles', 3600);
         return true;
     }
 }

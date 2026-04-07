@@ -37,17 +37,25 @@
             var saved = JSON.parse(localStorage.getItem(storageKey));
             if (saved) {
                 Object.keys(saved).forEach(function(name) {
-                    var $fields = $form.find('[name="' + name + '"]');
+                    // C1 fix: Use .filter() with function instead of attribute
+                    // selectors to prevent jQuery selector injection from localStorage.
+                    var $fields = $form.find('input, select, textarea').filter(function() {
+                        return this.name === name;
+                    });
                     if (!$fields.length) return;
 
                     if ($fields.first().is(':radio')) {
                         // Radio: check the one with the matching value
-                        $fields.filter('[value="' + saved[name] + '"]').prop('checked', true);
+                        $fields.filter(function() {
+                            return this.value === saved[name];
+                        }).prop('checked', true);
                     } else if ($fields.first().is(':checkbox')) {
                         // Checkboxes (ethnicity): saved value is array
                         if (Array.isArray(saved[name])) {
                             saved[name].forEach(function(val) {
-                                $form.find('[name="' + name + '"][value="' + val + '"]').prop('checked', true);
+                                $fields.filter(function() {
+                                    return this.value === val;
+                                }).prop('checked', true);
                             });
                         }
                     } else {

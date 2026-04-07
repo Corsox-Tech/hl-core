@@ -528,7 +528,7 @@ class HL_Auth_Manager {
         HL_Auth_Service::sync_enrollment_language($user_id, $language);
 
         // Set profile complete cache (spec I17)
-        wp_cache_set('profile_complete_' . $user_id, true, 'hl_profiles', 3600);
+        wp_cache_set('profile_complete_' . $user_id, 1, 'hl_profiles', 3600);
 
         // Audit log
         HL_Audit_Service::log('user.profile_completed', array(
