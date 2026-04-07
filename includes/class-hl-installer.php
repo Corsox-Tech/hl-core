@@ -133,7 +133,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 31;
+        $current_revision = 32;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -183,6 +183,11 @@ class HL_Installer {
             // Rev 31: Feature Tracker enhancements — category, context_mode, context_user_id.
             if ( (int) $stored < 31 ) {
                 self::migrate_ticket_enhancements_v2();
+            }
+
+            // Rev 32: Add hl_user_profile table for auth/profile system.
+            if ( (int) $stored < 32 ) {
+                // Table created by dbDelta in get_schema(). No ALTER TABLE needed.
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -2014,6 +2019,36 @@ class HL_Installer {
             PRIMARY KEY (attachment_id),
             KEY ticket_id (ticket_id),
             KEY comment_id (comment_id)
+        ) $charset_collate;";
+
+        // User Profile table (auth system: profile completion + demographics)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_user_profile (
+            profile_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) unsigned NOT NULL,
+            nickname varchar(100) DEFAULT NULL,
+            phone_country_code varchar(5) DEFAULT '+1',
+            phone_number varchar(20) DEFAULT NULL,
+            gender varchar(60) DEFAULT NULL,
+            ethnicity text DEFAULT NULL COMMENT 'JSON array of selected values',
+            location_state varchar(100) DEFAULT NULL,
+            age_range varchar(20) DEFAULT NULL,
+            preferred_language varchar(5) DEFAULT 'en',
+            years_exp_industry varchar(20) DEFAULT NULL,
+            years_exp_position varchar(20) DEFAULT NULL,
+            job_title varchar(255) DEFAULT NULL,
+            social_instagram varchar(255) DEFAULT NULL,
+            social_twitter varchar(255) DEFAULT NULL,
+            social_linkedin varchar(500) DEFAULT NULL,
+            social_facebook varchar(500) DEFAULT NULL,
+            social_website varchar(500) DEFAULT NULL,
+            consent_given_at datetime DEFAULT NULL,
+            consent_version varchar(20) DEFAULT NULL,
+            profile_completed_at datetime DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (profile_id),
+            UNIQUE KEY user_id (user_id),
+            KEY profile_completed_at (profile_completed_at)
         ) $charset_collate;";
 
         return $tables;
