@@ -11,9 +11,15 @@ class HL_Enrollment_Repository {
     public function get_all($filters = array()) {
         global $wpdb;
         $sql = "SELECT e.*, u.user_email, u.display_name FROM {$this->table()} e
-                LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID";
+                LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+                JOIN {$wpdb->prefix}hl_cycle c ON e.cycle_id = c.cycle_id";
         $where = array();
         $values = array();
+
+        // Exclude archived cycles by default.
+        if ( empty( $filters['include_archived'] ) ) {
+            $where[] = "c.status != 'archived'";
+        }
 
         if (!empty($filters['cycle_id'])) {
             $where[] = 'e.cycle_id = %d';
@@ -110,7 +116,8 @@ class HL_Enrollment_Repository {
         $sql = $wpdb->prepare(
             "SELECT e.*, u.user_email, u.display_name FROM {$this->table()} e
              LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.user_id = %d AND e.status = %s
+             JOIN {$wpdb->prefix}hl_cycle c ON e.cycle_id = c.cycle_id
+             WHERE e.user_id = %d AND e.status = %s AND c.status != 'archived'
              ORDER BY e.enrolled_at DESC",
             $user_id, $status
         );
