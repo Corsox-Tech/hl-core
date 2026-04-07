@@ -3360,26 +3360,23 @@ class HL_Installer {
         // Helper: check if column exists.
         $col_exists = function ( $col ) use ( $wpdb, $table ) {
             return ! empty( $wpdb->get_results( $wpdb->prepare(
-                "SHOW COLUMNS FROM {$table} LIKE %s", $col
+                "SHOW COLUMNS FROM `{$table}` LIKE %s", $col
             ) ) );
         };
 
-        if ( ! $col_exists( 'category' ) ) {
-            $wpdb->query(
-                "ALTER TABLE {$table} ADD COLUMN category enum('course_content','platform_issue','account_access','forms_assessments','reports_data','other') NOT NULL DEFAULT 'other'"
-            );
-        }
+        $columns = array(
+            'category'        => "enum('course_content','platform_issue','account_access','forms_assessments','reports_data','other') NOT NULL DEFAULT 'other'",
+            'context_mode'    => "enum('self','view_as') NOT NULL DEFAULT 'self'",
+            'context_user_id' => "bigint(20) unsigned NULL DEFAULT NULL",
+        );
 
-        if ( ! $col_exists( 'context_mode' ) ) {
-            $wpdb->query(
-                "ALTER TABLE {$table} ADD COLUMN context_mode enum('self','view_as') NOT NULL DEFAULT 'self'"
-            );
-        }
-
-        if ( ! $col_exists( 'context_user_id' ) ) {
-            $wpdb->query(
-                "ALTER TABLE {$table} ADD COLUMN context_user_id bigint(20) unsigned NULL DEFAULT NULL"
-            );
+        foreach ( $columns as $col_name => $col_def ) {
+            if ( ! $col_exists( $col_name ) ) {
+                $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN {$col_name} {$col_def}" );
+                if ( $wpdb->last_error ) {
+                    error_log( "[HL Installer] Rev 31: failed to add {$col_name} — " . $wpdb->last_error );
+                }
+            }
         }
     }
 }
