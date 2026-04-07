@@ -59,11 +59,11 @@ class HL_Frontend_Login {
                 <input type="hidden" name="hl_session_token" value="<?php echo esc_attr($session_token); ?>">
 
                 <div class="hl-auth-field">
-                    <label for="hl-login-email"><?php esc_html_e('Email Address', 'hl-core'); ?></label>
-                    <input type="email" id="hl-login-email" name="hl_login_email"
+                    <label for="hl-login-email"><?php esc_html_e('Email or Username', 'hl-core'); ?></label>
+                    <input type="text" id="hl-login-email" name="hl_login_email"
                            autocomplete="username"
                            required
-                           placeholder="<?php esc_attr_e('you@example.com', 'hl-core'); ?>">
+                           placeholder="<?php esc_attr_e('Email or username', 'hl-core'); ?>">
                 </div>
 
                 <div class="hl-auth-field">

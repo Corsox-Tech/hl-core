@@ -276,7 +276,7 @@ class HL_Auth_Manager {
             wp_die(__('Security check failed.', 'hl-core'));
         }
 
-        $email    = sanitize_email($_POST['hl_login_email'] ?? '');
+        $email    = sanitize_text_field($_POST['hl_login_email'] ?? '');
         $password = $_POST['hl_login_password'] ?? '';
         $session_token = sanitize_text_field($_POST['hl_session_token'] ?? '');
 
