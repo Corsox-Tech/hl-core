@@ -1881,38 +1881,10 @@ class HL_Admin_Cycles {
         global $wpdb;
 
         $cycle_id = absint($cycle->cycle_id);
-
-        // Get cycles for this cycle
-        $cycles = $wpdb->get_results($wpdb->prepare(
-            "SELECT cycle_id, cycle_name, cycle_number
-             FROM {$wpdb->prefix}hl_cycle
-             WHERE cycle_id = %d
-             ORDER BY cycle_number",
-            $cycle_id
-        ), ARRAY_A);
-
-        if (empty($cycles)) {
-            echo '<div class="notice notice-warning" style="margin:0;"><p>'
-                . esc_html__('No cycles found for this cycle. Create a cycle first before sending emails.', 'hl-core')
-                . '</p></div>';
-            return;
-        }
-
-        $selected_cycle_id = absint($cycles[0]['cycle_id']);
         $nonce = wp_create_nonce('hl_send_cycle_emails');
         $reset_nonce = wp_create_nonce('hl_reset_email_log');
 
-        // Cycle selector
-        echo '<div class="hl-form-section" style="margin-bottom:16px;">';
-        echo '<label for="hl-email-cycle-select" style="font-weight:600;margin-right:8px;">' . esc_html__('Select Cycle:', 'hl-core') . '</label>';
-        echo '<select id="hl-email-cycle-select" style="min-width:300px;">';
-        foreach ($cycles as $cycle) {
-            echo '<option value="' . esc_attr($cycle['cycle_id']) . '">'
-                . esc_html('Cycle ' . $cycle['cycle_number'] . ': ' . $cycle['cycle_name'])
-                . '</option>';
-        }
-        echo '</select>';
-        echo '</div>';
+        echo '<h3 style="margin-top:0;">' . esc_html($cycle->cycle_name) . '</h3>';
 
         // Container for AJAX-loaded recipient tables
         echo '<div id="hl-email-recipients-container">';
@@ -1928,29 +1900,6 @@ class HL_Admin_Cycles {
             var resetNonce = '<?php echo esc_js($reset_nonce); ?>';
             var ajaxUrl = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
             var container = document.getElementById('hl-email-recipients-container');
-            var cycleSelect = document.getElementById('hl-email-cycle-select');
-
-            // Cycle change → reload recipients
-            cycleSelect.addEventListener('change', function() {
-                container.innerHTML = '<p><span class="dashicons dashicons-update" style="animation:rotation 1s linear infinite;"></span> Loading...</p>';
-                var xhr = new XMLHttpRequest();
-                xhr.open('POST', ajaxUrl);
-                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-                xhr.onload = function() {
-                    try {
-                        var resp = JSON.parse(xhr.responseText);
-                        if (resp.success) {
-                            container.innerHTML = resp.data.html;
-                            bindEmailEvents();
-                        } else {
-                            container.innerHTML = '<div class="notice notice-error"><p>' + (resp.data || 'Error') + '</p></div>';
-                        }
-                    } catch(e) {
-                        container.innerHTML = '<div class="notice notice-error"><p>Unexpected error.</p></div>';
-                    }
-                };
-                xhr.send('action=hl_send_cycle_emails&sub_action=load_recipients&cycle_id=' + cycleId + '&cycle_id=' + cycleSelect.value + '&_wpnonce=' + nonce);
-            });
 
             function getSelectedUserIds() {
                 var checked = container.querySelectorAll('.hl-email-cb:checked');
