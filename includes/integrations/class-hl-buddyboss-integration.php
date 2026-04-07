@@ -429,7 +429,7 @@ class HL_BuddyBoss_Integration {
         // Define all possible menu items with their visibility rules.
         // Each entry: [ slug, shortcode, label, icon, show_condition ]
         // Role matrix updated 2026-04-02:
-        //   Teacher:      My Programs, My Team, Classrooms
+        //   Teacher:      My Programs, Classrooms
         //   Mentor:       My Programs, My Coaching, My Team, Classrooms
         //   Leader-only:  My Programs (Streamlined), My School, Classrooms, Reports
         //   Leader+teach: My Programs, My School, Classrooms, Reports

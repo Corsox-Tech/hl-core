@@ -216,17 +216,7 @@ class HL_Frontend_Dashboard {
                     ?>
                 <?php endif; ?>
 
-                <?php if ( $context['is_teacher'] && ! $context['is_mentor'] ) : ?>
-                    <?php
-                    // My Team — teachers (skip if already shown for mentor).
-                    $this->render_nav_card(
-                        'hl_my_team',
-                        __( 'My Team', 'hl-core' ),
-                        __( 'View your team members and their progress.', 'hl-core' ),
-                        'dashicons-admin-users'
-                    );
-                    ?>
-                <?php endif; ?>
+                <?php // My Team is mentor-only — teachers do not see it. ?>
 
             <?php endif; ?>
 
@@ -476,22 +466,7 @@ class HL_Frontend_Dashboard {
                 </div>
             <?php endif; ?>
 
-            <?php if ( $context['is_teacher'] && ! $context['is_mentor'] ) : ?>
-                <div class="hl-dv2-section">
-                    <div class="hl-dv2-section-label"><?php esc_html_e( 'Team', 'hl-core' ); ?></div>
-                    <div class="hl-dv2-grid">
-                        <?php
-                        $this->render_nav_card_v2(
-                            'hl_my_team',
-                            __( 'My Team', 'hl-core' ),
-                            __( 'View team members and their progress', 'hl-core' ),
-                            '&#x1F465;',
-                            'hl-dv2-icon-team'
-                        );
-                        ?>
-                    </div>
-                </div>
-            <?php endif; ?>
+            <?php // My Team is mentor-only — teachers do not see it (V2). ?>
 
         <?php endif; ?>
 
