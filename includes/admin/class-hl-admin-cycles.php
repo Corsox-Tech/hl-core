@@ -460,8 +460,8 @@ class HL_Admin_Cycles {
             unset($tabs['coaching'], $tabs['teams'], $tabs['import']);
         }
 
-        // Emails tab only for control group cycles.
-        if (!$cycle->is_control_group) {
+        // Emails tab available for all active cycles.
+        if ($cycle->status !== 'active') {
             unset($tabs['emails']);
         }
 
