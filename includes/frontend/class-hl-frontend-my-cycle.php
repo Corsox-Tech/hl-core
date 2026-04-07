@@ -425,12 +425,11 @@ class HL_Frontend_My_Cycle {
     // ========================================================================
 
     private function render_teams_tab( $cycle, $scope ) {
-        $all_teams  = $this->team_repo->get_all( array(   'cycle_id' => $cycle->cycle_id ) );
+        $all_teams  = $this->team_repo->get_all( array( 'cycle_id' => $cycle->cycle_id ) );
         $school_ids = $this->get_scoped_school_ids( $scope );
 
         if ( ! empty( $school_ids ) ) {
             $all_teams = array_filter( $all_teams, function ( $t ) use ( $school_ids ) {
-                // Include teams matching a scoped school OR teams with no school assigned.
                 return empty( $t->school_id )
                     || in_array( (int) $t->school_id, $school_ids, true );
             } );
@@ -446,6 +445,55 @@ class HL_Frontend_My_Cycle {
 
         $team_page_url = $this->find_shortcode_page_url( 'hl_team_page' );
 
+        // District leaders: group teams by school with section headers.
+        if ( $scope && $scope['type'] === 'district' ) {
+            // Fetch all schools in district, ordered by name.
+            $schools = $this->orgunit_repo->get_schools( $scope['orgunit_id'] );
+            usort( $schools, function ( $a, $b ) {
+                return strcmp( $a->name, $b->name );
+            } );
+
+            // Build lookup: school_id => school object.
+            $school_map = array();
+            foreach ( $schools as $s ) {
+                $school_map[ (int) $s->orgunit_id ] = $s;
+            }
+
+            // Bucket teams by school_id (0 = no school assigned).
+            $by_school = array();
+            foreach ( $all_teams as $team ) {
+                $by_school[ (int) $team->school_id ][] = $team;
+            }
+
+            foreach ( $schools as $school ) {
+                $sid = (int) $school->orgunit_id;
+                if ( empty( $by_school[ $sid ] ) ) {
+                    continue;
+                }
+                echo '<div class="hl-school-section">';
+                echo '<h3 class="hl-school-section-title">' . esc_html( $school->name ) . '</h3>';
+                echo '<div class="hl-teams-grid">';
+                foreach ( $by_school[ $sid ] as $team ) {
+                    $this->render_team_card( $team, $team_page_url, /* hide_school */ true );
+                }
+                echo '</div></div>';
+            }
+
+            // Unassigned teams (no school).
+            if ( ! empty( $by_school[0] ) ) {
+                echo '<div class="hl-school-section">';
+                echo '<h3 class="hl-school-section-title">' . esc_html__( 'Unassigned', 'hl-core' ) . '</h3>';
+                echo '<div class="hl-teams-grid">';
+                foreach ( $by_school[0] as $team ) {
+                    $this->render_team_card( $team, $team_page_url, /* hide_school */ true );
+                }
+                echo '</div></div>';
+            }
+
+            return;
+        }
+
+        // School leaders / staff: flat grid.
         echo '<div class="hl-teams-grid">';
         foreach ( $all_teams as $team ) {
             $this->render_team_card( $team, $team_page_url );
@@ -453,7 +501,7 @@ class HL_Frontend_My_Cycle {
         echo '</div>';
     }
 
-    private function render_team_card( $team, $team_page_url ) {
+    private function render_team_card( $team, $team_page_url, $hide_school = false ) {
         $members      = $this->team_repo->get_members( $team->team_id );
         $member_count = count( $members );
 
@@ -492,7 +540,7 @@ class HL_Frontend_My_Cycle {
                         <?php echo esc_html( $team->team_name ); ?>
                     <?php endif; ?>
                 </h4>
-                <?php if ( $school_name ) : ?>
+                <?php if ( $school_name && ! $hide_school ) : ?>
                     <p class="hl-team-card-school"><?php echo esc_html( $school_name ); ?></p>
                 <?php endif; ?>
                 <div class="hl-team-card-meta">
@@ -763,7 +811,7 @@ class HL_Frontend_My_Cycle {
                             <tr class="hl-detail-row" id="hl-detail-<?php echo esc_attr( $eid ); ?>">
                                 <td colspan="8">
                                     <div class="hl-detail-content">
-                                        <?php if ( isset( $activity_detail[ $eid ] ) && ! empty( $activities ) ) : ?>
+                                        <?php if ( ! empty( $activity_detail[ $eid ] ) ) : ?>
                                             <table class="hl-table hl-detail-table">
                                                 <thead>
                                                     <tr>
@@ -774,17 +822,15 @@ class HL_Frontend_My_Cycle {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <?php foreach ( $activities as $act ) :
-                                                        $aid        = $act['component_id'];
-                                                        $ad         = isset( $activity_detail[ $eid ][ $aid ] ) ? $activity_detail[ $eid ][ $aid ] : null;
-                                                        $act_pct    = $ad ? intval( $ad['completion_percent'] ) : 0;
-                                                        $act_status = $ad ? $ad['completion_status'] : 'not_started';
+                                                    <?php foreach ( $activity_detail[ $eid ] as $ad ) :
+                                                        $act_pct    = intval( $ad['completion_percent'] );
+                                                        $act_status = $ad['completion_status'];
                                                         $status_lbl = ucwords( str_replace( '_', ' ', $act_status ) );
                                                         $status_cls = 'hl-badge-' . str_replace( '_', '-', $act_status );
-                                                        $type_lbl   = ucwords( str_replace( '_', ' ', $act['component_type'] ) );
+                                                        $type_lbl   = ucwords( str_replace( '_', ' ', $ad['component_type'] ) );
                                                     ?>
                                                         <tr>
-                                                            <td><?php echo esc_html( $act['title'] ); ?></td>
+                                                            <td><?php echo esc_html( $ad['title'] ); ?></td>
                                                             <td><span class="hl-activity-type"><?php echo esc_html( $type_lbl ); ?></span></td>
                                                             <td><?php echo esc_html( $act_pct . '%' ); ?></td>
                                                             <td><span class="hl-badge <?php echo esc_attr( $status_cls ); ?>"><?php echo esc_html( $status_lbl ); ?></span></td>

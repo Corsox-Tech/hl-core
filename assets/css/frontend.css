@@ -1735,6 +1735,19 @@ button.hl-btn-danger:hover,
    31. TEAMS GRID (My Partnership / Workspace)
    ===================================================== */
 
+.hl-school-section {
+    margin-bottom: 36px;
+}
+.hl-school-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--hl-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 14px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--hl-primary-light);
+}
 .hl-teams-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
