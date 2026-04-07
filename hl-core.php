@@ -230,6 +230,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-diagnose-nav.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-smoke-test.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-migrate-routing-types.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-translate-content.php';
         }
     }
     
@@ -314,6 +315,7 @@ class HL_Core {
             HL_CLI_Seed_Beginnings::register();
             HL_CLI_Smoke_Test::register();
             HL_CLI_Migrate_Routing_Types::register();
+            HL_CLI_Translate_Content::register();
         }
 
         do_action('hl_core_init');
@@ -345,6 +347,20 @@ class HL_Core {
     }
 
     /**
+     * Get the WPML-aware User Profile page URL.
+     */
+    public static function get_profile_url() {
+        global $wpdb;
+        $page_id = $wpdb->get_var(
+            "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE '%[hl\_user\_profile%' LIMIT 1"
+        );
+        if ($page_id) {
+            $page_id = apply_filters('wpml_object_id', $page_id, 'page', true);
+        }
+        return $page_id ? get_permalink($page_id) : '';
+    }
+
+    /**
      * Render WPML language switcher as a custom flag + name dropdown.
      * Uses inline SVG flags for cross-platform compatibility.
      */
@@ -369,11 +385,19 @@ class HL_Core {
             'pt-br' => "Portugu\xC3\xAAs",
         );
 
+        // Preserve current query parameters (e.g. ?id=19&enrollment=162) across language switches.
+        // WPML's icl_get_languages() strips custom query params from the returned URLs.
+        $preserve_params = $_GET;
+        unset($preserve_params['lang']); // WPML's own param — not needed in the URL.
+
         $active_lang = null;
         $other_langs = array();
         foreach ($languages as $code => $lang) {
             $lang['flag_svg']     = $flag_map[$code] ?? '';
             $lang['display_name'] = $name_map[$code] ?? $lang['native_name'];
+            if (!empty($preserve_params) && !$lang['active']) {
+                $lang['url'] = add_query_arg($preserve_params, $lang['url']);
+            }
             if ($lang['active']) {
                 $active_lang = $lang;
             } else {

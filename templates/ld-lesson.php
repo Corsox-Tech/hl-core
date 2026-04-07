@@ -63,8 +63,9 @@ $avatar_url = get_avatar_url($user->ID, ['size' => 32]);
 $logo_id  = get_theme_mod('custom_logo');
 $logo_url = $logo_id ? wp_get_attachment_image_url($logo_id, 'full') : '';
 
-// Dashboard URL for breadcrumb link — first menu item is the logical "home".
-$dashboard_url = !empty($menu_items) ? $menu_items[0]['url'] : home_url('/');
+// Dashboard URL for logo + breadcrumb — the actual Dashboard page, WPML-aware.
+$dashboard_url = HL_Core::get_dashboard_url();
+$profile_url   = $is_logged_in ? HL_Core::get_profile_url() : '';
 
 // =====================================================
 // LESSON & COURSE DATA
@@ -168,34 +169,37 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
             <a href="<?php echo esc_url($course_url); ?>"><?php echo esc_html($course_title); ?></a> &rsaquo;
             <span><?php echo esc_html($lesson_title); ?></span>
         </div>
-        <div class="hl-topbar__user-wrap" id="hl-topbar-user-wrap">
-            <button class="hl-topbar__user-btn" id="hl-topbar-user-btn" type="button" aria-expanded="false">
-                <span class="hl-topbar__user-name"><?php echo esc_html($display_name); ?></span>
-                <?php if ($avatar_url) : ?>
-                    <img src="<?php echo esc_url($avatar_url); ?>" alt="" class="hl-topbar__avatar">
-                <?php else : ?>
-                    <div class="hl-topbar__avatar hl-topbar__avatar--initials"><?php echo esc_html($initials); ?></div>
-                <?php endif; ?>
-            </button>
-            <div class="hl-topbar__dropdown" id="hl-topbar-dropdown" hidden>
-                <?php if ($old_user && $switch_back_url) : ?>
-                    <div class="hl-topbar__dropdown-notice">
-                        <?php echo esc_html(sprintf(__('Viewing as %s', 'hl-core'), $display_name)); ?>
-                    </div>
-                    <a href="<?php echo esc_url($switch_back_url); ?>" class="hl-topbar__dropdown-item hl-topbar__dropdown-item--switch-back">
-                        <span class="dashicons dashicons-undo"></span>
-                        <?php echo esc_html(sprintf(__('Return to %s', 'hl-core'), $old_user->display_name)); ?>
+        <div class="hl-topbar__actions">
+            <?php HL_Core::render_language_switcher(); ?>
+            <div class="hl-topbar__user-wrap" id="hl-topbar-user-wrap">
+                <button class="hl-topbar__user-btn" id="hl-topbar-user-btn" type="button" aria-expanded="false">
+                    <span class="hl-topbar__user-name"><?php echo esc_html($display_name); ?></span>
+                    <?php if ($avatar_url) : ?>
+                        <img src="<?php echo esc_url($avatar_url); ?>" alt="" class="hl-topbar__avatar">
+                    <?php else : ?>
+                        <div class="hl-topbar__avatar hl-topbar__avatar--initials"><?php echo esc_html($initials); ?></div>
+                    <?php endif; ?>
+                </button>
+                <div class="hl-topbar__dropdown" id="hl-topbar-dropdown" hidden>
+                    <?php if ($old_user && $switch_back_url) : ?>
+                        <div class="hl-topbar__dropdown-notice">
+                            <?php echo esc_html(sprintf(__('Viewing as %s', 'hl-core'), $display_name)); ?>
+                        </div>
+                        <a href="<?php echo esc_url($switch_back_url); ?>" class="hl-topbar__dropdown-item hl-topbar__dropdown-item--switch-back">
+                            <span class="dashicons dashicons-undo"></span>
+                            <?php echo esc_html(sprintf(__('Return to %s', 'hl-core'), $old_user->display_name)); ?>
+                        </a>
+                        <div class="hl-topbar__dropdown-divider"></div>
+                    <?php endif; ?>
+                    <a href="<?php echo esc_url($profile_url ?: admin_url('profile.php')); ?>" class="hl-topbar__dropdown-item">
+                        <span class="dashicons dashicons-admin-users"></span>
+                        <?php esc_html_e('My Profile', 'hl-core'); ?>
                     </a>
-                    <div class="hl-topbar__dropdown-divider"></div>
-                <?php endif; ?>
-                <a href="<?php echo esc_url(admin_url('profile.php')); ?>" class="hl-topbar__dropdown-item">
-                    <span class="dashicons dashicons-admin-users"></span>
-                    <?php esc_html_e('My Account', 'hl-core'); ?>
-                </a>
-                <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-topbar__dropdown-item">
-                    <span class="dashicons dashicons-migrate"></span>
-                    <?php esc_html_e('Log Out', 'hl-core'); ?>
-                </a>
+                    <a href="<?php echo esc_url(wp_logout_url($dashboard_url)); ?>" class="hl-topbar__dropdown-item">
+                        <span class="dashicons dashicons-migrate"></span>
+                        <?php esc_html_e('Log Out', 'hl-core'); ?>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -204,7 +208,7 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
     <nav class="hl-sidebar" id="hl-sidebar">
         <div class="hl-sidebar__brand">
             <?php if ($logo_url) : ?>
-                <a href="<?php echo esc_url(home_url('/')); ?>" class="hl-sidebar__logo-link">
+                <a href="<?php echo esc_url($dashboard_url); ?>" class="hl-sidebar__logo-link">
                     <img src="<?php echo esc_url($logo_url); ?>" alt="<?php echo esc_attr(get_bloginfo('name')); ?>" class="hl-sidebar__logo-img">
                 </a>
             <?php else : ?>
@@ -232,8 +236,7 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
             <button class="hl-sidebar__collapse-btn" id="hl-sidebar-collapse-btn" type="button" title="<?php esc_attr_e('Collapse sidebar', 'hl-core'); ?>">
                 <span class="dashicons dashicons-arrow-left-alt2"></span>
             </button>
-            <?php HL_Core::render_language_switcher(); ?>
-            <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="hl-sidebar__item">
+            <a href="<?php echo esc_url(wp_logout_url($dashboard_url)); ?>" class="hl-sidebar__item">
                 <span class="hl-sidebar__icon dashicons dashicons-migrate"></span>
                 <span><?php esc_html_e('Log Out', 'hl-core'); ?></span>
             </a>
