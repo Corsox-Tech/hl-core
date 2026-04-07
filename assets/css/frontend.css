@@ -10099,6 +10099,11 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
 .hlft-status-pill--in_progress { background: rgba(79,70,229, 0.12); color: var(--hl-interactive-dark); }
 .hlft-status-pill--resolved { background: rgba(var(--hl-accent-rgb, 46,204,113), 0.12); color: var(--hl-accent-dark); }
 .hlft-status-pill--closed { background: rgba(107,114,128, 0.12); color: var(--hl-text-secondary); }
+.hlft-status-pill--draft {
+    border: 1px dashed var(--hl-text-secondary);
+    color: var(--hl-text-secondary);
+    background: transparent;
+}
 
 /* Type badge (used in detail modal) */
 .hlft-type-badge {
@@ -10188,7 +10193,27 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     flex-direction: column;
 }
 .hlft-modal-box--form {
-    max-width: 520px;
+    max-width: 700px;
+    position: relative; /* needed for confirm overlay absolute positioning */
+}
+.hlft-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.hlft-form-grid .hlft-form-group {
+    margin-bottom: 0; /* grid gap handles spacing — prevents doubled gap + margin-bottom */
+}
+.hlft-form-grid .hlft-form-group--full {
+    grid-column: 1 / -1;
+}
+.hlft-form-grid .hlft-context-user-wrap {
+    margin-top: 0; /* was 8px when nested; grid gap now handles it */
+}
+@media (max-width: 500px) {
+    .hlft-form-grid {
+        grid-template-columns: 1fr;
+    }
 }
 .hlft-modal-header {
     display: flex;
@@ -10429,6 +10454,7 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     flex-wrap: wrap;
     margin-top: 6px;
     width: 100%;
+    padding-top: 8px;
 }
 .hlft-upload-preview img {
     width: 48px;
@@ -10436,6 +10462,31 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     border-radius: 6px;
     object-fit: cover;
     border: 1px solid var(--hl-border);
+}
+.hlft-preview-item {
+    position: relative;
+    display: inline-block;
+}
+.hlft-preview-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--hl-error, #d32f2f);
+    color: #fff;
+    border: none;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.hlft-preview-remove:hover {
+    background: #b71c1c;
 }
 .hlft-attach-icon {
     background: none;
@@ -10619,6 +10670,35 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
 }
 .hlft-chip-remove:hover {
     color: var(--hl-error, #d32f2f);
+}
+
+/* ── Close Confirmation Dialog ── */
+.hlft-confirm-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.93);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+    z-index: 10;
+}
+.hlft-confirm-dialog {
+    padding: 24px;
+    text-align: center;
+    max-width: 340px;
+}
+.hlft-confirm-dialog p {
+    margin: 0 0 16px;
+    font-size: 15px;
+    color: var(--hl-text);
+    font-weight: 500;
+}
+.hlft-confirm-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
 }
 
 /* =====================================================
