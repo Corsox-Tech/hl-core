@@ -190,11 +190,12 @@ class HL_Frontend_Classrooms_Listing {
                 $where[]      = "c.school_id IN ({$placeholders})";
                 $values       = array_merge( $values, $scope['school_ids'] );
             } else {
-                // Teacher: only classrooms they're assigned to.
+                // Teacher: only classrooms they're assigned to in non-archived cycles.
                 $where[]  = "c.classroom_id IN (
                     SELECT ta.classroom_id FROM {$prefix}hl_teaching_assignment ta
                     JOIN {$prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
-                    WHERE e.user_id = %d AND e.status = 'active'
+                    JOIN {$prefix}hl_cycle cy ON e.cycle_id = cy.cycle_id
+                    WHERE e.user_id = %d AND e.status = 'active' AND cy.status != 'archived'
                 )";
                 $values[] = $scope['user_id'];
             }
