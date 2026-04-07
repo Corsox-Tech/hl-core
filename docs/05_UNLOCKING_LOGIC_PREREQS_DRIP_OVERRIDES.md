@@ -232,6 +232,27 @@ If implemented, it must be:
 
 ---
 
+## 5.4 Admin Component Progress Override (Admin only)
+
+Admins can directly reset or mark complete any component from the enrollment edit form (WP Admin > Enrollments > Edit, or Cycle Editor > Enrollments > Edit).
+
+**Reset to Not Started:**
+- Sets `hl_component_state` to `not_started`, 0%, `completed_at = NULL`.
+- If an exempt override exists on the component, it is deleted (with audit log).
+- For `learndash_course` components: resets LD course progress for ALL language variants (EN/ES/PT) via `learndash_delete_course_progress` + activity table cleanup.
+- Triggers rollup recomputation.
+
+**Mark as Complete:**
+- Sets `hl_component_state` to `complete`, 100%, `completed_at = now`.
+- For `learndash_course` components: marks the user's preferred language variant complete via `learndash_update_user_activity`.
+- Triggers rollup recomputation.
+
+Both actions are audit-logged with `component_progress.reset` or `component_progress.manual_complete` (includes admin user ID).
+
+Note: For activity-based components (coaching, classroom visits, RP sessions), organic triggers may recalculate state when new activity occurs.
+
+---
+
 # 6) Late Enrollment and Replacement Rules
 
 ## 6.1 Late Enrollments
