@@ -133,7 +133,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 30;
+        $current_revision = 31;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -178,6 +178,11 @@ class HL_Installer {
                 self::seed_course_catalog();
                 self::backfill_component_catalog_ids();
                 self::backfill_enrollment_language_preference();
+            }
+
+            // Rev 31: Feature Tracker enhancements — category, context_mode, context_user_id.
+            if ( (int) $stored < 31 ) {
+                self::migrate_ticket_enhancements_v2();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -1974,6 +1979,9 @@ class HL_Installer {
             resolved_at datetime NULL DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            category enum('course_content','platform_issue','account_access','forms_assessments','reports_data','other') NOT NULL DEFAULT 'other',
+            context_mode enum('self','view_as') NOT NULL DEFAULT 'self',
+            context_user_id bigint(20) unsigned NULL DEFAULT NULL,
             PRIMARY KEY (ticket_id),
             UNIQUE KEY ticket_uuid (ticket_uuid),
             KEY status (status),
@@ -3340,5 +3348,38 @@ class HL_Installer {
              WHERE user_id IN ({$user_placeholders}) AND language_preference = 'en'",
             $spanish_user_ids
         ) );
+    }
+
+    /**
+     * Rev 31: Feature Tracker enhancements — add category, context_mode, context_user_id.
+     */
+    private static function migrate_ticket_enhancements_v2() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_ticket';
+
+        // Helper: check if column exists.
+        $col_exists = function ( $col ) use ( $wpdb, $table ) {
+            return ! empty( $wpdb->get_results( $wpdb->prepare(
+                "SHOW COLUMNS FROM {$table} LIKE %s", $col
+            ) ) );
+        };
+
+        if ( ! $col_exists( 'category' ) ) {
+            $wpdb->query(
+                "ALTER TABLE {$table} ADD COLUMN category enum('course_content','platform_issue','account_access','forms_assessments','reports_data','other') NOT NULL DEFAULT 'other'"
+            );
+        }
+
+        if ( ! $col_exists( 'context_mode' ) ) {
+            $wpdb->query(
+                "ALTER TABLE {$table} ADD COLUMN context_mode enum('self','view_as') NOT NULL DEFAULT 'self'"
+            );
+        }
+
+        if ( ! $col_exists( 'context_user_id' ) ) {
+            $wpdb->query(
+                "ALTER TABLE {$table} ADD COLUMN context_user_id bigint(20) unsigned NULL DEFAULT NULL"
+            );
+        }
     }
 }
