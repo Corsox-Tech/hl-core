@@ -315,7 +315,8 @@ class HL_Ticket_Service {
         if ( $context_mode === 'self' ) {
             $context_user = null;
         } elseif ( $context_mode === 'view_as' ) {
-            $context_user = ! empty( $data['context_user_id'] ) ? absint( $data['context_user_id'] ) : null;
+            // Fall back to existing context_user_id if not provided (partial update).
+            $context_user = ! empty( $data['context_user_id'] ) ? absint( $data['context_user_id'] ) : ( ! empty( $ticket['context_user_id'] ) ? absint( $ticket['context_user_id'] ) : null );
             if ( ! $context_user ) {
                 return new WP_Error( 'missing_context_user', __( 'Please select the user you were viewing as.', 'hl-core' ) );
             }
