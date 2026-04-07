@@ -661,13 +661,59 @@
             // File attach buttons
             $('#hlft-form-attach-btn').on('click', function() { $('#hlft-form-file').click(); });
             $('#hlft-form-file').on('change', function() {
-                pendingFormFiles = Array.from(this.files || []);
+                pendingFormFiles = pendingFormFiles.concat(Array.from(this.files || []));
                 showFilePreview($('#hlft-form-preview'), pendingFormFiles);
             });
             $('#hlft-comment-attach-btn').on('click', function() { $('#hlft-comment-file').click(); });
             $('#hlft-comment-file').on('change', function() {
-                pendingCommentFiles = Array.from(this.files || []);
+                pendingCommentFiles = pendingCommentFiles.concat(Array.from(this.files || []));
                 showFilePreview($('#hlft-comment-preview'), pendingCommentFiles);
+            });
+
+            // ── Clipboard Paste for Images ──
+
+            var allowedPasteTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            var pasteExtMap = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp' };
+
+            function handleImagePaste(e, pendingFilesRef, $previewContainer) {
+                var items = (e.originalEvent || e).clipboardData && (e.originalEvent || e).clipboardData.items;
+                if (!items) return;
+
+                var added = false;
+                for (var i = 0; i < items.length; i++) {
+                    if (allowedPasteTypes.indexOf(items[i].type) === -1) continue;
+
+                    var file = items[i].getAsFile();
+                    if (!file) continue;
+
+                    // Client-side size check (server enforces the real 5MB limit).
+                    if (file.size > 0 && file.size > 5 * 1024 * 1024) {
+                        showToast('Pasted image exceeds 5MB limit', true);
+                        continue;
+                    }
+
+                    var ext = pasteExtMap[items[i].type] || '.png';
+                    var rand = Math.random().toString(16).slice(2, 6);
+                    var filename = 'pasted-image-' + Date.now() + '-' + rand + ext;
+                    var namedFile = new File([file], filename, { type: items[i].type });
+
+                    pendingFilesRef.push(namedFile);
+                    added = true;
+                }
+
+                if (added) {
+                    showFilePreview($previewContainer, pendingFilesRef);
+                    showToast('Image pasted');
+                }
+            }
+
+            // Bind paste to form textarea + upload area (NOT the whole modal).
+            $('#hlft-form-description, #hlft-form-upload-area').on('paste', function(e) {
+                handleImagePaste(e, pendingFormFiles, $('#hlft-form-preview'));
+            });
+            // Bind paste to comment textarea (delegated since it's in a modal).
+            $(document).on('paste', '#hlft-comment-text', function(e) {
+                handleImagePaste(e, pendingCommentFiles, $('#hlft-comment-preview'));
             });
 
             // New ticket button
