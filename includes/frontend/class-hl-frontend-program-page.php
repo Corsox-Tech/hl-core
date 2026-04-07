@@ -1056,9 +1056,44 @@ class HL_Frontend_Program_Page {
         );
         $type_icon = isset($icon_map[$component->component_type]) ? $icon_map[$component->component_type] : '&#x1F4CB;';
 
-        // Date badge: "Available {date}" when locked by drip, "Complete by {date}" when available.
+        // Drip badge / Scheduling window badge.
         $drip_html = '';
-        if ($avail_status === 'locked'
+        if ($component->component_type === 'coaching_session_attendance'
+            && (!empty($component->scheduling_window_start) || !empty($component->scheduling_window_end))
+        ) {
+            $today = current_time('Y-m-d');
+            $sw_start = $component->scheduling_window_start;
+            $sw_end   = $component->scheduling_window_end;
+            if ($sw_start && $sw_end) {
+                if ($today > $sw_end && $avail_status !== 'completed') {
+                    $drip_html = '<span class="hl-pp-drip-badge hl-pp-window-closed">'
+                        . sprintf(esc_html__('Window closed (%s – %s)', 'hl-core'),
+                            esc_html(date_i18n('M j', strtotime($sw_start))),
+                            esc_html(date_i18n('M j, Y', strtotime($sw_end))))
+                        . '</span>';
+                } else {
+                    $drip_html = '<span class="hl-pp-drip-badge">'
+                        . sprintf(esc_html__('Schedule %s – %s', 'hl-core'),
+                            esc_html(date_i18n('M j', strtotime($sw_start))),
+                            esc_html(date_i18n('M j, Y', strtotime($sw_end))))
+                        . '</span>';
+                }
+            } elseif ($sw_start) {
+                $drip_html = '<span class="hl-pp-drip-badge">'
+                    . sprintf(esc_html__('Available from %s', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($sw_start))))
+                    . '</span>';
+            } elseif ($sw_end) {
+                if ($today > $sw_end && $avail_status !== 'completed') {
+                    $drip_html = '<span class="hl-pp-drip-badge hl-pp-window-closed">'
+                        . sprintf(esc_html__('Window closed (by %s)', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($sw_end))))
+                        . '</span>';
+                } else {
+                    $drip_html = '<span class="hl-pp-drip-badge">'
+                        . sprintf(esc_html__('Schedule by %s', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($sw_end))))
+                        . '</span>';
+                }
+            }
+        } elseif ($avail_status === 'locked'
             && !empty($availability['locked_reason'])
             && $availability['locked_reason'] === 'drip'
             && !empty($availability['next_available_at'])
