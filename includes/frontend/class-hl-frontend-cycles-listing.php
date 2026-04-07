@@ -42,6 +42,13 @@ class HL_Frontend_Cycles_Listing {
             $scope['is_admin']
         );
 
+        // Remove archived cycles for non-privileged users.
+        if ( HL_Security::should_hide_archived() ) {
+            $cycles = array_values( array_filter( $cycles, function( $cycle ) {
+                return $cycle->status !== 'archived';
+            } ) );
+        }
+
         // Pre-compute counts.
         $participant_counts = $this->get_participant_counts();
         $school_counts      = $this->get_school_counts();
@@ -79,9 +86,11 @@ class HL_Frontend_Cycles_Listing {
                 <label class="hl-filter-checkbox">
                     <input type="checkbox" class="hl-status-filter" value="paused"> <?php esc_html_e( 'Paused', 'hl-core' ); ?>
                 </label>
+                <?php if ( ! HL_Security::should_hide_archived() ) : ?>
                 <label class="hl-filter-checkbox">
                     <input type="checkbox" class="hl-status-filter" value="archived"> <?php esc_html_e( 'Archived', 'hl-core' ); ?>
                 </label>
+                <?php endif; ?>
             </div>
 
             <?php if ( empty( $cycles ) ) : ?>

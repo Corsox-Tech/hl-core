@@ -124,4 +124,43 @@ class HL_Enrollment_Repository {
             "SELECT COUNT(*) FROM {$this->table()} WHERE cycle_id = %d", $cycle_id
         ));
     }
+
+    /**
+     * Remove enrollments whose parent cycle is archived.
+     *
+     * Batch-fetches cycle statuses in one query to avoid N+1.
+     *
+     * @param HL_Enrollment[] $enrollments
+     * @return HL_Enrollment[]
+     */
+    public static function filter_non_archived( array $enrollments ): array {
+        if ( empty( $enrollments ) ) {
+            return $enrollments;
+        }
+
+        global $wpdb;
+        $cycle_ids = array_unique( array_map( function( $e ) {
+            return (int) $e->cycle_id;
+        }, $enrollments ) );
+
+        if ( empty( $cycle_ids ) ) {
+            return $enrollments;
+        }
+
+        $placeholders = implode( ',', array_fill( 0, count( $cycle_ids ), '%d' ) );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $archived_ids = $wpdb->get_col( $wpdb->prepare(
+            "SELECT cycle_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_id IN ({$placeholders}) AND status = 'archived'",
+            array_values( $cycle_ids )
+        ) );
+        $archived_ids = array_map( 'intval', $archived_ids );
+
+        if ( empty( $archived_ids ) ) {
+            return $enrollments;
+        }
+
+        return array_values( array_filter( $enrollments, function( $e ) use ( $archived_ids ) {
+            return ! in_array( (int) $e->cycle_id, $archived_ids, true );
+        } ) );
+    }
 }

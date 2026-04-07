@@ -228,6 +228,12 @@ class HL_Frontend_User_Profile {
 
         // ── Load enrollments ─────────────────────────────────────────
         $enrollments = $this->enrollment_repo->get_by_user_id($target_user_id, 'active');
+
+        // Hide enrollments whose cycle is archived (for non-privileged users).
+        if ( HL_Security::should_hide_archived() ) {
+            $enrollments = HL_Enrollment_Repository::filter_non_archived( $enrollments );
+        }
+
         $is_own_profile = ($current_user_id === $target_user_id);
 
         // ── Access control ───────────────────────────────────────────
@@ -563,7 +569,7 @@ class HL_Frontend_User_Profile {
             return null;
         }
 
-        // If enrollment_id is in the URL, use it.
+        // If enrollment_id is in the URL, use it (already filtered by caller).
         if (!empty($_GET['enrollment_id'])) {
             $eid = absint($_GET['enrollment_id']);
             foreach ($enrollments as $e) {
@@ -583,8 +589,54 @@ class HL_Frontend_User_Profile {
             }
         }
 
-        // Default: first (most recent) enrollment.
-        return $enrollments[0];
+        // Default: enrollment whose cycle has the most recent start_date.
+        return $this->get_most_recent_active_enrollment( $enrollments );
+    }
+
+    /**
+     * Pick the enrollment whose cycle has the most recent start_date
+     * among active (non-archived) cycles.
+     *
+     * Falls back to the first enrollment if no active cycle is found
+     * (e.g. admin/coach viewing a user with only archived enrollments).
+     *
+     * @param HL_Enrollment[] $enrollments Non-empty array.
+     * @return HL_Enrollment
+     */
+    private function get_most_recent_active_enrollment( array $enrollments ) {
+        global $wpdb;
+
+        $cycle_ids = array_unique( array_map( function( $e ) {
+            return (int) $e->cycle_id;
+        }, $enrollments ) );
+
+        $placeholders = implode( ',', array_fill( 0, count( $cycle_ids ), '%d' ) );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT cycle_id, status, start_date FROM {$wpdb->prefix}hl_cycle
+             WHERE cycle_id IN ({$placeholders})",
+            array_values( $cycle_ids )
+        ), OBJECT_K );
+
+        $best      = null;
+        $best_date = '';
+
+        foreach ( $enrollments as $e ) {
+            $cid = (int) $e->cycle_id;
+            if ( ! isset( $rows[ $cid ] ) ) {
+                continue;
+            }
+            $cycle_row = $rows[ $cid ];
+            if ( $cycle_row->status === 'active' ) {
+                $sd = $cycle_row->start_date ?: '0000-00-00';
+                if ( $best === null || $sd > $best_date ) {
+                    $best      = $e;
+                    $best_date = $sd;
+                }
+            }
+        }
+
+        return $best ?: $enrollments[0];
     }
 
     // =====================================================================

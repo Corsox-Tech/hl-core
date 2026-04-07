@@ -37,6 +37,12 @@ class HL_Frontend_Cycle_Dashboard {
         $is_staff = HL_Security::is_staff();
         $accessible_cycles = $this->get_accessible_cycles($user_id, $is_staff);
         if (empty($accessible_cycles)) {
+            if ( HL_Security::should_hide_archived() ) {
+                return '<div class="hl-dashboard hl-cycle-dashboard hl-frontend-wrap">'
+                    . '<div class="hl-notice hl-notice-info">'
+                    . esc_html__( 'Your enrolled cycles have been archived. Visit My Programs to access your course materials.', 'hl-core' )
+                    . '</div></div>';
+            }
             return $this->render_access_denied();
         }
         $selected_cycle_id = $this->resolve_cycle_id($atts, $accessible_cycles);
@@ -68,13 +74,20 @@ class HL_Frontend_Cycle_Dashboard {
 
     private function get_accessible_cycles($user_id, $is_staff) {
         $all_cycles = $this->cycle_repo->get_all();
+        $hide_archived = HL_Security::should_hide_archived();
+
         if ($is_staff) {
             $map = array();
             foreach ($all_cycles as $p) {
+                if ( $hide_archived && $p->status === 'archived' ) {
+                    continue;
+                }
                 $map[(int) $p->cycle_id] = $p;
             }
             return $map;
         }
+
+        // Non-staff path: filter to leader enrollments only.
         $enrollments = $this->enrollment_repo->get_all(array('status' => 'active'));
         $cycle_ids = array();
         foreach ($enrollments as $enrollment) {
@@ -89,9 +102,13 @@ class HL_Frontend_Cycle_Dashboard {
         if (empty($cycle_ids)) {
             return array();
         }
+
         $map = array();
         foreach ($all_cycles as $p) {
             if (in_array((int) $p->cycle_id, $cycle_ids, true)) {
+                if ( $hide_archived && $p->status === 'archived' ) {
+                    continue;
+                }
                 $map[(int) $p->cycle_id] = $p;
             }
         }
@@ -112,6 +129,22 @@ class HL_Frontend_Cycle_Dashboard {
                 return $id;
             }
         }
+        // Default: most recent active cycle by start_date.
+        $best_id   = null;
+        $best_date = '';
+        foreach ( $accessible_cycles as $pid => $prog ) {
+            if ( $prog->status === 'active' ) {
+                $sd = $prog->start_date ?: '0000-00-00';
+                if ( $best_id === null || $sd > $best_date ) {
+                    $best_id   = $pid;
+                    $best_date = $sd;
+                }
+            }
+        }
+        if ( $best_id !== null ) {
+            return $best_id;
+        }
+        // Fall back to first available if no active cycles.
         reset($accessible_cycles);
         return key($accessible_cycles);
     }

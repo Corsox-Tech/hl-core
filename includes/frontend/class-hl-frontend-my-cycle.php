@@ -141,7 +141,19 @@ class HL_Frontend_My_Cycle {
             }
         }
 
+        // Hide enrollments whose cycle is archived (for non-privileged users).
+        if ( HL_Security::should_hide_archived() ) {
+            $leader_enrollments = HL_Enrollment_Repository::filter_non_archived( $leader_enrollments );
+        }
+
         if ( empty( $leader_enrollments ) ) {
+            if ( ! empty( $user_enrollments ) && HL_Security::should_hide_archived() ) {
+                echo '<div class="hl-dashboard hl-my-cycle hl-frontend-wrap">';
+                echo '<div class="hl-notice hl-notice-info">'
+                    . esc_html__( 'Your enrolled cycles have been archived. Visit My Programs to access your course materials.', 'hl-core' )
+                    . '</div></div>';
+                return ob_get_clean();
+            }
             echo '<div class="hl-notice hl-notice-warning">'
                 . esc_html__( 'You do not have access to this page. My Cycle is available for School Leaders and District Leaders.', 'hl-core' )
                 . '</div>';
@@ -162,18 +174,20 @@ class HL_Frontend_My_Cycle {
         }
 
         if ( ! $active_enrollment ) {
-            // Prefer enrollment whose cycle is active.
+            $best      = null;
+            $best_date = '';
             foreach ( $leader_enrollments as $enrollment ) {
                 $c = $this->cycle_repo->get_by_id( (int) $enrollment->cycle_id );
                 if ( $c && 'active' === $c->status ) {
-                    $active_enrollment = $enrollment;
-                    break;
+                    $sd = $c->start_date ?: '0000-00-00';
+                    if ( $best === null || $sd > $best_date ) {
+                        $best      = $enrollment;
+                        $best_date = $sd;
+                    }
                 }
             }
-            if ( ! $active_enrollment ) {
-                $active_enrollment = $leader_enrollments[0];
-            }
-            $active_cycle_id = (int) $active_enrollment->cycle_id;
+            $active_enrollment = $best ?: $leader_enrollments[0];
+            $active_cycle_id   = (int) $active_enrollment->cycle_id;
         }
 
         $cycle = $this->cycle_repo->get_by_id( $active_cycle_id );

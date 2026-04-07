@@ -33,4 +33,17 @@ class HL_Security {
             wp_die(__('You do not have permission to perform this action.', 'hl-core'));
         }
     }
+
+    /**
+     * Whether the current user should see archived cycle data hidden.
+     *
+     * Returns true for non-privileged users (teachers, mentors, leaders).
+     * Returns false for admins and coaches — both have the manage_hl_core
+     * capability (coaches granted in HL_Installer).
+     *
+     * @return bool
+     */
+    public static function should_hide_archived(): bool {
+        return ! current_user_can( 'manage_hl_core' );
+    }
 }

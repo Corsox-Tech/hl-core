@@ -68,8 +68,21 @@ class HL_Frontend_Team_Progress {
         });
         $mentor_enrollments = array_values($mentor_enrollments);
 
+        // Hide enrollments whose cycle is archived (for non-privileged users).
+        $all_mentor_count = count( $mentor_enrollments );
+        if ( HL_Security::should_hide_archived() ) {
+            $mentor_enrollments = HL_Enrollment_Repository::filter_non_archived( $mentor_enrollments );
+        }
+
         // -- Empty state: user has no Mentor enrollments --
         if (empty($mentor_enrollments)) {
+            if ( $all_mentor_count > 0 && HL_Security::should_hide_archived() ) {
+                echo '<div class="hl-dashboard hl-team-progress hl-frontend-wrap">';
+                echo '<div class="hl-notice hl-notice-info">'
+                    . esc_html__( 'Your enrolled cycles have been archived. Visit My Programs to access your course materials.', 'hl-core' )
+                    . '</div></div>';
+                return ob_get_clean();
+            }
             $this->render_empty_state();
             return ob_get_clean();
         }
@@ -83,6 +96,13 @@ class HL_Frontend_Team_Progress {
                 $track_blocks[] = $block;
             }
         }
+
+        // Sort so most recent active cycle comes first (becomes the default tab).
+        usort( $track_blocks, function( $a, $b ) {
+            $a_date = $a['cycle']->start_date ?: '0000-00-00';
+            $b_date = $b['cycle']->start_date ?: '0000-00-00';
+            return strcmp( $b_date, $a_date ); // DESC
+        } );
 
         if (empty($track_blocks)) {
             $this->render_empty_state();

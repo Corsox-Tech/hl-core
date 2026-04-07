@@ -132,6 +132,16 @@ class HL_Frontend_Cycle_Workspace {
             return ob_get_clean();
         }
 
+        // Block non-privileged users from viewing archived cycle workspaces.
+        if ( HL_Security::should_hide_archived() && $cycle->status === 'archived' ) {
+            echo '<div class="hl-dashboard hl-cycle-workspace hl-frontend-wrap">';
+            echo '<div class="hl-notice hl-notice-warning">'
+                . esc_html__( 'This cycle is no longer available. Please select an active cycle.', 'hl-core' )
+                . '</div>';
+            echo '</div>';
+            return ob_get_clean();
+        }
+
         // Access check.
         $is_staff   = HL_Security::can_manage();
         $enrollment = $this->enrollment_repo->get_by_cycle_and_user( $cycle_id, $user_id );
