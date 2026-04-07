@@ -20,6 +20,9 @@ class HL_Ticket_Service {
     /** @var string[] Valid ticket types. */
     const VALID_TYPES = array( 'bug', 'improvement', 'feature_request' );
 
+    /** @var string[] Valid ticket categories. */
+    const VALID_CATEGORIES = array( 'course_content', 'platform_issue', 'account_access', 'forms_assessments', 'reports_data', 'other' );
+
     /** @var string[] Valid priority levels. */
     const VALID_PRIORITIES = array( 'low', 'medium', 'high', 'critical' );
 
@@ -151,7 +154,8 @@ class HL_Ticket_Service {
 
         // Fetch tickets (without description for list view).
         $select_sql = "SELECT t.ticket_id, t.ticket_uuid, t.title, t.type, t.priority, t.status,
-                              t.creator_user_id, t.resolved_at, t.created_at, t.updated_at
+                              t.creator_user_id, t.category, t.context_mode, t.context_user_id,
+                              t.resolved_at, t.created_at, t.updated_at
                        FROM {$table} t
                        WHERE {$where_sql}
                        ORDER BY t.created_at DESC
@@ -206,6 +210,9 @@ class HL_Ticket_Service {
         $type        = isset( $data['type'] ) ? $data['type'] : '';
         $priority    = isset( $data['priority'] ) ? $data['priority'] : 'medium';
         $description = isset( $data['description'] ) ? wp_kses_post( trim( $data['description'] ) ) : '';
+        $category      = isset( $data['category'] ) ? $data['category'] : '';
+        $context_mode  = isset( $data['context_mode'] ) && $data['context_mode'] === 'view_as' ? 'view_as' : 'self';
+        $context_user  = ! empty( $data['context_user_id'] ) ? absint( $data['context_user_id'] ) : null;
 
         // Validate.
         if ( empty( $title ) ) {
@@ -224,6 +231,22 @@ class HL_Ticket_Service {
             return new WP_Error( 'missing_description', __( 'Description is required.', 'hl-core' ) );
         }
 
+        if ( ! in_array( $category, self::VALID_CATEGORIES, true ) ) {
+            return new WP_Error( 'invalid_category', __( 'Please select a category.', 'hl-core' ) );
+        }
+
+        // Context validation.
+        if ( $context_mode === 'self' ) {
+            $context_user = null; // Force NULL when mode is self.
+        } elseif ( $context_mode === 'view_as' ) {
+            if ( ! $context_user ) {
+                return new WP_Error( 'missing_context_user', __( 'Please select the user you were viewing as.', 'hl-core' ) );
+            }
+            if ( ! get_userdata( $context_user ) ) {
+                return new WP_Error( 'invalid_context_user', __( 'The selected user does not exist.', 'hl-core' ) );
+            }
+        }
+
         $uuid   = HL_DB_Utils::generate_uuid();
         $now    = current_time( 'mysql' );
         $result = $wpdb->insert( $wpdb->prefix . 'hl_ticket', array(
@@ -232,8 +255,11 @@ class HL_Ticket_Service {
             'description'     => $description,
             'type'            => $type,
             'priority'        => $priority,
+            'category'        => $category,
             'status'          => 'open',
             'creator_user_id' => get_current_user_id(),
+            'context_mode'    => $context_mode,
+            'context_user_id' => $context_user,
             'created_at'      => $now,
             'updated_at'      => $now,
         ) );
@@ -247,7 +273,7 @@ class HL_Ticket_Service {
         HL_Audit_Service::log( 'ticket_created', array(
             'entity_type' => 'ticket',
             'entity_id'   => $ticket_id,
-            'after_data'  => array( 'title' => $title, 'type' => $type, 'priority' => $priority ),
+            'after_data'  => array( 'title' => $title, 'type' => $type, 'priority' => $priority, 'category' => $category ),
         ) );
 
         return $this->get_ticket( $uuid );
@@ -282,6 +308,21 @@ class HL_Ticket_Service {
         $type        = isset( $data['type'] ) && in_array( $data['type'], self::VALID_TYPES, true ) ? $data['type'] : $ticket['type'];
         $priority    = isset( $data['priority'] ) && in_array( $data['priority'], self::VALID_PRIORITIES, true ) ? $data['priority'] : $ticket['priority'];
         $description = isset( $data['description'] ) ? wp_kses_post( trim( $data['description'] ) ) : $ticket['description'];
+        $category     = isset( $data['category'] ) && in_array( $data['category'], self::VALID_CATEGORIES, true ) ? $data['category'] : $ticket['category'];
+        $context_mode = isset( $data['context_mode'] ) && $data['context_mode'] === 'view_as' ? 'view_as' : ( isset( $data['context_mode'] ) ? 'self' : $ticket['context_mode'] );
+        $context_user = null;
+
+        if ( $context_mode === 'self' ) {
+            $context_user = null;
+        } elseif ( $context_mode === 'view_as' ) {
+            $context_user = ! empty( $data['context_user_id'] ) ? absint( $data['context_user_id'] ) : null;
+            if ( ! $context_user ) {
+                return new WP_Error( 'missing_context_user', __( 'Please select the user you were viewing as.', 'hl-core' ) );
+            }
+            if ( ! get_userdata( $context_user ) ) {
+                return new WP_Error( 'invalid_context_user', __( 'The selected user does not exist.', 'hl-core' ) );
+            }
+        }
 
         if ( empty( $title ) ) {
             return new WP_Error( 'missing_title', __( 'Title is required.', 'hl-core' ) );
@@ -294,11 +335,14 @@ class HL_Ticket_Service {
         }
 
         $update_data = array(
-            'title'       => $title,
-            'type'        => $type,
-            'priority'    => $priority,
-            'description' => $description,
-            'updated_at'  => current_time( 'mysql' ),
+            'title'           => $title,
+            'type'            => $type,
+            'priority'        => $priority,
+            'category'        => $category,
+            'description'     => $description,
+            'context_mode'    => $context_mode,
+            'context_user_id' => $context_user,
+            'updated_at'      => current_time( 'mysql' ),
         );
 
         $wpdb->update(
@@ -314,11 +358,13 @@ class HL_Ticket_Service {
                 'title'    => $ticket['title'],
                 'type'     => $ticket['type'],
                 'priority' => $ticket['priority'],
+                'category' => $ticket['category'],
             ),
             'after_data'  => array(
                 'title'    => $title,
                 'type'     => $type,
                 'priority' => $priority,
+                'category' => $category,
             ),
         ) );
 
@@ -482,9 +528,37 @@ class HL_Ticket_Service {
      */
     private function enrich_ticket_for_detail( $row ) {
         $row = $this->enrich_ticket_for_list( $row );
-        $row['comments']     = $this->get_comments( $row['ticket_id'] );
+        $row['comments']      = $this->get_comments( $row['ticket_id'] );
         $row['comment_count'] = count( $row['comments'] );
-        $row['attachments']  = $this->get_attachments( (int) $row['ticket_id'] );
+        $row['attachments']   = $this->get_attachments( (int) $row['ticket_id'] );
+
+        // Department from JetEngine user meta.
+        $dept = get_user_meta( $row['creator_user_id'], 'housman_learning_department', true );
+        if ( is_array( $dept ) ) {
+            $dept = implode( ', ', array_map( 'sanitize_text_field', $dept ) );
+        } else {
+            $dept = sanitize_text_field( (string) $dept );
+        }
+        $row['creator_department'] = ! empty( $dept ) ? $dept : __( 'Not assigned', 'hl-core' );
+
+        // Context user resolution (for "Viewing As" feature).
+        if ( $row['context_mode'] === 'view_as' && ! empty( $row['context_user_id'] ) ) {
+            $ctx_user = get_userdata( $row['context_user_id'] );
+            if ( $ctx_user ) {
+                $row['context_user_name']   = $ctx_user->display_name;
+                $row['context_user_avatar'] = get_avatar_url( $row['context_user_id'], array( 'size' => 64 ) );
+                if ( function_exists( 'bp_core_get_user_domain' ) ) {
+                    $row['context_user_url'] = bp_core_get_user_domain( $row['context_user_id'] );
+                } else {
+                    $row['context_user_url'] = get_author_posts_url( $row['context_user_id'] );
+                }
+            } else {
+                $row['context_user_name']   = __( 'Deleted User', 'hl-core' );
+                $row['context_user_avatar'] = null;
+                $row['context_user_url']    = null;
+            }
+        }
+
         return $row;
     }
 
@@ -582,5 +656,37 @@ class HL_Ticket_Service {
             'file_name'     => sanitize_file_name( $file['name'] ),
             'mime_type'     => $upload['type'],
         );
+    }
+
+    /**
+     * Search WordPress users by display_name for the "Viewing As" autocomplete.
+     *
+     * @param string $search Search term (min 3 chars).
+     * @return array[] Array of { user_id, display_name, avatar_url }.
+     */
+    public function search_users( $search ) {
+        global $wpdb;
+
+        $search = sanitize_text_field( trim( $search ) );
+        if ( strlen( $search ) < 3 ) {
+            return array();
+        }
+
+        $like = '%' . $wpdb->esc_like( $search ) . '%';
+        $rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT ID, display_name FROM {$wpdb->users} WHERE display_name LIKE %s ORDER BY display_name ASC LIMIT 10",
+            $like
+        ), ARRAY_A );
+
+        $results = array();
+        foreach ( $rows ?: array() as $row ) {
+            $results[] = array(
+                'user_id'      => (int) $row['ID'],
+                'display_name' => $row['display_name'],
+                'avatar_url'   => get_avatar_url( $row['ID'], array( 'size' => 64 ) ),
+            );
+        }
+
+        return $results;
     }
 }
