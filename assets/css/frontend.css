@@ -8395,12 +8395,10 @@ table.hl-tsa-likert-table { border-collapse: collapse; width: 100%; font-size: 0
 table.hl-tsa-likert-table th, table.hl-tsa-likert-table td { border: 1px solid var(--hl-border); padding: 10px 8px; text-align: center; vertical-align: middle }
 table.hl-tsa-likert-table .hl-tsa-item-col, table.hl-tsa-likert-table .hl-tsa-item-cell { text-align: left; min-width: 200px; max-width: 360px; line-height: 1.4 }
 table.hl-tsa-likert-table thead th { background: var(--hl-bg-subtle); font-weight: 600; font-size: 0.88em }
-table.hl-tsa-likert-table .hl-tsa-label-col { min-width: 44px; padding: 0 4px 8px !important; vertical-align: bottom !important; height: 120px; text-transform: none !important }
-table.hl-tsa-likert-table .hl-tsa-label-col .hl-tsa-label-text { display: block; white-space: nowrap; transform: rotate(-50deg); transform-origin: bottom left; font-size: 0.8em; line-height: 1.2; width: max-content; position: relative; left: 50%; bottom: 0 }
+table.hl-tsa-likert-table .hl-tsa-label-col { min-width: 70px; font-size: 0.8em; line-height: 1.3; word-break: normal; overflow-wrap: normal; text-transform: none !important }
 .hl-tsa-group-header { background: #e8e8e8 !important; font-weight: 700 !important; font-size: 0.9em !important }
 .hl-tsa-now-header { background: #e8f5e9 !important }
-.hl-tsa-sublabel-row th { padding: 0 4px 8px !important; vertical-align: bottom !important; height: 120px }
-.hl-tsa-sublabel-row .hl-tsa-label-text { font-size: 0.95em }
+.hl-tsa-sublabel-row th { font-size: 0.8em !important; padding: 5px 4px !important }
 .hl-tsa-before-label { background: var(--hl-bg-subtle) }
 .hl-tsa-now-label { background: #f0faf0 }
 tr.hl-tsa-row-even td { background-color: var(--hl-surface) }

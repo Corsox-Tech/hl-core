@@ -275,7 +275,7 @@ class HL_Teacher_Assessment_Renderer {
                             </th>
                         <?php else : ?>
                             <?php foreach ( $labels as $label ) : ?>
-                                <th class="hl-tsa-label-col"><span class="hl-tsa-label-text"><?php echo esc_html( $label ); ?></span></th>
+                                <th class="hl-tsa-label-col"><?php echo esc_html( $label ); ?></th>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </tr>
@@ -283,10 +283,10 @@ class HL_Teacher_Assessment_Renderer {
                     <tr class="hl-tsa-sublabel-row">
                         <th></th>
                         <?php foreach ( $labels as $label ) : ?>
-                            <th class="hl-tsa-label-col hl-tsa-before-label"><span class="hl-tsa-label-text"><?php echo esc_html( $label ); ?></span></th>
+                            <th class="hl-tsa-label-col hl-tsa-before-label"><?php echo esc_html( $label ); ?></th>
                         <?php endforeach; ?>
                         <?php foreach ( $labels as $label ) : ?>
-                            <th class="hl-tsa-label-col hl-tsa-now-label"><span class="hl-tsa-label-text"><?php echo esc_html( $label ); ?></span></th>
+                            <th class="hl-tsa-label-col hl-tsa-now-label"><?php echo esc_html( $label ); ?></th>
                         <?php endforeach; ?>
                     </tr>
                     <?php endif; ?>
