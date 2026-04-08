@@ -312,10 +312,14 @@ class HL_Frontend_User_Profile {
 
         // ── View As / Return support ────────────────────────────────
         $is_coach = in_array('coach', (array) wp_get_current_user()->roles, true);
+        $target_is_admin = user_can($target_user_id, 'manage_options');
+        // Admins can switch to anyone except other admins.
+        // Coaches (non-admin) can switch to participants only — not admins or coaches.
         $can_switch = class_exists('BP_Core_Members_Switching')
                       && ($is_admin || $is_coach)
                       && !$is_own_profile
-                      && !user_can($target_user_id, 'manage_hl_core'); // Don't allow switching to admins or coaches.
+                      && !$target_is_admin
+                      && ($is_admin || !user_can($target_user_id, 'manage_hl_core'));
         $switch_url = '';
         if ($can_switch) {
             $switch_url = BP_Core_Members_Switching::switch_to_url($target_user);
