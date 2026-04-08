@@ -67,6 +67,9 @@ class HL_Pathway_Assignment_Service {
             ));
         }
 
+        // Sync: enroll user in LearnDash courses for this pathway.
+        do_action('hl_pathway_assigned', $enrollment_id, $pathway_id);
+
         return $assignment_id;
     }
 

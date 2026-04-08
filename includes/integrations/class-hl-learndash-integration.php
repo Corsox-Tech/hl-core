@@ -18,6 +18,10 @@ class HL_LearnDash_Integration {
         }
 
         add_action('learndash_course_completed', array($this, 'on_course_completed'), 10, 1);
+
+        // HL Core → LearnDash enrollment sync.
+        add_action('hl_pathway_assigned', array($this, 'on_pathway_assigned'), 10, 2);
+        add_action('hl_learndash_component_created', array($this, 'on_learndash_component_created'), 10, 2);
     }
 
     /**
@@ -307,4 +311,127 @@ class HL_LearnDash_Integration {
 
         return true;
     }
+
+    /**
+     * When a pathway is assigned to an enrollment, enroll the user in all
+     * LearnDash courses belonging to that pathway.
+     *
+     * Fired via do_action('hl_pathway_assigned', $enrollment_id, $pathway_id).
+     *
+     * @param int $enrollment_id
+     * @param int $pathway_id
+     */
+    public function on_pathway_assigned($enrollment_id, $pathway_id) {
+        global $wpdb;
+
+        if (!function_exists('ld_update_course_access')) {
+            return;
+        }
+
+        $enrollment = $wpdb->get_row($wpdb->prepare(
+            "SELECT user_id, language_preference FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+            absint($enrollment_id)
+        ));
+
+        if (!$enrollment || !$enrollment->user_id) {
+            return;
+        }
+
+        // Static cache: avoid re-querying the same pathway's components during
+        // bulk operations (import, bulk_assign, sync_role_defaults).
+        static $pathway_components_cache = array();
+
+        $pw_key = absint($pathway_id);
+        if (!isset($pathway_components_cache[$pw_key])) {
+            $pathway_components_cache[$pw_key] = $wpdb->get_results($wpdb->prepare(
+                "SELECT component_id, catalog_id, external_ref FROM {$wpdb->prefix}hl_component
+                 WHERE pathway_id = %d AND component_type = 'learndash_course' AND status = 'active'",
+                $pw_key
+            )) ?: array();
+        }
+
+        $components = $pathway_components_cache[$pw_key];
+
+        if (empty($components)) {
+            return;
+        }
+
+        $enrolled_count = 0;
+        foreach ($components as $comp) {
+            $comp_obj = new HL_Component((array) $comp);
+            $ld_course_id = HL_Course_Catalog::resolve_ld_course_id($comp_obj, $enrollment);
+
+            if (!$ld_course_id) {
+                error_log(sprintf('[HL LD Sync] No LD course ID for component %d (pathway %d, enrollment %d)', $comp->component_id, $pathway_id, $enrollment_id));
+                continue;
+            }
+
+            ld_update_course_access($enrollment->user_id, $ld_course_id);
+            $enrolled_count++;
+        }
+
+        if ($enrolled_count > 0) {
+            error_log(sprintf('[HL LD Sync] Enrolled user %d in %d LD courses for pathway %d', $enrollment->user_id, $enrolled_count, $pathway_id));
+        }
+    }
+
+    /**
+     * When a new LearnDash course component is added to a pathway, enroll all
+     * users currently assigned to that pathway.
+     *
+     * Fired via do_action('hl_learndash_component_created', $component_id, $pathway_id).
+     *
+     * @param int $component_id
+     * @param int $pathway_id
+     */
+    public function on_learndash_component_created($component_id, $pathway_id) {
+        global $wpdb;
+
+        if (!function_exists('ld_update_course_access')) {
+            return;
+        }
+
+        $component = $wpdb->get_row($wpdb->prepare(
+            "SELECT component_id, catalog_id, external_ref, component_type FROM {$wpdb->prefix}hl_component
+             WHERE component_id = %d AND component_type = 'learndash_course' AND status = 'active'",
+            absint($component_id)
+        ));
+
+        if (!$component) {
+            return;
+        }
+
+        // Get all enrollments assigned to this pathway.
+        $assignments = $wpdb->get_results($wpdb->prepare(
+            "SELECT pa.enrollment_id, e.user_id, e.language_preference
+             FROM {$wpdb->prefix}hl_pathway_assignment pa
+             JOIN {$wpdb->prefix}hl_enrollment e ON pa.enrollment_id = e.enrollment_id
+             WHERE pa.pathway_id = %d AND e.status = 'active'",
+            absint($pathway_id)
+        ));
+
+        if (empty($assignments)) {
+            return;
+        }
+
+        $comp_obj = new HL_Component((array) $component);
+        $enrolled_count = 0;
+
+        foreach ($assignments as $a) {
+            $ld_course_id = HL_Course_Catalog::resolve_ld_course_id($comp_obj, $a);
+
+            if (!$ld_course_id) {
+                error_log(sprintf('[HL LD Sync] No LD course ID for component %d (user %d)', $component_id, $a->user_id));
+                continue;
+            }
+
+            ld_update_course_access($a->user_id, $ld_course_id);
+            $enrolled_count++;
+        }
+
+        if ($enrolled_count > 0) {
+            error_log(sprintf('[HL LD Sync] Component %d added to pathway %d — enrolled %d users', $component_id, $pathway_id, $enrolled_count));
+        }
+    }
+
 }

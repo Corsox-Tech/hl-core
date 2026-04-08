@@ -403,6 +403,11 @@ class HL_Admin_Pathways {
             $data['component_uuid'] = HL_DB_Utils::generate_uuid();
             $wpdb->insert($wpdb->prefix . 'hl_component', $data);
             $target_component_id = $wpdb->insert_id;
+
+            // Sync: enroll existing pathway users in this new LD course.
+            if ($target_component_id && $component_type === 'learndash_course') {
+                do_action('hl_learndash_component_created', $target_component_id, $pathway_id);
+            }
         }
 
         // Save prerequisite groups (only when editing — new components redirect first, then edit to add prereqs).
