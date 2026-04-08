@@ -68,10 +68,56 @@ $profile_url   = $is_logged_in ? HL_Core::get_profile_url() : '';
 global $post;
 $course_title = get_the_title();
 
-// Courses archive link for breadcrumb parent.
-$courses_url = get_post_type_archive_link('sfwd-courses');
-if (!$courses_url) {
-    $courses_url = home_url('/courses/');
+// Pathway breadcrumb: resolve from query param, cookie, or enrollment lookup.
+$hl_pathway_id    = isset($_GET['hl_pathway']) ? absint($_GET['hl_pathway']) : 0;
+$hl_enrollment_id = isset($_GET['hl_enrollment']) ? absint($_GET['hl_enrollment']) : 0;
+$pathway_name     = '';
+$pathway_url      = '';
+
+// Pathway breadcrumb helper: look up pathway name by ID.
+global $wpdb;
+$_hl_pw_table = $wpdb->prefix . 'hl_pathway';
+
+// Find the program page URL (page containing [hl_program_page] shortcode).
+$_hl_pp_id = $wpdb->get_var(
+    "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE '%[hl\_program\_page%' LIMIT 1"
+);
+if ($_hl_pp_id) {
+    $_hl_pp_id = apply_filters('wpml_object_id', $_hl_pp_id, 'page', true);
+}
+$_hl_pp_url = $_hl_pp_id ? get_permalink($_hl_pp_id) : '';
+
+// 1) Try query params (user navigated from pathway page).
+if ($hl_pathway_id && $hl_enrollment_id) {
+    $pathway_name = $wpdb->get_var($wpdb->prepare(
+        "SELECT pathway_name FROM {$_hl_pw_table} WHERE pathway_id = %d", $hl_pathway_id
+    ));
+    if ($pathway_name && $_hl_pp_url) {
+        $pathway_url = add_query_arg(array('id' => $hl_pathway_id, 'enrollment' => $hl_enrollment_id), $_hl_pp_url);
+        // Store in cookie so lesson/topic pages inherit the context.
+        setcookie('hl_nav_pathway', wp_json_encode(array(
+            'pathway_id'    => $hl_pathway_id,
+            'enrollment_id' => $hl_enrollment_id,
+            'course_id'     => get_the_ID(),
+        )), 0, '/');
+    }
+}
+
+// 2) Fallback: check cookie (user navigated into a lesson from a course that had context).
+if (!$pathway_name && !empty($_COOKIE['hl_nav_pathway'])) {
+    $nav = json_decode(wp_unslash($_COOKIE['hl_nav_pathway']), true);
+    if (is_array($nav) && !empty($nav['pathway_id']) && !empty($nav['enrollment_id'])) {
+        if (empty($nav['course_id']) || (int) $nav['course_id'] === get_the_ID()) {
+            $hl_pathway_id    = (int) $nav['pathway_id'];
+            $hl_enrollment_id = (int) $nav['enrollment_id'];
+            $pathway_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT pathway_name FROM {$_hl_pw_table} WHERE pathway_id = %d", $hl_pathway_id
+            ));
+            if ($pathway_name && $_hl_pp_url) {
+                $pathway_url = add_query_arg(array('id' => $hl_pathway_id, 'enrollment' => $hl_enrollment_id), $_hl_pp_url);
+            }
+        }
+    }
 }
 
 // =========================================================================
@@ -211,7 +257,9 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
     <div class="hl-topbar<?php echo $old_user ? ' hl-topbar--view-as' : ''; ?>" id="hl-topbar">
         <div class="hl-breadcrumb">
             <a href="<?php echo esc_url($dashboard_url); ?>"><?php esc_html_e('Dashboard', 'hl-core'); ?></a> &rsaquo;
-            <a href="<?php echo esc_url($courses_url); ?>"><?php esc_html_e('Courses', 'hl-core'); ?></a> &rsaquo;
+            <?php if ($pathway_name && $pathway_url) : ?>
+                <a href="<?php echo esc_url($pathway_url); ?>"><?php echo esc_html($pathway_name); ?></a> &rsaquo;
+            <?php endif; ?>
             <span><?php echo esc_html($course_title); ?></span>
         </div>
         <div class="hl-topbar__actions">

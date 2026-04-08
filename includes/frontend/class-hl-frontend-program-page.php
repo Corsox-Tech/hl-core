@@ -489,7 +489,7 @@ class HL_Frontend_Program_Page {
             $action_html = $this->get_action_html($component, $enrollment, $pathway, $assess_status, $completion_percent);
         } elseif ($avail_status === 'completed') {
             // Completed assessment components: show "View Responses" link.
-            $action_html = $this->get_completed_action_html($component, $enrollment);
+            $action_html = $this->get_completed_action_html($component, $enrollment, $pathway);
         }
 
         // Date badge: "Available {date}" when locked by drip, "Complete by {date}" when available.
@@ -580,6 +580,11 @@ class HL_Frontend_Program_Page {
             if ($course_id) {
                 $url = get_permalink($course_id);
                 if ($url) {
+                    // Append pathway context so breadcrumbs can show the pathway name.
+                    $url = add_query_arg(array(
+                        'hl_pathway'    => $pathway->pathway_id,
+                        'hl_enrollment' => $enrollment->enrollment_id,
+                    ), $url);
                     if ($completion_percent >= 100) {
                         $label = __('View Course', 'hl-core');
                         $btn_class = 'hl-btn-secondary';
@@ -791,7 +796,7 @@ class HL_Frontend_Program_Page {
      * @param object $enrollment
      * @return string
      */
-    private function get_completed_action_html($component, $enrollment) {
+    private function get_completed_action_html($component, $enrollment, $pathway = null) {
         $type = $component->component_type;
 
         // Completed LearnDash course: "View Course" link.
@@ -800,6 +805,13 @@ class HL_Frontend_Program_Page {
             if ($course_id) {
                 $url = get_permalink($course_id);
                 if ($url) {
+                    // Append pathway context so breadcrumbs can show the pathway name.
+                    if ($pathway) {
+                        $url = add_query_arg(array(
+                            'hl_pathway'    => $pathway->pathway_id,
+                            'hl_enrollment' => $enrollment->enrollment_id,
+                        ), $url);
+                    }
                     return '<a href="' . esc_url($url) . '" class="hl-btn hl-btn-sm hl-btn-secondary">'
                         . esc_html__('View Course', 'hl-core') . '</a>';
                 }
@@ -1037,7 +1049,7 @@ class HL_Frontend_Program_Page {
                 $action_html = str_replace('hl-pp-btn-start', 'hl-pp-btn-continue', $action_html);
             }
         } elseif ($avail_status === 'completed') {
-            $action_html = $this->get_completed_action_html($component, $enrollment);
+            $action_html = $this->get_completed_action_html($component, $enrollment, $pathway);
             $action_html = str_replace(
                 array('hl-btn hl-btn-sm hl-btn-secondary', 'hl-btn hl-btn-sm hl-btn-primary'),
                 array('hl-pp-btn hl-pp-btn-view', 'hl-pp-btn hl-pp-btn-view'),
