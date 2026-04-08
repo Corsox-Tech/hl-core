@@ -165,9 +165,6 @@ class HL_CLI_Create_Pages {
             // Feature tracker
             array( 'title' => 'Feature Tracker',     'shortcode' => 'hl_feature_tracker' ),
 
-            // Community
-            array( 'title' => 'Begin to ECSEL Community', 'shortcode' => 'hl_community' ),
-
             // Auth pages
             array( 'title' => 'Login',            'shortcode' => 'hl_login' ),
             array( 'title' => 'Password Reset',   'shortcode' => 'hl_password_reset' ),

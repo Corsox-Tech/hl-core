@@ -52,15 +52,14 @@ class HL_Frontend_Dashboard {
                 <div class="hl-dv2-section">
                     <div class="hl-dv2-section-label"><?php esc_html_e( 'Community', 'hl-core' ); ?></div>
                     <div class="hl-dv2-grid">
-                        <?php
-                        $this->render_nav_card_v2(
-                            'hl_community',
-                            __( 'Begin to ECSEL Community', 'hl-core' ),
-                            __( 'Connect with fellow educators in the community forums', 'hl-core' ),
-                            '&#x1F4AC;',
-                            'hl-dv2-icon-community'
-                        );
-                        ?>
+                        <a href="<?php echo esc_url( home_url( '/groups/begin-to-ecsel-global-community/' ) ); ?>" class="hl-dv2-card">
+                            <div class="hl-dv2-card-icon hl-dv2-icon-community">&#x1F4AC;</div>
+                            <div>
+                                <h4><?php esc_html_e( 'Begin to ECSEL Community', 'hl-core' ); ?></h4>
+                                <p><?php esc_html_e( 'Connect with fellow educators in the community forums', 'hl-core' ); ?></p>
+                            </div>
+                            <div class="hl-dv2-arrow">&#x2192;</div>
+                        </a>
                     </div>
                 </div>
             <?php endif; ?>

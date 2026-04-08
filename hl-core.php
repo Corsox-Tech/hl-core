@@ -212,7 +212,6 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-schedule-session.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-user-profile.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-feature-tracker.php';
-        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-community.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-login.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-password-reset.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-profile-setup.php';
@@ -252,6 +251,9 @@ class HL_Core {
         
         add_action('plugins_loaded', array($this, 'init'));
         add_action('init', array($this, 'load_textdomain'));
+
+        // Hide the WP admin bar on all front-end pages.
+        add_filter('show_admin_bar', '__return_false');
 
     }
     
