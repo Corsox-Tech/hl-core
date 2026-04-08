@@ -112,32 +112,37 @@ class HL_Frontend_Schedule_Session {
                 </div>
             </div>
 
-            <?php if ($sw_start || $sw_end) : ?>
+            <?php
+            // Display window = cosmetic date range shown to users (falls back to scheduling window)
+            $dw_start = !empty($component->display_window_start) ? $component->display_window_start : $sw_start;
+            $dw_end   = !empty($component->display_window_end) ? $component->display_window_end : $sw_end;
+            ?>
+            <?php if ($dw_start || $dw_end) : ?>
                 <?php
                 $window_label = '';
                 $window_closed = false;
                 $today = current_time('Y-m-d');
-                if ($sw_start && $sw_end) {
+                if ($dw_start && $dw_end) {
                     $window_label = sprintf(
                         esc_html__('Schedule between %s – %s', 'hl-core'),
-                        esc_html(date_i18n('M j', strtotime($sw_start))),
-                        esc_html(date_i18n('M j, Y', strtotime($sw_end)))
+                        esc_html(date_i18n('M j', strtotime($dw_start))),
+                        esc_html(date_i18n('M j, Y', strtotime($dw_end)))
                     );
-                    if ($today > $sw_end) {
+                    if ($today > $dw_end) {
                         $window_closed = true;
                         $window_label = sprintf(
                             esc_html__('Scheduling window closed (%s – %s)', 'hl-core'),
-                            esc_html(date_i18n('M j', strtotime($sw_start))),
-                            esc_html(date_i18n('M j, Y', strtotime($sw_end)))
+                            esc_html(date_i18n('M j', strtotime($dw_start))),
+                            esc_html(date_i18n('M j, Y', strtotime($dw_end)))
                         );
                     }
-                } elseif ($sw_start) {
-                    $window_label = sprintf(esc_html__('Available from %s', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($sw_start))));
-                } elseif ($sw_end) {
-                    $window_label = sprintf(esc_html__('Schedule by %s', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($sw_end))));
-                    if ($today > $sw_end) {
+                } elseif ($dw_start) {
+                    $window_label = sprintf(esc_html__('Available from %s', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($dw_start))));
+                } elseif ($dw_end) {
+                    $window_label = sprintf(esc_html__('Schedule by %s', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($dw_end))));
+                    if ($today > $dw_end) {
                         $window_closed = true;
-                        $window_label = sprintf(esc_html__('Scheduling window closed (by %s)', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($sw_end))));
+                        $window_label = sprintf(esc_html__('Scheduling window closed (by %s)', 'hl-core'), esc_html(date_i18n('M j, Y', strtotime($dw_end))));
                     }
                 }
                 ?>

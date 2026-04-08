@@ -16,6 +16,8 @@ class HL_Component {
     public $complete_by;
     public $scheduling_window_start;
     public $scheduling_window_end;
+    public $display_window_start;
+    public $display_window_end;
     public $visibility;
     public $requires_classroom;
     public $eligible_roles;

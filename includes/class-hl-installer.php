@@ -1438,6 +1438,8 @@ class HL_Installer {
             complete_by date DEFAULT NULL COMMENT 'Suggested completion date (not enforced)',
             scheduling_window_start date DEFAULT NULL COMMENT 'Coaching sessions: earliest bookable date',
             scheduling_window_end date DEFAULT NULL COMMENT 'Coaching sessions: latest bookable date',
+            display_window_start date DEFAULT NULL COMMENT 'Coaching sessions: displayed date range start',
+            display_window_end date DEFAULT NULL COMMENT 'Coaching sessions: displayed date range end',
             visibility enum('all','staff_only') NOT NULL DEFAULT 'all',
             requires_classroom tinyint(1) NOT NULL DEFAULT 0,
             eligible_roles text NULL,

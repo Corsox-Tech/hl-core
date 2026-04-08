@@ -1056,14 +1056,15 @@ class HL_Frontend_Program_Page {
         );
         $type_icon = isset($icon_map[$component->component_type]) ? $icon_map[$component->component_type] : '&#x1F4CB;';
 
-        // Drip badge / Scheduling window badge.
+        // Drip badge / Display window badge (coaching sessions show display_window, falls back to scheduling_window).
         $drip_html = '';
         if ($component->component_type === 'coaching_session_attendance'
-            && (!empty($component->scheduling_window_start) || !empty($component->scheduling_window_end))
+            && (!empty($component->display_window_start) || !empty($component->display_window_end)
+                || !empty($component->scheduling_window_start) || !empty($component->scheduling_window_end))
         ) {
             $today = current_time('Y-m-d');
-            $sw_start = $component->scheduling_window_start;
-            $sw_end   = $component->scheduling_window_end;
+            $sw_start = !empty($component->display_window_start) ? $component->display_window_start : $component->scheduling_window_start;
+            $sw_end   = !empty($component->display_window_end) ? $component->display_window_end : $component->scheduling_window_end;
             if ($sw_start && $sw_end) {
                 if ($today > $sw_end && $avail_status !== 'completed') {
                     $drip_html = '<span class="hl-pp-drip-badge hl-pp-window-closed">'
