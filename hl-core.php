@@ -253,7 +253,10 @@ class HL_Core {
         add_action('init', array($this, 'load_textdomain'));
 
         // Hide the WP admin bar on all front-end pages.
-        add_filter('show_admin_bar', '__return_false');
+        // Priority 9999 ensures this runs after BuddyBoss or other plugins re-enable it.
+        add_filter('show_admin_bar', '__return_false', 9999);
+        // CSS failsafe — hides the bar even if a theme/plugin overrides the filter.
+        add_action('wp_head', array($this, 'hide_admin_bar_css'), 9999);
 
     }
     
@@ -334,6 +337,13 @@ class HL_Core {
     /**
      * Load plugin text domain for translations
      */
+    /**
+     * CSS failsafe to hide the WP admin bar on all front-end pages.
+     */
+    public function hide_admin_bar_css() {
+        echo '<style>#wpadminbar{display:none!important}html{margin-top:0!important}</style>';
+    }
+
     public function load_textdomain() {
         load_plugin_textdomain(
             'hl-core',
