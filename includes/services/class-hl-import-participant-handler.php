@@ -604,6 +604,8 @@ class HL_Import_Participant_Handler {
                         throw new Exception(sprintf('Failed to create enrollment for %s', $email));
                     }
 
+                    do_action('hl_enrollment_created', $enrollment_id, $enrollment_data);
+
                     HL_Audit_Service::log('import_enrollment_created', array(
                         'cycle_id'    => $cycle_id,
                         'entity_type' => 'enrollment',

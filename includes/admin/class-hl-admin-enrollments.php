@@ -235,6 +235,10 @@ class HL_Admin_Enrollments {
             $data['enrolled_at']     = current_time('mysql');
             $wpdb->insert($wpdb->prefix . 'hl_enrollment', $data);
             $enrollment_id = $wpdb->insert_id;
+
+            // Sync: enroll user in LD courses for matching pathways.
+            do_action('hl_enrollment_created', $enrollment_id, $data);
+
             if ($cycle_context) {
                 $redirect = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $cycle_context . '&tab=enrollments&message=enrollment_created');
             } else {

@@ -2,11 +2,12 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
- * CLI command to sync LearnDash course enrollment for all pathway assignments
- * in a given cycle.
+ * CLI command to sync LearnDash course enrollment for a cycle.
  *
- * For each active enrollment with a pathway assignment, ensures the user has
- * LD course access for every learndash_course component in their pathway.
+ * Covers two cases:
+ * 1. Enrollments with explicit pathway assignments → sync those pathways' LD courses.
+ * 2. Enrollments WITHOUT assignments → resolve pathways by role fallback, sync those.
+ *
  * Safe to run multiple times — already-enrolled users are skipped.
  *
  * Usage:
@@ -21,7 +22,7 @@ class HL_CLI_Sync_LD_Enrollment {
     }
 
     /**
-     * Sync LearnDash course enrollment for a cycle's pathway assignments.
+     * Sync LearnDash course enrollment for a cycle.
      *
      * ## OPTIONS
      *
@@ -62,25 +63,7 @@ class HL_CLI_Sync_LD_Enrollment {
 
         WP_CLI::log( sprintf( '%sSyncing LD enrollment for cycle "%s" (ID %d)...', $dry_run ? '[DRY RUN] ' : '', $cycle_name, $cycle_id ) );
 
-        // Get all active enrollments with pathway assignments.
-        $rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT pa.pathway_id, p.pathway_name, e.enrollment_id, e.user_id, e.language_preference, u.display_name
-             FROM {$wpdb->prefix}hl_pathway_assignment pa
-             JOIN {$wpdb->prefix}hl_enrollment e ON pa.enrollment_id = e.enrollment_id
-             JOIN {$wpdb->prefix}hl_pathway p ON pa.pathway_id = p.pathway_id
-             LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
-             WHERE e.cycle_id = %d AND e.status = 'active'",
-            $cycle_id
-        ) );
-
-        if ( empty( $rows ) ) {
-            WP_CLI::success( 'No active pathway assignments found for this cycle.' );
-            return;
-        }
-
-        WP_CLI::log( sprintf( 'Found %d pathway assignment(s).', count( $rows ) ) );
-
-        // Pre-load all learndash_course components for this cycle.
+        // Pre-load all learndash_course components for this cycle, indexed by pathway.
         $components = $wpdb->get_results( $wpdb->prepare(
             "SELECT component_id, pathway_id, catalog_id, external_ref, title
              FROM {$wpdb->prefix}hl_component
@@ -98,44 +81,116 @@ class HL_CLI_Sync_LD_Enrollment {
             return;
         }
 
+        // Pre-load pathways with target_roles for role-based fallback.
+        $pathways = $wpdb->get_results( $wpdb->prepare(
+            "SELECT pathway_id, pathway_name, target_roles FROM {$wpdb->prefix}hl_pathway
+             WHERE cycle_id = %d AND active_status = 1",
+            $cycle_id
+        ) );
+
+        $pathway_names = array();
+        foreach ( $pathways as $pw ) {
+            $pathway_names[ $pw->pathway_id ] = $pw->pathway_name;
+        }
+
+        // Get ALL active enrollments for this cycle.
+        $enrollments = $wpdb->get_results( $wpdb->prepare(
+            "SELECT e.enrollment_id, e.user_id, e.roles, e.language_preference, u.display_name
+             FROM {$wpdb->prefix}hl_enrollment e
+             LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+             WHERE e.cycle_id = %d AND e.status = 'active'",
+            $cycle_id
+        ) );
+
+        if ( empty( $enrollments ) ) {
+            WP_CLI::success( 'No active enrollments found for this cycle.' );
+            return;
+        }
+
+        // Get explicit pathway assignments.
+        $assignments = $wpdb->get_results( $wpdb->prepare(
+            "SELECT enrollment_id, pathway_id FROM {$wpdb->prefix}hl_pathway_assignment
+             WHERE enrollment_id IN (SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment WHERE cycle_id = %d AND status = 'active')",
+            $cycle_id
+        ) );
+
+        $assigned_pathways = array();
+        foreach ( $assignments as $a ) {
+            $assigned_pathways[ $a->enrollment_id ][] = $a->pathway_id;
+        }
+
+        WP_CLI::log( sprintf( 'Found %d active enrollment(s), %d with explicit pathway assignments.', count( $enrollments ), count( $assigned_pathways ) ) );
+
         $enrolled = 0;
         $skipped  = 0;
         $errors   = 0;
 
-        foreach ( $rows as $row ) {
-            $pw_id = $row->pathway_id;
-            if ( empty( $components_by_pathway[ $pw_id ] ) ) {
+        foreach ( $enrollments as $e ) {
+            // Determine which pathways apply to this enrollment.
+            if ( ! empty( $assigned_pathways[ $e->enrollment_id ] ) ) {
+                $pw_ids = $assigned_pathways[ $e->enrollment_id ];
+                $source = 'explicit';
+            } else {
+                // Role-based fallback.
+                $roles = json_decode( $e->roles, true );
+                if ( ! is_array( $roles ) || empty( $roles ) ) {
+                    continue;
+                }
+                $pw_ids = array();
+                foreach ( $pathways as $pw ) {
+                    $target_roles = json_decode( $pw->target_roles, true );
+                    if ( ! is_array( $target_roles ) ) continue;
+                    $target_lower = array_map( 'strtolower', $target_roles );
+                    foreach ( $roles as $role ) {
+                        if ( in_array( strtolower( $role ), $target_lower, true ) ) {
+                            $pw_ids[] = $pw->pathway_id;
+                            break;
+                        }
+                    }
+                }
+                $source = 'role_fallback';
+            }
+
+            if ( empty( $pw_ids ) ) {
                 continue;
             }
 
-            foreach ( $components_by_pathway[ $pw_id ] as $comp ) {
-                $comp_obj = new HL_Component( (array) $comp );
-                $ld_course_id = HL_Course_Catalog::resolve_ld_course_id( $comp_obj, $row );
-
-                if ( ! $ld_course_id ) {
-                    WP_CLI::warning( sprintf(
-                        'No LD course ID for component "%s" (ID %d) — skipping user %s.',
-                        $comp->title, $comp->component_id, $row->display_name
-                    ) );
-                    $errors++;
+            foreach ( $pw_ids as $pw_id ) {
+                if ( empty( $components_by_pathway[ $pw_id ] ) ) {
                     continue;
                 }
 
-                // Check existing access.
-                if ( function_exists( 'sfwd_lms_has_access' ) && sfwd_lms_has_access( $ld_course_id, $row->user_id ) ) {
-                    $skipped++;
-                    continue;
-                }
+                foreach ( $components_by_pathway[ $pw_id ] as $comp ) {
+                    $comp_obj = new HL_Component( (array) $comp );
+                    $ld_course_id = HL_Course_Catalog::resolve_ld_course_id( $comp_obj, $e );
 
-                if ( $dry_run ) {
-                    WP_CLI::log( sprintf(
-                        '  Would enroll %s (user %d) in LD course %d (%s) via pathway "%s"',
-                        $row->display_name, $row->user_id, $ld_course_id, $comp->title, $row->pathway_name
-                    ) );
-                } else {
-                    ld_update_course_access( $row->user_id, $ld_course_id );
+                    if ( ! $ld_course_id ) {
+                        WP_CLI::warning( sprintf(
+                            'No LD course ID for component "%s" (ID %d) — skipping user %s.',
+                            $comp->title, $comp->component_id, $e->display_name
+                        ) );
+                        $errors++;
+                        continue;
+                    }
+
+                    // Check existing access.
+                    if ( function_exists( 'sfwd_lms_has_access' ) && sfwd_lms_has_access( $ld_course_id, $e->user_id ) ) {
+                        $skipped++;
+                        continue;
+                    }
+
+                    if ( $dry_run ) {
+                        WP_CLI::log( sprintf(
+                            '  Would enroll %s (user %d) in LD course %d (%s) via pathway "%s" [%s]',
+                            $e->display_name, $e->user_id, $ld_course_id, $comp->title,
+                            isset( $pathway_names[ $pw_id ] ) ? $pathway_names[ $pw_id ] : "#{$pw_id}",
+                            $source
+                        ) );
+                    } else {
+                        ld_update_course_access( $e->user_id, $ld_course_id );
+                    }
+                    $enrolled++;
                 }
-                $enrolled++;
             }
         }
 

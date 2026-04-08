@@ -22,6 +22,7 @@ class HL_LearnDash_Integration {
         // HL Core → LearnDash enrollment sync.
         add_action('hl_pathway_assigned', array($this, 'on_pathway_assigned'), 10, 2);
         add_action('hl_learndash_component_created', array($this, 'on_learndash_component_created'), 10, 2);
+        add_action('hl_enrollment_created', array($this, 'on_enrollment_created'), 20, 2);
     }
 
     /**
@@ -434,4 +435,100 @@ class HL_LearnDash_Integration {
         }
     }
 
+    /**
+     * When an enrollment is created, enroll the user in LD courses for all
+     * pathways resolved via role-based fallback.
+     *
+     * Runs at priority 20 so any explicit pathway assignment (which fires
+     * on_pathway_assigned at priority 10) happens first. If the user already
+     * got LD enrollment via on_pathway_assigned, ld_update_course_access is
+     * idempotent — no harm in calling it again.
+     *
+     * Fired via do_action('hl_enrollment_created', $enrollment_id, $data).
+     *
+     * @param int   $enrollment_id
+     * @param array $data Enrollment data array.
+     */
+    public function on_enrollment_created($enrollment_id, $data) {
+        global $wpdb;
+
+        if (!function_exists('ld_update_course_access')) {
+            return;
+        }
+
+        $enrollment_id = absint($enrollment_id);
+        if (!$enrollment_id) {
+            return;
+        }
+
+        $enrollment = $wpdb->get_row($wpdb->prepare(
+            "SELECT user_id, cycle_id, roles, language_preference
+             FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+            $enrollment_id
+        ));
+
+        if (!$enrollment || !$enrollment->user_id) {
+            return;
+        }
+
+        $roles = json_decode($enrollment->roles, true);
+        if (!is_array($roles) || empty($roles)) {
+            return;
+        }
+
+        // Get all active learndash_course components in pathways that match
+        // the user's roles for this cycle.
+        $pathways = $wpdb->get_results($wpdb->prepare(
+            "SELECT pathway_id, target_roles FROM {$wpdb->prefix}hl_pathway
+             WHERE cycle_id = %d AND active_status = 1",
+            $enrollment->cycle_id
+        ));
+
+        $matching_pathway_ids = array();
+        foreach ($pathways as $pw) {
+            $target_roles = json_decode($pw->target_roles, true);
+            if (!is_array($target_roles)) {
+                continue;
+            }
+            $target_lower = array_map('strtolower', $target_roles);
+            foreach ($roles as $role) {
+                if (in_array(strtolower($role), $target_lower, true)) {
+                    $matching_pathway_ids[] = $pw->pathway_id;
+                    break;
+                }
+            }
+        }
+
+        if (empty($matching_pathway_ids)) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($matching_pathway_ids), '%d'));
+        $components = $wpdb->get_results($wpdb->prepare(
+            "SELECT component_id, catalog_id, external_ref FROM {$wpdb->prefix}hl_component
+             WHERE pathway_id IN ($placeholders) AND component_type = 'learndash_course' AND status = 'active'",
+            $matching_pathway_ids
+        ));
+
+        if (empty($components)) {
+            return;
+        }
+
+        $enrolled_count = 0;
+        foreach ($components as $comp) {
+            $comp_obj = new HL_Component((array) $comp);
+            $ld_course_id = HL_Course_Catalog::resolve_ld_course_id($comp_obj, $enrollment);
+
+            if (!$ld_course_id) {
+                continue;
+            }
+
+            ld_update_course_access($enrollment->user_id, $ld_course_id);
+            $enrolled_count++;
+        }
+
+        if ($enrolled_count > 0) {
+            error_log(sprintf('[HL LD Sync] Enrollment %d created — enrolled user %d in %d LD courses via role fallback', $enrollment_id, $enrollment->user_id, $enrolled_count));
+        }
+    }
 }
