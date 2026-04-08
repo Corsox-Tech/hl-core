@@ -212,6 +212,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-schedule-session.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-user-profile.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-feature-tracker.php';
+        require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-community.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-login.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-password-reset.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-profile-setup.php';

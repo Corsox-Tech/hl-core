@@ -446,6 +446,7 @@ class HL_BuddyBoss_Integration {
                 array('coach-availability', 'hl_coach_availability', __('My Availability', 'hl-core'),  'dashicons-calendar-alt',         true),
                 array('coach-reports',      'hl_coach_reports',      __('Coach Reports', 'hl-core'),    'dashicons-chart-bar',            true),
                 array('documentation',      'hl_docs',               __('Documentation', 'hl-core'),    'dashicons-media-document',       true),
+                array('community',        'hl_community',        __('Community', 'hl-core'),        'dashicons-format-status',        true),
                 array('feature-tracker', 'hl_feature_tracker', __('Feature Tracker', 'hl-core'), 'dashicons-feedback', true),
             );
         } else {
@@ -471,6 +472,7 @@ class HL_BuddyBoss_Integration {
                 array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'dashicons-chart-bar',            $is_staff || $is_leader),
                 // --- Documentation ---
                 array('documentation', 'hl_docs',                 __('Documentation', 'hl-core'),  'dashicons-media-document',       $is_admin_level),
+                array('community',      'hl_community',        __('Community', 'hl-core'),        'dashicons-format-status',        $has_enrollment || $is_coach || $is_staff),
                 array('feature-tracker', 'hl_feature_tracker', __('Feature Tracker', 'hl-core'), 'dashicons-feedback', $is_staff),
                 // --- Admin ---
                 array('wp-admin', null, __('WP Admin', 'hl-core'), 'dashicons-admin-generic', $is_admin_level),

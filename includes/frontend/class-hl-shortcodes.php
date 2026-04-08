@@ -216,6 +216,7 @@ class HL_Shortcodes {
         add_shortcode('hl_coach_availability', array($this, 'render_coach_availability'));
         add_shortcode('hl_user_profile', array($this, 'render_user_profile'));
         add_shortcode('hl_feature_tracker', array($this, 'render_feature_tracker'));
+        add_shortcode('hl_community',       array($this, 'render_community'));
         add_shortcode('hl_login',           array('HL_Frontend_Login', 'render'));
         add_shortcode('hl_password_reset',  array('HL_Frontend_Password_Reset', 'render'));
         add_shortcode('hl_profile_setup',   array('HL_Frontend_Profile_Setup', 'render'));
@@ -756,6 +757,14 @@ class HL_Shortcodes {
         }
         $this->ensure_frontend_assets();
         $renderer = HL_Frontend_Feature_Tracker::instance();
+        return $renderer->render($atts);
+    }
+
+    /**
+     * [hl_community] - Begin to ECSEL Community (bbPress forums)
+     */
+    public function render_community($atts) {
+        $renderer = new HL_Frontend_Community();
         return $renderer->render($atts);
     }
 

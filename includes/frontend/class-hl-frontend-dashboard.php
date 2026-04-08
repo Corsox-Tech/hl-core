@@ -48,6 +48,23 @@ class HL_Frontend_Dashboard {
                 <?php $this->render_participant_section_v2( $context ); ?>
             <?php endif; ?>
 
+            <?php if ( $context['has_enrollment'] || $context['is_coach'] || $context['is_staff'] ) : ?>
+                <div class="hl-dv2-section">
+                    <div class="hl-dv2-section-label"><?php esc_html_e( 'Community', 'hl-core' ); ?></div>
+                    <div class="hl-dv2-grid">
+                        <?php
+                        $this->render_nav_card_v2(
+                            'hl_community',
+                            __( 'Begin to ECSEL Community', 'hl-core' ),
+                            __( 'Connect with fellow educators in the community forums', 'hl-core' ),
+                            '&#x1F4AC;',
+                            'hl-dv2-icon-community'
+                        );
+                        ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <?php if ( $context['is_coach'] ) : ?>
                 <?php $this->render_coach_section_v2(); ?>
             <?php endif; ?>
