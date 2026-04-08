@@ -100,13 +100,14 @@ class HL_BuddyBoss_Integration {
     }
 
     // =========================================================================
-    // 2. Coach "View As" — allow coaches to switch to participants
+    // 2. "View As" — allow admins and coaches to switch users
     // =========================================================================
 
     /**
-     * Grant coaches the ability to switch to participants via BB Members Switching.
+     * Grant admins and coaches the ability to switch users via BB Members Switching.
      *
-     * Coaches can switch to any enrolled user EXCEPT other coaches and administrators.
+     * Admins can switch to anyone except other admins.
+     * Coaches (non-admin) can switch to participants only — not admins or coaches.
      * Runs at priority 20 (after User Switching's own map_meta_cap at 10).
      *
      * @param string[] $caps    Required primitive capabilities.
@@ -120,8 +121,11 @@ class HL_BuddyBoss_Integration {
             return $caps;
         }
 
-        $user = new WP_User( $user_id );
-        if ( ! in_array( 'coach', (array) $user->roles, true ) ) {
+        $user     = new WP_User( $user_id );
+        $is_admin = user_can( $user_id, 'manage_options' );
+        $is_coach = in_array( 'coach', (array) $user->roles, true );
+
+        if ( ! $is_admin && ! $is_coach ) {
             return $caps;
         }
 
@@ -130,17 +134,24 @@ class HL_BuddyBoss_Integration {
             return $caps;
         }
 
-        $target = new WP_User( $target_user_id );
+        $target_is_admin = user_can( $target_user_id, 'manage_options' );
 
-        // Block switching to admins and other coaches.
-        if ( user_can( $target_user_id, 'manage_options' )
-            || in_array( 'administrator', (array) $target->roles, true )
-            || in_array( 'coach', (array) $target->roles, true )
-        ) {
+        // Nobody can switch to admins.
+        if ( $target_is_admin ) {
             return array( 'do_not_allow' );
         }
 
-        // Allow — map to a capability every logged-in user has.
+        // Admins can switch to anyone else (including coaches).
+        if ( $is_admin ) {
+            return array( 'exist' );
+        }
+
+        // Coaches (non-admin) cannot switch to other coaches.
+        $target = new WP_User( $target_user_id );
+        if ( in_array( 'coach', (array) $target->roles, true ) ) {
+            return array( 'do_not_allow' );
+        }
+
         return array( 'exist' );
     }
 
