@@ -812,7 +812,7 @@ class HL_Frontend_Cycle_Workspace {
                             </tr>
                             <tr class="hl-cw-detail-row hl-detail-row" id="hl-ws-detail-<?php echo esc_attr( $eid ); ?>">
                                 <td colspan="7">
-                                    <?php if ( isset( $activity_detail[ $eid ] ) && ! empty( $activities ) ) : ?>
+                                    <?php if ( ! empty( $activity_detail[ $eid ] ) ) : ?>
                                         <table class="hl-cw-detail-table">
                                             <thead>
                                                 <tr>
@@ -823,17 +823,15 @@ class HL_Frontend_Cycle_Workspace {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <?php foreach ( $activities as $act ) :
-                                                    $aid        = $act['component_id'];
-                                                    $ad         = isset( $activity_detail[ $eid ][ $aid ] ) ? $activity_detail[ $eid ][ $aid ] : null;
-                                                    $act_pct    = $ad ? intval( $ad['completion_percent'] ) : 0;
-                                                    $act_status = $ad ? $ad['completion_status'] : 'not_started';
+                                                <?php foreach ( $activity_detail[ $eid ] as $ad ) :
+                                                    $act_pct    = intval( $ad['completion_percent'] );
+                                                    $act_status = $ad['completion_status'];
                                                     $status_lbl = ucwords( str_replace( '_', ' ', $act_status ) );
                                                     $status_cls = 'hl-cw-status-' . str_replace( '_', '-', $act_status );
-                                                    $type_lbl   = ucwords( str_replace( '_', ' ', $act['component_type'] ) );
+                                                    $type_lbl   = ucwords( str_replace( '_', ' ', $ad['component_type'] ) );
                                                 ?>
                                                     <tr>
-                                                        <td><?php echo esc_html( $act['title'] ); ?></td>
+                                                        <td><?php echo esc_html( $ad['title'] ); ?></td>
                                                         <td><span class="hl-cw-activity-type"><?php echo esc_html( $type_lbl ); ?></span></td>
                                                         <td><?php echo esc_html( $act_pct . '%' ); ?></td>
                                                         <td><span class="hl-cw-status-badge <?php echo esc_attr( $status_cls ); ?>"><?php echo esc_html( $status_lbl ); ?></span></td>

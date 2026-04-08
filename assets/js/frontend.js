@@ -961,6 +961,14 @@ function hlTogglePanel(panelId, btn) {
         var icon = btn.querySelector('.dashicons');
         if (icon) icon.className = 'dashicons dashicons-arrow-right-alt2';
     }
+
+    // Auto-collapse sidebar on lesson pages regardless of saved state
+    if (document.body.classList.contains('hl-ld-lesson')) {
+        sidebar.classList.add('hl-sidebar--collapsed');
+        document.body.classList.add('hl-sidebar-is-collapsed');
+        var icon = btn.querySelector('.dashicons');
+        if (icon) icon.className = 'dashicons dashicons-arrow-right-alt2';
+    }
 })();
 
 /**

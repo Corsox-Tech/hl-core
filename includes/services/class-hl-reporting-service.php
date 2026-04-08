@@ -463,6 +463,27 @@ class HL_Reporting_Service {
         $enrollment_ids = array_map( 'absint', $enrollment_ids );
         $enrollment_placeholders = implode( ',', array_fill( 0, count( $enrollment_ids ), '%d' ) );
 
+        // Fetch assigned_pathway_id for each enrollment so we only show
+        // components from the pathway the enrollee is actually on.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $enrollment_pathway_rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT enrollment_id, assigned_pathway_id
+             FROM {$prefix}hl_enrollment
+             WHERE enrollment_id IN ({$enrollment_placeholders})",
+            $enrollment_ids
+        ), ARRAY_A );
+
+        $enrollment_pathway_map = array();
+        foreach ( $enrollment_pathway_rows as $row ) {
+            $enrollment_pathway_map[ (int) $row['enrollment_id'] ] = (int) $row['assigned_pathway_id'];
+        }
+
+        // Index components by pathway_id for quick per-enrollment filtering.
+        $components_by_pathway = array();
+        foreach ( $components as $component ) {
+            $components_by_pathway[ (int) $component['pathway_id'] ][] = $component;
+        }
+
         $component_ids = wp_list_pluck( $components, 'component_id' );
         $component_placeholders = implode( ',', array_fill( 0, count( $component_ids ), '%d' ) );
 
@@ -484,12 +505,18 @@ class HL_Reporting_Service {
             $state_map[ $eid ][ $aid ] = $state;
         }
 
-        // Build result keyed by enrollment_id => array of component data
+        // Build result keyed by enrollment_id => array of component data.
+        // Only include components from the enrollment's assigned pathway.
         $rules_engine = new HL_Rules_Engine_Service();
         $result = array();
         foreach ( $enrollment_ids as $eid ) {
             $result[ $eid ] = array();
-            foreach ( $components as $component ) {
+            $assigned_pid = isset( $enrollment_pathway_map[ $eid ] ) ? $enrollment_pathway_map[ $eid ] : 0;
+            $pathway_components = ( $assigned_pid && isset( $components_by_pathway[ $assigned_pid ] ) )
+                ? $components_by_pathway[ $assigned_pid ]
+                : $components; // fallback: show all if no pathway assigned
+
+            foreach ( $pathway_components as $component ) {
                 $aid = $component['component_id'];
                 $state = isset( $state_map[ $eid ][ $aid ] ) ? $state_map[ $eid ][ $aid ] : null;
 
@@ -501,15 +528,15 @@ class HL_Reporting_Service {
 
                 $result[ $eid ][ $aid ] = array(
                     'component_id'        => $aid,
-                    'pathway_id'         => $component['pathway_id'],
-                    'title'              => $component['title'],
+                    'pathway_id'          => $component['pathway_id'],
+                    'title'               => $component['title'],
                     'component_type'      => $component['component_type'],
-                    'weight'             => $component['weight'],
-                    'ordering_hint'      => $component['ordering_hint'],
-                    'completion_percent' => $state ? intval( $state['completion_percent'] ) : 0,
-                    'completion_status'  => $state ? $state['completion_status'] : 'not_started',
-                    'completed_at'       => $state ? $state['completed_at'] : null,
-                    'is_eligible'        => $is_eligible,
+                    'weight'              => $component['weight'],
+                    'ordering_hint'       => $component['ordering_hint'],
+                    'completion_percent'  => $state ? intval( $state['completion_percent'] ) : 0,
+                    'completion_status'   => $state ? $state['completion_status'] : 'not_started',
+                    'completed_at'        => $state ? $state['completed_at'] : null,
+                    'is_eligible'         => $is_eligible,
                 );
             }
         }

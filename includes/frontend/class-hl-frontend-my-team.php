@@ -124,7 +124,7 @@ class HL_Frontend_My_Team {
                  FROM {$prefix}hl_team_membership
                  GROUP BY team_id
              ) mc ON t.team_id = mc.team_id
-             WHERE e.user_id = %d AND e.status = 'active'
+             WHERE e.user_id = %d AND e.status = 'active' AND tr.status = 'active'
              ORDER BY t.team_name ASC",
             $user_id
         ), ARRAY_A ) ?: array();

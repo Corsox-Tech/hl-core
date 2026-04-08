@@ -8830,20 +8830,22 @@ body.hl-has-nav.hl-sidebar-is-collapsed #page {
 .hl-course-outline {
     position: fixed;
     top: 48px;
-    right: 0;
+    left: 240px;
     width: 320px;
     height: calc(100vh - 48px);
     background: #1e2433;
     color: #fff;
     overflow-y: auto;
     z-index: 99;
-    border-left: 1px solid rgba(255,255,255,0.08);
+    border-right: 1px solid rgba(255,255,255,0.08);
     padding: 20px 0;
     font-family: var(--hl-font);
-    transition: right 0.25s ease;
+    transition: left 0.25s ease, transform 0.25s ease;
 }
-
-/* Outline is now on the right — sidebar collapse doesn't affect it */
+/* Outline shifts when sidebar collapses */
+body.hl-sidebar-is-collapsed .hl-course-outline {
+    left: 60px;
+}
 
 /* Collapsed outline — element class toggled by frontend.js */
 .hl-course-outline--collapsed {
@@ -8852,7 +8854,7 @@ body.hl-has-nav.hl-sidebar-is-collapsed #page {
 
 /* Collapsed outline — body class driven (used by inline init script + reopen) */
 body.hl-course-outline-is-collapsed .hl-course-outline {
-    transform: translateX(100%);
+    transform: translateX(-100%);
     pointer-events: none;
 }
 
@@ -8885,9 +8887,12 @@ body.hl-course-outline-is-collapsed .hl-course-outline {
 }
 body.hl-course-outline-is-collapsed .hl-course-outline__reopen {
     display: flex;
-    right: 0;
-    left: auto;
-    border-radius: 8px 0 0 8px;
+    left: 240px;
+    right: auto;
+    border-radius: 0 8px 8px 0;
+}
+body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__reopen {
+    left: 60px;
 }
 
 /* Back to Course link */
@@ -9340,19 +9345,93 @@ body.hl-course-outline-is-collapsed .hl-course-outline__reopen {
 .hl-ld-course [class*="learndash-shortcode-wrap-ld_infobar"] { display: none !important; }
 
 /* --- Course Content section polish --- */
+/* Outer card wrapper */
+.hl-ld-course .learndash-wrapper .ld-item-list {
+    background: var(--hl-surface, #fff) !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--hl-border, #e5e7eb) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+    overflow: hidden !important;
+}
+
 /* LD section heading ("COURSE CONTENT") */
 .hl-ld-course .ld-section-heading {
-    padding: 16px 20px;
-    background: var(--hl-bg-subtle, #f8f9fa);
-    border-bottom: 1px solid var(--hl-border);
+    padding: 18px 24px !important;
+    background: var(--hl-bg-subtle, #f8f9fa) !important;
+    border-bottom: 1px solid var(--hl-border) !important;
 }
 .hl-ld-course .ld-section-heading h2 {
     font-size: 13px !important;
     font-weight: 700 !important;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
+    letter-spacing: 0.8px !important;
+    text-transform: uppercase !important;
     color: var(--hl-text-secondary) !important;
     margin: 0 !important;
+}
+
+/* Module section headings — accent left border */
+.hl-ld-course .learndash-wrapper .ld-lesson-section-heading {
+    padding: 14px 24px !important;
+    background: linear-gradient(135deg, #f0f4ff 0%, #f8f9fa 100%) !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.6px !important;
+    color: var(--hl-interactive, #235af3) !important;
+    border-bottom: 1px solid var(--hl-border, #e5e7eb) !important;
+    border-left: 3px solid var(--hl-interactive, #235af3) !important;
+    font-family: var(--hl-font) !important;
+}
+
+/* Lesson rows */
+.hl-ld-course .learndash-wrapper .ld-item-list-item {
+    border-bottom: 1px solid var(--hl-border, #e5e7eb) !important;
+}
+.hl-ld-course .learndash-wrapper .ld-item-list-item:last-child {
+    border-bottom: none !important;
+}
+.hl-ld-course .learndash-wrapper .ld-item-list-item-preview {
+    padding: 12px 24px !important;
+    transition: background 0.15s ease !important;
+}
+.hl-ld-course .learndash-wrapper .ld-item-list-item-preview:hover {
+    background: var(--hl-bg-subtle, #f8f9fa) !important;
+}
+
+/* Lesson title links */
+.hl-ld-course .learndash-wrapper .ld-item-name {
+    gap: 14px !important;
+    text-decoration: none !important;
+    color: var(--hl-text, #1e293b) !important;
+    font-family: var(--hl-font) !important;
+}
+.hl-ld-course .learndash-wrapper .ld-item-name:hover {
+    color: var(--hl-interactive, #235af3) !important;
+    text-decoration: none !important;
+}
+.hl-ld-course .learndash-wrapper .ld-item-title {
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    font-family: var(--hl-font) !important;
+}
+
+/* Status circles — cleaner look */
+.hl-ld-course .learndash-wrapper .ld-status-icon {
+    width: 22px !important;
+    height: 22px !important;
+    flex-basis: 22px !important;
+    border: 2px solid var(--hl-border, #d1d5db) !important;
+    background: var(--hl-surface, #fff) !important;
+    border-radius: 50% !important;
+    transition: border-color 0.15s, background 0.15s !important;
+}
+.hl-ld-course .learndash-wrapper .ld-status-icon.ld-status-complete {
+    border-color: var(--hl-interactive, #235af3) !important;
+    background: var(--hl-interactive, #235af3) !important;
+    color: #fff !important;
+}
+.hl-ld-course .learndash-wrapper .ld-status-icon .ld-icon {
+    font-size: 1.1em !important;
 }
 /* BB tab wrapper — neutralize its layout, let LD content flow naturally */
 .hl-ld-course .bb-ld-tabs {
@@ -9414,25 +9493,29 @@ body.hl-course-outline-is-collapsed .hl-course-outline__reopen {
 .hl-app .learndash-wrapper .ld-icon-search:before       { content: "\e916"; }
 
 /* --- Content area layout for lesson pages --- */
+/* Outline is on the left (between sidebar and content).
+   NOTE: .hl-ld-lesson is on <body>, so compound selectors (no space) are required
+   when combining with other body-level state classes. */
 .hl-ld-lesson .hl-ld-content {
-    margin-left: 240px;
-    margin-right: 320px;
-    padding: 72px 32px 24px;
+    margin-left: calc(240px + 320px);
+    margin-right: 0;
+    padding: 56px 24px 16px;
     min-height: 100vh;
     background: var(--hl-bg);
     box-sizing: border-box;
     overflow-x: hidden;
     max-width: calc(100vw - 240px - 320px);
 }
-body.hl-sidebar-is-collapsed .hl-ld-lesson .hl-ld-content {
-    margin-left: 60px;
+body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-ld-content {
+    margin-left: calc(60px + 320px);
     max-width: calc(100vw - 60px - 320px);
 }
-body.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content {
+body.hl-course-outline-is-collapsed.hl-ld-lesson .hl-ld-content {
+    margin-left: 240px;
     margin-right: 0;
     max-width: calc(100vw - 240px);
 }
-body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content {
+body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed.hl-ld-lesson .hl-ld-content {
     margin-left: 60px;
     margin-right: 0;
     max-width: calc(100vw - 60px);
@@ -9462,7 +9545,7 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
     display: flex;
     align-items: center;
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 12px;
     font-family: var(--hl-font);
 }
 .hl-ld-content__counter {
@@ -9522,7 +9605,7 @@ body.hl-sidebar-is-collapsed .hl-ld-course .hl-app__content {
     background: var(--hl-surface, #fff);
     border: 1px solid var(--hl-border, #e5e7eb);
     border-radius: 12px;
-    padding: 32px 40px;
+    padding: 24px 32px;
     max-width: 900px;
 }
 .hl-ld-content__body > *:first-child {
@@ -9959,7 +10042,7 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
         margin-left: calc(240px + 280px);
         max-width: calc(100vw - 240px - 280px);
     }
-    body.hl-sidebar-is-collapsed .hl-ld-lesson .hl-ld-content {
+    body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-ld-content {
         margin-left: calc(60px + 280px);
         max-width: calc(100vw - 60px - 280px);
     }
@@ -9973,9 +10056,9 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
         padding: 60px 16px 24px;
         max-width: 100vw;
     }
-    body.hl-sidebar-is-collapsed .hl-ld-lesson .hl-ld-content,
-    body.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content,
-    body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-ld-lesson .hl-ld-content {
+    body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-ld-content,
+    body.hl-course-outline-is-collapsed.hl-ld-lesson .hl-ld-content,
+    body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed.hl-ld-lesson .hl-ld-content {
         margin-left: 0;
         max-width: 100vw;
     }
@@ -10017,7 +10100,7 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
         border-radius: var(--hl-radius-sm);
     }
     .hl-ld-lesson .hl-ld-content {
-        padding: 64px 16px 24px;
+        padding: 56px 16px 16px;
     }
     .hl-course-outline {
         z-index: 1050;
