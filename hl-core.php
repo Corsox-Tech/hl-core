@@ -259,6 +259,9 @@ class HL_Core {
         // CSS failsafe — hides the bar even if a theme/plugin overrides the filter.
         add_action('wp_head', array($this, 'hide_admin_bar_css'), 9999);
 
+        // Zoho SalesIQ chat widget — loads on all frontend pages.
+        add_action('wp_head', array($this, 'render_zoho_salesiq'), 50);
+
     }
     
     /**
@@ -338,6 +341,58 @@ class HL_Core {
     /**
      * Load plugin text domain for translations
      */
+    /**
+     * Render Zoho SalesIQ chat widget with visitor identification.
+     * Mirrors the WP Code snippet from production so the widget loads
+     * on HL Core pages even when the BB theme is bypassed.
+     */
+    public function render_zoho_salesiq() {
+        if (is_admin()) {
+            return;
+        }
+
+        $is_logged_in = is_user_logged_in();
+        $name    = '';
+        $email   = '';
+        $user_id = 0;
+
+        if ($is_logged_in) {
+            $u       = wp_get_current_user();
+            $name    = trim(
+                $u->display_name
+                ?: trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''))
+                ?: $u->user_login
+            );
+            $email   = $u->user_email ?: '';
+            $user_id = (int) $u->ID;
+        }
+        ?>
+        <!-- Zoho SalesIQ widget (HL Core) -->
+        <script>
+            window.$zoho = window.$zoho || {};
+            $zoho.salesiq = $zoho.salesiq || { ready: function(){} };
+            $zoho.salesiq.ready = function () {
+                try {
+                    <?php if ($is_logged_in && !empty($name)) : ?>
+                        $zoho.salesiq.visitor.name(<?php echo json_encode($name); ?>);
+                    <?php endif; ?>
+                    <?php if ($is_logged_in && !empty($email)) : ?>
+                        $zoho.salesiq.visitor.email(<?php echo json_encode($email); ?>);
+                    <?php endif; ?>
+                    <?php if ($is_logged_in) : ?>
+                        $zoho.salesiq.visitor.id("wp-<?php echo esc_js($user_id); ?>");
+                    <?php endif; ?>
+                } catch (e) {
+                    console.warn("SalesIQ ready() error:", e);
+                }
+            };
+        </script>
+        <script id="zsiqscript"
+                src="https://salesiq.zohopublic.com/widget?wc=siq809a2f8618bcb9d5b31dfc458c9c20f363e1d33aa858f2fc74d214ee924df9ee"
+                defer></script>
+        <?php
+    }
+
     /**
      * CSS failsafe to hide the WP admin bar on all front-end pages.
      */
