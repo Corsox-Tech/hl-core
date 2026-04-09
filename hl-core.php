@@ -347,9 +347,11 @@ class HL_Core {
      * on HL Core pages even when the BB theme is bypassed.
      */
     public function render_zoho_salesiq() {
-        if (is_admin()) {
+        static $rendered = false;
+        if ($rendered || is_admin()) {
             return;
         }
+        $rendered = true;
 
         $is_logged_in = is_user_logged_in();
         $name    = '';

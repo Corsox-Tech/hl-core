@@ -264,5 +264,6 @@ if ( is_user_logged_in() && ! $is_picker_mode ) :
 <?php if ( $is_picker_mode ) : ?>
     <script src="<?php echo esc_url( HL_CORE_ASSETS_URL . 'js/hl-element-picker.js' ); ?>?ver=<?php echo esc_attr( HL_CORE_VERSION ); ?>"></script>
 <?php endif; ?>
+<?php HL_Core::instance()->render_zoho_salesiq(); ?>
 </body>
 </html>
