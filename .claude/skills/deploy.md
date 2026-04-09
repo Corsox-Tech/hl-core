@@ -145,4 +145,5 @@ node_modules/
 - `wp hl-core nuke --confirm="DELETE ALL DATA"` — **DESTRUCTIVE: Deletes ALL HL Core data** (all hl_* tables truncated, seeded users removed, auto-increment reset). Safety gate: only runs if site URL contains `staging.academy.housmanlearning.com`, `test.academy.housmanlearning.com`, or `.local`.
 - `wp hl-core create-pages [--force] [--status=draft]` — Creates all shortcode WordPress pages
 - `wp hl-core migrate-routing-types [--dry-run]` — Populates `routing_type` on existing pathways from pathway_code patterns (idempotent, safe to re-run)
+- `wp hl-core sync-ld-enrollment --cycle_id=X [--dry-run]` — Syncs LearnDash course enrollment for all pathway assignments in a cycle (explicit + role fallback). Idempotent, safe to re-run.
 

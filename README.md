@@ -182,6 +182,8 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - Course progress reading via `learndash_course_progress()`
 - Course completion event hook (`learndash_course_completed`) — fully wired: finds enrollments, matches components by course_id, marks complete, triggers rollups, audit logs
 - Batch progress reading for reporting
+- **LD enrollment sync** — automatic `ld_update_course_access()` on 3 triggers: pathway assignment, enrollment creation (role-based fallback), new LD component added to pathway. Language-aware via course catalog. Idempotent.
+- CLI: `wp hl-core sync-ld-enrollment --cycle_id=X [--dry-run]` — retroactive bulk sync for existing enrollments
 
 ### BuddyBoss Integration
 - **HL_BuddyBoss_Integration** service (`includes/integrations/class-hl-buddyboss-integration.php`)
@@ -255,7 +257,7 @@ See `STATUS.md` for the current build queue and task tracking.
     class-hl-installer.php       # DB schema (51 tables, revision 30) + activation + migrations
     /domain/                     # Entity models (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Tour)
-    /cli/                        # WP-CLI commands (16 commands: seed-demo, seed-lutheran, seed-palm-beach, seed-beginnings, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children, setup-elcpb-y2, setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav) + data files
+    /cli/                        # WP-CLI commands (17 commands: seed-demo, seed-lutheran, seed-palm-beach, seed-beginnings, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children, setup-elcpb-y2, setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav, sync-ld-enrollment) + data files
     /services/                   # Business logic (24 services incl. HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service, HL_Tour_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)

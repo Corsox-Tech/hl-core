@@ -178,6 +178,13 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **UI table** — Component Progress section below enrollment edit form. Eligibility filtering, status badges, exempt override display, non-LD info note. Works in both standalone and Cycle Editor contexts.
 - [x] **Deployed to production** — 2026-04-07.
 
+### LearnDash Enrollment Sync (April 2026)
+- [x] **Pathway assignment → LD enrollment** — `on_pathway_assigned()` hook on `HL_LearnDash_Integration`. When `assign_pathway()` fires, enrolls user in all `learndash_course` components via `ld_update_course_access()`. Language-aware via catalog. Static cache for bulk ops.
+- [x] **New component → LD enrollment** — `on_learndash_component_created()` hook. When a new `learndash_course` component is added to a pathway, enrolls all users assigned to that pathway.
+- [x] **Enrollment creation → LD enrollment** — `on_enrollment_created()` hook. Resolves pathways by role-based fallback for users without explicit pathway assignments. Fires from admin form + import handler.
+- [x] **CLI: `wp hl-core sync-ld-enrollment`** — Retroactive bulk sync. Covers both explicit assignments and role-based fallback. `--dry-run` support. `sfwd_lms_has_access()` skip for already-enrolled users.
+- [x] **Deployed to production** — 2026-04-09. Cycle 6: 132 new LD enrollments, 174 already had access, 0 errors.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
