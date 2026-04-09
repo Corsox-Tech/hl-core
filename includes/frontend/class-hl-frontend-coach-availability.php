@@ -64,8 +64,8 @@ class HL_Frontend_Coach_Availability {
             0 => 'Sun',
         );
 
-        $start_hour = 7;  // 7 AM
-        $end_hour   = 19; // 7 PM (last slot starts at 6:30 PM)
+        $start_hour = 4;  // 4 AM
+        $end_hour   = 22; // 10 PM (last slot starts at 9:30 PM)
 
         ?>
         <div class="hlca-wrapper">
