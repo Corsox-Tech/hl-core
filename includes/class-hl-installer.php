@@ -18,10 +18,16 @@ class HL_Installer {
         self::create_tables();
         self::create_capabilities();
         self::set_default_options();
-        
+
+        // Email cron events are NOT scheduled here because the custom
+        // 'hl_every_5_minutes' interval is registered via the cron_schedules
+        // filter, which has not fired yet at activation time. The events
+        // are scheduled on the first page load via ensure_email_cron_events()
+        // in HL_Core::init(), which runs after the filter is registered.
+
         // Flush rewrite rules
         flush_rewrite_rules();
-        
+
         // Log activation
         do_action('hl_core_activated');
     }
@@ -30,9 +36,14 @@ class HL_Installer {
      * Plugin deactivation
      */
     public static function deactivate() {
+        // Remove email system cron events.
+        wp_clear_scheduled_hook( 'hl_email_process_queue' );
+        wp_clear_scheduled_hook( 'hl_email_cron_daily' );
+        wp_clear_scheduled_hook( 'hl_email_cron_hourly' );
+
         // Flush rewrite rules
         flush_rewrite_rules();
-        
+
         do_action('hl_core_deactivated');
     }
     
@@ -133,7 +144,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 33;
+        $current_revision = 34;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -193,6 +204,13 @@ class HL_Installer {
             // Rev 33: Add 'draft' to hl_ticket.status enum.
             if ( (int) $stored < 33 ) {
                 self::migrate_ticket_draft_status();
+            }
+
+            // Rev 34: Email system tables + legacy template migration + account backfill.
+            if ( (int) $stored < 34 ) {
+                // Tables created by dbDelta. Run data migrations.
+                require_once HL_CORE_INCLUDES_DIR . 'migrations/class-hl-email-template-migration.php';
+                HL_Email_Template_Migration::run();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -2058,6 +2076,82 @@ class HL_Installer {
             PRIMARY KEY (profile_id),
             UNIQUE KEY user_id (user_id),
             KEY profile_completed_at (profile_completed_at)
+        ) $charset_collate;";
+
+        // ─── Email System (rev 34) ────────────────────────────────────────
+
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_email_template (
+            template_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            template_key varchar(100) NOT NULL,
+            name varchar(255) NOT NULL,
+            subject varchar(500) NOT NULL DEFAULT '',
+            blocks_json longtext NOT NULL,
+            category varchar(50) NOT NULL DEFAULT 'manual',
+            merge_tags text NULL COMMENT 'JSON array of tag keys (informational)',
+            status varchar(20) NOT NULL DEFAULT 'draft',
+            created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (template_id),
+            UNIQUE KEY template_key (template_key),
+            KEY status (status),
+            KEY category (category)
+        ) $charset_collate;";
+
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_email_workflow (
+            workflow_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            name varchar(255) NOT NULL,
+            trigger_key varchar(100) NOT NULL,
+            conditions longtext NOT NULL,
+            recipients longtext NOT NULL,
+            template_id bigint(20) unsigned NULL,
+            delay_minutes int(11) NOT NULL DEFAULT 0,
+            send_window_start time NULL COMMENT 'America/New_York time',
+            send_window_end time NULL COMMENT 'America/New_York time',
+            send_window_days varchar(50) NULL COMMENT 'Comma-separated: mon,tue,wed,thu,fri',
+            status varchar(20) NOT NULL DEFAULT 'draft',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (workflow_id),
+            KEY trigger_key (trigger_key),
+            KEY status (status),
+            KEY template_id (template_id)
+        ) $charset_collate;";
+
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_email_queue (
+            queue_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            workflow_id bigint(20) unsigned NULL COMMENT 'NULL for manual sends',
+            template_id bigint(20) unsigned NULL,
+            recipient_user_id bigint(20) unsigned NULL,
+            recipient_email varchar(255) NOT NULL,
+            subject varchar(500) NOT NULL,
+            body_html longtext NOT NULL COMMENT 'Fully rendered at queue-insertion time',
+            context_data longtext NULL COMMENT 'JSON snapshot for debugging',
+            dedup_token varchar(64) NULL COMMENT 'md5 hash for duplicate prevention',
+            scheduled_at datetime NOT NULL COMMENT 'UTC',
+            sent_at datetime NULL,
+            attempts tinyint(3) unsigned NOT NULL DEFAULT 0,
+            status varchar(20) NOT NULL DEFAULT 'pending',
+            claim_token varchar(36) NULL COMMENT 'UUID set during claim to prevent double-processing',
+            failed_reason varchar(255) NULL COMMENT 'Error message from wp_mail or rate limiter',
+            sent_by bigint(20) unsigned NULL COMMENT 'NULL=automated, user ID=manual',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (queue_id),
+            KEY status_scheduled (status, scheduled_at),
+            KEY recipient_user_id (recipient_user_id),
+            KEY workflow_id (workflow_id),
+            KEY dedup_token (dedup_token)
+        ) $charset_collate;";
+
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_email_rate_limit (
+            rl_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) unsigned NOT NULL,
+            window_key varchar(20) NOT NULL,
+            window_start datetime NOT NULL COMMENT 'UTC',
+            send_count smallint(5) unsigned NOT NULL DEFAULT 1,
+            PRIMARY KEY (rl_id),
+            UNIQUE KEY user_window (user_id, window_key, window_start)
         ) $charset_collate;";
 
         return $tables;

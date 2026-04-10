@@ -1,0 +1,945 @@
+<?php
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+/**
+ * Email Automation Service
+ *
+ * Orchestrates the email automation engine: listens for hook-based
+ * triggers, polls for cron-based triggers, evaluates conditions,
+ * resolves recipients, and enqueues emails via the queue processor.
+ *
+ * @package HL_Core
+ */
+class HL_Email_Automation_Service {
+
+    /** @var self|null */
+    private static $instance = null;
+
+    /** @return self */
+    public static function instance() {
+        if ( self::$instance === null ) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    private function __construct() {
+        $this->register_hook_listeners();
+    }
+
+    // =========================================================================
+    // Hook Registration
+    // =========================================================================
+
+    /**
+     * Register WordPress action listeners for all hook-based triggers.
+     */
+    private function register_hook_listeners() {
+        $hooks = array(
+            'user_register',
+            'hl_enrollment_created',
+            'hl_pathway_assigned',
+            'hl_learndash_course_completed',
+            'hl_pathway_completed',
+            'hl_coaching_session_created',
+            'hl_coaching_session_status_changed',
+            'hl_rp_session_created',
+            'hl_rp_session_status_changed',
+            'hl_classroom_visit_submitted',
+            'hl_teacher_assessment_submitted',
+            'hl_child_assessment_submitted',
+            'hl_coach_assigned',
+        );
+
+        foreach ( $hooks as $hook ) {
+            add_action( $hook, function () use ( $hook ) {
+                $args = func_get_args();
+                $this->handle_trigger( $hook, $args );
+            }, 20, 10 );
+        }
+    }
+
+    // =========================================================================
+    // Trigger Handler
+    // =========================================================================
+
+    /**
+     * Handle a triggered event: load workflows, evaluate, resolve, enqueue.
+     *
+     * @param string $trigger_key WordPress hook name.
+     * @param array  $args        Arguments passed to the hook.
+     */
+    public function handle_trigger( $trigger_key, array $args = array() ) {
+        global $wpdb;
+
+        // Load active workflows matching this trigger.
+        $workflows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_email_workflow
+             WHERE trigger_key = %s AND status = 'active'",
+            $trigger_key
+        ) );
+
+        if ( empty( $workflows ) ) {
+            return;
+        }
+
+        // Build context from hook arguments.
+        $context = $this->build_hook_context( $trigger_key, $args );
+        if ( empty( $context ) ) {
+            return;
+        }
+
+        // Hydrate context with DB data.
+        $context = $this->hydrate_context( $context );
+
+        $evaluator      = HL_Email_Condition_Evaluator::instance();
+        $resolver        = HL_Email_Recipient_Resolver::instance();
+        $renderer        = HL_Email_Block_Renderer::instance();
+        $merge_registry  = HL_Email_Merge_Tag_Registry::instance();
+        $queue_processor = HL_Email_Queue_Processor::instance();
+
+        foreach ( $workflows as $workflow ) {
+            // Decode conditions and recipients (enforce defaults for longtext dbDelta limitation).
+            $conditions = json_decode( $workflow->conditions, true );
+            if ( ! is_array( $conditions ) ) {
+                $conditions = array();
+            }
+            $recipient_config = json_decode( $workflow->recipients, true );
+            if ( ! is_array( $recipient_config ) ) {
+                $recipient_config = array( 'primary' => array(), 'cc' => array() );
+            }
+
+            // Evaluate conditions.
+            if ( ! $evaluator->evaluate( $conditions, $context ) ) {
+                continue;
+            }
+
+            // Resolve recipients.
+            $recipients = $resolver->resolve( $recipient_config, $context );
+            if ( empty( $recipients ) ) {
+                continue;
+            }
+
+            // Load template.
+            $template = null;
+            if ( $workflow->template_id ) {
+                $template = $wpdb->get_row( $wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}hl_email_template WHERE template_id = %d AND status = 'active'",
+                    $workflow->template_id
+                ) );
+            }
+            if ( ! $template ) {
+                continue;
+            }
+
+            $blocks = json_decode( $template->blocks_json, true );
+            if ( ! is_array( $blocks ) ) {
+                $blocks = array();
+            }
+
+            // Compute scheduled_at.
+            $scheduled_at = $this->compute_scheduled_at( $workflow );
+
+            // Fan out: one queue row per recipient.
+            foreach ( $recipients as $recipient ) {
+                // Build per-recipient context for merge tag resolution.
+                $recipient_context = array_merge( $context, array(
+                    'recipient_user_id' => $recipient['user_id'],
+                    'recipient_email'   => $recipient['email'],
+                    'recipient_name'    => $recipient['user_id'] ? get_userdata( $recipient['user_id'] )->display_name ?? '' : '',
+                ) );
+
+                // Resolve merge tags.
+                $merge_tags = $merge_registry->resolve_all( $recipient_context );
+
+                // Render body HTML.
+                $body_html = $renderer->render( $blocks, $template->subject, $merge_tags );
+
+                // Resolve subject merge tags.
+                $subject = $template->subject;
+                foreach ( $merge_tags as $tag_key => $tag_value ) {
+                    $subject = str_replace( '{{' . $tag_key . '}}', $tag_value, $subject );
+                }
+
+                // Build dedup token for hook-based triggers.
+                // Includes cycle_id so cross-cycle triggers are independent.
+                $entity_id   = $context['entity_id'] ?? 0;
+                $dedup_token = md5(
+                    $trigger_key . '_' . $workflow->workflow_id . '_'
+                    . ( $recipient['user_id'] ?? 0 ) . '_' . $entity_id
+                    . '_' . ( $context['cycle_id'] ?? 0 )
+                );
+
+                // Build context_data snapshot.
+                $context_data = array(
+                    'trigger_key'   => $trigger_key,
+                    'cycle_id'      => $context['cycle_id'] ?? null,
+                    'enrollment_id' => $context['enrollment_id'] ?? null,
+                    'entity_id'     => $entity_id,
+                    'entity_type'   => $context['entity_type'] ?? null,
+                    'workflow_id'   => (int) $workflow->workflow_id,
+                    'template_key'  => $template->template_key,
+                    'user_id'       => $context['user_id'] ?? null,
+                );
+
+                $queue_processor->enqueue( array(
+                    'workflow_id'       => (int) $workflow->workflow_id,
+                    'template_id'       => (int) $template->template_id,
+                    'recipient_user_id' => $recipient['user_id'],
+                    'recipient_email'   => $recipient['email'],
+                    'subject'           => $subject,
+                    'body_html'         => $body_html,
+                    'context_data'      => $context_data,
+                    'dedup_token'       => $dedup_token,
+                    'scheduled_at'      => $scheduled_at,
+                ) );
+            }
+        }
+    }
+
+    // =========================================================================
+    // Context Building
+    // =========================================================================
+
+    /**
+     * Build initial context from hook arguments.
+     *
+     * @param string $trigger_key Hook name.
+     * @param array  $args        Hook arguments.
+     * @return array Context array or empty if unusable.
+     */
+    private function build_hook_context( $trigger_key, array $args ) {
+        $context = array(
+            'trigger_key' => $trigger_key,
+        );
+
+        switch ( $trigger_key ) {
+            case 'user_register':
+                $context['user_id']     = $args[0] ?? null;
+                $context['entity_id']   = $args[0] ?? null;
+                $context['entity_type'] = 'user';
+                break;
+
+            case 'hl_enrollment_created':
+                $enrollment_id          = $args[0] ?? null;
+                $context['entity_id']   = $enrollment_id;
+                $context['entity_type'] = 'enrollment';
+                $context['enrollment_id'] = $enrollment_id;
+                if ( $enrollment_id ) {
+                    $context = $this->load_enrollment_context( $enrollment_id, $context );
+                }
+                break;
+
+            case 'hl_pathway_assigned':
+                $assignment_id          = $args[0] ?? null;
+                $user_id                = $args[1] ?? null;
+                $pathway_id             = $args[2] ?? null;
+                $context['entity_id']   = $assignment_id;
+                $context['entity_type'] = 'pathway_assignment';
+                $context['user_id']     = $user_id;
+                $context['pathway_id']  = $pathway_id;
+                break;
+
+            case 'hl_learndash_course_completed':
+                $user_id                = $args[0] ?? null;
+                $course_id              = $args[1] ?? null;
+                $context['user_id']     = $user_id;
+                $context['entity_id']   = $course_id;
+                $context['entity_type'] = 'course';
+                $context['course_id']   = $course_id;
+                break;
+
+            case 'hl_pathway_completed':
+                $user_id                = $args[0] ?? null;
+                $pathway_id             = $args[1] ?? null;
+                $enrollment_id          = $args[2] ?? null;
+                $context['user_id']     = $user_id;
+                $context['entity_id']   = $enrollment_id;
+                $context['entity_type'] = 'enrollment';
+                $context['enrollment_id'] = $enrollment_id;
+                $context['pathway_id']  = $pathway_id;
+                break;
+
+            case 'hl_coaching_session_created':
+                $session_id             = $args[0] ?? null;
+                $context['entity_id']   = $session_id;
+                $context['entity_type'] = 'coaching_session';
+                if ( $session_id ) {
+                    $context = $this->load_coaching_session_context( $session_id, $context );
+                }
+                break;
+
+            case 'hl_coaching_session_status_changed':
+                $session_id             = $args[0] ?? null;
+                $new_status             = $args[1] ?? null;
+                $old_status             = $args[2] ?? null;
+                $context['entity_id']   = $session_id;
+                $context['entity_type'] = 'coaching_session';
+                $context['session']     = array(
+                    'new_status' => $new_status,
+                    'old_status' => $old_status,
+                );
+                if ( $session_id ) {
+                    $context = $this->load_coaching_session_context( $session_id, $context );
+                }
+                break;
+
+            case 'hl_rp_session_created':
+            case 'hl_rp_session_status_changed':
+                $rp_session_id          = $args[0] ?? null;
+                $context['entity_id']   = $rp_session_id;
+                $context['entity_type'] = 'rp_session';
+                if ( isset( $args[1] ) ) {
+                    $context['session'] = array( 'new_status' => $args[1] );
+                }
+                break;
+
+            case 'hl_classroom_visit_submitted':
+                $visit_id               = $args[0] ?? null;
+                $context['entity_id']   = $visit_id;
+                $context['entity_type'] = 'classroom_visit';
+                if ( $visit_id ) {
+                    $context = $this->load_classroom_visit_context( $visit_id, $context );
+                }
+                break;
+
+            case 'hl_teacher_assessment_submitted':
+                $instance_id            = $args[0] ?? null;
+                $context['entity_id']   = $instance_id;
+                $context['entity_type'] = 'teacher_assessment';
+                if ( $instance_id ) {
+                    $context = $this->load_assessment_context( $instance_id, 'teacher', $context );
+                }
+                break;
+
+            case 'hl_child_assessment_submitted':
+                $instance_id            = $args[0] ?? null;
+                $context['entity_id']   = $instance_id;
+                $context['entity_type'] = 'child_assessment';
+                break;
+
+            case 'hl_coach_assigned':
+                $assignment_id          = $args[0] ?? null;
+                $context['entity_id']   = $assignment_id;
+                $context['entity_type'] = 'coach_assignment';
+                break;
+
+            default:
+                return array();
+        }
+
+        return $context;
+    }
+
+    /**
+     * Load enrollment data into context.
+     */
+    private function load_enrollment_context( $enrollment_id, array $context ) {
+        global $wpdb;
+        $enrollment = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+            $enrollment_id
+        ) );
+        if ( ! $enrollment ) {
+            return $context;
+        }
+        $context['user_id']       = (int) $enrollment->user_id;
+        $context['cycle_id']      = (int) $enrollment->cycle_id;
+        $context['enrollment_id'] = (int) $enrollment->enrollment_id;
+        $context['enrollment']    = array(
+            'role'   => $enrollment->roles ?? '',
+            'status' => $enrollment->status ?? '',
+        );
+        return $context;
+    }
+
+    /**
+     * Load coaching session data into context.
+     */
+    private function load_coaching_session_context( $session_id, array $context ) {
+        global $wpdb;
+        $session = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_coaching_session WHERE session_id = %d",
+            $session_id
+        ) );
+        if ( ! $session ) {
+            return $context;
+        }
+        $context['user_id']       = (int) $session->mentor_user_id;
+        $context['cycle_id']      = (int) $session->cycle_id;
+        $context['enrollment_id'] = $session->enrollment_id ? (int) $session->enrollment_id : null;
+        $context['meeting_url']   = $session->meeting_url ?? '';
+        $context['zoom_link']     = $session->meeting_url ?? '';
+
+        // Format session date in ET.
+        if ( ! empty( $session->session_datetime ) ) {
+            try {
+                $dt = new DateTime( $session->session_datetime, new DateTimeZone( wp_timezone_string() ) );
+                $dt->setTimezone( new DateTimeZone( 'America/New_York' ) );
+                $context['session_date'] = $dt->format( 'l, F j, Y \a\t g:i A T' );
+            } catch ( Exception $e ) {
+                $context['session_date'] = $session->session_datetime;
+            }
+        }
+
+        // Load coach data.
+        if ( ! empty( $session->coach_user_id ) ) {
+            $coach = get_userdata( (int) $session->coach_user_id );
+            if ( $coach ) {
+                $context['coach_name']  = $coach->display_name;
+                $context['coach_email'] = $coach->user_email;
+            }
+        }
+
+        // Load mentor data.
+        $mentor = get_userdata( (int) $session->mentor_user_id );
+        if ( $mentor ) {
+            $context['mentor_name'] = $mentor->display_name;
+        }
+
+        return $context;
+    }
+
+    /**
+     * Load classroom visit data into context.
+     */
+    private function load_classroom_visit_context( $visit_id, array $context ) {
+        global $wpdb;
+        $visit = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_classroom_visit WHERE visit_id = %d",
+            $visit_id
+        ) );
+        if ( ! $visit ) {
+            return $context;
+        }
+        $context['user_id']              = (int) $visit->observer_user_id;
+        $context['cycle_id']             = (int) $visit->cycle_id;
+        $context['cc_teacher_user_id']   = $visit->teacher_user_id ? (int) $visit->teacher_user_id : null;
+        $context['visit']                = array(
+            'role' => $visit->observer_role ?? '',
+        );
+        return $context;
+    }
+
+    /**
+     * Load teacher assessment data into context.
+     */
+    private function load_assessment_context( $instance_id, $type, array $context ) {
+        global $wpdb;
+        $table = "{$wpdb->prefix}hl_teacher_assessment_instance";
+        $instance = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE instance_id = %d",
+            $instance_id
+        ) );
+        if ( ! $instance ) {
+            return $context;
+        }
+        $context['user_id']           = (int) $instance->user_id;
+        $context['cycle_id']          = (int) $instance->cycle_id;
+        $context['assessment_phase']  = $instance->phase ?? '';
+        return $context;
+    }
+
+    /**
+     * Hydrate context with full DB data for condition evaluation and merge tags.
+     *
+     * @param array $context Initial context.
+     * @return array Enriched context.
+     */
+    private function hydrate_context( array $context ) {
+        global $wpdb;
+
+        // Load cycle data.
+        if ( ! empty( $context['cycle_id'] ) && ! isset( $context['cycle'] ) ) {
+            $cycle = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+                $context['cycle_id']
+            ) );
+            if ( $cycle ) {
+                $context['cycle_name'] = $cycle->cycle_name;
+                $context['cycle']      = array(
+                    'cycle_type'       => $cycle->cycle_type ?? '',
+                    'is_control_group' => (bool) ( $cycle->is_control_group ?? false ),
+                    'status'           => $cycle->status ?? '',
+                );
+
+                // Load partnership.
+                if ( ! empty( $cycle->partnership_id ) ) {
+                    $partnership = $wpdb->get_row( $wpdb->prepare(
+                        "SELECT * FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
+                        $cycle->partnership_id
+                    ) );
+                    if ( $partnership ) {
+                        $context['partnership_name'] = $partnership->partnership_name;
+                    }
+                }
+            }
+        }
+
+        // Load user account activation status.
+        if ( ! empty( $context['user_id'] ) ) {
+            $activated = get_user_meta( (int) $context['user_id'], 'hl_account_activated', true );
+            $context['user'] = array(
+                'account_activated' => $activated ?: null,
+            );
+        }
+
+        // Load enrollment data if we have enrollment_id but not enrollment.
+        if ( ! empty( $context['enrollment_id'] ) && ! isset( $context['enrollment'] ) ) {
+            $context = $this->load_enrollment_context( $context['enrollment_id'], $context );
+        }
+
+        // Load school data from enrollment.
+        if ( ! empty( $context['enrollment_id'] ) ) {
+            $enrollment = $wpdb->get_row( $wpdb->prepare(
+                "SELECT school_id, roles FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+                $context['enrollment_id']
+            ) );
+            if ( $enrollment && $enrollment->school_id ) {
+                $school = $wpdb->get_row( $wpdb->prepare(
+                    "SELECT o.*, p.name AS parent_name FROM {$wpdb->prefix}hl_orgunit o
+                     LEFT JOIN {$wpdb->prefix}hl_orgunit p ON p.orgunit_id = o.parent_id
+                     WHERE o.orgunit_id = %d",
+                    $enrollment->school_id
+                ) );
+                if ( $school ) {
+                    $context['school_name']    = $school->name;
+                    $context['school_district'] = $school->parent_name ?? '';
+                }
+                $context['enrollment_role'] = $enrollment->roles ?? '';
+            }
+        }
+
+        // Load pathway data.
+        if ( ! empty( $context['pathway_id'] ) && ! isset( $context['pathway_name'] ) ) {
+            $pathway = $wpdb->get_row( $wpdb->prepare(
+                "SELECT pathway_name FROM {$wpdb->prefix}hl_pathway WHERE pathway_id = %d",
+                $context['pathway_id']
+            ) );
+            if ( $pathway ) {
+                $context['pathway_name'] = $pathway->pathway_name;
+            }
+        }
+
+        return $context;
+    }
+
+    // =========================================================================
+    // Scheduling
+    // =========================================================================
+
+    /**
+     * Compute the scheduled_at datetime for a workflow.
+     *
+     * @param object $workflow Workflow row.
+     * @return string UTC datetime string.
+     */
+    public function compute_scheduled_at( $workflow ) {
+        $now = new DateTime( 'now', new DateTimeZone( 'UTC' ) );
+
+        // Apply delay.
+        $delay = (int) $workflow->delay_minutes;
+        if ( $delay > 0 ) {
+            $now->modify( "+{$delay} minutes" );
+        }
+
+        // Apply send window.
+        if ( ! empty( $workflow->send_window_start ) && ! empty( $workflow->send_window_end ) ) {
+            $now = $this->apply_send_window( $now, $workflow );
+        }
+
+        return $now->format( 'Y-m-d H:i:s' );
+    }
+
+    /**
+     * Adjust a datetime to fit within a send window.
+     *
+     * @param DateTime $dt       Current scheduled datetime (UTC).
+     * @param object   $workflow Workflow with send_window_* fields.
+     * @return DateTime Adjusted datetime.
+     */
+    private function apply_send_window( DateTime $dt, $workflow ) {
+        $et_tz = new DateTimeZone( 'America/New_York' );
+
+        // Convert to ET for comparison.
+        $dt_et = clone $dt;
+        $dt_et->setTimezone( $et_tz );
+
+        $today_str = $dt_et->format( 'Y-m-d' );
+
+        try {
+            $window_start = new DateTime( $today_str . ' ' . $workflow->send_window_start, $et_tz );
+            $window_end   = new DateTime( $today_str . ' ' . $workflow->send_window_end, $et_tz );
+        } catch ( Exception $e ) {
+            return $dt; // Invalid window times — send immediately.
+        }
+
+        // DST validation: if window_start_utc >= window_end_utc after conversion, skip window.
+        $start_utc = clone $window_start;
+        $start_utc->setTimezone( new DateTimeZone( 'UTC' ) );
+        $end_utc = clone $window_end;
+        $end_utc->setTimezone( new DateTimeZone( 'UTC' ) );
+        if ( $start_utc >= $end_utc ) {
+            return $dt; // DST gap makes window invalid — send immediately.
+        }
+
+        // Check allowed days.
+        $allowed_days = array();
+        if ( ! empty( $workflow->send_window_days ) ) {
+            $allowed_days = array_map( 'trim', explode( ',', strtolower( $workflow->send_window_days ) ) );
+        }
+
+        // If within window and on an allowed day, return as-is.
+        $current_day = strtolower( substr( $dt_et->format( 'D' ), 0, 3 ) );
+        if ( $dt_et >= $window_start && $dt_et <= $window_end ) {
+            if ( empty( $allowed_days ) || in_array( $current_day, $allowed_days, true ) ) {
+                return $dt;
+            }
+        }
+
+        // Push to the next valid window opening.
+        $max_iterations = 14; // Don't loop forever.
+        for ( $i = 0; $i < $max_iterations; $i++ ) {
+            // If we're past today's window, advance to tomorrow.
+            if ( $dt_et > $window_end || $i > 0 ) {
+                $dt_et->modify( '+1 day' );
+                $today_str    = $dt_et->format( 'Y-m-d' );
+                $window_start = new DateTime( $today_str . ' ' . $workflow->send_window_start, $et_tz );
+                $window_end   = new DateTime( $today_str . ' ' . $workflow->send_window_end, $et_tz );
+            }
+
+            $day = strtolower( substr( $dt_et->format( 'D' ), 0, 3 ) );
+            if ( empty( $allowed_days ) || in_array( $day, $allowed_days, true ) ) {
+                // Found a valid day — set time to window start.
+                $result = clone $window_start;
+                $result->setTimezone( new DateTimeZone( 'UTC' ) );
+                return $result;
+            }
+        }
+
+        return $dt; // Fallback: send at the computed time.
+    }
+
+    // =========================================================================
+    // Cron Handlers
+    // =========================================================================
+
+    /**
+     * Run daily cron checks for time-based triggers.
+     * Called by the hl_email_cron_daily action.
+     */
+    public function run_daily_checks() {
+        global $wpdb;
+
+        // Load all active cycles.
+        $cycles = $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE status = 'active'"
+        );
+        if ( empty( $cycles ) ) {
+            return;
+        }
+
+        // Load all daily cron workflows.
+        $daily_triggers = array(
+            'cron:cv_window_7d',
+            'cron:cv_overdue_1d',
+            'cron:rp_window_7d',
+            'cron:coaching_window_7d',
+            'cron:coaching_session_5d',
+            'cron:coaching_pre_end',
+            'cron:action_plan_24h',
+            'cron:session_notes_24h',
+            'cron:low_engagement_14d',
+            'cron:client_success',
+        );
+
+        $placeholders = implode( ',', array_fill( 0, count( $daily_triggers ), '%s' ) );
+        $workflows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_email_workflow
+             WHERE trigger_key IN ({$placeholders}) AND status = 'active'",
+            ...$daily_triggers
+        ) );
+
+        if ( empty( $workflows ) ) {
+            return;
+        }
+
+        foreach ( $workflows as $workflow ) {
+            $this->run_cron_workflow( $workflow, $cycles );
+        }
+
+        // TODO: Draft cleanup (delete hl_email_draft_* options older than 30 days).
+        // Requires tracking draft creation time. For now, drafts are only
+        // cleaned up when their template is deleted (Phase 3).
+    }
+
+    /**
+     * Run hourly cron checks for session reminders.
+     * Called by the hl_email_cron_hourly action.
+     */
+    public function run_hourly_checks() {
+        global $wpdb;
+
+        $cycles = $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE status = 'active'"
+        );
+        if ( empty( $cycles ) ) {
+            return;
+        }
+
+        $hourly_triggers = array(
+            'cron:session_24h',
+            'cron:session_1h',
+        );
+
+        $placeholders = implode( ',', array_fill( 0, count( $hourly_triggers ), '%s' ) );
+        $workflows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_email_workflow
+             WHERE trigger_key IN ({$placeholders}) AND status = 'active'",
+            ...$hourly_triggers
+        ) );
+
+        if ( empty( $workflows ) ) {
+            return;
+        }
+
+        foreach ( $workflows as $workflow ) {
+            $this->run_cron_workflow( $workflow, $cycles );
+        }
+    }
+
+    /**
+     * Execute a cron-based workflow by polling the DB for qualifying users.
+     *
+     * @param object $workflow Workflow row.
+     * @param array  $cycles   Active cycles.
+     */
+    private function run_cron_workflow( $workflow, array $cycles ) {
+        global $wpdb;
+
+        $trigger_key = $workflow->trigger_key;
+
+        foreach ( $cycles as $cycle ) {
+            $users = $this->get_cron_trigger_users( $trigger_key, $cycle );
+            if ( empty( $users ) ) {
+                continue;
+            }
+
+            foreach ( $users as $user_data ) {
+                $context = array(
+                    'trigger_key'   => $trigger_key,
+                    'user_id'       => $user_data['user_id'],
+                    'cycle_id'      => (int) $cycle->cycle_id,
+                    'enrollment_id' => $user_data['enrollment_id'] ?? null,
+                    'entity_id'     => $user_data['entity_id'] ?? null,
+                    'entity_type'   => $user_data['entity_type'] ?? null,
+                );
+                $context = $this->hydrate_context( $context );
+
+                // Evaluate conditions.
+                $conditions = json_decode( $workflow->conditions, true );
+                if ( ! is_array( $conditions ) ) {
+                    $conditions = array();
+                }
+                $evaluator = HL_Email_Condition_Evaluator::instance();
+                if ( ! $evaluator->evaluate( $conditions, $context ) ) {
+                    continue;
+                }
+
+                // Resolve recipients.
+                $recipient_config = json_decode( $workflow->recipients, true );
+                if ( ! is_array( $recipient_config ) ) {
+                    $recipient_config = array( 'primary' => array(), 'cc' => array() );
+                }
+                $resolver   = HL_Email_Recipient_Resolver::instance();
+                $recipients = $resolver->resolve( $recipient_config, $context );
+                if ( empty( $recipients ) ) {
+                    continue;
+                }
+
+                // Load template.
+                $template = null;
+                if ( $workflow->template_id ) {
+                    $template = $wpdb->get_row( $wpdb->prepare(
+                        "SELECT * FROM {$wpdb->prefix}hl_email_template WHERE template_id = %d AND status = 'active'",
+                        $workflow->template_id
+                    ) );
+                }
+                if ( ! $template ) {
+                    continue;
+                }
+
+                $blocks = json_decode( $template->blocks_json, true );
+                if ( ! is_array( $blocks ) ) {
+                    $blocks = array();
+                }
+
+                $scheduled_at    = $this->compute_scheduled_at( $workflow );
+                $renderer        = HL_Email_Block_Renderer::instance();
+                $merge_registry  = HL_Email_Merge_Tag_Registry::instance();
+                $queue_processor = HL_Email_Queue_Processor::instance();
+
+                // Cron dedup token uses date_bucket instead of entity_id.
+                $date_bucket = gmdate( 'Y-m-d' );
+
+                foreach ( $recipients as $recipient ) {
+                    $recipient_context = array_merge( $context, array(
+                        'recipient_user_id' => $recipient['user_id'],
+                        'recipient_email'   => $recipient['email'],
+                        'recipient_name'    => $recipient['user_id'] ? ( get_userdata( $recipient['user_id'] )->display_name ?? '' ) : '',
+                    ) );
+
+                    $merge_tags = $merge_registry->resolve_all( $recipient_context );
+                    $body_html  = $renderer->render( $blocks, $template->subject, $merge_tags );
+
+                    $subject = $template->subject;
+                    foreach ( $merge_tags as $tag_key => $tag_value ) {
+                        $subject = str_replace( '{{' . $tag_key . '}}', $tag_value, $subject );
+                    }
+
+                    $dedup_token = md5(
+                        $trigger_key . '_' . $workflow->workflow_id . '_'
+                        . ( $recipient['user_id'] ?? 0 ) . '_' . ( $context['cycle_id'] ?? 0 )
+                        . '_' . $date_bucket
+                    );
+
+                    $context_data = array(
+                        'trigger_key'   => $trigger_key,
+                        'cycle_id'      => $context['cycle_id'] ?? null,
+                        'enrollment_id' => $context['enrollment_id'] ?? null,
+                        'entity_id'     => $context['entity_id'] ?? null,
+                        'entity_type'   => $context['entity_type'] ?? null,
+                        'workflow_id'   => (int) $workflow->workflow_id,
+                        'template_key'  => $template->template_key,
+                        'user_id'       => $context['user_id'] ?? null,
+                    );
+
+                    $queue_processor->enqueue( array(
+                        'workflow_id'       => (int) $workflow->workflow_id,
+                        'template_id'       => (int) $template->template_id,
+                        'recipient_user_id' => $recipient['user_id'],
+                        'recipient_email'   => $recipient['email'],
+                        'subject'           => $subject,
+                        'body_html'         => $body_html,
+                        'context_data'      => $context_data,
+                        'dedup_token'       => $dedup_token,
+                        'scheduled_at'      => $scheduled_at,
+                    ) );
+                }
+            }
+        }
+    }
+
+    /**
+     * Get users qualifying for a cron-based trigger.
+     *
+     * @param string $trigger_key Cron trigger key.
+     * @param object $cycle       Cycle row.
+     * @return array Array of [ user_id, enrollment_id, entity_id, entity_type ].
+     */
+    private function get_cron_trigger_users( $trigger_key, $cycle ) {
+        global $wpdb;
+        $cycle_id = (int) $cycle->cycle_id;
+
+        switch ( $trigger_key ) {
+            case 'cron:low_engagement_14d':
+                // Users who haven't logged in for 14+ days.
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT e.user_id, e.enrollment_id, e.enrollment_id AS entity_id, 'enrollment' AS entity_type
+                     FROM {$wpdb->prefix}hl_enrollment e
+                     LEFT JOIN {$wpdb->usermeta} um ON um.user_id = e.user_id AND um.meta_key = 'last_login'
+                     WHERE e.cycle_id = %d AND e.status IN ('active','warning')
+                       AND (um.meta_value IS NULL OR um.meta_value < %s)",
+                    $cycle_id,
+                    gmdate( 'Y-m-d H:i:s', strtotime( '-14 days' ) )
+                ), ARRAY_A );
+
+            case 'cron:session_24h':
+                // Coaching sessions starting in ~24 hours.
+                $from = gmdate( 'Y-m-d H:i:s', strtotime( '+23 hours' ) );
+                $to   = gmdate( 'Y-m-d H:i:s', strtotime( '+25 hours' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
+                     FROM {$wpdb->prefix}hl_coaching_session cs
+                     WHERE cs.cycle_id = %d AND cs.session_status = 'scheduled'
+                       AND cs.session_datetime BETWEEN %s AND %s",
+                    $cycle_id, $from, $to
+                ), ARRAY_A );
+
+            case 'cron:session_1h':
+                // Coaching sessions starting in ~1 hour.
+                $from = gmdate( 'Y-m-d H:i:s', strtotime( '+30 minutes' ) );
+                $to   = gmdate( 'Y-m-d H:i:s', strtotime( '+90 minutes' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
+                     FROM {$wpdb->prefix}hl_coaching_session cs
+                     WHERE cs.cycle_id = %d AND cs.session_status = 'scheduled'
+                       AND cs.session_datetime BETWEEN %s AND %s",
+                    $cycle_id, $from, $to
+                ), ARRAY_A );
+
+            case 'cron:coaching_session_5d':
+                // Coaching sessions in 5 days.
+                $from = gmdate( 'Y-m-d H:i:s', strtotime( '+4 days 12 hours' ) );
+                $to   = gmdate( 'Y-m-d H:i:s', strtotime( '+5 days 12 hours' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
+                     FROM {$wpdb->prefix}hl_coaching_session cs
+                     WHERE cs.cycle_id = %d AND cs.session_status = 'scheduled'
+                       AND cs.session_datetime BETWEEN %s AND %s",
+                    $cycle_id, $from, $to
+                ), ARRAY_A );
+
+            case 'cron:coaching_window_7d':
+                // Users with no coaching session scheduled and coaching components opening in 7 days.
+                // TODO: Requires component available_from/available_to columns (Task 7.4).
+                return array();
+
+            case 'cron:coaching_pre_end':
+                // Users nearing cycle end with no coaching session.
+                // TODO: Requires cycle end_date logic.
+                return array();
+
+            case 'cron:cv_window_7d':
+            case 'cron:cv_overdue_1d':
+            case 'cron:rp_window_7d':
+                // TODO: Requires component available_from/available_to columns (Task 7.4).
+                return array();
+
+            case 'cron:action_plan_24h':
+                // Sessions completed 24+ hours ago with no action plan submitted.
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
+                     FROM {$wpdb->prefix}hl_coaching_session cs
+                     LEFT JOIN {$wpdb->prefix}hl_coaching_session_submission sub
+                       ON sub.session_id = cs.session_id AND sub.submission_type = 'action_plan'
+                     WHERE cs.cycle_id = %d AND cs.session_status = 'attended'
+                       AND cs.session_datetime < %s
+                       AND sub.submission_id IS NULL",
+                    $cycle_id,
+                    gmdate( 'Y-m-d H:i:s', strtotime( '-24 hours' ) )
+                ), ARRAY_A );
+
+            case 'cron:session_notes_24h':
+                // Sessions completed 24+ hours ago with no coach notes submitted.
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT cs.coach_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
+                     FROM {$wpdb->prefix}hl_coaching_session cs
+                     LEFT JOIN {$wpdb->prefix}hl_coaching_session_submission sub
+                       ON sub.session_id = cs.session_id AND sub.submission_type = 'coach_notes'
+                     WHERE cs.cycle_id = %d AND cs.session_status = 'attended'
+                       AND cs.session_datetime < %s
+                       AND sub.submission_id IS NULL",
+                    $cycle_id,
+                    gmdate( 'Y-m-d H:i:s', strtotime( '-24 hours' ) )
+                ), ARRAY_A );
+
+            case 'cron:client_success':
+                // TODO: Define client success touchpoint criteria.
+                return array();
+
+            default:
+                return array();
+        }
+    }
+}
