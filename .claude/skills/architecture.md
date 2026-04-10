@@ -24,7 +24,7 @@ description: Domain model, roles, coach assignment, partnerships, cycle types, s
 
 ## Terminology (Post-Rename V3)
 
-Code, DB, and UI all use the same terms now — no remapping layer needed. `HL_Label_Remap` is legacy — pending removal.
+Code, DB, and UI all use the same terms now — no remapping layer needed. `HL_Label_Remap` has been removed from code.
 
 ## WordPress Roles vs Cycle Roles (Critical Architecture Decision)
 
@@ -113,51 +113,18 @@ Shared static helper used by ALL listing pages for role-based data filtering:
 
 Static cache per user_id per request. Convenience helpers: `can_view_cycle()`, `can_view_school()`, `has_role()`, `filter_by_ids()`.
 
-## BuddyBoss Sidebar Navigation
+## Sidebar Navigation
 
-The sidebar menu is rendered programmatically by `HL_BuddyBoss_Integration` — NOT via WordPress Menus admin. The BuddyPanel menu in Appearance → Menus should be empty (or contain only non-HL items like Dashboard/Profile).
+The sidebar menu is rendered programmatically by `HL_BuddyBoss_Integration::build_menu_items()` — NOT via WordPress Menus admin. 16 menu items with role-based visibility. Staff WITHOUT enrollment see only directory/management pages. Staff WITH enrollment see both. Coach-only users see coach tools but not staff tools. See code for full menu item list.
 
-**Multi-hook injection strategy:**
-1. `buddyboss_theme_after_bb_profile_menu` — profile dropdown
-2. `wp_nav_menu_items` filter on `buddypanel-loggedin` location — left sidebar
-3. `wp_footer` JS fallback — covers empty BuddyPanel or missing hooks
+## Forms Architecture
 
-**16 menu items with role-based visibility (from `build_menu_items()` in code):**
-- Personal (require enrollment): My Profile (all enrolled + staff + coach), My Programs (enrolled teacher/mentor/leader/staff), My Coaching (mentor, non-control), My Team (mentor or teacher)
-- Leader: My School (leader, non-staff)
-- Directories: Cycles (staff), Classrooms (staff/leader/teacher/mentor), Learners (staff)
-- Staff tools: Coaching Hub (staff), Reports (staff/leader)
-- Coach tools: Coaching Home (coach WP role), My Mentors (coach), My Availability (coach), Coach Reports (coach)
-- Documentation (manage_options only)
-
-Staff WITHOUT enrollment see only directory/management pages. Staff WITH enrollment see both. Pathways item is currently disabled (show_condition = false). Coach-only users see coach tools but not staff tools.
-
-## Forms Architecture: Custom PHP + JFB for Observations Only
-
-HL Core uses a **primarily custom PHP approach** for forms and data collection:
-
-### Custom PHP handles:
-- **Teacher Self-Assessment** (pre and post) — Custom instrument system with structured JSON definitions in `hl_teacher_assessment_instrument`, response storage in `hl_teacher_assessment_instance.responses_json`. Custom renderer supports PRE (single-column) and POST (dual-column retrospective with PRE responses shown alongside new ratings).
-- **Child Assessment** — Dynamic per-child matrix generated from classroom roster + instrument definition. Children grouped by frozen_age_group (from `hl_child_cycle_snapshot`) with per-age-group instruments. Rendered by `HL_Instrument_Renderer` with age-group sections, transposed Likert matrices, per-child skip controls, and AJAX draft auto-save. Responses stored in `hl_child_assessment_childrow` with frozen_age_group, instrument_id, and status per child.
-- **Coaching Sessions** — Admin CRUD workflow (attendance, notes, observation links, attachments).
-
-### JetFormBuilder handles (Legacy — pending removal):
-- **Observations ONLY** — Mentor-submitted observation forms. JFB provides the visual form editor so Housman admins can customize observation questions without a developer.
-
-### Why teacher assessments moved from JFB to custom PHP:
-- POST version requires unique dual-column retrospective format that JFB cannot support
-- Structured `responses_json` needed for research export and control group comparison (Cohen's d)
-- Pre/post logic must integrate tightly with the component system and drip rules
-- The B2E instrument is standardized (no admin customization needed)
-
-### Legacy JFB support:
-Teacher self-assessment components can still reference JFB forms via `external_ref.form_id` for backward compatibility. The system checks for `teacher_instrument_id` first (custom) and falls back to `jfb_form_id` (legacy).
-
-### How JFB observations connect to HL Core (Legacy — pending removal):
-1. **Admin creates a form in JetFormBuilder** with hidden fields: `hl_enrollment_id`, `hl_component_id`, `hl_cycle_id`, `hl_observation_id`
-2. **Admin adds "Call Hook" post-submit action** with hook name `hl_core_form_submitted`
-3. **HL Core renders the JFB form** on the observations page with hidden fields pre-populated
-4. **On submit:** JFB fires hook → HL Core updates observation status → updates activity_state → triggers rollup
+HL Core uses **custom PHP** for all forms except legacy observations:
+- **Teacher Self-Assessment** — Custom instrument system (`hl_teacher_assessment_instrument` JSON definitions). PRE = single-column, POST = dual-column retrospective.
+- **Child Assessment** — Dynamic per-child matrix from roster + instrument. Grouped by `frozen_age_group`. AJAX draft auto-save.
+- **Coaching Sessions** — Admin CRUD workflow.
+- **Cross-pathway forms** — RP Notes, Action Plan, Self-Reflection, Classroom Visit (5 renderers, see below).
+- **JFB (legacy, pending removal)** — Observations only. System checks `teacher_instrument_id` first (custom), falls back to `jfb_form_id`.
 
 ## Cross-Pathway Events
 
@@ -165,36 +132,13 @@ Cross-pathway events are activities that span multiple participants across a cyc
 
 ### 3 Event Types
 
-| Event Type | component_type ENUM | Participants | DB Tables |
-|---|---|---|---|
-| **Reflective Practice Session** | `reflective_practice_session` | Mentor + Teacher | `hl_rp_session`, `hl_rp_session_submission` |
-| **Classroom Visit** | `classroom_visit` | Leader + Teacher | `hl_classroom_visit`, `hl_classroom_visit_submission` |
-| **Self-Reflection** | `self_reflection` | Teacher (solo) | Reuses `hl_classroom_visit` / `hl_classroom_visit_submission` |
+| Event Type | component_type ENUM | Participants |
+|---|---|---|
+| **Reflective Practice Session** | `reflective_practice_session` | Mentor + Teacher |
+| **Classroom Visit** | `classroom_visit` | Leader + Teacher |
+| **Self-Reflection** | `self_reflection` | Teacher (solo) |
 
-A shared **`hl_coaching_session_submission`** table stores form responses for coaching sessions (Action Plan forms submitted during coaching).
-
-### Loose Coupling Model
-
-Events are **not tightly bound** to a single component. The flow:
-1. Pathway contains a component with `component_type = 'reflective_practice_session'` (or `classroom_visit`, `self_reflection`)
-2. Component Page dispatches to the appropriate renderer class based on `component_type`
-3. Renderer creates or finds the event entity (RP Session, Classroom Visit) and renders the form
-4. Form submission stores responses in the event's submission table with `instrument_id` reference
-5. Component state updates to `completed` after successful submission
-
-### 5 New DB Tables
-
-- **`hl_rp_session`** — Links mentor + teacher enrollments within a cycle. Tracks session number, status, date, notes.
-- **`hl_rp_session_submission`** — Form responses per RP session. Keyed by `(rp_session_id, role_in_session)`. Stores `instrument_id` + `responses_json`.
-- **`hl_classroom_visit`** — Links leader + teacher enrollments within a cycle. Tracks visit number, status, date, optional classroom_id.
-- **`hl_classroom_visit_submission`** — Form responses per visit. Keyed by `(classroom_visit_id, role_in_visit)`. Stores `instrument_id` + `responses_json`.
-- **`hl_coaching_session_submission`** — Form responses per coaching session. Keyed by `(session_id, role_in_session)`. Stores `instrument_id` + `responses_json`.
-
-### 3 New Services
-
-- **`HL_RP_Session_Service`** — RP session entity CRUD, form submission with upsert, component state updates, previous action plan queries
-- **`HL_Classroom_Visit_Service`** — Classroom visit entity CRUD, form submission with upsert, component state updates
-- **`HL_Session_Prep_Service`** — Auto-populated data helper: pathway progress, previous action plans, recent visit/self-reflection data. Used by RP Notes forms to pre-populate session prep sections.
+Events are loosely coupled to components: Component Page dispatches to the appropriate renderer based on `component_type`. Form submissions store `responses_json` with `instrument_id` reference. 5 DB tables (`hl_rp_session`, `hl_rp_session_submission`, `hl_classroom_visit`, `hl_classroom_visit_submission`, `hl_coaching_session_submission`). 3 services (`HL_RP_Session_Service`, `HL_Classroom_Visit_Service`, `HL_Session_Prep_Service`).
 
 ## Component Types (ENUM)
 
@@ -228,39 +172,7 @@ Admin UI: "Eligibility Rules" section in the component form with checkbox for re
 
 ## Cross-Pathway Instruments
 
-6 instruments stored in `hl_teacher_assessment_instrument` with structured `sections_json`:
-
-| Key | Name | Used By |
-|---|---|---|
-| `coaching_rp_notes` | Coaching RP Notes | Mentor in coaching RP sessions |
-| `mentoring_rp_notes` | Mentoring RP Notes | Mentor in mentoring RP sessions |
-| `coaching_action_plan` | Coaching Action Plan | Teacher in coaching RP sessions |
-| `mentoring_action_plan` | Mentoring Action Plan | Teacher in mentoring RP sessions |
-| `classroom_visit_form` | Classroom Visit Form | Leader during classroom visits |
-| `self_reflection_form` | Self-Reflection Form | Teacher for self-reflection |
-
-Instruments are seeded by the `setup-elcpb-y2-v2` CLI command. Each contains structured sections with items, rendered by the form renderers using the instrument's `sections_json` definition.
-
-## Form Renderer Pattern (Cross-Pathway Forms)
-
-All cross-pathway forms follow the same custom PHP + inline CSS pattern:
-
-### Design Pattern
-1. **Hero header** — Gradient background with form title, participant names, session/visit number, date
-2. **Flat domain layout** — One description per domain section, no accordions
-3. **Pill indicator checkboxes** — Styled radio/checkbox inputs with CSS-only pill appearance
-4. **Inline CSS** — All styles embedded in the renderer output (no external stylesheet dependency)
-5. **Instrument-driven** — Form fields generated from `sections_json` in `hl_teacher_assessment_instrument`
-
-### 5 Frontend Renderers
-- **`HL_Frontend_RP_Notes`** — Mentor's RP Notes form (session prep + domain ratings + notes)
-- **`HL_Frontend_Action_Plan`** — Teacher's Action Plan form (goals + strategies + timeline)
-- **`HL_Frontend_Self_Reflection`** — Teacher's Self-Reflection form (domain self-ratings + notes)
-- **`HL_Frontend_Classroom_Visit`** — Leader's Classroom Visit form (domain observations + notes)
-- **`HL_Frontend_RP_Session`** — Page controller that dispatches to RP Notes (mentor) or Action Plan (teacher) based on the current user's enrollment role
-
-### No JFB
-These forms are 100% custom PHP. They do NOT use JetFormBuilder. This follows the same rationale as teacher self-assessments: structured `responses_json` storage, tight integration with the component system, and modern UI requirements that JFB cannot satisfy.
+6 instruments in `hl_teacher_assessment_instrument` (seeded by `setup-elcpb-y2-v2`): `coaching_rp_notes`, `mentoring_rp_notes`, `coaching_action_plan`, `mentoring_action_plan`, `classroom_visit_form`, `self_reflection_form`. Each contains `sections_json` rendered by 5 frontend renderers (`HL_Frontend_RP_Notes`, `HL_Frontend_Action_Plan`, `HL_Frontend_Self_Reflection`, `HL_Frontend_Classroom_Visit`, `HL_Frontend_RP_Session`). All custom PHP — no JFB.
 
 ## Control Group Research Design
 
@@ -284,38 +196,11 @@ Housman measures program impact by comparing:
 
 ## Guided Tours System
 
-In-app guided tours built on Driver.js (MIT, 1.4.0). Replaces the limited "Simple Tour Guide" third-party plugin. Tours support unlimited steps, multi-page flows, role-based targeting, interactive steps (click-to-advance), and a visual element picker for non-technical admins.
+In-app guided tours built on Driver.js (MIT, 1.4.0). 3 DB tables (`hl_tour`, `hl_tour_step`, `hl_tour_seen`). Trigger types: `first_login` (auto once), `page_visit` (auto on first visit), `manual_only` (topbar "?" dropdown). Role-based targeting, multi-page flows, interactive steps.
 
-### 3 DB Tables
-- **`hl_tour`** — Tour definitions (title, slug, trigger_type, target_roles, start_page_url, status, sort_order, hide_on_mobile)
-- **`hl_tour_step`** — Steps within a tour (title, description, page_url, target_selector, position, step_type)
-- **`hl_tour_seen`** — Per-user completion tracking (user_id, tour_id, seen_at). UNIQUE on (user_id, tour_id).
-
-### Trigger Types
-| Type | Behavior |
-|------|----------|
-| `first_login` | Auto-triggers once on any page load when user matches target_roles and has no `hl_tour_seen` record |
-| `page_visit` | Auto-triggers on first visit to `trigger_page_url` for matching roles |
-| `manual_only` | Only available via the topbar "?" dropdown — never auto-triggers |
-
-### Key Classes
-- **`HL_Tour_Repository`** (`includes/domain/repositories/`) — CRUD for tours, steps, seen records
-- **`HL_Tour_Service`** (`includes/services/`) — Tour resolution for page + user + role, seen checks, skip logic
-- **`HL_Admin_Tours`** (`includes/admin/`) — Admin UI: Tours List, Tour Editor, Tour Styles subtabs under Settings > Tours tab
-
-### Frontend
-- **`hl-tour.js`** — Frontend tour controller wrapping Driver.js. Handles auto-triggers, multi-page navigation via localStorage + `?hl_active_tour=` URL param, step skipping for missing DOM elements, and auto-generated final step pointing to the "?" button.
-- **Topbar "?" button** (`#hl-tour-trigger`) — Positioned in the HL topbar (left of user avatar). Dropdown lists available tours for the current page. On mobile renders as a bottom sheet.
-- **`hl-element-picker.js`** — Injected into an iframe via `?hl_picker=1` query param. Lets admins visually click elements to select CSS selectors. Supports "View as Role" dropdown for previewing role-specific elements.
-- **`hl-tour-admin.js`** — Admin-side: step drag-and-drop reordering, element picker modal, color pickers for global styles.
-
-### Asset Files
-- `assets/js/vendor/driver.js` — Driver.js 1.4.0 (bundled locally, MIT)
-- `assets/css/vendor/driver.css` — Driver.js base styles
-- `assets/css/frontend.css` — GUIDED TOURS sections (topbar button, dropdown, bottom sheet mobile styles)
-
-### Global Styling
-Stored in `wp_options` as `hl_tour_styles` (serialized array). Admins configure tooltip colors, font sizes, button colors, and progress bar color via Settings > Tours > Styles subtab. Defaults map to HL design tokens.
+**Key classes:** `HL_Tour_Repository`, `HL_Tour_Service`, `HL_Admin_Tours` (Settings > Tours tab with List/Editor/Styles subtabs).
+**Frontend:** `hl-tour.js` (Driver.js wrapper, multi-page state via localStorage), `hl-element-picker.js` (visual selector picker with "View as Role"), topbar "?" button with dropdown.
+**Global styles:** `wp_options` key `hl_tour_styles` — tooltip colors, font sizes, button colors.
 
 ## Architecture Summary
 ```
@@ -327,11 +212,11 @@ Stored in `wp_options` as `hl_tour_styles` (serialized array). Admins configure 
     /Lutheran - Control Group/   # Lutheran spreadsheets (.xlsx)
   /docs/                         # Spec documents (11 files, read-only reference)
   /includes/
-    class-hl-installer.php       # DB schema (48 tables, revision 30) + activation + migrations
+    class-hl-installer.php       # DB schema (50 tables, revision 30) + activation + migrations
     /domain/                     # Entity models (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (11 classes incl. HL_Tour_Repository, HL_Course_Catalog_Repository)
     /cli/                        # WP-CLI commands (17 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav, seed-beginnings, migrate-routing-types) + data files
-    /services/                   # Business logic (24 services incl. HL_Tour_Service, HL_Pathway_Routing_Service, HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service)
+    /services/                   # Business logic (26 services incl. HL_Tour_Service, HL_Pathway_Routing_Service, HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service, HL_Ticket_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)
     /admin/                      # WP admin pages (20 controllers incl. HL_Admin_Tours, HL_Admin_Course_Catalog, Coaching Hub with Coaches tab, Email Templates, Scheduling Settings)

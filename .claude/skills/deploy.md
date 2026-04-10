@@ -30,16 +30,17 @@ description: SSH access, deployment commands, WP-CLI, environment targeting, sta
 |-------------|--------|-------------|
 | **Test** (AWS Lightsail) | **ACTIVE DEFAULT** | All WP-CLI commands, testing, debugging, seeding |
 | **Staging** (Hostinger) | Secondary — available but not primary | Only if user explicitly says "run on staging" |
-| **Production** (Hostinger) | **DO NOT TOUCH** | Only with explicit user approval for production deployment |
+| **Production** (Hostinger) | **LIVE** — requires explicit approval | Only with explicit user approval per session |
 
 ## Deployment Workflow (current)
 1. Claude Code edits files locally (in the Dev Projects folder)
 2. Claude Code commits and pushes to GitHub (`main` branch)
 3. To deploy to **test**: upload plugin via SCP (tar + extract) — no Git auto-pull on AWS
-4. Claude Code runs WP-CLI commands on **test** via SSH to verify
-5. Manual verification on the test site by the user
+4. To deploy to **production**: upload plugin via SCP to Hostinger — no .git on prod, GitHub auto-pull broken
+5. Claude Code runs WP-CLI commands on target server via SSH to verify
+6. Manual verification by the user
 
-**Future production migration:** We will eventually migrate hl-core to production, but NOT YET. Production deployment requires explicit user approval and a separate migration plan.
+**Production is live** (since March 2026). Deploying to production still requires explicit user approval per session.
 
 ## Test Server — AWS Lightsail (DEFAULT TARGET)
 - **URL:** `https://test.academy.housmanlearning.com`
@@ -112,12 +113,26 @@ ssh -p 65002 u665917738@145.223.76.150 "cd /home/u665917738/domains/academy.hous
 4. **NEVER modify files directly on the server** via SSH. All code changes go through Git (edit locally → commit → push → Hostinger auto-pulls). SSH is for running commands and debugging only.
 5. **If in doubt, don't run the command.** Ask the user first.
 
-## Production Server (DO NOT TOUCH — NOT YET)
+## Production Server (Hostinger — LIVE)
 - **URL:** `https://academy.housmanlearning.com`
 - **WordPress root:** `/home/u665917738/domains/academy.housmanlearning.com/public_html/`
+- **Plugin path:** `/home/u665917738/domains/academy.housmanlearning.com/public_html/wp-content/plugins/hl-core/`
 - **Do NOT deploy to production without explicit approval from the user.**
-- **Do NOT SSH into the production directory. EVER.**
-- **Production migration is planned but has NOT happened yet.** We are validating on test first.
+- **No .git directory** — GitHub auto-pull does NOT work. Must SCP tarball.
+
+**Deploying plugin updates to production (SCP — requires user approval):**
+```bash
+# From local machine:
+cd "C:/Users/MateoGonzalez/Dev Projects Mateo/housman-learning-academy/app/public/wp-content/plugins/hl-core"
+tar --exclude='.git' --exclude='data' --exclude='./vendor' --exclude='node_modules' --exclude='.superpowers' -czf /tmp/hl-core.tar.gz -C .. hl-core
+scp -P 65002 /tmp/hl-core.tar.gz u665917738@145.223.76.150:/tmp/
+ssh -p 65002 u665917738@145.223.76.150 'cd /home/u665917738/domains/academy.housmanlearning.com/public_html/wp-content/plugins && rm -rf hl-core && tar -xzf /tmp/hl-core.tar.gz'
+```
+
+**Running WP-CLI commands on production (use with caution):**
+```bash
+ssh -p 65002 u665917738@145.223.76.150 "cd /home/u665917738/domains/academy.housmanlearning.com/public_html && wp <command>"
+```
 
 ## After deploying new schema changes (run on TEST via SSH):
 ```bash

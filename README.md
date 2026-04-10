@@ -3,7 +3,7 @@
 **Version:** 1.0.0
 **Requires:** WordPress 6.0+, PHP 7.4+, LearnDash
 **Status:** v1 complete — Phases 1-32 + 35 done. **Deployed to production** (March 2026). Cross-pathway events, forms & coaching enhancements complete (5 new DB tables, 3 new component types, 3 new services, 6 instruments, 5 form renderers). **HL User Profile** — unified profile page replacing BuddyBoss profiles (6 tabs: Overview, Progress, Coaching, Assessments, RP & Observations, Manage), role-based access control, BB redirect, profile links wired across all pages. **Component eligibility rules** — `requires_classroom` + `eligible_roles` per component, ineligible shown as "Not Applicable", excluded from completion %. **Admin enrollment form** — pathway + team dropdowns (cycle-filtered) with auto-creation of `hl_pathway_assignment` and `hl_team_membership` on save. **Import Module Redesign** — cycle-scoped import tab in Cycle Editor (replaces global Settings import); 3-step wizard for Participants + Children; auto-creates classrooms, teams, coach assignments, pathway assignments; pathway typo detection ("Did you mean?"); warning banner for missing pathways; all-or-nothing transaction. **Pathway Routing Engine** — `HL_Pathway_Routing_Service` with 5 stages (A-E) and 10 priority-ordered routing rules; LearnDash course completion checks; auto-routes in import preview + commit, admin enrollment form AJAX, and sync_role_defaults. **routing_type column** on `hl_pathway` — cycle-independent semantic identifier for auto-assignment; UNIQUE(cycle_id, routing_type); admin dropdown with per-cycle uniqueness enforcement; clone copies with conflict handling; migration CLI `wp hl-core migrate-routing-types`. **Guided Tours System** — 3 DB tables (`hl_tour`, `hl_tour_step`, `hl_tour_seen`), Driver.js 1.4.0 bundled, admin tour editor with visual element picker + "View as Role" + global styles, frontend engine with multi-page state + auto-triggers + topbar dropdown. **Course Catalog** — `hl_course_catalog` table mapping logical courses to EN/ES/PT LearnDash variants; catalog-aware routing (stages use `catalog_codes`), LD completion (any language variant counts), frontend (language-preference-based course links), import (`language` CSV column), admin CRUD page with AJAX search; 25 seed entries, schema rev 30. **Admin Component Progress Override** — admins can reset or mark complete any component from the enrollment edit form (standalone + Cycle Editor); LearnDash sync (reset all language variants, mark complete preferred variant); eligibility filtering, exempt override cleanup, audit trail. Architecture expansion in progress: Individual Enrollments (hl_individual_enrollment), Program Progress Matrix report — see B2E_MASTER_REFERENCE.md and Build Queue Phases 33-34.
-(40 shortcode pages incl. dashboard + documentation + 5 coach pages + user profile, 21 admin controllers, 49 DB tables, 27 services, Cycle entity (hl_cycle) with cycle_type (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, **Coaching Hub** with Sessions+Assignments+Coaches tabs, **Settings hub** with Imports+Audit Log+Doc Articles+Email Templates+Tours tabs, **Assessment Hub** with vertical sidebar nav (Teacher/Child Assessments + Child/Teacher Instruments), **Admin CSS design system** with modern card layout + status badges + design tokens, **BuddyBoss login fix** suppressing bpnoaccess error/shake, **Cross-pathway events** with 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session controller) + 3 new component types + 6 instruments, **HL User Profile** with 6 tabs + BB redirect + role-based access, **Guided Tours** with Driver.js 1.4.0, admin editor + visual element picker + frontend tour engine)
+(40 shortcode pages incl. dashboard + documentation + 5 coach pages + user profile, 20 admin controllers, 50 DB tables, 26 services, Cycle entity (hl_cycle) with cycle_type (program/course), paginated TSA, child assessment instruments with admin-customizable instructions + behavior key + display styles, teacher assessment visual editor + modern frontend design, separate PRE/POST teacher instruments, role-aware dashboard shortcode, instrument nuke protection with `--include-instruments` opt-in, in-site documentation system with CPT, glossary, search, cross-linking, K-2nd grade age group, instrument preview, **Coaching Hub** with Sessions+Assignments+Coaches tabs, **Settings hub** with Imports+Audit Log+Doc Articles+Email Templates+Tours tabs, **Assessment Hub** with vertical sidebar nav (Teacher/Child Assessments + Child/Teacher Instruments), **Admin CSS design system** with modern card layout + status badges + design tokens, **BuddyBoss login fix** suppressing bpnoaccess error/shake, **Cross-pathway events** with 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session controller) + 3 new component types + 6 instruments, **HL User Profile** with 6 tabs + BB redirect + role-based access, **Guided Tours** with Driver.js 1.4.0, admin editor + visual element picker + frontend tour engine)
 
 ## Overview
 
@@ -11,7 +11,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 
 ## What's Implemented
 
-### Database Schema (49 active custom tables + 2 deprecated + 1 planned)
+### Database Schema (50 active custom tables + 1 planned)
 - **Org & Partnership/Cycle:** `hl_orgunit`, `hl_cycle` (with `is_control_group` flag + `cycle_type` column: program/course), `hl_cycle_school`, `hl_partnership` (program-level container)
 - **Individual Enrollments (PLANNED):** `hl_individual_enrollment` (user_id, course_id, enrolled_at, expires_at, status) — for standalone course purchases
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
@@ -26,6 +26,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 - **Cross-Pathway Events:** `hl_rp_session`, `hl_rp_session_submission`, `hl_classroom_visit`, `hl_classroom_visit_submission`
 - **Guided Tours:** `hl_tour` (tour definitions with trigger type, target roles, status), `hl_tour_step` (ordered steps with element selector, position, step type), `hl_tour_seen` (per-user seen tracking)
 - **Feature Tracker:** `hl_ticket` (tickets with type/priority/status enums, 2hr edit window, admin-gated status changes), `hl_ticket_comment` (flat comments per ticket)
+- **Email System:** `hl_email_template` (block-based templates with UNIQUE template_key), `hl_email_workflow` (trigger-based automation with conditions/recipients/send windows), `hl_email_queue` (central send queue with UUID claim pattern, dedup tokens), `hl_email_rate_limit` (per-user floor-bucketed hourly/daily/weekly limits)
 - **System:** `hl_import_run`, `hl_audit_log`, `hl_cycle_email_log` (cycle email tracking)
 
 ### Domain Models & Repositories
@@ -65,6 +66,14 @@ All 11 core entities have domain model classes with proper properties. 10 of 11 
 - **ZoomIntegration** - Zoom Server-to-Server OAuth client: S2S account credentials flow, meeting CRUD (create/update/delete), token caching, coach email resolution (hl_zoom_email usermeta override).
 - **TourService** - Guided tour context resolution: matches tours to current page + user roles + trigger type, seen tracking (mark_seen AJAX), global styles CRUD, step reorder (save_step_order AJAX), step data delivery (get_steps AJAX), element picker mode detection (is_picker_mode + get_view_as_role)
 - **TicketService** - Feature Tracker ticket CRUD + comments, permission checks (2hr edit window for creators, admin-gated status changes via ADMIN_EMAIL constant), search/filter with enum whitelisting + esc_like, status transitions with resolved_at lifecycle, audit logging on all mutations
+- **Email System Services** (7 services):
+  - `HL_Email_Block_Renderer` — Converts blocks_json to table-based HTML emails with branded header/footer, dark mode, MSO/VML. 6 block types: text, image, button, divider, spacer, columns.
+  - `HL_Email_Merge_Tag_Registry` — 27 merge tags across 7 categories (recipient, cycle, enrollment, coaching, assessment, course, url). Deferred tag support for password_reset_url.
+  - `HL_Email_Rate_Limit_Service` — Per-user hourly/daily/weekly send limits with floor-aligned time buckets. INSERT ON DUPLICATE KEY UPDATE pattern.
+  - `HL_Email_Condition_Evaluator` — 8 operators (eq, neq, in, not_in, gt, lt, is_null, not_null), all ANDed. Dot-path field resolution from context.
+  - `HL_Email_Recipient_Resolver` — 6 token types (triggering_user, assigned_coach, school_director, cc_teacher, role:X, static:email). Dedup by email. Fan-out to multiple recipients.
+  - `HL_Email_Queue_Processor` — UUID-based atomic claim pattern, dedup tokens, deferred tag resolution at send time, 3-retry exponential backoff, stuck-row recovery.
+  - `HL_Email_Automation_Service` — 13 hook-based + 12 cron-based triggers. Context hydration, condition evaluation, recipient resolution, template rendering, queue insertion. Send windows in America/New_York with DST validation.
 - **ChildSnapshotService** - Freeze child age groups per cycle for assessment consistency
 - **ScopeService** - Role-based data filtering (see Scope Service section below)
 
@@ -202,6 +211,15 @@ Full CRUD admin pages with WordPress-styled tables and forms:
   - **Documentation:** Documentation (manage_options only)
   - **Disabled:** Pathways (show_condition = false)
 - Staff WITHOUT enrollment see only directory/management pages; staff WITH enrollment see both personal and management pages
+
+### Zoho SalesIQ Integration
+- **Chat widget** rendered by `HL_Core::render_zoho_salesiq()` in `hl-core.php`
+- Hooks into `wp_head` (priority 50) for templates that call `wp_head()` (ld-course, ld-lesson, hl-auth)
+- Called directly in `templates/hl-page.php` before `</body>` (since hl-page.php bypasses `wp_head()`)
+- Static guard prevents double-rendering when both paths fire
+- Passes logged-in visitor **name, email, and WP user ID** to SalesIQ for Live View identification
+- Widget code: `siq809a2f8618bcb9d5b31dfc458c9c20f363e1d33aa858f2fc74d214ee924df9ee`
+- Replaces the WP Code snippet "New SalesIQ Unique" that was on production (disabled after migration to hl-core)
 - Coach-only users see coach tools but not staff tools
 - Multi-role users see union of all role menus
 - Active page highlighting via `current` / `current-menu-item` CSS class
@@ -252,13 +270,13 @@ See `STATUS.md` for the current build queue and task tracking.
 
 ```
 /hl-core/
-  hl-core.php                    # Plugin bootstrap (singleton)
+  hl-core.php                    # Plugin bootstrap (singleton) + Zoho SalesIQ widget (render_zoho_salesiq)
   /includes/
-    class-hl-installer.php       # DB schema (51 tables, revision 30) + activation + migrations
+    class-hl-installer.php       # DB schema (50 tables, revision 30) + activation + migrations
     /domain/                     # Entity models (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Tour)
-    /cli/                        # WP-CLI commands (17 commands: seed-demo, seed-lutheran, seed-palm-beach, seed-beginnings, nuke, create-pages, seed-docs, provision-lutheran, import-elcpb, import-elcpb-children, setup-elcpb-y2, setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav, sync-ld-enrollment) + data files
-    /services/                   # Business logic (24 services incl. HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service, HL_Tour_Service)
+    /cli/                        # WP-CLI commands (19 commands incl. seed-demo, seed-lutheran, nuke, create-pages, setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, migrate-routing-types, sync-ld-enrollment) + data files
+    /services/                   # Business logic (26 services incl. HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service, HL_Tour_Service, HL_Ticket_Service)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)
     /admin/                      # WP admin pages (20 controllers incl. Partnerships, Cycles, Assessment Hub, Coaching Hub with Coaches tab, Email Templates, Scheduling Settings, Tours, Course Catalog)

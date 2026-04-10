@@ -1,6 +1,6 @@
 # STATUS.md — HL Core Build Status
 
-**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 21 admin controllers, 49 DB tables, 27 services, 17 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools).
+**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 20 admin controllers, 50 DB tables, 26 services, 19 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools).
 
 ---
 
@@ -184,6 +184,17 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Enrollment creation → LD enrollment** — `on_enrollment_created()` hook. Resolves pathways by role-based fallback for users without explicit pathway assignments. Fires from admin form + import handler.
 - [x] **CLI: `wp hl-core sync-ld-enrollment`** — Retroactive bulk sync. Covers both explicit assignments and role-based fallback. `--dry-run` support. `sfwd_lms_has_access()` skip for already-enrolled users.
 - [x] **Deployed to production** — 2026-04-09. Cycle 6: 132 new LD enrollments, 174 already had access, 0 errors.
+
+### Email System (April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-09-email-system-design.md` | **Plan:** `docs/superpowers/plans/2026-04-09-email-system-plan.md`
+- [x] **Phase 1: Foundation** — 4 DB tables (hl_email_template, hl_email_workflow, hl_email_queue, hl_email_rate_limit), schema rev 33→34. `HL_Email_Block_Renderer` (6 block types, dark mode, MSO/VML). `HL_Email_Merge_Tag_Registry` (27 tags, 7 categories, deferred tag support). Cron schedules (5-min queue, hourly, daily). wp_login hook for account activation + last login tracking.
+- [x] **Phase 2: Automation Engine** — `HL_Email_Rate_Limit_Service` (floor-bucketed hourly/daily/weekly). `HL_Email_Condition_Evaluator` (8 operators, AND logic, dot-path resolution). `HL_Email_Recipient_Resolver` (6 token types, fan-out). `HL_Email_Queue_Processor` (UUID claim, dedup, deferred tags, 3-retry exponential backoff). `HL_Email_Automation_Service` (13 hook listeners, 12 cron triggers, send windows w/ DST validation).
+- [x] **Phase 3: Email Builder** — `HL_Admin_Email_Builder` (two-panel editor, AJAX save/autosave/preview). `email-builder.js` (Sortable.js CDN, block CRUD, contenteditable text editing, merge tag toolbar, WP Media Library integration, Email Health panel, desktop/mobile/dark preview).
+- [x] **Phase 4: Admin UI** — `HL_Admin_Emails` (4 tabs: Automated Workflows, Email Templates, Send Log, Settings). Emails submenu under Housman LMS. Workflow CRUD form with trigger/condition/recipient/template/delay/send-window fields. Rate limit settings. Queue health dashboard. Retry Failed button.
+- [x] **Phase 5: Manual Sends** — Cycle Editor Emails tab rewrite with template select, role filter, recipient checkboxes, dedup badges, Send Now. Legacy invitation UI collapsed in `<details>` with deprecation notice.
+- [x] **Phase 6: Migration** — `HL_Email_Template_Migration` (6 coaching templates from wp_options → hl_email_template, hl_account_activated backfill). Scheduling email service `try_block_render()` for new renderer fallback.
+- [ ] **Phase 7: Hardening** — Security review, cron reliability, performance verification, component window columns. Pending.
+- [ ] **Deployed to test** — Pending.
 
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
