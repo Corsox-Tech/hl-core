@@ -137,6 +137,9 @@ class HL_Admin {
         // ── Course Catalog ──────────────────────────────────────────
         add_submenu_page('hl-cycles', 'Course Catalog', 'Course Catalog', 'manage_hl_core', 'hl-course-catalog', array(HL_Admin_Course_Catalog::instance(), 'render_page'));
 
+        // ── Emails ──────────────────────────────────────────────────
+        add_submenu_page('hl-cycles', 'Emails', 'Emails', 'manage_hl_core', 'hl-emails', array(HL_Admin_Emails::instance(), 'render_page'));
+
         // ── Reporting & Admin tools ──────────────────────────────────
         add_submenu_page('hl-cycles', 'Reports', 'Reports', 'manage_hl_core', 'hl-reporting', array(HL_Admin_Reporting::instance(), 'render_page'));
         add_submenu_page('hl-cycles', 'Settings', 'Settings', 'manage_hl_core', 'hl-settings', array(HL_Admin_Settings::instance(), 'render_page'));

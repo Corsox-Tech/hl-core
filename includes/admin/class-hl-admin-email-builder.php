@@ -1,0 +1,511 @@
+<?php
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+/**
+ * Admin Email Builder
+ *
+ * Two-panel block-based email template editor. AJAX-driven save,
+ * autosave, preview, and template CRUD. Renders via
+ * HL_Email_Block_Renderer on the server side.
+ *
+ * @package HL_Core
+ */
+class HL_Admin_Email_Builder {
+
+    private static $instance = null;
+
+    public static function instance() {
+        if ( self::$instance === null ) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    private function __construct() {
+        add_action( 'wp_ajax_hl_email_template_save', array( $this, 'ajax_save' ) );
+        add_action( 'wp_ajax_hl_email_template_autosave', array( $this, 'ajax_autosave' ) );
+        add_action( 'wp_ajax_hl_email_preview_search', array( $this, 'ajax_preview_search' ) );
+        add_action( 'wp_ajax_hl_email_preview_render', array( $this, 'ajax_preview_render' ) );
+        add_action( 'wp_ajax_hl_email_template_delete', array( $this, 'ajax_delete' ) );
+    }
+
+    // =========================================================================
+    // Render
+    // =========================================================================
+
+    /**
+     * Render the builder page.
+     *
+     * @param int|null $template_id Template ID to edit, or null for new.
+     */
+    public function render( $template_id = null ) {
+        global $wpdb;
+
+        $template = null;
+        if ( $template_id ) {
+            $template = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_email_template WHERE template_id = %d",
+                $template_id
+            ) );
+        }
+
+        $blocks = array();
+        if ( $template && ! empty( $template->blocks_json ) ) {
+            $blocks = json_decode( $template->blocks_json, true );
+            if ( ! is_array( $blocks ) ) {
+                $blocks = array();
+            }
+        }
+
+        // Check for autosave draft.
+        $draft_key  = 'hl_email_draft_' . get_current_user_id() . '_' . ( $template_id ?: 'new' );
+        $draft_data = get_option( $draft_key, null );
+
+        // Get merge tags for the toolbar dropdown.
+        $registry   = HL_Email_Merge_Tag_Registry::instance();
+        $tags_grouped = $registry->get_tags_grouped();
+
+        // Enqueue assets.
+        wp_enqueue_media();
+        wp_enqueue_style( 'wp-color-picker' );
+        wp_enqueue_script( 'wp-color-picker' );
+
+        ?>
+        <div class="wrap hl-email-builder-wrap">
+            <h1>
+                <?php echo $template ? esc_html__( 'Edit Email Template', 'hl-core' ) : esc_html__( 'New Email Template', 'hl-core' ); ?>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=templates' ) ); ?>" class="page-title-action">&larr; <?php esc_html_e( 'Back to Templates', 'hl-core' ); ?></a>
+            </h1>
+
+            <?php if ( $draft_data ) : ?>
+                <div class="notice notice-warning hl-email-draft-banner" id="hl-draft-banner">
+                    <p>
+                        <?php esc_html_e( 'An unsaved draft was found. ', 'hl-core' ); ?>
+                        <button type="button" class="button button-small" id="hl-restore-draft"><?php esc_html_e( 'Restore', 'hl-core' ); ?></button>
+                        <button type="button" class="button button-small" id="hl-discard-draft"><?php esc_html_e( 'Discard', 'hl-core' ); ?></button>
+                    </p>
+                </div>
+            <?php endif; ?>
+
+            <div class="hl-email-builder" id="hl-email-builder">
+                <!-- Left: Block Palette + Settings -->
+                <div class="hl-eb-sidebar-left">
+                    <div class="hl-eb-section">
+                        <h3><?php esc_html_e( 'Template Settings', 'hl-core' ); ?></h3>
+                        <label><?php esc_html_e( 'Template Key', 'hl-core' ); ?></label>
+                        <input type="text" id="hl-eb-template-key" value="<?php echo esc_attr( $template->template_key ?? '' ); ?>" <?php echo $template ? 'readonly' : ''; ?>>
+
+                        <label><?php esc_html_e( 'Name', 'hl-core' ); ?></label>
+                        <input type="text" id="hl-eb-name" value="<?php echo esc_attr( $template->name ?? '' ); ?>">
+
+                        <label><?php esc_html_e( 'Subject Line', 'hl-core' ); ?></label>
+                        <input type="text" id="hl-eb-subject" value="<?php echo esc_attr( $template->subject ?? '' ); ?>" maxlength="500">
+
+                        <label><?php esc_html_e( 'Category', 'hl-core' ); ?></label>
+                        <select id="hl-eb-category">
+                            <?php
+                            $cats = array( 'invitation', 'fyi', 'reminder', 'follow_up', 'manual' );
+                            $current_cat = $template->category ?? 'manual';
+                            foreach ( $cats as $c ) :
+                            ?>
+                                <option value="<?php echo esc_attr( $c ); ?>" <?php selected( $current_cat, $c ); ?>><?php echo esc_html( ucwords( str_replace( '_', ' ', $c ) ) ); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <label><?php esc_html_e( 'Status', 'hl-core' ); ?></label>
+                        <select id="hl-eb-status">
+                            <option value="draft" <?php selected( $template->status ?? 'draft', 'draft' ); ?>><?php esc_html_e( 'Draft', 'hl-core' ); ?></option>
+                            <option value="active" <?php selected( $template->status ?? '', 'active' ); ?>><?php esc_html_e( 'Active', 'hl-core' ); ?></option>
+                            <option value="archived" <?php selected( $template->status ?? '', 'archived' ); ?>><?php esc_html_e( 'Archived', 'hl-core' ); ?></option>
+                        </select>
+                    </div>
+
+                    <div class="hl-eb-section">
+                        <h3><?php esc_html_e( 'Add Block', 'hl-core' ); ?></h3>
+                        <div class="hl-eb-block-palette">
+                            <button type="button" class="button hl-eb-add-block" data-type="text"><?php esc_html_e( 'Text', 'hl-core' ); ?></button>
+                            <button type="button" class="button hl-eb-add-block" data-type="image"><?php esc_html_e( 'Image', 'hl-core' ); ?></button>
+                            <button type="button" class="button hl-eb-add-block" data-type="button"><?php esc_html_e( 'Button', 'hl-core' ); ?></button>
+                            <button type="button" class="button hl-eb-add-block" data-type="divider"><?php esc_html_e( 'Divider', 'hl-core' ); ?></button>
+                            <button type="button" class="button hl-eb-add-block" data-type="spacer"><?php esc_html_e( 'Spacer', 'hl-core' ); ?></button>
+                            <button type="button" class="button hl-eb-add-block" data-type="columns"><?php esc_html_e( 'Columns', 'hl-core' ); ?></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center: Canvas -->
+                <div class="hl-eb-canvas">
+                    <div class="hl-eb-canvas-header">
+                        <div class="hl-eb-toolbar">
+                            <button type="button" class="button button-primary" id="hl-eb-save"><?php esc_html_e( 'Save Template', 'hl-core' ); ?></button>
+                            <span class="hl-eb-autosave-status" id="hl-eb-autosave-status"></span>
+                        </div>
+                    </div>
+                    <div class="hl-eb-canvas-body" id="hl-eb-blocks" style="max-width:600px;margin:0 auto;background:#fff;min-height:200px;padding:20px;border:1px solid #ddd;">
+                        <!-- Blocks rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Right: Email Health + Merge Tags + Preview -->
+                <div class="hl-eb-sidebar-right">
+                    <div class="hl-eb-section">
+                        <h3><?php esc_html_e( 'Email Health', 'hl-core' ); ?></h3>
+                        <div id="hl-eb-health" class="hl-eb-health">
+                            <div class="hl-eb-health-light" id="hl-eb-health-light" data-status="green"></div>
+                            <ul id="hl-eb-health-warnings"></ul>
+                        </div>
+                    </div>
+
+                    <div class="hl-eb-section">
+                        <h3><?php esc_html_e( 'Merge Tags', 'hl-core' ); ?></h3>
+                        <div class="hl-eb-merge-tags">
+                            <?php foreach ( $tags_grouped as $category => $tags ) : ?>
+                                <div class="hl-eb-tag-group">
+                                    <strong><?php echo esc_html( ucwords( $category ) ); ?></strong>
+                                    <?php foreach ( $tags as $key => $label ) : ?>
+                                        <code class="hl-eb-tag-item" data-tag="<?php echo esc_attr( $key ); ?>" title="<?php echo esc_attr( $label ); ?>">{{<?php echo esc_html( $key ); ?>}}</code>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <div class="hl-eb-section">
+                        <h3><?php esc_html_e( 'Preview', 'hl-core' ); ?></h3>
+                        <input type="text" id="hl-eb-preview-search" placeholder="<?php esc_attr_e( 'Search enrollments...', 'hl-core' ); ?>">
+                        <select id="hl-eb-preview-enrollment" style="display:none;"></select>
+                        <div class="hl-eb-preview-toggles">
+                            <button type="button" class="button button-small hl-eb-preview-toggle active" data-mode="desktop"><?php esc_html_e( 'Desktop', 'hl-core' ); ?></button>
+                            <button type="button" class="button button-small hl-eb-preview-toggle" data-mode="mobile"><?php esc_html_e( 'Mobile', 'hl-core' ); ?></button>
+                            <button type="button" class="button button-small hl-eb-preview-toggle" data-mode="dark"><?php esc_html_e( 'Dark', 'hl-core' ); ?></button>
+                        </div>
+                        <div id="hl-eb-preview-frame-wrap" style="margin-top:10px;">
+                            <iframe id="hl-eb-preview-frame" style="width:600px;height:400px;border:1px solid #ddd;"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            var hlEmailBuilder = {
+                templateId: <?php echo (int) ( $template_id ?: 0 ); ?>,
+                blocks: <?php echo wp_json_encode( $blocks ); ?>,
+                draftData: <?php echo wp_json_encode( $draft_data ); ?>,
+                nonce: <?php echo wp_json_encode( wp_create_nonce( 'hl_email_builder' ) ); ?>,
+                ajaxUrl: <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>,
+                previewUrl: <?php echo wp_json_encode( admin_url( 'admin-ajax.php?action=hl_email_preview_render&_wpnonce=' . wp_create_nonce( 'hl_email_preview' ) ) ); ?>,
+                mergeTagsGrouped: <?php echo wp_json_encode( $tags_grouped ); ?>
+            };
+        </script>
+        <?php
+
+        // Enqueue builder JS (loaded after the config is output).
+        wp_enqueue_script(
+            'hl-email-builder',
+            HL_CORE_ASSETS_URL . 'js/admin/email-builder.js',
+            array( 'jquery', 'wp-color-picker' ),
+            HL_CORE_VERSION,
+            true
+        );
+    }
+
+    // =========================================================================
+    // AJAX: Save Template
+    // =========================================================================
+
+    public function ajax_save() {
+        check_ajax_referer( 'hl_email_builder', 'nonce' );
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( 'Unauthorized' );
+        }
+
+        global $wpdb;
+        $table = "{$wpdb->prefix}hl_email_template";
+
+        $template_id  = (int) ( $_POST['template_id'] ?? 0 );
+        $template_key = sanitize_key( $_POST['template_key'] ?? '' );
+        $name         = sanitize_text_field( $_POST['name'] ?? '' );
+        $subject      = sanitize_text_field( $_POST['subject'] ?? '' );
+        $category     = sanitize_text_field( $_POST['category'] ?? 'manual' );
+        $status       = sanitize_text_field( $_POST['status'] ?? 'draft' );
+        $blocks_raw   = $_POST['blocks_json'] ?? '[]';
+
+        // Validate required fields.
+        if ( empty( $template_key ) || empty( $name ) ) {
+            wp_send_json_error( 'Template key and name are required.' );
+        }
+
+        // Validate status.
+        if ( ! in_array( $status, array( 'draft', 'active', 'archived' ), true ) ) {
+            $status = 'draft';
+        }
+
+        // Validate category.
+        $valid_cats = array( 'invitation', 'fyi', 'reminder', 'follow_up', 'manual' );
+        if ( ! in_array( $category, $valid_cats, true ) ) {
+            $category = 'manual';
+        }
+
+        // Decode and sanitize blocks.
+        $blocks = json_decode( wp_unslash( $blocks_raw ), true );
+        if ( ! is_array( $blocks ) ) {
+            $blocks = array();
+        }
+        $blocks = $this->sanitize_blocks( $blocks );
+        $blocks_json = wp_json_encode( $blocks );
+
+        // Extract merge tags used.
+        $merge_tags_used = $this->extract_merge_tags( $blocks_json . ' ' . $subject );
+
+        $data = array(
+            'template_key' => $template_key,
+            'name'         => $name,
+            'subject'      => $subject,
+            'blocks_json'  => $blocks_json,
+            'category'     => $category,
+            'merge_tags'   => wp_json_encode( $merge_tags_used ),
+            'status'       => $status,
+        );
+        $format = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+
+        if ( $template_id > 0 ) {
+            // Update.
+            $wpdb->update( $table, $data, array( 'template_id' => $template_id ), $format, array( '%d' ) );
+        } else {
+            // Insert.
+            $data['created_by'] = get_current_user_id();
+            $format[]           = '%d';
+            $wpdb->insert( $table, $data, $format );
+            $template_id = $wpdb->insert_id;
+        }
+
+        // Clear draft.
+        $draft_key = 'hl_email_draft_' . get_current_user_id() . '_' . $template_id;
+        delete_option( $draft_key );
+
+        // Audit log.
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( 'email_template_saved', array(
+                'entity_type' => 'email_template',
+                'entity_id'   => $template_id,
+                'template_key' => $template_key,
+            ) );
+        }
+
+        wp_send_json_success( array(
+            'template_id' => $template_id,
+            'message'     => __( 'Template saved.', 'hl-core' ),
+        ) );
+    }
+
+    // =========================================================================
+    // AJAX: Autosave Draft
+    // =========================================================================
+
+    public function ajax_autosave() {
+        check_ajax_referer( 'hl_email_builder', 'nonce' );
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( 'Unauthorized' );
+        }
+
+        $template_id = (int) ( $_POST['template_id'] ?? 0 );
+        $key         = 'hl_email_draft_' . get_current_user_id() . '_' . ( $template_id ?: 'new' );
+        $draft_data  = wp_unslash( $_POST['draft_data'] ?? '' );
+
+        update_option( $key, $draft_data, false ); // autoload=no
+
+        wp_send_json_success( array( 'saved_at' => current_time( 'H:i:s' ) ) );
+    }
+
+    // =========================================================================
+    // AJAX: Preview Search (Enrollment Autocomplete)
+    // =========================================================================
+
+    public function ajax_preview_search() {
+        check_ajax_referer( 'hl_email_builder', 'nonce' );
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( 'Unauthorized' );
+        }
+
+        global $wpdb;
+        $search = sanitize_text_field( $_POST['search'] ?? '' );
+        if ( strlen( $search ) < 2 ) {
+            wp_send_json_success( array() );
+        }
+
+        $like = '%' . $wpdb->esc_like( $search ) . '%';
+        $results = $wpdb->get_results( $wpdb->prepare(
+            "SELECT e.enrollment_id, e.user_id, e.cycle_id, u.display_name, c.cycle_name
+             FROM {$wpdb->prefix}hl_enrollment e
+             JOIN {$wpdb->users} u ON u.ID = e.user_id
+             JOIN {$wpdb->prefix}hl_cycle c ON c.cycle_id = e.cycle_id
+             WHERE u.display_name LIKE %s AND e.status IN ('active','warning')
+             ORDER BY u.display_name ASC
+             LIMIT 20",
+            $like
+        ) );
+
+        $options = array();
+        foreach ( $results as $row ) {
+            $options[] = array(
+                'enrollment_id' => (int) $row->enrollment_id,
+                'label'         => esc_html( $row->display_name ) . ' — ' . esc_html( $row->cycle_name ),
+            );
+        }
+
+        wp_send_json_success( $options );
+    }
+
+    // =========================================================================
+    // AJAX: Preview Render
+    // =========================================================================
+
+    public function ajax_preview_render() {
+        check_ajax_referer( 'hl_email_preview', '_wpnonce' );
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_die( 'Unauthorized' );
+        }
+
+        global $wpdb;
+
+        $template_id   = (int) ( $_GET['template_id'] ?? 0 );
+        $enrollment_id = (int) ( $_GET['enrollment_id'] ?? 0 );
+        $blocks_json   = wp_unslash( $_GET['blocks_json'] ?? '[]' );
+        $subject       = sanitize_text_field( $_GET['subject'] ?? '' );
+
+        $blocks = json_decode( $blocks_json, true );
+        if ( ! is_array( $blocks ) ) {
+            $blocks = array();
+        }
+        // Sanitize blocks from GET input (not previously saved).
+        $blocks = $this->sanitize_blocks( $blocks );
+
+        // Build context from enrollment.
+        $context = array();
+        if ( $enrollment_id ) {
+            $enrollment = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+                $enrollment_id
+            ) );
+            if ( $enrollment ) {
+                $context['user_id']       = (int) $enrollment->user_id;
+                $context['cycle_id']      = (int) $enrollment->cycle_id;
+                $context['enrollment_id'] = (int) $enrollment->enrollment_id;
+                $context['enrollment_role'] = $enrollment->roles ?? '';
+
+                $user = get_userdata( (int) $enrollment->user_id );
+                if ( $user ) {
+                    $context['recipient_user_id'] = (int) $user->ID;
+                    $context['recipient_name']    = $user->display_name;
+                    $context['recipient_email']   = $user->user_email;
+                }
+
+                // Load cycle.
+                $cycle = $wpdb->get_row( $wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+                    $enrollment->cycle_id
+                ) );
+                if ( $cycle ) {
+                    $context['cycle_name'] = $cycle->cycle_name;
+                }
+            }
+        }
+
+        $registry   = HL_Email_Merge_Tag_Registry::instance();
+        $merge_tags = $registry->resolve_all( $context );
+        $renderer   = HL_Email_Block_Renderer::instance();
+        $html       = $renderer->render( $blocks, $subject, $merge_tags );
+
+        // Output raw HTML for iframe.
+        header( 'Content-Type: text/html; charset=utf-8' );
+        echo $html;
+        exit;
+    }
+
+    // =========================================================================
+    // AJAX: Delete Template
+    // =========================================================================
+
+    public function ajax_delete() {
+        check_ajax_referer( 'hl_email_builder', 'nonce' );
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( 'Unauthorized' );
+        }
+
+        global $wpdb;
+        $template_id = (int) ( $_POST['template_id'] ?? 0 );
+        if ( ! $template_id ) {
+            wp_send_json_error( 'Invalid template.' );
+        }
+
+        // Archive instead of hard delete.
+        $wpdb->update(
+            "{$wpdb->prefix}hl_email_template",
+            array( 'status' => 'archived' ),
+            array( 'template_id' => $template_id ),
+            array( '%s' ),
+            array( '%d' )
+        );
+
+        // Clean up draft options (hl_email_draft_{user_id}_{template_id}).
+        $wpdb->query( $wpdb->prepare(
+            "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+            $wpdb->esc_like( 'hl_email_draft_' ) . '%' . $wpdb->esc_like( '_' . $template_id )
+        ) );
+
+        wp_send_json_success( array( 'message' => __( 'Template archived.', 'hl-core' ) ) );
+    }
+
+    // =========================================================================
+    // Helpers
+    // =========================================================================
+
+    /**
+     * Sanitize a blocks array (wp_kses_post on text content).
+     *
+     * @param array $blocks Raw blocks.
+     * @return array Sanitized blocks.
+     */
+    private function sanitize_blocks( array $blocks ) {
+        foreach ( $blocks as &$block ) {
+            if ( ! is_array( $block ) || empty( $block['type'] ) ) {
+                continue;
+            }
+            switch ( $block['type'] ) {
+                case 'text':
+                    $block['content'] = wp_kses_post( $block['content'] ?? '' );
+                    break;
+                case 'image':
+                    $block['src'] = esc_url( $block['src'] ?? '' );
+                    $block['alt'] = sanitize_text_field( $block['alt'] ?? '' );
+                    $block['link'] = esc_url( $block['link'] ?? '' );
+                    // Block SVG uploads.
+                    if ( preg_match( '/\.svg$/i', $block['src'] ) ) {
+                        $block['src'] = '';
+                    }
+                    break;
+                case 'button':
+                    $block['label'] = sanitize_text_field( $block['label'] ?? '' );
+                    $block['url']   = esc_url( $block['url'] ?? '' );
+                    break;
+                case 'columns':
+                    $block['left']  = $this->sanitize_blocks( $block['left']  ?? array() );
+                    $block['right'] = $this->sanitize_blocks( $block['right'] ?? array() );
+                    break;
+            }
+        }
+        return $blocks;
+    }
+
+    /**
+     * Extract merge tag keys from content.
+     *
+     * @param string $content Content to scan.
+     * @return array Array of tag keys found.
+     */
+    private function extract_merge_tags( $content ) {
+        preg_match_all( '/\{\{([a-zA-Z0-9_]+)\}\}/', $content, $matches );
+        return array_unique( $matches[1] ?? array() );
+    }
+}

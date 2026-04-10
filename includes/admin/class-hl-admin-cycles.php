@@ -26,6 +26,7 @@ class HL_Admin_Cycles {
         $this->repo = new HL_Cycle_Repository();
         add_action('wp_ajax_hl_send_cycle_emails', array($this, 'ajax_send_cycle_emails'));
         add_action('wp_ajax_hl_reset_email_log', array($this, 'ajax_reset_email_log'));
+        add_action('wp_ajax_hl_cycle_manual_send', array($this, 'ajax_manual_send'));
     }
 
     /**
@@ -1886,6 +1887,14 @@ class HL_Admin_Cycles {
 
         echo '<h3 style="margin-top:0;">' . esc_html($cycle->cycle_name) . '</h3>';
 
+        // ── Manual Sends (new email system) ──────────────────────────
+        $this->render_manual_sends_section($cycle);
+
+        // ── Legacy Invitation Emails ─────────────────────────────────
+        echo '<details style="margin-top:24px;border:1px solid #ddd;padding:12px;border-radius:6px;">';
+        echo '<summary style="cursor:pointer;font-weight:600;color:#666;">' . esc_html__( 'Legacy Invitation Emails (deprecated — use Manual Sends above)', 'hl-core' ) . '</summary>';
+        echo '<div style="margin-top:12px;">';
+
         // Container for AJAX-loaded recipient tables
         echo '<div id="hl-email-recipients-container">';
         $this->render_email_recipients($cycle_id);
@@ -2028,6 +2037,149 @@ class HL_Admin_Cycles {
         })();
         </script>
         <style>@keyframes rotation{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
+        <?php
+        echo '</div></details>'; // Close legacy section.
+    }
+
+    /**
+     * Render the manual sends section using the new email system.
+     */
+    private function render_manual_sends_section( $cycle ) {
+        global $wpdb;
+        $cycle_id = (int) $cycle->cycle_id;
+
+        // Get available templates.
+        $templates = $wpdb->get_results(
+            "SELECT template_id, name, template_key FROM {$wpdb->prefix}hl_email_template WHERE status = 'active' ORDER BY name"
+        );
+
+        // Get recent send history from hl_email_queue.
+        $recent_sends = $wpdb->get_results( $wpdb->prepare(
+            "SELECT q.queue_id, q.recipient_email, q.subject, q.status, q.sent_at, q.created_at, t.name AS template_name
+             FROM {$wpdb->prefix}hl_email_queue q
+             LEFT JOIN {$wpdb->prefix}hl_email_template t ON t.template_id = q.template_id
+             WHERE q.sent_by IS NOT NULL
+               AND q.context_data LIKE %s
+             ORDER BY q.created_at DESC
+             LIMIT 20",
+            '%"cycle_id":' . $cycle_id . '%'
+        ) );
+
+        $manual_nonce = wp_create_nonce( 'hl_cycle_manual_send' );
+
+        ?>
+        <div class="hl-manual-sends" style="margin-bottom:24px;">
+            <h4><?php esc_html_e( 'Send Email to Cycle Participants', 'hl-core' ); ?></h4>
+
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+                <div>
+                    <label><strong><?php esc_html_e( 'Template', 'hl-core' ); ?></strong></label><br>
+                    <select id="hl-manual-template" style="min-width:250px;">
+                        <option value=""><?php esc_html_e( '— Select template —', 'hl-core' ); ?></option>
+                        <?php foreach ( $templates as $t ) : ?>
+                            <option value="<?php echo (int) $t->template_id; ?>"><?php echo esc_html( $t->name ); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label><strong><?php esc_html_e( 'Filter by Role', 'hl-core' ); ?></strong></label><br>
+                    <select id="hl-manual-role" style="min-width:150px;">
+                        <option value=""><?php esc_html_e( 'All Roles', 'hl-core' ); ?></option>
+                        <option value="teacher">Teacher</option>
+                        <option value="mentor">Mentor</option>
+                        <option value="school_leader">School Leader</option>
+                        <option value="district_leader">District Leader</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="hl-manual-recipients" style="max-height:400px;overflow-y:auto;border:1px solid #ddd;padding:8px;border-radius:4px;background:#fafafa;">
+                <p style="color:#999;"><?php esc_html_e( 'Select a template to load recipients.', 'hl-core' ); ?></p>
+            </div>
+
+            <div style="margin-top:12px;">
+                <button type="button" class="button button-primary" id="hl-manual-send-btn" disabled><?php esc_html_e( 'Send Now', 'hl-core' ); ?></button>
+                <span id="hl-manual-send-status" style="margin-left:12px;"></span>
+            </div>
+
+            <?php if ( ! empty( $recent_sends ) ) : ?>
+                <h4 style="margin-top:24px;"><?php esc_html_e( 'Recent Manual Sends', 'hl-core' ); ?></h4>
+                <table class="wp-list-table widefat fixed striped" style="max-width:800px;">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( 'Recipient', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Template', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Sent', 'hl-core' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $recent_sends as $s ) : ?>
+                            <tr>
+                                <td><?php echo esc_html( $s->recipient_email ); ?></td>
+                                <td><?php echo esc_html( $s->template_name ?: '—' ); ?></td>
+                                <td><?php echo esc_html( $s->status ); ?></td>
+                                <td><?php echo esc_html( $s->sent_at ?: $s->created_at ); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+
+        <script>
+        (function(){
+            var cycleId = <?php echo (int) $cycle_id; ?>;
+            var nonce = '<?php echo esc_js( $manual_nonce ); ?>';
+            var ajaxUrl = '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>';
+
+            jQuery('#hl-manual-template, #hl-manual-role').on('change', function() {
+                var templateId = jQuery('#hl-manual-template').val();
+                if (!templateId) return;
+                jQuery('#hl-manual-recipients').html('<p>Loading...</p>');
+                jQuery.post(ajaxUrl, {
+                    action: 'hl_cycle_manual_send',
+                    sub_action: 'load_recipients',
+                    cycle_id: cycleId,
+                    template_id: templateId,
+                    role_filter: jQuery('#hl-manual-role').val(),
+                    _wpnonce: nonce
+                }, function(res) {
+                    if (res.success) {
+                        jQuery('#hl-manual-recipients').html(res.data.html);
+                        jQuery('#hl-manual-send-btn').prop('disabled', false);
+                    }
+                });
+            });
+
+            jQuery('#hl-manual-send-btn').on('click', function() {
+                var templateId = jQuery('#hl-manual-template').val();
+                var checked = [];
+                jQuery('#hl-manual-recipients input.hl-ms-cb:checked').each(function() {
+                    checked.push(jQuery(this).val());
+                });
+                if (!templateId || checked.length === 0) {
+                    alert('Select a template and at least one recipient.');
+                    return;
+                }
+                if (!confirm('Send email to ' + checked.length + ' recipient(s)?')) return;
+
+                var $btn = jQuery(this);
+                $btn.prop('disabled', true).text('Sending...');
+                jQuery.post(ajaxUrl, {
+                    action: 'hl_cycle_manual_send',
+                    sub_action: 'send',
+                    cycle_id: cycleId,
+                    template_id: templateId,
+                    user_ids: checked.join(','),
+                    _wpnonce: nonce
+                }, function(res) {
+                    $btn.prop('disabled', false).text('<?php echo esc_js( __( 'Send Now', 'hl-core' ) ); ?>');
+                    jQuery('#hl-manual-send-status').text(res.success ? res.data.message : (res.data || 'Error'));
+                });
+            });
+        })();
+        </script>
         <?php
     }
 
@@ -2309,6 +2461,194 @@ class HL_Admin_Cycles {
         );
 
         wp_send_json_success(array('message' => __('Reset successful.', 'hl-core')));
+    }
+
+    /**
+     * AJAX handler for manual sends via the new email system.
+     */
+    public function ajax_manual_send() {
+        check_ajax_referer( 'hl_cycle_manual_send' );
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( 'Permission denied.' );
+        }
+
+        global $wpdb;
+        $sub_action  = sanitize_text_field( $_POST['sub_action'] ?? '' );
+        $cycle_id    = (int) ( $_POST['cycle_id'] ?? 0 );
+        $template_id = (int) ( $_POST['template_id'] ?? 0 );
+
+        if ( $sub_action === 'load_recipients' ) {
+            $role_filter = sanitize_text_field( $_POST['role_filter'] ?? '' );
+            $where_role  = '';
+            if ( $role_filter ) {
+                $where_role = $wpdb->prepare( " AND e.roles LIKE %s", '%' . $wpdb->esc_like( $role_filter ) . '%' );
+            }
+
+            $enrollments = $wpdb->get_results( $wpdb->prepare(
+                "SELECT e.enrollment_id, e.user_id, u.display_name, u.user_email, e.roles
+                 FROM {$wpdb->prefix}hl_enrollment e
+                 JOIN {$wpdb->users} u ON u.ID = e.user_id
+                 WHERE e.cycle_id = %d AND e.status IN ('active','warning') {$where_role}
+                 ORDER BY u.display_name",
+                $cycle_id
+            ) );
+
+            // Batch dedup check: build all tokens, query once.
+            $today_et = wp_date( 'Y-m-d', time(), new DateTimeZone( 'America/New_York' ) );
+            $dedup_map = array(); // user_id => dedup_token
+            $all_tokens = array();
+            foreach ( $enrollments as $e ) {
+                $token = md5( 'manual_' . $template_id . '_' . $e->user_id . '_' . $cycle_id . '_' . $today_et );
+                $dedup_map[ (int) $e->user_id ] = $token;
+                $all_tokens[] = $token;
+            }
+            $sent_tokens = array();
+            if ( ! empty( $all_tokens ) ) {
+                $placeholders = implode( ',', array_fill( 0, count( $all_tokens ), '%s' ) );
+                $sent_rows = $wpdb->get_col( $wpdb->prepare(
+                    "SELECT dedup_token FROM {$wpdb->prefix}hl_email_queue WHERE dedup_token IN ({$placeholders}) AND status NOT IN ('cancelled')",
+                    ...$all_tokens
+                ) );
+                $sent_tokens = array_flip( $sent_rows );
+            }
+
+            $html = '<table class="wp-list-table widefat fixed striped" style="font-size:13px;"><thead><tr>';
+            $html .= '<th style="width:30px;"><input type="checkbox" id="hl-ms-select-all"></th>';
+            $html .= '<th>' . esc_html__( 'Name', 'hl-core' ) . '</th>';
+            $html .= '<th>' . esc_html__( 'Email', 'hl-core' ) . '</th>';
+            $html .= '<th>' . esc_html__( 'Role', 'hl-core' ) . '</th>';
+            $html .= '<th>' . esc_html__( 'Status', 'hl-core' ) . '</th>';
+            $html .= '</tr></thead><tbody>';
+
+            foreach ( $enrollments as $e ) {
+                $token = $dedup_map[ (int) $e->user_id ];
+                $already_sent = isset( $sent_tokens[ $token ] );
+                $status_badge = $already_sent
+                    ? '<span style="color:#27ae60;font-weight:bold;">' . esc_html__( 'Already sent today', 'hl-core' ) . '</span>'
+                    : '';
+                $disabled = $already_sent ? 'disabled' : '';
+
+                $html .= '<tr>';
+                $html .= '<td><input type="checkbox" class="hl-ms-cb" value="' . (int) $e->user_id . '" ' . $disabled . '></td>';
+                $html .= '<td>' . esc_html( $e->display_name ) . '</td>';
+                $html .= '<td>' . esc_html( $e->user_email ) . '</td>';
+                $html .= '<td>' . esc_html( $e->roles ) . '</td>';
+                $html .= '<td>' . $status_badge . '</td>';
+                $html .= '</tr>';
+            }
+
+            $html .= '</tbody></table>';
+            $html .= '<script>jQuery("#hl-ms-select-all").on("change",function(){jQuery(".hl-ms-cb:not(:disabled)").prop("checked",this.checked)});</script>';
+
+            wp_send_json_success( array( 'html' => $html ) );
+        }
+
+        if ( $sub_action === 'send' ) {
+            $user_ids = array_map( 'intval', explode( ',', sanitize_text_field( $_POST['user_ids'] ?? '' ) ) );
+            $user_ids = array_filter( $user_ids );
+
+            if ( empty( $user_ids ) || ! $template_id || ! $cycle_id ) {
+                wp_send_json_error( 'Missing parameters.' );
+            }
+
+            // Load template.
+            $template = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_email_template WHERE template_id = %d AND status = 'active'",
+                $template_id
+            ) );
+            if ( ! $template ) {
+                wp_send_json_error( 'Template not found or not active.' );
+            }
+
+            $blocks = json_decode( $template->blocks_json, true );
+            if ( ! is_array( $blocks ) ) {
+                $blocks = array();
+            }
+
+            $renderer       = HL_Email_Block_Renderer::instance();
+            $merge_registry = HL_Email_Merge_Tag_Registry::instance();
+            $queue_processor = HL_Email_Queue_Processor::instance();
+
+            $today_et = wp_date( 'Y-m-d', time(), new DateTimeZone( 'America/New_York' ) );
+            $sent_count = 0;
+            $skipped    = 0;
+
+            // Load cycle data once (doesn't change per user).
+            $cycle = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d", $cycle_id
+            ) );
+            $cycle_name = $cycle ? $cycle->cycle_name : '';
+
+            foreach ( $user_ids as $uid ) {
+                $user = get_userdata( $uid );
+                if ( ! $user ) {
+                    continue;
+                }
+
+                // Build context.
+                $context = array(
+                    'user_id'          => $uid,
+                    'cycle_id'         => $cycle_id,
+                    'cycle_name'       => $cycle_name,
+                    'recipient_user_id' => $uid,
+                    'recipient_name'   => $user->display_name,
+                    'recipient_email'  => $user->user_email,
+                );
+
+                $enrollment = $wpdb->get_row( $wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}hl_enrollment WHERE user_id = %d AND cycle_id = %d AND status IN ('active','warning') LIMIT 1",
+                    $uid, $cycle_id
+                ) );
+                if ( $enrollment ) {
+                    $context['enrollment_id']   = (int) $enrollment->enrollment_id;
+                    $context['enrollment_role'] = $enrollment->roles ?? '';
+                }
+
+                $merge_tags = $merge_registry->resolve_all( $context );
+                $body_html  = $renderer->render( $blocks, $template->subject, $merge_tags );
+
+                $subject = $template->subject;
+                foreach ( $merge_tags as $tag_key => $tag_value ) {
+                    $subject = str_replace( '{{' . $tag_key . '}}', $tag_value, $subject );
+                }
+
+                $dedup_token = md5( 'manual_' . $template_id . '_' . $uid . '_' . $cycle_id . '_' . $today_et );
+
+                $result = $queue_processor->enqueue( array(
+                    'workflow_id'       => null,
+                    'template_id'       => (int) $template->template_id,
+                    'recipient_user_id' => $uid,
+                    'recipient_email'   => $user->user_email,
+                    'subject'           => $subject,
+                    'body_html'         => $body_html,
+                    'context_data'      => array(
+                        'trigger_key'   => 'manual_send',
+                        'cycle_id'      => $cycle_id,
+                        'enrollment_id' => $context['enrollment_id'] ?? null,
+                        'entity_id'     => null,
+                        'entity_type'   => null,
+                    ),
+                    'dedup_token'       => $dedup_token,
+                    'scheduled_at'      => gmdate( 'Y-m-d H:i:s' ),
+                    'sent_by'           => get_current_user_id(),
+                ) );
+
+                if ( $result ) {
+                    $sent_count++;
+                } else {
+                    $skipped++;
+                }
+            }
+
+            $message = sprintf( __( '%d email(s) queued.', 'hl-core' ), $sent_count );
+            if ( $skipped > 0 ) {
+                $message .= ' ' . sprintf( __( '%d skipped (already sent today).', 'hl-core' ), $skipped );
+            }
+
+            wp_send_json_success( array( 'message' => $message ) );
+        }
+
+        wp_send_json_error( 'Unknown sub-action.' );
     }
 
     /**

@@ -346,6 +346,39 @@ class HL_Scheduling_Email_Service {
     }
 
     /**
+     * Try to render via the new block-based renderer if a template exists
+     * in hl_email_template with blocks_json. Falls back to legacy rendering.
+     *
+     * @param string $template_key Template key (e.g., 'session_booked_mentor').
+     * @param string $subject      Email subject.
+     * @param array  $merge_data   Merge tag key => value map.
+     * @return array|null { subject, body_html } or null if no block template.
+     */
+    public function try_block_render( $template_key, $subject, array $merge_data ) {
+        global $wpdb;
+        $row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_email_template WHERE template_key = %s AND status = 'active'",
+            $template_key
+        ) );
+        if ( ! $row || empty( $row->blocks_json ) ) {
+            return null;
+        }
+        $blocks = json_decode( $row->blocks_json, true );
+        if ( ! is_array( $blocks ) || empty( $blocks ) ) {
+            return null;
+        }
+        // Only use block renderer if there's more than a single legacy text block.
+        // Legacy migration creates exactly 1 text block — skip to use the legacy renderer
+        // since it has the full branded shell with session details block.
+        if ( count( $blocks ) === 1 && $blocks[0]['type'] === 'text' ) {
+            return null;
+        }
+        $renderer = HL_Email_Block_Renderer::instance();
+        $body     = $renderer->render( $blocks, $subject, $merge_data );
+        return array( 'subject' => $subject, 'body_html' => $body );
+    }
+
+    /**
      * Build a branded HTML email body (public for test emails).
      *
      * @param string $greeting    e.g. "Hello Jane,"

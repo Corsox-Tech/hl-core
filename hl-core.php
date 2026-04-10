@@ -129,6 +129,15 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-tour-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-ticket-service.php';
 
+        // Email system
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-email-block-renderer.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-email-merge-tag-registry.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-email-rate-limit-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-email-condition-evaluator.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-email-recipient-resolver.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-email-queue-processor.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-email-automation-service.php';
+
         // Auth system
         require_once HL_CORE_INCLUDES_DIR . 'auth/class-hl-auth-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'auth/class-hl-auth-service.php';
@@ -165,6 +174,8 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-settings.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-tours.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-course-catalog.php';
+            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-emails.php';
+            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-email-builder.php';
         }
         
         // Front-end (shortcodes)
@@ -262,6 +273,11 @@ class HL_Core {
         // Zoho SalesIQ chat widget — loads on all frontend pages.
         add_action('wp_head', array($this, 'render_zoho_salesiq'), 50);
 
+        // Email system: custom 5-minute cron interval.
+        add_filter('cron_schedules', array($this, 'register_cron_schedules'));
+
+        // Email system: track account activation + last login.
+        add_action('wp_login', array($this, 'handle_wp_login'), 10, 2);
     }
     
     /**
@@ -335,6 +351,19 @@ class HL_Core {
             HL_CLI_Translate_Content::register();
         }
 
+        // Email system: initialize automation service (registers hook listeners).
+        HL_Email_Automation_Service::instance();
+
+        // Email system: register cron action handlers.
+        add_action( 'hl_email_process_queue', array( HL_Email_Queue_Processor::instance(), 'process_batch' ) );
+        add_action( 'hl_email_cron_daily', array( HL_Email_Automation_Service::instance(), 'run_daily_checks' ) );
+        add_action( 'hl_email_cron_hourly', array( HL_Email_Automation_Service::instance(), 'run_hourly_checks' ) );
+
+        // Email system: ensure cron events are registered (guards against lost entries).
+        // Deferred to wp_loaded so the custom 'hl_every_5_minutes' interval
+        // from the cron_schedules filter is available when wp_schedule_event runs.
+        add_action( 'wp_loaded', array( $this, 'ensure_email_cron_events' ) );
+
         do_action('hl_core_init');
     }
     
@@ -393,6 +422,54 @@ class HL_Core {
                 src="https://salesiq.zohopublic.com/widget?wc=siq809a2f8618bcb9d5b31dfc458c9c20f363e1d33aa858f2fc74d214ee924df9ee"
                 defer></script>
         <?php
+    }
+
+    /**
+     * Register the custom 5-minute cron interval for email queue processing.
+     *
+     * @param array $schedules Existing cron schedules.
+     * @return array Modified schedules.
+     */
+    public function register_cron_schedules( $schedules ) {
+        $schedules['hl_every_5_minutes'] = array(
+            'interval' => 300,
+            'display'  => __( 'Every 5 Minutes (HL Email)', 'hl-core' ),
+        );
+        return $schedules;
+    }
+
+    /**
+     * Handle wp_login: set hl_account_activated on first login, update last_login.
+     *
+     * @param string  $user_login Username.
+     * @param WP_User $user       User object.
+     */
+    public function handle_wp_login( $user_login, $user ) {
+        $user_id = $user->ID;
+
+        // First login — set activation flag (used by email conditions).
+        if ( ! get_user_meta( $user_id, 'hl_account_activated', true ) ) {
+            update_user_meta( $user_id, 'hl_account_activated', '1' );
+        }
+
+        // Always update last login timestamp.
+        update_user_meta( $user_id, 'last_login', current_time( 'mysql', true ) );
+    }
+
+    /**
+     * Ensure email cron events are registered. Re-schedules any missing
+     * events. Guards against lost cron entries from failed updates.
+     */
+    public function ensure_email_cron_events() {
+        if ( ! wp_next_scheduled( 'hl_email_process_queue' ) ) {
+            wp_schedule_event( time(), 'hl_every_5_minutes', 'hl_email_process_queue' );
+        }
+        if ( ! wp_next_scheduled( 'hl_email_cron_daily' ) ) {
+            wp_schedule_event( time(), 'daily', 'hl_email_cron_daily' );
+        }
+        if ( ! wp_next_scheduled( 'hl_email_cron_hourly' ) ) {
+            wp_schedule_event( time(), 'hourly', 'hl_email_cron_hourly' );
+        }
     }
 
     /**
