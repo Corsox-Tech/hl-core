@@ -168,6 +168,11 @@ class HL_Assessment_Service {
             'cycle_id'   => $instance['cycle_id'],
         ));
 
+        // Merge updated fields so listeners get current state.
+        $instance['status']       = 'submitted';
+        $instance['submitted_at'] = $now;
+        do_action('hl_teacher_assessment_submitted', $instance_id, $instance);
+
         return true;
     }
 
@@ -295,6 +300,10 @@ class HL_Assessment_Service {
 
         if ( ! $is_draft ) {
             $this->update_teacher_assessment_component_state( $instance );
+            // Merge updated fields so listeners get current state.
+            $instance['status']       = 'submitted';
+            $instance['submitted_at'] = $update_data['submitted_at'];
+            do_action('hl_teacher_assessment_submitted', $instance_id, $instance);
         }
 
         return true;
@@ -596,6 +605,8 @@ class HL_Assessment_Service {
 
             // Update activity state for this phase
             $this->update_child_assessment_component_state( $instance );
+
+            do_action('hl_child_assessment_submitted', $instance_id, $instance);
         }
 
         return true;

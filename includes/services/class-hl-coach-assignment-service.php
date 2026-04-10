@@ -65,6 +65,8 @@ class HL_Coach_Assignment_Service {
             'after_data'  => $insert,
         ));
 
+        do_action('hl_coach_assigned', $id, $insert);
+
         return $id;
     }
 

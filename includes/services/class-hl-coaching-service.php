@@ -178,6 +178,11 @@ class HL_Coaching_Service {
             return new WP_Error('db_error', __('Failed to update session status.', 'hl-core'));
         }
 
+        // $result === 0 means no rows changed (status was already the target value).
+        if ($result === 0) {
+            return true;
+        }
+
         // If attended, trigger activity state updates.
         if ($new_status === 'attended') {
             $this->update_coaching_component_state(
@@ -193,6 +198,8 @@ class HL_Coaching_Service {
             'before_data' => array('session_status' => $current),
             'after_data'  => array('session_status' => $new_status),
         ));
+
+        do_action('hl_coaching_session_status_changed', $session_id, $current, $new_status, $session);
 
         return true;
     }
@@ -553,6 +560,8 @@ class HL_Coaching_Service {
                 'session_datetime'     => $insert_data['session_datetime'],
             ),
         ));
+
+        do_action('hl_coaching_session_created', $session_id, $insert_data);
 
         return $session_id;
     }

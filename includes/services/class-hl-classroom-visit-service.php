@@ -318,13 +318,19 @@ class HL_Classroom_Visit_Service {
 
         if ($existing) {
             $wpdb->update($table, $data, array('submission_id' => $existing['submission_id']));
-            return (int) $existing['submission_id'];
+            $submission_id = (int) $existing['submission_id'];
+        } else {
+            $data['submission_uuid'] = wp_generate_uuid4();
+            $data['created_at']      = current_time('mysql');
+            $wpdb->insert($table, $data);
+            $submission_id = (int) $wpdb->insert_id;
         }
 
-        $data['submission_uuid'] = wp_generate_uuid4();
-        $data['created_at']      = current_time('mysql');
-        $wpdb->insert($table, $data);
-        return (int) $wpdb->insert_id;
+        if ($status === 'submitted') {
+            do_action('hl_classroom_visit_submitted', $submission_id, $classroom_visit_id, $role, $user_id);
+        }
+
+        return $submission_id;
     }
 
     /**

@@ -133,8 +133,18 @@ class HL_Reporting_Service {
         // v1: cycle_completion_percent = pathway_completion_percent (single pathway)
         $cycle_percent = $pathway_percent;
 
+        // Check if pathway just completed (transition from <100 to >=100).
+        $old_pct = (float) $wpdb->get_var($wpdb->prepare(
+            "SELECT pathway_completion_percent FROM {$wpdb->prefix}hl_completion_rollup WHERE enrollment_id = %d",
+            $enrollment_id
+        ));
+
         // Upsert rollup
         $this->upsert_rollup($enrollment_id, $enrollment->cycle_id, $pathway_percent, $cycle_percent);
+
+        if ($pathway_percent >= 100.0 && $old_pct < 100.0) {
+            do_action('hl_pathway_completed', $enrollment_id, $enrollment->assigned_pathway_id, $enrollment->cycle_id);
+        }
 
         return array(
             'enrollment_id'             => $enrollment_id,

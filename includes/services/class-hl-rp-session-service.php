@@ -65,6 +65,8 @@ class HL_RP_Session_Service {
             ),
         ));
 
+        do_action('hl_rp_session_created', $rp_session_id, $insert_data);
+
         return $rp_session_id;
     }
 
@@ -244,6 +246,11 @@ class HL_RP_Session_Service {
             return new WP_Error('db_error', __('Failed to update RP session status.', 'hl-core'));
         }
 
+        // $result === 0 means no rows changed (status was already the target value).
+        if ($result === 0) {
+            return true;
+        }
+
         HL_Audit_Service::log('rp_session.status_changed', array(
             'entity_type' => 'rp_session',
             'entity_id'   => $rp_session_id,
@@ -251,6 +258,8 @@ class HL_RP_Session_Service {
             'before_data' => array('status' => $current),
             'after_data'  => array('status' => $new_status),
         ));
+
+        do_action('hl_rp_session_status_changed', $rp_session_id, $current, $new_status, $session);
 
         return true;
     }
