@@ -11,7 +11,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 
 ## What's Implemented
 
-### Database Schema (50 active custom tables + 1 planned)
+### Database Schema (54 active custom tables + 1 planned)
 - **Org & Partnership/Cycle:** `hl_orgunit`, `hl_cycle` (with `is_control_group` flag + `cycle_type` column: program/course), `hl_cycle_school`, `hl_partnership` (program-level container)
 - **Individual Enrollments (PLANNED):** `hl_individual_enrollment` (user_id, course_id, enrolled_at, expires_at, status) — for standalone course purchases
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
@@ -98,6 +98,14 @@ Full CRUD admin pages with WordPress-styled tables and forms:
   - **Doc Articles tab** — Links to WP native CPT editor, add new article, and category manager for the in-site documentation system
   - **Email Templates tab** — Edit subjects and body copy for the 6 coaching session notification emails (Booked/Rescheduled/Cancelled x Mentor/Coach). Merge tag support (`{{mentor_name}}`, `{{coach_name}}`, `{{session_date}}`, `{{old_session_date}}`, `{{new_session_date}}`, `{{cancelled_by}}`). Send Test button per template, Reset to Default. Stored in `hl_email_templates` wp_option. Branded HTML wrapper (header, logo, footer) stays in code.
   - **Tours tab** — `HL_Admin_Tours` with 3 subtabs: Tours List (status filter pills, table with row actions: Edit/Duplicate/Archive), Tour Editor (settings form + sortable step cards with TinyMCE descriptions, element picker modal with "View as Role" dropdown), Tour Styles (WP Iris color pickers, font size inputs, live preview mockup, reset to defaults).
+
+- **Emails** — `HL_Admin_Emails` with 4 tabs under Housman LMS → Emails menu:
+  - **Automated Workflows** — List table with status badge pills, filter pills (All/Draft/Active/Paused). Workflow editor form: trigger dropdown (13 hook-based + 12 cron-based), conditions JSON, recipients JSON, template select, delay minutes, send window (ET timezone with day checkboxes). Trigger key validated against allowlist.
+  - **Email Templates** — List table with status filter pills, links to builder. 6 coaching templates auto-migrated from legacy wp_options.
+  - **Send Log** — Paginated log of all queued/sent/failed emails with status filter pills (7 statuses), template name, scheduled/sent timestamps, failure reasons.
+  - **Settings** — Queue health stat cards (Pending/Sending/Failed/Rate Limited), Retry Failed button, per-user rate limit configuration (hourly/daily/weekly).
+  - **Email Builder** — Two-panel block editor (`HL_Admin_Email_Builder`): left sidebar (template settings + block palette), center canvas (600px email preview with sortable blocks), right sidebar (Email Health traffic light + grouped merge tag pills + preview iframe with enrollment search). 6 block types, contenteditable text with mini-toolbar, WP Media Library for images, SVG blocking, 3s debounced autosave, wp_kses_post sanitization.
+  - **Cycle Editor → Emails tab** — Manual sends section: template select, role filter, recipient checkboxes with dedup badges ("Already sent today"), Send Now button. Legacy invitation UI collapsed in `<details>` with deprecation notice.
 
 - **Assessment Hub** - Unified assessment management page with vertical sidebar navigation:
   - **Teacher Assessments** — Staff assessment viewer/exporter with list/detail/CSV, summary metric cards
@@ -276,10 +284,11 @@ See `STATUS.md` for the current build queue and task tracking.
     /domain/                     # Entity models (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Tour)
     /cli/                        # WP-CLI commands (19 commands incl. seed-demo, seed-lutheran, nuke, create-pages, setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, migrate-routing-types, sync-ld-enrollment) + data files
-    /services/                   # Business logic (26 services incl. HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service, HL_Tour_Service, HL_Ticket_Service)
+    /services/                   # Business logic (33 services incl. 7 email system: HL_Email_Block_Renderer, HL_Email_Merge_Tag_Registry, HL_Email_Rate_Limit_Service, HL_Email_Condition_Evaluator, HL_Email_Recipient_Resolver, HL_Email_Queue_Processor, HL_Email_Automation_Service)
+    /migrations/                 # Data migrations (HL_Email_Template_Migration)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)
-    /admin/                      # WP admin pages (20 controllers incl. Partnerships, Cycles, Assessment Hub, Coaching Hub with Coaches tab, Email Templates, Scheduling Settings, Tours, Course Catalog)
+    /admin/                      # WP admin pages (22 controllers incl. HL_Admin_Emails 4-tab page, HL_Admin_Email_Builder block editor, Partnerships, Cycles, Assessment Hub, Coaching Hub, Email Templates, Scheduling Settings, Tours, Course Catalog)
     /frontend/                   # 34 shortcode page renderers + 5 form/dispatch renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + schedule session renderer + instrument renderer + teacher assessment renderer
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, age group helpers + label remap (legacy)
@@ -288,6 +297,7 @@ See `STATUS.md` for the current build queue and task tracking.
     /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css
     /css/vendor/                 # driver.css (Driver.js 1.4.0 styles)
     /js/                         # admin-import-wizard.js, admin-teacher-editor.js, hl-tour-admin.js, hl-tour.js, hl-element-picker.js, frontend.js, frontend-docs.js
+    /js/admin/                   # email-builder.js (Sortable.js CDN, block CRUD, contenteditable, autosave, preview)
     /js/vendor/                  # driver.js (Driver.js 1.4.0 bundled, MIT)
   /docs/                         # AI library (11 spec documents + B2E_MASTER_REFERENCE.md)
 ```

@@ -120,17 +120,17 @@ class HL_Admin_Emails {
         }
 
         ?>
-        <div style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
             <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows&action=new' ) ); ?>" class="button button-primary"><?php esc_html_e( 'Add Workflow', 'hl-core' ); ?></a>
-            <span style="margin-left:16px;">
+            <div class="hl-email-filters">
                 <?php
                 $statuses = array( '' => 'All', 'draft' => 'Draft', 'active' => 'Active', 'paused' => 'Paused' );
                 foreach ( $statuses as $key => $label ) :
-                    $active = $status_filter === $key ? 'font-weight:bold;' : '';
+                    $active_class = $status_filter === $key ? ' active' : '';
                 ?>
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows&status=' . $key ) ); ?>" style="<?php echo $active; ?> margin-right:8px;"><?php echo esc_html( $label ); ?></a>
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows&status=' . $key ) ); ?>" class="<?php echo esc_attr( $active_class ); ?>"><?php echo esc_html( $label ); ?></a>
                 <?php endforeach; ?>
-            </span>
+            </div>
         </div>
 
         <table class="wp-list-table widefat fixed striped">
@@ -195,7 +195,7 @@ class HL_Admin_Emails {
         <h2><?php echo $workflow ? esc_html__( 'Edit Workflow', 'hl-core' ) : esc_html__( 'New Workflow', 'hl-core' ); ?></h2>
         <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows' ) ); ?>">&larr; <?php esc_html_e( 'Back', 'hl-core' ); ?></a>
 
-        <form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows' ) ); ?>" style="max-width:700px;margin-top:16px;">
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows' ) ); ?>" class="hl-workflow-form" style="margin-top:16px;">
             <?php wp_nonce_field( 'hl_workflow_save', 'hl_workflow_nonce' ); ?>
             <input type="hidden" name="workflow_id" value="<?php echo (int) $workflow_id; ?>">
 
@@ -392,17 +392,17 @@ class HL_Admin_Emails {
         }
 
         ?>
-        <div style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
             <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=builder' ) ); ?>" class="button button-primary"><?php esc_html_e( 'New Template', 'hl-core' ); ?></a>
-            <span style="margin-left:16px;">
+            <div class="hl-email-filters">
                 <?php
                 $statuses = array( '' => 'Active', 'draft' => 'Draft', 'archived' => 'Archived' );
                 foreach ( $statuses as $key => $label ) :
-                    $active = $status_filter === $key ? 'font-weight:bold;' : '';
+                    $active_class = $status_filter === $key ? ' active' : '';
                 ?>
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=templates&status=' . $key ) ); ?>" style="<?php echo $active; ?> margin-right:8px;"><?php echo esc_html( $label ); ?></a>
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=templates&status=' . $key ) ); ?>" class="<?php echo esc_attr( $active_class ); ?>"><?php echo esc_html( $label ); ?></a>
                 <?php endforeach; ?>
-            </span>
+            </div>
         </div>
 
         <table class="wp-list-table widefat fixed striped">
@@ -481,15 +481,17 @@ class HL_Admin_Emails {
         }
 
         ?>
-        <div style="margin-bottom:16px;">
-            <?php
-            $log_statuses = array( '' => 'All', 'pending' => 'Pending', 'sending' => 'Sending', 'sent' => 'Sent', 'failed' => 'Failed', 'rate_limited' => 'Rate Limited', 'cancelled' => 'Cancelled' );
-            foreach ( $log_statuses as $key => $label ) :
-                $active = $status_filter === $key ? 'font-weight:bold;' : '';
-            ?>
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=log&log_status=' . $key ) ); ?>" style="<?php echo $active; ?> margin-right:8px;"><?php echo esc_html( $label ); ?></a>
-            <?php endforeach; ?>
-            <span style="margin-left:16px;color:#666;"><?php printf( esc_html__( '%d total', 'hl-core' ), $total ); ?></span>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+            <div class="hl-email-filters">
+                <?php
+                $log_statuses = array( '' => 'All', 'pending' => 'Pending', 'sending' => 'Sending', 'sent' => 'Sent', 'failed' => 'Failed', 'rate_limited' => 'Rate Limited', 'cancelled' => 'Cancelled' );
+                foreach ( $log_statuses as $key => $label ) :
+                    $active_class = $status_filter === $key ? ' active' : '';
+                ?>
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=log&log_status=' . $key ) ); ?>" class="<?php echo esc_attr( $active_class ); ?>"><?php echo esc_html( $label ); ?></a>
+                <?php endforeach; ?>
+            </div>
+            <span style="color:#6B7280;font-size:12px;"><?php printf( esc_html__( '%d total', 'hl-core' ), $total ); ?></span>
         </div>
 
         <table class="wp-list-table widefat fixed striped">
@@ -580,12 +582,24 @@ class HL_Admin_Emails {
 
         ?>
         <h2><?php esc_html_e( 'Queue Health', 'hl-core' ); ?></h2>
-        <table class="widefat" style="max-width:400px;">
-            <tr><td><?php esc_html_e( 'Pending', 'hl-core' ); ?></td><td><strong><?php echo esc_html( $pending_count ); ?></strong></td></tr>
-            <tr><td><?php esc_html_e( 'Sending', 'hl-core' ); ?></td><td><strong><?php echo esc_html( $sending_count ); ?></strong></td></tr>
-            <tr><td><?php esc_html_e( 'Failed', 'hl-core' ); ?></td><td><strong style="color:red;"><?php echo esc_html( $failed_count ); ?></strong></td></tr>
-            <tr><td><?php esc_html_e( 'Rate Limited', 'hl-core' ); ?></td><td><strong><?php echo esc_html( $rate_limited_count ); ?></strong></td></tr>
-        </table>
+        <div class="hl-queue-health">
+            <div class="hl-queue-health-card">
+                <div class="hl-qh-value"><?php echo esc_html( $pending_count ); ?></div>
+                <div class="hl-qh-label"><?php esc_html_e( 'Pending', 'hl-core' ); ?></div>
+            </div>
+            <div class="hl-queue-health-card">
+                <div class="hl-qh-value"><?php echo esc_html( $sending_count ); ?></div>
+                <div class="hl-qh-label"><?php esc_html_e( 'Sending', 'hl-core' ); ?></div>
+            </div>
+            <div class="hl-queue-health-card hl-qh-failed">
+                <div class="hl-qh-value"><?php echo esc_html( $failed_count ); ?></div>
+                <div class="hl-qh-label"><?php esc_html_e( 'Failed', 'hl-core' ); ?></div>
+            </div>
+            <div class="hl-queue-health-card">
+                <div class="hl-qh-value"><?php echo esc_html( $rate_limited_count ); ?></div>
+                <div class="hl-qh-label"><?php esc_html_e( 'Rate Limited', 'hl-core' ); ?></div>
+            </div>
+        </div>
 
         <?php if ( $failed_count > 0 ) : ?>
             <p><button type="button" class="button" id="hl-retry-failed"><?php esc_html_e( 'Retry Failed', 'hl-core' ); ?></button></p>
@@ -686,19 +700,6 @@ class HL_Admin_Emails {
     // =========================================================================
 
     private function render_status_badge( $status ) {
-        $colors = array(
-            'draft'        => '#999',
-            'active'       => '#27ae60',
-            'paused'       => '#f39c12',
-            'archived'     => '#999',
-            'pending'      => '#3498db',
-            'sending'      => '#f39c12',
-            'sent'         => '#27ae60',
-            'failed'       => '#e74c3c',
-            'cancelled'    => '#999',
-            'rate_limited' => '#e67e22',
-        );
-        $color = $colors[ $status ] ?? '#999';
-        echo '<span style="display:inline-block;padding:2px 8px;border-radius:3px;background:' . esc_attr( $color ) . ';color:#fff;font-size:12px;">' . esc_html( $status ) . '</span>';
+        echo '<span class="hl-email-badge hl-email-badge--' . esc_attr( $status ) . '">' . esc_html( $status ) . '</span>';
     }
 }

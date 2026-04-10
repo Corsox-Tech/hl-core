@@ -1,6 +1,6 @@
 # STATUS.md — HL Core Build Status
 
-**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 20 admin controllers, 50 DB tables, 26 services, 19 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools).
+**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 22 admin controllers, 54 DB tables, 33 services, 19 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools). **Email system deployed to test (April 2026).**
 
 ---
 
@@ -193,8 +193,27 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Phase 4: Admin UI** — `HL_Admin_Emails` (4 tabs: Automated Workflows, Email Templates, Send Log, Settings). Emails submenu under Housman LMS. Workflow CRUD form with trigger/condition/recipient/template/delay/send-window fields. Rate limit settings. Queue health dashboard. Retry Failed button.
 - [x] **Phase 5: Manual Sends** — Cycle Editor Emails tab rewrite with template select, role filter, recipient checkboxes, dedup badges, Send Now. Legacy invitation UI collapsed in `<details>` with deprecation notice.
 - [x] **Phase 6: Migration** — `HL_Email_Template_Migration` (6 coaching templates from wp_options → hl_email_template, hl_account_activated backfill). Scheduling email service `try_block_render()` for new renderer fallback.
-- [ ] **Phase 7: Hardening** — Security review, cron reliability, performance verification, component window columns. Pending.
-- [ ] **Deployed to test** — Pending.
+- [x] **Admin UI CSS** — 3-column grid builder layout, block cards with toolbars, merge tag pills, Email Health traffic light, status badge pills, filter pill navigation, queue health stat cards, workflow form styling. Version bump 1.2.0→1.2.1 for cache busting.
+- [x] **Code Reviews** — 3 review cycles (Phase 1, Phase 2, Phases 3-6). 19 MUST FIX issues caught and resolved: cron race condition, SQL injection patterns, XSS in preview, N+1 queries, dedup token correctness, draft cleanup scope, capability checks, javascript: URL blocking.
+- [x] **CLI Testing** — 8 test suites (37 assertions), all pass: block renderer, merge tags, condition evaluator, rate limiter, recipient resolver, queue processor, end-to-end automation, cleanup verification. Zero real emails sent.
+- [x] **Deployed to test** — 2026-04-10. Schema rev 34, 4 tables, 6 migrated templates, 3 cron events, all verified.
+- [ ] **Phase 7: Hardening** — Security review, cron reliability, performance verification, component window columns (`available_from`/`available_to` on `hl_component` for cron triggers REM-2, REM-4, REM-5). Pending.
+- [ ] **Email System v2 UX improvements** — See STATUS.md "Email System v2" section below for full list.
+
+### Email System v2 — UX Improvements (Future)
+> These are known gaps from the v1 build. Functional but need polish for non-developer admins.
+- [ ] **Workflow condition builder UI** — Replace raw JSON textarea with visual row builder (field dropdown + operator dropdown + value input, add/remove rows). Currently admins must write JSON by hand.
+- [ ] **Workflow recipient picker UI** — Replace raw JSON textarea with token selector (checkboxes for triggering_user, assigned_coach, etc. + role:X input + static email input).
+- [ ] **Workflow row actions** — Add Duplicate, Activate/Pause toggle, Delete to workflow list table. Currently only "Edit" link.
+- [ ] **Template row actions** — Add Duplicate, Archive to template list table. Currently only "Edit" link.
+- [ ] **Builder: columns block editing** — Currently shows "edit in JSON" placeholder. Need sub-block editing within each column.
+- [ ] **Builder: undo/redo** — No undo for block deletions. Need command stack or localStorage snapshots.
+- [ ] **Builder: preview modal** — Preview iframe is small in right sidebar. Consider full-screen modal with device toggles.
+- [ ] **Builder: text block alignment + font size** — Deferred to v2 per spec (Section 3, Block Types table).
+- [ ] **Cron triggers: component window columns** — `available_from`/`available_to` on `hl_component` needed for cron triggers REM-2 (CV window), REM-4 (CV overdue), REM-5 (RP window). See Phase 7 Task 7.4 in plan.
+- [ ] **Cron triggers: remaining stubs** — `coaching_window_7d`, `coaching_pre_end`, `cv_window_7d`, `cv_overdue_1d`, `rp_window_7d`, `client_success` return empty arrays in `get_cron_trigger_users()`. Need component window columns first.
+- [ ] **Draft cleanup** — Daily cron should delete `hl_email_draft_*` wp_options older than 30 days. Requires tracking draft creation time (currently only cleaned on template deletion).
+- [ ] **LIKE on roles column** — `resolve_school_director()` and `resolve_role()` use `LIKE '%role%'` which can false-positive on role substrings. Existing codebase pattern but should be tightened.
 
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders

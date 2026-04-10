@@ -1309,6 +1309,607 @@
     background: #fff;
 }
 
+/* =====================================================
+   EMAIL BUILDER
+   ===================================================== */
+
+/* ---- Design tokens (re-declared for builder scope) ---- */
+.hl-email-builder-wrap,
+.wrap:has(.hl-tab-content) {
+    --eb-primary:    #1A2B47;
+    --eb-accent:     #2C7BE5;
+    --eb-green:      #27ae60;
+    --eb-yellow:     #f39c12;
+    --eb-red:        #e74c3c;
+    --eb-orange:     #e67e22;
+    --eb-text:       #374151;
+    --eb-muted:      #6B7280;
+    --eb-light:      #9CA3AF;
+    --eb-surface:    #FFFFFF;
+    --eb-bg:         #F3F4F6;
+    --eb-bg-subtle:  #F9FAFB;
+    --eb-border:     #E5E7EB;
+    --eb-border-med: #D1D5DB;
+    --eb-radius:     8px;
+    --eb-radius-sm:  6px;
+    --eb-shadow:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --eb-shadow-md:  0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* ---- Builder: 3-column layout ---- */
+.hl-email-builder {
+    display: grid;
+    grid-template-columns: 250px 1fr 300px;
+    gap: 20px;
+    align-items: start;
+    margin-top: 16px;
+}
+
+.hl-eb-sidebar-left,
+.hl-eb-sidebar-right {
+    position: sticky;
+    top: 40px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+}
+
+/* ---- Builder: Sections (cards) ---- */
+.hl-eb-section {
+    background: var(--eb-surface);
+    border: 1px solid var(--eb-border);
+    border-radius: var(--eb-radius);
+    box-shadow: var(--eb-shadow);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.hl-eb-section h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--eb-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 12px 0;
+    padding: 0 0 10px 0;
+    border-bottom: 1px solid var(--eb-border);
+}
+
+/* ---- Builder: Form fields ---- */
+.hl-eb-section label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--eb-muted);
+    margin: 10px 0 4px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.hl-eb-section label:first-child {
+    margin-top: 0;
+}
+
+.hl-eb-section input[type="text"],
+.hl-eb-section select {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--eb-border-med);
+    border-radius: var(--eb-radius-sm);
+    font-size: 13px;
+    color: var(--eb-text);
+    background: var(--eb-surface);
+    transition: border-color 0.15s;
+}
+
+.hl-eb-section input[type="text"]:focus,
+.hl-eb-section select:focus {
+    border-color: var(--eb-accent);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(44, 123, 229, 0.15);
+}
+
+/* ---- Builder: Block palette ---- */
+.hl-eb-block-palette {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.hl-eb-block-palette .button.hl-eb-add-block {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 6px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px dashed var(--eb-border-med);
+    border-radius: var(--eb-radius-sm);
+    background: var(--eb-bg-subtle);
+    color: var(--eb-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    min-height: 36px;
+}
+
+.hl-eb-block-palette .button.hl-eb-add-block:hover {
+    border-color: var(--eb-accent);
+    color: var(--eb-accent);
+    background: rgba(44, 123, 229, 0.04);
+}
+
+/* ---- Builder: Canvas ---- */
+.hl-eb-canvas {
+    min-width: 0;
+}
+
+.hl-eb-canvas-header {
+    margin-bottom: 12px;
+}
+
+.hl-eb-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.hl-eb-autosave-status {
+    font-size: 12px;
+    color: var(--eb-green);
+    font-style: italic;
+}
+
+.hl-eb-canvas-body {
+    background: var(--eb-surface) !important;
+    border: 1px solid var(--eb-border) !important;
+    border-radius: var(--eb-radius) !important;
+    box-shadow: var(--eb-shadow-md) !important;
+    min-height: 300px !important;
+    padding: 24px !important;
+    max-width: 620px !important;
+    margin: 0 auto !important;
+}
+
+/* ---- Builder: Block cards ---- */
+.hl-eb-block {
+    background: var(--eb-surface);
+    border: 1px solid var(--eb-border);
+    border-radius: var(--eb-radius-sm);
+    margin-bottom: 10px;
+    transition: box-shadow 0.15s, border-color 0.15s;
+    overflow: hidden;
+}
+
+.hl-eb-block:hover {
+    border-color: var(--eb-accent);
+    box-shadow: 0 0 0 1px var(--eb-accent);
+}
+
+.hl-eb-block-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: var(--eb-bg);
+    border-bottom: 1px solid var(--eb-border);
+    cursor: grab;
+}
+
+.hl-eb-block-type {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--eb-muted);
+    user-select: none;
+}
+
+.hl-eb-block-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.hl-eb-block-actions button {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--eb-light);
+    line-height: 1;
+    transition: all 0.15s;
+}
+
+.hl-eb-block-actions button:hover {
+    background: var(--eb-surface);
+    border-color: var(--eb-border-med);
+    color: var(--eb-text);
+}
+
+.hl-eb-block-del:hover {
+    color: var(--eb-red) !important;
+    border-color: var(--eb-red) !important;
+}
+
+/* ---- Builder: Text block editor ---- */
+.hl-eb-text-editor {
+    padding: 12px;
+    min-height: 60px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--eb-text);
+    outline: none;
+}
+
+.hl-eb-text-editor:focus {
+    background: rgba(44, 123, 229, 0.02);
+}
+
+.hl-eb-text-editor p {
+    margin: 0 0 8px 0;
+}
+
+/* ---- Builder: Mini toolbar ---- */
+.hl-eb-mini-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: var(--eb-bg-subtle);
+    border-bottom: 1px solid var(--eb-border);
+}
+
+.hl-eb-mini-toolbar button {
+    background: var(--eb-surface);
+    border: 1px solid var(--eb-border-med);
+    border-radius: 4px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--eb-text);
+    transition: all 0.15s;
+    line-height: 1.2;
+}
+
+.hl-eb-mini-toolbar button:hover {
+    background: var(--eb-bg);
+    border-color: var(--eb-accent);
+}
+
+.hl-eb-mini-toolbar .hl-eb-merge-tag-select {
+    margin-left: auto;
+    padding: 3px 6px;
+    font-size: 11px;
+    border: 1px solid var(--eb-border-med);
+    border-radius: 4px;
+    background: var(--eb-surface);
+    color: var(--eb-muted);
+    max-width: 160px;
+}
+
+/* ---- Builder: Image block ---- */
+.hl-eb-img-preview {
+    padding: 12px;
+    text-align: center;
+    min-height: 40px;
+}
+
+.hl-eb-img-preview img {
+    border-radius: 4px;
+}
+
+.hl-eb-block .hl-eb-choose-image {
+    margin: 0 12px 8px 12px;
+}
+
+.hl-eb-block input[type="text"],
+.hl-eb-block input[type="range"] {
+    margin: 4px 12px 8px 12px;
+    width: calc(100% - 24px);
+    padding: 5px 8px;
+    font-size: 12px;
+    border: 1px solid var(--eb-border-med);
+    border-radius: 4px;
+}
+
+/* ---- Builder: Spacer preview ---- */
+.hl-eb-spacer-preview {
+    margin: 0 12px 8px 12px !important;
+    border-radius: 4px !important;
+    background: repeating-linear-gradient(
+        45deg,
+        var(--eb-bg),
+        var(--eb-bg) 4px,
+        var(--eb-bg-subtle) 4px,
+        var(--eb-bg-subtle) 8px
+    ) !important;
+}
+
+/* ---- Builder: Email Health ---- */
+.hl-eb-health {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.hl-eb-health-light {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: background-color 0.2s;
+}
+
+.hl-eb-health-light[data-status="green"]  { background: var(--eb-green); box-shadow: 0 0 6px rgba(39,174,96,0.4); }
+.hl-eb-health-light[data-status="yellow"] { background: var(--eb-yellow); box-shadow: 0 0 6px rgba(243,156,18,0.4); }
+.hl-eb-health-light[data-status="red"]    { background: var(--eb-red); box-shadow: 0 0 6px rgba(231,76,60,0.4); }
+
+#hl-eb-health-warnings {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+}
+
+#hl-eb-health-warnings li {
+    padding: 3px 0;
+    color: var(--eb-muted);
+    line-height: 1.4;
+}
+
+#hl-eb-health-warnings .hl-eb-error {
+    color: var(--eb-red);
+    font-weight: 500;
+}
+
+#hl-eb-health-warnings .hl-eb-warning {
+    color: var(--eb-yellow);
+}
+
+/* ---- Builder: Merge tags ---- */
+.hl-eb-merge-tags {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.hl-eb-tag-group {
+    margin-bottom: 12px;
+}
+
+.hl-eb-tag-group strong {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--eb-muted);
+    margin-bottom: 6px;
+}
+
+.hl-eb-tag-item {
+    display: inline-block;
+    padding: 3px 8px;
+    margin: 0 4px 4px 0;
+    font-size: 11px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    background: var(--eb-bg);
+    border: 1px solid var(--eb-border);
+    border-radius: 4px;
+    color: var(--eb-accent);
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.hl-eb-tag-item:hover {
+    background: rgba(44, 123, 229, 0.08);
+    border-color: var(--eb-accent);
+}
+
+/* ---- Builder: Preview ---- */
+.hl-eb-preview-toggles {
+    display: flex;
+    gap: 4px;
+    margin: 8px 0;
+}
+
+.hl-eb-preview-toggle.button.button-small {
+    border-radius: 4px;
+    font-size: 11px;
+    padding: 2px 10px;
+}
+
+.hl-eb-preview-toggle.active {
+    background: var(--eb-accent) !important;
+    color: #fff !important;
+    border-color: var(--eb-accent) !important;
+}
+
+#hl-eb-preview-frame {
+    border: 1px solid var(--eb-border) !important;
+    border-radius: var(--eb-radius-sm) !important;
+    background: var(--eb-surface) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 350px !important;
+}
+
+/* ---- Builder: Draft banner ---- */
+.hl-email-draft-banner {
+    border-left-color: var(--eb-yellow) !important;
+}
+
+.hl-email-draft-banner .button {
+    margin-left: 6px;
+}
+
+/* ---- Builder: Responsive ---- */
+@media (max-width: 1200px) {
+    .hl-email-builder {
+        grid-template-columns: 220px 1fr;
+    }
+    .hl-eb-sidebar-right {
+        grid-column: 1 / -1;
+        position: static;
+        max-height: none;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+    }
+}
+
+@media (max-width: 900px) {
+    .hl-email-builder {
+        grid-template-columns: 1fr;
+    }
+    .hl-eb-sidebar-left,
+    .hl-eb-sidebar-right {
+        position: static;
+        max-height: none;
+    }
+    .hl-eb-sidebar-right {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =====================================================
+   EMAILS ADMIN PAGE (list views, workflow editor)
+   ===================================================== */
+
+/* ---- Status badges (used across all email tabs) ---- */
+.hl-email-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1.4;
+}
+
+.hl-email-badge--draft       { background: #F3F4F6; color: #6B7280; }
+.hl-email-badge--active      { background: #ECFDF5; color: #059669; }
+.hl-email-badge--paused      { background: #FFFBEB; color: #D97706; }
+.hl-email-badge--archived    { background: #F3F4F6; color: #9CA3AF; }
+.hl-email-badge--pending     { background: #EFF6FF; color: #2563EB; }
+.hl-email-badge--sending     { background: #FFFBEB; color: #D97706; }
+.hl-email-badge--sent        { background: #ECFDF5; color: #059669; }
+.hl-email-badge--failed      { background: #FEF2F2; color: #DC2626; }
+.hl-email-badge--cancelled   { background: #F3F4F6; color: #9CA3AF; }
+.hl-email-badge--rate_limited { background: #FFF7ED; color: #C2410C; }
+
+/* ---- Status filter pills ---- */
+.hl-email-filters {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.hl-email-filters a {
+    display: inline-block;
+    padding: 5px 14px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--eb-muted);
+    background: var(--eb-bg);
+    border: 1px solid var(--eb-border);
+    transition: all 0.15s;
+}
+
+.hl-email-filters a:hover {
+    border-color: var(--eb-accent);
+    color: var(--eb-accent);
+}
+
+.hl-email-filters a.active {
+    background: var(--eb-accent);
+    color: #fff;
+    border-color: var(--eb-accent);
+}
+
+/* ---- Workflow editor form polish ---- */
+.hl-workflow-form {
+    max-width: 740px;
+}
+
+.hl-workflow-form .form-table th {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--eb-primary);
+    padding-top: 16px;
+}
+
+.hl-workflow-form textarea {
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    font-size: 12px;
+    background: var(--eb-bg-subtle);
+    border: 1px solid var(--eb-border-med);
+    border-radius: var(--eb-radius-sm);
+    padding: 10px;
+}
+
+.hl-workflow-form .description {
+    font-size: 11px;
+    color: var(--eb-light);
+    margin-top: 4px;
+}
+
+/* ---- Settings: Queue health cards ---- */
+.hl-queue-health {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    max-width: 600px;
+    margin-bottom: 20px;
+}
+
+.hl-queue-health-card {
+    background: var(--eb-surface);
+    border: 1px solid var(--eb-border);
+    border-radius: var(--eb-radius);
+    padding: 16px;
+    text-align: center;
+}
+
+.hl-queue-health-card .hl-qh-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--eb-primary);
+    line-height: 1.2;
+}
+
+.hl-queue-health-card .hl-qh-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--eb-muted);
+    margin-top: 4px;
+}
+
+.hl-queue-health-card.hl-qh-failed .hl-qh-value {
+    color: var(--eb-red);
+}
+
+/* ---- Manual sends section ---- */
+.hl-manual-sends h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--eb-primary);
+    margin: 0 0 12px 0;
+}
+
+.hl-manual-sends select {
+    min-width: 200px;
+    padding: 6px 10px;
+    border: 1px solid var(--eb-border-med);
+    border-radius: var(--eb-radius-sm);
+}
+
 /* ---- Print ---- */
 @media print {
     .hl-admin-wrap .hl-sidebar-nav,
