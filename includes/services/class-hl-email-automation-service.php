@@ -371,15 +371,11 @@ class HL_Email_Automation_Service {
         $context['meeting_url']   = $session->meeting_url ?? '';
         $context['zoom_link']     = $session->meeting_url ?? '';
 
-        // Format session date in ET.
+        // Format session date in recipient's timezone (mentor by default).
         if ( ! empty( $session->session_datetime ) ) {
-            try {
-                $dt = new DateTime( $session->session_datetime, new DateTimeZone( wp_timezone_string() ) );
-                $dt->setTimezone( new DateTimeZone( 'America/New_York' ) );
-                $context['session_date'] = $dt->format( 'l, F j, Y \a\t g:i A T' );
-            } catch ( Exception $e ) {
-                $context['session_date'] = $session->session_datetime;
-            }
+            $recipient_tz = $session->mentor_timezone ?: ( $session->coach_timezone ?: wp_timezone_string() );
+            $auto_fmt = HL_Timezone_Helper::format_session_time( $session->session_datetime, $recipient_tz );
+            $context['session_date'] = $auto_fmt['full'] ?: $session->session_datetime;
         }
 
         // Load coach data.

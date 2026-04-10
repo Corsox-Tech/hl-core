@@ -87,11 +87,12 @@ class HL_Frontend_Coaching_Hub {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ( $sessions as $s ) :
-                                $status   = $s['session_status'] ?: 'scheduled';
-                                $datetime = $s['session_datetime']
-                                    ? date_i18n( 'M j, Y g:i A', strtotime( $s['session_datetime'] ) )
-                                    : '—';
+                            <?php
+                            $hub_viewer_tz = get_user_meta(get_current_user_id(), 'hl_timezone', true) ?: wp_timezone_string();
+                            foreach ( $sessions as $s ) :
+                                $status  = $s['session_status'] ?: 'scheduled';
+                                $hub_fmt = HL_Timezone_Helper::format_session_time($s['session_datetime'] ?? '', $s['coach_timezone'] ?? $hub_viewer_tz, 'M j, Y');
+                                $datetime = $hub_fmt['full'] ?: '—';
                             ?>
                                 <tr class="hl-coaching-row"
                                     data-search="<?php echo esc_attr( strtolower(
@@ -225,11 +226,12 @@ class HL_Frontend_Coaching_Hub {
      * Render a calendar month view with session dots.
      */
     private function render_calendar_view( $sessions ) {
-        $month = (int) date( 'n' );
-        $year  = (int) date( 'Y' );
-        $days_in_month = (int) date( 't', mktime( 0, 0, 0, $month, 1, $year ) );
-        $first_day     = (int) date( 'w', mktime( 0, 0, 0, $month, 1, $year ) );
-        $today         = date( 'Y-m-d' );
+        $now_wp = new DateTime('now', wp_timezone());
+        $month = (int) $now_wp->format('n');
+        $year  = (int) $now_wp->format('Y');
+        $days_in_month = (int) $now_wp->format('t');
+        $first_day     = (int) (new DateTime("$year-$month-01", wp_timezone()))->format('w');
+        $today         = $now_wp->format('Y-m-d');
 
         // Group sessions by date.
         $by_date = array();
@@ -301,7 +303,7 @@ class HL_Frontend_Coaching_Hub {
 
         $sql = "SELECT cs.coaching_session_id, cs.cycle_id, cs.session_title,
                        cs.session_datetime, cs.session_status, cs.meeting_url,
-                       cs.coach_user_id, cs.mentor_enrollment_id,
+                       cs.coach_user_id, cs.mentor_enrollment_id, cs.coach_timezone,
                        coach.display_name AS coach_name,
                        participant.display_name AS participant_name
                 FROM {$prefix}hl_coaching_session cs

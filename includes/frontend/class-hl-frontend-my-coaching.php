@@ -245,17 +245,17 @@ class HL_Frontend_My_Coaching {
             $badge_class = '';
 
             if ($session && $session['session_status'] === 'attended') {
-                $date_display = !empty($session['session_datetime'])
-                    ? date_i18n('m/d/Y', strtotime($session['session_datetime']))
-                    : '';
+                $mc_tz = $session['mentor_timezone'] ?? wp_timezone_string();
+                $mc_fmt = HL_Timezone_Helper::format_session_time($session['session_datetime'] ?? '', $mc_tz, 'm/d/Y');
+                $date_display = $mc_fmt['date'];
                 $status_html = '<span class="hlmc-badge hlmc-badge-green">' . esc_html__('Completed', 'hl-core') . '</span>';
                 if ($date_display) {
                     $status_html .= ' <span class="hlmc-status-date">' . esc_html($date_display) . '</span>';
                 }
             } elseif ($session && $session['session_status'] === 'scheduled') {
-                $date_display = !empty($session['session_datetime'])
-                    ? date_i18n('m/d/Y', strtotime($session['session_datetime']))
-                    : '';
+                $mc_tz = $session['mentor_timezone'] ?? wp_timezone_string();
+                $mc_fmt = HL_Timezone_Helper::format_session_time($session['session_datetime'] ?? '', $mc_tz, 'm/d/Y');
+                $date_display = $mc_fmt['date'];
                 $status_html = '<span class="hlmc-badge hlmc-badge-blue">' . esc_html__('Scheduled', 'hl-core') . '</span>';
                 if ($date_display) {
                     $status_html .= ' <span class="hlmc-status-date">' . esc_html($date_display) . '</span>';

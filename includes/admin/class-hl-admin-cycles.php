@@ -1400,7 +1400,13 @@ class HL_Admin_Cycles {
             echo '</tr></thead><tbody>';
 
             foreach ($sessions as $s) {
-                $dt = $s->session_datetime ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($s->session_datetime)) : '-';
+                $cyc_fmt = HL_Timezone_Helper::format_session_time(
+                    $s->session_datetime ?? '',
+                    wp_timezone_string(),
+                    get_option('date_format'),
+                    get_option('time_format')
+                );
+                $dt = $cyc_fmt['time'] ? ($cyc_fmt['date'] . ' ' . $cyc_fmt['time']) : '-';
 
                 echo '<tr>';
                 echo '<td><a href="' . esc_url(admin_url('admin.php?page=hl-coaching&action=edit&id=' . $s->session_id)) . '">' . esc_html($s->session_title ?: '#' . $s->session_id) . '</a></td>';

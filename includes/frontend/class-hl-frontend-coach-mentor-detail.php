@@ -231,10 +231,12 @@ class HL_Frontend_Coach_Mentor_Detail {
                     </div>
                 <?php else : ?>
                     <div class="hlcmd-sessions-list">
-                        <?php foreach ($coaching_sessions as $session) :
-                            $dt     = !empty($session['session_datetime']) ? strtotime($session['session_datetime']) : 0;
-                            $date   = $dt ? date_i18n('M j, Y', $dt) : "\xe2\x80\x94";
-                            $time   = $dt ? date_i18n('g:i A', $dt) : '';
+                        <?php
+                        $coach_tz_for_display = get_user_meta(get_current_user_id(), 'hl_timezone', true) ?: wp_timezone_string();
+                        foreach ($coaching_sessions as $session) :
+                            $fmt    = HL_Timezone_Helper::format_session_time($session['session_datetime'] ?? '', $session['coach_timezone'] ?? $coach_tz_for_display, 'M j, Y');
+                            $date   = $fmt['date'] ?: "\xe2\x80\x94";
+                            $time   = $fmt['time'];
                             $title  = !empty($session['session_title']) ? $session['session_title'] : __('Coaching Session', 'hl-core');
                             $status = $session['session_status'] ?? 'scheduled';
                             $coach  = $session['coach_name'] ?? "\xe2\x80\x94";

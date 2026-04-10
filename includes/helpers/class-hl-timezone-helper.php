@@ -59,6 +59,45 @@ class HL_Timezone_Helper {
 	}
 
 	/**
+	 * Format a session_datetime (stored in WP local time) for display in a target timezone.
+	 *
+	 * This is the single source of truth for session time formatting across the plugin.
+	 * All display sites should use this instead of strtotime() + date_i18n().
+	 *
+	 * @param string $wp_datetime  Value from session_datetime column (Y-m-d H:i:s in WP local TZ).
+	 * @param string $target_tz    IANA timezone string for the viewer (e.g. 'America/Los_Angeles').
+	 * @param string $date_format  PHP date format for the date portion.
+	 * @param string $time_format  PHP date format for the time portion.
+	 * @return array { date: string, time: string, tz_abbr: string, full: string }
+	 */
+	public static function format_session_time(
+		$wp_datetime,
+		$target_tz,
+		$date_format = 'l, F j, Y',
+		$time_format = 'g:i A'
+	) {
+		$empty = array('date' => '', 'time' => '', 'tz_abbr' => '', 'full' => '');
+		if (empty($wp_datetime) || empty($target_tz)) {
+			return $empty;
+		}
+		try {
+			$dt = new DateTime($wp_datetime, wp_timezone());
+			$dt->setTimezone(new DateTimeZone($target_tz));
+			$abbr = $dt->format('T');
+			$date = $dt->format($date_format);
+			$time = $dt->format($time_format) . ' ' . $abbr;
+			return array(
+				'date'    => $date,
+				'time'    => $time,
+				'tz_abbr' => $abbr,
+				'full'    => $date . ' at ' . $time,
+			);
+		} catch (Exception $e) {
+			return $empty;
+		}
+	}
+
+	/**
 	 * Format a timezone name into a readable label with abbreviation.
 	 *
 	 * @param string $tz_name IANA timezone name.

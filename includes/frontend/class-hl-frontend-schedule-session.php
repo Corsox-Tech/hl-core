@@ -452,22 +452,28 @@ class HL_Frontend_Schedule_Session {
         $is_coach     = ($current_user === (int) $session['coach_user_id']);
         $is_mentor    = ($current_user === (int) $enrollment->user_id);
 
-        $display_date = '';
-        $display_time_short = '';
-        $display_full = '';
-        if (!empty($session['session_datetime'])) {
-            try {
-                $wp_tz     = wp_timezone();
-                $dt        = new DateTime($session['session_datetime'], $wp_tz);
-                $mentor_tz = $session['mentor_timezone'] ?? wp_timezone_string();
-                $dt->setTimezone(new DateTimeZone($mentor_tz));
-                $display_date       = $dt->format('l, F j, Y');
-                $display_time_short = $dt->format('g:i A T');
-                $display_full       = $display_date . ' at ' . $display_time_short;
-            } catch (Exception $e) {
-                $display_full = $session['session_datetime'];
-            }
+        // Viewer-aware timezone display.
+        $coach_tz_display  = $session['coach_timezone']
+            ?? (get_user_meta((int) $session['coach_user_id'], 'hl_timezone', true) ?: wp_timezone_string());
+        $mentor_tz_display = $session['mentor_timezone'] ?? wp_timezone_string();
+
+        if ($is_coach || $is_admin) {
+            $primary_tz     = $coach_tz_display;
+            $secondary_tz   = $mentor_tz_display;
+            $secondary_label = __('Mentor\'s time', 'hl-core');
+        } else {
+            $primary_tz     = $mentor_tz_display;
+            $secondary_tz   = $coach_tz_display;
+            $secondary_label = __('Coach\'s time', 'hl-core');
         }
+
+        $primary   = HL_Timezone_Helper::format_session_time($session['session_datetime'] ?? '', $primary_tz);
+        $secondary = HL_Timezone_Helper::format_session_time($session['session_datetime'] ?? '', $secondary_tz);
+
+        $display_date       = $primary['date'];
+        $display_time_short = $primary['time'];
+        $display_full       = $primary['full'];
+        $display_secondary  = $secondary['time'];
 
         $can_modify = false;
         $is_past    = false;
@@ -538,6 +544,9 @@ class HL_Frontend_Schedule_Session {
                                 <div class="hls-detail-label"><?php esc_html_e('Date & Time', 'hl-core'); ?></div>
                                 <div class="hls-detail-value"><?php echo esc_html($display_date); ?></div>
                                 <div class="hls-detail-sub"><?php echo esc_html($display_time_short); ?> &middot; <?php printf(esc_html__('%d minutes', 'hl-core'), $duration); ?></div>
+                                <?php if (!empty($display_secondary) && $secondary_tz !== $primary_tz) : ?>
+                                <div class="hls-detail-sub" style="font-size:0.82em;color:#6b7280;margin-top:2px;"><?php echo esc_html($secondary_label . ': ' . $display_secondary); ?></div>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <div class="hls-detail-row">

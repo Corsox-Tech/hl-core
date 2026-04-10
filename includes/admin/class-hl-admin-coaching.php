@@ -456,8 +456,14 @@ class HL_Admin_Coaching {
             $obs_count = $coaching_service->get_linked_observation_count($session['session_id']);
 
             // Format session datetime
-            $session_date_display = !empty($session['session_datetime'])
-                ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($session['session_datetime']))
+            $admin_fmt = HL_Timezone_Helper::format_session_time(
+                $session['session_datetime'] ?? '',
+                wp_timezone_string(),
+                get_option('date_format'),
+                get_option('time_format')
+            );
+            $session_date_display = $admin_fmt['time']
+                ? esc_html($admin_fmt['date'] . ' ' . $admin_fmt['time'])
                 : '<em>' . esc_html__('Not set', 'hl-core') . '</em>';
 
             echo '<tr>';
@@ -593,8 +599,12 @@ class HL_Admin_Coaching {
         // ---- Session Date/Time ----
         $session_datetime = '';
         if ($is_edit && !empty($session['session_datetime'])) {
-            // Convert to datetime-local format
-            $session_datetime = date('Y-m-d\TH:i', strtotime($session['session_datetime']));
+            try {
+                $edit_dt = new DateTime($session['session_datetime'], wp_timezone());
+                $session_datetime = $edit_dt->format('Y-m-d\TH:i');
+            } catch (Exception $e) {
+                $session_datetime = '';
+            }
         }
 
         echo '<tr>';

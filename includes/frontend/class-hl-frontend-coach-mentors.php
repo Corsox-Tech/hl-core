@@ -73,12 +73,11 @@ class HL_Frontend_Coach_Mentors {
                             ($mentor['school_name'] ?: '') . ' ' .
                             ($mentor['team_name'] ?: '')
                         );
-                        $last_session = !empty($mentor['last_session'])
-                            ? date_i18n('M j, Y', strtotime($mentor['last_session']))
-                            : null;
-                        $next_session = !empty($mentor['next_session'])
-                            ? date_i18n('M j, Y', strtotime($mentor['next_session']))
-                            : null;
+                        $cm_coach_tz = get_user_meta(get_current_user_id(), 'hl_timezone', true) ?: wp_timezone_string();
+                        $last_fmt = HL_Timezone_Helper::format_session_time($mentor['last_session'] ?? '', $cm_coach_tz, 'M j, Y');
+                        $last_session = $last_fmt['date'] ?: null;
+                        $next_fmt = HL_Timezone_Helper::format_session_time($mentor['next_session'] ?? '', $cm_coach_tz, 'M j, Y');
+                        $next_session = $next_fmt['date'] ?: null;
                         $pct = (int) ($mentor['completion_pct'] ?? 0);
                         $card_url = $detail_url
                             ? esc_url($detail_url . (strpos($detail_url, '?') !== false ? '&' : '?') . 'mentor_enrollment_id=' . (int) $mentor['enrollment_id'])

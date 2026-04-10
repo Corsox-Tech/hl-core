@@ -1500,12 +1500,16 @@ class HL_Frontend_User_Profile {
         }
 
         // Split sessions into upcoming and past.
-        $now = current_time('U');
-        $upcoming = array();
-        $past     = array();
+        $wp_tz_obj = wp_timezone();
+        $now_dt    = new DateTime('now', $wp_tz_obj);
+        $upcoming  = array();
+        $past      = array();
         foreach ($sessions as $s) {
-            $dt = !empty($s['session_datetime']) ? strtotime($s['session_datetime']) : 0;
-            if ($dt && $dt >= $now && $s['session_status'] === 'scheduled') {
+            $session_dt = null;
+            if (!empty($s['session_datetime'])) {
+                try { $session_dt = new DateTime($s['session_datetime'], $wp_tz_obj); } catch (Exception $e) {}
+            }
+            if ($session_dt && $session_dt >= $now_dt && $s['session_status'] === 'scheduled') {
                 $upcoming[] = $s;
             } else {
                 $past[] = $s;
@@ -1616,9 +1620,11 @@ class HL_Frontend_User_Profile {
      * @param bool  $is_upcoming
      */
     private function render_session_card($session, $is_upcoming) {
-        $dt     = !empty($session['session_datetime']) ? strtotime($session['session_datetime']) : 0;
-        $date   = $dt ? date_i18n('M j, Y', $dt) : "\xe2\x80\x94";
-        $time   = $dt ? date_i18n('g:i A', $dt) : '';
+        $up_coach_tz = $session['coach_timezone']
+            ?? (get_user_meta(get_current_user_id(), 'hl_timezone', true) ?: wp_timezone_string());
+        $up_fmt = HL_Timezone_Helper::format_session_time($session['session_datetime'] ?? '', $up_coach_tz, 'M j, Y');
+        $date   = $up_fmt['date'] ?: "\xe2\x80\x94";
+        $time   = $up_fmt['time'];
         $title  = !empty($session['session_title']) ? $session['session_title'] : __('Coaching Session', 'hl-core');
         $status = $session['session_status'] ?? 'scheduled';
         $coach  = $session['coach_name'] ?? "\xe2\x80\x94";

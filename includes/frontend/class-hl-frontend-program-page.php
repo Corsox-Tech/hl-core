@@ -735,9 +735,9 @@ class HL_Frontend_Program_Page {
 
         if (!empty($upcoming)) {
             $session = $upcoming[0];
-            $date_display = !empty($session['session_datetime'])
-                ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($session['session_datetime']))
-                : __('TBD', 'hl-core');
+            $pp_tz = $session['mentor_timezone'] ?? wp_timezone_string();
+            $pp_fmt = HL_Timezone_Helper::format_session_time($session['session_datetime'] ?? '', $pp_tz);
+            $date_display = $pp_fmt['full'] ?: __('TBD', 'hl-core');
 
             $html = HL_Coaching_Service::render_status_badge('scheduled')
                   . ' <span>'

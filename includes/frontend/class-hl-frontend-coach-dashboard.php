@@ -214,9 +214,12 @@ class HL_Frontend_Coach_Dashboard {
      * Render a single session row in the dashboard.
      */
     private function render_session_row($s, $component_page_url, $mentor_detail_url, $needs_attendance) {
-        $dt   = !empty($s['session_datetime']) ? strtotime($s['session_datetime']) : 0;
-        $date = $dt ? date_i18n('D, M j', $dt) : '';
-        $time = $dt ? date_i18n('g:i A', $dt) : '';
+        $coach_tz = !empty($s['coach_timezone'])
+            ? $s['coach_timezone']
+            : (get_user_meta(get_current_user_id(), 'hl_timezone', true) ?: wp_timezone_string());
+        $fmt  = HL_Timezone_Helper::format_session_time($s['session_datetime'] ?? '', $coach_tz, 'D, M j');
+        $date = $fmt['date'];
+        $time = $fmt['time'];
         $mentor_name = $s['mentor_name'] ?? '';
 
         $view_url = '';
@@ -269,6 +272,7 @@ class HL_Frontend_Coach_Dashboard {
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT cs.session_id, cs.session_title, cs.session_status, cs.session_datetime,
                     cs.component_id, cs.mentor_enrollment_id, cs.meeting_url,
+                    cs.coach_timezone,
                     u.display_name AS mentor_name
              FROM {$wpdb->prefix}hl_coaching_session cs
              JOIN {$wpdb->prefix}hl_enrollment e ON cs.mentor_enrollment_id = e.enrollment_id
@@ -279,11 +283,14 @@ class HL_Frontend_Coach_Dashboard {
             $coach_user_id
         ), ARRAY_A) ?: array();
 
+        $wp_tz = wp_timezone();
+        $now_dt = new DateTime('now', $wp_tz);
         foreach ($rows as &$row) {
             $is_past = false;
             if (!empty($row['session_datetime'])) {
-                $end_time = date('Y-m-d H:i:s', strtotime($row['session_datetime']) + ($duration * 60));
-                $is_past  = ($now > $end_time);
+                $session_end = new DateTime($row['session_datetime'], $wp_tz);
+                $session_end->modify('+' . $duration . ' minutes');
+                $is_past = ($now_dt > $session_end);
             }
             $row['needs_attendance'] = $is_past;
         }
