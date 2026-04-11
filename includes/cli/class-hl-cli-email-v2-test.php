@@ -256,5 +256,42 @@ class HL_CLI_Email_V2_Test {
         );
     }
     private function test_deliverability() {}
-    private function test_audit() {}
+    private function test_audit() {
+        $test_entity_id = 987654321; // unlikely to collide with any real entity
+
+        // log() must not throw on any input — A.3.8 contract
+        $threw = false;
+        try {
+            HL_Audit_Service::log( 'email_v2_test_log', array(
+                'entity_type' => 'test',
+                'entity_id'   => $test_entity_id,
+                'reason'      => 'CLI self-check',
+            ) );
+        } catch ( \Throwable $e ) {
+            $threw = true;
+            WP_CLI::log( '  (log threw: ' . $e->getMessage() . ')' );
+        }
+        $this->assert_true( ! $threw, 'HL_Audit_Service::log() did not throw on valid input' );
+
+        // get_last_event() should return the row we just inserted
+        $row = HL_Audit_Service::get_last_event( $test_entity_id, 'email_v2_test_log' );
+        $this->assert_true(
+            is_array( $row ) && isset( $row['action_type'] ) && $row['action_type'] === 'email_v2_test_log',
+            'get_last_event() returns the row just inserted'
+        );
+
+        // get_last_event() returns null when no match exists
+        $none = HL_Audit_Service::get_last_event( 999999999, 'email_v2_nonexistent_action' );
+        $this->assert_true(
+            $none === null,
+            'get_last_event() returns null for unknown entity+action'
+        );
+
+        // Cleanup: delete the test rows we just inserted so we don't pollute the audit log
+        global $wpdb;
+        $wpdb->delete(
+            $wpdb->prefix . 'hl_audit_log',
+            array( 'action_type' => 'email_v2_test_log', 'entity_id' => $test_entity_id )
+        );
+    }
 }

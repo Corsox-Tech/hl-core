@@ -204,10 +204,10 @@ Pick up from the first unchecked `[ ]` item each session.
 > **Handoff:** `docs/superpowers/plans/2026-04-11-email-v2-handoff.md`
 > **Plans:** `2026-04-11-email-v2-track{1,2,3}-*.md`
 > **Build journal:** `.claude/v2-build-journal.md`
-> **Progress:** 2 / 52 tasks complete
+> **Progress:** 3 / 52 tasks complete
 
 **Branches:**
-- `feature/email-v2-track3-backend` — backend fixes, foundation (2/32 tasks done)
+- `feature/email-v2-track3-backend` — backend fixes, foundation (3/32 tasks done)
 - `feature/email-v2-track1-admin-ux` — admin UX (not started; waits on Track 3 prerequisites)
 - `feature/email-v2-track2-builder` — builder UX (not started; can run parallel to Track 3)
 
@@ -216,7 +216,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Task 2: Route condition evaluator through `HL_Roles`** — `HL_Email_Condition_Evaluator::evaluate_single()` now has a role-aware early-return branch above the generic switch. Routes `enrollment.roles` through `HL_Roles::has_role()` / `parse_stored()` for all 6 supported ops; rejects `gt`/`lt`. `test_resolver()` filled with 13 assertions. Phase B + Phase D quality gate PASS.
 - [ ] **Task 3: Fix `LIKE → gated FIND_IN_SET` in `resolve_school_director()`**
 - [ ] **Task 4: Fix `LIKE → gated FIND_IN_SET` in `resolve_role()`**
-- [ ] **Task 5: `HL_Audit_Service::get_last_event()` + try/catch `log()`**
+- [x] **Task 5: `HL_Audit_Service::get_last_event()` + try/catch `log()`** — `log()` wrapped in try/catch + `$wpdb->insert === false` return-value check (closes the gap the plan's literal try/catch missed — `wpdb->insert` does not throw on SQL errors). New `record_audit_failure()` private helper routes both failure paths to `error_log` + daily `hl_audit_fail_count_YYYY-MM-DD` counter bump, itself wrapped in a last-resort try/catch. New public `get_last_event($entity_id, $action_type): ?array` returns the latest matching row with `actor_name` JOIN, enables Track 1 Task 14 Force Resend history. `test_audit` group filled with 3 assertions + cleanup. Phase B + Phase D quality gate PASS.
 - [ ] **Task 6: Schema Rev 35 — component window columns + composite indexes**
 - [ ] **Task 7: Admin pathway form: date pickers for `available_from`/`available_to`**
 - [ ] **Task 8: Draft autosave: `created_at`/`updated_at` timestamps**
