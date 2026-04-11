@@ -331,6 +331,26 @@ class HL_CLI_Email_V2_Test {
                         'assigned_mentor returned user_id matches the team mentor enrollment'
                     );
                 }
+                // R2 §2: happy-path resolver must NOT emit email_resolver_db_error
+                // (no DB error occurred during the query chain above).
+                $dberr_snapshot_happy = (int) $wpdb->get_var(
+                    "SELECT COALESCE(MAX(log_id), 0) FROM {$wpdb->prefix}hl_audit_log"
+                );
+                $resolver_happy = HL_Email_Recipient_Resolver::instance();
+                $resolver_happy->resolve(
+                    array( 'primary' => array( 'assigned_mentor' ), 'cc' => array() ),
+                    array( 'user_id' => $member_user_id, 'cycle_id' => (int) $mentor_fixture->cycle_id )
+                );
+                $happy_err_count = (int) $wpdb->get_var( $wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$wpdb->prefix}hl_audit_log
+                     WHERE action_type = %s AND log_id > %d",
+                    'email_resolver_db_error',
+                    $dberr_snapshot_happy
+                ) );
+                $this->assert_equals(
+                    0, $happy_err_count,
+                    'happy-path assigned_mentor resolve emits zero email_resolver_db_error rows'
+                );
             } else {
                 WP_CLI::log( '  [SKIP] Fixture enrollments have null user_id — assigned_mentor live check skipped' );
             }
@@ -494,6 +514,96 @@ class HL_CLI_Email_V2_Test {
             'email_resolver_rejected_role',
             $poison_snapshot_log_id
         ) );
+
+        // R2 §1: rejected_role audit is rate-limited per-value. Clear any
+        // existing transient, snapshot log_id, call resolve() twice with the
+        // SAME poison value, assert exactly 1 new row (not 2).
+        $rl_poison_value = 'teacher,mentor,coach'; // distinct from prior poison test
+        $rl_lock_key     = 'hl_resolver_rejected_role_' . substr( sha1( strtolower( trim( $rl_poison_value ) ) ), 0, 16 );
+        delete_transient( $rl_lock_key );
+        $rl_snapshot = (int) $wpdb->get_var(
+            "SELECT COALESCE(MAX(log_id), 0) FROM {$wpdb->prefix}hl_audit_log"
+        );
+        $rl_resolver = HL_Email_Recipient_Resolver::instance();
+        // Two back-to-back calls with the same value — second should be rate-limited.
+        $rl_resolver->resolve(
+            array( 'primary' => array( 'role:' . $rl_poison_value ), 'cc' => array() ),
+            array( 'user_id' => 0, 'cycle_id' => 1 )
+        );
+        $rl_resolver->resolve(
+            array( 'primary' => array( 'role:' . $rl_poison_value ), 'cc' => array() ),
+            array( 'user_id' => 0, 'cycle_id' => 1 )
+        );
+        $rl_count = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_audit_log
+             WHERE action_type = %s AND log_id > %d",
+            'email_resolver_rejected_role',
+            $rl_snapshot
+        ) );
+        $this->assert_equals(
+            1, $rl_count,
+            'rejected_role audit rate-limited: 2 back-to-back poison calls produce exactly 1 audit row'
+        );
+        $wpdb->query( $wpdb->prepare(
+            "DELETE FROM {$wpdb->prefix}hl_audit_log
+             WHERE action_type = %s AND log_id > %d",
+            'email_resolver_rejected_role',
+            $rl_snapshot
+        ) );
+        delete_transient( $rl_lock_key );
+
+        // R2 §2: positive forced-error path. Inject a simulated
+        // $wpdb->last_error, then invoke the private log_db_error_if_any
+        // helper directly via Closure::bind to exercise the production code
+        // path without a test-only public wrapper. The SIMULATED marker is
+        // grep-friendly so operators can distinguish test noise from real
+        // failures if this ever runs against prod.
+        $forced_lock = 'hl_resolver_db_error_' . substr( sha1( 'role:user_query' ), 0, 16 );
+        delete_transient( $forced_lock );
+
+        $dberr_snapshot_forced = (int) $wpdb->get_var(
+            "SELECT COALESCE(MAX(log_id), 0) FROM {$wpdb->prefix}hl_audit_log"
+        );
+
+        $wpdb->last_error = 'SIMULATED_TEST_ERROR_DO_NOT_ALARM';
+
+        $invoke_helper = \Closure::bind(
+            function () {
+                $this->log_db_error_if_any( 'role:user_query' );
+            },
+            HL_Email_Recipient_Resolver::instance(),
+            HL_Email_Recipient_Resolver::class
+        );
+        $invoke_helper();
+
+        $forced_err_count = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_audit_log
+             WHERE action_type = %s AND log_id > %d AND reason LIKE %s",
+            'email_resolver_db_error',
+            $dberr_snapshot_forced,
+            '%SIMULATED_TEST_ERROR_DO_NOT_ALARM%'
+        ) );
+        $this->assert_equals(
+            1, $forced_err_count,
+            'Forced wpdb->last_error emits exactly 1 email_resolver_db_error row with SIMULATED marker'
+        );
+
+        // Verify the helper cleared $wpdb->last_error so subsequent queries
+        // aren't misattributed (this is a load-bearing invariant).
+        $this->assert_equals(
+            '',
+            (string) $wpdb->last_error,
+            'log_db_error_if_any() resets $wpdb->last_error after logging'
+        );
+
+        // Cleanup: bounded DELETE + transient clear.
+        $wpdb->query( $wpdb->prepare(
+            "DELETE FROM {$wpdb->prefix}hl_audit_log
+             WHERE action_type = %s AND log_id > %d",
+            'email_resolver_db_error',
+            $dberr_snapshot_forced
+        ) );
+        delete_transient( $forced_lock );
     }
     private function test_deliverability() {}
     private function test_audit() {

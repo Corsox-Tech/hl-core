@@ -95,6 +95,46 @@ class HL_Email_Recipient_Resolver {
         return class_exists( 'HL_Roles' ) && HL_Roles::scrub_is_complete();
     }
 
+    /**
+     * If the last $wpdb call produced an error, emit an audit row labelled
+     * with the method+query so operators can see which DB call failed.
+     *
+     * Rate-limited per-method via a 5-minute transient so a sustained DB
+     * outage doesn't flood hl_audit_log — one row per method per 5 minutes
+     * is enough signal while bounding write volume.
+     *
+     * ALWAYS resets $wpdb->last_error to '' after inspection so a single
+     * error isn't attributed to subsequent queries in the same request.
+     *
+     * Caller contract: call immediately after every $wpdb->get_var /
+     * get_row / get_results in a resolver method. Does not change any
+     * return value — the fail-closed contract (DB error → empty recipient
+     * set) stays load-bearing.
+     *
+     * @param string $method_label Descriptive label like "assigned_mentor:enrollment_lookup".
+     * @return void
+     */
+    private function log_db_error_if_any( $method_label ) {
+        global $wpdb;
+        if ( empty( $wpdb->last_error ) ) {
+            return;
+        }
+        $error_snippet = substr( (string) $wpdb->last_error, 0, 200 );
+        $wpdb->last_error = ''; // prevent attribution to subsequent queries
+        if ( ! class_exists( 'HL_Audit_Service' ) ) {
+            return;
+        }
+        $lock_key = 'hl_resolver_db_error_' . substr( sha1( (string) $method_label ), 0, 16 );
+        if ( get_transient( $lock_key ) ) {
+            return;
+        }
+        HL_Audit_Service::log( 'email_resolver_db_error', array(
+            'entity_type' => 'email_workflow',
+            'reason'      => $method_label . ': ' . $error_snippet,
+        ) );
+        set_transient( $lock_key, 1, 5 * MINUTE_IN_SECONDS );
+    }
+
     // =========================================================================
     // Token Resolvers
     // =========================================================================
@@ -203,6 +243,7 @@ class HL_Email_Recipient_Resolver {
             $user_id, $cycle_id,
             $user_id, $cycle_id
         ) );
+        $this->log_db_error_if_any( 'assigned_coach:lookup' );
 
         if ( ! $coach_user_id ) {
             return array();
@@ -234,6 +275,7 @@ class HL_Email_Recipient_Resolver {
              WHERE user_id = %d AND cycle_id = %d AND status IN ('active','warning') LIMIT 1",
             $user_id, $cycle_id
         ) );
+        $this->log_db_error_if_any( 'school_director:school_lookup' );
 
         if ( ! $school_id ) {
             return array();
@@ -255,6 +297,7 @@ class HL_Email_Recipient_Resolver {
                  LIMIT 1",
                 $school_id, $cycle_id
             ) );
+            $this->log_db_error_if_any( 'school_director:director_lookup' );
         } else {
             // Pre-scrub fallback: narrow via LIKE, then exact-match via HL_Roles.
             $candidates = $wpdb->get_results( $wpdb->prepare(
@@ -265,6 +308,7 @@ class HL_Email_Recipient_Resolver {
                 $school_id, $cycle_id,
                 '%school_leader%'
             ) );
+            $this->log_db_error_if_any( 'school_director:director_lookup' );
             $director_id = null;
             foreach ( (array) $candidates as $row ) {
                 if ( HL_Roles::has_role( $row->roles, 'school_leader' ) ) {
@@ -342,6 +386,7 @@ class HL_Email_Recipient_Resolver {
              LIMIT 1",
             $user_id, $cycle_id
         ) );
+        $this->log_db_error_if_any( 'assigned_mentor:enrollment_lookup' );
         if ( ! $enrollment_id ) {
             return array();
         }
@@ -365,6 +410,7 @@ class HL_Email_Recipient_Resolver {
              LIMIT 1",
             $cycle_id, $enrollment_id
         ) );
+        $this->log_db_error_if_any( 'assigned_mentor:mentor_join' );
         if ( ! $mentor_enrollment_id ) {
             return array();
         }
@@ -373,6 +419,7 @@ class HL_Email_Recipient_Resolver {
             "SELECT user_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d LIMIT 1",
             $mentor_enrollment_id
         ) );
+        $this->log_db_error_if_any( 'assigned_mentor:user_lookup' );
         if ( ! $mentor_user_id ) {
             return array();
         }
@@ -402,11 +449,18 @@ class HL_Email_Recipient_Resolver {
         // Normalise the role query and reject poison.
         $role = strtolower( trim( sanitize_text_field( $role ) ) );
         if ( $role === '' || strpos( $role, ',' ) !== false ) {
+            // Rate-limit the audit write — a misconfigured workflow can retry
+            // the same bad value every cron tick. One row per distinct value
+            // per 5 minutes is enough signal for operators.
             if ( class_exists( 'HL_Audit_Service' ) ) {
-                HL_Audit_Service::log( 'email_resolver_rejected_role', array(
-                    'reason' => 'invalid_role_value',
-                    'role'   => $role,
-                ) );
+                $lock_key = 'hl_resolver_rejected_role_' . substr( sha1( (string) $role ), 0, 16 );
+                if ( ! get_transient( $lock_key ) ) {
+                    HL_Audit_Service::log( 'email_resolver_rejected_role', array(
+                        'reason' => 'invalid_role_value',
+                        'role'   => $role,
+                    ) );
+                    set_transient( $lock_key, 1, 5 * MINUTE_IN_SECONDS );
+                }
             }
             return array();
         }
@@ -423,6 +477,7 @@ class HL_Email_Recipient_Resolver {
                    AND FIND_IN_SET(%s, e.roles) > 0",
                 $cycle_id, $role
             ) );
+            $this->log_db_error_if_any( 'role:user_query' );
         } else {
             // Pre-scrub: JOIN wp_users to avoid N+1, LIKE narrows, then PHP filter.
             $rows = $wpdb->get_results( $wpdb->prepare(
@@ -434,6 +489,7 @@ class HL_Email_Recipient_Resolver {
                 $cycle_id,
                 '%' . $wpdb->esc_like( $role ) . '%'
             ) );
+            $this->log_db_error_if_any( 'role:user_query' );
         }
 
         $results = array();
