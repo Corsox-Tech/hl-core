@@ -323,6 +323,80 @@ class HL_CLI_Email_V2_Test {
             'email_token_alias_hit',
             $snapshot_max_log_id
         ) );
+
+        // Task 3 regression: role:leader must NOT return school_leader users.
+        // Find any existing school_leader enrollment in any cycle; if one exists,
+        // resolve role:leader in that cycle and assert zero matches.
+        $sl_row = $wpdb->get_row(
+            "SELECT e.cycle_id FROM {$wpdb->prefix}hl_enrollment e
+             WHERE e.roles LIKE '%school_leader%'
+             LIMIT 1"
+        );
+        if ( $sl_row ) {
+            // Count any enrollments in that cycle that legitimately carry 'leader' as a role slug.
+            // If zero legitimate leader rows exist, role:leader MUST return zero rows
+            // (proving the substring false-match is closed).
+            $candidates = $wpdb->get_results( $wpdb->prepare(
+                "SELECT e.roles FROM {$wpdb->prefix}hl_enrollment e
+                 WHERE e.cycle_id = %d AND e.roles LIKE '%%leader%%'",
+                (int) $sl_row->cycle_id
+            ) );
+            $legit_leader_rows = 0;
+            foreach ( (array) $candidates as $c ) {
+                if ( HL_Roles::has_role( $c->roles, 'leader' ) ) {
+                    $legit_leader_rows++;
+                }
+            }
+            if ( $legit_leader_rows === 0 ) {
+                $resolver_r = HL_Email_Recipient_Resolver::instance();
+                $leader_out = $resolver_r->resolve(
+                    array( 'primary' => array( 'role:leader' ), 'cc' => array() ),
+                    array( 'user_id' => 0, 'cycle_id' => (int) $sl_row->cycle_id )
+                );
+                $this->assert_equals(
+                    0, count( $leader_out ),
+                    'role:leader does NOT false-match school_leader in cycle with no legitimate leader rows'
+                );
+            } else {
+                WP_CLI::log( '  [SKIP] Cycle has legitimate leader rows — substring false-match check inconclusive' );
+            }
+        } else {
+            WP_CLI::log( '  [SKIP] No school_leader enrollments seeded — role:leader substring check skipped' );
+        }
+
+        // Task 4 regression: resolve_role rejects comma-poisoned role input
+        // AND emits the email_resolver_rejected_role audit row. Snapshot
+        // log_id before invoking so cleanup is bounded to our own rows.
+        $poison_snapshot_log_id = (int) $wpdb->get_var(
+            "SELECT COALESCE(MAX(log_id), 0) FROM {$wpdb->prefix}hl_audit_log"
+        );
+        $resolver_poison = HL_Email_Recipient_Resolver::instance();
+        $poison_out      = $resolver_poison->resolve(
+            array( 'primary' => array( 'role:teacher,mentor' ), 'cc' => array() ),
+            array( 'user_id' => 0, 'cycle_id' => 1 )
+        );
+        $this->assert_equals(
+            0, count( $poison_out ),
+            'role:teacher,mentor (poison) correctly rejected with zero results'
+        );
+        // Prove the rejection path actually fired (not just that results were empty)
+        $poison_audit_count = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_audit_log
+             WHERE action_type = %s AND log_id > %d",
+            'email_resolver_rejected_role',
+            $poison_snapshot_log_id
+        ) );
+        $this->assert_true(
+            $poison_audit_count > 0,
+            'Poison rejection emits email_resolver_rejected_role audit row'
+        );
+        // Cleanup: delete ONLY the rows we just inserted (bounded by snapshot).
+        $wpdb->query( $wpdb->prepare(
+            "DELETE FROM {$wpdb->prefix}hl_audit_log
+             WHERE action_type = %s AND log_id > %d",
+            'email_resolver_rejected_role',
+            $poison_snapshot_log_id
+        ) );
     }
     private function test_deliverability() {}
     private function test_audit() {

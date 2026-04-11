@@ -80,6 +80,22 @@ class HL_Email_Recipient_Resolver {
     }
 
     // =========================================================================
+    // Helpers
+    // =========================================================================
+
+    /**
+     * Whether the Rev 37 role scrub has completed and FIND_IN_SET against
+     * `hl_enrollment.roles` is safe to use. Centralised so every resolver
+     * method gates on the same flag, and so the `class_exists` defensive
+     * check has a single removal point (Track 3 Task 32 final cleanup).
+     *
+     * @return bool
+     */
+    private function scrub_done() {
+        return class_exists( 'HL_Roles' ) && HL_Roles::scrub_is_complete();
+    }
+
+    // =========================================================================
     // Token Resolvers
     // =========================================================================
 
@@ -224,14 +240,39 @@ class HL_Email_Recipient_Resolver {
         }
 
         // Find enrollment with school_leader role in the same school + cycle.
-        $director_id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT e.user_id FROM {$wpdb->prefix}hl_enrollment e
-             WHERE e.school_id = %d AND e.cycle_id = %d AND e.status IN ('active','warning')
-               AND e.roles LIKE %s
-             LIMIT 1",
-            $school_id, $cycle_id,
-            '%school_leader%'
-        ) );
+        //
+        // Post-scrub (Rev 37): roles is normalised CSV so FIND_IN_SET is exact.
+        // Pre-scrub: LIKE narrows the candidate set; HL_Roles::has_role() then
+        // post-filters in PHP to eliminate substring false positives. Today
+        // the literal is school_leader which has no substring victims, but
+        // the pattern must exist before anyone adds a role with collision
+        // potential (e.g. 'leader' vs 'school_leader').
+        if ( $this->scrub_done() ) {
+            $director_id = $wpdb->get_var( $wpdb->prepare(
+                "SELECT e.user_id FROM {$wpdb->prefix}hl_enrollment e
+                 WHERE e.school_id = %d AND e.cycle_id = %d AND e.status IN ('active','warning')
+                   AND FIND_IN_SET('school_leader', e.roles) > 0
+                 LIMIT 1",
+                $school_id, $cycle_id
+            ) );
+        } else {
+            // Pre-scrub fallback: narrow via LIKE, then exact-match via HL_Roles.
+            $candidates = $wpdb->get_results( $wpdb->prepare(
+                "SELECT e.user_id, e.roles FROM {$wpdb->prefix}hl_enrollment e
+                 WHERE e.school_id = %d AND e.cycle_id = %d AND e.status IN ('active','warning')
+                   AND e.roles LIKE %s
+                 LIMIT 50",
+                $school_id, $cycle_id,
+                '%school_leader%'
+            ) );
+            $director_id = null;
+            foreach ( (array) $candidates as $row ) {
+                if ( HL_Roles::has_role( $row->roles, 'school_leader' ) ) {
+                    $director_id = (int) $row->user_id;
+                    break;
+                }
+            }
+        }
 
         if ( ! $director_id ) {
             return array();
@@ -353,25 +394,53 @@ class HL_Email_Recipient_Resolver {
             return array();
         }
 
-        $role = sanitize_text_field( $role );
+        // Normalise the role query and reject poison.
+        $role = strtolower( trim( sanitize_text_field( $role ) ) );
+        if ( $role === '' || strpos( $role, ',' ) !== false ) {
+            if ( class_exists( 'HL_Audit_Service' ) ) {
+                HL_Audit_Service::log( 'email_resolver_rejected_role', array(
+                    'reason' => 'invalid_role_value',
+                    'role'   => $role,
+                ) );
+            }
+            return array();
+        }
 
-        // Get users enrolled in this cycle with the specified role.
-        // JOIN wp_users to avoid N+1 get_userdata calls.
-        $rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT DISTINCT e.user_id, u.user_email
-             FROM {$wpdb->prefix}hl_enrollment e
-             JOIN {$wpdb->users} u ON u.ID = e.user_id
-             WHERE e.cycle_id = %d AND e.status IN ('active','warning')
-               AND e.roles LIKE %s",
-            $cycle_id,
-            '%' . $wpdb->esc_like( $role ) . '%'
-        ) );
+        // Post-scrub: FIND_IN_SET is exact. Pre-scrub: LIKE narrows, has_role
+        // post-filters to eliminate substring false positives (e.g.
+        // role:leader must NOT return school_leader users).
+        if ( $this->scrub_done() ) {
+            $rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT DISTINCT e.user_id, u.user_email, e.roles
+                 FROM {$wpdb->prefix}hl_enrollment e
+                 JOIN {$wpdb->users} u ON u.ID = e.user_id
+                 WHERE e.cycle_id = %d AND e.status IN ('active','warning')
+                   AND FIND_IN_SET(%s, e.roles) > 0",
+                $cycle_id, $role
+            ) );
+        } else {
+            // Pre-scrub: JOIN wp_users to avoid N+1, LIKE narrows, then PHP filter.
+            $rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT DISTINCT e.user_id, u.user_email, e.roles
+                 FROM {$wpdb->prefix}hl_enrollment e
+                 JOIN {$wpdb->users} u ON u.ID = e.user_id
+                 WHERE e.cycle_id = %d AND e.status IN ('active','warning')
+                   AND e.roles LIKE %s",
+                $cycle_id,
+                '%' . $wpdb->esc_like( $role ) . '%'
+            ) );
+        }
 
         $results = array();
-        foreach ( $rows as $row ) {
-            if ( ! empty( $row->user_email ) ) {
-                $results[] = array( 'email' => $row->user_email, 'user_id' => (int) $row->user_id );
+        foreach ( (array) $rows as $row ) {
+            if ( empty( $row->user_email ) ) {
+                continue;
             }
+            // Post-filter — works for both branches but only strictly necessary pre-scrub.
+            if ( class_exists( 'HL_Roles' ) && ! HL_Roles::has_role( $row->roles, $role ) ) {
+                continue;
+            }
+            $results[] = array( 'email' => $row->user_email, 'user_id' => (int) $row->user_id );
         }
 
         return $results;
