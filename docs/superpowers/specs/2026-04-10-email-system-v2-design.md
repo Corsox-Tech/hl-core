@@ -746,3 +746,166 @@ CLI testing on test server:
 - Existing 37-assertion CLI test suite must pass
 - Active workflows on test server still trigger correctly
 - Builder save/load round-trip on existing templates (no block format changes — only new optional properties)
+
+---
+
+## Appendix A — Review Consensus & Refinements
+
+This appendix captures the output of a multi-phase review (2 preliminary reviewers + 3 senior experts) with cross-validation. All items below are **accepted by consensus** and must be addressed during implementation.
+
+### A.1 Critical Refinements (must implement)
+
+| # | Issue | Fix |
+|---|-------|-----|
+| **A.1.1** | Sortable.js nested handle collision — top-level Sortable can intercept nested block drags | Use distinct handle class `.hl-eb-drag-handle-nested`, distinct `group` name per column instance (`col-{parentIndex}-{side}`), `filter: '.hl-eb-block-nested'` on top-level Sortable. Visually distinguish nested handles (smaller, different hover). Track all Sortable instances in a registry and call `.destroy()` before every `renderAllBlocks()`. |
+| **A.1.2** | Pill `<input>` inside workflow `<form>`: Enter submits the form | Unconditional `e.preventDefault()` on Enter inside `.hl-pill-input input`. Applies to all 3 pill contexts (condition "in list" values, recipient role pills, recipient static email pills). |
+| **A.1.3** | Preview modal iframe XSS surface | Add `sandbox="allow-same-origin allow-popups"` on `<iframe>` (no `allow-scripts`). Confirm no inline JS expected in email HTML. Verify dark-backdrop toggle still works under sandbox. |
+| **A.1.4** | Unicode subject line: `wp_mail()` does NOT auto-encode non-ASCII headers | In the queue processor, wrap subject with `mb_encode_mimeheader($subject, 'UTF-8', 'B')` before passing to `wp_mail()`. Required for ES-MX / PT-BR translation rollout. Also apply to admin table rendering of workflow names. |
+| **A.1.5** | `CURDATE()` uses server TZ, not site TZ — cron triggers fire on wrong day | Replace all `CURDATE()` / `DATE_ADD(CURDATE(), ...)` in Section 3.2 cron queries with PHP-computed dates via `current_time('Y-m-d')` (respects WP timezone). Pass as bound `%s` parameters through `$wpdb->prepare()`. |
+| **A.1.6** | Missed cron runs create permanent reminder gaps (exact-date matching) | Change exact-date matches in Section 3.2 to **range matches**: `available_from BETWEEN %s AND %s` with (today, today+7). Dedup contract: dedup token `md5(trigger + workflow + user + entity + cycle)` has **no date component** → fires exactly once per window, tolerates missed cron runs. Document this explicitly in `HL_Email_Automation_Service`. Track `last_cron_run_at` wp_option and warn if gap > 36h. |
+| **A.1.7** | `enrollment.roles` in `HL_Email_Condition_Evaluator` currently uses string equality — silently mismatches recipient resolver (FIND_IN_SET) | Create shared `HL_Roles::has_role($csv, $role)` helper. Route both `HL_Email_Condition_Evaluator::evaluate()` AND `HL_Email_Recipient_Resolver` through it. Condition builder UI should render `enrollment.roles` as `enum` with known role options (teacher, mentor, coach, school_leader, district_leader) and document FIND_IN_SET matching semantics. Operator label "in list" → **"matches any of"** for non-technical clarity. |
+
+### A.2 Major Refinements
+
+**Track 2 (Builder):**
+- **A.2.1** `renderAllBlocks()` destroys contenteditable focus + cursor position. Track Sortable instances in registry, destroy before re-render. Preserve canvas scrollTop. On undo/redo, flush any pending text snapshot first (also handle Safari `beforeinput` with `inputType === 'historyUndo'`).
+- **A.2.2** Blob URL memory leak + flash in preview iframe. Use `iframe.srcdoc = html` instead of `URL.createObjectURL()`.
+- **A.2.3** Rename "Dark" toggle to **"Dark Backdrop"** (honest label — it's cosmetic, not real dark-mode simulation). Optionally inject `<meta name="color-scheme" content="dark">` + `prefers-color-scheme` CSS to test actual dark rendering.
+- **A.2.4** Autosave + undo race on reload: autosave debounced 5s after an undo action to give redo window.
+- **A.2.5** "Move to other column" button on nested blocks (arrow icon) — preserves state, avoids Sortable cross-container complexity. New JS function `moveNestedBlock(parentIndex, fromSide, toSide, colIndex)`.
+
+**Track 1 (Admin UX):**
+- **A.2.6** Preview modal focus trap + ARIA: `role="dialog"`, `aria-modal="true"`, trap Tab/Shift+Tab within modal controls, restore focus to "Preview" button on close. Use `inert` attribute on body siblings (can't trap focus across frame boundary).
+- **A.2.7** Condition builder ARIA: wrap each row in `<div role="group" aria-label="Condition N">`, icon-only `×` needs `aria-label="Remove condition N"`.
+- **A.2.8** Pill input keyboard nav: `role="list"`/`listitem`, focusable pills with tabindex, arrow keys to navigate, Delete/Backspace to remove focused pill.
+- **A.2.9** Invalid email SR feedback: `aria-live="polite"` region announcing "Invalid email address" + inline text (not color-only).
+- **A.2.10** Trigger-dependent recipient visibility: **keep incompatible tokens dimmed** (don't delete from JSON). Server-side resolver silently skips incompatible tokens at send time (already the behavior). Document this in the recipient picker help text.
+- **A.2.11** Text alignment default "left" button must show active state when `text_align` is absent from JSON.
+- **A.2.12** Unified `HL_Admin_Emails::generate_copy_name($table, $source_name)` helper for both workflow and template duplicate-name generation. Cap retries at 10, fall back to `_copy_` + `wp_generate_uuid4()` suffix on final retry.
+- **A.2.13** Workflow + template duplicate actions: Convert from GET to **POST** (admin-post.php handler). Prevents browser prefetch / link-scanner CSRF exploits via referer leaks. Per-row nonce format: `hl_workflow_duplicate_{id}`, `hl_template_duplicate_{id}`.
+- **A.2.14** Recipient picker recipient count hint: async debounced query "~N recipients for this trigger" below the picker. Reduces mis-sends.
+
+**Track 3 (Backend):**
+- **A.2.15** `FIND_IN_SET` hazards: reject comma in role input (`strpos($role, ',') !== false` → return [] + audit log), reject empty role early (avoids trailing-comma false positives). Add `HL_Roles::sanitize_roles($csv)` helper — strip whitespace, lowercase, dedup. Route all enrollment write paths through it. One-time data scrub migration normalizes existing rows.
+- **A.2.16** Draft cleanup: use `$wpdb->esc_like('hl_email_draft_')`, target `$wpdb->options` (site-scoped, not `base_prefix`). Corrupt JSON → **skip + audit log** (never delete — dangerous to assume "2000-01-01" fallback for malformed-but-recent). Circuit breaker: max 500 rows per run, resume next day.
+- **A.2.17** Autoload migration for existing drafts: rev 35 runs `UPDATE {prefix}options SET autoload='no' WHERE option_name LIKE %s` with `$wpdb->esc_like('hl_email_draft_') . '%'`. All new autosaves use `update_option($name, $value, false)`.
+- **A.2.18** Per-workflow-ID nonce: `check_ajax_referer('hl_workflow_toggle_' . $id, 'nonce')` — not a global nonce (CSRF replay prevention). Same pattern for all row actions.
+- **A.2.19** Schema migration runs on **plugins_loaded version check** (not just `register_activation_hook`) — required for git-deploy flow. Column-exists guard in every `ALTER TABLE`. Check `$wpdb->query()` return value (`=== false` → abort, do not bump revision number).
+- **A.2.20** Queue claim expiry + recovery sweep: `UPDATE ... SET status='sending', claimed_at=NOW() WHERE id=%d AND status='pending'` with `$wpdb->rows_affected === 1` check. Recovery in `run_daily_checks()`: `UPDATE SET status='pending' WHERE status='sending' AND claimed_at < NOW() - INTERVAL 15 MINUTE`. At-least-once + dedup semantics documented.
+- **A.2.21** `coaching_pre_end` N+1 risk: add composite indexes `hl_component(component_type, pathway_id)`, `hl_pathway_assignment(enrollment_id, pathway_id)`, `hl_coaching_session(component_id, enrollment_id, status)`. `LIMIT 5000` safety cap — emit audit warning if hit (never silently truncate).
+- **A.2.22** Email deliverability headers: default `From`, `Reply-To`, `List-Unsubscribe: <mailto:...>, <https://.../unsubscribe?token=...>`, `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (Google/Yahoo Feb 2024 bulk sender rules, CASL compliance for Canadian clients). Per-workflow opt-out for true transactional (password reset). Unsubscribe token stored in user meta. Admin setting to suppress for specific workflow types.
+- **A.2.23** `wp_mail_failed` hook: queue processor listens for silent SMTP rejects. Flip queue row to `failed` + increment retry. Prevents "sent" status when actually rejected.
+- **A.2.24** Nonce refresh for long edit sessions: register `wp_refresh_nonces` filter. Autosave inside 24h-stale form would otherwise die silently.
+- **A.2.25** Rev 35 migration **gated** before cron registers `cv_window_7d` etc. Cron `get_cron_trigger_users()` returns `[]` early if `available_from` column is missing (git-deploy can land code before admin page triggers migration). Log once per missed-column event.
+- **A.2.26** Soft-delete for workflows (and alignment: delete action sets `status='deleted'` instead of hard DELETE). Prevents mid-cron race where `scheduled_at` is seconds away. Queue guard: `status IN ('sent','sending','failed')` for the deletion block check (failed/sending rows also reference workflow_id and must survive postmortem).
+- **A.2.27** Server-side allowlist validation in `handle_workflow_save()`: validate every condition `field` + `op` against `HL_Admin_Emails::get_condition_fields()` / `get_condition_operators()`. Validate every recipient token against `get_recipient_tokens()` (allowlist is trigger-agnostic; compatibility is a send-time concern, silently skipped at resolve). Reject unknown fields/operators/tokens with admin notice.
+- **A.2.28** `assigned_mentor` resolver signature: requires `$context['cycle_id']`. `HL_Email_Automation_Service::build_context()` must populate `cycle_id` for every trigger that lists `assigned_mentor` in its allowlist. Resolver returns NULL + audit warn if missing. SQL query must include `ORDER BY mentor_tm.id ASC` for deterministic selection.
+
+### A.3 Minor Refinements
+
+- **A.3.1** Outlook Word-engine font-size rendering: emit `font-size` on both `<td>` and inner `<span>` wrapper in `HL_Email_Block_Renderer::render_text()`.
+- **A.3.2** jQuery noConflict wrapper: all JS uses `jQuery(function($){...})` IIFE. `wp_enqueue_script` deps: `['jquery']` (explicitly NOT `jquery-ui-sortable` — naming collision with Sortable.js which is separate from jQuery UI's sortable).
+- **A.3.3** CSS specificity vs WP admin: wrap all email admin markup in `.hl-email-admin` outer class. Raises specificity naturally without `!important`.
+- **A.3.4** `wp_add_inline_script` with position `'before'` (not default `'after'`) for `hlConditionFields` / `hlRecipientTokens` registry injection — JS IIFE references them at init.
+- **A.3.5** `wp_json_encode()` (not `json_encode`) with `JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES` for hidden textarea serialization. Check `false` return.
+- **A.3.6** Delete guard transaction: `START TRANSACTION` + `SELECT ... FOR UPDATE` on the queue count check. Confirms `hl_email_queue` uses InnoDB.
+- **A.3.7** `wp_localize_script` payload trimmed: omit descriptions in CC section, strip translator comments.
+- **A.3.8** Audit log failures: try/catch wrapper, never block user action, `error_log` with `[HL_AUDIT_FAIL]` tag + daily aggregate counter in wp_option.
+- **A.3.9** Draft cleanup index verification: EXPLAIN the `option_name LIKE 'hl_email_draft_%'` query to confirm `options(option_name)` index is used. Sargable — trailing wildcard only.
+- **A.3.10** Cron fan-out rate limiter interaction: cron emits pass through `HL_Email_Rate_Limiter`. On limit hit, remaining rows stay `pending` with `scheduled_at = next_window` — **never drop silently**.
+- **A.3.11** Idempotency boundaries documentation appendix: list every idempotency key in the system (draft save, queue claim, dedup token, nonce action names). Prevents drift.
+- **A.3.12** Condition builder "matches any of" label instead of "in list" operator (non-technical mental model).
+- **A.3.13** Preview modal merge-tag overflow: truncate merge values at 200 chars in preview iframe with `[...]` indicator. Prevents layout break from extreme values.
+- **A.3.14** Date inversion notice: when `available_from > available_to`, show admin notice "Dates were reversed — Opens set to earlier date" on save (not silent swap).
+- **A.3.15** Bulk actions on workflow/template row tables are **non-goal** for v2 (would reopen delete-race concerns at scale).
+- **A.3.16** Empty conditions = "matches all" (explicit helper text + server-side acceptance).
+- **A.3.17** Escape key precedence in preview modal: first press closes search dropdown if open, second press closes modal.
+- **A.3.18** Delete guard error message wording: "Cannot delete — this workflow has sent X emails (audit trail). Use the Pause action instead to stop future sends."
+
+### A.4 Phase 1 Accessibility Requirements
+
+Codified once for the whole spec:
+
+- All modals: `role="dialog"`, `aria-modal="true"`, focus trap, focus restore on close.
+- All icon-only buttons: `aria-label` with action + target.
+- All form error states: paired `aria-live="polite"` announcement (not color-only).
+- All keyboard shortcuts: documented and non-conflicting with WP core (Ctrl+Z inside contenteditable flushes snapshot first).
+- All list tables with row actions: keyboard navigable; row actions reachable by Tab without mouse hover.
+
+### A.5 Resolved Open Questions
+
+| Question | Resolution |
+|----------|------------|
+| Cron dedup semantics (once-per-window vs once-per-day) | **Once-per-window.** Dedup key has no date component. Range match tolerates missed cron runs. |
+| Trigger-dependent visibility silent data loss | **Keep dimmed.** Incompatible tokens stay in JSON; server resolver silently skips at send time. |
+| Undo/redo contenteditable guard | **Flush pending text snapshot on Ctrl+Z before delegating.** Browser native undo operates within block after snapshot is captured. |
+| Workflow delete | **Soft-delete** (`status='deleted'`). Hard delete + queue cleanup is too racy. |
+| Bulk actions on list tables | **Non-goal for v2.** Reopens delete-race at scale. |
+| `client_success` cron trigger | **Remains stub.** Requires business criteria from Yuyan Huang. |
+
+### A.6 Phase 4 Refinements (Strict Senior Engineer Pass)
+
+**Semantic clarifications (major):**
+- **A.6.1** Workflow edit + dedup semantics must be documented admin-facing: "Dedup is per-window. Editing a workflow does not re-trigger already-sent reminders." Add a **"Force resend"** admin action on workflows that clears dedup tokens for pending future fires.
+- **A.6.2** `HL_Roles::sanitize_roles()` one-time scrub migration: explicit rev 35 step, chunked `LIMIT 500` with resume cursor in wp_option `hl_roles_scrub_cursor`, transactional per chunk, audit-logged. On first run if backlog count > 5000, temporarily raise cap to 5000 for that run.
+- **A.6.3** `List-Unsubscribe` token: use HMAC-based rotating token — `hash_hmac('sha256', user_id . ':' . queue_id, wp_salt('auth'))`. No storage needed, unforgeable, per-send rotation. Old forwarded emails can't unsubscribe the current user accidentally.
+
+**Security hardening (minor but important):**
+- **A.6.4** Every action handler must call `current_user_can('manage_hl_core')` **alongside** the nonce check — defense in depth. Nonces prove intent, not authorization.
+- **A.6.5** Preview iframe: serve from a distinct path (`admin-ajax.php?action=hl_email_preview_render`) with `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'` response header. Explicitly omit `allow-top-navigation`, `allow-scripts` from sandbox attribute.
+- **A.6.6** Autoload migration race: after the one-shot `UPDATE wp_options SET autoload='no'` rev 35 step, the autosave path must **always** issue `UPDATE ... SET autoload='no'` after `update_option()` write (idempotent, cheap — prevents race with concurrent admin autosaves during migration).
+
+**Reliability refinements (minor):**
+- **A.6.7** Queue claim expiry: `max(10 × processor_interval_seconds, 900)` — dynamic based on configured cron frequency.
+- **A.6.8** Draft cleanup: first-run check — if count > 5000, raise single-run cap to 5000 to drain backlog from v1→v2 gap. Subsequent runs stay at 500.
+- **A.6.9** `moveNestedBlock()` must call `pushUndo()` like every other mutation (consistency).
+- **A.6.10** `last_cron_run_at` staleness warning surfaces via: (a) audit log entry, (b) WP Site Health integration (`site_status_tests` filter), (c) admin notice on Emails admin pages if gap > 36h.
+- **A.6.11** Recipient token alias deprecation: audit log every `cc_teacher` alias hit. Plan v3 removal after 90 days of zero hits.
+
+**UX polish (minor):**
+- **A.6.12** Recipient count hint async failure: hide the hint entirely on error, never leave a stale spinner. Log to console.
+- **A.6.13** Dimmed incompatible tokens: tooltip on hover "Your current trigger doesn't provide this recipient type."
+- **A.6.14** Single `HL_Admin_Emails::operator_label($op)` helper for consistent label mapping — error messages say "Invalid operator 'matches any of'" not "Invalid operator 'in'".
+- **A.6.15** Preview modal loading state: skeleton/spinner overlay during fetch, cleared on iframe `load` event.
+- **A.6.16** Undo/redo toolbar tooltips: "Undo (Ctrl+Z)", "Redo (Ctrl+Y)" — plus hint text "Undo history clears on save."
+- **A.6.17** Merge-tag truncation: CSS `max-width` + `text-overflow: ellipsis` at the rendered line (not a 200-char cap). Let the email-client's rendering truncate visually.
+
+**Test strategy additions:**
+- **A.6.18** Add "Concurrency & Race Tests" subsection to testing strategy covering: two admins duplicating the same template simultaneously, cron running during migration, queue claim expiry recovery, draft cleanup on populated wp_options (seed with 1000+ drafts), autoload migration race.
+
+### A.7 Phase 5 Refinements (Error-Likelihood Reduction)
+
+**Critical — safety rails:**
+- **A.7.1** **Force resend scope:** The "Force resend" admin action on workflows **only** clears dedup tokens for queue rows with `status='pending'` AND `workflow_id=%d`. It does NOT re-create already-sent emails. UI shows a scope selector modal before confirming: **(a) all pending (default)**, (b) specific user, (c) specific cycle. Confirmation dialog shows affected count. Audit-logged with admin user + scope. Never blasts sent-status rows.
+- **A.7.2** **Rev 35 split into 3 revisions** to keep each migration atomic and independently resumable:
+  - **Rev 35:** Schema only — `ALTER TABLE hl_component ADD available_from`, `ADD available_to`, add composite indexes from A.2.21. Idempotent (column-exists / index-exists guards).
+  - **Rev 36:** Autoload cleanup — `UPDATE wp_options SET autoload='no' WHERE option_name LIKE 'hl\_email\_draft\_%'`. Idempotent.
+  - **Rev 37:** Role scrub — chunked `LIMIT 500` with resume cursor in `hl_roles_scrub_cursor` wp_option. Runs on every `plugins_loaded` until cursor reaches end. Survives restarts.
+  Each revision gates on `$wpdb->query() !== false` before bumping the version number. A half-migrated state leaves the revision at the last successful step, not "in between."
+- **A.7.3** **HMAC unsubscribe secret:** Use a dedicated `hl_email_unsubscribe_secret` wp_option, generated once on plugin activation via `wp_generate_password(64, true, true)`, **never rotated**. Admin salt rotation does not invalidate outstanding unsubscribe links. If the option is missing (rare — pre-v2 install without activation hook), generate on first unsubscribe-URL request and store.
+- **A.7.4** **JS failure fallback:** All workflow-edit form fields render with a `<details>` wrapper labeled "Raw JSON edit mode (JavaScript required for visual editor)". On DOMContentLoaded, `email-workflow.js` sets `<body class="hl-js-loaded">`. CSS hides the `<details>` and shows the visual builder. If after 2 seconds the class is not present, CSS reveals the `<details>` automatically (`body:not(.hl-js-loaded) .hl-js-fallback { display: block; }`). Admin can still save via raw JSON even if JS is broken. Prevents "empty builder saves wipe JSON" catastrophe.
+
+**Major — documentation clarity:**
+- **A.7.5** **Mid-window workflow creation behavior:** One-line clarification in A.1.6 — "Workflows created mid-window fire on the next cron run for all users whose `available_from` still falls within the range. Users whose window opened before the workflow existed are NOT retroactively notified (honored by the range match — their date is already in the past)."
+- **A.7.6** **Cron timezone precision contract:** Document in `HL_Email_Automation_Service` class docblock: "All window triggers are **date-granular by design**. `current_time('Y-m-d')` respects WP timezone, but cron fires are subject to WP-Cron's visitor-triggered irregularity and may occur at any time of day. Edge-of-window enrollments can fire up to 24h before or after the exact calendar boundary. Any sub-day precision requirement needs a dedicated trigger type."
+- **A.7.7** **Recipient count labeling:** Hint label uses live query result with explicit wording: **"Resolves to N recipient(s) at send time (based on current data)"**. Not "~". Recomputed debounced on every picker change. Query respects suspended users and trigger-compatible tokens. On error: hide the hint entirely.
+- **A.7.8** **Undo-clear-on-save notice:** On the first save with a non-empty undo stack, show a one-time dismissible inline notice at the top of the builder: "Your undo history was cleared by saving. Undo only works within a single editing session." Stored in user meta `hl_email_builder_undo_notice_seen=1` so it shows exactly once per user. Also in toolbar tooltip on every page.
+- **A.7.9** **Columns nesting rule visible in UI:** The mini palette in a columns block shows a **disabled "Columns" button** with tooltip "Columns cannot be nested — email clients don't render nested tables reliably." Makes the rule discoverable rather than invisible.
+
+### A.7.10 Final Hardening (Phase 5 iteration 2)
+
+- **A.7.10** JS failure fallback — **reverse logic**: the `<details>` raw JSON wrapper is visible by default. `email-workflow.js` sets `<body class="hl-js-loaded">` on `DOMContentLoaded`, and CSS `body.hl-js-loaded .hl-js-fallback { display: none; }` hides the fallback. On slow networks, admins see the fallback briefly but never lose editing state mid-flash. Also handles `window.onerror` as a belt-and-braces explicit failure signal.
+- **A.7.11** Role scrub transient lock: rev 37's chunked UPDATE wraps each chunk in `set_transient('hl_roles_scrub_lock', 1, 60)`. If the lock is held at the start of a chunk, skip and wait for next `plugins_loaded` firing. Prevents concurrent scrub runs from double-processing a cursor range.
+- **A.7.12** Unsubscribe secret race fix: fallback generation uses `add_option('hl_email_unsubscribe_secret', $secret, '', 'no')` (atomic insert-if-missing) followed by `get_option()` re-read. Two simultaneous first-requests will only persist one secret.
+- **A.7.13** Force resend history visibility: workflow list row area shows "Last force-resend: 2026-05-14 by Mateo" inline when present (reads from audit log via `HL_Audit_Service::get_last_event($workflow_id, 'workflow_force_resend')`). Non-blocking — can ship post-launch if audit query is expensive; tooltip on the "Force resend" button is sufficient for launch.
+- **A.7.14** Undo-clear notice per-user per-template: replace user-meta `hl_email_builder_undo_notice_seen` with template-scoped meta `hl_email_builder_undo_notice_seen_{template_id}=1`. Shows once per (user, template) pair rather than once per user globally. Tooltip remains on every page as a permanent reminder.
+
+### A.8 Review Process Audit Trail
+
+- **Phase 1:** 2 preliminary reviewers (UX lens, Architecture lens) — 26 issues, cross-validated, no conflicts.
+- **Phase 2:** 3 senior experts (Frontend, PHP, Backend) — 29 new issues + 6 additions from cross-review.
+- **Phase 3:** Experts' findings sent back to Phase 1 reviewers, accepted with 7 additions.
+- **Phase 4:** Strict senior engineer pass — 19 additional refinements.
+- **Phase 5:** Error-likelihood reduction — 9 more refinements (5 from UX reviewer, 5 from Architecture reviewer, 1 overlap).
+- **Total:** ~86 unique issues addressed.
+- **Final error-likelihood target:** 0/10 from both reviewers.
