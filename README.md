@@ -72,7 +72,7 @@ All 11 core entities have domain model classes with proper properties. 10 of 11 
   - `HL_Email_Merge_Tag_Registry` — 27 merge tags across 7 categories (recipient, cycle, enrollment, coaching, assessment, course, url). Deferred tag support for password_reset_url.
   - `HL_Email_Rate_Limit_Service` — Per-user hourly/daily/weekly send limits with floor-aligned time buckets. INSERT ON DUPLICATE KEY UPDATE pattern.
   - `HL_Email_Condition_Evaluator` — 8 operators (eq, neq, in, not_in, gt, lt, is_null, not_null), all ANDed. Dot-path field resolution from context.
-  - `HL_Email_Recipient_Resolver` — 6 token types (triggering_user, assigned_coach, school_director, cc_teacher, role:X, static:email). Dedup by email. Fan-out to multiple recipients.
+  - `HL_Email_Recipient_Resolver` — 7 token types (triggering_user, assigned_coach, assigned_mentor, school_director, observed_teacher, role:X, static:email; legacy alias: cc_teacher). Dedup by email. Fan-out to multiple recipients. Track 3 Tasks 3/4 gate the role queries on `HL_Roles::scrub_is_complete()` so pre-scrub rows use LIKE + PHP filter and post-scrub rows use FIND_IN_SET.
   - `HL_Email_Queue_Processor` — UUID-based atomic claim pattern, dedup tokens, deferred tag resolution at send time, 3-retry exponential backoff, stuck-row recovery.
   - `HL_Email_Automation_Service` — 13 hook-based + 12 cron-based triggers. Context hydration, condition evaluation, recipient resolution, template rendering, queue insertion. Send windows in America/New_York with DST validation.
 

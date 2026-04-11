@@ -46,6 +46,13 @@ class HL_Audit_Service {
      * Record an audit-log write failure: error_log the message and bump
      * a daily aggregate counter stored in wp_options (autoload=no).
      *
+     * The counter uses an atomic SQL UPDATE so concurrent failure cascades
+     * don't lose increments (a read-modify-write via get_option +
+     * update_option would drop concurrent bumps on busy sites). When the
+     * row doesn't exist yet, add_option is atomic via the UNIQUE index on
+     * option_name — concurrent racers both seeing a missing row produce
+     * one insert + one ignored duplicate-key error, not a lost increment.
+     *
      * Isolated so the try/catch and the `$wpdb->insert === false` branch
      * share one code path. Everything inside is itself wrapped in a
      * try/catch because under a hard DB outage update_option can also
@@ -53,9 +60,21 @@ class HL_Audit_Service {
      */
     private static function record_audit_failure($action_type, $error_message) {
         try {
+            global $wpdb;
             error_log( '[HL_AUDIT_FAIL] ' . $error_message . ' on event ' . $action_type );
-            $key = 'hl_audit_fail_count_' . gmdate( 'Y-m-d' );
-            update_option( $key, (int) get_option( $key, 0 ) + 1, false );
+            $key     = 'hl_audit_fail_count_' . gmdate( 'Y-m-d' );
+            $updated = $wpdb->query( $wpdb->prepare(
+                "UPDATE {$wpdb->options}
+                 SET option_value = CAST(option_value AS UNSIGNED) + 1
+                 WHERE option_name = %s",
+                $key
+            ) );
+            if ( ! $updated ) {
+                // Row didn't exist — insert atomically. add_option relies on
+                // the option_name UNIQUE index, so concurrent racers produce
+                // one winner + one silently-ignored duplicate-key error.
+                add_option( $key, '1', '', 'no' );
+            }
         } catch ( \Throwable $e ) {
             // Last-resort swallow. Audit failures must NEVER cascade.
         }
@@ -125,6 +144,15 @@ class HL_Audit_Service {
      * @return array|null Row array (with `actor_name` join) or null if none.
      */
     public static function get_last_event( $entity_id, $action_type ) {
+        // Guard against callers passing 0 / null / false — without this,
+        // the query matches any row with entity_id = 0 (which includes
+        // every audit call that never passed an entity_id at all, e.g.
+        // system-level events).
+        $entity_id = (int) $entity_id;
+        if ( $entity_id <= 0 ) {
+            return null;
+        }
+
         global $wpdb;
         $row = $wpdb->get_row( $wpdb->prepare(
             "SELECT l.*, u.display_name AS actor_name
@@ -133,7 +161,7 @@ class HL_Audit_Service {
              WHERE l.entity_id = %d AND l.action_type = %s
              ORDER BY l.created_at DESC
              LIMIT 1",
-            (int) $entity_id,
+            $entity_id,
             $action_type
         ), ARRAY_A );
         return $row ?: null;

@@ -204,10 +204,10 @@ Pick up from the first unchecked `[ ]` item each session.
 > **Handoff:** `docs/superpowers/plans/2026-04-11-email-v2-handoff.md`
 > **Plans:** `2026-04-11-email-v2-track{1,2,3}-*.md`
 > **Build journal:** `.claude/v2-build-journal.md`
-> **Progress:** 4 / 52 tasks complete — **Track 3 foundation (Tasks 1, 2, 5, 23) ready for checkpoint deploy**
+> **Progress:** 6 / 52 tasks complete — **Track 3 foundation (Tasks 1, 2, 3, 4, 5, 23) merged to main, polish pass deployed & green**
 
 **Branches:**
-- `feature/email-v2-track3-backend` — backend fixes, foundation (4/32 tasks done — all 4 prerequisites landed)
+- `feature/email-v2-track3-backend` — backend fixes, foundation (6/32 tasks done — Tasks 1, 2, 3, 4, 5, 23 all landed + polish §3-§9)
 - `feature/email-v2-track1-admin-ux` — admin UX (not started; waits on Track 3 prerequisites)
 - `feature/email-v2-track2-builder` — builder UX (not started; can run parallel to Track 3)
 
@@ -227,6 +227,8 @@ Pick up from the first unchecked `[ ]` item each session.
 - [ ] **Tasks 13–17: 5 real cron trigger queries (cv_window, cv_overdue, rp_window, coaching_window, coaching_pre_end)**
 - [ ] **Task 18: `last_cron_run_at` tracking + Site Health**
 - [ ] **Tasks 19–22: Rev 37 — `HL_Roles` scrub migration + enrollment writes CSV**
+- [x] **Task 3: `resolve_school_director()` gated FIND_IN_SET** — Post-Rev-37 branch uses `FIND_IN_SET('school_leader', e.roles) > 0`. Pre-scrub branch keeps LIKE (LIMIT 50) + `HL_Roles::has_role()` PHP post-filter. Private `scrub_done()` helper extracted so both resolver methods share one gate and the `class_exists` defensive check has a single removal point for Task 32 cleanup.
+- [x] **Task 4: `resolve_role()` gated FIND_IN_SET + comma rejection** — Same scrub-gate pattern. Rejects comma-poisoned role input with `email_resolver_rejected_role` audit trail. Unified post-filter via `has_role()` runs in BOTH branches as defense-in-depth against partial-scrub rows. CLI assertions prove substring false-match closure and poison-rejection audit emission, with bounded log_id-snapshot cleanup.
 - [x] **Task 23: `assigned_mentor` resolver via `hl_team_membership` + `cc_teacher` alias** — New `assigned_mentor` token resolves via 3-step SQL (user enrollment → team mentor exclude-self → user). `cc_teacher` kept as legacy alias that routes to `resolve_observed_teacher()` + emits `email_token_alias_hit` audit. Class docblock updated. Phase B + combined review PASS (one blocking self-mentor bug caught and fixed inline; two test hygiene issues also fixed via `log_id` snapshot pattern).
 - [ ] **Tasks 24–28: Queue processor deliverability hardening (`mb_encode_mimeheader`, `From`/`Reply-To`/`List-Unsubscribe`, HMAC unsubscribe, `wp_mail_failed`, dynamic stuck-row threshold)**
 - [ ] **Task 29: Workflow soft-delete (`status='deleted'`)**
@@ -247,6 +249,14 @@ Pick up from the first unchecked `[ ]` item each session.
 - [ ] Import templates (downloadable CSV)
 - [ ] **Certificate download URL** — Program Page cert card "Download" button links to `#`. Wire up real URL once certificates are generated (see `class-hl-frontend-program-page.php`).
 - [ ] **Group Report page** — Reports Hub lists "Program Group Report" card with empty URL. Build dedicated page for cross-cycle aggregate metrics (see `class-hl-frontend-reports-hub.php`).
+
+---
+
+## Scheduled reviews
+
+Dated items that fire on a calendar, not on a task completion. Remove each line after the action is taken.
+
+- **2026-07-10** — Grep `hl_audit_log` for `email_token_alias_hit` over the prior 90 days. If zero hits, remove the `cc_teacher` legacy alias case from `HL_Email_Recipient_Resolver::resolve_token()`, remove the corresponding CLI test block in `test_resolver()`, and remove the `observed_teacher/cc_teacher` dual-key reading in `resolve_observed_teacher()`. Spec reference: A.6.11 (90-day deprecation window). Introduced by Email System v2 Track 3 Task 23 (commit `3190f63`). Memory: `project_cc_teacher_deprecation_2026_07.md`.
 
 ---
 

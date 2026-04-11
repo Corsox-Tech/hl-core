@@ -284,7 +284,7 @@ class HL_Admin_Emails {
                 <tr>
                     <th><label><?php esc_html_e( 'Recipients (JSON)', 'hl-core' ); ?></label></th>
                     <td><textarea name="recipients" rows="3" class="large-text"><?php echo esc_textarea( wp_json_encode( $recipients, JSON_PRETTY_PRINT ) ); ?></textarea>
-                    <p class="description"><?php esc_html_e( 'Tokens: triggering_user, assigned_coach, school_director, cc_teacher, role:X, static:email', 'hl-core' ); ?></p></td>
+                    <p class="description"><?php esc_html_e( 'Tokens: triggering_user, assigned_coach, assigned_mentor, school_director, observed_teacher, role:X, static:email (legacy alias: cc_teacher)', 'hl-core' ); ?></p></td>
                 </tr>
                 <tr>
                     <th><label><?php esc_html_e( 'Delay (minutes)', 'hl-core' ); ?></label></th>
