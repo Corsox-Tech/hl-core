@@ -254,35 +254,132 @@ class HL_CLI_Email_V2_Test {
             ),
             'Condition: enrollment.roles eq "Teacher" (mixed case) matches lowercase stored value'
         );
-
-        // assigned_mentor live smoke test: run against any existing team membership.
-        // Uses the first 'member' row's enrollment as the triggering user.
+        // Typo guard: enrollment.Roles (capital R) must fail-closed AND emit a typo audit row.
+        // Delete the typo transient first so the audit call isn't suppressed by rate limit.
+        delete_transient( 'hl_condition_typo_' . sha1( 'enrollment.Roles' ) );
         global $wpdb;
-        $member_row = $wpdb->get_row(
-            "SELECT tm.enrollment_id, t.cycle_id
-             FROM {$wpdb->prefix}hl_team_membership tm
-             INNER JOIN {$wpdb->prefix}hl_team t ON t.team_id = tm.team_id
-             WHERE tm.membership_type = 'member'
+        $typo_snapshot_log_id = (int) $wpdb->get_var(
+            "SELECT COALESCE(MAX(log_id), 0) FROM {$wpdb->prefix}hl_audit_log"
+        );
+        $this->assert_true(
+            ! $ev->evaluate(
+                array( array( 'field' => 'enrollment.Roles', 'op' => 'eq', 'value' => 'teacher' ) ),
+                $ctx_json
+            ),
+            'Condition: enrollment.Roles (capital R typo) fails closed (returns false)'
+        );
+        $typo_audit_count = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_audit_log
+             WHERE action_type = %s AND log_id > %d",
+            'email_condition_field_typo',
+            $typo_snapshot_log_id
+        ) );
+        $this->assert_true(
+            $typo_audit_count > 0,
+            'Condition: enrollment.Roles typo emits email_condition_field_typo audit row'
+        );
+        // Cleanup: delete only our own rows + clear the transient we set.
+        $wpdb->query( $wpdb->prepare(
+            "DELETE FROM {$wpdb->prefix}hl_audit_log
+             WHERE action_type = %s AND log_id > %d",
+            'email_condition_field_typo',
+            $typo_snapshot_log_id
+        ) );
+        delete_transient( 'hl_condition_typo_' . sha1( 'enrollment.Roles' ) );
+
+        // assigned_mentor live smoke test: find a team that has BOTH a member
+        // enrollment AND a distinct mentor enrollment. Assert count===1 and
+        // that the returned user_id matches the team's mentor enrollment's
+        // user_id (queried explicitly). If no such fixture exists, log
+        // [SKIP] — do not fake a pass.
+        $mentor_fixture = $wpdb->get_row(
+            "SELECT m_tm.enrollment_id AS member_enrollment_id,
+                    x_tm.enrollment_id AS mentor_enrollment_id,
+                    t.cycle_id
+             FROM {$wpdb->prefix}hl_team_membership m_tm
+             INNER JOIN {$wpdb->prefix}hl_team_membership x_tm
+                 ON x_tm.team_id = m_tm.team_id
+                AND x_tm.membership_type = 'mentor'
+                AND x_tm.enrollment_id <> m_tm.enrollment_id
+             INNER JOIN {$wpdb->prefix}hl_team t
+                 ON t.team_id = m_tm.team_id
+             WHERE m_tm.membership_type = 'member'
              LIMIT 1"
         );
-        if ( $member_row ) {
-            $user_id = $wpdb->get_var( $wpdb->prepare(
+        if ( $mentor_fixture ) {
+            $member_user_id  = (int) $wpdb->get_var( $wpdb->prepare(
                 "SELECT user_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
-                $member_row->enrollment_id
+                $mentor_fixture->member_enrollment_id
             ) );
-            if ( $user_id ) {
+            $expected_mentor_user_id = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT user_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+                $mentor_fixture->mentor_enrollment_id
+            ) );
+            if ( $member_user_id && $expected_mentor_user_id ) {
                 $resolver = HL_Email_Recipient_Resolver::instance();
                 $out      = $resolver->resolve(
                     array( 'primary' => array( 'assigned_mentor' ), 'cc' => array() ),
-                    array( 'user_id' => (int) $user_id, 'cycle_id' => (int) $member_row->cycle_id )
+                    array( 'user_id' => $member_user_id, 'cycle_id' => (int) $mentor_fixture->cycle_id )
                 );
-                $this->assert_true(
-                    is_array( $out ),
-                    'assigned_mentor resolves to array (may be empty if team has no mentor)'
+                $this->assert_equals(
+                    1, count( $out ),
+                    'assigned_mentor returns exactly 1 recipient for a member with a distinct mentor'
                 );
+                if ( count( $out ) === 1 ) {
+                    $this->assert_equals(
+                        $expected_mentor_user_id, (int) $out[0]['user_id'],
+                        'assigned_mentor returned user_id matches the team mentor enrollment'
+                    );
+                }
+            } else {
+                WP_CLI::log( '  [SKIP] Fixture enrollments have null user_id — assigned_mentor live check skipped' );
             }
         } else {
-            WP_CLI::log( '  [SKIP] No team_membership rows to exercise assigned_mentor' );
+            WP_CLI::log( '  [SKIP] No team has both a member and a distinct mentor — assigned_mentor live check skipped' );
+        }
+
+        // Self-mentor exclusion test: if a mentor enrollment exists whose user
+        // is the triggering user, resolving assigned_mentor with that user as
+        // context must return []. Proves the self-join exclusion added in Task 23.
+        $self_mentor_row = $wpdb->get_row(
+            "SELECT tm.enrollment_id, t.cycle_id, e.user_id
+             FROM {$wpdb->prefix}hl_team_membership tm
+             INNER JOIN {$wpdb->prefix}hl_team t ON t.team_id = tm.team_id
+             INNER JOIN {$wpdb->prefix}hl_enrollment e ON e.enrollment_id = tm.enrollment_id
+             WHERE tm.membership_type = 'mentor' AND e.user_id IS NOT NULL
+             LIMIT 1"
+        );
+        if ( $self_mentor_row && $self_mentor_row->user_id ) {
+            // Additionally verify this mentor is the ONLY mentor of their team
+            // (otherwise another mentor would legitimately resolve and the test
+            // is invalid).
+            $other_mentor_count = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}hl_team_membership x_tm
+                 INNER JOIN {$wpdb->prefix}hl_team_membership self_tm
+                     ON self_tm.team_id = x_tm.team_id
+                 WHERE self_tm.enrollment_id = %d
+                   AND x_tm.membership_type = 'mentor'
+                   AND x_tm.enrollment_id <> self_tm.enrollment_id",
+                (int) $self_mentor_row->enrollment_id
+            ) );
+            if ( $other_mentor_count === 0 ) {
+                $resolver_self = HL_Email_Recipient_Resolver::instance();
+                $self_out      = $resolver_self->resolve(
+                    array( 'primary' => array( 'assigned_mentor' ), 'cc' => array() ),
+                    array(
+                        'user_id'  => (int) $self_mentor_row->user_id,
+                        'cycle_id' => (int) $self_mentor_row->cycle_id,
+                    )
+                );
+                $this->assert_equals(
+                    0, count( $self_out ),
+                    'assigned_mentor self-mentor exclusion: mentor is not their own mentor'
+                );
+            } else {
+                WP_CLI::log( '  [SKIP] Lone-mentor team has co-mentors — self-mentor exclusion check skipped' );
+            }
+        } else {
+            WP_CLI::log( '  [SKIP] No mentor enrollment with a non-null user_id — self-mentor exclusion check skipped' );
         }
 
         // cc_teacher alias must route to observed_teacher AND emit audit.
@@ -428,6 +525,14 @@ class HL_CLI_Email_V2_Test {
         $this->assert_true(
             $none === null,
             'get_last_event() returns null for unknown entity+action'
+        );
+
+        // get_last_event() returns null for zero/falsy entity_id — guards
+        // against accidentally matching every system-event row.
+        $zero = HL_Audit_Service::get_last_event( 0, 'anything' );
+        $this->assert_true(
+            $zero === null,
+            'get_last_event(0, ...) returns null (zero-entity guard)'
         );
 
         // Cleanup: delete the test rows we just inserted so we don't pollute the audit log

@@ -819,6 +819,8 @@ git commit -m "feat(audit): add get_last_event() + try/catch wrap log() (A.3.8)"
 
 **Goal:** Add `available_from DATE NULL` and `available_to DATE NULL` to `hl_component`. Add composite indexes for Task 17's coaching_pre_end query (A.2.21). Idempotent. Column-exists guarded. Query-return-checked.
 
+**Also in Rev 35 (added during foundation polish audit):** add composite index `KEY entity_action_time (entity_id, action_type, created_at)` on `hl_audit_log`. `HL_Audit_Service::get_last_event()` (Track 3 Task 5) filters on entity_id + action_type with ORDER BY created_at DESC LIMIT 1. Today's single-column indexes on entity_id and action_type force MySQL to pick one and filesort the rest. Track 1 Task 14's Force Resend history display will hit this path on every admin page load. Add the composite index in the same Rev 35 migration method so the audit query uses an index range scan. Migration must be idempotent — guard on `SHOW INDEX FROM {$wpdb->prefix}hl_audit_log WHERE Key_name = 'entity_action_time'` before running the ALTER.
+
 > **A.2.19 coverage:** Schema migration must run on BOTH `register_activation_hook` AND a `plugins_loaded` version check (for the git-deploy flow where activation never fires). `HL_Installer::maybe_upgrade()` is already invoked from `HL_Core::init()` which is hooked to `plugins_loaded` in `hl-core.php` (line ~264/288), so the `plugins_loaded` path is satisfied by existing wiring. **Verify during Step 6** that `wp option get hl_core_schema_revision` bumps on a fresh page load without re-activating the plugin. If for any reason `maybe_upgrade()` is not reachable from `plugins_loaded`, add `add_action('plugins_loaded', ['HL_Installer','maybe_upgrade'], 5);` in `hl-core.php` before returning.
 
 - [ ] **Step 1: Bump `$current_revision` from 34 to 35**
@@ -2978,7 +2980,14 @@ git commit -m "fix(email-v2): warn when coaching_pre_end hits 5000-row safety ca
 ## Task 32: CLI Test Wire-Up + Final Regression Sweep
 
 **Files:**
-- None new — final verification only.
+- `includes/services/class-hl-email-condition-evaluator.php` — drop the `class_exists( 'HL_Roles' )` defensive guard on line ~85 (and update any remaining call sites inside the role-aware branch).
+- `includes/services/class-hl-email-recipient-resolver.php` — drop the `class_exists( 'HL_Roles' )` guard inside `HL_Email_Recipient_Resolver::scrub_done()` (the single extraction point added during Polish §1). Also drop any lingering `class_exists( 'HL_Audit_Service' )` guards around audit calls — by Task 32, both classes are proven stable and always loaded.
+
+**Polish-era cleanup items (added to Task 32 during foundation audit):**
+
+- [ ] **Drop `class_exists` defensive guards** — `HL_Roles` and `HL_Audit_Service` are hard-required by the plugin bootstrap. The defensive `class_exists()` calls added during the foundation build were belt-and-suspenders for the 1-task staging window. By Task 32, every caller is proven stable; drop them for cleaner code. Single removal points: `HL_Email_Recipient_Resolver::scrub_done()` (one method), `HL_Email_Condition_Evaluator::evaluate_single()` roles-branch guard (one line).
+
+- [ ] **Verify 2026-07-10 `cc_teacher` deprecation reminder is still present in STATUS.md** — grep for `2026-07-10` in `STATUS.md` under the `## Scheduled reviews` section. If missing, re-add it (content below in §9 of the foundation polish brief). The reminder's removal belongs to the 2026-07-10 review itself, not to Task 32. Belt-and-braces so the item survives STATUS.md edits during Tracks 1/2/3 completion work.
 
 - [ ] **Step 1: Run every Track 3 test group**
 

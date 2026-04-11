@@ -111,6 +111,29 @@ class HL_Email_Condition_Evaluator {
             }
         }
 
+        // Catch near-misses on the roles field so workflow typos surface in
+        // audit trail instead of silently failing loose_equals against a
+        // JSON-shaped column. Handles enrollment.role (singular),
+        // Enrollment.Roles (case), etc. Fail-closed: return false rather
+        // than let a malformed condition silently match.
+        if ( is_string( $field )
+             && $field !== 'enrollment.roles'
+             && preg_match( '/^enrollment\.roles?$/i', $field ) ) {
+            if ( class_exists( 'HL_Audit_Service' ) ) {
+                // Rate-limit per distinct field name so a single bad
+                // workflow writes one row per 5 minutes, not N per tick.
+                $lock_key = 'hl_condition_typo_' . sha1( $field );
+                if ( ! get_transient( $lock_key ) ) {
+                    HL_Audit_Service::log( 'email_condition_field_typo', array(
+                        'entity_type' => 'email_workflow',
+                        'reason'      => 'probable typo: "' . $field . '" — expected "enrollment.roles"',
+                    ) );
+                    set_transient( $lock_key, 1, 5 * MINUTE_IN_SECONDS );
+                }
+            }
+            return false;
+        }
+
         switch ( $op ) {
             case 'eq':
                 return $this->loose_equals( $actual, $value );

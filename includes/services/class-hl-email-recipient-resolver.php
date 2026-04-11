@@ -322,10 +322,15 @@ class HL_Email_Recipient_Resolver {
         $cycle_id = $context['cycle_id'] ?? null;
 
         if ( ! $user_id || ! $cycle_id ) {
-            if ( class_exists( 'HL_Audit_Service' ) ) {
+            // Rate-limit the telemetry: a misconfigured cron workflow could
+            // hit this path thousands of times per day. One audit row per
+            // 5 minutes is enough signal for operators.
+            $lock_key = 'hl_resolver_missing_ctx_assigned_mentor';
+            if ( ! get_transient( $lock_key ) && class_exists( 'HL_Audit_Service' ) ) {
                 HL_Audit_Service::log( 'email_resolver_missing_context', array(
                     'reason' => 'assigned_mentor requires user_id + cycle_id',
                 ) );
+                set_transient( $lock_key, 1, 5 * MINUTE_IN_SECONDS );
             }
             return array();
         }
