@@ -484,12 +484,18 @@ class HL_CLI_Email_V2_Test {
         // Task 4 regression: resolve_role rejects comma-poisoned role input
         // AND emits the email_resolver_rejected_role audit row. Snapshot
         // log_id before invoking so cleanup is bounded to our own rows.
+        //
+        // R2 note: clear the per-value rate-limit transient first so the
+        // audit row fires even on repeat test runs within 5 minutes.
+        $poison_value = 'teacher,mentor';
+        $poison_lock  = 'hl_resolver_rejected_role_' . substr( sha1( strtolower( trim( $poison_value ) ) ), 0, 16 );
+        delete_transient( $poison_lock );
         $poison_snapshot_log_id = (int) $wpdb->get_var(
             "SELECT COALESCE(MAX(log_id), 0) FROM {$wpdb->prefix}hl_audit_log"
         );
         $resolver_poison = HL_Email_Recipient_Resolver::instance();
         $poison_out      = $resolver_poison->resolve(
-            array( 'primary' => array( 'role:teacher,mentor' ), 'cc' => array() ),
+            array( 'primary' => array( 'role:' . $poison_value ), 'cc' => array() ),
             array( 'user_id' => 0, 'cycle_id' => 1 )
         );
         $this->assert_equals(
@@ -507,13 +513,15 @@ class HL_CLI_Email_V2_Test {
             $poison_audit_count > 0,
             'Poison rejection emits email_resolver_rejected_role audit row'
         );
-        // Cleanup: delete ONLY the rows we just inserted (bounded by snapshot).
+        // Cleanup: delete ONLY the rows we just inserted (bounded by snapshot)
+        // and clear the rate-limit transient so the next run starts fresh.
         $wpdb->query( $wpdb->prepare(
             "DELETE FROM {$wpdb->prefix}hl_audit_log
              WHERE action_type = %s AND log_id > %d",
             'email_resolver_rejected_role',
             $poison_snapshot_log_id
         ) );
+        delete_transient( $poison_lock );
 
         // R2 §1: rejected_role audit is rate-limited per-value. Clear any
         // existing transient, snapshot log_id, call resolve() twice with the
