@@ -204,10 +204,10 @@ Pick up from the first unchecked `[ ]` item each session.
 > **Handoff:** `docs/superpowers/plans/2026-04-11-email-v2-handoff.md`
 > **Plans:** `2026-04-11-email-v2-track{1,2,3}-*.md`
 > **Build journal:** `.claude/v2-build-journal.md`
-> **Progress:** 3 / 52 tasks complete
+> **Progress:** 4 / 52 tasks complete — **Track 3 foundation (Tasks 1, 2, 5, 23) ready for checkpoint deploy**
 
 **Branches:**
-- `feature/email-v2-track3-backend` — backend fixes, foundation (3/32 tasks done)
+- `feature/email-v2-track3-backend` — backend fixes, foundation (4/32 tasks done — all 4 prerequisites landed)
 - `feature/email-v2-track1-admin-ux` — admin UX (not started; waits on Track 3 prerequisites)
 - `feature/email-v2-track2-builder` — builder UX (not started; can run parallel to Track 3)
 
@@ -227,7 +227,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [ ] **Tasks 13–17: 5 real cron trigger queries (cv_window, cv_overdue, rp_window, coaching_window, coaching_pre_end)**
 - [ ] **Task 18: `last_cron_run_at` tracking + Site Health**
 - [ ] **Tasks 19–22: Rev 37 — `HL_Roles` scrub migration + enrollment writes CSV**
-- [ ] **Task 23: `assigned_mentor` resolver via `hl_team_membership` + `cc_teacher` alias**
+- [x] **Task 23: `assigned_mentor` resolver via `hl_team_membership` + `cc_teacher` alias** — New `assigned_mentor` token resolves via 3-step SQL (user enrollment → team mentor exclude-self → user). `cc_teacher` kept as legacy alias that routes to `resolve_observed_teacher()` + emits `email_token_alias_hit` audit. Class docblock updated. Phase B + combined review PASS (one blocking self-mentor bug caught and fixed inline; two test hygiene issues also fixed via `log_id` snapshot pattern).
 - [ ] **Tasks 24–28: Queue processor deliverability hardening (`mb_encode_mimeheader`, `From`/`Reply-To`/`List-Unsubscribe`, HMAC unsubscribe, `wp_mail_failed`, dynamic stuck-row threshold)**
 - [ ] **Task 29: Workflow soft-delete (`status='deleted'`)**
 - [ ] **Task 30: Force resend action + handler + history display** *(depends on Task 5)*

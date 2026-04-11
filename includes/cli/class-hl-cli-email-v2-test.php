@@ -254,6 +254,75 @@ class HL_CLI_Email_V2_Test {
             ),
             'Condition: enrollment.roles eq "Teacher" (mixed case) matches lowercase stored value'
         );
+
+        // assigned_mentor live smoke test: run against any existing team membership.
+        // Uses the first 'member' row's enrollment as the triggering user.
+        global $wpdb;
+        $member_row = $wpdb->get_row(
+            "SELECT tm.enrollment_id, t.cycle_id
+             FROM {$wpdb->prefix}hl_team_membership tm
+             INNER JOIN {$wpdb->prefix}hl_team t ON t.team_id = tm.team_id
+             WHERE tm.membership_type = 'member'
+             LIMIT 1"
+        );
+        if ( $member_row ) {
+            $user_id = $wpdb->get_var( $wpdb->prepare(
+                "SELECT user_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+                $member_row->enrollment_id
+            ) );
+            if ( $user_id ) {
+                $resolver = HL_Email_Recipient_Resolver::instance();
+                $out      = $resolver->resolve(
+                    array( 'primary' => array( 'assigned_mentor' ), 'cc' => array() ),
+                    array( 'user_id' => (int) $user_id, 'cycle_id' => (int) $member_row->cycle_id )
+                );
+                $this->assert_true(
+                    is_array( $out ),
+                    'assigned_mentor resolves to array (may be empty if team has no mentor)'
+                );
+            }
+        } else {
+            WP_CLI::log( '  [SKIP] No team_membership rows to exercise assigned_mentor' );
+        }
+
+        // cc_teacher alias must route to observed_teacher AND emit audit.
+        // Snapshot the max log_id BEFORE invoking so cleanup is bounded to
+        // just our own rows (never wipe pre-existing deprecation telemetry).
+        $snapshot_max_log_id = (int) $wpdb->get_var(
+            "SELECT COALESCE(MAX(log_id), 0) FROM {$wpdb->prefix}hl_audit_log"
+        );
+
+        $resolver_alias = HL_Email_Recipient_Resolver::instance();
+        $alias_ctx      = array( 'observed_teacher_user_id' => get_current_user_id() ?: 1 );
+        $alias_out      = $resolver_alias->resolve(
+            array( 'primary' => array( 'cc_teacher' ), 'cc' => array() ),
+            $alias_ctx
+        );
+        $this->assert_true(
+            is_array( $alias_out ),
+            'cc_teacher alias still resolves (returns array)'
+        );
+        // Verify the audit event was emitted — query by log_id > snapshot to
+        // avoid timezone drift between gmdate() and MySQL CURRENT_TIMESTAMP
+        // (the column default is server-TZ, not UTC).
+        $new_alias_count = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_audit_log
+             WHERE action_type = %s AND log_id > %d",
+            'email_token_alias_hit',
+            $snapshot_max_log_id
+        ) );
+        $this->assert_true(
+            $new_alias_count > 0,
+            'cc_teacher alias emits email_token_alias_hit audit row'
+        );
+
+        // Cleanup: delete ONLY the rows we just inserted (bounded by snapshot).
+        $wpdb->query( $wpdb->prepare(
+            "DELETE FROM {$wpdb->prefix}hl_audit_log
+             WHERE action_type = %s AND log_id > %d",
+            'email_token_alias_hit',
+            $snapshot_max_log_id
+        ) );
     }
     private function test_deliverability() {}
     private function test_audit() {
