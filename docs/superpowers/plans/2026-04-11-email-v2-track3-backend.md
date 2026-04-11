@@ -985,9 +985,19 @@ git commit -m "feat(email-v2): schema rev 35 — hl_component window columns + c
 **Files:**
 - Modify: `includes/admin/class-hl-admin-pathways.php`
 
-- [ ] **Step 1: Read `render_component_form()` around line 1855**
+- [ ] **Step 1: Read `render_component_form()` — find the `complete_by` field**
 
-Locate the block that renders the `complete_by` date field (around line 1855). We'll add the window-date group immediately below it.
+**Pre-flight verified (2026-04-11):** `render_component_form()` is defined at line 1781. The `complete_by` label renders at line 1855 and the `<input type="date" id="complete_by" ...>` at line 1856.
+
+Primary grep target inside `includes/admin/class-hl-admin-pathways.php`:
+
+```
+'<th scope="row"><label for="complete_by">'
+```
+
+Fallback: search for `name="complete_by"` (single hit in this file). If neither match (e.g. field renamed), scroll to the top of `render_component_form()` at line 1781 and locate the `complete_by` row by structure.
+
+We'll add the window-date group immediately below the `complete_by` `</tr>`.
 
 - [ ] **Step 2: Render the two inputs**
 
@@ -1511,6 +1521,13 @@ git commit -m "fix(email-v2): cron early-return when hl_component.available_from
 **Files:**
 - Modify: `includes/services/class-hl-email-automation-service.php`
 
+**Pre-flight verified schema (2026-04-11, against `class-hl-installer.php`):**
+- `hl_component`: `component_id`, `cycle_id`, `pathway_id`, `component_type`, `available_from` (added in Rev 35, Task 6), `available_to` (Rev 35)
+- `hl_pathway_assignment`: `enrollment_id`, `pathway_id`
+- `hl_enrollment`: `enrollment_id`, `user_id`, `cycle_id`, `status`
+- `hl_classroom_visit`: `classroom_visit_id`, `cycle_id`, `leader_enrollment_id`, `teacher_enrollment_id`
+- `hl_classroom_visit_submission`: `submission_id`, `classroom_visit_id`, `status`
+
 **Goal:** Users assigned to a pathway whose `component_type = 'classroom_visit'` component opens in the next 7 days, with no existing visit submission for this cycle.
 
 - [ ] **Step 1: Replace the `cron:cv_window_7d` case**
@@ -1621,6 +1638,8 @@ git commit -m "feat(email-v2): cron:cv_window_7d real query + smoke test"
 **Files:**
 - Modify: `includes/services/class-hl-email-automation-service.php`
 
+**Pre-flight verified schema (2026-04-11, against `class-hl-installer.php`):** same as Task 13 (`hl_component.available_to`, `hl_classroom_visit.{leader,teacher}_enrollment_id`, `hl_classroom_visit_submission.status`).
+
 - [ ] **Step 1: Replace the stub**
 
 Replace the `case 'cron:cv_overdue_1d':` block (from Task 13) with:
@@ -1684,6 +1703,11 @@ git commit -m "feat(email-v2): cron:cv_overdue_1d real query"
 **Files:**
 - Modify: `includes/services/class-hl-email-automation-service.php`
 
+**Pre-flight verified schema (2026-04-11, against `class-hl-installer.php`):**
+- `hl_rp_session`: `rp_session_id`, `cycle_id`, `mentor_enrollment_id`, `teacher_enrollment_id`, `status`
+- `hl_rp_session_submission`: `submission_id`, `rp_session_id`, `submitted_by_user_id`, `status`
+- (plus the Task 13 component/pathway_assignment/enrollment set)
+
 - [ ] **Step 1: Replace the stub**
 
 Replace `case 'cron:rp_window_7d': return array();` with:
@@ -1745,6 +1769,10 @@ git commit -m "feat(email-v2): cron:rp_window_7d real query"
 **Files:**
 - Modify: `includes/services/class-hl-email-automation-service.php`
 
+**Pre-flight verified schema (2026-04-11, against `class-hl-installer.php`):**
+- `hl_coaching_session`: `session_id` (PK), `cycle_id`, `mentor_enrollment_id`, `session_status` enum('scheduled','attended','missed','cancelled','rescheduled'), `component_id`
+- (plus the Task 13 component/pathway_assignment/enrollment set)
+
 - [ ] **Step 1: Replace the stub**
 
 Locate `case 'cron:coaching_window_7d':` and replace its body (and the subsequent `return array();`) with:
@@ -1800,6 +1828,11 @@ git commit -m "feat(email-v2): cron:coaching_window_7d real query"
 
 **Files:**
 - Modify: `includes/services/class-hl-email-automation-service.php`
+
+**Pre-flight verified schema (2026-04-11, against `class-hl-installer.php`):**
+- `hl_cycle`: `cycle_id`, `status` enum('draft','active','paused','archived'), `end_date` DATE NULL
+- `hl_coaching_session`: `session_id`, `component_id`, `mentor_enrollment_id`, `session_status`
+- (plus `hl_component`, `hl_pathway`, `hl_pathway_assignment`, `hl_enrollment`)
 
 **Goal:** Cycles ending in 0–14 days with enrollments lacking a completed coaching session. Uses the Rev 35 composite indexes (A.2.21). `LIMIT 5000` safety cap (Task 31 will add the warn-on-cap).
 
@@ -2209,13 +2242,29 @@ with:
 
 Make the same replacement in `update()`.
 
-- [ ] **Step 3: Grep for other enrollment.roles write sites**
+- [ ] **Step 3: Patch other enrollment.roles write sites**
 
-```bash
-wp-cli note: run locally via grep, not in bash
-```
+**Pre-flight enumerated (2026-04-11, `Grep json_encode.*roles|roles.*json_encode` in `includes/`):**
 
-Use Grep tool: search for `json_encode.*roles` in `includes/` — any hit in a repository, service, or import handler that writes to `hl_enrollment.roles` should also route through `HL_Roles::sanitize_roles()`. Patch each with the same pattern. Do not touch `hl_component.eligible_roles` or other `roles` columns — only `hl_enrollment.roles`.
+Write sites touching `hl_enrollment.roles` (IN SCOPE — patch all):
+
+1. `includes/domain/repositories/class-hl-enrollment-repository.php:94` — `create()` (patched in Step 1)
+2. `includes/domain/repositories/class-hl-enrollment-repository.php:103` — `update()` (patched in Step 2)
+3. `includes/services/class-hl-import-participant-handler.php:597` — import handler write
+4. `includes/services/class-hl-import-participant-handler.php:620` — import handler write
+5. `includes/admin/class-hl-admin-enrollments.php:211` — admin manual enrollment form
+6. `includes/cli/scripts/provision-test-teachers.php:63` — test seeder
+
+Patch 3–6 with the same pattern: wrap the `wp_json_encode($roles)` / `wp_json_encode(array($role))` call with a `class_exists('HL_Roles') ? HL_Roles::sanitize_roles($roles) : wp_json_encode($roles)` fallback. For sites that pass `array($role)` (a single-role wrapper), first build `$roles = array($role);` then call `HL_Roles::sanitize_roles($roles)`.
+
+Out of scope — NOT `hl_enrollment.roles`, do NOT modify:
+
+- `includes/domain/repositories/class-hl-tour-repository.php:70, 81` — writes `hl_product_tour.target_roles`
+- `includes/domain/repositories/class-hl-pathway-repository.php:51, 60` — writes `hl_pathway.target_roles`
+- `includes/admin/class-hl-admin-pathways.php:275` — writes `hl_pathway.target_roles`
+- `includes/admin/class-hl-admin-pathways.php:397` — writes `hl_component.eligible_roles`
+
+These columns are still JSON-encoded (per v1 behavior) and are explicitly preserved.
 
 - [ ] **Step 4: Commit**
 
@@ -2548,7 +2597,9 @@ git commit -m "feat(email-v2): deliverability headers (From, Reply-To, List-Unsu
 
 - [ ] **Step 1: Secret bootstrap helper**
 
-In `includes/class-hl-installer.php`, find the `activate()` method (which is hooked via `register_activation_hook` in `hl-core.php`). Near the end of `activate()`, add:
+**Pre-flight verified (2026-04-11):** `HL_Installer::activate()` exists at `class-hl-installer.php:17` (`public static function activate()`). It is hooked via `register_activation_hook` in `hl-core.php`.
+
+In `includes/class-hl-installer.php`, near the end of `activate()`, add:
 
 ```php
         // Email v2: generate the unsubscribe HMAC secret once. add_option()
@@ -2729,6 +2780,11 @@ git commit -m "fix(email-v2): wp_mail_failed hook flips queue row to failed"
 **Files:**
 - Modify: `includes/services/class-hl-email-queue-processor.php`
 
+**Pre-flight verified (2026-04-11):**
+- `const STUCK_THRESHOLD_MINUTES = 10;` at `class-hl-email-queue-processor.php:26`
+- `private function recover_stuck_rows()` at `class-hl-email-queue-processor.php:308`
+- Existing threshold line at `class-hl-email-queue-processor.php:311`: `$threshold = gmdate( 'Y-m-d H:i:s', time() - ( self::STUCK_THRESHOLD_MINUTES * 60 ) );`
+
 **Goal:** A.6.7 / A.2.20 — stuck threshold should be `max(10 × processor_interval_seconds, 900)`. Currently hardcoded via `STUCK_THRESHOLD_MINUTES`. Make it dynamic and use `$wpdb->rows_affected === 1` for claim confirmation.
 
 - [ ] **Step 1: Dynamic threshold getter**
@@ -2792,7 +2848,56 @@ Leave as-is — `status='active'` already excludes `'deleted'`. Same for `run_ho
 
 - [ ] **Step 2: Exclude deleted workflows from all admin list queries**
 
-In `class-hl-admin-emails.php`, find every list query against `hl_email_workflow` and add `AND status != 'deleted'` (or `WHERE status != 'deleted'` when there is no existing WHERE). Grep for `FROM .*hl_email_workflow` to find each. Typical locations: main list render, workflow picker dropdowns, count badges.
+**Pre-flight enumerated (2026-04-11, `Grep hl_email_workflow` in `includes/admin/class-hl-admin-emails.php`):**
+
+Three SELECT sites need the filter. Line 324 is an `$table = ...` variable assignment used by `$wpdb->update()/insert()`, not a read — skip. Line 659 is `$wpdb->delete()`, also skip.
+
+1. **`class-hl-admin-emails.php:105-112`** — filtered list query (inside `if ( $status_filter && in_array(...) )`). The existing `WHERE w.status = %s` already excludes `'deleted'` because `$valid_statuses = array('draft','active','paused')` does not include `'deleted'`. **No change needed.**
+
+2. **`class-hl-admin-emails.php:114-119`** — unfiltered list query. Currently:
+
+```php
+$workflows = $wpdb->get_results(
+    "SELECT w.*, t.name AS template_name
+     FROM {$wpdb->prefix}hl_email_workflow w
+     LEFT JOIN {$wpdb->prefix}hl_email_template t ON t.template_id = w.template_id
+     ORDER BY w.updated_at DESC"
+);
+```
+
+Change to:
+
+```php
+$workflows = $wpdb->get_results(
+    "SELECT w.*, t.name AS template_name
+     FROM {$wpdb->prefix}hl_email_workflow w
+     LEFT JOIN {$wpdb->prefix}hl_email_template t ON t.template_id = w.template_id
+     WHERE w.status != 'deleted'
+     ORDER BY w.updated_at DESC"
+);
+```
+
+3. **`class-hl-admin-emails.php:174-177`** — single workflow load inside `render_workflow_form()`. Currently:
+
+```php
+$workflow = $wpdb->get_row( $wpdb->prepare(
+    "SELECT * FROM {$wpdb->prefix}hl_email_workflow WHERE workflow_id = %d",
+    $workflow_id
+) );
+```
+
+Change to:
+
+```php
+$workflow = $wpdb->get_row( $wpdb->prepare(
+    "SELECT * FROM {$wpdb->prefix}hl_email_workflow WHERE workflow_id = %d AND status != 'deleted'",
+    $workflow_id
+) );
+```
+
+This prevents direct-URL access to a soft-deleted workflow's edit screen.
+
+4. **Automation service (`class-hl-email-automation-service.php`) reads at lines 77, 654, 693** all already use `status = 'active'`, which implicitly excludes `'deleted'`. No change required (confirmed in Step 1).
 
 - [ ] **Step 3: Commit**
 
@@ -2820,29 +2925,46 @@ git commit -m "feat(email-v2): exclude soft-deleted workflows from cron + admin 
 
 - [ ] **Step 1: Wrap the return**
 
-In the `coaching_pre_end` case, replace:
+In the `coaching_pre_end` case (see Task 17), replace the `return $wpdb->get_results( ... )` with a captured-then-audited variant. **The SQL string below is the same one defined in Task 17 — when editing either task, update both in lock-step.**
 
 ```php
-                return $wpdb->get_results( ...$args... ), ARRAY_A );
-```
-
-with:
-
-```php
+            case 'cron:coaching_pre_end': {
+                $today  = current_time( 'Y-m-d' );
+                $plus14 = wp_date( 'Y-m-d', strtotime( $today . ' +14 days' ) );
                 $rows = $wpdb->get_results( $wpdb->prepare(
-                    "...SQL as before...",
+                    "SELECT DISTINCT en.user_id,
+                            en.enrollment_id AS enrollment_id,
+                            c.component_id AS entity_id,
+                            'component' AS entity_type
+                     FROM {$wpdb->prefix}hl_cycle cy
+                     INNER JOIN {$wpdb->prefix}hl_enrollment en
+                         ON en.cycle_id = cy.cycle_id AND en.status IN ('active','warning')
+                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.enrollment_id = en.enrollment_id
+                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = pa.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_component c
+                         ON c.pathway_id = p.pathway_id
+                        AND c.component_type = 'coaching_session_attendance'
+                     LEFT JOIN {$wpdb->prefix}hl_coaching_session cs
+                         ON cs.component_id = c.component_id
+                        AND cs.mentor_enrollment_id = en.enrollment_id
+                        AND cs.session_status = 'attended'
+                     WHERE cy.cycle_id = %d
+                       AND cy.status = 'active'
+                       AND cy.end_date IS NOT NULL
+                       AND cy.end_date BETWEEN %s AND %s
+                       AND cs.session_id IS NULL
+                     LIMIT 5000",
                     $cycle_id, $today, $plus14
                 ), ARRAY_A );
-                if ( count( $rows ) >= 5000 && class_exists( 'HL_Audit_Service' ) ) {
+                if ( is_array( $rows ) && count( $rows ) >= 5000 && class_exists( 'HL_Audit_Service' ) ) {
                     HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
                         'entity_type' => 'email_workflow',
                         'reason'      => 'cron:coaching_pre_end returned 5000 rows — may be truncated. Review cycle scope or add ORDER BY + cursor pagination.',
                     ) );
                 }
-                return $rows;
+                return is_array( $rows ) ? $rows : array();
+            }
 ```
-
-Use the exact SQL block from Task 17 — keep them in sync.
 
 - [ ] **Step 2: Commit**
 

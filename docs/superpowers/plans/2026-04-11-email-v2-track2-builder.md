@@ -536,7 +536,38 @@ Open `includes/services/class-hl-email-block-renderer.php`. Find `private functi
     }
 ```
 
-**Note:** This changes the text block wrapper from `<div>` to `<table><tr><td>`. Email clients require table-cell layout for reliable alignment — a `<div>` with `text-align` does not respect `text-align:center` in Outlook.
+**Note:** This changes the text block wrapper from `<div>` to `<table><tr><td>` for **every existing template**, not just new ones with `text_align`/`font_size` set. This is an intentional breaking change to the rendered HTML — Outlook's Word rendering engine (desktop Outlook 2007+) ignores `text-align` on `<div>` elements and ignores `font-size` on `<td>`. The table-cell wrapper plus the always-emitted inner `<span style="font-size:...">` is required for reliable alignment and sizing in Word-engine Outlook. See spec item **A.3.1** (Outlook inner `<span>` font-size). Existing templates with no formatting properties will continue to render visually identically in Gmail / Apple Mail / Outlook web, but the underlying HTML markup will change.
+
+- [ ] **Step B.1.2a: V1-fixture regression assertion (silent-change guard)**
+
+The wrapper change above silently rewrites output for every pre-v2 template. Add a test harness assertion that exercises the **no-properties default path** — a text block with `content` only, no `text_align`, no `font_size` — to prove the defaults-omitted contract holds.
+
+Open `includes/cli/class-hl-cli-email-renderer-test.php` (the file backing `wp hl-core test-email-renderer`). In the text-block test group, add a fixture and assertion:
+
+```php
+        // V1 fixture — text block with NO text_align, NO font_size (pre-Track 2 shape).
+        $v1_block = array(
+            'type'    => 'text',
+            'content' => '<p>Hello world.</p>',
+        );
+        $html = $renderer->render_block( $v1_block, array() );
+
+        // New <table> wrapper must be present (A.3.1 Outlook compatibility).
+        $this->assert_contains( $html, '<table', 'v1 text block: table wrapper present' );
+        $this->assert_contains( $html, '<td',    'v1 text block: td cell present' );
+
+        // Default "left" alignment → no text-align declaration emitted.
+        $this->assert_not_contains( $html, 'text-align:', 'v1 text block: no text-align when default left' );
+
+        // Default size (16px, no font_size key) → still emits font-size because the inner
+        // <span> is always emitted for Outlook Word-engine (A.3.1). Assert the <span> exists
+        // and that no inline font-size appears on the <td> other than via the span.
+        $this->assert_contains( $html, '<span style="font-size:16px', 'v1 text block: default 16px inner span for Outlook' );
+```
+
+If `assert_not_contains` does not exist in the harness, add it alongside `assert_contains` as a one-line helper that fails when `strpos( $haystack, $needle ) !== false`.
+
+Run `wp hl-core test-email-renderer` and confirm the new assertions pass alongside the Task B.1.3 assertions. This is the regression guard — if a future refactor reintroduces an inline `text-align:left` or a stray `<div>` wrapper, this test fails loudly.
 
 - [ ] **Step B.1.3: Run the test harness — expect text assertions to pass**
 
@@ -553,6 +584,8 @@ On the test server, open an existing template in the builder, click "Send Test E
 ### B.2 Extend builder JS mini-toolbar
 
 - [ ] **Step B.2.1: Replace the text case in `renderBlock()`**
+
+> **Throwaway stubs — Task C.2.2 replaces them:** This step introduces `textSnapshotPending`, `flushTextSnapshot()`, and `preMutationText` as local closures inside `case 'text':`. They are intentionally minimal stubs — Task C.2.2 rips them out and rewires the focus/input/blur handlers to use the real global pending slot (`window._hlPendingTextSnap`) and the ring-buffer `flushPendingTextSnapshot()` helper defined in Task C.2.1. **Keep these identifier names exactly as written below** so Task C.2.2's "Find / Replace with" block can locate and delete them. Do not rename or prematurely refactor them in this step.
 
 Open `assets/js/admin/email-builder.js`. Find `case 'text':` in `renderBlock()`. Replace the entire `case 'text':` through the `break;` with:
 
@@ -1224,9 +1257,26 @@ Find `function markDirty() {`. Replace with:
 
 - [ ] **Step C.3.2: Clear undo on save + show one-time notice**
 
-Find `function saveTemplate() {`. After the `$.post` callback, inside the `if (res.success) {` block, after the existing body add:
+Open `assets/js/admin/email-builder.js`. Find `function saveTemplate() {` (the handler bound to `$('#hl-eb-save').on('click', saveTemplate)` in `bindEvents()`). Inside the `$.post(...)` success callback, locate the `if (res.success) {` branch. The existing body sets `config.templateId`, clears `isDirty`, and flashes `#hl-eb-autosave-status`.
+
+**Find** the existing success branch:
 
 ```javascript
+            if (res.success) {
+                config.templateId = res.data.template_id;
+                isDirty = false;
+                $('#hl-eb-autosave-status').text('Saved').fadeIn().delay(2000).fadeOut();
+            } else {
+```
+
+**Replace with** (append the undo-clear + notice logic just before the closing `}` of the `if (res.success)` block):
+
+```javascript
+            if (res.success) {
+                config.templateId = res.data.template_id;
+                isDirty = false;
+                $('#hl-eb-autosave-status').text('Saved').fadeIn().delay(2000).fadeOut();
+
                 // A.7.8 — first save with a non-empty undo stack shows the one-time notice.
                 var hadHistory = undoStack.length > 0 || redoStack.length > 0;
                 undoStack = [];
@@ -1235,7 +1285,10 @@ Find `function saveTemplate() {`. After the `$.post` callback, inside the `if (r
                 if (hadHistory && !window.hlEmailUndoNoticeSeen) {
                     $('#hl-eb-undo-notice').show();
                 }
+            } else {
 ```
+
+Note: `doAutosave()` has its own success path and should receive the same treatment if autosave should also clear history. For Track 2 scope, only the explicit Save button clears undo (per A.7.8); autosave preserves history.
 
 - [ ] **Step C.3.3: Wire the notice dismiss button**
 
@@ -1436,23 +1489,33 @@ Expected: ALL 12 assertions PASS.
 
 - [ ] **Step D.2.1: Replace the top-level `case 'columns':` in `renderBlock()`**
 
-Find the existing `case 'columns':` in `renderBlock()` (the one that renders the placeholder dashed boxes). Replace with a single-line delegation:
+Open `assets/js/admin/email-builder.js`. Inside `renderBlock()`, find the existing `case 'columns':` (it currently renders a split `<select>` plus two dashed placeholder boxes) and replace it with an early `return` that delegates to `renderColumnsBlock()`.
+
+`renderBlock()` prepends a shared `$toolbar` to `$wrap` before the `switch`. `renderColumnsBlock()` builds its own full wrapper (toolbar + body), so the columns case must bypass the outer `$wrap` entirely by `return`ing directly from the switch. The function's trailing `return $wrap;` is unchanged — it only applies to the other cases that fall through.
+
+**Find:**
 
 ```javascript
             case 'columns':
-                return renderColumnsBlock(block, index);
+                var $splitSelect = $('<select><option value="50/50">50/50</option><option value="60/40">60/40</option></select>');
+                $splitSelect.val(block.split || '50/50');
+                $splitSelect.on('change', function () { blocks[index].split = $(this).val(); markDirty(); });
+                $wrap.append($splitSelect);
+                $wrap.append('<div style="display:flex;gap:8px;">' +
+                    '<div style="flex:1;border:1px dashed #ccc;padding:8px;min-height:60px;">Left column blocks (edit in JSON)</div>' +
+                    '<div style="flex:1;border:1px dashed #ccc;padding:8px;min-height:60px;">Right column blocks (edit in JSON)</div>' +
+                    '</div>');
+                break;
 ```
 
-Return early — the switch is inside `renderBlock()` which expects the function to `return $wrap` at the bottom. Wrap this specific case in a direct return that also attaches the outer toolbar. To keep the existing pattern (toolbar then content), instead do:
+**Replace with:**
 
 ```javascript
             case 'columns':
-                // Columns has its own renderer that builds the full wrap (with toolbar)
-                // so we bail out of the default $wrap flow.
+                // Columns has its own renderer that builds the full wrap (toolbar + body).
+                // Bypass the shared $wrap/$toolbar scaffolding from renderBlock() by returning directly.
                 return renderColumnsBlock(block, index);
 ```
-
-And at the top of `renderBlock()`, change the end of the function from `return $wrap;` to still return `$wrap`. `renderColumnsBlock()` returns its own jQuery wrap.
 
 - [ ] **Step D.2.2: Add `renderColumnsBlock()` and helpers after `renderBlock()`**
 

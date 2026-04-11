@@ -45,7 +45,7 @@
 |------|-------|--------|
 | `includes/admin/class-hl-admin-emails.php` | 11–705 | Add static registries, replace `render_workflow_form` JSON textareas with visual builder shells + hidden textareas, add row actions in list tables, add `handle_workflow_duplicate`, `handle_workflow_delete`, `handle_template_duplicate`, `handle_template_archive`, `handle_workflow_force_resend`, AJAX `ajax_workflow_toggle_status`, `ajax_recipient_count`, unified `generate_copy_name()`, `operator_label()`, stricter `handle_workflow_save()` allowlist validation, soft-delete flow, per-ID nonces. |
 | `includes/admin/class-hl-admin.php` | ~154–200 | Enqueue `email-workflow.js` + inline registries on `hl-emails` workflow edit pages only. Register `admin-post.php` action hooks so `HL_Admin_Emails` handlers fire. |
-| `includes/services/class-hl-email-automation-service.php` | `build_context()` | Ensure `$context['cycle_id']` is populated for all triggers so Track 3's `assigned_mentor` resolver can resolve. |
+| `includes/services/class-hl-email-automation-service.php` | `hydrate_context()` (~line 520) | Ensure `$context['cycle_id']` is populated for all triggers so Track 3's `assigned_mentor` resolver can resolve. Backfill from `enrollment_id` at the end of `hydrate_context()`. |
 | `assets/css/admin.css` | after line 1896 | New v2 section under `/* === Email System v2 — Track 1 === */` comment. All rules scoped inside `.hl-email-admin`. |
 
 ### Dependencies (provided by Track 3)
@@ -65,7 +65,7 @@
 1. Bootstrap test harness (`bin/test-email-v2-track1.php`)
 2. PHP static registries (fields, operators, tokens, helpers)
 3. *(deleted — moved to Track 3 Task 2)*
-4. Populate `cycle_id` in `build_context()` (required by Track 3's `assigned_mentor` resolver)
+4. Populate `cycle_id` in `hydrate_context()` (required by Track 3's `assigned_mentor` resolver)
 5. Stricter `handle_workflow_save()` allowlist validation (server-side)
 6. Enqueue `email-workflow.js` + inject registries + `wp_refresh_nonces` filter
 7. Condition Builder UI shell (PHP render)
@@ -596,49 +596,88 @@ Condition evaluator routing is implemented in Track 3 Task 2 (owns `HL_Email_Con
 
 ---
 
-## Task 4: Populate `cycle_id` in `build_context()` (required by Track 3's `assigned_mentor` resolver)
+## Task 4: Populate `cycle_id` in `hydrate_context()` (required by Track 3's `assigned_mentor` resolver)
 
 **Prerequisite:** Track 3 Task 23 (`resolve_assigned_mentor()` + `observed_teacher`/`cc_teacher` alias in `HL_Email_Recipient_Resolver`) must have landed. This task only populates the `cycle_id` context key that Track 3's resolver depends on. No resolver changes happen here.
 
 **Files:**
 - Modify: `includes/services/class-hl-email-automation-service.php`
 
-- [ ] **Step 4.1: Ensure `build_context()` always populates `cycle_id`**
+- [ ] **Step 4.1: Ensure `hydrate_context()` always populates `cycle_id`**
 
-Open `includes/services/class-hl-email-automation-service.php`. Locate `build_context()` (search for `function build_context`).
+**Note on method naming:** The plan originally referred to `build_context()`, but the actual file has two methods that together assemble context:
+- `build_hook_context( $trigger_key, array $args )` at line 211 — dispatches per-trigger and may call sub-loaders like `load_enrollment_context()` (which sets `$context['cycle_id']`) or `load_coaching_session_context()` (also sets `cycle_id`).
+- `hydrate_context( array $context )` at line 445 — runs after `build_hook_context()` in `handle_trigger()` (line 93) and enriches with DB lookups.
 
-After the existing context-building logic, immediately before the `return $context;`, add:
+Some triggers (e.g. `hl_pathway_assigned`, `hl_learndash_course_completed`, `hl_child_assessment_submitted`, `hl_coach_assigned`) never populate `cycle_id` because their sub-loaders don't exist or don't touch it. `hydrate_context()` is the right place to backfill.
+
+**Current shape of `hydrate_context()` (lines 445–521, abbreviated):**
+
+```php
+    private function hydrate_context( array $context ) {
+        global $wpdb;
+
+        // Load cycle data.
+        if ( ! empty( $context['cycle_id'] ) && ! isset( $context['cycle'] ) ) {
+            $cycle = $wpdb->get_row( ... );
+            if ( $cycle ) {
+                $context['cycle_name'] = $cycle->cycle_name;
+                $context['cycle']      = array(
+                    'cycle_type'       => $cycle->cycle_type ?? '',
+                    'is_control_group' => (bool) ( $cycle->is_control_group ?? false ),
+                    'status'           => $cycle->status ?? '',
+                );
+                // ... partnership lookup ...
+            }
+        }
+
+        // Load user account activation status. ...
+        // Load enrollment data if we have enrollment_id but not enrollment. ...
+        // Load school data from enrollment. ...
+        // Load pathway data. ...
+
+        return $context;
+    }
+```
+
+Note: the existing code stores the cycle row under `$context['cycle']` with keys `cycle_type`, `is_control_group`, `status` — it does **not** store an `id` or `cycle_id` sub-key. The original plan's `$context['cycle']['id']` fallback was incorrect and has been removed below.
+
+**Insertion point:** Immediately before the `return $context;` at the end of `hydrate_context()` (around line 520). Add a backfill block that derives `cycle_id` from `enrollment_id` when it wasn't set earlier:
 
 ```php
         // A.2.28 — Track 3's assigned_mentor resolver requires $context['cycle_id'].
-        // Populate from the triggering enrollment if available; otherwise flat lookup.
-        if ( ! isset( $context['cycle_id'] ) || ! $context['cycle_id'] ) {
-            if ( isset( $context['enrollment']['cycle_id'] ) ) {
-                $context['cycle_id'] = (int) $context['enrollment']['cycle_id'];
-            } elseif ( isset( $context['cycle']['id'] ) ) {
-                $context['cycle_id'] = (int) $context['cycle']['id'];
-            } elseif ( isset( $context['cycle']['cycle_id'] ) ) {
-                $context['cycle_id'] = (int) $context['cycle']['cycle_id'];
+        // Backfill from enrollment_id when earlier sub-loaders didn't populate it
+        // (e.g. hl_pathway_assigned, hl_learndash_course_completed, hl_child_assessment_submitted,
+        // hl_coach_assigned — none of these call load_enrollment_context).
+        if ( empty( $context['cycle_id'] ) && ! empty( $context['enrollment_id'] ) ) {
+            $cycle_id = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT cycle_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+                (int) $context['enrollment_id']
+            ) );
+            if ( $cycle_id > 0 ) {
+                $context['cycle_id'] = $cycle_id;
             }
         }
 ```
 
+Do **not** modify `build_hook_context()` itself — the backfill belongs in `hydrate_context()` because `handle_trigger()` always calls them in order (see line 93).
+
 - [ ] **Step 4.2: Manual smoke — confirm cycle_id is in context for a real trigger**
 
-Deploy. On the test server, seed an enrollment and trigger `hl_enrollment_created`. Tail the debug log with a temporary `error_log( 'hl_ctx=' . wp_json_encode( $context ) )` line inside `build_context()` (remove before commit) to confirm `cycle_id` is populated. Remove the debug line before committing.
-
-Alternatively, use `wp eval 'var_dump( ( new HL_Email_Automation_Service() )->build_context_for_testing( [...] ) );'` if a test hook exists.
+Deploy. On the test server, seed an enrollment and trigger `hl_enrollment_created`. Tail the debug log with a temporary `error_log( 'hl_ctx=' . wp_json_encode( $context ) );` line at the end of `hydrate_context()` (remove before commit) to confirm `cycle_id` is populated. Then also fire a trigger whose sub-loader doesn't set it (e.g. `hl_pathway_assigned`) with a pathway attached to an enrollment, and confirm the backfill branch activates. Remove the debug line before committing.
 
 - [ ] **Step 4.3: Commit**
 
 ```bash
 git add includes/services/class-hl-email-automation-service.php
 git commit -m "$(cat <<'EOF'
-feat(email): populate cycle_id in build_context for assigned_mentor
+feat(email): populate cycle_id in hydrate_context for assigned_mentor
 
-A.2.28 — build_context() now guarantees cycle_id is populated for
-every trigger so Track 3's resolve_assigned_mentor() can look up
-the mentor in the correct cycle's team.
+A.2.28 — hydrate_context() now backfills cycle_id from enrollment_id
+for triggers whose sub-loaders don't set it (pathway_assigned,
+learndash_course_completed, child_assessment_submitted, coach_assigned)
+so Track 3's resolve_assigned_mentor() can look up the mentor in
+the correct cycle's team.
 
 Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
 EOF
@@ -1399,7 +1438,7 @@ Replace the entire `<tr>` with:
                 <tr>
                     <th><label><?php esc_html_e( 'Recipients', 'hl-core' ); ?></label></th>
                     <td>
-                        <div class="hl-recipient-picker" data-initial="<?php echo esc_attr( wp_json_encode( $recipients, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?>" data-current-trigger="<?php echo esc_attr( $workflow->trigger_key ?? '' ); ?>">
+                        <div class="hl-recipient-picker" data-initial="<?php echo esc_attr( wp_json_encode( $recipients, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?>" data-current-trigger="<?php echo esc_attr( isset( $workflow->trigger_key ) ? $workflow->trigger_key : '' ); ?>">
                             <!-- Primary Section -->
                             <section class="hl-recipient-section hl-recipient-primary" aria-labelledby="hl-recip-primary-h">
                                 <h4 id="hl-recip-primary-h"><?php esc_html_e( 'Primary Recipients (To:)', 'hl-core' ); ?></h4>
@@ -1753,12 +1792,29 @@ Then add the handler method in the AJAX section (around line 640, after `ajax_ca
                 }
                 if ( strpos( $entry, 'role:' ) === 0 ) {
                     $role = substr( $entry, 5 );
-                    $sql = $wpdb->prepare(
-                        "SELECT COUNT(DISTINCT user_id) FROM {$wpdb->prefix}hl_enrollment
-                         WHERE status = 'active' AND FIND_IN_SET(%s, roles) > 0",
-                        $role
+                    // NOTE: hl_enrollment.roles is stored as a JSON-encoded
+                    // array, not a CSV, so FIND_IN_SET() in SQL is unreliable.
+                    // Fetch the raw role blobs and delegate membership testing
+                    // to HL_Roles::has_role(), which is format-agnostic.
+                    //
+                    // Dependency: HL_Roles helper is owned by Track 3 Task 1
+                    // and must be loaded before this handler runs. If it's not
+                    // available yet (Track 3 hasn't landed), this branch falls
+                    // back to 0 and the hint shows a conservative estimate.
+                    if ( ! class_exists( 'HL_Roles' ) ) {
+                        continue;
+                    }
+                    $rows = $wpdb->get_results(
+                        "SELECT DISTINCT user_id, roles FROM {$wpdb->prefix}hl_enrollment
+                         WHERE status = 'active'"
                     );
-                    $count += (int) $wpdb->get_var( $sql );
+                    $matched = array();
+                    foreach ( $rows as $row ) {
+                        if ( HL_Roles::has_role( $row->roles, $role ) ) {
+                            $matched[ (int) $row->user_id ] = true;
+                        }
+                    }
+                    $count += count( $matched );
                     continue;
                 }
                 // Token — coarse approximation:
@@ -1836,11 +1892,31 @@ In `HL_Admin_Emails::__construct()`, after the existing `add_action` block, add:
         add_action( 'wp_ajax_hl_workflow_toggle_status', array( $this, 'ajax_workflow_toggle_status' ) );
 ```
 
-**Important:** `HL_Admin_Emails` is currently instantiated lazily (only when its `render_page` runs). `admin_post_*` hooks fire on admin-post.php requests **before** the admin page router kicks in, so the singleton must be instantiated eagerly. In `HL_Admin::__construct()` (the main admin bootstrap file `includes/admin/class-hl-admin.php`), locate the existing eager-instantiation block (around line 24 — the `HL_Admin_Cycles::instance();` lines) and add:
+**Important:** `HL_Admin_Emails` is currently instantiated lazily (only when its `render_page` runs). `admin_post_*` hooks fire on admin-post.php requests **before** the admin page router kicks in, so the singleton must be instantiated eagerly.
+
+**Verified anchor (as of this commit):** `HL_Admin::__construct()` in `includes/admin/class-hl-admin.php` contains an eager-instantiation block at **lines 24–26**:
 
 ```php
+    private function __construct() {
+        add_action('admin_menu', array($this, 'create_menu'));
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
+        add_action('admin_init', array($this, 'handle_early_actions'));
+
+        // Eagerly instantiate so AJAX hooks register on admin-ajax.php requests.
+        HL_Admin_Cycles::instance();
+        HL_Admin_Pathways::instance();
+    }
+```
+
+Add the new line immediately after `HL_Admin_Pathways::instance();` (line 26), yielding:
+
+```php
+        HL_Admin_Cycles::instance();
+        HL_Admin_Pathways::instance();
         HL_Admin_Emails::instance();
 ```
+
+**Fallback if the block has moved:** If a future refactor has removed the `HL_Admin_Cycles::instance();` / `HL_Admin_Pathways::instance();` lines, add `HL_Admin_Emails::instance();` as the last statement inside `HL_Admin::__construct()` — anywhere after the `add_action` hook registrations is fine, since all we need is for the constructor-level `add_action('admin_post_*')` calls in `HL_Admin_Emails` to register before admin-post.php dispatches.
 
 - [ ] **Step 11.2: Rewrite the actions `<td>` in `render_workflows_tab()`**
 
@@ -1893,7 +1969,27 @@ Replace with:
                             </td>
 ```
 
-Also, wrap the entire `wp-list-table` in `<div class="hl-email-admin">...</div>` (just inside the top of `render_workflows_tab()` output, before the filter row, and close it after the `</table>`). Search for the `<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">` at the top of the tab render and add `<div class="hl-email-admin">` just before it; close it after the `</table>`.
+Also, wrap the entire list view in a `<div class="hl-email-admin">...</div>`. `render_workflows_tab()` starts at line 84, and its HTML output begins right after the closing `?>` on line 122 (the line `<div style="display:flex;...">` at line 123 is the "Add Workflow" header row — but three sibling tabs in this file open with the exact same inline style, so anchor on the `?>` output boundary inside this specific function instead of the inline-style string.)
+
+**Robust anchor (by function + output boundary):**
+
+Locate `render_workflows_tab()` (line 84). Scroll to the `?>` that opens HTML output — it's on line 122 and is immediately followed by the header row containing the "Add Workflow" button. Replace the output-open boundary like so:
+
+```php
+        ?>
+        <div class="hl-email-admin">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+            <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows&action=new' ) ); ?>" class="button button-primary"><?php esc_html_e( 'Add Workflow', 'hl-core' ); ?></a>
+```
+
+Then find the `</table>` at line 136's closing tag (the end of the `wp-list-table widefat fixed striped` block inside this function — **not** the ones inside `render_templates_tab()` at line 408 or the queue tab at line 497). Close the wrapper with:
+
+```php
+        </table>
+        </div><!-- /.hl-email-admin -->
+```
+
+If the `<table>` start line shifts after earlier tasks, locate it by the unique comment at the top of the workflows tab or by searching for `wp-list-table` inside `render_workflows_tab()` (there is exactly one per function).
 
 - [ ] **Step 11.3: Add a thin inline script for confirm + AJAX toggle**
 
@@ -2141,7 +2237,24 @@ Replace with:
  ORDER BY w.updated_at DESC"
 ```
 
-Also update the automation service query so the queue processor never picks up soft-deleted workflows. Open `includes/services/class-hl-email-automation-service.php`, find the workflow lookup query (search for `FROM {$wpdb->prefix}hl_email_workflow`), and add `AND status != 'deleted'` (or `AND status = 'active'` if it is already constrained). If the existing query already filters on `status = 'active'`, soft-deleted rows are already excluded — no change needed. Verify manually and leave a comment noting the constraint.
+Also verify the automation service queries never pick up soft-deleted workflows. There are exactly three `SELECT ... FROM {$wpdb->prefix}hl_email_workflow` queries in `includes/services/class-hl-email-automation-service.php`:
+
+1. **Line 77** — `handle_trigger()`: `WHERE trigger_key = %s AND status = 'active'`
+2. **Line 654** — `run_daily_checks()`: `WHERE trigger_key IN ({$placeholders}) AND status = 'active'`
+3. **Line 693** — `run_hourly_checks()`: `WHERE trigger_key IN ({$placeholders}) AND status = 'active'`
+
+All three already constrain on `status = 'active'`, so soft-deleted (`status = 'deleted'`) workflows are implicitly excluded — no query changes are needed. Add a one-line comment immediately above each of the three queries to document the invariant:
+
+```php
+// A.2.26 — status='active' filter also excludes soft-deleted rows.
+```
+
+Exact insertion points:
+- Line 76 (above `$workflows = $wpdb->get_results( $wpdb->prepare(` inside `handle_trigger()`)
+- Line 653 (above the same line inside `run_daily_checks()`)
+- Line 692 (above the same line inside `run_hourly_checks()`)
+
+No other logic changes.
 
 - [ ] **Step 11.8: Status column must handle the new 'deleted' value in badges**
 
@@ -2671,8 +2784,13 @@ In the AJAX Handlers section:
 ```php
     /**
      * Force-clear dedup tokens for pending queue rows on a workflow.
-     * A.7.1 — scoped: all pending / specific user / specific cycle.
+     * A.7.1 — scoped: all pending / specific user.
      * Never touches sent-status rows.
+     *
+     * Schema reference (verified in includes/class-hl-installer.php line 2121):
+     * hl_email_queue columns include workflow_id, recipient_user_id, status,
+     * dedup_token. There is NO user_id or cycle_id column, so scope is
+     * limited to all-pending and per-recipient-user.
      *
      * @return void
      */
@@ -2692,10 +2810,8 @@ In the AJAX Handlers section:
         $args  = array( $workflow_id );
 
         if ( $scope === 'user' && $scope_val > 0 ) {
-            $where .= ' AND user_id = %d ';
-            $args[] = $scope_val;
-        } elseif ( $scope === 'cycle' && $scope_val > 0 ) {
-            $where .= ' AND cycle_id = %d ';
+            // Column is recipient_user_id (see hl_email_queue schema).
+            $where .= ' AND recipient_user_id = %d ';
             $args[] = $scope_val;
         }
 
@@ -2725,7 +2841,7 @@ In the AJAX Handlers section:
     }
 ```
 
-**Note:** This assumes `hl_email_queue` has a `dedup_token` column. If the column name is different, adjust accordingly (search the table schema in `class-hl-installer.php` and use the actual column name — likely `dedup_key` or similar).
+**Schema verified:** `hl_email_queue` has `workflow_id`, `recipient_user_id`, `status`, `dedup_token` (confirmed in `includes/class-hl-installer.php` around line 2121). There is no `user_id` column (use `recipient_user_id`) and no `cycle_id` column at all — cycle-scoped resend is not supported and has been removed from the scope selector below.
 
 - [ ] **Step 14.2: Add Force Resend button inside `render_workflow_form()`**
 
@@ -2755,9 +2871,8 @@ In `render_workflow_form()`, immediately after the `<h2>...Edit Workflow...</h2>
                 <select name="scope">
                     <option value="all_pending"><?php esc_html_e( 'All pending rows', 'hl-core' ); ?></option>
                     <option value="user"><?php esc_html_e( 'Specific user', 'hl-core' ); ?></option>
-                    <option value="cycle"><?php esc_html_e( 'Specific cycle', 'hl-core' ); ?></option>
                 </select>
-                <input type="number" name="scope_value" placeholder="<?php esc_attr_e( 'ID (for user/cycle)', 'hl-core' ); ?>" style="width:120px;">
+                <input type="number" name="scope_value" placeholder="<?php esc_attr_e( 'User ID (for user scope)', 'hl-core' ); ?>" style="width:140px;">
                 <button type="submit" class="button"><?php esc_html_e( 'Force Resend', 'hl-core' ); ?></button>
             </form>
         </div>
