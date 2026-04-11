@@ -900,6 +900,24 @@ Codified once for the whole spec:
 - **A.7.13** Force resend history visibility: workflow list row area shows "Last force-resend: 2026-05-14 by Mateo" inline when present (reads from audit log via `HL_Audit_Service::get_last_event($workflow_id, 'workflow_force_resend')`). Non-blocking — can ship post-launch if audit query is expensive; tooltip on the "Force resend" button is sufficient for launch.
 - **A.7.14** Undo-clear notice per-user per-template: replace user-meta `hl_email_builder_undo_notice_seen` with template-scoped meta `hl_email_builder_undo_notice_seen_{template_id}=1`. Shows once per (user, template) pair rather than once per user globally. Tooltip remains on every page as a permanent reminder.
 
+### A.7.15 Schema Reality Corrections (Pre-Implementation Audit)
+
+During implementation-plan drafting, a codebase audit found 9 places where earlier appendix items referenced the wrong table/column names. **Plans are correct; this section documents the reality for future reference.**
+
+| Spec reference | Reality in codebase | Correct usage |
+|----------------|---------------------|---------------|
+| `hl_enrollment.roles` as CSV | **JSON-encoded array** (confirmed in `class-hl-enrollment-repository.php` ~line 94, 103) | `HL_Roles::has_role()` must be format-agnostic. `FIND_IN_SET` works only after the rev 37 scrub normalizes rows. Pre-scrub, use PHP-side filter with `HL_Roles::parse_stored()`. Plans gate the SQL switchover on `HL_Roles::scrub_is_complete()`. |
+| `hl_team_member` with `roles` column | **`hl_team_membership`** with `team_id`, `enrollment_id`, `membership_type enum('mentor','member')`. No `user_id` — join through `hl_enrollment`. | `assigned_mentor` SQL rewritten in Track 3 Task 23. |
+| `hl_component.sort_order` | **`ordering_hint`** | `ALTER TABLE hl_component ADD ... AFTER ordering_hint` in rev 35. |
+| `component_type = 'coaching_session'` | **`'coaching_session_attendance'`** | All cron queries use the full enum value. |
+| `hl_classroom_visit_submission.component_id` | **Does not exist.** `component_id` lives on the entity table `hl_classroom_visit`, not the submission table. | NOT EXISTS subqueries join through the entity table. Same for `hl_rp_session_submission` → `hl_rp_session`. |
+| `hl_enrollment.status` enum includes `'warning'` | **`('active','inactive')` only** | Existing automation queries already handle this; no change needed. |
+| `hl_pathway_assignment` needs UNIQUE index | **Already has `UNIQUE KEY enrollment_pathway`** | Track 3 Task 6 skips adding it. |
+| `HL_Audit_Service::get_last_event()` exists | **Does not exist** | Track 3 Task 5 adds it + try/catch wraps `log()`. |
+| Migrations in `hl-core.php` bootstrap | **`HL_Installer::maybe_upgrade()` hooked to `plugins_loaded`** via `HL_Core::init()` | A.2.19 requirement already satisfied by existing wiring. |
+
+**Impact on appendix items:** A.1.7, A.2.15, A.2.16, A.2.17, A.2.28, A.6.2, A.6.10, A.7.2, A.7.11, A.7.12 — all were written assuming CSV/wrong-table-names. The plans (track 3 pre-flight section, and track 1 edits) override the spec on these points. **When in conflict, the plan is authoritative.**
+
 ### A.8 Review Process Audit Trail
 
 - **Phase 1:** 2 preliminary reviewers (UX lens, Architecture lens) — 26 issues, cross-validated, no conflicts.
