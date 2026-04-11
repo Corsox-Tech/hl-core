@@ -142,7 +142,119 @@ class HL_CLI_Email_V2_Test {
     private function test_schema() {}
     private function test_cron() {}
     private function test_drafts() {}
-    private function test_resolver() {}
+    private function test_resolver() {
+        $ev = HL_Email_Condition_Evaluator::instance();
+
+        // JSON-stored roles
+        $ctx_json = array( 'enrollment' => array( 'roles' => '["teacher","mentor"]' ) );
+
+        $this->assert_true(
+            $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'eq', 'value' => 'teacher' ) ),
+                $ctx_json
+            ),
+            'Condition: enrollment.roles eq teacher (JSON stored) passes'
+        );
+        $this->assert_true(
+            ! $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'eq', 'value' => 'leader' ) ),
+                array( 'enrollment' => array( 'roles' => '["school_leader"]' ) )
+            ),
+            'Condition: enrollment.roles eq leader (JSON stored) does NOT false-match school_leader'
+        );
+
+        // CSV-stored roles
+        $ctx_csv = array( 'enrollment' => array( 'roles' => 'school_leader,coach' ) );
+
+        $this->assert_true(
+            $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'in', 'value' => array( 'coach', 'mentor' ) ) ),
+                $ctx_csv
+            ),
+            'Condition: enrollment.roles in [coach,mentor] (CSV stored) matches coach'
+        );
+        $this->assert_true(
+            ! $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'eq', 'value' => 'leader' ) ),
+                $ctx_csv
+            ),
+            'Condition: enrollment.roles eq leader (CSV stored) does NOT false-match school_leader'
+        );
+
+        // Boundary: not_in with a matching role must return false
+        $this->assert_true(
+            ! $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'not_in', 'value' => array( 'teacher' ) ) ),
+                $ctx_json
+            ),
+            'Condition: enrollment.roles not_in [teacher] (JSON stored with teacher) correctly returns false'
+        );
+
+        // Boundary: is_null on empty stored roles
+        $this->assert_true(
+            $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'is_null', 'value' => null ) ),
+                array( 'enrollment' => array( 'roles' => '' ) )
+            ),
+            'Condition: enrollment.roles is_null on empty string passes'
+        );
+        // Boundary: is_null on actual PHP null (matches DB NULL)
+        $this->assert_true(
+            $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'is_null', 'value' => null ) ),
+                array( 'enrollment' => array( 'roles' => null ) )
+            ),
+            'Condition: enrollment.roles is_null on PHP null passes'
+        );
+        // Boundary: neq positive — role that is NOT present should return true
+        $this->assert_true(
+            $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'neq', 'value' => 'principal' ) ),
+                $ctx_json
+            ),
+            'Condition: enrollment.roles neq principal (absent) passes'
+        );
+        // Boundary: not_null on populated roles
+        $this->assert_true(
+            $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'not_null', 'value' => null ) ),
+                $ctx_json
+            ),
+            'Condition: enrollment.roles not_null on populated roles passes'
+        );
+        // Boundary: unsupported op (gt) on roles field is rejected (returns false)
+        $this->assert_true(
+            ! $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'gt', 'value' => 5 ) ),
+                $ctx_json
+            ),
+            'Condition: enrollment.roles gt (unsupported op) correctly rejected'
+        );
+        // Boundary: `in` with zero matches must return false
+        $this->assert_true(
+            ! $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'in', 'value' => array( 'principal', 'parent' ) ) ),
+                $ctx_json
+            ),
+            'Condition: enrollment.roles in [principal,parent] (no overlap) correctly returns false'
+        );
+        // Boundary: `neq` negative — role present means neq returns false (symmetry with eq)
+        $this->assert_true(
+            ! $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'neq', 'value' => 'teacher' ) ),
+                $ctx_json
+            ),
+            'Condition: enrollment.roles neq teacher (present) correctly returns false'
+        );
+        // Boundary: case-insensitive match — workflow author submits "Teacher" with capital T
+        $this->assert_true(
+            $ev->evaluate(
+                array( array( 'field' => 'enrollment.roles', 'op' => 'eq', 'value' => 'Teacher' ) ),
+                $ctx_json
+            ),
+            'Condition: enrollment.roles eq "Teacher" (mixed case) matches lowercase stored value'
+        );
+    }
     private function test_deliverability() {}
     private function test_audit() {}
 }

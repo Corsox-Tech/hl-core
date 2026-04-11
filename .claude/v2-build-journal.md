@@ -21,6 +21,7 @@ Newest tasks go at the **bottom**. Append-only.
 
 ## Helpers already available
 
+- `HL_Email_Condition_Evaluator` (`includes/services/class-hl-email-condition-evaluator.php`) — now routes `enrollment.roles` conditions through `HL_Roles`. The branch is added via an early-return `if` block just above the generic `switch ( $op )` inside `evaluate_single()`. If you need to route another polymorphic field (e.g. `team.roles`), follow the same pattern: guard on `$field === '<name>' && class_exists('HL_Roles')`, handle each op, early-return per case. Unsupported ops (`gt`/`lt`) return `false` explicitly.
 - `HL_Roles` (`includes/services/class-hl-roles.php`) — static-only, 4 methods:
   - `HL_Roles::parse_stored( mixed $stored ): array` — format-agnostic reader. Accepts JSON array, CSV, array, or null/empty. JSON objects (`{...}`) rejected → `[]`. Non-string entries filtered. Lowercased + trimmed + deduped. Order of returned slugs is not guaranteed.
   - `HL_Roles::has_role( mixed $stored, string $role ): bool` — exact-match role check. Fixes the `LIKE '%leader%'` substring bug.
@@ -45,3 +46,11 @@ Newest tasks go at the **bottom**. Append-only.
 - Modified `hl-core.php`: added `// Shared helpers` sub-block + require of `class-hl-roles.php` (line 131-133), added require + register for the CLI test class.
 - Quality gate passed: Phase B (2 reviewers PASS), Phase D (Sr SWE 7.2/10 PASS, WP Expert 9.4/10 PASS). Phase E applied 4 hardening fixes inline (type hints, const, docblock fix, JSON object rejection, expanded tests). Phase G: 0 user-visible error risk (no callers yet — Task 2 will be the first consumer).
 - **NOT YET DEPLOYED.** Syntax will be verified on test server at the 4-task foundation checkpoint (after Tasks 1, 2, 5, 23).
+- Commit: `c1b6e86`
+
+### 2026-04-11 — Track 3 Task 2: Route condition evaluator through HL_Roles
+- Modified `includes/services/class-hl-email-condition-evaluator.php` (+37 lines): inserted a role-aware branch in `evaluate_single()` between `resolve_field()` and the generic `switch ( $op )`. Branch activates on `$field === 'enrollment.roles'`, routes `eq`/`neq`/`in`/`not_in`/`is_null`/`not_null` through `HL_Roles::has_role()` / `parse_stored()`, rejects unsupported ops (`gt`/`lt`) with explicit `return false`.
+- Modified `includes/cli/class-hl-cli-email-v2-test.php` (+93 lines): replaced `test_resolver()` stub with 13 assertions covering JSON + CSV happy path, false-match regression for both formats, all 6 op boundaries, case-insensitive matching, and unsupported-op rejection.
+- Quality gate: Phase B combined reviewer PASS, Phase D Sr SWE 8.5/10 PASS, WP Expert 9.4/10 PASS. Phase E added docblock note on `is_null`/`not_null` semantic divergence + 6 boundary assertions (`is_null` on PHP null, `neq` positive, `not_null` positive, unsupported op rejection, `in` zero-match, `neq` negative symmetry, case-insensitive match). Phase G: 0 user-visible error risk (workflows using valid role values — `teacher`, `mentor`, `coach`, `school_leader` — don't collide under strict matching).
+- Deferred design concerns (NOT applied in Task 2, belong to a future refactor): hard-coded `'enrollment.roles'` string literal could be extensibility-scoped via `HL_Roles::is_role_field()` registry, `class_exists('HL_Roles')` guard is defensive-but-smelly (could be hard-required), request-scoped memoization on `parse_stored` for high-throughput evaluation paths. All flagged by Phase D Sr SWE; all out of scope for Task 2's plan text.
+- **First consumer of `HL_Roles`** — proves the helper works via the CLI test flow. Still not deployed; syntax verified at the 4-task foundation checkpoint.

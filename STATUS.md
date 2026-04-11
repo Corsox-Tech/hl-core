@@ -204,16 +204,16 @@ Pick up from the first unchecked `[ ]` item each session.
 > **Handoff:** `docs/superpowers/plans/2026-04-11-email-v2-handoff.md`
 > **Plans:** `2026-04-11-email-v2-track{1,2,3}-*.md`
 > **Build journal:** `.claude/v2-build-journal.md`
-> **Progress:** 1 / 52 tasks complete
+> **Progress:** 2 / 52 tasks complete
 
 **Branches:**
-- `feature/email-v2-track3-backend` — backend fixes, foundation (1/32 tasks done)
+- `feature/email-v2-track3-backend` — backend fixes, foundation (2/32 tasks done)
 - `feature/email-v2-track1-admin-ux` — admin UX (not started; waits on Track 3 prerequisites)
 - `feature/email-v2-track2-builder` — builder UX (not started; can run parallel to Track 3)
 
 **Track 3 — Backend Fixes (1/32):**
 - [x] **Task 1: `HL_Roles` helper** — Format-agnostic role matching (JSON + CSV), fixes `LIKE '%leader%'` substring bug. `HL_Roles::parse_stored`, `has_role`, `sanitize_roles`, `scrub_is_complete` + `OPTION_SCRUB_DONE` const. CLI test harness `wp hl-core email-v2-test` registered, `roles` group filled with 12 assertions. Phase B + Phase D quality gate PASS.
-- [ ] **Task 2: Route condition evaluator through `HL_Roles`**
+- [x] **Task 2: Route condition evaluator through `HL_Roles`** — `HL_Email_Condition_Evaluator::evaluate_single()` now has a role-aware early-return branch above the generic switch. Routes `enrollment.roles` through `HL_Roles::has_role()` / `parse_stored()` for all 6 supported ops; rejects `gt`/`lt`. `test_resolver()` filled with 13 assertions. Phase B + Phase D quality gate PASS.
 - [ ] **Task 3: Fix `LIKE → gated FIND_IN_SET` in `resolve_school_director()`**
 - [ ] **Task 4: Fix `LIKE → gated FIND_IN_SET` in `resolve_role()`**
 - [ ] **Task 5: `HL_Audit_Service::get_last_event()` + try/catch `log()`**
