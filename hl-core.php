@@ -129,6 +129,9 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-tour-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-ticket-service.php';
 
+        // Shared helpers
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-roles.php';
+
         // Email system
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-email-block-renderer.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-email-merge-tag-registry.php';
@@ -248,6 +251,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-seed-beginnings.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-diagnose-nav.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-smoke-test.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-email-v2-test.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-migrate-routing-types.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-translate-content.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-sync-ld-enrollment.php';
@@ -347,6 +351,7 @@ class HL_Core {
             HL_CLI_Setup_ELCPB_Y2_V2::register();
             HL_CLI_Seed_Beginnings::register();
             HL_CLI_Smoke_Test::register();
+            HL_CLI_Email_V2_Test::register();
             HL_CLI_Migrate_Routing_Types::register();
             HL_CLI_Translate_Content::register();
         }

@@ -8,8 +8,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * concrete email/user_id/type tuples. A single workflow CAN fan out
  * to multiple recipients (one queue row per resolved recipient).
  *
- * Tokens: triggering_user, assigned_coach, school_director,
- * cc_teacher, role:X, static:email.
+ * Tokens: triggering_user, assigned_coach, assigned_mentor, school_director,
+ * observed_teacher (alias: cc_teacher), role:X, static:email.
  *
  * @package HL_Core
  */
@@ -116,8 +116,22 @@ class HL_Email_Recipient_Resolver {
             case 'school_director':
                 return $this->resolve_school_director( $context );
 
+            case 'assigned_mentor':
+                return $this->resolve_assigned_mentor( $context );
+
+            case 'observed_teacher':
+                return $this->resolve_observed_teacher( $context );
+
             case 'cc_teacher':
-                return $this->resolve_cc_teacher( $context );
+                // Legacy alias — A.6.11 deprecation telemetry.
+                // Scheduled for removal after 90 days of zero hits.
+                if ( class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'email_token_alias_hit', array(
+                        'entity_type' => 'email_workflow',
+                        'reason'      => 'cc_teacher -> observed_teacher',
+                    ) );
+                }
+                return $this->resolve_observed_teacher( $context );
 
             default:
                 return array();
@@ -233,9 +247,13 @@ class HL_Email_Recipient_Resolver {
 
     /**
      * Resolve the teacher being observed (for classroom visit emails).
+     *
+     * Previously `resolve_cc_teacher()`; renamed for v2 clarity. Reads both
+     * the legacy `cc_teacher_user_id` and the new `observed_teacher_user_id`
+     * context keys so existing callers keep working during the rename window.
      */
-    private function resolve_cc_teacher( array $context ) {
-        $teacher_user_id = $context['cc_teacher_user_id'] ?? null;
+    private function resolve_observed_teacher( array $context ) {
+        $teacher_user_id = $context['observed_teacher_user_id'] ?? $context['cc_teacher_user_id'] ?? null;
         if ( ! $teacher_user_id ) {
             return array();
         }
@@ -244,6 +262,81 @@ class HL_Email_Recipient_Resolver {
             return array();
         }
         return array( array( 'email' => $user->user_email, 'user_id' => (int) $teacher_user_id ) );
+    }
+
+    /**
+     * Resolve the mentor of the triggering user within the current cycle.
+     *
+     * `hl_team_membership.membership_type` distinguishes mentors from members
+     * within a team. Given the triggering user's enrollment, find their team
+     * and return the mentor enrollment's user. Requires `user_id` and
+     * `cycle_id` in context; audit-logs missing context and returns empty.
+     *
+     * @param array $context Context array.
+     * @return array Array of { email, user_id } (0 or 1 row).
+     */
+    private function resolve_assigned_mentor( array $context ) {
+        global $wpdb;
+        $user_id  = $context['user_id']  ?? null;
+        $cycle_id = $context['cycle_id'] ?? null;
+
+        if ( ! $user_id || ! $cycle_id ) {
+            if ( class_exists( 'HL_Audit_Service' ) ) {
+                HL_Audit_Service::log( 'email_resolver_missing_context', array(
+                    'reason' => 'assigned_mentor requires user_id + cycle_id',
+                ) );
+            }
+            return array();
+        }
+
+        // Find the user's enrollment in this cycle.
+        $enrollment_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment
+             WHERE user_id = %d AND cycle_id = %d AND status IN ('active','warning')
+             LIMIT 1",
+            $user_id, $cycle_id
+        ) );
+        if ( ! $enrollment_id ) {
+            return array();
+        }
+
+        // Find the mentor enrollment in the same team, scoped to this cycle.
+        // Exclude the triggering user from being their own mentor (happens
+        // when the triggering user IS the team mentor — we don't want to
+        // email someone about their own action).
+        $mentor_enrollment_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT mentor_tm.enrollment_id
+             FROM {$wpdb->prefix}hl_team_membership user_tm
+             INNER JOIN {$wpdb->prefix}hl_team_membership mentor_tm
+                 ON user_tm.team_id = mentor_tm.team_id
+                AND mentor_tm.membership_type = 'mentor'
+                AND mentor_tm.enrollment_id <> user_tm.enrollment_id
+             INNER JOIN {$wpdb->prefix}hl_team t
+                 ON t.team_id = user_tm.team_id
+                AND t.cycle_id = %d
+             WHERE user_tm.enrollment_id = %d
+             ORDER BY mentor_tm.team_id ASC, mentor_tm.enrollment_id ASC
+             LIMIT 1",
+            $cycle_id, $enrollment_id
+        ) );
+        if ( ! $mentor_enrollment_id ) {
+            return array();
+        }
+
+        $mentor_user_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT user_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d LIMIT 1",
+            $mentor_enrollment_id
+        ) );
+        if ( ! $mentor_user_id ) {
+            return array();
+        }
+
+        $user = get_userdata( (int) $mentor_user_id );
+        if ( ! $user ) {
+            return array();
+        }
+
+        return array( array( 'email' => $user->user_email, 'user_id' => (int) $mentor_user_id ) );
     }
 
     /**

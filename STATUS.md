@@ -197,23 +197,50 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Code Reviews** — 3 review cycles (Phase 1, Phase 2, Phases 3-6). 19 MUST FIX issues caught and resolved: cron race condition, SQL injection patterns, XSS in preview, N+1 queries, dedup token correctness, draft cleanup scope, capability checks, javascript: URL blocking.
 - [x] **CLI Testing** — 8 test suites (37 assertions), all pass: block renderer, merge tags, condition evaluator, rate limiter, recipient resolver, queue processor, end-to-end automation, cleanup verification. Zero real emails sent.
 - [x] **Deployed to test** — 2026-04-10. Schema rev 34, 4 tables, 6 migrated templates, 3 cron events, all verified.
-- [ ] **Phase 7: Hardening** — Security review, cron reliability, performance verification, component window columns (`available_from`/`available_to` on `hl_component` for cron triggers REM-2, REM-4, REM-5). Pending.
-- [ ] **Email System v2 UX improvements** — See STATUS.md "Email System v2" section below for full list.
+- [ ] **Phase 7: Hardening** — Security review, cron reliability, performance verification, component window columns (`available_from`/`available_to` on `hl_component` for cron triggers REM-2, REM-4, REM-5). Pending — subsumed into Email System v2 Track 3.
 
-### Email System v2 — UX Improvements (Future)
-> These are known gaps from the v1 build. Functional but need polish for non-developer admins.
-- [ ] **Workflow condition builder UI** — Replace raw JSON textarea with visual row builder (field dropdown + operator dropdown + value input, add/remove rows). Currently admins must write JSON by hand.
-- [ ] **Workflow recipient picker UI** — Replace raw JSON textarea with token selector (checkboxes for triggering_user, assigned_coach, etc. + role:X input + static email input).
-- [ ] **Workflow row actions** — Add Duplicate, Activate/Pause toggle, Delete to workflow list table. Currently only "Edit" link.
-- [ ] **Template row actions** — Add Duplicate, Archive to template list table. Currently only "Edit" link.
-- [ ] **Builder: columns block editing** — Currently shows "edit in JSON" placeholder. Need sub-block editing within each column.
-- [ ] **Builder: undo/redo** — No undo for block deletions. Need command stack or localStorage snapshots.
-- [ ] **Builder: preview modal** — Preview iframe is small in right sidebar. Consider full-screen modal with device toggles.
-- [ ] **Builder: text block alignment + font size** — Deferred to v2 per spec (Section 3, Block Types table).
-- [ ] **Cron triggers: component window columns** — `available_from`/`available_to` on `hl_component` needed for cron triggers REM-2 (CV window), REM-4 (CV overdue), REM-5 (RP window). See Phase 7 Task 7.4 in plan.
-- [ ] **Cron triggers: remaining stubs** — `coaching_window_7d`, `coaching_pre_end`, `cv_window_7d`, `cv_overdue_1d`, `rp_window_7d`, `client_success` return empty arrays in `get_cron_trigger_users()`. Need component window columns first.
-- [ ] **Draft cleanup** — Daily cron should delete `hl_email_draft_*` wp_options older than 30 days. Requires tracking draft creation time (currently only cleaned on template deletion).
-- [ ] **LIKE on roles column** — `resolve_school_director()` and `resolve_role()` use `LIKE '%role%'` which can false-positive on role substrings. Existing codebase pattern but should be tightened.
+### Email System v2 Build (Active — April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-10-email-system-v2-design.md` (Appendix A 86 items addressed)
+> **Handoff:** `docs/superpowers/plans/2026-04-11-email-v2-handoff.md`
+> **Plans:** `2026-04-11-email-v2-track{1,2,3}-*.md`
+> **Build journal:** `.claude/v2-build-journal.md`
+> **Progress:** 4 / 52 tasks complete — **Track 3 foundation (Tasks 1, 2, 5, 23) ready for checkpoint deploy**
+
+**Branches:**
+- `feature/email-v2-track3-backend` — backend fixes, foundation (4/32 tasks done — all 4 prerequisites landed)
+- `feature/email-v2-track1-admin-ux` — admin UX (not started; waits on Track 3 prerequisites)
+- `feature/email-v2-track2-builder` — builder UX (not started; can run parallel to Track 3)
+
+**Track 3 — Backend Fixes (1/32):**
+- [x] **Task 1: `HL_Roles` helper** — Format-agnostic role matching (JSON + CSV), fixes `LIKE '%leader%'` substring bug. `HL_Roles::parse_stored`, `has_role`, `sanitize_roles`, `scrub_is_complete` + `OPTION_SCRUB_DONE` const. CLI test harness `wp hl-core email-v2-test` registered, `roles` group filled with 12 assertions. Phase B + Phase D quality gate PASS.
+- [x] **Task 2: Route condition evaluator through `HL_Roles`** — `HL_Email_Condition_Evaluator::evaluate_single()` now has a role-aware early-return branch above the generic switch. Routes `enrollment.roles` through `HL_Roles::has_role()` / `parse_stored()` for all 6 supported ops; rejects `gt`/`lt`. `test_resolver()` filled with 13 assertions. Phase B + Phase D quality gate PASS.
+- [ ] **Task 3: Fix `LIKE → gated FIND_IN_SET` in `resolve_school_director()`**
+- [ ] **Task 4: Fix `LIKE → gated FIND_IN_SET` in `resolve_role()`**
+- [x] **Task 5: `HL_Audit_Service::get_last_event()` + try/catch `log()`** — `log()` wrapped in try/catch + `$wpdb->insert === false` return-value check (closes the gap the plan's literal try/catch missed — `wpdb->insert` does not throw on SQL errors). New `record_audit_failure()` private helper routes both failure paths to `error_log` + daily `hl_audit_fail_count_YYYY-MM-DD` counter bump, itself wrapped in a last-resort try/catch. New public `get_last_event($entity_id, $action_type): ?array` returns the latest matching row with `actor_name` JOIN, enables Track 1 Task 14 Force Resend history. `test_audit` group filled with 3 assertions + cleanup. Phase B + Phase D quality gate PASS.
+- [ ] **Task 6: Schema Rev 35 — component window columns + composite indexes**
+- [ ] **Task 7: Admin pathway form: date pickers for `available_from`/`available_to`**
+- [ ] **Task 8: Draft autosave: `created_at`/`updated_at` timestamps**
+- [ ] **Task 9: Schema Rev 36 — `autoload=no` migration for drafts**
+- [ ] **Task 10: `cleanup_stale_drafts()` daily cron method**
+- [ ] **Task 11: Dedup token: remove date component**
+- [ ] **Task 12: Column-exists guard + cron early-return**
+- [ ] **Tasks 13–17: 5 real cron trigger queries (cv_window, cv_overdue, rp_window, coaching_window, coaching_pre_end)**
+- [ ] **Task 18: `last_cron_run_at` tracking + Site Health**
+- [ ] **Tasks 19–22: Rev 37 — `HL_Roles` scrub migration + enrollment writes CSV**
+- [x] **Task 23: `assigned_mentor` resolver via `hl_team_membership` + `cc_teacher` alias** — New `assigned_mentor` token resolves via 3-step SQL (user enrollment → team mentor exclude-self → user). `cc_teacher` kept as legacy alias that routes to `resolve_observed_teacher()` + emits `email_token_alias_hit` audit. Class docblock updated. Phase B + combined review PASS (one blocking self-mentor bug caught and fixed inline; two test hygiene issues also fixed via `log_id` snapshot pattern).
+- [ ] **Tasks 24–28: Queue processor deliverability hardening (`mb_encode_mimeheader`, `From`/`Reply-To`/`List-Unsubscribe`, HMAC unsubscribe, `wp_mail_failed`, dynamic stuck-row threshold)**
+- [ ] **Task 29: Workflow soft-delete (`status='deleted'`)**
+- [ ] **Task 30: Force resend action + handler + history display** *(depends on Task 5)*
+- [ ] **Task 31: `LIMIT 5000` safety cap on `coaching_pre_end`**
+- [ ] **Task 32: Wire up CLI test command + final regression sweep**
+
+**Track 3 foundation checkpoint** (run after Tasks 1, 2, 5, 23 land, before fanning out Track 1):
+- [ ] Deploy to test server, run `wp hl-core email-v2-test --only=roles`, `wp hl-core smoke-test`
+- [ ] Merge `feature/email-v2-track3-backend` to `main`
+
+**Track 1 — Admin UX (0/15):** Waits on Track 3 prerequisites (Tasks 1, 2, 5, 23).
+
+**Track 2 — Builder (0/5):** Can start immediately on its own branch.
 
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders

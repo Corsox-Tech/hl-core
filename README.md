@@ -66,7 +66,8 @@ All 11 core entities have domain model classes with proper properties. 10 of 11 
 - **ZoomIntegration** - Zoom Server-to-Server OAuth client: S2S account credentials flow, meeting CRUD (create/update/delete), token caching, coach email resolution (hl_zoom_email usermeta override).
 - **TourService** - Guided tour context resolution: matches tours to current page + user roles + trigger type, seen tracking (mark_seen AJAX), global styles CRUD, step reorder (save_step_order AJAX), step data delivery (get_steps AJAX), element picker mode detection (is_picker_mode + get_view_as_role)
 - **TicketService** - Feature Tracker ticket CRUD + comments, permission checks (2hr edit window for creators, admin-gated status changes via ADMIN_EMAIL constant), search/filter with enum whitelisting + esc_like, status transitions with resolved_at lifecycle, audit logging on all mutations
-- **Email System Services** (7 services):
+- **Email System Services** (8 services — Email System v2 Track 3 Task 1 added `HL_Roles`):
+  - `HL_Roles` — Shared role matching helper (Track 3 Task 1). Reads `hl_enrollment.roles` in both legacy JSON (`["teacher","mentor"]`) and normalised CSV formats. `parse_stored()` format-agnostic parser, `has_role()` exact-match check (fixes the `LIKE '%leader%'`/`school_leader` substring bug), `sanitize_roles()` writes sorted canonical CSV and rejects comma-poisoned entries, `scrub_is_complete()` reads `OPTION_SCRUB_DONE` (gates Rev 37 `FIND_IN_SET` rollout). PHP 7.4 type hints. Not yet consumed — Track 3 Tasks 2/3/4 are the first callers.
   - `HL_Email_Block_Renderer` — Converts blocks_json to table-based HTML emails with branded header/footer, dark mode, MSO/VML. 6 block types: text, image, button, divider, spacer, columns.
   - `HL_Email_Merge_Tag_Registry` — 27 merge tags across 7 categories (recipient, cycle, enrollment, coaching, assessment, course, url). Deferred tag support for password_reset_url.
   - `HL_Email_Rate_Limit_Service` — Per-user hourly/daily/weekly send limits with floor-aligned time buckets. INSERT ON DUPLICATE KEY UPDATE pattern.
@@ -74,6 +75,8 @@ All 11 core entities have domain model classes with proper properties. 10 of 11 
   - `HL_Email_Recipient_Resolver` — 6 token types (triggering_user, assigned_coach, school_director, cc_teacher, role:X, static:email). Dedup by email. Fan-out to multiple recipients.
   - `HL_Email_Queue_Processor` — UUID-based atomic claim pattern, dedup tokens, deferred tag resolution at send time, 3-retry exponential backoff, stuck-row recovery.
   - `HL_Email_Automation_Service` — 13 hook-based + 12 cron-based triggers. Context hydration, condition evaluation, recipient resolution, template rendering, queue insertion. Send windows in America/New_York with DST validation.
+
+**Email System v2 CLI:** `wp hl-core email-v2-test [--only=<group>]` (new — Track 3 Task 1). Groups: `roles` (filled — 12 assertions), `schema`/`cron`/`drafts`/`resolver`/`deliverability`/`audit` (stubs, filled by later Track 3 tasks).
 - **ChildSnapshotService** - Freeze child age groups per cycle for assessment consistency
 - **ScopeService** - Role-based data filtering (see Scope Service section below)
 

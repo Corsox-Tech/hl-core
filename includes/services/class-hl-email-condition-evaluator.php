@@ -75,6 +75,42 @@ class HL_Email_Condition_Evaluator {
         // Resolve the field value from context using dot notation.
         $actual = $this->resolve_field( $field, $context );
 
+        // Role field special-case: route through HL_Roles::has_role() so
+        // JSON and CSV formats both match exactly (no substring bleed).
+        //
+        // Note: for roles, `is_null` / `not_null` use the *parsed* result —
+        // an empty array from parse_stored() counts as null, which is stronger
+        // than the generic "=== null || === ''" check below. This matches how
+        // workflow authors reason about "no roles assigned".
+        if ( $field === 'enrollment.roles' && class_exists( 'HL_Roles' ) ) {
+            $stored = $actual; // raw roles string from context
+            switch ( $op ) {
+                case 'eq':
+                    return HL_Roles::has_role( $stored, (string) $value );
+                case 'neq':
+                    return ! HL_Roles::has_role( $stored, (string) $value );
+                case 'in':
+                    $list = is_array( $value ) ? $value : array( $value );
+                    foreach ( $list as $v ) {
+                        if ( HL_Roles::has_role( $stored, (string) $v ) ) return true;
+                    }
+                    return false;
+                case 'not_in':
+                    $list = is_array( $value ) ? $value : array( $value );
+                    foreach ( $list as $v ) {
+                        if ( HL_Roles::has_role( $stored, (string) $v ) ) return false;
+                    }
+                    return true;
+                case 'is_null':
+                    return empty( HL_Roles::parse_stored( $stored ) );
+                case 'not_null':
+                    return ! empty( HL_Roles::parse_stored( $stored ) );
+                default:
+                    // Unsupported op on a roles field (e.g. gt/lt) — reject.
+                    return false;
+            }
+        }
+
         switch ( $op ) {
             case 'eq':
                 return $this->loose_equals( $actual, $value );
