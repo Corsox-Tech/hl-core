@@ -204,10 +204,10 @@ Pick up from the first unchecked `[ ]` item each session.
 > **Handoff:** `docs/superpowers/plans/2026-04-11-email-v2-handoff.md`
 > **Plans:** `2026-04-11-email-v2-track{1,2,3}-*.md`
 > **Build journal:** `.claude/v2-build-journal.md`
-> **Progress:** 4 / 52 tasks complete — **Track 3 foundation (Tasks 1, 2, 5, 23) ready for checkpoint deploy**
+> **Progress:** 6 / 52 tasks complete — **Track 3 foundation (Tasks 1, 2, 3, 4, 5, 23) merged to main, polish pass deployed & green**
 
 **Branches:**
-- `feature/email-v2-track3-backend` — backend fixes, foundation (4/32 tasks done — all 4 prerequisites landed)
+- `feature/email-v2-track3-backend` — backend fixes, foundation (6/32 tasks done — Tasks 1, 2, 3, 4, 5, 23 all landed + polish §3-§9)
 - `feature/email-v2-track1-admin-ux` — admin UX (not started; waits on Track 3 prerequisites)
 - `feature/email-v2-track2-builder` — builder UX (not started; can run parallel to Track 3)
 
