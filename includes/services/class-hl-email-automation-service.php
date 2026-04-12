@@ -163,11 +163,18 @@ class HL_Email_Automation_Service {
 
             // Fan out: one queue row per recipient.
             foreach ( $recipients as $recipient ) {
+                // Fix 1C: safe null check — get_userdata() returns false for deleted users.
+                $recipient_name = '';
+                if ( ! empty( $recipient['user_id'] ) ) {
+                    $recipient_user = get_userdata( $recipient['user_id'] );
+                    $recipient_name = $recipient_user ? $recipient_user->display_name : '';
+                }
+
                 // Build per-recipient context for merge tag resolution.
                 $recipient_context = array_merge( $context, array(
                     'recipient_user_id' => $recipient['user_id'],
                     'recipient_email'   => $recipient['email'],
-                    'recipient_name'    => $recipient['user_id'] ? get_userdata( $recipient['user_id'] )->display_name ?? '' : '',
+                    'recipient_name'    => $recipient_name,
                 ) );
 
                 // Resolve merge tags.
@@ -541,6 +548,48 @@ class HL_Email_Automation_Service {
         return $context;
     }
 
+    /**
+     * Pre-load the cycle + partnership context fragment once per cycle.
+     *
+     * Returns an array that, when merged into a per-user context BEFORE
+     * hydrate_context() runs, short-circuits the cycle/partnership DB
+     * queries via the existing `if (!isset($context['cycle']))` guard.
+     *
+     * @param int $cycle_id Cycle ID.
+     * @return array Partial context array with cycle + partnership keys.
+     */
+    private function load_cycle_context_fragment( $cycle_id ) {
+        global $wpdb;
+
+        $fragment = array();
+
+        $cycle = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+            $cycle_id
+        ) );
+
+        if ( $cycle ) {
+            $fragment['cycle_name'] = $cycle->cycle_name;
+            $fragment['cycle']      = array(
+                'cycle_type'       => $cycle->cycle_type ?? '',
+                'is_control_group' => (bool) ( $cycle->is_control_group ?? false ),
+                'status'           => $cycle->status ?? '',
+            );
+
+            if ( ! empty( $cycle->partnership_id ) ) {
+                $partnership = $wpdb->get_row( $wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
+                    $cycle->partnership_id
+                ) );
+                if ( $partnership ) {
+                    $fragment['partnership_name'] = $partnership->partnership_name;
+                }
+            }
+        }
+
+        return $fragment;
+    }
+
     // =========================================================================
     // Scheduling
     // =========================================================================
@@ -738,71 +787,84 @@ class HL_Email_Automation_Service {
 
         $trigger_key = $workflow->trigger_key;
 
+        // --- Fix 1B: hoist template load out of user loop (one query per workflow). ---
+        $template = null;
+        if ( $workflow->template_id ) {
+            $template = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_email_template WHERE template_id = %d AND status = 'active'",
+                $workflow->template_id
+            ) );
+        }
+        if ( ! $template ) {
+            return; // No template — skip entire workflow.
+        }
+
+        $blocks = json_decode( $template->blocks_json, true );
+        if ( ! is_array( $blocks ) ) {
+            $blocks = array();
+        }
+
+        // Decode conditions and recipients once per workflow (immutable across cycles/users).
+        $conditions = json_decode( $workflow->conditions, true );
+        if ( ! is_array( $conditions ) ) {
+            $conditions = array();
+        }
+        $recipient_config = json_decode( $workflow->recipients, true );
+        if ( ! is_array( $recipient_config ) ) {
+            $recipient_config = array( 'primary' => array(), 'cc' => array() );
+        }
+
+        // Singleton instances — once per workflow.
+        $evaluator       = HL_Email_Condition_Evaluator::instance();
+        $resolver        = HL_Email_Recipient_Resolver::instance();
+        $renderer        = HL_Email_Block_Renderer::instance();
+        $merge_registry  = HL_Email_Merge_Tag_Registry::instance();
+        $queue_processor = HL_Email_Queue_Processor::instance();
+        $scheduled_at    = $this->compute_scheduled_at( $workflow );
+
         foreach ( $cycles as $cycle ) {
             $users = $this->get_cron_trigger_users( $trigger_key, $cycle );
             if ( empty( $users ) ) {
                 continue;
             }
 
+            // --- Fix 1A: hoist cycle + partnership query out of user loop. ---
+            $cycle_context_fragment = $this->load_cycle_context_fragment( (int) $cycle->cycle_id );
+
             foreach ( $users as $user_data ) {
-                $context = array(
+                $context = array_merge( $cycle_context_fragment, array(
                     'trigger_key'   => $trigger_key,
                     'user_id'       => $user_data['user_id'],
                     'cycle_id'      => (int) $cycle->cycle_id,
                     'enrollment_id' => $user_data['enrollment_id'] ?? null,
                     'entity_id'     => $user_data['entity_id'] ?? null,
                     'entity_type'   => $user_data['entity_type'] ?? null,
-                );
+                ) );
                 $context = $this->hydrate_context( $context );
 
                 // Evaluate conditions.
-                $conditions = json_decode( $workflow->conditions, true );
-                if ( ! is_array( $conditions ) ) {
-                    $conditions = array();
-                }
-                $evaluator = HL_Email_Condition_Evaluator::instance();
                 if ( ! $evaluator->evaluate( $conditions, $context ) ) {
                     continue;
                 }
 
                 // Resolve recipients.
-                $recipient_config = json_decode( $workflow->recipients, true );
-                if ( ! is_array( $recipient_config ) ) {
-                    $recipient_config = array( 'primary' => array(), 'cc' => array() );
-                }
-                $resolver   = HL_Email_Recipient_Resolver::instance();
                 $recipients = $resolver->resolve( $recipient_config, $context );
                 if ( empty( $recipients ) ) {
                     continue;
                 }
 
-                // Load template.
-                $template = null;
-                if ( $workflow->template_id ) {
-                    $template = $wpdb->get_row( $wpdb->prepare(
-                        "SELECT * FROM {$wpdb->prefix}hl_email_template WHERE template_id = %d AND status = 'active'",
-                        $workflow->template_id
-                    ) );
-                }
-                if ( ! $template ) {
-                    continue;
-                }
-
-                $blocks = json_decode( $template->blocks_json, true );
-                if ( ! is_array( $blocks ) ) {
-                    $blocks = array();
-                }
-
-                $scheduled_at    = $this->compute_scheduled_at( $workflow );
-                $renderer        = HL_Email_Block_Renderer::instance();
-                $merge_registry  = HL_Email_Merge_Tag_Registry::instance();
-                $queue_processor = HL_Email_Queue_Processor::instance();
-
                 foreach ( $recipients as $recipient ) {
+                    // --- Fix 1C: safe null check for deleted users. ---
+                    $recipient_name = '';
+                    if ( ! empty( $recipient['user_id'] ) ) {
+                        $recipient_user = get_userdata( $recipient['user_id'] );
+                        $recipient_name = $recipient_user ? $recipient_user->display_name : '';
+                    }
+
                     $recipient_context = array_merge( $context, array(
                         'recipient_user_id' => $recipient['user_id'],
                         'recipient_email'   => $recipient['email'],
-                        'recipient_name'    => $recipient['user_id'] ? ( get_userdata( $recipient['user_id'] )->display_name ?? '' ) : '',
+                        'recipient_name'    => $recipient_name,
                     ) );
 
                     $merge_tags = $merge_registry->resolve_all( $recipient_context );
@@ -877,17 +939,26 @@ class HL_Email_Automation_Service {
         }
 
         switch ( $trigger_key ) {
-            case 'cron:low_engagement_14d':
+            case 'cron:low_engagement_14d': {
                 // Users who haven't logged in for 14+ days.
-                return $wpdb->get_results( $wpdb->prepare(
+                $rows = $wpdb->get_results( $wpdb->prepare(
                     "SELECT e.user_id, e.enrollment_id, e.enrollment_id AS entity_id, 'enrollment' AS entity_type
                      FROM {$wpdb->prefix}hl_enrollment e
                      LEFT JOIN {$wpdb->usermeta} um ON um.user_id = e.user_id AND um.meta_key = 'last_login'
                      WHERE e.cycle_id = %d AND e.status IN ('active','warning')
-                       AND (um.meta_value IS NULL OR um.meta_value < %s)",
+                       AND (um.meta_value IS NULL OR um.meta_value < %s)
+                     LIMIT 5000",
                     $cycle_id,
                     gmdate( 'Y-m-d H:i:s', strtotime( '-14 days' ) )
                 ), ARRAY_A );
+                if ( is_array( $rows ) && count( $rows ) >= 5000 && class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
+                        'entity_type' => 'email_workflow',
+                        'reason'      => 'cron:low_engagement_14d returned 5000 rows — may be truncated.',
+                    ) );
+                }
+                return is_array( $rows ) ? $rows : array();
+            }
 
             case 'cron:session_24h':
                 // Coaching sessions starting in ~24 hours.
@@ -897,7 +968,8 @@ class HL_Email_Automation_Service {
                     "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
                      FROM {$wpdb->prefix}hl_coaching_session cs
                      WHERE cs.cycle_id = %d AND cs.session_status = 'scheduled'
-                       AND cs.session_datetime BETWEEN %s AND %s",
+                       AND cs.session_datetime BETWEEN %s AND %s
+                     LIMIT 5000",
                     $cycle_id, $from, $to
                 ), ARRAY_A );
 
@@ -909,7 +981,8 @@ class HL_Email_Automation_Service {
                     "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
                      FROM {$wpdb->prefix}hl_coaching_session cs
                      WHERE cs.cycle_id = %d AND cs.session_status = 'scheduled'
-                       AND cs.session_datetime BETWEEN %s AND %s",
+                       AND cs.session_datetime BETWEEN %s AND %s
+                     LIMIT 5000",
                     $cycle_id, $from, $to
                 ), ARRAY_A );
 
@@ -921,7 +994,8 @@ class HL_Email_Automation_Service {
                     "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
                      FROM {$wpdb->prefix}hl_coaching_session cs
                      WHERE cs.cycle_id = %d AND cs.session_status = 'scheduled'
-                       AND cs.session_datetime BETWEEN %s AND %s",
+                       AND cs.session_datetime BETWEEN %s AND %s
+                     LIMIT 5000",
                     $cycle_id, $from, $to
                 ), ARRAY_A );
 
@@ -1094,33 +1168,51 @@ class HL_Email_Automation_Service {
                 ), ARRAY_A );
             }
 
-            case 'cron:action_plan_24h':
+            case 'cron:action_plan_24h': {
                 // Sessions completed 24+ hours ago with no action plan submitted.
-                return $wpdb->get_results( $wpdb->prepare(
+                $rows = $wpdb->get_results( $wpdb->prepare(
                     "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
                      FROM {$wpdb->prefix}hl_coaching_session cs
                      LEFT JOIN {$wpdb->prefix}hl_coaching_session_submission sub
                        ON sub.session_id = cs.session_id AND sub.submission_type = 'action_plan'
                      WHERE cs.cycle_id = %d AND cs.session_status = 'attended'
                        AND cs.session_datetime < %s
-                       AND sub.submission_id IS NULL",
+                       AND sub.submission_id IS NULL
+                     LIMIT 5000",
                     $cycle_id,
                     gmdate( 'Y-m-d H:i:s', strtotime( '-24 hours' ) )
                 ), ARRAY_A );
+                if ( is_array( $rows ) && count( $rows ) >= 5000 && class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
+                        'entity_type' => 'email_workflow',
+                        'reason'      => 'cron:action_plan_24h returned 5000 rows — may be truncated.',
+                    ) );
+                }
+                return is_array( $rows ) ? $rows : array();
+            }
 
-            case 'cron:session_notes_24h':
+            case 'cron:session_notes_24h': {
                 // Sessions completed 24+ hours ago with no coach notes submitted.
-                return $wpdb->get_results( $wpdb->prepare(
+                $rows = $wpdb->get_results( $wpdb->prepare(
                     "SELECT cs.coach_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
                      FROM {$wpdb->prefix}hl_coaching_session cs
                      LEFT JOIN {$wpdb->prefix}hl_coaching_session_submission sub
                        ON sub.session_id = cs.session_id AND sub.submission_type = 'coach_notes'
                      WHERE cs.cycle_id = %d AND cs.session_status = 'attended'
                        AND cs.session_datetime < %s
-                       AND sub.submission_id IS NULL",
+                       AND sub.submission_id IS NULL
+                     LIMIT 5000",
                     $cycle_id,
                     gmdate( 'Y-m-d H:i:s', strtotime( '-24 hours' ) )
                 ), ARRAY_A );
+                if ( is_array( $rows ) && count( $rows ) >= 5000 && class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
+                        'entity_type' => 'email_workflow',
+                        'reason'      => 'cron:session_notes_24h returned 5000 rows — may be truncated.',
+                    ) );
+                }
+                return is_array( $rows ) ? $rows : array();
+            }
 
             case 'cron:client_success':
                 // TODO: Define client success touchpoint criteria.

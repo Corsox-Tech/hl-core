@@ -26,6 +26,12 @@ class HL_Frontend_Docs {
         add_action('init', array($this, 'register_post_type'));
         add_action('init', array($this, 'register_taxonomy'));
         add_shortcode('hl_doc_link', array($this, 'render_doc_link'));
+
+        // Cache invalidation for docs transients.
+        add_action( 'save_post_hl_doc', array( $this, 'invalidate_docs_cache' ) );
+        add_action( 'created_term',     array( $this, 'maybe_invalidate_docs_cache_on_term' ), 10, 3 );
+        add_action( 'edited_term',      array( $this, 'maybe_invalidate_docs_cache_on_term' ), 10, 3 );
+        add_action( 'deleted_term',     array( $this, 'maybe_invalidate_docs_cache_on_term' ), 10, 3 );
     }
 
     // =========================================================================
@@ -209,7 +215,7 @@ class HL_Frontend_Docs {
                     );
 
                     foreach ($regular_categories as $cat) :
-                        $article_count = $this->count_articles_in_category($cat->term_id);
+                        $article_count = (int) $cat->count;
                         $icon = isset($cat_icons[$cat->slug]) ? $cat_icons[$cat->slug] : 'dashicons-media-document';
                     ?>
                         <a href="<?php echo esc_url(add_query_arg('cat', $cat->slug, $base_url)); ?>" class="hl-docs-category-card">
@@ -620,30 +626,24 @@ class HL_Frontend_Docs {
      * @return string
      */
     private function get_docs_page_url() {
-        static $url = null;
-        if ($url !== null) {
-            return $url;
-        }
-
-        global $wpdb;
-        $page_id = $wpdb->get_var(
-            "SELECT ID FROM {$wpdb->posts}
-             WHERE post_type = 'page'
-             AND post_status = 'publish'
-             AND post_content LIKE '%[hl_docs%'
-             LIMIT 1"
-        );
-
-        $url = $page_id ? get_permalink($page_id) : home_url('/documentation/');
-        return $url;
+        $url = HL_Page_Cache::get_url( 'hl_docs' );
+        return $url ?: home_url( '/documentation/' );
     }
 
     /**
      * Get sidebar data (all categories with their articles, excluding Glossary).
      *
+     * Cached in a 30-minute transient. Invalidated on save_post_hl_doc and
+     * created/edited/deleted hl_doc_category terms.
+     *
      * @return array
      */
     private function get_sidebar_data() {
+        $cached = get_transient( 'hl_docs_sidebar_data' );
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+
         $categories = get_terms(array(
             'taxonomy'   => 'hl_doc_category',
             'hide_empty' => false,
@@ -680,6 +680,7 @@ class HL_Frontend_Docs {
             $art_data = array();
             foreach ($articles as $art) {
                 $art_data[] = array(
+                    'id'    => $art->ID,
                     'slug'  => $art->post_name,
                     'title' => $art->post_title,
                 );
@@ -693,15 +694,23 @@ class HL_Frontend_Docs {
             );
         }
 
+        set_transient( 'hl_docs_sidebar_data', $data, 30 * MINUTE_IN_SECONDS );
         return $data;
     }
 
     /**
      * Get all published articles for search (landing page).
      *
+     * Cached in a 30-minute transient.
+     *
      * @return array
      */
     private function get_all_articles() {
+        $cached = get_transient( 'hl_docs_all_articles' );
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+
         $articles = get_posts(array(
             'post_type'      => 'hl_doc',
             'post_status'    => 'publish',
@@ -725,72 +734,68 @@ class HL_Frontend_Docs {
             );
         }
 
+        set_transient( 'hl_docs_all_articles', $result, 30 * MINUTE_IN_SECONDS );
         return $result;
     }
 
     /**
-     * Count published articles in a category.
-     *
-     * @param int $term_id
-     * @return int
-     */
-    private function count_articles_in_category($term_id) {
-        $query = new WP_Query(array(
-            'post_type'      => 'hl_doc',
-            'post_status'    => 'publish',
-            'posts_per_page' => -1,
-            'fields'         => 'ids',
-            'tax_query'      => array(
-                array(
-                    'taxonomy' => 'hl_doc_category',
-                    'field'    => 'term_id',
-                    'terms'    => $term_id,
-                ),
-            ),
-        ));
-        return $query->found_posts;
-    }
-
-    /**
      * Get previous and next articles within the same category.
+     *
+     * Reuses the cached sidebar data instead of running a separate query.
      *
      * @param int $article_id
      * @param int $cat_term_id
      * @return array{prev: ?array, next: ?array}
      */
     private function get_prev_next_articles($article_id, $cat_term_id) {
-        $articles = get_posts(array(
-            'post_type'      => 'hl_doc',
-            'post_status'    => 'publish',
-            'posts_per_page' => -1,
-            'tax_query'      => array(
-                array(
-                    'taxonomy' => 'hl_doc_category',
-                    'field'    => 'term_id',
-                    'terms'    => $cat_term_id,
-                ),
-            ),
-            'meta_key'       => 'hl_doc_sort_order',
-            'orderby'        => 'meta_value_num',
-            'order'          => 'ASC',
-        ));
+        $sidebar_data = $this->get_sidebar_data();
+
+        $articles = array();
+        foreach ($sidebar_data as $cat_data) {
+            if ( (int) $cat_data['term_id'] === (int) $cat_term_id ) {
+                $articles = $cat_data['articles'];
+                break;
+            }
+        }
 
         $prev = null;
         $next = null;
         $found = false;
 
         foreach ($articles as $art) {
+            $art_id = isset( $art['id'] ) ? (int) $art['id'] : 0;
             if ($found) {
-                $next = array('slug' => $art->post_name, 'title' => $art->post_title);
+                $next = array('slug' => $art['slug'], 'title' => $art['title']);
                 break;
             }
-            if ($art->ID === $article_id) {
+            if ($art_id === $article_id) {
                 $found = true;
                 continue;
             }
-            $prev = array('slug' => $art->post_name, 'title' => $art->post_title);
+            $prev = array('slug' => $art['slug'], 'title' => $art['title']);
         }
 
         return array('prev' => $prev, 'next' => $next);
+    }
+
+    /**
+     * Invalidate docs transients.
+     */
+    public function invalidate_docs_cache() {
+        delete_transient( 'hl_docs_sidebar_data' );
+        delete_transient( 'hl_docs_all_articles' );
+    }
+
+    /**
+     * Invalidate docs cache when an hl_doc_category term changes.
+     *
+     * @param int    $term_id  Term ID.
+     * @param int    $tt_id    Term taxonomy ID.
+     * @param string $taxonomy Taxonomy slug.
+     */
+    public function maybe_invalidate_docs_cache_on_term( $term_id, $tt_id, $taxonomy ) {
+        if ( $taxonomy === 'hl_doc_category' ) {
+            $this->invalidate_docs_cache();
+        }
     }
 }

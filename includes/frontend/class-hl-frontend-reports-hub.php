@@ -138,19 +138,6 @@ class HL_Frontend_Reports_Hub {
     }
 
     private function find_shortcode_page_url( $shortcode ) {
-        static $cache = array();
-        if ( isset( $cache[ $shortcode ] ) ) {
-            return $cache[ $shortcode ];
-        }
-        global $wpdb;
-        $page_id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT ID FROM {$wpdb->posts}
-             WHERE post_type = 'page' AND post_status = 'publish'
-             AND post_content LIKE %s LIMIT 1",
-            '%[' . $wpdb->esc_like( $shortcode ) . '%'
-        ) );
-        $url = $page_id ? get_permalink( $page_id ) : '';
-        $cache[ $shortcode ] = $url;
-        return $url;
+        return HL_Page_Cache::get_url( $shortcode );
     }
 }

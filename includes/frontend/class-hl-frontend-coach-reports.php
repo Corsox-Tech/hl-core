@@ -307,14 +307,7 @@ class HL_Frontend_Coach_Reports {
      * @param string $shortcode Shortcode tag (without brackets).
      * @return string Page permalink or empty string.
      */
-    private function find_shortcode_page_url($shortcode) {
-        global $wpdb;
-        $page_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT ID FROM {$wpdb->posts}
-             WHERE post_type = 'page' AND post_status = 'publish'
-             AND post_content LIKE %s LIMIT 1",
-            '%[' . $wpdb->esc_like($shortcode) . '%'
-        ));
-        return $page_id ? get_permalink($page_id) : '';
+    private function find_shortcode_page_url( $shortcode ) {
+        return HL_Page_Cache::get_url( $shortcode );
     }
 }

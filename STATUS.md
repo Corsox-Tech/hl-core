@@ -240,8 +240,18 @@ Pick up from the first unchecked `[ ]` item each session.
 - ⏸ **Merge PR preparation pending** — orchestrator to open `feature/email-v2-track3-backend` → `main` PR and hand off link to user. Do NOT self-merge.
 - ⏸ **Browser verification for Tasks 7 + 8 UI changes pending** — deferred to a manual UI pass at PR review time (see `.claude/session-state-track3-session-a.md` for the QA script).
 
+**Performance Optimization (April 2026 — on `feature/email-v2-track3-backend`):**
+- [x] **1A: Hoist cycle+partnership out of cron user loop** — New `load_cycle_context_fragment()` queries cycle+partnership once per cycle, merges into user context. `hydrate_context()` short-circuits via existing guards.
+- [x] **1B: Hoist template load out of cron user loop** — Template query moved before cycle loop. Missing template skips entire workflow.
+- [x] **1C: Fix null-dereference on deleted users** — `get_userdata()->display_name` expanded to safe 3-line pattern in both hook-based and cron-based paths.
+- [x] **1D: LIMIT 5000 on 6 cron triggers** — `low_engagement_14d`, `session_24h`, `session_1h`, `coaching_session_5d`, `action_plan_24h`, `session_notes_24h`. Audit logging on 3 high-risk triggers.
+- [x] **2A: `HL_Page_Cache` utility** — Persistent shortcode-to-page-ID map in `hl_shortcode_page_map` option. WPML-aware `get_url()` with per-request cache. Invalidated on `save_post_page`. 30 `find_shortcode_page_url()` definitions replaced with one-liner delegation.
+- [x] **2B: Coach list cache** — `get_users(role=>coach)` wrapped in `hl_coach_list_cache` transient (15-min TTL, cap 50). Invalidated on `set_user_role`/`add_user_role`/`remove_user_role`.
+- [x] **2C: Docs cache** — `get_sidebar_data()` + `get_all_articles()` wrapped in 30-min transients. `count_articles_in_category()` replaced with `$cat->count`. `get_prev_next_articles()` reuses cached sidebar data. Invalidated on `save_post_hl_doc` + `hl_doc_category` term changes.
+- [x] **Deployed to test** — email-v2-test 63/63 PASS, smoke-test 2 pre-existing failures only, HL_Page_Cache verified (25 entries cached).
+
 **Track 3 foundation checkpoint** (run after Tasks 1, 2, 5, 23 land, before fanning out Track 1):
-- [ ] Deploy to test server, run `wp hl-core email-v2-test --only=roles`, `wp hl-core smoke-test`
+- [x] Deploy to test server, run `wp hl-core email-v2-test --only=roles`, `wp hl-core smoke-test`
 - [ ] Merge `feature/email-v2-track3-backend` to `main`
 
 **Track 1 — Admin UX (0/15):** Waits on Track 3 prerequisites (Tasks 1, 2, 5, 23).

@@ -203,22 +203,8 @@ class HL_Auth_Service {
      * @param string $shortcode Shortcode tag (without brackets).
      * @return string Page URL or empty string.
      */
-    private static function find_shortcode_page_url($shortcode) {
-        global $wpdb;
-        $page_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT ID FROM {$wpdb->posts}
-             WHERE post_type = 'page'
-             AND post_status = 'publish'
-             AND post_content LIKE %s
-             LIMIT 1",
-            '%[' . $wpdb->esc_like($shortcode) . ']%'
-        ));
-
-        if ($page_id) {
-            $page_id = apply_filters('wpml_object_id', $page_id, 'page', true);
-        }
-
-        return $page_id ? get_permalink($page_id) : '';
+    private static function find_shortcode_page_url( $shortcode ) {
+        return HL_Page_Cache::get_url( $shortcode );
     }
 
     /**

@@ -699,32 +699,8 @@ class HL_BuddyBoss_Integration {
      * @param string $shortcode Shortcode tag without brackets, e.g. 'hl_my_programs'.
      * @return string Page permalink or empty string if not found.
      */
-    private function find_shortcode_page_url($shortcode) {
-        // Include WPML language in cache key so language switches within the
-        // same request (e.g. login redirect) don't serve stale URLs.
-        $lang = defined('ICL_LANGUAGE_CODE') ? ICL_LANGUAGE_CODE : 'en';
-        $cache_key = $shortcode . '_' . $lang;
-        if (isset(self::$page_url_cache[$cache_key])) {
-            return self::$page_url_cache[$cache_key];
-        }
-
-        global $wpdb;
-
-        $page_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s LIMIT 1",
-            '%[' . $wpdb->esc_like($shortcode) . '%'
-        ));
-
-        // Translate to current WPML language so URLs stay in the active language.
-        if ($page_id) {
-            $page_id = apply_filters('wpml_object_id', $page_id, 'page', true);
-        }
-
-        $url = $page_id ? get_permalink($page_id) : '';
-
-        self::$page_url_cache[$cache_key] = $url;
-
-        return $url;
+    private function find_shortcode_page_url( $shortcode ) {
+        return HL_Page_Cache::get_url( $shortcode );
     }
 
     // =========================================================================
