@@ -29,9 +29,25 @@ class HL_CLI_Email_V2_Test {
      *
      * [--only=<group>]
      * : Limit to one group: roles|schema|cron|drafts|resolver|deliverability|audit
+     *
+     * [--run-scrub]
+     * : Run HL_Roles_Scrub_Migration chunks until complete (Rev 37 backfill).
      */
     public function run( $args, $assoc_args ) {
         $only = isset( $assoc_args['only'] ) ? $assoc_args['only'] : null;
+
+        if ( ! empty( $assoc_args['run-scrub'] ) ) {
+            WP_CLI::log( 'Running role scrub chunks until complete...' );
+            $safety = 100;
+            while ( ! get_option( 'hl_roles_scrub_done', 0 ) && $safety-- > 0 ) {
+                HL_Roles_Scrub_Migration::run_chunk();
+            }
+            $done = (bool) get_option( 'hl_roles_scrub_done', 0 );
+            WP_CLI::log( $done ? 'Scrub complete.' : 'Scrub did not complete in 100 chunks.' );
+            if ( ! $done ) WP_CLI::halt( 1 );
+            return;
+        }
+
         $groups = array(
             'roles'          => 'test_roles',
             'schema'         => 'test_schema',

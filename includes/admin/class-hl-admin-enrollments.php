@@ -208,7 +208,7 @@ class HL_Admin_Enrollments {
         $data = array(
             'cycle_id'    => absint($_POST['cycle_id']),
             'user_id'     => absint($_POST['user_id']),
-            'roles'       => wp_json_encode($roles),
+            'roles'       => class_exists('HL_Roles') ? HL_Roles::sanitize_roles($roles) : wp_json_encode($roles),
             'school_id'   => !empty($_POST['school_id']) ? absint($_POST['school_id']) : null,
             'district_id' => !empty($_POST['district_id']) ? absint($_POST['district_id']) : null,
             'status'              => sanitize_text_field($_POST['status']),

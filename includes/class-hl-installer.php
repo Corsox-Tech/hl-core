@@ -144,7 +144,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 36;
+        $current_revision = 37;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -228,6 +228,19 @@ class HL_Installer {
                 if ( ! $ok ) {
                     // Bail without bumping revision — next plugins_loaded will retry.
                     return;
+                }
+            }
+
+            // Rev 37: Email v2 — role scrub.
+            // The actual chunked rewrite runs from HL_Roles_Scrub_Migration on
+            // subsequent plugins_loaded firings. Here we just ensure the cursor
+            // exists so the first chunk starts at 0.
+            if ( (int) $stored < 37 ) {
+                if ( get_option( 'hl_roles_scrub_cursor', null ) === null ) {
+                    update_option( 'hl_roles_scrub_cursor', 0, false );
+                }
+                if ( get_option( 'hl_roles_scrub_done', null ) === null ) {
+                    update_option( 'hl_roles_scrub_done', 0, false );
                 }
             }
 
