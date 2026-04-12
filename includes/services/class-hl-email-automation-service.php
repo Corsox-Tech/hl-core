@@ -677,18 +677,19 @@ class HL_Email_Automation_Service {
             ...$daily_triggers
         ) );
 
-        if ( empty( $workflows ) ) {
-            return;
+        if ( ! empty( $workflows ) ) {
+            foreach ( $workflows as $workflow ) {
+                $this->run_cron_workflow( $workflow, $cycles );
+            }
         }
 
-        foreach ( $workflows as $workflow ) {
-            $this->run_cron_workflow( $workflow, $cycles );
-        }
-
-        // Email v2: sweep stale builder drafts.
+        // Email v2: sweep stale builder drafts — runs even when there are
+        // no active email workflows so abandoned drafts don't accumulate.
         $this->cleanup_stale_drafts();
 
-        // Email v2 Task 18: record successful run timestamp for staleness monitoring.
+        // Email v2 Task 18: record successful run timestamp for staleness
+        // monitoring — runs even when there are no active workflows so the
+        // Site Health staleness check doesn't fire a false alarm.
         update_option( 'hl_email_last_cron_run_at', gmdate( 'c' ), false );
     }
 
