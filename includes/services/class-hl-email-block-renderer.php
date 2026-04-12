@@ -312,16 +312,11 @@ class HL_Email_Block_Renderer {
 
     /**
      * Columns block — two-column layout that stacks on mobile.
+     * Supports 5 splits: 50/50, 60/40, 40/60, 33/67, 67/33.
      */
     private function render_columns( array $block, array $merge_tags ) {
         $split = $block['split'] ?? '50/50';
-        if ( $split === '60/40' ) {
-            $left_width  = 60;
-            $right_width = 40;
-        } else {
-            $left_width  = 50;
-            $right_width = 50;
-        }
+        list( $left_width, $right_width ) = $this->get_column_widths( $split );
 
         $left_blocks  = $block['left']  ?? array();
         $right_blocks = $block['right'] ?? array();
@@ -329,15 +324,19 @@ class HL_Email_Block_Renderer {
         $left_html  = '';
         $right_html = '';
         foreach ( $left_blocks as $sub ) {
-            $left_html .= $this->render_block( $sub, $merge_tags );
+            if ( is_array( $sub ) && ! empty( $sub['type'] ) ) {
+                $left_html .= $this->render_block( $sub, $merge_tags );
+            }
         }
         foreach ( $right_blocks as $sub ) {
-            $right_html .= $this->render_block( $sub, $merge_tags );
+            if ( is_array( $sub ) && ! empty( $sub['type'] ) ) {
+                $right_html .= $this->render_block( $sub, $merge_tags );
+            }
         }
 
-        $max        = self::MAX_WIDTH - 80; // Account for container padding.
-        $left_px    = (int) round( $max * $left_width / 100 );
-        $right_px   = $max - $left_px;
+        $max      = self::MAX_WIDTH - 80; // Account for container padding.
+        $left_px  = (int) round( $max * $left_width / 100 );
+        $right_px = $max - $left_px;
 
         $html  = '<!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td width="' . $left_px . '" valign="top"><![endif]-->';
         $html .= '<div class="hl-email-col" style="display:inline-block;vertical-align:top;width:' . $left_width . '%;max-width:' . $left_px . 'px;">';
@@ -350,6 +349,24 @@ class HL_Email_Block_Renderer {
         $html .= '<!--[if mso]></td></tr></table><![endif]-->';
 
         return '<div style="margin:0 0 16px;">' . $html . '</div>';
+    }
+
+    /**
+     * Resolve a split label to integer column width percentages.
+     * Falls back to [50, 50] for any unknown split.
+     *
+     * @param string $split Split label (e.g. "60/40").
+     * @return int[] [left, right]
+     */
+    private function get_column_widths( $split ) {
+        switch ( $split ) {
+            case '60/40': return array( 60, 40 );
+            case '40/60': return array( 40, 60 );
+            case '33/67': return array( 33, 67 );
+            case '67/33': return array( 67, 33 );
+            case '50/50':
+            default:      return array( 50, 50 );
+        }
     }
 
     // =========================================================================

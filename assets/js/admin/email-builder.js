@@ -62,19 +62,53 @@
 
     function renderAllBlocks() {
         destroyAllSortables();
-        var $container = $('#hl-eb-blocks');
-        $container.empty();
+        closeMiniPalette();
+
+        var $canvas = $('#hl-eb-blocks');
+        var scrollTop = $canvas.scrollTop();
+
+        // Remember which contenteditable (if any) had focus so we can restore it after re-render.
+        var $focused = $(document.activeElement);
+        var focusIndex = null;
+        var focusPath  = null; // for nested: [parent, side, colIndex]
+        if ($focused.hasClass('hl-eb-text-editor') && !$focused.hasClass('hl-eb-text-editor-nested')) {
+            var $card = $focused.closest('.hl-eb-block');
+            focusIndex = parseInt($card.data('index'), 10);
+        } else if ($focused.hasClass('hl-eb-text-editor-nested')) {
+            var $n = $focused.closest('.hl-eb-block-nested');
+            focusPath = [
+                parseInt($n.data('parent'), 10),
+                $n.data('side'),
+                parseInt($n.data('col-index'), 10)
+            ];
+        }
+
+        $canvas.empty();
 
         if (blocks.length === 0) {
-            $container.html('<p style="color:#999;text-align:center;padding:40px;">Click "Add Block" to start building your email.</p>');
+            $canvas.html('<p style="color:#999;text-align:center;padding:40px;">Click "Add Block" to start building your email.</p>');
             return;
         }
 
         blocks.forEach(function (block, i) {
-            $container.append(renderBlock(block, i));
+            $canvas.append(renderBlock(block, i));
         });
 
         initSortable();
+
+        // Restore scroll + focus.
+        $canvas.scrollTop(scrollTop);
+        if (focusIndex !== null) {
+            var $ed = $canvas.find('.hl-eb-block[data-index="' + focusIndex + '"]')
+                             .find('.hl-eb-text-editor').first();
+            if ($ed.length) { $ed.focus(); }
+        } else if (focusPath) {
+            var sel = '.hl-eb-block-nested[data-parent="' + focusPath[0] + '"]' +
+                      '[data-side="' + focusPath[1] + '"]' +
+                      '[data-col-index="' + focusPath[2] + '"]';
+            var $ed2 = $canvas.find(sel).find('.hl-eb-text-editor-nested').first();
+            if ($ed2.length) { $ed2.focus(); }
+        }
     }
 
     function renderBlock(block, index) {
@@ -315,18 +349,323 @@
                 break;
 
             case 'columns':
-                var $splitSelect = $('<select><option value="50/50">50/50</option><option value="60/40">60/40</option></select>');
-                $splitSelect.val(block.split || '50/50');
-                $splitSelect.on('change', function () { pushUndo(); blocks[index].split = $(this).val(); markDirty(); });
-                $wrap.append($splitSelect);
-                $wrap.append('<div style="display:flex;gap:8px;">' +
-                    '<div style="flex:1;border:1px dashed #ccc;padding:8px;min-height:60px;">Left column blocks (edit in JSON)</div>' +
-                    '<div style="flex:1;border:1px dashed #ccc;padding:8px;min-height:60px;">Right column blocks (edit in JSON)</div>' +
-                    '</div>');
-                break;
+                // Columns has its own renderer that builds the full wrap (toolbar + body).
+                // Bypass the shared $wrap/$toolbar scaffolding from renderBlock() by returning directly.
+                return renderColumnsBlock(block, index);
         }
 
         return $wrap;
+    }
+
+    // =========================================================================
+    // Columns block (nested editing — Spec §2.1)
+    // =========================================================================
+
+    /** Default block factory used by both top-level palette and nested palette. */
+    function makeDefaultBlock(type) {
+        switch (type) {
+            case 'text':    return { type: 'text',    content: '<p>Enter text here...</p>' };
+            case 'image':   return { type: 'image',   src: '', alt: '', width: 300 };
+            case 'button':  return { type: 'button',  label: 'Click Here', url: '', bg_color: '#2C7BE5', text_color: '#FFFFFF' };
+            case 'divider': return { type: 'divider', color: '#E5E7EB', thickness: 1 };
+            case 'spacer':  return { type: 'spacer',  height: 24 };
+            case 'columns': return { type: 'columns', split: '50/50', left: [], right: [] };
+            default:        return { type: type };
+        }
+    }
+
+    function renderColumnsBlock(block, index) {
+        var $wrap = $('<div class="hl-eb-block hl-eb-block-columns" data-index="' + index + '"></div>');
+
+        // Header bar — matches other blocks but with the split selector added.
+        var $toolbar = $(
+            '<div class="hl-eb-block-toolbar">' +
+                '<span class="hl-eb-block-type">Columns</span>' +
+                '<span class="hl-eb-block-actions">' +
+                    '<select class="hl-eb-col-split" title="Split ratio">' +
+                        '<option value="50/50">50 / 50</option>' +
+                        '<option value="60/40">60 / 40</option>' +
+                        '<option value="40/60">40 / 60</option>' +
+                        '<option value="33/67">33 / 67</option>' +
+                        '<option value="67/33">67 / 33</option>' +
+                    '</select>' +
+                    '<button type="button" class="hl-eb-block-dup" title="Duplicate">&#x2398;</button>' +
+                    '<button type="button" class="hl-eb-block-del" title="Delete">&times;</button>' +
+                '</span>' +
+            '</div>'
+        );
+        $toolbar.find('.hl-eb-col-split').val(block.split || '50/50');
+        $toolbar.find('.hl-eb-col-split').on('change', function () {
+            pushUndo();
+            blocks[index].split = $(this).val();
+            markDirty();
+            renderAllBlocks();
+        });
+        $wrap.append($toolbar);
+
+        // Two-column body.
+        var widths = getColumnWidthsJS(block.split || '50/50');
+        var $body = $('<div class="hl-eb-col-body" style="display:flex;gap:12px;"></div>');
+        var $left  = renderColumnContainer(block.left  || [], index, 'left',  widths[0]);
+        var $right = renderColumnContainer(block.right || [], index, 'right', widths[1]);
+        $body.append($left).append($right);
+        $wrap.append($body);
+
+        return $wrap;
+    }
+
+    /** Mirror of PHP get_column_widths() for the JS side. */
+    function getColumnWidthsJS(split) {
+        switch (split) {
+            case '60/40': return [60, 40];
+            case '40/60': return [40, 60];
+            case '33/67': return [33, 67];
+            case '67/33': return [67, 33];
+            case '50/50':
+            default:      return [50, 50];
+        }
+    }
+
+    function renderColumnContainer(colBlocks, parentIndex, side, widthPct) {
+        var label = side === 'left' ? 'Left Column' : 'Right Column';
+        var $col = $(
+            '<div class="hl-eb-col" style="flex:' + widthPct + ' 1 0;"' +
+                 ' data-parent="' + parentIndex + '" data-side="' + side + '">' +
+                '<div class="hl-eb-col-label">' + escHtml(label) + ' (' + widthPct + '%)</div>' +
+                '<div class="hl-eb-col-blocks"></div>' +
+                '<div class="hl-eb-col-add-wrap">' +
+                    '<button type="button" class="button button-small hl-eb-col-add-btn">+ Add Block</button>' +
+                '</div>' +
+            '</div>'
+        );
+
+        var $colBlocks = $col.find('.hl-eb-col-blocks');
+        colBlocks.forEach(function (nested, colIndex) {
+            $colBlocks.append(renderNestedBlock(nested, parentIndex, side, colIndex));
+        });
+
+        // Per-column Sortable — distinct group name prevents cross-column drag (A.1.1).
+        setTimeout(function () {
+            var el = $colBlocks.get(0);
+            if (!el || typeof Sortable === 'undefined') return;
+            var inst = new Sortable(el, {
+                group: { name: 'col-' + parentIndex + '-' + side, pull: false, put: false },
+                handle: '.hl-eb-drag-handle-nested',
+                animation: 150,
+                onEnd: function (evt) {
+                    pushUndo();
+                    var arr = blocks[parentIndex][side];
+                    var item = arr.splice(evt.oldIndex, 1)[0];
+                    arr.splice(evt.newIndex, 0, item);
+                    markDirty();
+                    renderAllBlocks();
+                }
+            });
+            sortableRegistry.push(inst);
+        }, 0);
+
+        return $col;
+    }
+
+    function renderNestedBlock(block, parentIndex, side, colIndex) {
+        var $wrap = $('<div class="hl-eb-block hl-eb-block-nested"' +
+                      ' data-parent="' + parentIndex + '"' +
+                      ' data-side="' + side + '"' +
+                      ' data-col-index="' + colIndex + '"></div>');
+
+        var $toolbar = $(
+            '<div class="hl-eb-block-toolbar hl-eb-block-toolbar-nested">' +
+                '<span class="hl-eb-block-type hl-eb-block-type-nested hl-eb-drag-handle-nested">' + escHtml(block.type) + '</span>' +
+                '<span class="hl-eb-block-actions">' +
+                    '<button type="button" class="hl-eb-nested-move" title="Move to other column">&#x21C4;</button>' +
+                    '<button type="button" class="hl-eb-nested-dup"  title="Duplicate">&#x2398;</button>' +
+                    '<button type="button" class="hl-eb-nested-del"  title="Delete">&times;</button>' +
+                '</span>' +
+            '</div>'
+        );
+        $wrap.append($toolbar);
+
+        var shim = new NestedBlockShim(parentIndex, side, colIndex);
+        $wrap.append(renderNestedContent(block, shim));
+        return $wrap;
+    }
+
+    /**
+     * NestedBlockShim — proxies reads/writes of a nested block through to
+     * blocks[parentIndex][side][colIndex].
+     */
+    function NestedBlockShim(parentIndex, side, colIndex) {
+        this.parentIndex = parentIndex;
+        this.side = side;
+        this.colIndex = colIndex;
+    }
+    NestedBlockShim.prototype.get = function () {
+        return blocks[this.parentIndex][this.side][this.colIndex];
+    };
+    NestedBlockShim.prototype.set = function (key, value) {
+        blocks[this.parentIndex][this.side][this.colIndex][key] = value;
+    };
+    NestedBlockShim.prototype.unset = function (key) {
+        delete blocks[this.parentIndex][this.side][this.colIndex][key];
+    };
+
+    /**
+     * Render the inner content (minus toolbar) of a nested block.
+     */
+    function renderNestedContent(block, shim) {
+        var $content = $('<div class="hl-eb-nested-content"></div>');
+        switch (block.type) {
+            case 'text':
+                var $editor = $('<div class="hl-eb-text-editor hl-eb-text-editor-nested" contenteditable="true"></div>');
+                $editor.html(block.content || '<p>Text...</p>');
+                $editor.css('text-align', block.text_align || 'left');
+                $editor.css('font-size',  (block.font_size || 14) + 'px');
+                $editor.on('focus', function () {
+                    if (!window._hlPendingTextSnap) {
+                        window._hlPendingTextSnap = JSON.parse(JSON.stringify(blocks));
+                    }
+                });
+                $editor.on('input', function () {
+                    shim.set('content', $(this).html());
+                    markDirty();
+                });
+                $editor.on('blur', function () {
+                    flushPendingTextSnapshot();
+                    updateUndoButtons();
+                });
+                $content.append($editor);
+                break;
+            case 'image':
+                var cur = block.src
+                    ? '<img src="' + escHtml(block.src) + '" style="max-width:100%;" />'
+                    : '<em style="color:#999;">(no image)</em>';
+                var $imgPreview = $('<div class="hl-eb-img-preview">' + cur + '</div>');
+                var $imgBtn = $('<button type="button" class="button button-small hl-eb-choose-image-nested">Choose</button>');
+                $imgBtn.on('click', function () {
+                    var frame = wp.media({ title: 'Select Image', multiple: false, library: { type: 'image' } });
+                    frame.on('select', function () {
+                        pushUndo();
+                        var a = frame.state().get('selection').first().toJSON();
+                        if (/\.svg$/i.test(a.url)) { alert('SVG files are not allowed in emails.'); return; }
+                        shim.set('src', a.url);
+                        shim.set('width', Math.min(a.width || 300, 300));
+                        $imgPreview.html('<img src="' + escHtml(a.url) + '" style="max-width:100%;" />');
+                        markDirty();
+                    });
+                    frame.open();
+                });
+                $content.append($imgPreview).append($imgBtn);
+                break;
+            case 'button':
+                var $lbl = $('<input type="text" placeholder="Label" value="' + escHtml(block.label || 'Click') + '">');
+                var $u   = $('<input type="text" placeholder="URL" value="' + escHtml(block.url || '') + '">');
+                $lbl.on('change', function () { pushUndo(); shim.set('label', $(this).val()); markDirty(); });
+                $u.on('change',   function () { pushUndo(); shim.set('url',   $(this).val()); markDirty(); });
+                $content.append($lbl).append($u);
+                break;
+            case 'divider':
+                $content.append('<hr style="border-top:' + (block.thickness || 1) + 'px solid ' + escHtml(block.color || '#E5E7EB') + ';">');
+                break;
+            case 'spacer':
+                var h = block.height || 16;
+                var $sl = $('<input type="range" min="8" max="80" value="' + h + '">');
+                var $pv = $('<div class="hl-eb-spacer-preview" style="height:' + h + 'px;background:#f0f0f0;"></div>');
+                var spacerDragStartedN = false;
+                $sl.on('mousedown touchstart', function () {
+                    if (!spacerDragStartedN) { pushUndo(); spacerDragStartedN = true; }
+                });
+                $sl.on('mouseup touchend', function () { spacerDragStartedN = false; });
+                $sl.on('input', function () {
+                    var val = parseInt($(this).val());
+                    shim.set('height', val);
+                    $pv.css('height', val + 'px');
+                    markDirty();
+                });
+                $content.append($sl).append($pv);
+                break;
+        }
+        return $content;
+    }
+
+    // =========================================================================
+    // Nested block action handlers (event delegation on .hl-eb-block-nested)
+    // =========================================================================
+
+    function nestedCoords($el) {
+        var $b = $el.closest('.hl-eb-block-nested');
+        return {
+            parent:   parseInt($b.data('parent'), 10),
+            side:     $b.data('side'),
+            colIndex: parseInt($b.data('col-index'), 10)
+        };
+    }
+
+    function deleteNestedBlock(parentIndex, side, colIndex) {
+        pushUndo();
+        blocks[parentIndex][side].splice(colIndex, 1);
+        markDirty();
+        renderAllBlocks();
+    }
+
+    function duplicateNestedBlock(parentIndex, side, colIndex) {
+        pushUndo();
+        var clone = JSON.parse(JSON.stringify(blocks[parentIndex][side][colIndex]));
+        blocks[parentIndex][side].splice(colIndex + 1, 0, clone);
+        markDirty();
+        renderAllBlocks();
+    }
+
+    function addNestedBlock(parentIndex, side, type) {
+        pushUndo();
+        blocks[parentIndex][side].push(makeDefaultBlock(type));
+        markDirty();
+        renderAllBlocks();
+    }
+
+    /** A.2.5 / A.6.9 — move a nested block to the other column in the same Columns block. */
+    function moveNestedBlock(parentIndex, fromSide, toSide, colIndex) {
+        pushUndo();
+        var item = blocks[parentIndex][fromSide].splice(colIndex, 1)[0];
+        blocks[parentIndex][toSide].push(item);
+        markDirty();
+        renderAllBlocks();
+    }
+
+    // =========================================================================
+    // Mini palette popup (Spec §2.1)
+    // =========================================================================
+
+    // Single-open invariant — close any existing popup before showing a new one.
+    var $miniPaletteOpen = null;
+
+    function showMiniPalette($button, parentIndex, side) {
+        closeMiniPalette();
+        var $popup = $(
+            '<div class="hl-eb-mini-palette" role="menu" aria-label="Add nested block">' +
+                '<button type="button" class="hl-eb-mini-palette-btn" data-type="text">Text</button>' +
+                '<button type="button" class="hl-eb-mini-palette-btn" data-type="image">Image</button>' +
+                '<button type="button" class="hl-eb-mini-palette-btn" data-type="button">Button</button>' +
+                '<button type="button" class="hl-eb-mini-palette-btn" data-type="divider">Divider</button>' +
+                '<button type="button" class="hl-eb-mini-palette-btn" data-type="spacer">Spacer</button>' +
+                '<button type="button" class="hl-eb-mini-palette-btn hl-eb-mini-palette-disabled" disabled' +
+                    ' title="Columns cannot be nested — email clients don\'t render nested tables reliably.">Columns</button>' +
+            '</div>'
+        );
+        $button.after($popup);
+        $miniPaletteOpen = $popup;
+
+        $popup.find('.hl-eb-mini-palette-btn:not([disabled])').on('click', function () {
+            var type = $(this).data('type');
+            closeMiniPalette();
+            addNestedBlock(parentIndex, side, type);
+        });
+    }
+
+    function closeMiniPalette() {
+        if ($miniPaletteOpen) {
+            $miniPaletteOpen.remove();
+            $miniPaletteOpen = null;
+        }
     }
 
     // =========================================================================
@@ -485,6 +824,54 @@
                 nonce: config.nonce,
                 template_id: $notice.data('template-id') || 0
             });
+        });
+
+        // Nested block delete.
+        $(document).on('click', '.hl-eb-nested-del', function (e) {
+            e.stopPropagation();
+            var c = nestedCoords($(this));
+            deleteNestedBlock(c.parent, c.side, c.colIndex);
+        });
+
+        // Nested block duplicate.
+        $(document).on('click', '.hl-eb-nested-dup', function (e) {
+            e.stopPropagation();
+            var c = nestedCoords($(this));
+            duplicateNestedBlock(c.parent, c.side, c.colIndex);
+        });
+
+        // Nested block move-to-other-column.
+        $(document).on('click', '.hl-eb-nested-move', function (e) {
+            e.stopPropagation();
+            var c = nestedCoords($(this));
+            var toSide = c.side === 'left' ? 'right' : 'left';
+            moveNestedBlock(c.parent, c.side, toSide, c.colIndex);
+        });
+
+        // "+ Add Block" inside a column → show mini palette.
+        $(document).on('click', '.hl-eb-col-add-btn', function (e) {
+            e.stopPropagation();
+            var $col = $(this).closest('.hl-eb-col');
+            var parentIndex = parseInt($col.data('parent'), 10);
+            var side = $col.data('side');
+            showMiniPalette($(this), parentIndex, side);
+        });
+
+        // Click outside the mini palette closes it.
+        $(document).on('click', function (e) {
+            if (!$miniPaletteOpen) return;
+            var $t = $(e.target);
+            if ($t.closest('.hl-eb-mini-palette').length) return;
+            if ($t.hasClass('hl-eb-col-add-btn')) return;
+            closeMiniPalette();
+        });
+
+        // Escape closes the mini palette.
+        $(document).on('keydown', function (e) {
+            if (e.which === 27 && $miniPaletteOpen) {
+                closeMiniPalette();
+                e.stopPropagation();
+            }
         });
     }
 
