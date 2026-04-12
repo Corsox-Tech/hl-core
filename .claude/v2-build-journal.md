@@ -239,3 +239,55 @@ All 32 Track 3 tasks committed on `feature/email-v2-track3-backend`:
 - **Sweep: 63/63 PASS**, **smoke test: 2 failures (both baseline)**, zero new regressions after the read-path fix
 - Ready for merge PR handoff to user — **do not self-merge** per execution rules
 
+---
+
+## Track 1 — Session B: Admin Workflow UX
+
+### 2026-04-11 — Track 1 Tasks 1+2: Test harness + static registries
+- Created `bin/test-email-v2-track1.php` (16 assertions): registries, generate_copy_name, operator_label, validate_workflow_payload. Uses `$GLOBALS` counters to work around `wp eval-file` scope issue. Manually loads `HL_Admin_Emails` class (not loaded in CLI context).
+- Added 8 static methods to `HL_Admin_Emails`: `get_condition_fields()`, `get_condition_operators()`, `get_all_operator_labels()`, `operator_label()`, `get_recipient_tokens()`, `generate_copy_name()` (with table allowlist per code review), `validate_workflow_payload()`, `sanitize_json_payload()`.
+- Code review caught and fixed: `generate_copy_name()` used `preg_replace` on table name — replaced with explicit allowlist (`hl_email_workflow`, `hl_email_template`).
+- Commit: `35da1a6`.
+
+### 2026-04-11 — Track 1 Task 4: cycle_id backfill in hydrate_context
+- Modified `includes/services/class-hl-email-automation-service.php`: backfill `cycle_id` from `enrollment_id` at end of `hydrate_context()` for triggers whose sub-loaders don't set it.
+- Commit: `44bd2cb`.
+
+### 2026-04-11 — Track 1 Task 5: Harden handle_workflow_save
+- Replaced `handle_workflow_save()` body: decodes/validates/re-encodes JSON via `sanitize_json_payload()` + `validate_workflow_payload()`. Stable `wp_json_encode` flags (A.3.5). Audit logging added.
+- Commit: `2548583`.
+
+### 2026-04-11 — Track 1 Task 6: Enqueue + registries + nonces
+- Created `assets/js/admin/email-workflow.js` (stub — body class signal + error listener).
+- Modified `class-hl-admin.php`: enqueue on workflow edit/new pages only, inline registries via `wp_add_inline_script('before')`, `wp_refresh_nonces` filter (A.2.24), eager `HL_Admin_Emails::instance()` for admin-post hooks.
+- Commit: `b9b669f`.
+
+### 2026-04-11 — Track 1 Tasks 7-10: Condition Builder + Recipient Picker
+- Replaced JSON textareas in `render_workflow_form()` with visual builder shells + `<details>` fallback.
+- Full JS implementation: condition row builder (field/op/value adaptation, pills, ARIA), recipient token cards with check/dim/disabled states, trigger-dependent visibility, Primary→CC exclusion, debounced AJAX recipient count.
+- Added `ajax_recipient_count()` AJAX handler with `HL_Roles`-based role counting.
+- Registered all admin-post hooks + stubs for Tasks 11/12/14.
+- Commit: `40387a9`.
+
+### 2026-04-11 — Track 1 Task 11: Workflow row actions
+- Implemented `handle_workflow_duplicate()`, `handle_workflow_delete()` (soft-delete with queue guard + transaction), `ajax_workflow_toggle_status()`.
+- Updated `render_workflows_tab()`: `.hl-email-admin` wrapper, full row actions markup, inline JS for confirm-delete + AJAX toggle.
+- Added A.2.26 comments on automation-service SELECT queries.
+- Commit: `d76d8ee`.
+
+### 2026-04-11 — Track 1 Task 13: CSS polish
+- Appended 201 lines to `assets/css/admin.css`: condition builder, pill tags, token cards, row actions, JS-fallback visibility. All scoped `.hl-email-admin`.
+- Commit: `08d8ccc`.
+
+### 2026-04-11 — Track 1 Tasks 12+14: Template actions + Force Resend
+- Implemented `handle_template_duplicate()` (unique template_key generation), `handle_template_archive()`, `handle_workflow_force_resend()`.
+- Updated `render_templates_tab()`: row actions markup + `.hl-email-admin` wrapper.
+- Updated `render_workflow_form()`: template dropdown excludes archived (keeps assigned with suffix), Force Resend box with scope selector + audit history.
+- Commit: `ad66cca`.
+
+### Track 1 gate results
+- Track 1 tests (`bin/test-email-v2-track1.php`): **16/16 PASS**
+- Track 3 tests (`wp hl-core email-v2-test`): **63/63 PASS** (zero regressions)
+- Smoke test (`wp hl-core smoke-test`): **2 failures** (both pre-existing `hl_user_profile/completion_pct` baseline)
+- Browser verification: **pending manual UI pass at PR review time**
+

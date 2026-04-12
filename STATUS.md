@@ -254,7 +254,25 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] Deploy to test server, run `wp hl-core email-v2-test --only=roles`, `wp hl-core smoke-test`
 - [ ] Merge `feature/email-v2-track3-backend` to `main`
 
-**Track 1 — Admin UX (0/15):** Waits on Track 3 prerequisites (Tasks 1, 2, 5, 23).
+**Track 1 — Admin UX (15/15 — COMPLETE on `feature/email-v2-track1-admin-ux`):**
+- [x] Task 1: Bootstrap test harness (`bin/test-email-v2-track1.php`, 16 assertions)
+- [x] Task 2: Static registries (fields, operators, tokens, helpers)
+- [x] Task 4: Populate `cycle_id` in `hydrate_context()` for `assigned_mentor`
+- [x] Task 5: Harden `handle_workflow_save()` with allowlist validation (A.2.27)
+- [x] Task 6: Enqueue `email-workflow.js` + inject registries + nonce refresh (A.2.24)
+- [x] Tasks 7+8: Condition Builder — PHP shell + JS (field/op/value, pills, ARIA)
+- [x] Tasks 9+10: Recipient Picker — PHP shell + JS + AJAX count hint (A.2.14)
+- [x] Task 11: Workflow Row Actions — duplicate, toggle (AJAX), soft-delete (A.2.26)
+- [x] Task 12: Template Row Actions — duplicate, archive/restore
+- [x] Task 13: CSS polish — `.hl-email-admin` scoped styles (A.3.3)
+- [x] Task 14: Force Resend action + audit history display (A.7.1/A.7.13)
+- [x] Task 15: Final integration verification (Track 1: 16/16, Track 3: 63/63, smoke: 2 baseline)
+
+**Track 1 gate results:**
+- Track 1 tests: 16/16 PASS
+- Track 3 tests: 63/63 PASS (zero regressions)
+- Smoke test: 2 failures (both pre-existing `hl_user_profile/completion_pct` baseline)
+- Browser verification: pending manual UI pass at PR review time
 
 **Track 2 — Builder (0/5):** Can start immediately on its own branch.
 
