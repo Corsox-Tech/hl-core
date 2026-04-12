@@ -918,21 +918,167 @@ class HL_Email_Automation_Service {
                     $cycle_id, $from, $to
                 ), ARRAY_A );
 
-            case 'cron:coaching_window_7d':
-                // Users with no coaching session scheduled and coaching components opening in 7 days.
-                // TODO: Requires component available_from/available_to columns (Task 7.4).
-                return array();
+            case 'cron:coaching_window_7d': {
+                // Mentors with coaching components opening in the next 7 days and no scheduled/attended session.
+                $today = current_time( 'Y-m-d' );
+                $plus7 = wp_date( 'Y-m-d', strtotime( $today . ' +7 days' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT DISTINCT en.user_id,
+                            en.enrollment_id AS enrollment_id,
+                            c.component_id AS entity_id,
+                            'component' AS entity_type
+                     FROM {$wpdb->prefix}hl_component c
+                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_enrollment en
+                         ON en.enrollment_id = pa.enrollment_id
+                        AND en.status IN ('active','warning')
+                     LEFT JOIN {$wpdb->prefix}hl_coaching_session cs
+                         ON cs.component_id = c.component_id
+                        AND cs.mentor_enrollment_id = en.enrollment_id
+                        AND cs.session_status IN ('scheduled','attended')
+                     WHERE c.component_type = 'coaching_session_attendance'
+                       AND c.cycle_id = %d
+                       AND c.available_from IS NOT NULL
+                       AND c.available_from BETWEEN %s AND %s
+                       AND cs.session_id IS NULL
+                     LIMIT 5000",
+                    $cycle_id, $today, $plus7
+                ), ARRAY_A );
+            }
 
-            case 'cron:coaching_pre_end':
-                // Users nearing cycle end with no coaching session.
-                // TODO: Requires cycle end_date logic.
-                return array();
+            case 'cron:coaching_pre_end': {
+                // Cycles ending in 0-14 days; enrollments with coaching components and no attended session.
+                $today  = current_time( 'Y-m-d' );
+                $plus14 = wp_date( 'Y-m-d', strtotime( $today . ' +14 days' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT DISTINCT en.user_id,
+                            en.enrollment_id AS enrollment_id,
+                            c.component_id AS entity_id,
+                            'component' AS entity_type
+                     FROM {$wpdb->prefix}hl_cycle cy
+                     INNER JOIN {$wpdb->prefix}hl_enrollment en
+                         ON en.cycle_id = cy.cycle_id AND en.status IN ('active','warning')
+                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.enrollment_id = en.enrollment_id
+                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = pa.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_component c
+                         ON c.pathway_id = p.pathway_id
+                        AND c.component_type = 'coaching_session_attendance'
+                     LEFT JOIN {$wpdb->prefix}hl_coaching_session cs
+                         ON cs.component_id = c.component_id
+                        AND cs.mentor_enrollment_id = en.enrollment_id
+                        AND cs.session_status = 'attended'
+                     WHERE cy.cycle_id = %d
+                       AND cy.status = 'active'
+                       AND cy.end_date IS NOT NULL
+                       AND cy.end_date BETWEEN %s AND %s
+                       AND cs.session_id IS NULL
+                     LIMIT 5000",
+                    $cycle_id, $today, $plus14
+                ), ARRAY_A );
+            }
 
-            case 'cron:cv_window_7d':
-            case 'cron:cv_overdue_1d':
-            case 'cron:rp_window_7d':
-                // TODO: Requires component available_from/available_to columns (Task 7.4).
-                return array();
+            case 'cron:cv_window_7d': {
+                // Classroom-visit components opening in the next 7 days; users without a submitted visit this cycle.
+                $today = current_time( 'Y-m-d' );
+                $plus7 = wp_date( 'Y-m-d', strtotime( $today . ' +7 days' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT DISTINCT en.user_id,
+                            en.enrollment_id AS enrollment_id,
+                            c.component_id AS entity_id,
+                            'component' AS entity_type
+                     FROM {$wpdb->prefix}hl_component c
+                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_enrollment en
+                         ON en.enrollment_id = pa.enrollment_id
+                        AND en.status IN ('active','warning')
+                     WHERE c.component_type = 'classroom_visit'
+                       AND c.cycle_id = %d
+                       AND c.available_from IS NOT NULL
+                       AND c.available_from BETWEEN %s AND %s
+                       AND NOT EXISTS (
+                           SELECT 1
+                           FROM {$wpdb->prefix}hl_classroom_visit cv
+                           LEFT JOIN {$wpdb->prefix}hl_classroom_visit_submission cvs
+                               ON cvs.classroom_visit_id = cv.classroom_visit_id
+                              AND cvs.status = 'submitted'
+                           WHERE cv.cycle_id = en.cycle_id
+                             AND (cv.leader_enrollment_id = en.enrollment_id OR cv.teacher_enrollment_id = en.enrollment_id)
+                             AND cvs.submission_id IS NOT NULL
+                       )
+                     LIMIT 5000",
+                    $cycle_id, $today, $plus7
+                ), ARRAY_A );
+            }
+
+            case 'cron:cv_overdue_1d': {
+                // Classroom-visit components whose available_to = yesterday; users without a submitted visit.
+                $today     = current_time( 'Y-m-d' );
+                $yesterday = wp_date( 'Y-m-d', strtotime( $today . ' -1 day' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT DISTINCT en.user_id,
+                            en.enrollment_id AS enrollment_id,
+                            c.component_id AS entity_id,
+                            'component' AS entity_type
+                     FROM {$wpdb->prefix}hl_component c
+                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_enrollment en
+                         ON en.enrollment_id = pa.enrollment_id
+                        AND en.status IN ('active','warning')
+                     WHERE c.component_type = 'classroom_visit'
+                       AND c.cycle_id = %d
+                       AND c.available_to IS NOT NULL
+                       AND c.available_to = %s
+                       AND NOT EXISTS (
+                           SELECT 1
+                           FROM {$wpdb->prefix}hl_classroom_visit cv
+                           LEFT JOIN {$wpdb->prefix}hl_classroom_visit_submission cvs
+                               ON cvs.classroom_visit_id = cv.classroom_visit_id
+                              AND cvs.status = 'submitted'
+                           WHERE cv.cycle_id = en.cycle_id
+                             AND (cv.leader_enrollment_id = en.enrollment_id OR cv.teacher_enrollment_id = en.enrollment_id)
+                             AND cvs.submission_id IS NOT NULL
+                       )
+                     LIMIT 5000",
+                    $cycle_id, $yesterday
+                ), ARRAY_A );
+            }
+
+            case 'cron:rp_window_7d': {
+                // Reflective-practice components opening in the next 7 days; users without a submitted RP session.
+                $today = current_time( 'Y-m-d' );
+                $plus7 = wp_date( 'Y-m-d', strtotime( $today . ' +7 days' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT DISTINCT en.user_id,
+                            en.enrollment_id AS enrollment_id,
+                            c.component_id AS entity_id,
+                            'component' AS entity_type
+                     FROM {$wpdb->prefix}hl_component c
+                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_enrollment en
+                         ON en.enrollment_id = pa.enrollment_id
+                        AND en.status IN ('active','warning')
+                     WHERE c.component_type = 'reflective_practice_session'
+                       AND c.cycle_id = %d
+                       AND c.available_from IS NOT NULL
+                       AND c.available_from BETWEEN %s AND %s
+                       AND NOT EXISTS (
+                           SELECT 1
+                           FROM {$wpdb->prefix}hl_rp_session rps
+                           LEFT JOIN {$wpdb->prefix}hl_rp_session_submission rpss
+                               ON rpss.rp_session_id = rps.rp_session_id
+                              AND rpss.status = 'submitted'
+                           WHERE rps.cycle_id = en.cycle_id
+                             AND rpss.submitted_by_user_id = en.user_id
+                             AND rpss.submission_id IS NOT NULL
+                       )
+                     LIMIT 5000",
+                    $cycle_id, $today, $plus7
+                ), ARRAY_A );
+            }
 
             case 'cron:action_plan_24h':
                 // Sessions completed 24+ hours ago with no action plan submitted.

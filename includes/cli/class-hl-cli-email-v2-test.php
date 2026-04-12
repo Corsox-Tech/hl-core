@@ -222,7 +222,35 @@ class HL_CLI_Email_V2_Test {
             'hl_coaching_session index component_mentor_status exists'
         );
     }
-    private function test_cron() {}
+    private function test_cron() {
+        $svc = HL_Email_Automation_Service::instance();
+        global $wpdb;
+        $cycle = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE status='active' LIMIT 1" );
+        if ( ! $cycle ) {
+            WP_CLI::log( '  [SKIP] No active cycle — cron smoke test skipped' );
+            return;
+        }
+
+        $reflection = new ReflectionClass( $svc );
+        $method = $reflection->getMethod( 'get_cron_trigger_users' );
+        $method->setAccessible( true );
+
+        $triggers = array(
+            'cron:cv_window_7d',
+            'cron:cv_overdue_1d',
+            'cron:rp_window_7d',
+            'cron:coaching_window_7d',
+            'cron:coaching_pre_end',
+        );
+        foreach ( $triggers as $t ) {
+            try {
+                $out = $method->invoke( $svc, $t, $cycle );
+                $this->assert_true( is_array( $out ), $t . ' returned an array' );
+            } catch ( \Throwable $e ) {
+                $this->assert_true( false, $t . ' threw: ' . $e->getMessage() );
+            }
+        }
+    }
     private function test_drafts() {
         global $wpdb;
 
