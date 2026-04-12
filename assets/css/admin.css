@@ -1921,3 +1921,204 @@
         display: none !important;
     }
 }
+
+/* ==========================================================================
+   Email System v2 — Track 1 (Admin Workflow UX)
+   All rules scoped to .hl-email-admin for specificity (A.3.3).
+   ========================================================================== */
+
+.hl-email-admin .hl-js-fallback { display: block; }
+body.hl-js-loaded .hl-email-admin .hl-js-fallback { display: none; }
+.hl-email-admin .hl-js-fallback summary { cursor: pointer; color: var(--eb-muted); font-size: 12px; }
+
+/* --- Condition Builder --- */
+.hl-email-admin .hl-condition-builder { max-width: 820px; }
+.hl-email-admin .hl-condition-rows { display: flex; flex-direction: column; gap: 8px; }
+.hl-email-admin .hl-condition-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--eb-bg-subtle, #F9FAFB);
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+.hl-email-admin .hl-condition-field { flex: 2; min-width: 180px; }
+.hl-email-admin .hl-condition-op    { flex: 1; min-width: 140px; }
+.hl-email-admin .hl-condition-value-wrap { flex: 2; min-width: 180px; display: flex; align-items: center; }
+.hl-email-admin .hl-condition-value-wrap.hl-condition-value-hidden { display: none; }
+.hl-email-admin .hl-condition-value { width: 100%; }
+.hl-email-admin .hl-condition-remove {
+    background: transparent;
+    border: none;
+    color: #DC2626;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 6px;
+}
+.hl-email-admin .hl-condition-remove:hover { color: #991B1B; }
+.hl-email-admin .hl-condition-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    color: var(--eb-accent, #2C7BE5);
+    text-decoration: none;
+    font-size: 13px;
+}
+.hl-email-admin .hl-condition-hint { font-size: 12px; color: var(--eb-muted, #6B7280); margin-top: 8px; }
+.hl-email-admin .hl-badge-and {
+    display: inline-block;
+    background: #EEF2FF;
+    color: #3730A3;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 6px;
+}
+.hl-email-admin .hl-toggle-pair { display: inline-flex; gap: 12px; }
+
+/* --- Pill Tag Component --- */
+.hl-email-admin .hl-pill-input {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    min-height: 32px;
+    padding: 4px 6px;
+    border: 1px solid #D1D5DB;
+    border-radius: 4px;
+    background: #fff;
+}
+.hl-email-admin .hl-pill-input input {
+    flex: 1;
+    min-width: 120px;
+    border: none;
+    outline: none;
+    padding: 2px 4px;
+    font-size: 13px;
+    background: transparent;
+}
+.hl-email-admin .hl-pill-input input.hl-input-invalid {
+    outline: 2px solid #DC2626;
+    outline-offset: -1px;
+}
+.hl-email-admin .hl-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+.hl-email-admin .hl-pill-enum  { background: #DBEAFE; color: #1E40AF; }
+.hl-email-admin .hl-pill-role  { background: #D1FAE5; color: #065F46; }
+.hl-email-admin .hl-pill-email { background: #FEF3C7; color: #92400E; }
+.hl-email-admin .hl-pill-remove {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    font-size: 14px;
+    padding: 0;
+    line-height: 1;
+}
+.hl-email-admin .hl-pill-remove:hover { opacity: 1; }
+
+/* --- Recipient Picker --- */
+.hl-email-admin .hl-recipient-picker { max-width: 820px; }
+.hl-email-admin .hl-recipient-section { margin-bottom: 20px; }
+.hl-email-admin .hl-recipient-section h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--eb-text, #374151);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.hl-email-admin .hl-token-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.hl-email-admin .hl-token-list-cc { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.hl-email-admin .hl-token-card {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 12px;
+    border: 2px solid #E5E7EB;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease;
+    position: relative;
+}
+.hl-email-admin .hl-token-card input[type=checkbox] { position: absolute; opacity: 0; pointer-events: none; }
+.hl-email-admin .hl-token-card:hover { border-color: #C7D2FE; }
+.hl-email-admin .hl-token-card:focus { outline: 2px solid var(--eb-accent, #2C7BE5); outline-offset: 1px; }
+.hl-email-admin .hl-token-card.hl-token-checked {
+    border-color: var(--eb-accent, #2C7BE5);
+    background: #EEF2FF;
+}
+.hl-email-admin .hl-token-card.hl-token-dim {
+    opacity: 0.5;
+    cursor: help;
+}
+.hl-email-admin .hl-token-card.hl-token-disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+.hl-email-admin .hl-token-label { font-weight: 600; font-size: 13px; color: var(--eb-text, #374151); }
+.hl-email-admin .hl-token-desc  { font-size: 12px; color: var(--eb-muted, #6B7280); margin-top: 2px; }
+.hl-email-admin .hl-token-list-cc .hl-token-card {
+    flex-direction: row;
+    align-items: center;
+    padding: 6px 10px;
+}
+.hl-email-admin .hl-recipient-roles,
+.hl-email-admin .hl-recipient-static { margin-bottom: 12px; }
+.hl-email-admin .hl-recipient-roles label,
+.hl-email-admin .hl-recipient-static label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--eb-muted, #6B7280);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+}
+.hl-email-admin .hl-recipient-count-hint {
+    font-size: 12px;
+    color: var(--eb-muted, #6B7280);
+    font-style: italic;
+    margin-top: 8px;
+}
+.hl-email-admin .hl-recipient-count-hint.hl-hint-error { color: #DC2626; font-style: normal; }
+
+/* --- Row Actions --- */
+.hl-email-admin .hl-row-actions { font-size: 12px; white-space: nowrap; }
+.hl-email-admin .hl-row-actions .hl-inline-form { display: inline; margin: 0; padding: 0; }
+.hl-email-admin .hl-row-actions .button-link { padding: 0; box-shadow: none; background: none; border: 0; cursor: pointer; font: inherit; }
+.hl-email-admin .hl-action-edit      { color: #2C7BE5; text-decoration: none; }
+.hl-email-admin .hl-action-duplicate { color: #6B7280; }
+.hl-email-admin .hl-action-activate  { color: #059669; }
+.hl-email-admin .hl-action-pause     { color: #D97706; }
+.hl-email-admin .hl-action-delete    { color: #DC2626; }
+.hl-email-admin .hl-action-archive   { color: #6B7280; }
+.hl-email-admin .hl-action-restore   { color: #059669; }
+.hl-email-admin .hl-action-sep       { color: #D1D5DB; margin: 0 4px; }
+.hl-email-admin .hl-action-edit:hover,
+.hl-email-admin .hl-action-duplicate:hover,
+.hl-email-admin .hl-action-activate:hover,
+.hl-email-admin .hl-action-pause:hover,
+.hl-email-admin .hl-action-delete:hover,
+.hl-email-admin .hl-action-archive:hover,
+.hl-email-admin .hl-action-restore:hover { text-decoration: underline; }
+
+/* --- Deleted status badge --- */
+.hl-email-admin .hl-email-badge--deleted { background: #F3F4F6; color: #6B7280; }
