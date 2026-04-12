@@ -138,8 +138,90 @@ class HL_CLI_Email_V2_Test {
         delete_option( HL_Roles::OPTION_SCRUB_DONE );
     }
 
-    // Stubs — filled by later tasks.
-    private function test_schema() {}
+    // ---- Test: schema ----
+    private function test_schema() {
+        global $wpdb;
+
+        $component_table = $wpdb->prefix . 'hl_component';
+        $coaching_table  = $wpdb->prefix . 'hl_coaching_session';
+        $audit_table     = $wpdb->prefix . 'hl_audit_log';
+
+        // 1. hl_component.available_from column exists AND is DATE type.
+        //    DATA_TYPE check guards against a future migration accidentally
+        //    creating the column as VARCHAR or similar.
+        $col_from_row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s
+             LIMIT 1",
+            $component_table, 'available_from'
+        ), ARRAY_A );
+        $this->assert_true(
+            is_array( $col_from_row )
+                && $col_from_row['COLUMN_NAME'] === 'available_from'
+                && strtolower( $col_from_row['DATA_TYPE'] ) === 'date',
+            'hl_component.available_from column exists with DATE type'
+        );
+
+        // 2. hl_component.available_to column exists AND is DATE type.
+        $col_to_row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s
+             LIMIT 1",
+            $component_table, 'available_to'
+        ), ARRAY_A );
+        $this->assert_true(
+            is_array( $col_to_row )
+                && $col_to_row['COLUMN_NAME'] === 'available_to'
+                && strtolower( $col_to_row['DATA_TYPE'] ) === 'date',
+            'hl_component.available_to column exists with DATE type'
+        );
+
+        // 3. hl_core_schema_revision >= 35.
+        $rev = (int) get_option( 'hl_core_schema_revision', 0 );
+        $this->assert_true(
+            $rev >= 35,
+            "hl_core_schema_revision >= 35 (actual: {$rev})"
+        );
+
+        // 4. hl_component has composite index type_pathway.
+        $idx_type_pathway = $wpdb->get_var( $wpdb->prepare(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s
+             LIMIT 1",
+            $component_table, 'type_pathway'
+        ) );
+        $this->assert_true(
+            $idx_type_pathway === 'type_pathway',
+            'hl_component index type_pathway exists'
+        );
+
+        // 5. hl_audit_log has composite index entity_action_time — this is the
+        //    foundation-polish addition that keeps HL_Audit_Service::get_last_event()
+        //    off the filesort path when Force Resend history loads.
+        $idx_entity_action_time = $wpdb->get_var( $wpdb->prepare(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s
+             LIMIT 1",
+            $audit_table, 'entity_action_time'
+        ) );
+        $this->assert_true(
+            $idx_entity_action_time === 'entity_action_time',
+            'hl_audit_log index entity_action_time exists'
+        );
+
+        // 6. hl_coaching_session has composite index component_mentor_status —
+        //    supports the Task 17 coaching_pre_end query path.
+        $idx_component_mentor_status = $wpdb->get_var( $wpdb->prepare(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s
+             LIMIT 1",
+            $coaching_table, 'component_mentor_status'
+        ) );
+        $this->assert_true(
+            $idx_component_mentor_status === 'component_mentor_status',
+            'hl_coaching_session index component_mentor_status exists'
+        );
+    }
     private function test_cron() {}
     private function test_drafts() {}
     private function test_resolver() {

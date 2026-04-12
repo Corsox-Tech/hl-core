@@ -144,7 +144,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 34;
+        $current_revision = 35;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -211,6 +211,15 @@ class HL_Installer {
                 // Tables created by dbDelta. Run data migrations.
                 require_once HL_CORE_INCLUDES_DIR . 'migrations/class-hl-email-template-migration.php';
                 HL_Email_Template_Migration::run();
+            }
+
+            // Rev 35: Email v2 — component submission window columns + composite indexes (A.2.21 + foundation polish).
+            if ( (int) $stored < 35 ) {
+                $ok = self::migrate_component_add_window_cols();
+                if ( ! $ok ) {
+                    // Bail without bumping revision — next plugins_loaded will retry.
+                    return;
+                }
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -1291,6 +1300,7 @@ class HL_Installer {
             KEY action_type (action_type),
             KEY entity_type (entity_type),
             KEY entity_id (entity_id),
+            KEY entity_action_time (entity_id, action_type, created_at),
             KEY created_at (created_at)
         ) $charset_collate;";
 
@@ -1450,6 +1460,8 @@ class HL_Installer {
             title varchar(255) NOT NULL,
             description text NULL,
             ordering_hint int NOT NULL DEFAULT 0,
+            available_from date DEFAULT NULL COMMENT 'Email v2: window-open date',
+            available_to date DEFAULT NULL COMMENT 'Email v2: window-close/due date',
             weight decimal(5,2) NOT NULL DEFAULT 1.00,
             external_ref longtext NULL COMMENT 'JSON - course_id/instrument_id etc',
             catalog_id bigint(20) unsigned NULL,
@@ -1469,7 +1481,8 @@ class HL_Installer {
             KEY cycle_id (cycle_id),
             KEY pathway_id (pathway_id),
             KEY component_type (component_type),
-            KEY catalog_id (catalog_id)
+            KEY catalog_id (catalog_id),
+            KEY type_pathway (component_type, pathway_id)
         ) $charset_collate;";
 
         // Component Prerequisite Group table
@@ -1725,7 +1738,8 @@ class HL_Installer {
             KEY coach_user_id (coach_user_id),
             KEY mentor_enrollment_id (mentor_enrollment_id),
             KEY component_id (component_id),
-            KEY booked_by_user_id (booked_by_user_id)
+            KEY booked_by_user_id (booked_by_user_id),
+            KEY component_mentor_status (component_id, mentor_enrollment_id, session_status)
         ) $charset_collate;";
 
         // Coaching Session Observation link table
@@ -3546,5 +3560,138 @@ class HL_Installer {
         $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN `status`
             enum('draft','open','in_review','in_progress','resolved','closed') NOT NULL DEFAULT 'open'
             CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" );
+    }
+
+    /**
+     * Run an idempotent migration ALTER and log detailed failure info to
+     * error_log so operators have signal when a Rev 35 upgrade stalls.
+     *
+     * @param string $sql   Full ALTER TABLE statement.
+     * @param string $label Human-readable label used in the error log entry.
+     * @return bool True on success, false on $wpdb->query() failure.
+     */
+    private static function run_rev35_alter( $sql, $label ) {
+        global $wpdb;
+        $res = $wpdb->query( $sql );
+        if ( $res === false ) {
+            error_log( '[HL_INSTALLER] Rev 35 migration failed on ' . $label . ': ' . $wpdb->last_error );
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Rev 35: Email v2 — add submission window columns to hl_component, plus
+     * composite indexes that support Task 17 (coaching_pre_end) query paths
+     * and the Force Resend history lookup in HL_Audit_Service::get_last_event().
+     *
+     * Idempotent:
+     *   - Column adds are guarded by information_schema.COLUMNS lookups.
+     *   - Index adds are guarded by information_schema.STATISTICS lookups.
+     *   - If a target table does not exist yet, dbDelta will create it with the
+     *     new shape (see get_schema()) and this method no-ops for that table.
+     *
+     * Returns false on any $wpdb->query() failure so the ladder in
+     * maybe_upgrade() can bail without bumping the revision, letting the next
+     * plugins_loaded retry the upgrade cleanly.
+     *
+     * @return bool True on success, false if any ALTER failed.
+     */
+    private static function migrate_component_add_window_cols() {
+        global $wpdb;
+
+        $prefix           = $wpdb->prefix;
+        $component_table  = "{$prefix}hl_component";
+        $coaching_table   = "{$prefix}hl_coaching_session";
+        $audit_table      = "{$prefix}hl_audit_log";
+
+        $table_exists = function ( $table_name ) use ( $wpdb ) {
+            return $wpdb->get_var( $wpdb->prepare(
+                'SHOW TABLES LIKE %s', $table_name
+            ) ) === $table_name;
+        };
+
+        $column_exists = function ( $table_name, $column_name ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_var( $wpdb->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s
+                 LIMIT 1",
+                $table_name, $column_name
+            ) ) );
+        };
+
+        $index_exists = function ( $table_name, $index_name ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_var( $wpdb->prepare(
+                "SELECT INDEX_NAME FROM information_schema.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s
+                 LIMIT 1",
+                $table_name, $index_name
+            ) ) );
+        };
+
+        // --- hl_component: new columns + composite index ---
+        if ( $table_exists( $component_table ) ) {
+            if ( ! $column_exists( $component_table, 'available_from' ) ) {
+                if ( ! self::run_rev35_alter(
+                    "ALTER TABLE `{$component_table}`
+                     ADD COLUMN available_from DATE DEFAULT NULL
+                     COMMENT 'Email v2: window-open date' AFTER ordering_hint",
+                    'hl_component.available_from'
+                ) ) {
+                    return false;
+                }
+            }
+
+            if ( ! $column_exists( $component_table, 'available_to' ) ) {
+                if ( ! self::run_rev35_alter(
+                    "ALTER TABLE `{$component_table}`
+                     ADD COLUMN available_to DATE DEFAULT NULL
+                     COMMENT 'Email v2: window-close/due date' AFTER available_from",
+                    'hl_component.available_to'
+                ) ) {
+                    return false;
+                }
+            }
+
+            if ( ! $index_exists( $component_table, 'type_pathway' ) ) {
+                if ( ! self::run_rev35_alter(
+                    "ALTER TABLE `{$component_table}`
+                     ADD INDEX type_pathway (component_type, pathway_id)",
+                    'hl_component.type_pathway'
+                ) ) {
+                    return false;
+                }
+            }
+        }
+
+        // --- hl_coaching_session: composite index for Task 17 coaching_pre_end query ---
+        if ( $table_exists( $coaching_table ) ) {
+            if ( ! $index_exists( $coaching_table, 'component_mentor_status' ) ) {
+                if ( ! self::run_rev35_alter(
+                    "ALTER TABLE `{$coaching_table}`
+                     ADD INDEX component_mentor_status (component_id, mentor_enrollment_id, session_status)",
+                    'hl_coaching_session.component_mentor_status'
+                ) ) {
+                    return false;
+                }
+            }
+        }
+
+        // --- hl_audit_log: composite index for HL_Audit_Service::get_last_event() ---
+        // entity_id + action_type + created_at DESC covers the Force Resend history
+        // lookup (Track 1 Task 14) without a filesort on each admin page load.
+        if ( $table_exists( $audit_table ) ) {
+            if ( ! $index_exists( $audit_table, 'entity_action_time' ) ) {
+                if ( ! self::run_rev35_alter(
+                    "ALTER TABLE `{$audit_table}`
+                     ADD INDEX entity_action_time (entity_id, action_type, created_at)",
+                    'hl_audit_log.entity_action_time'
+                ) ) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 }

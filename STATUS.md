@@ -204,20 +204,18 @@ Pick up from the first unchecked `[ ]` item each session.
 > **Handoff:** `docs/superpowers/plans/2026-04-11-email-v2-handoff.md`
 > **Plans:** `2026-04-11-email-v2-track{1,2,3}-*.md`
 > **Build journal:** `.claude/v2-build-journal.md`
-> **Progress:** 6 / 52 tasks complete — **Track 3 foundation (Tasks 1, 2, 3, 4, 5, 23) merged to main, polish pass deployed & green**
+> **Progress:** 7 / 52 tasks complete — **Track 3 foundation (Tasks 1, 2, 3, 4, 5, 23) merged + Task 6 (Schema Rev 35) in flight on `feature/email-v2-track3-backend`**
 
 **Branches:**
-- `feature/email-v2-track3-backend` — backend fixes, foundation (6/32 tasks done — Tasks 1, 2, 3, 4, 5, 23 all landed + polish §3-§9)
+- `feature/email-v2-track3-backend` — backend fixes, foundation + Rev 35 (7/32 tasks done — Tasks 1, 2, 3, 4, 5, 6, 23 all landed + polish §3-§9)
 - `feature/email-v2-track1-admin-ux` — admin UX (not started; waits on Track 3 prerequisites)
 - `feature/email-v2-track2-builder` — builder UX (not started; can run parallel to Track 3)
 
-**Track 3 — Backend Fixes (1/32):**
+**Track 3 — Backend Fixes (7/32):**
 - [x] **Task 1: `HL_Roles` helper** — Format-agnostic role matching (JSON + CSV), fixes `LIKE '%leader%'` substring bug. `HL_Roles::parse_stored`, `has_role`, `sanitize_roles`, `scrub_is_complete` + `OPTION_SCRUB_DONE` const. CLI test harness `wp hl-core email-v2-test` registered, `roles` group filled with 12 assertions. Phase B + Phase D quality gate PASS.
 - [x] **Task 2: Route condition evaluator through `HL_Roles`** — `HL_Email_Condition_Evaluator::evaluate_single()` now has a role-aware early-return branch above the generic switch. Routes `enrollment.roles` through `HL_Roles::has_role()` / `parse_stored()` for all 6 supported ops; rejects `gt`/`lt`. `test_resolver()` filled with 13 assertions. Phase B + Phase D quality gate PASS.
-- [ ] **Task 3: Fix `LIKE → gated FIND_IN_SET` in `resolve_school_director()`**
-- [ ] **Task 4: Fix `LIKE → gated FIND_IN_SET` in `resolve_role()`**
 - [x] **Task 5: `HL_Audit_Service::get_last_event()` + try/catch `log()`** — `log()` wrapped in try/catch + `$wpdb->insert === false` return-value check (closes the gap the plan's literal try/catch missed — `wpdb->insert` does not throw on SQL errors). New `record_audit_failure()` private helper routes both failure paths to `error_log` + daily `hl_audit_fail_count_YYYY-MM-DD` counter bump, itself wrapped in a last-resort try/catch. New public `get_last_event($entity_id, $action_type): ?array` returns the latest matching row with `actor_name` JOIN, enables Track 1 Task 14 Force Resend history. `test_audit` group filled with 3 assertions + cleanup. Phase B + Phase D quality gate PASS.
-- [ ] **Task 6: Schema Rev 35 — component window columns + composite indexes**
+- [x] **Task 6: Schema Rev 35 — `hl_component` window columns + composite indexes** — Bumped schema rev 34→35 with idempotent `migrate_component_add_window_cols()` method. Adds `hl_component.available_from`/`available_to` DATE columns (after `ordering_hint`), composite index `hl_component.type_pathway` (component_type, pathway_id) for Task 17 coaching_pre_end planning, `hl_coaching_session.component_mentor_status` (component_id, mentor_enrollment_id, session_status), and — added during foundation polish — `hl_audit_log.entity_action_time` (entity_id, action_type, created_at) so `HL_Audit_Service::get_last_event()` stays off the filesort path on Force Resend history reads. All 5 ALTERs route through a new `run_rev35_alter($sql, $label)` helper that logs `$wpdb->last_error` to `error_log` before bailing (observability fix from Sr SWE review). `CREATE TABLE` bodies updated inline for all three tables so fresh installs match the migrated shape. `test_schema` group filled with 6 assertions covering columns (with `DATA_TYPE = 'date'` checks), revision gate, and all 3 composite indexes. Full quality gate PASS: Phase B (SQL reviewer 9/10 PASS, WP/idempotency reviewer 8/10 PASS_WITH_NITS), Phase D (Sr SWE 7.9/10 APPROVE_WITH_FIXES — 3 should-fixes applied inline; WP Expert 8.6/10 APPROVE_WITH_FIXES — 1 should-fix applied inline), Phase G error-likelihood 0/10. Live verified on test server: `wp eval 'HL_Installer::maybe_upgrade();'` bumps rev 34→35, `wp hl-core email-v2-test --only=schema` 6/6 PASS, full sweep 49/49 PASS.
 - [ ] **Task 7: Admin pathway form: date pickers for `available_from`/`available_to`**
 - [ ] **Task 8: Draft autosave: `created_at`/`updated_at` timestamps**
 - [ ] **Task 9: Schema Rev 36 — `autoload=no` migration for drafts**
