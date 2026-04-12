@@ -144,7 +144,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 35;
+        $current_revision = 36;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -216,6 +216,15 @@ class HL_Installer {
             // Rev 35: Email v2 — component submission window columns + composite indexes (A.2.21 + foundation polish).
             if ( (int) $stored < 35 ) {
                 $ok = self::migrate_component_add_window_cols();
+                if ( ! $ok ) {
+                    // Bail without bumping revision — next plugins_loaded will retry.
+                    return;
+                }
+            }
+
+            // Rev 36: Email v2 — flip existing hl_email_draft_* wp_options to autoload='no' (one-time cleanup).
+            if ( (int) $stored < 36 ) {
+                $ok = self::migrate_email_drafts_autoload_off();
                 if ( ! $ok ) {
                     // Bail without bumping revision — next plugins_loaded will retry.
                     return;
@@ -3690,6 +3699,48 @@ class HL_Installer {
                     return false;
                 }
             }
+        }
+
+        return true;
+    }
+
+    /**
+     * Rev 36: Email v2 — one-time cleanup that flips every existing
+     * hl_email_draft_* row in wp_options to autoload='no'.
+     *
+     * Task 8 added a per-save belt-and-suspenders flip so any NEW draft rows
+     * are written with autoload='no' from the start. This migration closes
+     * the gap for rows that already exist from before Task 8 shipped, so
+     * wp_load_alloptions() stops pulling draft blobs into memory on every
+     * request.
+     *
+     * Idempotent: re-running is a no-op because the WHERE clause filters on
+     * `autoload != 'no'`, which yields zero rows after the first successful
+     * pass. The UPDATE itself is atomic at the MySQL level, so concurrent
+     * plugins_loaded racers are safe.
+     *
+     * Returns false on $wpdb->query() failure so the ladder in maybe_upgrade()
+     * can bail without bumping the revision, letting the next plugins_loaded
+     * retry the upgrade cleanly.
+     *
+     * @return bool True on success (including the zero-row re-run case), false on query failure.
+     */
+    private static function migrate_email_drafts_autoload_off() {
+        global $wpdb;
+
+        $like = $wpdb->esc_like( 'hl_email_draft_' ) . '%';
+
+        $res = $wpdb->query( $wpdb->prepare(
+            "UPDATE {$wpdb->options}
+             SET autoload = 'no'
+             WHERE option_name LIKE %s
+               AND autoload != 'no'",
+            $like
+        ) );
+
+        if ( $res === false ) {
+            error_log( '[HL_INSTALLER] Rev 36 migration failed: ' . $wpdb->last_error );
+            return false;
         }
 
         return true;

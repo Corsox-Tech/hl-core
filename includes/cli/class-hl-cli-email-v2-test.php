@@ -223,7 +223,68 @@ class HL_CLI_Email_V2_Test {
         );
     }
     private function test_cron() {}
-    private function test_drafts() {}
+    private function test_drafts() {
+        global $wpdb;
+
+        // Seed a fake draft option with autoload='yes' so the Rev 36 migration
+        // has something to flip. Unique suffix prevents concurrent test runs
+        // (or a prior aborted run) from colliding on the same option_name.
+        $suffix      = wp_generate_password( 12, false );
+        $option_name = 'hl_email_draft_rev36_test_' . $suffix;
+
+        // Direct INSERT (not add_option) so we can force autoload='yes'
+        // regardless of what the production draft-save path currently does.
+        $wpdb->insert(
+            $wpdb->options,
+            array(
+                'option_name'  => $option_name,
+                'option_value' => 'rev36_test_payload',
+                'autoload'     => 'yes',
+            ),
+            array( '%s', '%s', '%s' )
+        );
+        wp_cache_delete( $option_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+
+        // Invoke the private migration method directly via Closure::bind,
+        // mirroring the test_resolver pattern. This avoids having to reset
+        // hl_core_schema_revision and re-run maybe_upgrade() (which would
+        // touch every other migration in the ladder).
+        $invoke_migration = \Closure::bind(
+            function () {
+                return HL_Installer::migrate_email_drafts_autoload_off();
+            },
+            null,
+            HL_Installer::class
+        );
+        $migration_ok = $invoke_migration();
+
+        $this->assert_true(
+            $migration_ok === true,
+            'migrate_email_drafts_autoload_off() returns true'
+        );
+
+        // Verify the seeded row's autoload column is now 'no'.
+        $autoload_after = $wpdb->get_var( $wpdb->prepare(
+            "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+            $option_name
+        ) );
+        $this->assert_equals(
+            'no',
+            $autoload_after,
+            'seeded hl_email_draft_* row flipped to autoload=no'
+        );
+
+        // Schema revision must be at or above 36 after Rev 36 ships.
+        $rev = (int) get_option( 'hl_core_schema_revision', 0 );
+        $this->assert_true(
+            $rev >= 36,
+            "hl_core_schema_revision >= 36 (actual: {$rev})"
+        );
+
+        // Cleanup: drop the seeded option so we don't pollute wp_options.
+        delete_option( $option_name );
+    }
     private function test_resolver() {
         $ev = HL_Email_Condition_Evaluator::instance();
 
