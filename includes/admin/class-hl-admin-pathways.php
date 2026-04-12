@@ -33,6 +33,7 @@ class HL_Admin_Pathways {
      */
     private function __construct() {
         add_action('wp_ajax_hl_reorder_components', array($this, 'ajax_reorder_components'));
+        add_action('admin_notices', array($this, 'maybe_render_date_swap_notice'));
     }
 
     /**
@@ -388,6 +389,29 @@ class HL_Admin_Pathways {
             $data['display_window_start']    = !empty($_POST['display_window_start']) ? sanitize_text_field($_POST['display_window_start']) : null;
             $data['display_window_end']      = !empty($_POST['display_window_end']) ? sanitize_text_field($_POST['display_window_end']) : null;
         }
+
+        // Submission window (email-trigger window). Strict YYYY-MM-DD format + real
+        // calendar check via checkdate() so `2026-02-31` etc. are rejected before
+        // MySQL strict mode would reject the INSERT. Invert-swap guard below.
+        $is_date = function ($s) {
+            if (!is_string($s) || !preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $s, $m)) {
+                return false;
+            }
+            return checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
+        };
+        $raw_af = isset($_POST['available_from']) ? trim(sanitize_text_field(wp_unslash($_POST['available_from']))) : '';
+        $raw_at = isset($_POST['available_to']) ? trim(sanitize_text_field(wp_unslash($_POST['available_to']))) : '';
+        $af = ($raw_af !== '' && $is_date($raw_af)) ? $raw_af : null;
+        $at = ($raw_at !== '' && $is_date($raw_at)) ? $raw_at : null;
+        if ($af !== null && $at !== null && strcmp($af, $at) > 0) {
+            // Silent swap + warn on next page load.
+            $tmp = $af;
+            $af  = $at;
+            $at  = $tmp;
+            set_transient('hl_component_date_swap_' . get_current_user_id(), 1, 60);
+        }
+        $data['available_from'] = $af;
+        $data['available_to']   = $at;
 
         // Eligibility rules.
         $data['requires_classroom'] = !empty($_POST['requires_classroom']) ? 1 : 0;
@@ -1772,6 +1796,35 @@ class HL_Admin_Pathways {
     }
 
     /**
+     * Render a warning notice when the component submission window dates were
+     * auto-swapped because the admin entered "Opens" after "Closes".
+     *
+     * Triggered from save_component() via a short-lived per-user transient.
+     */
+    public function maybe_render_date_swap_notice() {
+        // Defense-in-depth: never render the notice for users without manage_hl_core.
+        if (!current_user_can('manage_hl_core')) {
+            return;
+        }
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            return;
+        }
+        // Gate to HL Core admin screens so the warning fires in context of the
+        // pathway/component page the user just saved from, not on an unrelated
+        // Dashboard / Plugins / etc. page they happen to land on next.
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        if (!$screen || strpos((string) $screen->id, 'hl-') === false) {
+            return;
+        }
+        $key = 'hl_component_date_swap_' . $user_id;
+        if (get_transient($key)) {
+            delete_transient($key);
+            echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__("Component submission window dates were reversed — 'Opens' has been set to the earlier date.", 'hl-core') . '</p></div>';
+        }
+    }
+
+    /**
      * Render the component create/edit form
      *
      * @param object      $pathway
@@ -1855,6 +1908,20 @@ class HL_Admin_Pathways {
         echo '<th scope="row"><label for="complete_by">' . esc_html__('Complete By', 'hl-core') . '</label></th>';
         echo '<td><input type="date" id="complete_by" name="complete_by" value="' . esc_attr($is_edit && !empty($component->complete_by) ? $component->complete_by : '') . '" />';
         echo '<p class="description">' . esc_html__('Suggested deadline for completing this component. Leave blank for no deadline.', 'hl-core') . '</p></td>';
+        echo '</tr>';
+
+        // Submission Window (email-trigger window)
+        $available_from_val = $is_edit && !empty($component->available_from) ? $component->available_from : '';
+        $available_to_val   = $is_edit && !empty($component->available_to) ? $component->available_to : '';
+        echo '<tr>';
+        echo '<th scope="row">' . esc_html__('Submission Window', 'hl-core') . '</th>';
+        echo '<td>';
+        echo '<label for="available_from" style="margin-right:6px;">' . esc_html__('Opens:', 'hl-core') . '</label>';
+        echo '<input type="date" id="available_from" name="available_from" value="' . esc_attr($available_from_val) . '" aria-label="' . esc_attr__('Submission window opens', 'hl-core') . '" />';
+        echo '<label for="available_to" style="margin-left:18px;margin-right:6px;">' . esc_html__('Closes:', 'hl-core') . '</label>';
+        echo '<input type="date" id="available_to" name="available_to" value="' . esc_attr($available_to_val) . '" aria-label="' . esc_attr__('Submission window closes', 'hl-core') . '" />';
+        echo '<p class="description">' . esc_html__('Optional. Defines the window during which email triggers may fire for this component. Leave blank to disable window-based triggers.', 'hl-core') . '</p>';
+        echo '</td>';
         echo '</tr>';
 
         // Ordering Hint — managed via drag-and-drop on the pathway detail page.
