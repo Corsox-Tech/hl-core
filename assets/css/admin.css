@@ -2360,3 +2360,172 @@ body.hl-js-loaded .hl-email-admin .hl-js-fallback { display: none; }
     cursor: not-allowed;
     background: #f9f9f9;
 }
+
+/* --- Preview modal ---------------------------------------------- */
+.hl-eb-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    background: rgba(0, 0, 0, 0.75);
+}
+
+.hl-eb-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 56px;
+    padding: 0 16px;
+    background: #1A2B47;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.hl-eb-modal-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.hl-eb-modal-subtitle {
+    margin-left: 10px;
+    color: #9CA3AF;
+    font-size: 13px;
+}
+
+.hl-eb-modal-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.hl-eb-modal-devices {
+    display: inline-flex;
+    border: 1px solid #2d3e5e;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.hl-eb-modal-device {
+    height: 32px;
+    padding: 0 12px;
+    background: transparent;
+    color: #cbd5e1;
+    border: 0;
+    border-right: 1px solid #2d3e5e;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.hl-eb-modal-device:last-child { border-right: 0; }
+
+.hl-eb-modal-device.active {
+    background: #2C7BE5;
+    color: #fff;
+}
+
+.hl-eb-modal-search {
+    position: relative;
+}
+
+.hl-eb-modal-search input {
+    height: 32px;
+    background: #0f1e38;
+    color: #fff;
+    border: 1px solid #2d3e5e;
+    border-radius: 4px;
+    padding: 0 10px;
+    font-size: 13px;
+    width: 220px;
+}
+
+.hl-eb-modal-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 260px;
+    overflow-y: auto;
+    margin: 4px 0 0;
+    padding: 4px 0;
+    list-style: none;
+    background: #0f1e38;
+    border: 1px solid #2d3e5e;
+    border-radius: 4px;
+    z-index: 1;
+}
+
+.hl-eb-modal-search-result,
+.hl-eb-modal-search-empty {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #cbd5e1;
+    cursor: pointer;
+}
+
+.hl-eb-modal-search-result:hover {
+    background: #1A2B47;
+    color: #fff;
+}
+
+.hl-eb-modal-close {
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    color: #fff;
+    border: 0;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.hl-eb-modal-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.hl-eb-modal-body {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 24px;
+    background: #111827;
+    overflow: auto;
+    position: relative;
+}
+
+.hl-eb-modal-body iframe {
+    height: calc(100vh - 120px);
+    max-height: 900px;
+    width: 600px;
+    background: #fff;
+    border: 0;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* --- Modal loading skeleton ------------------------------------- */
+.hl-eb-modal-skeleton {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 520px;
+    max-width: 80%;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.hl-eb-skeleton-line {
+    height: 14px;
+    background: linear-gradient(90deg, #1f2937 0%, #374151 50%, #1f2937 100%);
+    background-size: 200% 100%;
+    border-radius: 3px;
+    animation: hlEbSkeletonShimmer 1.4s linear infinite;
+}
+
+@keyframes hlEbSkeletonShimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}

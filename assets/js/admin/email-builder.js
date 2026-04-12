@@ -873,6 +873,50 @@
                 e.stopPropagation();
             }
         });
+
+        // Preview modal open / close.
+        $('#hl-eb-preview-btn').on('click', openPreviewModal);
+        $('#hl-eb-modal-close').on('click', closePreviewModal);
+        $(document).on('click', '.hl-eb-modal-overlay', function (e) {
+            if (e.target === this) closePreviewModal();
+        });
+
+        // Device toggles.
+        $(document).on('click', '.hl-eb-modal-device', function () {
+            setModalDevice($(this).data('mode'));
+        });
+
+        // Modal enrollment search.
+        var modalSearchTimer = null;
+        $('#hl-eb-modal-enrollment-search').on('input', function () {
+            clearTimeout(modalSearchTimer);
+            var q = $(this).val();
+            modalSearchTimer = setTimeout(function () { modalSearchEnrollments(q); }, 300);
+        });
+        $(document).on('click', '.hl-eb-modal-search-result', function () {
+            modalState.enrollmentId = parseInt($(this).data('enrollment-id'), 10) || 0;
+            $('#hl-eb-modal-enrollment-search').val($(this).text());
+            $('#hl-eb-modal-search-results').hide();
+            modalState.searchDropdownOpen = false;
+            refreshModalPreview();
+        });
+
+        // Focus trap inside modal.
+        $(document).on('keydown', trapModalTab);
+
+        // A.3.17 — Escape precedence: close search dropdown first, then modal.
+        $(document).on('keydown', function (e) {
+            if (e.which !== 27) return;
+            if (!modalState.open) return;
+            if (modalState.searchDropdownOpen) {
+                $('#hl-eb-modal-search-results').hide();
+                modalState.searchDropdownOpen = false;
+                e.stopPropagation();
+                return;
+            }
+            closePreviewModal();
+            e.stopPropagation();
+        });
     }
 
     // =========================================================================
@@ -962,6 +1006,149 @@
     // =========================================================================
     // Preview
     // =========================================================================
+
+    // =========================================================================
+    // Preview modal (Spec §2.3)
+    // =========================================================================
+
+    var modalState = {
+        open: false,
+        mode: 'desktop',       // desktop | mobile | dark
+        enrollmentId: 0,
+        lastFocusEl: null,
+        searchDropdownOpen: false
+    };
+
+    function openPreviewModal() {
+        var $modal = $('#hl-eb-modal');
+        if (!$modal.length) return;
+
+        modalState.lastFocusEl = document.activeElement;
+        modalState.open = true;
+        modalState.mode = 'desktop';
+        var existing = parseInt($('#hl-eb-preview-enrollment').val(), 10);
+        modalState.enrollmentId = isNaN(existing) ? 0 : existing;
+
+        $modal.find('.hl-eb-modal-device').removeClass('active')
+              .filter('[data-mode="desktop"]').addClass('active');
+        $modal.find('#hl-eb-modal-title').text($('#hl-eb-name').val() || 'Preview');
+        $modal.find('#hl-eb-modal-subtitle').text('');
+
+        $('#hl-eb-modal-iframe').css('width', '600px');
+
+        $modal.attr('aria-hidden', 'false').css('display', 'flex').hide().fadeIn(200);
+        $('body').css('overflow', 'hidden');
+
+        refreshModalPreview();
+
+        setTimeout(function () { $('#hl-eb-modal-close').focus(); }, 220);
+    }
+
+    function closePreviewModal() {
+        var $modal = $('#hl-eb-modal');
+        if (!modalState.open) return;
+        modalState.open = false;
+        modalState.searchDropdownOpen = false;
+        $('#hl-eb-modal-search-results').hide().empty();
+        $modal.fadeOut(200, function () {
+            $modal.attr('aria-hidden', 'true').css('display', 'none');
+            $('#hl-eb-modal-iframe').removeAttr('srcdoc').attr('srcdoc', '');
+        });
+        $('body').css('overflow', '');
+        if (modalState.lastFocusEl) {
+            try { modalState.lastFocusEl.focus(); } catch (e) {}
+        }
+    }
+
+    function refreshModalPreview() {
+        var $iframe = $('#hl-eb-modal-iframe');
+        var $skel   = $('#hl-eb-modal-skeleton');
+
+        $skel.show();
+        $iframe.css('visibility', 'hidden');
+
+        var params = new URLSearchParams();
+        params.set('action',       'hl_email_preview_render');
+        params.set('_wpnonce',     config.previewNonce || '');
+        params.set('template_id',  String(config.templateId || 0));
+        params.set('enrollment_id', String(modalState.enrollmentId || 0));
+        params.set('subject',      $('#hl-eb-subject').val() || '');
+        params.set('blocks_json',  JSON.stringify(blocks));
+        if (modalState.mode === 'dark') {
+            params.set('dark', '1');
+        }
+
+        // A.2.2 — use srcdoc instead of Blob URL.
+        fetch(config.ajaxUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString()
+        }).then(function (r) { return r.text(); }).then(function (html) {
+            $iframe.one('load', function () {
+                $skel.hide();
+                $iframe.css('visibility', 'visible');
+            });
+            $iframe.get(0).srcdoc = html;
+        }).catch(function () {
+            $skel.hide();
+            $iframe.css('visibility', 'visible');
+            $iframe.get(0).srcdoc = '<html><body style="font-family:sans-serif;padding:40px;color:#c00;">Preview failed to load. Check console.</body></html>';
+        });
+    }
+
+    function setModalDevice(mode) {
+        modalState.mode = mode;
+        $('.hl-eb-modal-device').removeClass('active').filter('[data-mode="' + mode + '"]').addClass('active');
+        var w = (mode === 'mobile') ? '375px' : '600px';
+        $('#hl-eb-modal-iframe').css('width', w);
+        refreshModalPreview();
+    }
+
+    // Focus trap: keep Tab / Shift+Tab cycling within the modal's focusable children.
+    function trapModalTab(e) {
+        if (!modalState.open || e.which !== 9) return;
+        var $focusables = $('#hl-eb-modal').find('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])').filter(':visible:not([disabled])');
+        if (!$focusables.length) return;
+        var first = $focusables.get(0);
+        var last  = $focusables.get($focusables.length - 1);
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+
+    function modalSearchEnrollments(query) {
+        if ((query || '').length < 2) {
+            $('#hl-eb-modal-search-results').hide().empty();
+            modalState.searchDropdownOpen = false;
+            return;
+        }
+        $.post(config.ajaxUrl, {
+            action: 'hl_email_preview_search',
+            nonce: config.nonce,
+            search: query
+        }, function (res) {
+            var $list = $('#hl-eb-modal-search-results').empty();
+            if (!res.success || !res.data.length) {
+                $list.append('<li class="hl-eb-modal-search-empty">No matches.</li>').show();
+                modalState.searchDropdownOpen = true;
+                return;
+            }
+            res.data.forEach(function (item) {
+                $list.append(
+                    '<li class="hl-eb-modal-search-result" role="option"' +
+                    ' data-enrollment-id="' + item.enrollment_id + '">' +
+                    escHtml(item.label) + '</li>'
+                );
+            });
+            $list.show();
+            modalState.searchDropdownOpen = true;
+        });
+    }
 
     function searchEnrollments(query) {
         if (query.length < 2) {
