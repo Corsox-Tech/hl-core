@@ -27,6 +27,327 @@ class HL_Admin_Emails {
     }
 
     // =========================================================================
+    // Static Registries (v2 Track 1)
+    // =========================================================================
+
+    /**
+     * Field registry for the visual condition builder.
+     *
+     * Each field mirrors a context key populated by
+     * HL_Email_Automation_Service::build_context() and consumed by
+     * HL_Email_Condition_Evaluator::evaluate().
+     *
+     * @return array<string, array{label:string,group:string,type:string,options:array}>
+     */
+    public static function get_condition_fields() {
+        return array(
+            // Cycle group.
+            'cycle.cycle_type' => array(
+                'label'   => 'Cycle Type',
+                'group'   => 'Cycle',
+                'type'    => 'enum',
+                'options' => array( 'program' => 'Program', 'course' => 'Course' ),
+            ),
+            'cycle.status' => array(
+                'label'   => 'Cycle Status',
+                'group'   => 'Cycle',
+                'type'    => 'enum',
+                'options' => array( 'active' => 'Active', 'archived' => 'Archived' ),
+            ),
+            'cycle.is_control_group' => array(
+                'label'   => 'Is Control Group',
+                'group'   => 'Cycle',
+                'type'    => 'boolean',
+                'options' => array(),
+            ),
+            // Enrollment group.
+            'enrollment.status' => array(
+                'label'   => 'Enrollment Status',
+                'group'   => 'Enrollment',
+                'type'    => 'enum',
+                'options' => array(
+                    'active'    => 'Active',
+                    'warning'   => 'Warning',
+                    'withdrawn' => 'Withdrawn',
+                    'completed' => 'Completed',
+                    'expired'   => 'Expired',
+                ),
+            ),
+            'enrollment.roles' => array(
+                'label'   => 'Enrollment Roles',
+                'group'   => 'Enrollment',
+                'type'    => 'enum',
+                'options' => array(
+                    'teacher'        => 'Teacher',
+                    'mentor'         => 'Mentor',
+                    'coach'          => 'Coach',
+                    'school_leader'  => 'School Leader',
+                    'district_leader'=> 'District Leader',
+                ),
+                'is_csv' => true, // Tells evaluator to use HL_Roles::has_role.
+            ),
+            // User group.
+            'user.account_activated' => array(
+                'label'   => 'Account Activated',
+                'group'   => 'User',
+                'type'    => 'boolean',
+                'options' => array(),
+            ),
+        );
+    }
+
+    /**
+     * Operator registry per field type.
+     *
+     * Keys are the JSON operator values stored in DB; values are
+     * human-friendly labels shown in the UI.
+     *
+     * @return array<string, array<string,string>>
+     */
+    public static function get_condition_operators() {
+        return array(
+            'enum' => array(
+                'eq'       => 'equals',
+                'neq'      => 'not equals',
+                'in'       => 'matches any of',
+                'not_in'   => 'does not match any of',
+                'is_null'  => 'is empty',
+                'not_null' => 'is not empty',
+            ),
+            'boolean' => array(
+                'eq' => 'equals',
+            ),
+            'text' => array(
+                'eq'       => 'equals',
+                'neq'      => 'not equals',
+                'in'       => 'matches any of',
+                'not_in'   => 'does not match any of',
+                'is_null'  => 'is empty',
+                'not_null' => 'is not empty',
+            ),
+            'numeric' => array(
+                'eq'       => 'equals',
+                'neq'      => 'not equals',
+                'gt'       => 'greater than',
+                'lt'       => 'less than',
+                'is_null'  => 'is empty',
+                'not_null' => 'is not empty',
+            ),
+        );
+    }
+
+    /**
+     * Flatten all operator labels to a single dictionary.
+     *
+     * Used for server-side allowlist checks and error messages
+     * that need to say "matches any of" not "in".
+     *
+     * @return array<string,string>
+     */
+    public static function get_all_operator_labels() {
+        $out = array();
+        foreach ( self::get_condition_operators() as $type => $ops ) {
+            foreach ( $ops as $key => $label ) {
+                $out[ $key ] = $label;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Human-friendly label for an operator key. Used in error messages.
+     * A.6.14 — consistent labeling across UI and server-side errors.
+     *
+     * @param string $op Operator key (e.g. 'eq', 'in').
+     * @return string Label (e.g. 'equals', 'matches any of'). Returns $op unchanged if unknown.
+     */
+    public static function operator_label( $op ) {
+        $labels = self::get_all_operator_labels();
+        return isset( $labels[ $op ] ) ? $labels[ $op ] : $op;
+    }
+
+    /**
+     * Recipient token registry.
+     *
+     * The `triggers` key is either '*' (always visible) or an array
+     * of trigger_key values this token is compatible with. Incompatible
+     * tokens stay dimmed in the UI but remain in stored JSON — the
+     * server-side resolver silently skips them at send time (A.2.10).
+     *
+     * @return array<string, array{label:string,description:string,triggers:string|array}>
+     */
+    public static function get_recipient_tokens() {
+        return array(
+            'triggering_user' => array(
+                'label'       => 'Triggering User',
+                'description' => 'The user who caused the event.',
+                'triggers'    => '*',
+            ),
+            'assigned_coach' => array(
+                'label'       => "User's Coach",
+                'description' => 'Coach assigned to this user via hl_coach_assignment.',
+                'triggers'    => array(
+                    'hl_enrollment_created',
+                    'hl_pathway_assigned',
+                    'hl_coaching_session_created',
+                    'hl_coaching_session_status_changed',
+                    'hl_rp_session_created',
+                    'hl_rp_session_status_changed',
+                    'hl_classroom_visit_submitted',
+                    'hl_teacher_assessment_submitted',
+                    'hl_child_assessment_submitted',
+                    'hl_pathway_completed',
+                    'cron:cv_window_7d',
+                    'cron:cv_overdue_1d',
+                    'cron:rp_window_7d',
+                    'cron:coaching_window_7d',
+                    'cron:coaching_session_5d',
+                    'cron:coaching_pre_end',
+                    'cron:action_plan_24h',
+                    'cron:session_notes_24h',
+                    'cron:low_engagement_14d',
+                    'cron:session_24h',
+                    'cron:session_1h',
+                ),
+            ),
+            'assigned_mentor' => array(
+                'label'       => "User's Mentor",
+                'description' => 'Mentor of the triggering user (via team membership in the current cycle).',
+                'triggers'    => array(
+                    'hl_classroom_visit_submitted',
+                    'hl_teacher_assessment_submitted',
+                    'hl_child_assessment_submitted',
+                    'hl_pathway_completed',
+                    'hl_learndash_course_completed',
+                ),
+            ),
+            'school_director' => array(
+                'label'       => 'School Director',
+                'description' => "School leader for the user's school.",
+                'triggers'    => '*',
+            ),
+            'observed_teacher' => array(
+                'label'       => 'Observed Teacher',
+                'description' => 'Teacher being observed in a classroom visit.',
+                'triggers'    => array( 'hl_classroom_visit_submitted' ),
+            ),
+        );
+    }
+
+    /**
+     * Generate a unique "(Copy)" suffix for duplicated rows.
+     * A.2.12 — unified helper for both workflow and template duplication.
+     *
+     * Retries up to 10 times with "(Copy)", "(Copy 2)", ... then falls
+     * back to UUID suffix.
+     *
+     * @param string $table       Table name: 'hl_email_workflow' or 'hl_email_template'.
+     * @param string $source_name Original row name.
+     * @return string Unique name guaranteed not to collide at call time.
+     */
+    public static function generate_copy_name( $table, $source_name ) {
+        global $wpdb;
+        $allowed_tables = array( 'hl_email_workflow', 'hl_email_template' );
+        if ( ! in_array( $table, $allowed_tables, true ) ) {
+            return trim( (string) $source_name ) . ' (Copy)';
+        }
+        $full_table = $wpdb->prefix . $table;
+        $base       = trim( (string) $source_name );
+
+        for ( $i = 1; $i <= 10; $i++ ) {
+            $candidate = $i === 1 ? $base . ' (Copy)' : $base . ' (Copy ' . $i . ')';
+            $exists = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$full_table} WHERE name = %s",
+                $candidate
+            ) );
+            if ( $exists === 0 ) {
+                return $candidate;
+            }
+        }
+        // Fallback: UUID suffix — guaranteed unique.
+        return $base . ' (Copy ' . substr( wp_generate_uuid4(), 0, 8 ) . ')';
+    }
+
+    /**
+     * Server-side allowlist validation for workflow save.
+     * A.2.27 — rejects any condition field/op or recipient token that
+     * does not appear in the static registries. Defence in depth — the
+     * UI already constrains this, but a hand-crafted POST could bypass.
+     *
+     * @param array $conditions Decoded conditions JSON.
+     * @param array $recipients Decoded recipients JSON.
+     * @return true|WP_Error
+     */
+    public static function validate_workflow_payload( $conditions, $recipients ) {
+        $fields    = self::get_condition_fields();
+        $op_labels = self::get_all_operator_labels();
+        $tokens    = self::get_recipient_tokens();
+
+        if ( ! is_array( $conditions ) ) {
+            return new WP_Error( 'hl_email_invalid_conditions', 'Conditions must be an array.' );
+        }
+        foreach ( $conditions as $i => $c ) {
+            if ( ! is_array( $c ) ) {
+                return new WP_Error( 'hl_email_invalid_condition', "Condition #{$i} must be an object." );
+            }
+            $field = $c['field'] ?? '';
+            $op    = $c['op']    ?? '';
+            if ( ! isset( $fields[ $field ] ) ) {
+                return new WP_Error( 'hl_email_unknown_field', "Unknown condition field: '{$field}'." );
+            }
+            if ( ! isset( $op_labels[ $op ] ) ) {
+                return new WP_Error( 'hl_email_unknown_op', "Unknown operator: '{$op}'." );
+            }
+            // Op must be valid for this field's type.
+            $type    = $fields[ $field ]['type'];
+            $allowed = self::get_condition_operators()[ $type ] ?? array();
+            if ( ! isset( $allowed[ $op ] ) ) {
+                return new WP_Error(
+                    'hl_email_op_type_mismatch',
+                    "Operator '" . self::operator_label( $op ) . "' is not valid for field type '{$type}'."
+                );
+            }
+        }
+
+        if ( ! is_array( $recipients ) ) {
+            return new WP_Error( 'hl_email_invalid_recipients', 'Recipients must be an object.' );
+        }
+        foreach ( array( 'primary', 'cc' ) as $section ) {
+            if ( ! isset( $recipients[ $section ] ) ) continue;
+            if ( ! is_array( $recipients[ $section ] ) ) {
+                return new WP_Error( 'hl_email_invalid_recipients_section', "Recipients.{$section} must be an array." );
+            }
+            foreach ( $recipients[ $section ] as $entry ) {
+                if ( ! is_string( $entry ) ) continue;
+                // role:X and static:email are free-form — only validate bare token names.
+                if ( strpos( $entry, 'role:' ) === 0 || strpos( $entry, 'static:' ) === 0 ) continue;
+                // Accept legacy cc_teacher alias (A.6.11).
+                if ( $entry === 'cc_teacher' ) continue;
+                if ( ! isset( $tokens[ $entry ] ) ) {
+                    return new WP_Error( 'hl_email_unknown_token', "Unknown recipient token: '{$entry}'." );
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Safely decode JSON from a posted textarea.
+     *
+     * @param string $raw    Raw POST value (unslashed).
+     * @param mixed  $default Fallback on decode failure.
+     * @return mixed
+     */
+    public static function sanitize_json_payload( $raw, $default ) {
+        $decoded = json_decode( (string) $raw, true );
+        if ( json_last_error() !== JSON_ERROR_NONE ) {
+            return $default;
+        }
+        return $decoded;
+    }
+
+    // =========================================================================
     // Page Render
     // =========================================================================
 
