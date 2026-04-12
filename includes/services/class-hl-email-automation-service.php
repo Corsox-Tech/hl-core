@@ -545,6 +545,20 @@ class HL_Email_Automation_Service {
             }
         }
 
+        // A.2.28 — Track 3's assigned_mentor resolver requires $context['cycle_id'].
+        // Backfill from enrollment_id when earlier sub-loaders didn't populate it
+        // (e.g. hl_pathway_assigned, hl_learndash_course_completed, hl_child_assessment_submitted,
+        // hl_coach_assigned — none of these call load_enrollment_context).
+        if ( empty( $context['cycle_id'] ) && ! empty( $context['enrollment_id'] ) ) {
+            $cycle_id = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT cycle_id FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id = %d",
+                (int) $context['enrollment_id']
+            ) );
+            if ( $cycle_id > 0 ) {
+                $context['cycle_id'] = $cycle_id;
+            }
+        }
+
         return $context;
     }
 
