@@ -130,7 +130,7 @@ class HL_Frontend_Schools_Listing {
              INNER JOIN {$wpdb->users} u ON e.user_id = u.ID
              WHERE e.status = 'active'
                AND e.school_id IS NOT NULL
-               AND e.roles LIKE '%\"school_leader\"%'
+               AND e.roles LIKE '%school_leader%'
              ORDER BY u.display_name ASC",
             ARRAY_A
         );

@@ -221,7 +221,7 @@ class HL_Frontend_Learners {
         }
         if ( $filter_role ) {
             $where[]  = 'e.roles LIKE %s';
-            $values[] = '%"' . $wpdb->esc_like( $filter_role ) . '"%';
+            $values[] = '%' . $wpdb->esc_like( $filter_role ) . '%';
         }
         if ( $filter_search ) {
             $where[]  = '(u.display_name LIKE %s OR u.user_email LIKE %s)';

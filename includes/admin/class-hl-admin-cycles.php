@@ -1446,7 +1446,7 @@ class HL_Admin_Cycles {
                AND e.roles LIKE %s
              ORDER BY u.display_name ASC",
             $cycle_id,
-            '%"mentor"%'
+            '%mentor%'
         ));
 
         echo '<h3>' . esc_html__('Mentor Coach Assignments', 'hl-core') . '</h3>';

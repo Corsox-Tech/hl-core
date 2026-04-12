@@ -230,7 +230,7 @@ class HL_Classroom_Visit_Service {
             $role_clauses = array();
             foreach ($eligible_roles as $role) {
                 $role_clauses[] = 'e.roles LIKE %s';
-                $args[] = '%' . $wpdb->esc_like('"' . sanitize_key($role) . '"') . '%';
+                $args[] = '%' . $wpdb->esc_like( sanitize_key($role) ) . '%';
             }
             $query .= ' AND (' . implode(' OR ', $role_clauses) . ')';
         }

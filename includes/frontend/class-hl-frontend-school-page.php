@@ -125,7 +125,7 @@ class HL_Frontend_School_Page {
                AND roles LIKE %s",
             $user_id,
             $school->orgunit_id,
-            '%"school_leader"%'
+            '%school_leader%'
         ) );
 
         if ( (int) $is_school_leader > 0 ) {
@@ -141,7 +141,7 @@ class HL_Frontend_School_Page {
                    AND roles LIKE %s",
                 $user_id,
                 $school->parent_orgunit_id,
-                '%"district_leader"%'
+                '%district_leader%'
             ) );
 
             if ( (int) $is_district_leader > 0 ) {

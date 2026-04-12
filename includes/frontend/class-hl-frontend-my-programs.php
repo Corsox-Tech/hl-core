@@ -387,7 +387,7 @@ class HL_Frontend_My_Programs {
                  WHERE tm.team_id = %d AND en.status = 'active'
                    AND en.roles LIKE %s
                  LIMIT 1",
-                $team_id, '%"mentor"%'
+                $team_id, '%mentor%'
             ), ARRAY_A);
 
             if ($mentor) return $mentor;

@@ -651,7 +651,7 @@ class HL_CLI_Smoke_Test {
 						 JOIN {$prefix}hl_cycle cy ON e.cycle_id = cy.cycle_id
 						 WHERE cy.status = 'active'
 						   AND e.status = 'active'
-						   AND e.roles LIKE '%\"mentor\"%'
+						   AND e.roles LIKE '%mentor%'
 						 ORDER BY e.enrollment_id LIMIT 1"
 					);
 					break;

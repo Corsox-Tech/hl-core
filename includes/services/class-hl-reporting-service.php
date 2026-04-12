@@ -379,11 +379,11 @@ class HL_Reporting_Service {
             $params[] = $team_id;
         }
 
-        // Role filter — JSON LIKE search on enrollment.roles
+        // Role filter — CSV LIKE search on enrollment.roles
         $role = isset( $filters['role'] ) ? sanitize_text_field( $filters['role'] ) : '';
         if ( $role !== '' ) {
             $where[]  = 'e.roles LIKE %s';
-            $params[] = '%"' . $wpdb->esc_like( $role ) . '"%';
+            $params[] = '%' . $wpdb->esc_like( $role ) . '%';
         }
 
         $where_sql   = implode( ' AND ', $where );
