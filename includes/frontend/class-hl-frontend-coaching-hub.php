@@ -191,7 +191,7 @@ class HL_Frontend_Coaching_Hub {
      * Render coaches card grid.
      */
     private function render_coaches_section() {
-        $coaches = get_users( array( 'role' => 'coach' ) );
+        $coaches = $this->get_cached_coaches();
         if ( empty( $coaches ) ) {
             return;
         }
@@ -366,14 +366,37 @@ class HL_Frontend_Coaching_Hub {
         ) ?: array();
     }
 
-    private function find_shortcode_page_url( $shortcode ) {
-        global $wpdb;
-        $page_id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT ID FROM {$wpdb->posts}
-             WHERE post_type = 'page' AND post_status = 'publish'
-             AND post_content LIKE %s LIMIT 1",
-            '%[' . $wpdb->esc_like( $shortcode ) . '%'
+    /**
+     * Get coaches with transient cache (15-min TTL, cap 50).
+     *
+     * Invalidated on set_user_role / add_user_role / remove_user_role.
+     *
+     * @return WP_User[]
+     */
+    private function get_cached_coaches() {
+        $cached = get_transient( 'hl_coach_list_cache' );
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+
+        $coaches = get_users( array(
+            'role'   => 'coach',
+            'number' => 50,
         ) );
-        return $page_id ? get_permalink( $page_id ) : '';
+
+        set_transient( 'hl_coach_list_cache', $coaches, 15 * MINUTE_IN_SECONDS );
+        return $coaches;
+    }
+
+    /**
+     * Invalidate coach list transient on role changes.
+     * Called from hl-core.php init_hooks() via set_user_role / add_user_role / remove_user_role.
+     */
+    public static function invalidate_coach_cache() {
+        delete_transient( 'hl_coach_list_cache' );
+    }
+
+    private function find_shortcode_page_url( $shortcode ) {
+        return HL_Page_Cache::get_url( $shortcode );
     }
 }

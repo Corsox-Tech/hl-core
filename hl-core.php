@@ -63,6 +63,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-date-utils.php';
         require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-normalization.php';
         require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-age-group-helper.php';
+        require_once HL_CORE_INCLUDES_DIR . 'utils/class-hl-page-cache.php';
         // Helpers
         require_once HL_CORE_INCLUDES_DIR . 'helpers/class-hl-timezone-helper.php';
         
@@ -270,6 +271,14 @@ class HL_Core {
         
         add_action('plugins_loaded', array($this, 'init'));
         add_action('init', array($this, 'load_textdomain'));
+
+        // Page cache: persistent shortcode → page-ID map with save_post_page invalidation.
+        HL_Page_Cache::init();
+
+        // Coach list cache: invalidate on role changes.
+        add_action( 'set_user_role',    array( 'HL_Frontend_Coaching_Hub', 'invalidate_coach_cache' ) );
+        add_action( 'add_user_role',    array( 'HL_Frontend_Coaching_Hub', 'invalidate_coach_cache' ) );
+        add_action( 'remove_user_role', array( 'HL_Frontend_Coaching_Hub', 'invalidate_coach_cache' ) );
 
         // Rev 37: chunked role scrub migration (runs on plugins_loaded@20 in admin/CLI only).
         HL_Roles_Scrub_Migration::register();
