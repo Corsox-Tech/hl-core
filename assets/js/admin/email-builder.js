@@ -91,18 +91,90 @@
             case 'text':
                 var $editor = $('<div class="hl-eb-text-editor" contenteditable="true"></div>');
                 $editor.html(block.content || '<p>Enter text here...</p>');
+
+                // Apply block-level text-align (CSS only — NOT via execCommand).
+                var currentAlign = block.text_align || 'left';
+                $editor.css('text-align', currentAlign);
+
+                // Apply block-level font-size (CSS only).
+                var currentSize = block.font_size || 16;
+                $editor.css('font-size', currentSize + 'px');
+
+                // Text snapshot debounce — push to undo stack on blur OR 2s idle after last keystroke.
+                var textSnapshotTimer = null;
+                var textSnapshotPending = false;
+                function flushTextSnapshot() {
+                    if (textSnapshotPending) {
+                        textSnapshotPending = false;
+                        clearTimeout(textSnapshotTimer);
+                        textSnapshotTimer = null;
+                    }
+                }
+                var preMutationText = null;
+                $editor.on('focus', function () {
+                    preMutationText = JSON.parse(JSON.stringify(blocks));
+                });
                 $editor.on('input', function () {
                     blocks[index].content = $(this).html();
                     markDirty();
                     runHealthCheck();
+                    if (!textSnapshotPending) {
+                        textSnapshotPending = true;
+                    }
+                    clearTimeout(textSnapshotTimer);
+                    textSnapshotTimer = setTimeout(function () {
+                        if (textSnapshotPending && preMutationText) {
+                            undoStack.push(preMutationText);
+                            if (undoStack.length > MAX_UNDO) undoStack.shift();
+                            redoStack = [];
+                            preMutationText = JSON.parse(JSON.stringify(blocks));
+                            updateUndoButtons();
+                        }
+                        textSnapshotPending = false;
+                    }, 2000);
                 });
-                // Mini toolbar for text formatting.
-                var $miniBar = $('<div class="hl-eb-mini-toolbar">' +
-                    '<button type="button" data-cmd="bold" title="Bold"><b>B</b></button>' +
-                    '<button type="button" data-cmd="italic" title="Italic"><i>I</i></button>' +
-                    '<button type="button" data-cmd="createLink" title="Link">&#x1F517;</button>' +
-                    '<select class="hl-eb-merge-tag-select"><option value="">Insert tag...</option></select>' +
-                    '</div>');
+                $editor.on('blur', function () {
+                    if (textSnapshotPending && preMutationText) {
+                        undoStack.push(preMutationText);
+                        if (undoStack.length > MAX_UNDO) undoStack.shift();
+                        redoStack = [];
+                        updateUndoButtons();
+                    }
+                    textSnapshotPending = false;
+                    clearTimeout(textSnapshotTimer);
+                });
+
+                // Mini toolbar: B | I | link | align | font-size | merge tags
+                var $miniBar = $(
+                    '<div class="hl-eb-mini-toolbar">' +
+                        '<button type="button" data-cmd="bold" title="Bold"><b>B</b></button>' +
+                        '<button type="button" data-cmd="italic" title="Italic"><i>I</i></button>' +
+                        '<button type="button" data-cmd="createLink" title="Link">&#x1F517;</button>' +
+                        '<span class="hl-eb-mini-sep"></span>' +
+                        '<div class="hl-eb-align-group" role="group" aria-label="Text alignment">' +
+                            '<button type="button" class="hl-eb-align" data-align="left"   title="Align left"><span class="dashicons dashicons-editor-alignleft"></span></button>' +
+                            '<button type="button" class="hl-eb-align" data-align="center" title="Align center"><span class="dashicons dashicons-editor-aligncenter"></span></button>' +
+                            '<button type="button" class="hl-eb-align" data-align="right"  title="Align right"><span class="dashicons dashicons-editor-alignright"></span></button>' +
+                        '</div>' +
+                        '<span class="hl-eb-mini-sep"></span>' +
+                        '<select class="hl-eb-size-select" title="Font size">' +
+                            '<option value="12">12px</option>' +
+                            '<option value="14">14px</option>' +
+                            '<option value="16">16px</option>' +
+                            '<option value="18">18px</option>' +
+                            '<option value="20">20px</option>' +
+                            '<option value="24">24px</option>' +
+                        '</select>' +
+                        '<span class="hl-eb-mini-sep"></span>' +
+                        '<select class="hl-eb-merge-tag-select"><option value="">Insert tag...</option></select>' +
+                    '</div>'
+                );
+
+                // Mark the currently-active alignment button (A.2.11 — default "left" is active when text_align absent).
+                $miniBar.find('.hl-eb-align[data-align="' + currentAlign + '"]').addClass('active');
+                // Set the font size select to current block value.
+                $miniBar.find('.hl-eb-size-select').val(String(currentSize));
+
                 // Populate merge tag dropdown.
                 var $select = $miniBar.find('.hl-eb-merge-tag-select');
                 var groups = config.mergeTagsGrouped || {};
@@ -113,8 +185,11 @@
                     }
                     $select.append($group);
                 }
+
+                // Bold / italic / link (existing behavior).
                 $miniBar.find('[data-cmd]').on('click', function (e) {
                     e.preventDefault();
+                    pushUndo();
                     var cmd = $(this).data('cmd');
                     if (cmd === 'createLink') {
                         var url = prompt('Enter URL:');
@@ -125,6 +200,37 @@
                     blocks[index].content = $editor.html();
                     markDirty();
                 });
+
+                // Alignment buttons (radio group, block-level via CSS).
+                $miniBar.find('.hl-eb-align').on('click', function (e) {
+                    e.preventDefault();
+                    pushUndo();
+                    var align = $(this).data('align');
+                    $miniBar.find('.hl-eb-align').removeClass('active');
+                    $(this).addClass('active');
+                    if (align === 'left') {
+                        delete blocks[index].text_align;
+                    } else {
+                        blocks[index].text_align = align;
+                    }
+                    $editor.css('text-align', align);
+                    markDirty();
+                });
+
+                // Font size select (block-level via CSS).
+                $miniBar.find('.hl-eb-size-select').on('change', function () {
+                    pushUndo();
+                    var val = parseInt($(this).val(), 10);
+                    if (val === 16) {
+                        delete blocks[index].font_size;
+                    } else {
+                        blocks[index].font_size = val;
+                    }
+                    $editor.css('font-size', val + 'px');
+                    markDirty();
+                });
+
+                // Merge tag insert (existing behavior).
                 $select.on('change', function () {
                     var tag = $(this).val();
                     if (tag) {
@@ -134,6 +240,7 @@
                         markDirty();
                     }
                 });
+
                 $wrap.append($miniBar).append($editor);
                 break;
 

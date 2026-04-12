@@ -206,9 +206,32 @@ class HL_Email_Block_Renderer {
         $content = $block['content'] ?? '';
         $content = $this->substitute_tags( $content, $merge_tags );
 
-        return '<div class="hl-email-text" style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#374151;margin:0 0 16px;">'
-            . $content
-            . '</div>';
+        // Alignment — allowlist only. Default "left" means emit no alignment (inherit).
+        $align_raw = isset( $block['text_align'] ) ? (string) $block['text_align'] : 'left';
+        $align     = in_array( $align_raw, array( 'left', 'center', 'right' ), true ) ? $align_raw : 'left';
+
+        // Font size — clamp to 10..48 px. Default 16 means "no explicit size".
+        $has_size = isset( $block['font_size'] );
+        $size     = $has_size ? max( 10, min( 48, (int) $block['font_size'] ) ) : 16;
+
+        // Build <td> inline style.
+        $td_style  = 'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;';
+        $td_style .= 'line-height:1.6;color:#374151;padding:0 0 16px;';
+        if ( $align !== 'left' ) {
+            $td_style .= 'text-align:' . $align . ';';
+        }
+        // Emit font-size on <td> for all clients except Outlook Word engine.
+        $td_style .= 'font-size:' . $size . 'px;';
+
+        // A.3.1 — Outlook Word engine ignores <td> font-size. Wrap content in a <span>
+        // that emits font-size on the inline element. Always emit (cheap, harmless for non-Outlook).
+        $open_span  = '<span style="font-size:' . $size . 'px;line-height:1.6;color:#374151;">';
+        $close_span = '</span>';
+
+        return '<table role="presentation" cellpadding="0" cellspacing="0" width="100%">'
+            . '<tr><td class="hl-email-text" style="' . $td_style . '">'
+            . $open_span . $content . $close_span
+            . '</td></tr></table>';
     }
 
     /**
