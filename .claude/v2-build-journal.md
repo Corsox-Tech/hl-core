@@ -291,3 +291,17 @@ All 32 Track 3 tasks committed on `feature/email-v2-track3-backend`:
 - Smoke test (`wp hl-core smoke-test`): **2 failures** (both pre-existing `hl_user_profile/completion_pct` baseline)
 - Browser verification: **pending manual UI pass at PR review time**
 
+### 2026-04-12 — Post-merge fix: strip JSON quotes from SQL LIKE role queries
+- Modified 10 files (12 LIKE patterns): `class-hl-admin-cycles.php`, `class-hl-frontend-district-page.php` (2 sites), `class-hl-frontend-schools-listing.php`, `class-hl-frontend-my-programs.php`, `class-hl-frontend-learners.php`, `class-hl-frontend-school-page.php` (2 sites), `class-hl-classroom-visit-service.php`, `class-hl-rp-session-service.php`, `class-hl-reporting-service.php`, `class-hl-cli-smoke-test.php`. Replaced `'%"role"%'` with `'%role%'` (or the `esc_like` equivalent for dynamic roles). These SQL-side LIKE queries still used JSON-quoted patterns that returned zero rows after the Rev 37 scrub converted `hl_enrollment.roles` to CSV. The Task 32 read-path fix only caught PHP-side `json_decode` calls; this is the SQL-side complement. `hl_pathway.target_roles` / `hl_component.eligible_roles` patterns intentionally untouched (still JSON). Grep-verified zero remaining JSON-quoted patterns on `hl_enrollment.roles`.
+- Commit: `604e85a`.
+
+### 2026-04-12 — Post-merge fix: cron stamp + draft cleanup outside empty-workflow early-return
+- Modified `includes/services/class-hl-email-automation-service.php`: `run_daily_checks()` previously early-returned on `empty($workflows)` which also skipped `cleanup_stale_drafts()` and the `hl_email_last_cron_run_at` timestamp stamp. On the test server (no active email workflows configured yet), this meant the staleness check permanently read "stale" and abandoned drafts never got swept. Converted the early-return to a conditional `if (!empty($workflows))` around the foreach loop body, so the cleanup and timestamp stamp always run regardless of whether any email workflows are configured.
+- Commit: `9ccf5d5`.
+
+### 2026-04-12 — Browser verification pass (Playwright MCP, Session A close-out)
+- Verified via Playwright against test.academy.housmanlearning.com:
+  - **Task 7 date pickers:** `available_from` / `available_to` inputs render with `type="date"`, `aria-label="Submission window opens"` / `"Submission window closes"`, and the "Submission Window" `<th>` + "Opens:" / "Closes:" labels all present. Inverted dates (Dec 31 → Jan 1) auto-swapped in DB to `2026-01-01` / `2026-12-31`. Warning notice "Component submission window dates were reversed — 'Opens' has been set to the earlier date." rendered as `notice notice-warning is-dismissible`.
+  - **Task 8 draft envelope:** Seeded a draft for user 237 (System Administrator) via WP-CLI. Builder loaded with the Restore banner visible ("An unsaved draft was found. Restore / Discard"), `config.draftData` is a string (not the envelope array — inner payload correctly unwrapped server-side). Clicked Restore: subject populated to "Task 8 Verification Draft", block count = 1. Banner dismissed post-restore.
+  - **Task 18 Site Health:** "HL Email daily cron has run recently" appears in the passed-tests accordion with badge "HL Email".
+
