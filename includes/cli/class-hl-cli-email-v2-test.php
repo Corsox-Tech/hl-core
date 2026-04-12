@@ -284,6 +284,113 @@ class HL_CLI_Email_V2_Test {
 
         // Cleanup: drop the seeded option so we don't pollute wp_options.
         delete_option( $option_name );
+
+        // =====================================================================
+        // Task 10: cleanup_stale_drafts() sweeper assertions.
+        // =====================================================================
+
+        // Invoke the private instance method directly via Closure::bind.
+        // Binding to the singleton instance ($newThis) because
+        // cleanup_stale_drafts() is a non-static method. We avoid calling
+        // run_daily_checks() because that fires all 10 cron workflows and
+        // is far heavier than we need for this unit check.
+        $invoke_cleanup = \Closure::bind(
+            function () {
+                $this->cleanup_stale_drafts();
+            },
+            HL_Email_Automation_Service::instance(),
+            HL_Email_Automation_Service::class
+        );
+
+        // Seed envelopes as JSON STRINGS (matching what Task 8's
+        // ajax_autosave writes via wp_json_encode → update_option).
+        // Passing an ARRAY to update_option would PHP-serialize it, and the
+        // sweeper's json_decode would see a corrupt envelope — breaking the
+        // test. Always mirror the production write path here.
+
+        // ----- Assertion 1: stale draft (> 30 days) is deleted. -------------
+        $stale_suffix = wp_generate_password( 6, false );
+        $stale_name   = 'hl_email_draft_stale_' . $stale_suffix;
+        $stale_env    = wp_json_encode( array(
+            'created_at' => gmdate( 'c', time() - 45 * DAY_IN_SECONDS ),
+            'updated_at' => gmdate( 'c', time() - 40 * DAY_IN_SECONDS ),
+            'payload'    => '{"subject":"old"}',
+        ) );
+        update_option( $stale_name, $stale_env, 'no' );
+        wp_cache_delete( $stale_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+
+        // ----- Assertion 2 setup: fresh draft survives. ---------------------
+        $fresh_suffix = wp_generate_password( 6, false );
+        $fresh_name   = 'hl_email_draft_fresh_' . $fresh_suffix;
+        $fresh_env    = wp_json_encode( array(
+            'created_at' => gmdate( 'c' ),
+            'updated_at' => gmdate( 'c' ),
+            'payload'    => '{"subject":"new"}',
+        ) );
+        update_option( $fresh_name, $fresh_env, 'no' );
+        wp_cache_delete( $fresh_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+
+        // ----- Assertion 3 setup: corrupt envelope is preserved. ------------
+        $corrupt_suffix = wp_generate_password( 6, false );
+        $corrupt_name   = 'hl_email_draft_corrupt_' . $corrupt_suffix;
+        // Direct INSERT so we can store a raw non-JSON value without
+        // update_option serializing it behind our back.
+        $wpdb->insert(
+            $wpdb->options,
+            array(
+                'option_name'  => $corrupt_name,
+                'option_value' => 'THIS IS NOT JSON',
+                'autoload'     => 'no',
+            ),
+            array( '%s', '%s', '%s' )
+        );
+        wp_cache_delete( $corrupt_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+
+        // Single sweep covers all three seeded rows.
+        $invoke_cleanup();
+
+        // Flush caches so get_option reads the post-sweep DB state.
+        wp_cache_delete( $stale_name, 'options' );
+        wp_cache_delete( $fresh_name, 'options' );
+        wp_cache_delete( $corrupt_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+
+        // Assertion 1: stale draft was deleted.
+        $this->assert_true(
+            get_option( $stale_name, null ) === null,
+            'cleanup_stale_drafts() deletes draft with updated_at > 30 days old'
+        );
+
+        // Assertion 2: fresh draft survived the sweep.
+        $fresh_after_raw = get_option( $fresh_name, null );
+        $fresh_after     = is_string( $fresh_after_raw ) ? json_decode( $fresh_after_raw, true ) : null;
+        $this->assert_true(
+            is_array( $fresh_after )
+                && isset( $fresh_after['payload'] )
+                && false !== strpos( (string) $fresh_after['payload'], '"subject":"new"' ),
+            'cleanup_stale_drafts() preserves draft with fresh updated_at'
+        );
+
+        // Assertion 3: corrupt envelope was NOT deleted — still present in DB.
+        $corrupt_raw = $wpdb->get_var( $wpdb->prepare(
+            "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+            $corrupt_name
+        ) );
+        $this->assert_equals(
+            'THIS IS NOT JSON',
+            $corrupt_raw,
+            'cleanup_stale_drafts() skips corrupt envelope (row preserved)'
+        );
+
+        // Cleanup: drop the seeded rows and the direct-inserted corrupt row.
+        delete_option( $stale_name );
+        delete_option( $fresh_name );
+        $wpdb->delete( $wpdb->options, array( 'option_name' => $corrupt_name ), array( '%s' ) );
+        wp_cache_delete( $corrupt_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
     }
     private function test_resolver() {
         $ev = HL_Email_Condition_Evaluator::instance();

@@ -664,9 +664,8 @@ class HL_Email_Automation_Service {
             $this->run_cron_workflow( $workflow, $cycles );
         }
 
-        // TODO: Draft cleanup (delete hl_email_draft_* options older than 30 days).
-        // Requires tracking draft creation time. For now, drafts are only
-        // cleaned up when their template is deleted (Phase 3).
+        // Email v2: sweep stale builder drafts.
+        $this->cleanup_stale_drafts();
     }
 
     /**
@@ -937,5 +936,85 @@ class HL_Email_Automation_Service {
             default:
                 return array();
         }
+    }
+
+    /**
+     * Sweep stale builder drafts from wp_options.
+     *
+     * Deletes hl_email_draft_* options whose envelope updated_at is older
+     * than 30 days. Corrupt envelopes (non-array JSON) are skipped and
+     * audit-logged but never deleted. First run uses a larger cap to
+     * absorb backlog; subsequent runs are capped at 500 rows each.
+     */
+    private function cleanup_stale_drafts() {
+        global $wpdb;
+
+        $first_run    = ! (bool) get_option( 'hl_email_draft_cleanup_seen', 0 );
+        $cap          = $first_run ? 5000 : 500;
+        $threshold_ts = time() - 30 * DAY_IN_SECONDS;
+        $cutoff       = gmdate( 'c', $threshold_ts ); // kept for audit log readability
+
+        $like = $wpdb->esc_like( 'hl_email_draft_' ) . '%';
+        $rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT option_id, option_name, option_value
+             FROM {$wpdb->options}
+             WHERE option_name LIKE %s
+             LIMIT %d",
+            $like, $cap
+        ) );
+
+        if ( empty( $rows ) ) {
+            update_option( 'hl_email_draft_cleanup_seen', 1, false );
+            return;
+        }
+
+        $to_delete = array();
+        $skipped   = 0;
+
+        foreach ( $rows as $row ) {
+            $decoded = json_decode( $row->option_value, true );
+
+            if ( ! is_array( $decoded ) ) {
+                // Corrupt payload — skip + audit, never delete.
+                $skipped++;
+                if ( class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'email_draft_cleanup_skip', array(
+                        'entity_type' => 'wp_options',
+                        'entity_id'   => (int) $row->option_id,
+                        'reason'      => 'corrupt_envelope',
+                    ) );
+                }
+                continue;
+            }
+
+            $updated_at = isset( $decoded['updated_at'] )
+                ? $decoded['updated_at']
+                : ( isset( $decoded['created_at'] ) ? $decoded['created_at'] : '2000-01-01T00:00:00+00:00' );
+            // strtotime handles non-UTC offsets (e.g. +05:30, Z) correctly;
+            // a naive strcmp against a +00:00 cutoff would be wrong at the
+            // offset boundary. Task 8's writer uses gmdate('c') so all
+            // envelopes are +00:00 today, but future-proof against that.
+            $ts_updated = strtotime( (string) $updated_at );
+            if ( $ts_updated !== false && $ts_updated < $threshold_ts ) {
+                $to_delete[] = (int) $row->option_id;
+            }
+        }
+
+        if ( ! empty( $to_delete ) ) {
+            $ids_sql = implode( ',', array_map( 'intval', $to_delete ) );
+            $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_id IN ({$ids_sql})" );
+            // Invalidate the autoloaded options cache so deleted rows don't
+            // resurrect from a stale alloptions snapshot on the next request.
+            wp_cache_delete( 'alloptions', 'options' );
+        }
+
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( 'email_draft_cleanup', array(
+                'entity_type' => 'wp_options',
+                'reason'      => sprintf( 'deleted=%d skipped=%d cap=%d', count( $to_delete ), $skipped, $cap ),
+            ) );
+        }
+
+        update_option( 'hl_email_draft_cleanup_seen', 1, false );
     }
 }
