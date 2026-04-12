@@ -25,6 +25,12 @@ class HL_Installer {
         // are scheduled on the first page load via ensure_email_cron_events()
         // in HL_Core::init(), which runs after the filter is registered.
 
+        // Email v2: generate the unsubscribe HMAC secret once. add_option()
+        // is atomic (insert-if-missing), safe against concurrent callers.
+        if ( ! get_option( 'hl_email_unsubscribe_secret' ) ) {
+            add_option( 'hl_email_unsubscribe_secret', wp_generate_password( 64, true, true ), '', 'no' );
+        }
+
         // Flush rewrite rules
         flush_rewrite_rules();
 

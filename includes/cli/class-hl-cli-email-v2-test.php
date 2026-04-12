@@ -907,7 +907,34 @@ class HL_CLI_Email_V2_Test {
         ) );
         delete_transient( $forced_lock );
     }
-    private function test_deliverability() {}
+    private function test_deliverability() {
+        // Subject encoding. PHP's mb_encode_mimeheader keeps ASCII prefix
+        // unencoded and only encodes the non-ASCII portion, so the =?UTF-8?B?
+        // marker appears somewhere in the result, not necessarily at position 0.
+        if ( function_exists( 'mb_encode_mimeheader' ) ) {
+            $encoded = mb_encode_mimeheader( 'Bienvenida — hoy comenzamos', 'UTF-8', 'B' );
+            $this->assert_true(
+                strpos( $encoded, '=?UTF-8?B?' ) !== false,
+                'mb_encode_mimeheader encodes UTF-8 subject (non-ASCII portion)'
+            );
+        }
+
+        // Unsubscribe secret exists or auto-generates on first read.
+        $secret_before = get_option( 'hl_email_unsubscribe_secret', '' );
+        if ( $secret_before === '' ) {
+            $reflection = new ReflectionClass( HL_Email_Queue_Processor::class );
+            $method = $reflection->getMethod( 'unsubscribe_secret' );
+            $method->setAccessible( true );
+            $method->invoke( HL_Email_Queue_Processor::instance() );
+        }
+        $secret_after = get_option( 'hl_email_unsubscribe_secret', '' );
+        $this->assert_true( $secret_after !== '' && strlen( $secret_after ) >= 32, 'hl_email_unsubscribe_secret bootstraps to a non-empty value' );
+
+        // HMAC determinism.
+        $a = hash_hmac( 'sha256', '1:99', $secret_after );
+        $b = hash_hmac( 'sha256', '1:99', $secret_after );
+        $this->assert_equals( $a, $b, 'HMAC unsubscribe token is deterministic' );
+    }
     private function test_audit() {
         $test_entity_id = 987654321; // unlikely to collide with any real entity
 
