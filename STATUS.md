@@ -285,6 +285,8 @@ Pick up from the first unchecked `[ ]` item each session.
 - [ ] Import templates (downloadable CSV)
 - [ ] **Certificate download URL** — Program Page cert card "Download" button links to `#`. Wire up real URL once certificates are generated (see `class-hl-frontend-program-page.php`).
 - [ ] **Group Report page** — Reports Hub lists "Program Group Report" card with empty URL. Build dedicated page for cross-cycle aggregate metrics (see `class-hl-frontend-reports-hub.php`).
+- [ ] **Email v2: `validate_workflow_payload()` value field validation** — `class-hl-admin-emails.php` validates `field` and `op` keys against static registries but does not validate the `value` field or strip unknown keys from condition objects before storage. Not a security risk (value is only used in `loose_equals`/`in_array` comparisons, never in SQL or HTML output), but unknown keys persist in stored JSON. Fix: require `value` presence for non-null operators, validate type based on field type, strip unrecognized keys. Found during Track 1 PR #3 review.
+- [ ] **Email v2: residual `class_exists('HL_Roles')` guard** — `class-hl-email-recipient-resolver.php:501` inside `resolve_role()` post-filter loop. Out of Task 32's explicit scope. Safe to drop (HL_Roles is hard-required by bootstrap). Found during Track 3 foundation review.
 
 ---
 
