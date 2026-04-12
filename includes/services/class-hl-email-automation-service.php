@@ -93,7 +93,7 @@ class HL_Email_Automation_Service {
     public function handle_trigger( $trigger_key, array $args = array() ) {
         global $wpdb;
 
-        // Load active workflows matching this trigger.
+        // A.2.26 — Only active workflows fire; deleted/paused rows excluded by status filter.
         $workflows = $wpdb->get_results( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_email_workflow
              WHERE trigger_key = %s AND status = 'active'",
@@ -734,6 +734,7 @@ class HL_Email_Automation_Service {
         );
 
         $placeholders = implode( ',', array_fill( 0, count( $daily_triggers ), '%s' ) );
+        // A.2.26 — Only active workflows fire; deleted/paused rows excluded by status filter.
         $workflows = $wpdb->get_results( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_email_workflow
              WHERE trigger_key IN ({$placeholders}) AND status = 'active'",
@@ -776,6 +777,7 @@ class HL_Email_Automation_Service {
         );
 
         $placeholders = implode( ',', array_fill( 0, count( $hourly_triggers ), '%s' ) );
+        // A.2.26 — Only active workflows fire; deleted/paused rows excluded by status filter.
         $workflows = $wpdb->get_results( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}hl_email_workflow
              WHERE trigger_key IN ({$placeholders}) AND status = 'active'",

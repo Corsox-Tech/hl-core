@@ -452,6 +452,8 @@ class HL_Admin_Emails {
         }
 
         ?>
+        <div class="hl-email-admin">
+
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
             <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows&action=new' ) ); ?>" class="button button-primary"><?php esc_html_e( 'Add Workflow', 'hl-core' ); ?></a>
             <div class="hl-email-filters">
@@ -481,20 +483,84 @@ class HL_Admin_Emails {
                     <tr><td colspan="6"><?php esc_html_e( 'No workflows yet.', 'hl-core' ); ?></td></tr>
                 <?php else : ?>
                     <?php foreach ( $workflows as $w ) : ?>
-                        <tr>
+                        <tr data-workflow-id="<?php echo (int) $w->workflow_id; ?>">
                             <td><strong><?php echo esc_html( $w->name ); ?></strong></td>
                             <td><code><?php echo esc_html( $w->trigger_key ); ?></code></td>
                             <td><?php echo esc_html( $w->template_name ?: '—' ); ?></td>
-                            <td><?php $this->render_status_badge( $w->status ); ?></td>
+                            <td class="hl-wf-status-cell"><?php $this->render_status_badge( $w->status ); ?></td>
                             <td><?php echo esc_html( $w->updated_at ); ?></td>
-                            <td>
+                            <td class="hl-row-actions">
+                                <?php // Edit link. ?>
                                 <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows&action=edit&workflow_id=' . $w->workflow_id ) ); ?>"><?php esc_html_e( 'Edit', 'hl-core' ); ?></a>
+
+                                <?php // Duplicate form (POST). ?>
+                                | <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+                                    <input type="hidden" name="action" value="hl_workflow_duplicate">
+                                    <input type="hidden" name="workflow_id" value="<?php echo (int) $w->workflow_id; ?>">
+                                    <?php wp_nonce_field( 'hl_workflow_duplicate_' . $w->workflow_id ); ?>
+                                    <button type="submit" class="button-link"><?php esc_html_e( 'Duplicate', 'hl-core' ); ?></button>
+                                </form>
+
+                                <?php // Activate / Pause toggle (AJAX). ?>
+                                | <a href="#"
+                                     class="hl-wf-toggle-status button-link"
+                                     data-workflow-id="<?php echo (int) $w->workflow_id; ?>"
+                                     data-nonce="<?php echo esc_attr( wp_create_nonce( 'hl_workflow_toggle_' . $w->workflow_id ) ); ?>"
+                                     data-current="<?php echo esc_attr( $w->status ); ?>"
+                                ><?php echo $w->status === 'active' ? esc_html__( 'Pause', 'hl-core' ) : esc_html__( 'Activate', 'hl-core' ); ?></a>
+
+                                <?php // Delete form (POST, with confirm). ?>
+                                | <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hl-wf-delete-form" style="display:inline;">
+                                    <input type="hidden" name="action" value="hl_workflow_delete">
+                                    <input type="hidden" name="workflow_id" value="<?php echo (int) $w->workflow_id; ?>">
+                                    <?php wp_nonce_field( 'hl_workflow_delete_' . $w->workflow_id ); ?>
+                                    <button type="submit" class="button-link hl-wf-delete-btn" style="color:#b32d2e;"><?php esc_html_e( 'Delete', 'hl-core' ); ?></button>
+                                </form>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </tbody>
         </table>
+
+        <script>
+        (function($){
+            // Confirm before delete.
+            $('.hl-wf-delete-form').on('submit', function(e){
+                if ( ! confirm('<?php echo esc_js( __( 'Are you sure you want to delete this workflow? Pending emails will be cancelled.', 'hl-core' ) ); ?>') ) {
+                    e.preventDefault();
+                }
+            });
+
+            // AJAX toggle status.
+            $('.hl-wf-toggle-status').on('click', function(e){
+                e.preventDefault();
+                var $link = $(this);
+                var wfId  = $link.data('workflow-id');
+                var nonce = $link.data('nonce');
+
+                $.post(ajaxurl, {
+                    action:      'hl_workflow_toggle_status',
+                    workflow_id: wfId,
+                    _wpnonce:    nonce
+                }, function(response){
+                    if ( response.success ) {
+                        var ns = response.data.new_status;
+                        // Update toggle link text.
+                        $link.text( ns === 'active' ? '<?php echo esc_js( __( 'Pause', 'hl-core' ) ); ?>' : '<?php echo esc_js( __( 'Activate', 'hl-core' ) ); ?>' );
+                        $link.data('current', ns);
+                        // Update status badge in the same row.
+                        var $badge = $link.closest('tr').find('.hl-wf-status-cell');
+                        $badge.html('<span class="hl-email-badge hl-email-badge--' + ns + '">' + ns + '</span>');
+                    } else {
+                        alert( response.data || 'Error toggling status.' );
+                    }
+                });
+            });
+        })(jQuery);
+        </script>
+
+        </div><!-- /.hl-email-admin -->
         <?php
     }
 
@@ -1195,13 +1261,157 @@ class HL_Admin_Emails {
     // Row Action Handlers (v2 Track 1 Tasks 11, 12, 14)
     // =========================================================================
 
+    /**
+     * Duplicate a workflow via admin-post.php (POST).
+     * A.2.13 — copies row, generates "(Copy)" name, sets status to draft.
+     */
+    public function handle_workflow_duplicate() {
+        $workflow_id = (int) ( $_POST['workflow_id'] ?? 0 );
+
+        if ( ! wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'hl_workflow_duplicate_' . $workflow_id ) ) {
+            wp_die( 'Security check failed.' );
+        }
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_die( 'Unauthorized' );
+        }
+
+        global $wpdb;
+        $table  = "{$wpdb->prefix}hl_email_workflow";
+        $source = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE workflow_id = %d AND status != 'deleted'",
+            $workflow_id
+        ), ARRAY_A );
+
+        if ( ! $source ) {
+            wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=workflows&hl_notice=not_found' ) );
+            exit;
+        }
+
+        // Remove keys that should not be copied.
+        unset( $source['workflow_id'], $source['created_at'], $source['updated_at'] );
+
+        $source['name']   = self::generate_copy_name( 'hl_email_workflow', $source['name'] );
+        $source['status'] = 'draft';
+
+        $wpdb->insert( $table, $source );
+        $new_id = (int) $wpdb->insert_id;
+
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( 'email_workflow_duplicated', array(
+                'source_workflow_id' => $workflow_id,
+                'new_workflow_id'    => $new_id,
+            ) );
+        }
+
+        wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=workflows&action=edit&workflow_id=' . $new_id ) );
+        exit;
+    }
+
+    /**
+     * Soft-delete a workflow via admin-post.php (POST).
+     * A.2.13 — uses transaction to block deletion if sent/sending/failed queue rows exist.
+     */
+    public function handle_workflow_delete() {
+        $workflow_id = (int) ( $_POST['workflow_id'] ?? 0 );
+
+        if ( ! wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'hl_workflow_delete_' . $workflow_id ) ) {
+            wp_die( 'Security check failed.' );
+        }
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_die( 'Unauthorized' );
+        }
+
+        global $wpdb;
+        $table = "{$wpdb->prefix}hl_email_workflow";
+        $queue = "{$wpdb->prefix}hl_email_queue";
+
+        $wpdb->query( 'START TRANSACTION' );
+
+        $blocked_count = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$queue}
+             WHERE workflow_id = %d AND status IN ('sent','sending','failed')
+             FOR UPDATE",
+            $workflow_id
+        ) );
+
+        if ( $blocked_count > 0 ) {
+            $wpdb->query( 'ROLLBACK' );
+            wp_redirect( add_query_arg( array(
+                'page'      => 'hl-emails',
+                'tab'       => 'workflows',
+                'hl_notice' => 'delete_blocked',
+                'hl_count'  => $blocked_count,
+            ), admin_url( 'admin.php' ) ) );
+            exit;
+        }
+
+        // Soft-delete the workflow.
+        $wpdb->update( $table, array( 'status' => 'deleted' ), array( 'workflow_id' => $workflow_id ) );
+
+        // Cancel any pending queue rows for this workflow.
+        $wpdb->query( $wpdb->prepare(
+            "UPDATE {$queue} SET status = 'cancelled'
+             WHERE workflow_id = %d AND status IN ('pending','rate_limited')",
+            $workflow_id
+        ) );
+
+        $wpdb->query( 'COMMIT' );
+
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( 'email_workflow_deleted', array(
+                'workflow_id' => $workflow_id,
+            ) );
+        }
+
+        wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=workflows&hl_notice=workflow_deleted' ) );
+        exit;
+    }
+
+    /**
+     * AJAX toggle workflow status: active↔paused.
+     * A.2.13 — per-ID nonce, returns new status in JSON.
+     */
+    public function ajax_workflow_toggle_status() {
+        $workflow_id = (int) ( $_POST['workflow_id'] ?? 0 );
+
+        if ( ! wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'hl_workflow_toggle_' . $workflow_id ) ) {
+            wp_send_json_error( 'Security check failed.' );
+        }
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( 'Unauthorized' );
+        }
+
+        global $wpdb;
+        $table  = "{$wpdb->prefix}hl_email_workflow";
+        $current = $wpdb->get_var( $wpdb->prepare(
+            "SELECT status FROM {$table} WHERE workflow_id = %d",
+            $workflow_id
+        ) );
+
+        if ( $current === null ) {
+            wp_send_json_error( 'Workflow not found.' );
+        }
+
+        // Flip: active→paused, paused→active, anything else→active.
+        $new_status = ( $current === 'active' ) ? 'paused' : 'active';
+
+        $wpdb->update( $table, array( 'status' => $new_status ), array( 'workflow_id' => $workflow_id ) );
+
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( 'email_workflow_status_toggled', array(
+                'workflow_id' => $workflow_id,
+                'old_status'  => $current,
+                'new_status'  => $new_status,
+            ) );
+        }
+
+        wp_send_json_success( array( 'new_status' => $new_status ) );
+    }
+
     // Stubs — implemented in later tasks.
-    public function handle_workflow_duplicate() { wp_die( 'Not yet implemented' ); }
-    public function handle_workflow_delete() { wp_die( 'Not yet implemented' ); }
     public function handle_template_duplicate() { wp_die( 'Not yet implemented' ); }
     public function handle_template_archive() { wp_die( 'Not yet implemented' ); }
     public function handle_workflow_force_resend() { wp_die( 'Not yet implemented' ); }
-    public function ajax_workflow_toggle_status() { wp_send_json_error( 'Not yet implemented' ); }
 
     // =========================================================================
     // Helpers
