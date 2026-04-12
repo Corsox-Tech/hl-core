@@ -24,6 +24,16 @@ class HL_Admin_Emails {
         add_action( 'wp_ajax_hl_email_workflow_delete', array( $this, 'ajax_workflow_delete' ) );
         add_action( 'wp_ajax_hl_email_retry_failed', array( $this, 'ajax_retry_failed' ) );
         add_action( 'wp_ajax_hl_email_cancel_queue', array( $this, 'ajax_cancel_queue' ) );
+        add_action( 'wp_ajax_hl_email_recipient_count', array( $this, 'ajax_recipient_count' ) );
+
+        // A.2.13 — duplicate & delete via admin-post.php (POST, not GET).
+        add_action( 'admin_post_hl_workflow_duplicate',  array( $this, 'handle_workflow_duplicate' ) );
+        add_action( 'admin_post_hl_workflow_delete',     array( $this, 'handle_workflow_delete' ) );
+        add_action( 'admin_post_hl_template_duplicate',  array( $this, 'handle_template_duplicate' ) );
+        add_action( 'admin_post_hl_template_archive',    array( $this, 'handle_template_archive' ) );
+        add_action( 'admin_post_hl_workflow_force_resend', array( $this, 'handle_workflow_force_resend' ) );
+
+        add_action( 'wp_ajax_hl_workflow_toggle_status', array( $this, 'ajax_workflow_toggle_status' ) );
     }
 
     // =========================================================================
@@ -518,6 +528,7 @@ class HL_Admin_Emails {
         <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows' ) ); ?>">&larr; <?php esc_html_e( 'Back', 'hl-core' ); ?></a>
 
         <form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows' ) ); ?>" class="hl-workflow-form" style="margin-top:16px;">
+        <div class="hl-email-admin">
             <?php wp_nonce_field( 'hl_workflow_save', 'hl_workflow_nonce' ); ?>
             <input type="hidden" name="workflow_id" value="<?php echo (int) $workflow_id; ?>">
 
@@ -599,14 +610,79 @@ class HL_Admin_Emails {
                     </td>
                 </tr>
                 <tr>
-                    <th><label><?php esc_html_e( 'Conditions (JSON)', 'hl-core' ); ?></label></th>
-                    <td><textarea name="conditions" rows="4" class="large-text"><?php echo esc_textarea( wp_json_encode( $conditions, JSON_PRETTY_PRINT ) ); ?></textarea>
-                    <p class="description"><?php esc_html_e( 'JSON array of conditions. All ANDed. Example: [{"field":"cycle.cycle_type","op":"eq","value":"program"}]', 'hl-core' ); ?></p></td>
+                    <th><label><?php esc_html_e( 'Conditions', 'hl-core' ); ?></label></th>
+                    <td>
+                        <div class="hl-condition-builder" data-initial="<?php echo esc_attr( wp_json_encode( $conditions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?>">
+                            <div class="hl-condition-rows" aria-live="polite"></div>
+                            <button type="button" class="hl-condition-add button-link">
+                                <span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>
+                                <?php esc_html_e( 'Add Condition', 'hl-core' ); ?>
+                            </button>
+                            <p class="hl-condition-hint">
+                                <span class="hl-badge-and"><?php esc_html_e( 'All conditions must match (AND)', 'hl-core' ); ?></span>
+                                <?php esc_html_e( 'Empty = matches every event for this trigger.', 'hl-core' ); ?>
+                            </p>
+                        </div>
+                        <!-- A.7.4 / A.7.10 — raw JSON fallback when JS fails to initialise. -->
+                        <details class="hl-js-fallback">
+                            <summary><?php esc_html_e( 'Raw JSON edit mode (JavaScript required for visual editor)', 'hl-core' ); ?></summary>
+                            <textarea name="conditions" rows="4" class="large-text code" spellcheck="false"><?php echo esc_textarea( wp_json_encode( $conditions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?></textarea>
+                            <p class="description"><?php esc_html_e( 'Visual builder writes to this textarea automatically. Edit here only if the visual builder is broken.', 'hl-core' ); ?></p>
+                        </details>
+                    </td>
                 </tr>
                 <tr>
-                    <th><label><?php esc_html_e( 'Recipients (JSON)', 'hl-core' ); ?></label></th>
-                    <td><textarea name="recipients" rows="3" class="large-text"><?php echo esc_textarea( wp_json_encode( $recipients, JSON_PRETTY_PRINT ) ); ?></textarea>
-                    <p class="description"><?php esc_html_e( 'Tokens: triggering_user, assigned_coach, assigned_mentor, school_director, observed_teacher, role:X, static:email (legacy alias: cc_teacher)', 'hl-core' ); ?></p></td>
+                    <th><label><?php esc_html_e( 'Recipients', 'hl-core' ); ?></label></th>
+                    <td>
+                        <div class="hl-recipient-picker" data-initial="<?php echo esc_attr( wp_json_encode( $recipients, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?>" data-current-trigger="<?php echo esc_attr( isset( $workflow->trigger_key ) ? $workflow->trigger_key : '' ); ?>">
+                            <!-- Primary Section -->
+                            <section class="hl-recipient-section hl-recipient-primary" aria-labelledby="hl-recip-primary-h">
+                                <h4 id="hl-recip-primary-h"><?php esc_html_e( 'Primary Recipients (To:)', 'hl-core' ); ?></h4>
+                                <div class="hl-token-grid" role="group" aria-label="<?php esc_attr_e( 'Primary recipient tokens', 'hl-core' ); ?>">
+                                </div>
+                                <div class="hl-recipient-roles">
+                                    <label><?php esc_html_e( 'By Role', 'hl-core' ); ?></label>
+                                    <div class="hl-pill-input hl-pill-input-role" role="list" aria-label="<?php esc_attr_e( 'Role-based recipients', 'hl-core' ); ?>">
+                                        <input type="text" placeholder="<?php esc_attr_e( 'teacher, mentor, coach... (Enter to add)', 'hl-core' ); ?>">
+                                    </div>
+                                </div>
+                                <div class="hl-recipient-static">
+                                    <label><?php esc_html_e( 'Static Emails', 'hl-core' ); ?></label>
+                                    <div class="hl-pill-input hl-pill-input-email" role="list" aria-label="<?php esc_attr_e( 'Static email recipients', 'hl-core' ); ?>">
+                                        <input type="email" placeholder="<?php esc_attr_e( 'name@example.com (Enter to add)', 'hl-core' ); ?>">
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- CC Section -->
+                            <section class="hl-recipient-section hl-recipient-cc" aria-labelledby="hl-recip-cc-h">
+                                <h4 id="hl-recip-cc-h"><?php esc_html_e( 'CC Recipients', 'hl-core' ); ?></h4>
+                                <div class="hl-token-list hl-token-list-cc" role="group" aria-label="<?php esc_attr_e( 'CC recipient tokens', 'hl-core' ); ?>">
+                                </div>
+                                <div class="hl-recipient-roles">
+                                    <label><?php esc_html_e( 'CC By Role', 'hl-core' ); ?></label>
+                                    <div class="hl-pill-input hl-pill-input-role" role="list">
+                                        <input type="text" placeholder="<?php esc_attr_e( 'Role name (Enter to add)', 'hl-core' ); ?>">
+                                    </div>
+                                </div>
+                                <div class="hl-recipient-static">
+                                    <label><?php esc_html_e( 'CC Static Emails', 'hl-core' ); ?></label>
+                                    <div class="hl-pill-input hl-pill-input-email" role="list">
+                                        <input type="email" placeholder="<?php esc_attr_e( 'name@example.com (Enter to add)', 'hl-core' ); ?>">
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- A.2.14 / A.7.7 — live recipient count hint -->
+                            <p class="hl-recipient-count-hint" aria-live="polite" role="status"></p>
+                        </div>
+
+                        <details class="hl-js-fallback">
+                            <summary><?php esc_html_e( 'Raw JSON edit mode (JavaScript required for visual editor)', 'hl-core' ); ?></summary>
+                            <textarea name="recipients" rows="3" class="large-text code" spellcheck="false"><?php echo esc_textarea( wp_json_encode( $recipients, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?></textarea>
+                            <p class="description"><?php esc_html_e( 'Visual picker writes to this textarea automatically.', 'hl-core' ); ?></p>
+                        </details>
+                    </td>
                 </tr>
                 <tr>
                     <th><label><?php esc_html_e( 'Delay (minutes)', 'hl-core' ); ?></label></th>
@@ -630,6 +706,7 @@ class HL_Admin_Emails {
             <p class="submit">
                 <input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Workflow', 'hl-core' ); ?>">
             </p>
+        </div><!-- /.hl-email-admin -->
         </form>
         <?php
     }
@@ -1050,6 +1127,81 @@ class HL_Admin_Emails {
         }
         wp_send_json_success();
     }
+
+    /**
+     * Async recipient count preview for the picker UI.
+     * A.2.14 / A.7.7 — live estimate of how many addresses the current
+     * recipient JSON resolves to for the given trigger.
+     *
+     * @return void
+     */
+    public function ajax_recipient_count() {
+        check_ajax_referer( 'hl_workflow_recipient_count', 'nonce' );
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( 'Unauthorized' );
+        }
+
+        $trigger    = sanitize_text_field( wp_unslash( $_POST['trigger'] ?? '' ) );
+        $raw_recip  = wp_unslash( $_POST['recipients'] ?? '{}' );
+        $recipients = json_decode( $raw_recip, true );
+
+        if ( ! is_array( $recipients ) ) {
+            wp_send_json_success( array( 'count' => 0 ) );
+        }
+
+        $tokens = self::get_recipient_tokens();
+        global $wpdb;
+
+        $count = 0;
+        foreach ( array( 'primary', 'cc' ) as $section ) {
+            if ( empty( $recipients[ $section ] ) || ! is_array( $recipients[ $section ] ) ) continue;
+            foreach ( $recipients[ $section ] as $entry ) {
+                if ( ! is_string( $entry ) ) continue;
+                if ( strpos( $entry, 'static:' ) === 0 ) {
+                    $count++;
+                    continue;
+                }
+                if ( strpos( $entry, 'role:' ) === 0 ) {
+                    $role = substr( $entry, 5 );
+                    if ( ! class_exists( 'HL_Roles' ) ) {
+                        continue;
+                    }
+                    $rows = $wpdb->get_results(
+                        "SELECT DISTINCT user_id, roles FROM {$wpdb->prefix}hl_enrollment
+                         WHERE status = 'active'"
+                    );
+                    $matched = array();
+                    foreach ( $rows as $row ) {
+                        if ( HL_Roles::has_role( $row->roles, $role ) ) {
+                            $matched[ (int) $row->user_id ] = true;
+                        }
+                    }
+                    $count += count( $matched );
+                    continue;
+                }
+                if ( ! isset( $tokens[ $entry ] ) ) continue;
+                $def = $tokens[ $entry ];
+                if ( $def['triggers'] !== '*' && is_array( $def['triggers'] ) && ! in_array( $trigger, $def['triggers'], true ) ) {
+                    continue;
+                }
+                $count += 1;
+            }
+        }
+
+        wp_send_json_success( array( 'count' => $count ) );
+    }
+
+    // =========================================================================
+    // Row Action Handlers (v2 Track 1 Tasks 11, 12, 14)
+    // =========================================================================
+
+    // Stubs — implemented in later tasks.
+    public function handle_workflow_duplicate() { wp_die( 'Not yet implemented' ); }
+    public function handle_workflow_delete() { wp_die( 'Not yet implemented' ); }
+    public function handle_template_duplicate() { wp_die( 'Not yet implemented' ); }
+    public function handle_template_archive() { wp_die( 'Not yet implemented' ); }
+    public function handle_workflow_force_resend() { wp_die( 'Not yet implemented' ); }
+    public function ajax_workflow_toggle_status() { wp_send_json_error( 'Not yet implemented' ); }
 
     // =========================================================================
     // Helpers
