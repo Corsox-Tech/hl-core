@@ -42,6 +42,10 @@ class HL_Email_Automation_Service {
 
     private function __construct() {
         $this->register_hook_listeners();
+
+        // Email v2 Task 18: cron staleness monitoring (Site Health + admin notice).
+        add_filter( 'site_status_tests', array( $this, 'register_site_health_test' ) );
+        add_action( 'admin_notices',      array( $this, 'maybe_render_cron_staleness_notice' ) );
     }
 
     // =========================================================================
@@ -683,6 +687,9 @@ class HL_Email_Automation_Service {
 
         // Email v2: sweep stale builder drafts.
         $this->cleanup_stale_drafts();
+
+        // Email v2 Task 18: record successful run timestamp for staleness monitoring.
+        update_option( 'hl_email_last_cron_run_at', gmdate( 'c' ), false );
     }
 
     /**
@@ -1115,6 +1122,77 @@ class HL_Email_Automation_Service {
             default:
                 return array();
         }
+    }
+
+    /**
+     * Seconds elapsed since the last successful run_daily_checks() execution.
+     *
+     * @return int|null Seconds since last successful daily cron run, or null if never.
+     */
+    public static function cron_staleness_seconds() {
+        $last = get_option( 'hl_email_last_cron_run_at', null );
+        if ( ! $last ) return null;
+        $ts = strtotime( $last );
+        return $ts ? ( time() - $ts ) : null;
+    }
+
+    /**
+     * Register the HL Email daily cron freshness test with WordPress Site Health.
+     *
+     * @param array $tests Site Health test registry.
+     * @return array
+     */
+    public function register_site_health_test( $tests ) {
+        $tests['direct']['hl_email_cron_fresh'] = array(
+            'label' => __( 'HL Email daily cron', 'hl-core' ),
+            'test'  => array( $this, 'site_health_cron_test' ),
+        );
+        return $tests;
+    }
+
+    /**
+     * Site Health synchronous test: checks whether run_daily_checks() ran in the last 36 hours.
+     *
+     * @return array
+     */
+    public function site_health_cron_test() {
+        $gap = self::cron_staleness_seconds();
+        $ok  = $gap !== null && $gap < 36 * HOUR_IN_SECONDS;
+        return array(
+            'label'       => $ok
+                ? __( 'HL Email daily cron has run recently', 'hl-core' )
+                : __( 'HL Email daily cron is stale', 'hl-core' ),
+            'status'      => $ok ? 'good' : 'recommended',
+            'badge'       => array( 'label' => __( 'HL Email', 'hl-core' ), 'color' => $ok ? 'green' : 'orange' ),
+            'description' => sprintf(
+                '<p>%s</p>',
+                esc_html( $ok
+                    ? __( 'Last run within the last 36 hours.', 'hl-core' )
+                    : __( 'No successful run in the last 36 hours. Check wp-cron or trigger manually with `wp cron event run hl_email_cron_daily`.', 'hl-core' )
+                )
+            ),
+            'actions'     => '',
+            'test'        => 'hl_email_cron_fresh',
+        );
+    }
+
+    /**
+     * Render an admin warning on hl-emails* screens when the daily cron is stale.
+     */
+    public function maybe_render_cron_staleness_notice() {
+        if ( ! function_exists( 'get_current_screen' ) ) return;
+        $screen = get_current_screen();
+        if ( ! $screen || strpos( (string) $screen->id, 'hl-emails' ) === false ) return;
+
+        $gap = self::cron_staleness_seconds();
+        if ( $gap === null || $gap < 36 * HOUR_IN_SECONDS ) return;
+
+        $hours = floor( $gap / HOUR_IN_SECONDS );
+        echo '<div class="notice notice-warning"><p><strong>' .
+            esc_html__( 'HL Email daily cron is stale', 'hl-core' ) .
+            '</strong> &mdash; ' .
+            esc_html( sprintf( __( 'last successful run was %d hours ago.', 'hl-core' ), $hours ) ) .
+            ' <code>wp cron event run hl_email_cron_daily</code></p></div>';
     }
 
     /**
