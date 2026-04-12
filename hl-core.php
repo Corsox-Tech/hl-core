@@ -259,6 +259,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-migrate-routing-types.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-translate-content.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-sync-ld-enrollment.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-test-email-renderer.php';
         }
     }
     

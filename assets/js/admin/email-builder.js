@@ -14,6 +14,17 @@
     var autosaveTimer = null;
     var isDirty = false;
     var sortableInstance = null;
+    // A.1.1 / A.2.1 — every Sortable instance ever created is tracked here so we can destroy
+    // all of them before each renderAllBlocks() to avoid handle collisions / stale refs.
+    var sortableRegistry = [];
+
+    // Undo / redo state (populated in Task C, stubbed here so earlier tasks can call pushUndo safely).
+    var undoStack = [];
+    var redoStack = [];
+    var MAX_UNDO  = 50;
+
+    // Autosave-race debounce window after an undo/redo (A.2.4). 5000ms.
+    var autosaveSuppressUntil = 0;
 
     // =========================================================================
     // Init
@@ -50,6 +61,7 @@
     // =========================================================================
 
     function renderAllBlocks() {
+        destroyAllSortables();
         var $container = $('#hl-eb-blocks');
         $container.empty();
 
@@ -219,10 +231,14 @@
             document.head.appendChild(script);
             return;
         }
-        if (sortableInstance) sortableInstance.destroy();
+        destroyAllSortables();
         sortableInstance = new Sortable(el, {
+            // A.1.1: distinct handle class for top-level, filter out nested blocks so the
+            // top-level Sortable cannot intercept drags that belong to a nested column.
+            filter: '.hl-eb-block-nested',
+            preventOnFilter: false,
             animation: 150,
-            handle: '.hl-eb-block-type',
+            handle: '.hl-eb-block-type:not(.hl-eb-block-type-nested)',
             onEnd: function (evt) {
                 var item = blocks.splice(evt.oldIndex, 1)[0];
                 blocks.splice(evt.newIndex, 0, item);
@@ -230,6 +246,7 @@
                 markDirty();
             }
         });
+        sortableRegistry.push(sortableInstance);
     }
 
     // =========================================================================
@@ -463,6 +480,36 @@
     // =========================================================================
     // Helpers
     // =========================================================================
+
+    // =========================================================================
+    // Undo / Redo  (stub implementations — real logic in Task C)
+    // =========================================================================
+
+    function pushUndo() {
+        // Deep clone current state into the undo stack.
+        undoStack.push(JSON.parse(JSON.stringify(blocks)));
+        if (undoStack.length > MAX_UNDO) {
+            undoStack.shift();
+        }
+        redoStack = [];
+        updateUndoButtons();
+    }
+
+    function updateUndoButtons() {
+        // Will be fully implemented in Task C — safe no-op if elements don't exist yet.
+        var $undo = $('#hl-eb-undo');
+        var $redo = $('#hl-eb-redo');
+        if ($undo.length) { $undo.prop('disabled', undoStack.length === 0); }
+        if ($redo.length) { $redo.prop('disabled', redoStack.length === 0); }
+    }
+
+    function destroyAllSortables() {
+        sortableRegistry.forEach(function (inst) {
+            try { inst.destroy(); } catch (e) {}
+        });
+        sortableRegistry = [];
+        sortableInstance = null;
+    }
 
     function escHtml(str) {
         if (!str) return '';

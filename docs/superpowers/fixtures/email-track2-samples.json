@@ -1,0 +1,28 @@
+{
+  "text_default": [
+    { "type": "text", "content": "<p>Hello world.</p>" }
+  ],
+  "text_aligned_center": [
+    { "type": "text", "content": "<p>Centered.</p>", "text_align": "center" }
+  ],
+  "text_aligned_right_sized": [
+    { "type": "text", "content": "<p>Big right.</p>", "text_align": "right", "font_size": 20 }
+  ],
+  "text_invalid_align": [
+    { "type": "text", "content": "<p>x</p>", "text_align": "justify", "font_size": 999 }
+  ],
+  "columns_60_40": [
+    { "type": "columns", "split": "60/40",
+      "left":  [{ "type": "text", "content": "<p>L</p>" }],
+      "right": [{ "type": "text", "content": "<p>R</p>" }] }
+  ],
+  "columns_33_67": [
+    { "type": "columns", "split": "33/67",
+      "left":  [{ "type": "text", "content": "<p>L</p>" }],
+      "right": [{ "type": "button", "label": "Go", "url": "https://example.com" }] }
+  ],
+  "columns_invalid_split": [
+    { "type": "columns", "split": "70/30",
+      "left":  [], "right": [] }
+  ]
+}
