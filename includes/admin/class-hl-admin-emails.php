@@ -115,6 +115,7 @@ class HL_Admin_Emails {
                 "SELECT w.*, t.name AS template_name
                  FROM {$wpdb->prefix}hl_email_workflow w
                  LEFT JOIN {$wpdb->prefix}hl_email_template t ON t.template_id = w.template_id
+                 WHERE w.status != 'deleted'
                  ORDER BY w.updated_at DESC"
             );
         }
@@ -172,7 +173,7 @@ class HL_Admin_Emails {
         $workflow = null;
         if ( $workflow_id ) {
             $workflow = $wpdb->get_row( $wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}hl_email_workflow WHERE workflow_id = %d",
+                "SELECT * FROM {$wpdb->prefix}hl_email_workflow WHERE workflow_id = %d AND status != 'deleted'",
                 $workflow_id
             ) );
         }

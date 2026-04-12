@@ -164,7 +164,7 @@ class HL_Frontend_My_Programs {
                 continue;
             }
             $e = $card['enrollment'];
-            $e_roles = json_decode($e->roles ?? '[]', true) ?: array();
+            $e_roles = HL_Roles::parse_stored($e->roles ?? '');
             if (in_array('mentor', $e_roles, true)) {
                 $card['guide_type'] = 'coach';
                 $card['guide_data'] = $coach_service->get_coach_for_enrollment($e->enrollment_id, $e->cycle_id);

@@ -438,11 +438,9 @@ class HL_Frontend_Cycle_Workspace {
         $teacher_count = 0;
         $mentor_count  = 0;
         foreach ( $participants as $p ) {
-            $roles_raw = json_decode( $p['roles'], true );
-            if ( is_array( $roles_raw ) ) {
-                if ( in_array( 'teacher', $roles_raw, true ) ) $teacher_count++;
-                if ( in_array( 'mentor', $roles_raw, true ) )  $mentor_count++;
-            }
+            $roles_raw = HL_Roles::parse_stored( $p['roles'] );
+            if ( in_array( 'teacher', $roles_raw, true ) ) $teacher_count++;
+            if ( in_array( 'mentor', $roles_raw, true ) )  $mentor_count++;
         }
 
         // School count.
@@ -633,8 +631,7 @@ class HL_Frontend_Cycle_Workspace {
             </thead>
             <tbody>
                 <?php foreach ( $participants as $p ) :
-                    $roles_raw  = json_decode( $p['roles'], true );
-                    $roles_arr  = is_array( $roles_raw ) ? $roles_raw : array();
+                    $roles_arr  = HL_Roles::parse_stored( $p['roles'] );
                     $completion = round( floatval( $p['cycle_completion_percent'] ) );
                     $fill_class = $completion >= 100 ? 'hl-cw-complete' : '';
                 ?>
@@ -774,8 +771,7 @@ class HL_Frontend_Cycle_Workspace {
                         foreach ( $participants as $p ) :
                             $row_num++;
                             $eid        = $p['enrollment_id'];
-                            $roles_raw  = json_decode( $p['roles'], true );
-                            $roles_arr  = is_array( $roles_raw ) ? $roles_raw : array();
+                            $roles_arr  = HL_Roles::parse_stored( $p['roles'] );
                             $completion = round( floatval( $p['cycle_completion_percent'] ) );
                             $fill_class = $completion >= 100 ? 'hl-cw-complete' : '';
                         ?>

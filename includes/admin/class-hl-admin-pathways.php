@@ -1385,8 +1385,8 @@ class HL_Admin_Pathways {
             echo '<div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;">';
             echo '<select name="enrollment_ids[]" multiple="multiple" style="min-width:300px; min-height:80px;">';
             foreach ($unassigned as $ue) {
-                $roles = json_decode($ue['roles'], true);
-                $roles_str = is_array($roles) ? implode(', ', $roles) : '';
+                $roles = HL_Roles::parse_stored($ue['roles']);
+                $roles_str = implode(', ', $roles);
                 $label = $ue['display_name'] . ' (' . $ue['user_email'] . ')';
                 if ($roles_str) {
                     $label .= ' — ' . $roles_str;
@@ -1431,8 +1431,8 @@ class HL_Admin_Pathways {
             echo '</tr></thead><tbody>';
 
             foreach ($assigned as $a) {
-                $roles = json_decode($a['roles'], true);
-                $roles_str = is_array($roles) ? implode(', ', $roles) : '';
+                $roles = HL_Roles::parse_stored($a['roles']);
+                $roles_str = implode(', ', $roles);
 
                 $unassign_base = admin_url('admin.php?page=hl-pathways&action=unassign_pathway&pathway_id=' . $pathway->pathway_id . '&enrollment_id=' . $a['enrollment_id']);
                 if ($in_cycle) {

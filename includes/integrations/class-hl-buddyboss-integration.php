@@ -565,11 +565,8 @@ class HL_BuddyBoss_Integration {
             if (empty($roles_json)) {
                 continue;
             }
-            $decoded = json_decode($roles_json, true);
-            if (is_array($decoded)) {
-                foreach ($decoded as $role) {
-                    $all_roles[$role] = true;
-                }
+            foreach (HL_Roles::parse_stored($roles_json) as $role) {
+                $all_roles[$role] = true;
             }
         }
 

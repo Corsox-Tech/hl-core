@@ -944,8 +944,8 @@ class HL_Admin_Coaching {
 
         $cycle_mentors = array();
         foreach ($all_enrollments as $e) {
-            $roles = json_decode($e->roles, true);
-            if (!is_array($roles) || !in_array('Mentor', $roles)) {
+            $roles = HL_Roles::parse_stored($e->roles);
+            if (!in_array('mentor', $roles, true)) {
                 continue;
             }
             if (!isset($cycle_mentors[$e->cycle_id])) {

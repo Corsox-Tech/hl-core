@@ -1270,8 +1270,8 @@ class HL_Admin_Cycles {
         }
 
         foreach ($enrollments as $e) {
-            $roles = json_decode($e->roles, true);
-            $roles_str = is_array($roles) ? implode(', ', $roles) : '';
+            $roles = HL_Roles::parse_stored($e->roles);
+            $roles_str = implode(', ', $roles);
             $school_name = ($e->school_id && isset($schools[$e->school_id])) ? $schools[$e->school_id] : '-';
             $completion  = isset($rollups[$e->enrollment_id]) ? $rollups[$e->enrollment_id] : 0;
             $team_name   = isset($team_map[$e->enrollment_id]) ? $team_map[$e->enrollment_id] : '-';

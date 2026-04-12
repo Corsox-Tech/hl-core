@@ -55,8 +55,8 @@ class HL_Frontend_Coach_Mentor_Detail {
         ));
         // Team members.
         foreach ($members as $m) {
-            $roles    = json_decode($m['roles'] ?? '[]', true);
-            $role_str = is_array($roles) ? implode(', ', $roles) : '';
+            $roles    = HL_Roles::parse_stored($m['roles'] ?? '');
+            $role_str = implode(', ', $roles);
             fputcsv($out, array(
                 $m['display_name'],
                 $role_str,
@@ -286,8 +286,8 @@ class HL_Frontend_Coach_Mentor_Detail {
                 <?php else :
                     // Sort: mentors first, then other roles.
                     usort($team_members, function ($a, $b) {
-                        $a_roles = json_decode($a['roles'] ?? '[]', true) ?: array();
-                        $b_roles = json_decode($b['roles'] ?? '[]', true) ?: array();
+                        $a_roles = HL_Roles::parse_stored($a['roles'] ?? '');
+                        $b_roles = HL_Roles::parse_stored($b['roles'] ?? '');
                         $a_mentor = in_array('mentor', $a_roles, true) ? 0 : 1;
                         $b_mentor = in_array('mentor', $b_roles, true) ? 0 : 1;
                         return $a_mentor - $b_mentor;
@@ -306,8 +306,7 @@ class HL_Frontend_Coach_Mentor_Detail {
                             <tbody>
                                 <?php foreach ($team_members as $member) :
                                     $m_pct = (int) ($member['completion_pct'] ?? 0);
-                                    $roles = json_decode($member['roles'] ?? '[]', true);
-                                    $roles = is_array($roles) ? $roles : array();
+                                    $roles = HL_Roles::parse_stored($member['roles'] ?? '');
                                 ?>
                                     <tr>
                                         <td>

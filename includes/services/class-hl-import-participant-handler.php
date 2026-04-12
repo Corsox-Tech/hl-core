@@ -349,7 +349,7 @@ class HL_Import_Participant_Handler {
                 $preview['matched_user_id'] = (int) $existing['user_id'];
 
                 // Check if data differs
-                $existing_roles = json_decode($existing['roles'], true) ?: array();
+                $existing_roles = HL_Roles::parse_stored($existing['roles']);
                 $existing_roles_normalized = array_map(function($r) {
                     return strtolower(str_replace(' ', '_', trim($r)));
                 }, $existing_roles);

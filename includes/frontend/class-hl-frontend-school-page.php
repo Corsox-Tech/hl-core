@@ -396,12 +396,10 @@ class HL_Frontend_School_Page {
         ), ARRAY_A );
 
         return array_map( function ( $row ) {
-            $roles_raw  = json_decode( $row['roles'], true );
-            $roles_str  = is_array( $roles_raw )
-                ? implode( ', ', array_map( function ( $r ) {
-                    return ucwords( str_replace( '_', ' ', $r ) );
-                }, $roles_raw ) )
-                : '';
+            $roles_raw  = HL_Roles::parse_stored( $row['roles'] );
+            $roles_str  = implode( ', ', array_map( function ( $r ) {
+                return ucwords( str_replace( '_', ' ', $r ) );
+            }, $roles_raw ) );
             $row['roles_str'] = $roles_str;
             return $row;
         }, $rows ?: array() );

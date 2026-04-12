@@ -817,8 +817,8 @@ class HL_Reporting_Service {
 
         // Data rows
         foreach ( $participants as $row ) {
-            $roles_raw = json_decode( $row['roles'], true );
-            $roles_str = is_array( $roles_raw ) ? implode( ', ', $roles_raw ) : $row['roles'];
+            $roles_raw = HL_Roles::parse_stored( $row['roles'] );
+            $roles_str = implode( ', ', $roles_raw );
 
             $line = array(
                 $row['display_name'],

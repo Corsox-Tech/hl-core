@@ -25,8 +25,8 @@ class HL_Rules_Engine_Service {
                 $user_roles_json = $wpdb->get_var($wpdb->prepare(
                     "SELECT roles FROM {$t}hl_enrollment WHERE enrollment_id = %d", $enrollment_id
                 ));
-                $user_roles = json_decode($user_roles_json, true);
-                if (!is_array($user_roles) || empty(array_intersect($user_roles, $allowed))) {
+                $user_roles = HL_Roles::parse_stored($user_roles_json);
+                if (empty($user_roles) || empty(array_intersect($user_roles, $allowed))) {
                     return false;
                 }
             }

@@ -200,8 +200,7 @@ class HL_Frontend_Cycle_Dashboard {
             $rows = array();
         }
         foreach ($rows as &$row) {
-            $row['roles_array'] = is_array($row['roles']) ? $row['roles'] : (array) json_decode($row['roles'], true);
-            if (!is_array($row['roles_array'])) { $row['roles_array'] = array(); }
+            $row['roles_array'] = HL_Roles::parse_stored($row['roles']);
             $row['completion'] = $row['cycle_completion_percent'] !== null ? round((float) $row['cycle_completion_percent']) : 0;
         }
         unset($row);
@@ -212,10 +211,16 @@ class HL_Frontend_Cycle_Dashboard {
         $total = count($participants);
         $completions = array();
         $role_counts = array('Teacher' => 0, 'Mentor' => 0, 'School Leader' => 0, 'District Leader' => 0);
+        $role_key_map = array(
+            'teacher'         => 'Teacher',
+            'mentor'          => 'Mentor',
+            'school_leader'   => 'School Leader',
+            'district_leader' => 'District Leader',
+        );
         foreach ($participants as $p) {
             $completions[] = (int) $p['completion'];
             foreach ($p['roles_array'] as $role) {
-                if (isset($role_counts[$role])) { $role_counts[$role]++; }
+                if (isset($role_key_map[$role])) { $role_counts[$role_key_map[$role]]++; }
             }
         }
         $avg_completion = $total > 0 ? round(array_sum($completions) / $total) : 0;

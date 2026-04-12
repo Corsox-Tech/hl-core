@@ -82,7 +82,7 @@ class HL_Email_Condition_Evaluator {
         // an empty array from parse_stored() counts as null, which is stronger
         // than the generic "=== null || === ''" check below. This matches how
         // workflow authors reason about "no roles assigned".
-        if ( $field === 'enrollment.roles' && class_exists( 'HL_Roles' ) ) {
+        if ( $field === 'enrollment.roles' ) {
             $stored = $actual; // raw roles string from context
             switch ( $op ) {
                 case 'eq':

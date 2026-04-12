@@ -804,8 +804,8 @@ class HL_Admin_Enrollments {
             );
 
             // Decode roles
-            $roles_array = json_decode($enrollment->roles, true);
-            $roles_display = is_array($roles_array) ? implode(', ', $roles_array) : '';
+            $roles_array = HL_Roles::parse_stored($enrollment->roles);
+            $roles_display = implode(', ', $roles_array);
 
             // School name
             $school_name = '';
@@ -954,13 +954,11 @@ class HL_Admin_Enrollments {
         // Decode current roles (DB may store lowercase; normalize to Title Case for checkbox matching).
         $current_roles = array();
         if ($is_edit && !empty($enrollment->roles)) {
-            $decoded = json_decode($enrollment->roles, true);
-            if (is_array($decoded)) {
-                $current_roles = array_map(function($r) {
-                    // "teacher" → "Teacher", "school_leader" → "School Leader"
-                    return ucwords(str_replace('_', ' ', $r));
-                }, $decoded);
-            }
+            $decoded = HL_Roles::parse_stored($enrollment->roles);
+            $current_roles = array_map(function($r) {
+                // "teacher" → "Teacher", "school_leader" → "School Leader"
+                return ucwords(str_replace('_', ' ', $r));
+            }, $decoded);
         }
 
         if (!$in_cycle) {

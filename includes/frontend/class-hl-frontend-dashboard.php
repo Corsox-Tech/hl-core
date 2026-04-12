@@ -120,10 +120,7 @@ class HL_Frontend_Dashboard {
         $context['has_enrollment'] = ! empty( $user_enrollments );
 
         foreach ( $user_enrollments as $enrollment ) {
-            $roles = json_decode( $enrollment->roles, true );
-            if ( ! is_array( $roles ) ) {
-                $roles = array();
-            }
+            $roles = HL_Roles::parse_stored( $enrollment->roles );
 
             // Check track type.
             $cycle = $this->cycle_repo->get_by_id( $enrollment->cycle_id );

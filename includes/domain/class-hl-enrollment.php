@@ -27,7 +27,7 @@ class HL_Enrollment {
 
     public function get_roles_array() {
         if (is_array($this->roles)) return $this->roles;
-        return HL_DB_Utils::json_decode($this->roles);
+        return HL_Roles::parse_stored($this->roles);
     }
 
     public function has_role($role) {

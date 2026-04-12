@@ -906,9 +906,9 @@ class HL_Admin_OrgUnits {
             echo '</tr></thead><tbody>';
 
             foreach ($staff as $person) {
-                $roles_arr = json_decode($person->roles, true);
+                $roles_arr = HL_Roles::parse_stored($person->roles);
                 $roles_display = '';
-                if (is_array($roles_arr)) {
+                if (!empty($roles_arr)) {
                     $role_tags = array();
                     foreach ($roles_arr as $role) {
                         $role_tags[] = '<span class="hl-role-tag">' . esc_html(ucfirst(str_replace('_', ' ', $role))) . '</span>';

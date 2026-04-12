@@ -958,7 +958,7 @@ class HL_Email_Automation_Service {
                 // Cycles ending in 0-14 days; enrollments with coaching components and no attended session.
                 $today  = current_time( 'Y-m-d' );
                 $plus14 = wp_date( 'Y-m-d', strtotime( $today . ' +14 days' ) );
-                return $wpdb->get_results( $wpdb->prepare(
+                $rows = $wpdb->get_results( $wpdb->prepare(
                     "SELECT DISTINCT en.user_id,
                             en.enrollment_id AS enrollment_id,
                             c.component_id AS entity_id,
@@ -983,6 +983,13 @@ class HL_Email_Automation_Service {
                      LIMIT 5000",
                     $cycle_id, $today, $plus14
                 ), ARRAY_A );
+                if ( is_array( $rows ) && count( $rows ) >= 5000 && class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
+                        'entity_type' => 'email_workflow',
+                        'reason'      => 'cron:coaching_pre_end returned 5000 rows — may be truncated. Review cycle scope or add ORDER BY + cursor pagination.',
+                    ) );
+                }
+                return is_array( $rows ) ? $rows : array();
             }
 
             case 'cron:cv_window_7d': {
