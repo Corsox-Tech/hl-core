@@ -635,7 +635,7 @@ class HL_Admin_Emails {
     }
 
     private function handle_workflow_save() {
-        if ( ! wp_verify_nonce( $_POST['hl_workflow_nonce'], 'hl_workflow_save' ) ) {
+        if ( ! isset( $_POST['hl_workflow_nonce'] ) || ! wp_verify_nonce( $_POST['hl_workflow_nonce'], 'hl_workflow_save' ) ) {
             wp_die( 'Security check failed.' );
         }
         if ( ! current_user_can( 'manage_hl_core' ) ) {
@@ -646,11 +646,37 @@ class HL_Admin_Emails {
         $table = "{$wpdb->prefix}hl_email_workflow";
 
         $workflow_id = (int) ( $_POST['workflow_id'] ?? 0 );
+
+        // A.3.7 — trim JSON payload to defeat accidental whitespace bloat.
+        $raw_conditions = trim( wp_unslash( $_POST['conditions'] ?? '[]' ) );
+        $raw_recipients = trim( wp_unslash( $_POST['recipients'] ?? '{"primary":[],"cc":[]}' ) );
+
+        $conditions = self::sanitize_json_payload( $raw_conditions, array() );
+        $recipients = self::sanitize_json_payload( $raw_recipients, array( 'primary' => array(), 'cc' => array() ) );
+
+        // A.2.27 — server-side allowlist validation.
+        $valid = self::validate_workflow_payload( $conditions, $recipients );
+        if ( is_wp_error( $valid ) ) {
+            wp_redirect( add_query_arg( array(
+                'page'      => 'hl-emails',
+                'tab'       => 'workflows',
+                'hl_notice' => 'invalid_payload',
+                'hl_error'  => rawurlencode( $valid->get_error_message() ),
+            ), admin_url( 'admin.php' ) ) );
+            exit;
+        }
+
+        // A.3.5 — re-encode with stable flags before storing.
+        $conditions_json = wp_json_encode( $conditions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+        $recipients_json = wp_json_encode( $recipients, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+        if ( $conditions_json === false ) $conditions_json = '[]';
+        if ( $recipients_json === false ) $recipients_json = '{"primary":[],"cc":[]}';
+
         $data = array(
             'name'              => sanitize_text_field( $_POST['name'] ?? '' ),
             'trigger_key'       => sanitize_text_field( $_POST['trigger_key'] ?? '' ),
-            'conditions'        => wp_unslash( $_POST['conditions'] ?? '[]' ),
-            'recipients'        => wp_unslash( $_POST['recipients'] ?? '{}' ),
+            'conditions'        => $conditions_json,
+            'recipients'        => $recipients_json,
             'template_id'       => (int) ( $_POST['template_id'] ?? 0 ) ?: null,
             'delay_minutes'     => (int) ( $_POST['delay_minutes'] ?? 0 ),
             'send_window_start' => sanitize_text_field( $_POST['send_window_start'] ?? '' ) ?: null,
@@ -659,7 +685,8 @@ class HL_Admin_Emails {
             'status'            => sanitize_text_field( $_POST['status'] ?? 'draft' ),
         );
 
-        // Validate status.
+        // Validate status — now includes 'deleted' as a valid persisted state
+        // for soft-delete, but admins cannot set it via the form.
         if ( ! in_array( $data['status'], array( 'draft', 'active', 'paused' ), true ) ) {
             $data['status'] = 'draft';
         }
@@ -684,8 +711,15 @@ class HL_Admin_Emails {
 
         if ( $workflow_id > 0 ) {
             $wpdb->update( $table, $data, array( 'workflow_id' => $workflow_id ) );
+            if ( class_exists( 'HL_Audit_Service' ) ) {
+                HL_Audit_Service::log( 'email_workflow_updated', array( 'workflow_id' => $workflow_id ) );
+            }
         } else {
             $wpdb->insert( $table, $data );
+            $workflow_id = (int) $wpdb->insert_id;
+            if ( class_exists( 'HL_Audit_Service' ) ) {
+                HL_Audit_Service::log( 'email_workflow_created', array( 'workflow_id' => $workflow_id ) );
+            }
         }
 
         wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=workflows&hl_notice=workflow_saved' ) );
