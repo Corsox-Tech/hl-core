@@ -575,9 +575,21 @@ class HL_Admin_Emails {
             ) );
         }
 
-        $templates = $wpdb->get_results(
-            "SELECT template_id, name FROM {$wpdb->prefix}hl_email_template WHERE status = 'active' ORDER BY name"
-        );
+        // Task 12 — show all non-archived templates, plus the currently assigned
+        // template even if it's archived (with "(archived)" suffix in the UI).
+        $current_template_id = $workflow ? (int) $workflow->template_id : 0;
+        if ( $current_template_id > 0 ) {
+            $templates = $wpdb->get_results( $wpdb->prepare(
+                "SELECT template_id, name, status FROM {$wpdb->prefix}hl_email_template
+                 WHERE status != 'archived' OR template_id = %d
+                 ORDER BY name",
+                $current_template_id
+            ) );
+        } else {
+            $templates = $wpdb->get_results(
+                "SELECT template_id, name, status FROM {$wpdb->prefix}hl_email_template WHERE status != 'archived' ORDER BY name"
+            );
+        }
 
         $conditions = array();
         if ( $workflow && ! empty( $workflow->conditions ) ) {
@@ -669,8 +681,13 @@ class HL_Admin_Emails {
                     <td>
                         <select name="template_id">
                             <option value=""><?php esc_html_e( '— Select —', 'hl-core' ); ?></option>
-                            <?php foreach ( $templates as $t ) : ?>
-                                <option value="<?php echo (int) $t->template_id; ?>" <?php selected( $workflow->template_id ?? 0, $t->template_id ); ?>><?php echo esc_html( $t->name ); ?></option>
+                            <?php foreach ( $templates as $t ) :
+                                $label = $t->name;
+                                if ( $t->status === 'archived' ) {
+                                    $label .= ' (archived)';
+                                }
+                            ?>
+                                <option value="<?php echo (int) $t->template_id; ?>" <?php selected( $workflow->template_id ?? 0, $t->template_id ); ?>><?php echo esc_html( $label ); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </td>
@@ -774,6 +791,85 @@ class HL_Admin_Emails {
             </p>
         </div><!-- /.hl-email-admin -->
         </form>
+
+        <?php
+        // Task 14 — Force Resend box (only when editing an existing workflow).
+        if ( $workflow && $workflow->workflow_id ) :
+            $force_resend_notice = sanitize_text_field( $_GET['hl_notice'] ?? '' );
+            $force_resend_count  = (int) ( $_GET['hl_count'] ?? 0 );
+        ?>
+        <div class="hl-email-admin" style="margin-top:24px;">
+            <div style="background:#fff8e1;border:1px solid #f9a825;border-radius:6px;padding:16px 20px;">
+                <h3 style="margin:0 0 8px;"><?php esc_html_e( 'Force Resend', 'hl-core' ); ?></h3>
+                <p class="description" style="margin:0 0 12px;"><?php esc_html_e( 'Clear dedup tokens on pending queue rows so they become eligible for re-sending. Use with caution — recipients may receive duplicate emails.', 'hl-core' ); ?></p>
+
+                <?php if ( $force_resend_notice === 'force_resend_done' ) : ?>
+                    <div class="notice notice-success inline" style="margin:0 0 12px;">
+                        <p><?php printf( esc_html__( 'Force resend complete. %d pending row(s) had their dedup token cleared.', 'hl-core' ), $force_resend_count ); ?></p>
+                    </div>
+                <?php endif; ?>
+
+                <?php
+                // Show last force-resend event if available.
+                if ( class_exists( 'HL_Audit_Service' ) ) {
+                    $last_event = HL_Audit_Service::get_last_event( (int) $workflow->workflow_id, 'workflow_force_resend' );
+                    if ( $last_event ) {
+                        $actor = ! empty( $last_event['actor_name'] ) ? $last_event['actor_name'] : __( 'Unknown', 'hl-core' );
+                        $when  = ! empty( $last_event['created_at'] ) ? $last_event['created_at'] : '—';
+                        echo '<p style="font-size:12px;color:#6B7280;margin:0 0 12px;">';
+                        printf(
+                            esc_html__( 'Last force resend: %1$s by %2$s', 'hl-core' ),
+                            esc_html( $when ),
+                            esc_html( $actor )
+                        );
+                        echo '</p>';
+                    }
+                }
+                ?>
+
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="hl-force-resend-form">
+                    <input type="hidden" name="action" value="hl_workflow_force_resend">
+                    <input type="hidden" name="workflow_id" value="<?php echo (int) $workflow->workflow_id; ?>">
+                    <?php wp_nonce_field( 'hl_workflow_force_resend_' . $workflow->workflow_id ); ?>
+
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <label>
+                            <input type="radio" name="scope" value="all_pending" checked>
+                            <?php esc_html_e( 'All pending', 'hl-core' ); ?>
+                        </label>
+                        <label>
+                            <input type="radio" name="scope" value="user" id="hl-fr-scope-user">
+                            <?php esc_html_e( 'Specific user', 'hl-core' ); ?>
+                        </label>
+                        <input type="number" name="scope_value" id="hl-fr-user-id" placeholder="<?php esc_attr_e( 'User ID', 'hl-core' ); ?>" min="1" style="width:100px;display:none;">
+                        <button type="submit" class="button"><?php esc_html_e( 'Force Resend', 'hl-core' ); ?></button>
+                    </div>
+                </form>
+
+                <script>
+                (function($){
+                    var $userInput = $('#hl-fr-user-id');
+                    $('input[name="scope"]').on('change', function(){
+                        if ( $(this).val() === 'user' ) {
+                            $userInput.show().focus();
+                        } else {
+                            $userInput.hide().val('');
+                        }
+                    });
+                    $('#hl-force-resend-form').on('submit', function(e){
+                        var scope = $('input[name="scope"]:checked').val();
+                        var msg = scope === 'user'
+                            ? '<?php echo esc_js( __( 'Force resend pending emails for this user? They may receive duplicates.', 'hl-core' ) ); ?>'
+                            : '<?php echo esc_js( __( 'Force resend ALL pending emails for this workflow? Recipients may receive duplicates.', 'hl-core' ) ); ?>';
+                        if ( ! confirm( msg ) ) {
+                            e.preventDefault();
+                        }
+                    });
+                })(jQuery);
+                </script>
+            </div>
+        </div>
+        <?php endif; ?>
         <?php
     }
 
@@ -891,6 +987,8 @@ class HL_Admin_Emails {
         }
 
         ?>
+        <div class="hl-email-admin">
+
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
             <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=builder' ) ); ?>" class="button button-primary"><?php esc_html_e( 'New Template', 'hl-core' ); ?></a>
             <div class="hl-email-filters">
@@ -926,14 +1024,33 @@ class HL_Admin_Emails {
                             <td><?php echo esc_html( ucwords( str_replace( '_', ' ', $t->category ) ) ); ?></td>
                             <td><?php $this->render_status_badge( $t->status ); ?></td>
                             <td><?php echo esc_html( $t->updated_at ); ?></td>
-                            <td>
+                            <td class="hl-row-actions">
+                                <?php // Edit link. ?>
                                 <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=builder&template_id=' . $t->template_id ) ); ?>"><?php esc_html_e( 'Edit', 'hl-core' ); ?></a>
+
+                                <?php // Duplicate form (POST). ?>
+                                | <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+                                    <input type="hidden" name="action" value="hl_template_duplicate">
+                                    <input type="hidden" name="template_id" value="<?php echo (int) $t->template_id; ?>">
+                                    <?php wp_nonce_field( 'hl_template_duplicate_' . $t->template_id ); ?>
+                                    <button type="submit" class="button-link"><?php esc_html_e( 'Duplicate', 'hl-core' ); ?></button>
+                                </form>
+
+                                <?php // Archive / Restore form (POST). ?>
+                                | <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+                                    <input type="hidden" name="action" value="hl_template_archive">
+                                    <input type="hidden" name="template_id" value="<?php echo (int) $t->template_id; ?>">
+                                    <?php wp_nonce_field( 'hl_template_archive_' . $t->template_id ); ?>
+                                    <button type="submit" class="button-link"><?php echo $t->status === 'archived' ? esc_html__( 'Restore', 'hl-core' ) : esc_html__( 'Archive', 'hl-core' ); ?></button>
+                                </form>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </tbody>
         </table>
+
+        </div><!-- /.hl-email-admin -->
         <?php
     }
 
@@ -1408,10 +1525,185 @@ class HL_Admin_Emails {
         wp_send_json_success( array( 'new_status' => $new_status ) );
     }
 
-    // Stubs — implemented in later tasks.
-    public function handle_template_duplicate() { wp_die( 'Not yet implemented' ); }
-    public function handle_template_archive() { wp_die( 'Not yet implemented' ); }
-    public function handle_workflow_force_resend() { wp_die( 'Not yet implemented' ); }
+    /**
+     * Duplicate a template via admin-post.php (POST).
+     * Task 12 — copies row, generates "(Copy)" name + unique template_key, sets status to draft.
+     */
+    public function handle_template_duplicate() {
+        $template_id = (int) ( $_POST['template_id'] ?? 0 );
+
+        if ( ! wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'hl_template_duplicate_' . $template_id ) ) {
+            wp_die( 'Security check failed.' );
+        }
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_die( 'Unauthorized' );
+        }
+
+        global $wpdb;
+        $table  = "{$wpdb->prefix}hl_email_template";
+        $source = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE template_id = %d",
+            $template_id
+        ), ARRAY_A );
+
+        if ( ! $source ) {
+            wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=templates&hl_notice=not_found' ) );
+            exit;
+        }
+
+        // Remove keys that should not be copied.
+        unset( $source['template_id'], $source['created_at'], $source['updated_at'] );
+
+        $source['name']   = self::generate_copy_name( 'hl_email_template', $source['name'] );
+        $source['status'] = 'draft';
+
+        // Generate a unique template_key.
+        $base_key = preg_replace( '/_copy\d*$/', '', $source['template_key'] );
+        $unique_key = null;
+        for ( $i = 1; $i <= 100; $i++ ) {
+            $candidate = $i === 1 ? $base_key . '_copy' : $base_key . '_copy' . $i;
+            $exists = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table} WHERE template_key = %s",
+                $candidate
+            ) );
+            if ( $exists === 0 ) {
+                $unique_key = $candidate;
+                break;
+            }
+        }
+        if ( $unique_key === null ) {
+            $unique_key = $base_key . '_' . substr( wp_generate_uuid4(), 0, 8 );
+        }
+        $source['template_key'] = $unique_key;
+
+        $wpdb->insert( $table, $source );
+        $new_id = (int) $wpdb->insert_id;
+
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( 'email_template_duplicated', array(
+                'entity_type'        => 'email_template',
+                'entity_id'          => $new_id,
+                'source_template_id' => $template_id,
+                'new_template_id'    => $new_id,
+            ) );
+        }
+
+        wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=builder&template_id=' . $new_id ) );
+        exit;
+    }
+
+    /**
+     * Archive or restore a template via admin-post.php (POST).
+     * Task 12 — flips status: archived→draft, anything else→archived.
+     */
+    public function handle_template_archive() {
+        $template_id = (int) ( $_POST['template_id'] ?? 0 );
+
+        if ( ! wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'hl_template_archive_' . $template_id ) ) {
+            wp_die( 'Security check failed.' );
+        }
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_die( 'Unauthorized' );
+        }
+
+        global $wpdb;
+        $table   = "{$wpdb->prefix}hl_email_template";
+        $current = $wpdb->get_var( $wpdb->prepare(
+            "SELECT status FROM {$table} WHERE template_id = %d",
+            $template_id
+        ) );
+
+        if ( $current === null ) {
+            wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=templates&hl_notice=not_found' ) );
+            exit;
+        }
+
+        // Flip: archived→draft, anything else→archived.
+        $new_status  = ( $current === 'archived' ) ? 'draft' : 'archived';
+        $action_type = ( $new_status === 'archived' ) ? 'email_template_archived' : 'email_template_restored';
+
+        $wpdb->update( $table, array( 'status' => $new_status ), array( 'template_id' => $template_id ) );
+
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( $action_type, array(
+                'entity_type' => 'email_template',
+                'entity_id'   => $template_id,
+                'old_status'  => $current,
+                'new_status'  => $new_status,
+            ) );
+        }
+
+        wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=templates&hl_notice=template_' . $new_status ) );
+        exit;
+    }
+
+    /**
+     * Force resend pending emails for a workflow via admin-post.php (POST).
+     * Task 14 — clears dedup_token on matching pending queue rows so they are re-eligible.
+     */
+    public function handle_workflow_force_resend() {
+        $workflow_id = (int) ( $_POST['workflow_id'] ?? 0 );
+
+        if ( ! wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'hl_workflow_force_resend_' . $workflow_id ) ) {
+            wp_die( 'Security check failed.' );
+        }
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_die( 'Unauthorized' );
+        }
+
+        global $wpdb;
+        $queue = "{$wpdb->prefix}hl_email_queue";
+
+        $scope       = sanitize_text_field( $_POST['scope'] ?? 'all_pending' );
+        $scope_value = sanitize_text_field( $_POST['scope_value'] ?? '' );
+
+        // Build WHERE clause.
+        if ( $scope === 'user' && (int) $scope_value > 0 ) {
+            $where = $wpdb->prepare(
+                "WHERE workflow_id = %d AND status = 'pending' AND recipient_user_id = %d",
+                $workflow_id,
+                (int) $scope_value
+            );
+        } else {
+            $scope       = 'all_pending';
+            $scope_value = '';
+            $where = $wpdb->prepare(
+                "WHERE workflow_id = %d AND status = 'pending'",
+                $workflow_id
+            );
+        }
+
+        // Count matching rows.
+        $affected = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$queue} {$where}" );
+
+        // Clear dedup_token to allow re-send.
+        if ( $affected > 0 ) {
+            $wpdb->query( "UPDATE {$queue} SET dedup_token = NULL {$where}" );
+        }
+
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( 'workflow_force_resend', array(
+                'entity_type' => 'email_workflow',
+                'entity_id'   => $workflow_id,
+                'after_data'  => array(
+                    'workflow_id'  => $workflow_id,
+                    'scope'        => $scope,
+                    'scope_value'  => $scope_value,
+                    'affected'     => $affected,
+                ),
+            ) );
+        }
+
+        wp_redirect( add_query_arg( array(
+            'page'      => 'hl-emails',
+            'tab'       => 'workflows',
+            'action'    => 'edit',
+            'workflow_id' => $workflow_id,
+            'hl_notice' => 'force_resend_done',
+            'hl_count'  => $affected,
+        ), admin_url( 'admin.php' ) ) );
+        exit;
+    }
 
     // =========================================================================
     // Helpers
