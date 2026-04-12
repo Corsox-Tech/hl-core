@@ -2193,3 +2193,42 @@ body.hl-js-loaded .hl-email-admin .hl-js-fallback { display: none; }
     border-radius: 4px;
     background: #fff;
 }
+
+/* --- Undo / redo toolbar group ----------------------------------- */
+.hl-eb-undo-group {
+    display: inline-flex;
+    margin-right: 8px;
+}
+
+.hl-eb-undo-group .button {
+    margin-right: 2px;
+}
+
+.hl-eb-undo-group .button[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* --- Undo-clear notice ------------------------------------------- */
+.hl-eb-undo-notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 8px 0;
+    padding: 8px 12px;
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-radius: var(--eb-radius-sm);
+    color: #92400E;
+    font-size: 13px;
+}
+
+.hl-eb-undo-notice-dismiss {
+    background: transparent;
+    border: 0;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    color: #92400E;
+    padding: 0 4px;
+}

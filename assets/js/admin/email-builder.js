@@ -102,46 +102,38 @@
 
                 // Text snapshot debounce — push to undo stack on blur OR 2s idle after last keystroke.
                 var textSnapshotTimer = null;
-                var textSnapshotPending = false;
-                function flushTextSnapshot() {
-                    if (textSnapshotPending) {
-                        textSnapshotPending = false;
-                        clearTimeout(textSnapshotTimer);
-                        textSnapshotTimer = null;
-                    }
-                }
-                var preMutationText = null;
                 $editor.on('focus', function () {
-                    preMutationText = JSON.parse(JSON.stringify(blocks));
+                    // Capture pre-mutation snapshot into the global pending slot.
+                    // flushPendingTextSnapshot() on Ctrl+Z / blur / 2s idle will commit it.
+                    if (!window._hlPendingTextSnap) {
+                        window._hlPendingTextSnap = JSON.parse(JSON.stringify(blocks));
+                    }
                 });
                 $editor.on('input', function () {
                     blocks[index].content = $(this).html();
                     markDirty();
                     runHealthCheck();
-                    if (!textSnapshotPending) {
-                        textSnapshotPending = true;
-                    }
                     clearTimeout(textSnapshotTimer);
                     textSnapshotTimer = setTimeout(function () {
-                        if (textSnapshotPending && preMutationText) {
-                            undoStack.push(preMutationText);
-                            if (undoStack.length > MAX_UNDO) undoStack.shift();
-                            redoStack = [];
-                            preMutationText = JSON.parse(JSON.stringify(blocks));
-                            updateUndoButtons();
-                        }
-                        textSnapshotPending = false;
+                        // 2s idle → commit the pending pre-mutation snapshot.
+                        flushPendingTextSnapshot();
+                        updateUndoButtons();
+                        // Seed a fresh pre-mutation snapshot for the next edit burst.
+                        window._hlPendingTextSnap = JSON.parse(JSON.stringify(blocks));
                     }, 2000);
                 });
                 $editor.on('blur', function () {
-                    if (textSnapshotPending && preMutationText) {
-                        undoStack.push(preMutationText);
-                        if (undoStack.length > MAX_UNDO) undoStack.shift();
-                        redoStack = [];
+                    clearTimeout(textSnapshotTimer);
+                    flushPendingTextSnapshot();
+                    updateUndoButtons();
+                });
+                // A.2.1 Safari — beforeinput historyUndo must flush pending snapshot first.
+                $editor.on('beforeinput', function (e) {
+                    var ev = e.originalEvent || e;
+                    if (ev && (ev.inputType === 'historyUndo' || ev.inputType === 'historyRedo')) {
+                        flushPendingTextSnapshot();
                         updateUndoButtons();
                     }
-                    textSnapshotPending = false;
-                    clearTimeout(textSnapshotTimer);
                 });
 
                 // Mini toolbar: B | I | link | align | font-size | merge tags
@@ -252,6 +244,7 @@
                 var $imgBtn = $('<button type="button" class="button hl-eb-choose-image">Choose Image</button>');
                 var $altInput = $('<input type="text" placeholder="Alt text" value="' + escHtml(block.alt || '') + '">');
                 $altInput.on('change', function () {
+                    pushUndo();
                     blocks[index].alt = $(this).val();
                     markDirty();
                 });
@@ -264,6 +257,7 @@
                             alert('SVG files are not allowed in emails.');
                             return;
                         }
+                        pushUndo();
                         blocks[index].src = attachment.url;
                         blocks[index].width = Math.min(attachment.width || 600, 600);
                         $imgPreview.html('<img src="' + escHtml(attachment.url) + '" style="max-width:100%;" />');
@@ -277,8 +271,8 @@
             case 'button':
                 var $label = $('<input type="text" placeholder="Button label" value="' + escHtml(block.label || 'Click Here') + '">');
                 var $url = $('<input type="text" placeholder="URL or {{merge_tag}}" value="' + escHtml(block.url || '') + '">');
-                $label.on('change', function () { blocks[index].label = $(this).val(); markDirty(); });
-                $url.on('change', function () { blocks[index].url = $(this).val(); markDirty(); });
+                $label.on('change', function () { pushUndo(); blocks[index].label = $(this).val(); markDirty(); });
+                $url.on('change',   function () { pushUndo(); blocks[index].url   = $(this).val(); markDirty(); });
                 $wrap.append($label).append($url);
                 var $colorWrap = $('<div style="margin-top:8px;"><label>BG: </label></div>');
                 var $bgInput = $('<input type="text" class="hl-eb-color" value="' + escHtml(block.bg_color || '#2C7BE5') + '">');
@@ -286,6 +280,7 @@
                 $wrap.append($colorWrap);
                 setTimeout(function () {
                     $bgInput.wpColorPicker({ change: function (e, ui) {
+                        pushUndo();
                         blocks[index].bg_color = ui.color.toString();
                         markDirty();
                     }});
@@ -300,6 +295,16 @@
                 var h = block.height || 24;
                 var $slider = $('<input type="range" min="8" max="80" value="' + h + '">');
                 var $spacerPreview = $('<div class="hl-eb-spacer-preview" style="height:' + h + 'px;background:#f0f0f0;"></div>');
+                var spacerDragStarted = false;
+                $slider.on('mousedown touchstart', function () {
+                    if (!spacerDragStarted) {
+                        pushUndo();
+                        spacerDragStarted = true;
+                    }
+                });
+                $slider.on('mouseup touchend', function () {
+                    spacerDragStarted = false;
+                });
                 $slider.on('input', function () {
                     var val = parseInt($(this).val());
                     blocks[index].height = val;
@@ -312,7 +317,7 @@
             case 'columns':
                 var $splitSelect = $('<select><option value="50/50">50/50</option><option value="60/40">60/40</option></select>');
                 $splitSelect.val(block.split || '50/50');
-                $splitSelect.on('change', function () { blocks[index].split = $(this).val(); markDirty(); });
+                $splitSelect.on('change', function () { pushUndo(); blocks[index].split = $(this).val(); markDirty(); });
                 $wrap.append($splitSelect);
                 $wrap.append('<div style="display:flex;gap:8px;">' +
                     '<div style="flex:1;border:1px dashed #ccc;padding:8px;min-height:60px;">Left column blocks (edit in JSON)</div>' +
@@ -347,6 +352,7 @@
             animation: 150,
             handle: '.hl-eb-block-type:not(.hl-eb-block-type-nested)',
             onEnd: function (evt) {
+                pushUndo();
                 var item = blocks.splice(evt.oldIndex, 1)[0];
                 blocks.splice(evt.newIndex, 0, item);
                 renderAllBlocks();
@@ -363,6 +369,7 @@
     function bindEvents() {
         // Add block.
         $(document).on('click', '.hl-eb-add-block', function () {
+            pushUndo();
             var type = $(this).data('type');
             var newBlock = { type: type };
             switch (type) {
@@ -378,17 +385,23 @@
             markDirty();
         });
 
-        // Delete block.
-        $(document).on('click', '.hl-eb-block-del', function () {
-            var idx = $(this).closest('.hl-eb-block').data('index');
+        // Delete top-level block. Nested blocks have their own .hl-eb-nested-del class.
+        $(document).on('click', '.hl-eb-block-del', function (e) {
+            var $card = $(this).closest('.hl-eb-block');
+            if ($card.hasClass('hl-eb-block-nested')) return;
+            pushUndo();
+            var idx = $card.data('index');
             blocks.splice(idx, 1);
             renderAllBlocks();
             markDirty();
         });
 
-        // Duplicate block.
-        $(document).on('click', '.hl-eb-block-dup', function () {
-            var idx = $(this).closest('.hl-eb-block').data('index');
+        // Duplicate top-level block.
+        $(document).on('click', '.hl-eb-block-dup', function (e) {
+            var $card = $(this).closest('.hl-eb-block');
+            if ($card.hasClass('hl-eb-block-nested')) return;
+            pushUndo();
+            var idx = $card.data('index');
             var clone = JSON.parse(JSON.stringify(blocks[idx]));
             blocks.splice(idx + 1, 0, clone);
             renderAllBlocks();
@@ -426,6 +439,53 @@
                 navigator.clipboard.writeText(tag);
             }
         });
+
+        // Undo / redo buttons.
+        $('#hl-eb-undo').on('click', function () { undo(); });
+        $('#hl-eb-redo').on('click', function () { redo(); });
+
+        // Keyboard shortcuts — global, but guarded against contenteditable / input focus
+        // so the browser's native per-field undo keeps working.
+        $(document).on('keydown', function (e) {
+            var isMeta = e.ctrlKey || e.metaKey;
+            if (!isMeta) return;
+
+            var key = String.fromCharCode(e.which || e.keyCode).toLowerCase();
+            var target = e.target || {};
+            var tag    = (target.tagName || '').toLowerCase();
+            var isEditable = tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+
+            // Inside a contenteditable text editor: let the browser undo the text edits.
+            // We do flush any pending snapshot so Ctrl+Z after snapshot still has the
+            // pre-mutation state in our stack when focus next leaves the editor.
+            if (isEditable) {
+                if (key === 'z') {
+                    flushPendingTextSnapshot();
+                    updateUndoButtons();
+                }
+                return;
+            }
+
+            if (key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                undo();
+            } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+                e.preventDefault();
+                redo();
+            }
+        });
+
+        // Dismiss undo-clear notice — AJAX write to user meta so it does not reappear.
+        $(document).on('click', '.hl-eb-undo-notice-dismiss', function () {
+            var $notice = $(this).closest('.hl-eb-undo-notice');
+            $notice.hide();
+            window.hlEmailUndoNoticeSeen = true;
+            $.post(config.ajaxUrl, {
+                action: 'hl_email_builder_dismiss_undo_notice',
+                nonce: config.nonce,
+                template_id: $notice.data('template-id') || 0
+            });
+        });
     }
 
     // =========================================================================
@@ -452,6 +512,15 @@
                 config.templateId = res.data.template_id;
                 isDirty = false;
                 $('#hl-eb-autosave-status').text('Saved').fadeIn().delay(2000).fadeOut();
+
+                // A.7.8 — first save with a non-empty undo stack shows the one-time notice.
+                var hadHistory = undoStack.length > 0 || redoStack.length > 0;
+                undoStack = [];
+                redoStack = [];
+                updateUndoButtons();
+                if (hadHistory && !window.hlEmailUndoNoticeSeen) {
+                    $('#hl-eb-undo-notice').show();
+                }
             } else {
                 alert(res.data || 'Save failed.');
             }
@@ -468,7 +537,12 @@
     function markDirty() {
         isDirty = true;
         clearTimeout(autosaveTimer);
-        autosaveTimer = setTimeout(doAutosave, 3000);
+        var delay = 3000;
+        var remaining = autosaveSuppressUntil - Date.now();
+        if (remaining > delay) {
+            delay = remaining;
+        }
+        autosaveTimer = setTimeout(doAutosave, delay);
 
         // localStorage backup.
         try {
@@ -589,11 +663,10 @@
     // =========================================================================
 
     // =========================================================================
-    // Undo / Redo  (stub implementations — real logic in Task C)
+    // Undo / Redo
     // =========================================================================
 
     function pushUndo() {
-        // Deep clone current state into the undo stack.
         undoStack.push(JSON.parse(JSON.stringify(blocks)));
         if (undoStack.length > MAX_UNDO) {
             undoStack.shift();
@@ -602,12 +675,44 @@
         updateUndoButtons();
     }
 
+    function undo() {
+        if (!undoStack.length) return;
+        flushPendingTextSnapshot();
+        redoStack.push(JSON.parse(JSON.stringify(blocks)));
+        blocks = undoStack.pop();
+        // A.2.4 — delay next autosave 5s after an undo/redo to give a redo window.
+        autosaveSuppressUntil = Date.now() + 5000;
+        renderAllBlocks();
+        markDirty();
+        updateUndoButtons();
+    }
+
+    function redo() {
+        if (!redoStack.length) return;
+        flushPendingTextSnapshot();
+        undoStack.push(JSON.parse(JSON.stringify(blocks)));
+        blocks = redoStack.pop();
+        autosaveSuppressUntil = Date.now() + 5000;
+        renderAllBlocks();
+        markDirty();
+        updateUndoButtons();
+    }
+
     function updateUndoButtons() {
-        // Will be fully implemented in Task C — safe no-op if elements don't exist yet.
-        var $undo = $('#hl-eb-undo');
-        var $redo = $('#hl-eb-redo');
-        if ($undo.length) { $undo.prop('disabled', undoStack.length === 0); }
-        if ($redo.length) { $redo.prop('disabled', redoStack.length === 0); }
+        $('#hl-eb-undo').prop('disabled', undoStack.length === 0);
+        $('#hl-eb-redo').prop('disabled', redoStack.length === 0);
+    }
+
+    // Pending text snapshot flush — text blocks debounce snapshot on input/blur;
+    // Ctrl+Z must flush the pending pre-mutation snapshot first so undo works correctly.
+    // The per-text-block closure stores its pending snapshot in window._hlPendingTextSnap.
+    function flushPendingTextSnapshot() {
+        if (window._hlPendingTextSnap) {
+            undoStack.push(window._hlPendingTextSnap);
+            if (undoStack.length > MAX_UNDO) undoStack.shift();
+            redoStack = [];
+            window._hlPendingTextSnap = null;
+        }
     }
 
     function destroyAllSortables() {

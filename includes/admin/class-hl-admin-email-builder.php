@@ -27,6 +27,7 @@ class HL_Admin_Email_Builder {
         add_action( 'wp_ajax_hl_email_preview_search', array( $this, 'ajax_preview_search' ) );
         add_action( 'wp_ajax_hl_email_preview_render', array( $this, 'ajax_preview_render' ) );
         add_action( 'wp_ajax_hl_email_template_delete', array( $this, 'ajax_delete' ) );
+        add_action( 'wp_ajax_hl_email_builder_dismiss_undo_notice', array( $this, 'ajax_dismiss_undo_notice' ) );
     }
 
     // =========================================================================
@@ -151,9 +152,34 @@ class HL_Admin_Email_Builder {
                 <div class="hl-eb-canvas">
                     <div class="hl-eb-canvas-header">
                         <div class="hl-eb-toolbar">
+                            <div class="hl-eb-undo-group" role="group" aria-label="<?php esc_attr_e( 'Undo and redo', 'hl-core' ); ?>">
+                                <button type="button" class="button" id="hl-eb-undo" disabled
+                                    title="<?php esc_attr_e( 'Undo (Ctrl+Z) — Undo history clears on save', 'hl-core' ); ?>"
+                                    aria-label="<?php esc_attr_e( 'Undo', 'hl-core' ); ?>">&#x21A9;</button>
+                                <button type="button" class="button" id="hl-eb-redo" disabled
+                                    title="<?php esc_attr_e( 'Redo (Ctrl+Y) — Undo history clears on save', 'hl-core' ); ?>"
+                                    aria-label="<?php esc_attr_e( 'Redo', 'hl-core' ); ?>">&#x21AA;</button>
+                            </div>
                             <button type="button" class="button button-primary" id="hl-eb-save"><?php esc_html_e( 'Save Template', 'hl-core' ); ?></button>
+                            <button type="button" class="button" id="hl-eb-preview-btn">
+                                <span class="dashicons dashicons-visibility" style="vertical-align:text-bottom;"></span>
+                                <?php esc_html_e( 'Preview', 'hl-core' ); ?>
+                            </button>
                             <span class="hl-eb-autosave-status" id="hl-eb-autosave-status"></span>
                         </div>
+                        <?php
+                        // A.7.8 / A.7.14 — one-time per (user, template) undo-clear notice.
+                        $notice_tpl_id = $template_id ?: 0;
+                        $notice_seen   = (bool) get_user_meta( get_current_user_id(), 'hl_email_builder_undo_notice_seen_' . $notice_tpl_id, true );
+                        ?>
+                        <div class="hl-eb-undo-notice"
+                             id="hl-eb-undo-notice"
+                             style="display:none;"
+                             data-template-id="<?php echo (int) $notice_tpl_id; ?>">
+                            <span><?php esc_html_e( 'Your undo history was cleared by saving. Undo only works within a single editing session.', 'hl-core' ); ?></span>
+                            <button type="button" class="hl-eb-undo-notice-dismiss" aria-label="<?php esc_attr_e( 'Dismiss notice', 'hl-core' ); ?>">&times;</button>
+                        </div>
+                        <script>window.hlEmailUndoNoticeSeen = <?php echo $notice_seen ? 'true' : 'false'; ?>;</script>
                     </div>
                     <div class="hl-eb-canvas-body" id="hl-eb-blocks" style="max-width:600px;margin:0 auto;background:#fff;min-height:200px;padding:20px;border:1px solid #ddd;">
                         <!-- Blocks rendered by JS -->
@@ -207,6 +233,7 @@ class HL_Admin_Email_Builder {
                 blocks: <?php echo wp_json_encode( $blocks ); ?>,
                 draftData: <?php echo wp_json_encode( $draft_data ); ?>,
                 nonce: <?php echo wp_json_encode( wp_create_nonce( 'hl_email_builder' ) ); ?>,
+                previewNonce: <?php echo wp_json_encode( wp_create_nonce( 'hl_email_preview' ) ); ?>,
                 ajaxUrl: <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>,
                 previewUrl: <?php echo wp_json_encode( admin_url( 'admin-ajax.php?action=hl_email_preview_render&_wpnonce=' . wp_create_nonce( 'hl_email_preview' ) ) ); ?>,
                 mergeTagsGrouped: <?php echo wp_json_encode( $tags_grouped ); ?>
@@ -520,6 +547,28 @@ class HL_Admin_Email_Builder {
         ) );
 
         wp_send_json_success( array( 'message' => __( 'Template archived.', 'hl-core' ) ) );
+    }
+
+    // =========================================================================
+    // AJAX: Dismiss Undo Notice
+    // =========================================================================
+
+    /**
+     * Mark the per-template undo-clear notice as seen for the current user.
+     * A.7.8 / A.7.14 — meta key hl_email_builder_undo_notice_seen_{template_id}.
+     */
+    public function ajax_dismiss_undo_notice() {
+        check_ajax_referer( 'hl_email_builder', 'nonce' );
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( 'Unauthorized' );
+        }
+        $template_id = (int) ( $_POST['template_id'] ?? 0 );
+        update_user_meta(
+            get_current_user_id(),
+            'hl_email_builder_undo_notice_seen_' . $template_id,
+            1
+        );
+        wp_send_json_success();
     }
 
     // =========================================================================
