@@ -74,7 +74,7 @@ class HL_CLI_Diagnose_Nav {
         $missing_school = 0;
         $roles_seen     = array();
         foreach ( $enrollments as $e ) {
-            $roles_arr = json_decode( $e->roles, true ) ?: array();
+            $roles_arr = HL_Roles::parse_stored( $e->roles );
             $roles_str = implode( ', ', $roles_arr );
             foreach ( $roles_arr as $r ) {
                 $roles_seen[ $r ] = ( $roles_seen[ $r ] ?? 0 ) + 1;
@@ -218,7 +218,7 @@ class HL_CLI_Diagnose_Nav {
                 }
 
                 if ( $ue_in_cycle ) {
-                    $roles = json_decode( $ue_in_cycle->roles, true ) ?: array();
+                    $roles = HL_Roles::parse_stored( $ue_in_cycle->roles );
                     $is_leader = in_array( 'school_leader', $roles, true ) || in_array( 'district_leader', $roles, true );
 
                     WP_CLI::log( "\n  Scope for My Cycle page:" );

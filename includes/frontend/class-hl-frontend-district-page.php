@@ -107,7 +107,7 @@ class HL_Frontend_District_Page {
                AND roles LIKE %s",
             $user_id,
             $district->orgunit_id,
-            '%"district_leader"%'
+            '%district_leader%'
         ) );
 
         return (int) $has_access > 0;
@@ -323,7 +323,7 @@ class HL_Frontend_District_Page {
                AND e.roles LIKE %s
              ORDER BY u.display_name ASC",
             $school_id,
-            '%"school_leader"%'
+            '%school_leader%'
         ) );
 
         return $results ?: array();

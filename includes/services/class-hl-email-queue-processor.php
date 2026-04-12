@@ -25,6 +25,9 @@ class HL_Email_Queue_Processor {
     /** Minutes before a "sending" row is considered stuck. */
     const STUCK_THRESHOLD_MINUTES = 10;
 
+    /** @var object|null The queue row currently being sent, used by wp_mail_failed. */
+    private $current_row = null;
+
     /** @return self */
     public static function instance() {
         if ( self::$instance === null ) {
@@ -33,7 +36,23 @@ class HL_Email_Queue_Processor {
         return self::$instance;
     }
 
-    private function __construct() {}
+    private function __construct() {
+        add_action( 'wp_mail_failed', array( $this, 'handle_wp_mail_failed' ) );
+    }
+
+    /**
+     * A.6.7: dynamic stuck-row threshold = max(10 * interval, 900s).
+     */
+    private function stuck_threshold_seconds() {
+        $schedules = wp_get_schedules();
+        $interval  = 60; // sane default
+        if ( isset( $schedules['five_minutes']['interval'] ) ) {
+            $interval = (int) $schedules['five_minutes']['interval'];
+        } elseif ( isset( $schedules['every_minute']['interval'] ) ) {
+            $interval = (int) $schedules['every_minute']['interval'];
+        }
+        return max( 10 * $interval, 900 );
+    }
 
     // =========================================================================
     // Enqueue
@@ -186,8 +205,15 @@ class HL_Email_Queue_Processor {
         $body_html = $this->resolve_deferred_tags( $row->body_html, $row->recipient_user_id );
 
         // Send via wp_mail.
-        $headers = array( 'Content-Type: text/html; charset=UTF-8' );
-        $sent    = wp_mail( $row->recipient_email, $row->subject, $body_html, $headers );
+        $headers = $this->build_headers( $row );
+
+        $encoded_subject = function_exists( 'mb_encode_mimeheader' )
+            ? mb_encode_mimeheader( (string) $row->subject, 'UTF-8', 'B' )
+            : (string) $row->subject;
+
+        $this->current_row = $row;
+        $sent = wp_mail( $row->recipient_email, $encoded_subject, $body_html, $headers );
+        $this->current_row = null;
 
         if ( $sent ) {
             // Success.
@@ -308,7 +334,7 @@ class HL_Email_Queue_Processor {
     private function recover_stuck_rows() {
         global $wpdb;
         $table     = "{$wpdb->prefix}hl_email_queue";
-        $threshold = gmdate( 'Y-m-d H:i:s', time() - ( self::STUCK_THRESHOLD_MINUTES * 60 ) );
+        $threshold = gmdate( 'Y-m-d H:i:s', time() - $this->stuck_threshold_seconds() );
 
         $wpdb->query( $wpdb->prepare(
             "UPDATE {$table}
@@ -317,5 +343,89 @@ class HL_Email_Queue_Processor {
             gmdate( 'Y-m-d H:i:s' ),
             $threshold
         ) );
+    }
+
+    // =========================================================================
+    // Deliverability: headers + unsubscribe
+    // =========================================================================
+
+    private function build_headers( $row ) {
+        $from_name  = get_option( 'hl_email_from_name',  get_bloginfo( 'name' ) );
+        $from_email = get_option( 'hl_email_from_email', get_option( 'admin_email' ) );
+        $reply_to   = get_option( 'hl_email_reply_to',   $from_email );
+
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            sprintf( 'From: %s <%s>', $from_name, $from_email ),
+            sprintf( 'Reply-To: %s', $reply_to ),
+        );
+
+        // List-Unsubscribe wired in Task 26 (same bundle).
+        $unsubscribe_url = $this->build_unsubscribe_url( $row );
+        if ( $unsubscribe_url ) {
+            $headers[] = sprintf( 'List-Unsubscribe: <mailto:%s?subject=unsubscribe>, <%s>', $reply_to, $unsubscribe_url );
+            $headers[] = 'List-Unsubscribe-Post: List-Unsubscribe=One-Click';
+        }
+
+        return $headers;
+    }
+
+    private function unsubscribe_secret() {
+        $secret = get_option( 'hl_email_unsubscribe_secret', '' );
+        if ( $secret !== '' ) return $secret;
+
+        $candidate = wp_generate_password( 64, true, true );
+        // add_option returns false if it already exists — then re-read.
+        add_option( 'hl_email_unsubscribe_secret', $candidate, '', 'no' );
+        return get_option( 'hl_email_unsubscribe_secret', $candidate );
+    }
+
+    /**
+     * Build a one-click unsubscribe URL with an HMAC token (A.6.3).
+     * Returns '' if the recipient has no WP user (static emails can't unsubscribe).
+     */
+    private function build_unsubscribe_url( $row ) {
+        if ( empty( $row->recipient_user_id ) ) return '';
+
+        $secret = $this->unsubscribe_secret();
+        $token  = hash_hmac( 'sha256', $row->recipient_user_id . ':' . $row->queue_id, $secret );
+
+        return add_query_arg( array(
+            'action' => 'hl_email_unsubscribe',
+            'u'      => (int) $row->recipient_user_id,
+            'q'      => (int) $row->queue_id,
+            't'      => $token,
+        ), home_url( '/' ) );
+    }
+
+    // =========================================================================
+    // wp_mail_failed handler (A.6.6)
+    // =========================================================================
+
+    public function handle_wp_mail_failed( $error ) {
+        if ( ! $this->current_row ) return;
+        global $wpdb;
+        $table = "{$wpdb->prefix}hl_email_queue";
+
+        $wpdb->update(
+            $table,
+            array(
+                'status'        => 'failed',
+                'claim_token'   => null,
+                'failed_reason' => 'wp_mail_failed: ' . substr( (string) $error->get_error_message(), 0, 200 ),
+                'updated_at'    => gmdate( 'Y-m-d H:i:s' ),
+            ),
+            array( 'queue_id' => $this->current_row->queue_id ),
+            array( '%s', '%s', '%s', '%s' ),
+            array( '%d' )
+        );
+
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( 'email_wp_mail_failed', array(
+                'entity_type' => 'email_queue',
+                'entity_id'   => $this->current_row->queue_id,
+                'reason'      => $error->get_error_message(),
+            ) );
+        }
     }
 }

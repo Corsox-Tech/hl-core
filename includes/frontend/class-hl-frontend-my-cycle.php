@@ -615,12 +615,10 @@ class HL_Frontend_My_Cycle {
                 </thead>
                 <tbody>
                     <?php foreach ( $participants as $p ) :
-                        $roles_raw  = json_decode( $p['roles'], true );
-                        $roles_str  = is_array( $roles_raw )
-                            ? implode( ', ', array_map( function ( $r ) {
-                                return ucwords( str_replace( '_', ' ', $r ) );
-                            }, $roles_raw ) )
-                            : '';
+                        $roles_raw  = HL_Roles::parse_stored( $p['roles'] );
+                        $roles_str  = implode( ', ', array_map( function ( $r ) {
+                            return ucwords( str_replace( '_', ' ', $r ) );
+                        }, $roles_raw ) );
                         $completion = round( floatval( $p['cycle_completion_percent'] ) );
                         $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
                     ?>
@@ -763,12 +761,10 @@ class HL_Frontend_My_Cycle {
                         foreach ( $participants as $p ) :
                             $row_num++;
                             $eid       = $p['enrollment_id'];
-                            $roles_raw = json_decode( $p['roles'], true );
-                            $roles_str = is_array( $roles_raw )
-                                ? implode( ', ', array_map( function ( $r ) {
-                                    return ucwords( str_replace( '_', ' ', $r ) );
-                                }, $roles_raw ) )
-                                : '';
+                            $roles_raw = HL_Roles::parse_stored( $p['roles'] );
+                            $roles_str = implode( ', ', array_map( function ( $r ) {
+                                return ucwords( str_replace( '_', ' ', $r ) );
+                            }, $roles_raw ) );
                             $completion = round( floatval( $p['cycle_completion_percent'] ) );
                             $pclass     = $completion >= 100 ? 'hl-progress-complete' : ( $completion > 0 ? 'hl-progress-active' : '' );
                             $age_bands  = isset( $age_bands_map[ $eid ] ) ? $age_bands_map[ $eid ] : '—';

@@ -1169,11 +1169,7 @@ class HL_Admin_Reporting {
             return '<span style="color: #999;">---</span>';
         }
 
-        $roles = json_decode($roles_json, true);
-        if (!is_array($roles)) {
-            // Fallback: treat as plain string
-            $roles = array_map('trim', explode(',', $roles_json));
-        }
+        $roles = HL_Roles::parse_stored($roles_json);
 
         $output = '';
         foreach ($roles as $role) {

@@ -195,8 +195,8 @@ class HL_Pathway_Assignment_Service {
             return array();
         }
 
-        $roles = json_decode($enrollment->roles, true);
-        if (!is_array($roles) || empty($roles)) {
+        $roles = HL_Roles::parse_stored($enrollment->roles);
+        if (empty($roles)) {
             return array();
         }
 
@@ -312,8 +312,8 @@ class HL_Pathway_Assignment_Service {
         ), ARRAY_A);
 
         foreach ($enrollments as $e) {
-            $e_roles = json_decode($e['roles'], true);
-            if (!is_array($e_roles) || empty($e_roles)) {
+            $e_roles = HL_Roles::parse_stored($e['roles']);
+            if (empty($e_roles)) {
                 continue;
             }
 

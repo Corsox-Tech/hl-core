@@ -208,7 +208,7 @@ class HL_Admin_Enrollments {
         $data = array(
             'cycle_id'    => absint($_POST['cycle_id']),
             'user_id'     => absint($_POST['user_id']),
-            'roles'       => wp_json_encode($roles),
+            'roles'       => class_exists('HL_Roles') ? HL_Roles::sanitize_roles($roles) : wp_json_encode($roles),
             'school_id'   => !empty($_POST['school_id']) ? absint($_POST['school_id']) : null,
             'district_id' => !empty($_POST['district_id']) ? absint($_POST['district_id']) : null,
             'status'              => sanitize_text_field($_POST['status']),
@@ -804,8 +804,8 @@ class HL_Admin_Enrollments {
             );
 
             // Decode roles
-            $roles_array = json_decode($enrollment->roles, true);
-            $roles_display = is_array($roles_array) ? implode(', ', $roles_array) : '';
+            $roles_array = HL_Roles::parse_stored($enrollment->roles);
+            $roles_display = implode(', ', $roles_array);
 
             // School name
             $school_name = '';
@@ -954,13 +954,11 @@ class HL_Admin_Enrollments {
         // Decode current roles (DB may store lowercase; normalize to Title Case for checkbox matching).
         $current_roles = array();
         if ($is_edit && !empty($enrollment->roles)) {
-            $decoded = json_decode($enrollment->roles, true);
-            if (is_array($decoded)) {
-                $current_roles = array_map(function($r) {
-                    // "teacher" → "Teacher", "school_leader" → "School Leader"
-                    return ucwords(str_replace('_', ' ', $r));
-                }, $decoded);
-            }
+            $decoded = HL_Roles::parse_stored($enrollment->roles);
+            $current_roles = array_map(function($r) {
+                // "teacher" → "Teacher", "school_leader" → "School Leader"
+                return ucwords(str_replace('_', ' ', $r));
+            }, $decoded);
         }
 
         if (!$in_cycle) {

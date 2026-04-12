@@ -57,9 +57,22 @@ class HL_Admin_Email_Builder {
             }
         }
 
-        // Check for autosave draft.
+        // Check for autosave draft. Unwrap envelope (Task 8): stored value is
+        // { created_at, updated_at, payload }. Downstream consumers expect
+        // $draft_data to remain either null or the inner payload string.
         $draft_key  = 'hl_email_draft_' . get_current_user_id() . '_' . ( $template_id ?: 'new' );
-        $draft_data = get_option( $draft_key, null );
+        $draft_raw  = get_option( $draft_key, null );
+        $draft_data = null;
+        if ( is_string( $draft_raw ) && $draft_raw !== '' ) {
+            $decoded = json_decode( $draft_raw, true );
+            if ( is_array( $decoded ) && array_key_exists( 'payload', $decoded ) ) {
+                // Envelope format.
+                $draft_data = is_string( $decoded['payload'] ) ? $decoded['payload'] : '';
+            } else {
+                // Legacy raw-payload draft (pre-Task 8).
+                $draft_data = $draft_raw;
+            }
+        }
 
         // Get merge tags for the toolbar dropdown.
         $registry   = HL_Email_Merge_Tag_Registry::instance();
@@ -304,6 +317,8 @@ class HL_Admin_Email_Builder {
     // =========================================================================
 
     public function ajax_autosave() {
+        global $wpdb;
+
         check_ajax_referer( 'hl_email_builder', 'nonce' );
         if ( ! current_user_can( 'manage_hl_core' ) ) {
             wp_send_json_error( 'Unauthorized' );
@@ -311,9 +326,58 @@ class HL_Admin_Email_Builder {
 
         $template_id = (int) ( $_POST['template_id'] ?? 0 );
         $key         = 'hl_email_draft_' . get_current_user_id() . '_' . ( $template_id ?: 'new' );
-        $draft_data  = wp_unslash( $_POST['draft_data'] ?? '' );
+        $raw_payload = wp_unslash( $_POST['draft_data'] ?? '' );
 
-        update_option( $key, $draft_data, false ); // autoload=no
+        // Defense-in-depth: reject empty payloads so an accidental empty POST
+        // never overwrites a good prior draft. JS should not send this in
+        // normal operation.
+        if ( ! is_string( $raw_payload ) || $raw_payload === '' ) {
+            wp_send_json_error( 'Empty draft payload' );
+        }
+
+        // Task 8: Wrap in envelope { created_at, updated_at, payload } so the
+        // Task 10 daily cleanup job can age-out stale drafts by updated_at.
+        // Concurrency note: two overlapping autosaves from the same user are
+        // idempotent on created_at — whichever reads the existing envelope
+        // preserves the same timestamp. The first-ever save racing against
+        // itself can produce slightly-different created_at values across
+        // retries, but the window is microseconds and the envelope is for
+        // cleanup staleness, not audit.
+        $now_iso    = gmdate( 'c' );
+        $created_at = $now_iso;
+        $existing   = get_option( $key, null );
+        if ( is_string( $existing ) && $existing !== '' ) {
+            $decoded = json_decode( $existing, true );
+            if ( is_array( $decoded ) && ! empty( $decoded['created_at'] ) && is_string( $decoded['created_at'] ) ) {
+                // Preserve original creation timestamp across subsequent saves.
+                $created_at = $decoded['created_at'];
+            }
+            // Legacy raw-payload drafts (no envelope) fall through and get $now_iso.
+        }
+
+        $envelope = wp_json_encode( array(
+            'created_at' => $created_at,
+            'updated_at' => $now_iso,
+            'payload'    => $raw_payload,
+        ) );
+
+        // wp_json_encode returns false on encode failure (invalid UTF-8,
+        // recursion, NaN/Inf). Don't silently persist false and lose the
+        // user's in-flight draft.
+        if ( $envelope === false ) {
+            wp_send_json_error( 'Draft encode failed' );
+        }
+
+        update_option( $key, $envelope, 'no' ); // autoload=no
+
+        // A.6.6 defense: belt-and-suspenders. Flip autoload=no on any row left
+        // over from legacy code that may have written autoload=yes. Safe no-op
+        // if the row is already autoload=no.
+        $wpdb->update(
+            $wpdb->options,
+            array( 'autoload' => 'no' ),
+            array( 'option_name' => $key )
+        );
 
         wp_send_json_success( array( 'saved_at' => current_time( 'H:i:s' ) ) );
     }

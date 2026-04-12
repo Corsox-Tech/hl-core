@@ -90,8 +90,10 @@ class HL_Enrollment_Repository {
         if (empty($data['enrollment_uuid'])) {
             $data['enrollment_uuid'] = HL_DB_Utils::generate_uuid();
         }
-        if (isset($data['roles']) && is_array($data['roles'])) {
-            $data['roles'] = HL_DB_Utils::json_encode($data['roles']);
+        if (isset($data['roles'])) {
+            $data['roles'] = class_exists('HL_Roles')
+                ? HL_Roles::sanitize_roles($data['roles'])
+                : (is_array($data['roles']) ? HL_DB_Utils::json_encode($data['roles']) : $data['roles']);
         }
         $wpdb->insert($this->table(), $data);
         return $wpdb->insert_id;
@@ -99,8 +101,10 @@ class HL_Enrollment_Repository {
 
     public function update($enrollment_id, $data) {
         global $wpdb;
-        if (isset($data['roles']) && is_array($data['roles'])) {
-            $data['roles'] = HL_DB_Utils::json_encode($data['roles']);
+        if (isset($data['roles'])) {
+            $data['roles'] = class_exists('HL_Roles')
+                ? HL_Roles::sanitize_roles($data['roles'])
+                : (is_array($data['roles']) ? HL_DB_Utils::json_encode($data['roles']) : $data['roles']);
         }
         $wpdb->update($this->table(), $data, array('enrollment_id' => $enrollment_id));
         return $this->get_by_id($enrollment_id);

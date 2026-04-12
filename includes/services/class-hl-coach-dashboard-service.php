@@ -35,8 +35,8 @@ class HL_Coach_Dashboard_Service {
         foreach ($cycle_ids as $cid) {
             $roster = $assignment_service->get_coach_roster($coach_user_id, $cid);
             foreach ($roster as $r) {
-                $roles = json_decode($r['roles'] ?? '[]', true);
-                if (is_array($roles) && in_array('mentor', $roles, true)) {
+                $roles = HL_Roles::parse_stored($r['roles'] ?? '');
+                if (in_array('mentor', $roles, true)) {
                     $total_mentors++;
                 }
             }
@@ -82,8 +82,8 @@ class HL_Coach_Dashboard_Service {
         foreach ($cycle_ids as $cid) {
             $roster = $assignment_service->get_coach_roster($coach_user_id, $cid);
             foreach ($roster as $r) {
-                $roles = json_decode($r['roles'] ?? '[]', true);
-                if (!is_array($roles) || !in_array('mentor', $roles, true)) {
+                $roles = HL_Roles::parse_stored($r['roles'] ?? '');
+                if (!in_array('mentor', $roles, true)) {
                     continue;
                 }
 

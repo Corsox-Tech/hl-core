@@ -471,8 +471,8 @@ class HL_LearnDash_Integration {
             return;
         }
 
-        $roles = json_decode($enrollment->roles, true);
-        if (!is_array($roles) || empty($roles)) {
+        $roles = HL_Roles::parse_stored($enrollment->roles);
+        if (empty($roles)) {
             return;
         }
 

@@ -349,7 +349,7 @@ class HL_Import_Participant_Handler {
                 $preview['matched_user_id'] = (int) $existing['user_id'];
 
                 // Check if data differs
-                $existing_roles = json_decode($existing['roles'], true) ?: array();
+                $existing_roles = HL_Roles::parse_stored($existing['roles']);
                 $existing_roles_normalized = array_map(function($r) {
                     return strtolower(str_replace(' ', '_', trim($r)));
                 }, $existing_roles);
@@ -591,10 +591,11 @@ class HL_Import_Participant_Handler {
                 $enrollment_repo = new HL_Enrollment_Repository();
 
                 if ($row['status'] === 'CREATE') {
+                    $roles = array($role);
                     $enrollment_data = array(
                         'cycle_id'            => $cycle_id,
                         'user_id'             => $user_id,
-                        'roles'               => wp_json_encode(array($role)),
+                        'roles'               => class_exists('HL_Roles') ? HL_Roles::sanitize_roles($roles) : wp_json_encode($roles),
                         'school_id'           => $school_id,
                         'status'              => 'active',
                         'language_preference' => !empty($row['parsed_language']) ? $row['parsed_language'] : 'en',
@@ -616,8 +617,9 @@ class HL_Import_Participant_Handler {
                     $created++;
                 } elseif ($row['status'] === 'UPDATE' || $row['status'] === 'WARNING') {
                     $enrollment_id = (int) $row['existing_enrollment_id'];
+                    $roles = array($role);
                     $update_data = array(
-                        'roles'               => wp_json_encode(array($role)),
+                        'roles'               => class_exists('HL_Roles') ? HL_Roles::sanitize_roles($roles) : wp_json_encode($roles),
                         'school_id'           => $school_id,
                         'language_preference' => !empty($row['parsed_language']) ? $row['parsed_language'] : 'en',
                     );

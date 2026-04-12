@@ -224,10 +224,10 @@ class HL_Frontend_Team_Progress {
         $enrollment_id = (int) $member_row['enrollment_id'];
         $display_name  = isset($member_row['display_name']) ? $member_row['display_name'] : '';
         $user_email    = isset($member_row['user_email']) ? $member_row['user_email'] : '';
-        $roles_raw     = isset($member_row['roles']) ? $member_row['roles'] : '[]';
+        $roles_raw     = isset($member_row['roles']) ? $member_row['roles'] : '';
 
         // Decode roles.
-        $roles_array = is_array($roles_raw) ? $roles_raw : HL_DB_Utils::json_decode($roles_raw);
+        $roles_array = HL_Roles::parse_stored($roles_raw);
         $role_label  = !empty($roles_array)
             ? implode(', ', array_map('ucfirst', $roles_array))
             : __('Participant', 'hl-core');

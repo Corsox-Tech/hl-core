@@ -237,7 +237,7 @@ class HL_Scope_Service {
             if ( $e['school_id'] ) {
                 $school_ids[] = (int) $e['school_id'];
             }
-            $roles    = json_decode( $e['roles'], true ) ?: array();
+            $roles    = HL_Roles::parse_stored( $e['roles'] );
             $hl_roles = array_merge( $hl_roles, $roles );
         }
 
@@ -297,7 +297,7 @@ class HL_Scope_Service {
                 $school_ids[] = (int) $e['school_id'];
             }
 
-            $roles    = json_decode( $e['roles'], true ) ?: array();
+            $roles    = HL_Roles::parse_stored( $e['roles'] );
             $hl_roles = array_merge( $hl_roles, $roles );
 
             // District leaders see their district scope.

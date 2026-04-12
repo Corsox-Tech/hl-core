@@ -140,7 +140,7 @@ class HL_Auth_Service {
                  LIMIT 1",
                 $user->ID
             ));
-            $hl_roles = $roles_json ? json_decode($roles_json, true) : array();
+            $hl_roles = HL_Roles::parse_stored($roles_json);
         }
 
         // Coach-only users (no enrollment): send to Coach Dashboard.

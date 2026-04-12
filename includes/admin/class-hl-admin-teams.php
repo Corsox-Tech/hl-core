@@ -379,8 +379,8 @@ class HL_Admin_Teams {
         echo '<tbody>';
 
         foreach ($members as $member) {
-            $roles_array = json_decode($member->roles, true);
-            $roles_display = is_array($roles_array) ? implode(', ', $roles_array) : '';
+            $roles_array = HL_Roles::parse_stored($member->roles);
+            $roles_display = implode(', ', $roles_array);
 
             echo '<tr>';
             echo '<td>' . esc_html($member->display_name) . '</td>';

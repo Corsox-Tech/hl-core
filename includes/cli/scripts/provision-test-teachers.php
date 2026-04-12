@@ -56,11 +56,12 @@ function ensure_enrollment($wpdb, $user_id, $cycle_id) {
     ));
     if ($existing) return (int)$existing;
 
+    $roles = array('teacher');
     $wpdb->insert("{$prefix}hl_enrollment", array(
         'enrollment_uuid' => wp_generate_uuid4(),
         'user_id'         => $user_id,
         'cycle_id'        => $cycle_id,
-        'roles'           => wp_json_encode(array('teacher')),
+        'roles'           => class_exists('HL_Roles') ? HL_Roles::sanitize_roles($roles) : wp_json_encode($roles),
         'status'          => 'active',
     ));
     return (int)$wpdb->insert_id;

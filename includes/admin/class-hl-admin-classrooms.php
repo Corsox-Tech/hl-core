@@ -531,8 +531,8 @@ class HL_Admin_Classrooms {
             }
 
             foreach ($all_enrollments as $e) {
-                $roles = json_decode($e->roles, true);
-                if (!is_array($roles) || !in_array('Teacher', $roles)) {
+                $roles = HL_Roles::parse_stored($e->roles);
+                if (!in_array('teacher', $roles, true)) {
                     continue;
                 }
                 if (in_array((int) $e->enrollment_id, $assigned_enrollment_ids)) {

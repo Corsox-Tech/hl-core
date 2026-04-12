@@ -8,6 +8,23 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * triggers, polls for cron-based triggers, evaluates conditions,
  * resolves recipients, and enqueues emails via the queue processor.
  *
+ * Cron dedup contract (A.1.6, A.7.6): dedup tokens have NO date component.
+ * Each (trigger, workflow, user, entity, cycle) tuple fires exactly once per
+ * window. Range matches (`available_from BETWEEN today AND today+7`) tolerate
+ * missed cron runs — if wp-cron skips a day, the next run still catches the
+ * same enrollment because its date still falls in the range. Downstream:
+ * the hl_email_queue.dedup_token unique-ish index (enforced in PHP via
+ * enqueue()'s dedup_token guard) suppresses duplicates.
+ *
+ * Workflows created mid-window fire on the next cron run for all users whose
+ * window is currently in range; users whose window already closed are NOT
+ * retroactively notified.
+ *
+ * Timezone contract: all window queries use current_time('Y-m-d') (WP site TZ).
+ * WP-Cron irregularity means edge-of-window enrollments may fire up to 24h
+ * before/after the exact calendar boundary. Sub-day precision needs a
+ * dedicated hourly trigger type.
+ *
  * @package HL_Core
  */
 class HL_Email_Automation_Service {
@@ -25,6 +42,10 @@ class HL_Email_Automation_Service {
 
     private function __construct() {
         $this->register_hook_listeners();
+
+        // Email v2 Task 18: cron staleness monitoring (Site Health + admin notice).
+        add_filter( 'site_status_tests', array( $this, 'register_site_health_test' ) );
+        add_action( 'admin_notices',      array( $this, 'maybe_render_cron_staleness_notice' ) );
     }
 
     // =========================================================================
@@ -664,9 +685,11 @@ class HL_Email_Automation_Service {
             $this->run_cron_workflow( $workflow, $cycles );
         }
 
-        // TODO: Draft cleanup (delete hl_email_draft_* options older than 30 days).
-        // Requires tracking draft creation time. For now, drafts are only
-        // cleaned up when their template is deleted (Phase 3).
+        // Email v2: sweep stale builder drafts.
+        $this->cleanup_stale_drafts();
+
+        // Email v2 Task 18: record successful run timestamp for staleness monitoring.
+        update_option( 'hl_email_last_cron_run_at', gmdate( 'c' ), false );
     }
 
     /**
@@ -775,9 +798,6 @@ class HL_Email_Automation_Service {
                 $merge_registry  = HL_Email_Merge_Tag_Registry::instance();
                 $queue_processor = HL_Email_Queue_Processor::instance();
 
-                // Cron dedup token uses date_bucket instead of entity_id.
-                $date_bucket = gmdate( 'Y-m-d' );
-
                 foreach ( $recipients as $recipient ) {
                     $recipient_context = array_merge( $context, array(
                         'recipient_user_id' => $recipient['user_id'],
@@ -793,10 +813,13 @@ class HL_Email_Automation_Service {
                         $subject = str_replace( '{{' . $tag_key . '}}', $tag_value, $subject );
                     }
 
+                    // A.1.6: no date component — one reminder per (trigger, workflow, user, entity, cycle).
                     $dedup_token = md5(
-                        $trigger_key . '_' . $workflow->workflow_id . '_'
-                        . ( $recipient['user_id'] ?? 0 ) . '_' . ( $context['cycle_id'] ?? 0 )
-                        . '_' . $date_bucket
+                        $trigger_key . '|'
+                        . $workflow->workflow_id . '|'
+                        . ( $recipient['user_id'] ?? 0 ) . '|'
+                        . ( $context['entity_id'] ?? 0 ) . '|'
+                        . ( $context['cycle_id'] ?? 0 )
                     );
 
                     $context_data = array(
@@ -836,6 +859,22 @@ class HL_Email_Automation_Service {
     private function get_cron_trigger_users( $trigger_key, $cycle ) {
         global $wpdb;
         $cycle_id = (int) $cycle->cycle_id;
+
+        $needs_window_col = in_array( $trigger_key, array(
+            'cron:cv_window_7d',
+            'cron:cv_overdue_1d',
+            'cron:rp_window_7d',
+            'cron:coaching_window_7d',
+        ), true );
+
+        if ( $needs_window_col && ! self::has_component_window_column() ) {
+            static $warned = false;
+            if ( ! $warned ) {
+                $warned = true;
+                error_log( '[HL_EMAIL_V2] cron trigger ' . $trigger_key . ' skipped — hl_component.available_from column missing. Run HL_Installer::maybe_upgrade().' );
+            }
+            return array();
+        }
 
         switch ( $trigger_key ) {
             case 'cron:low_engagement_14d':
@@ -886,21 +925,174 @@ class HL_Email_Automation_Service {
                     $cycle_id, $from, $to
                 ), ARRAY_A );
 
-            case 'cron:coaching_window_7d':
-                // Users with no coaching session scheduled and coaching components opening in 7 days.
-                // TODO: Requires component available_from/available_to columns (Task 7.4).
-                return array();
+            case 'cron:coaching_window_7d': {
+                // Mentors with coaching components opening in the next 7 days and no scheduled/attended session.
+                $today = current_time( 'Y-m-d' );
+                $plus7 = wp_date( 'Y-m-d', strtotime( $today . ' +7 days' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT DISTINCT en.user_id,
+                            en.enrollment_id AS enrollment_id,
+                            c.component_id AS entity_id,
+                            'component' AS entity_type
+                     FROM {$wpdb->prefix}hl_component c
+                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_enrollment en
+                         ON en.enrollment_id = pa.enrollment_id
+                        AND en.status IN ('active','warning')
+                     LEFT JOIN {$wpdb->prefix}hl_coaching_session cs
+                         ON cs.component_id = c.component_id
+                        AND cs.mentor_enrollment_id = en.enrollment_id
+                        AND cs.session_status IN ('scheduled','attended')
+                     WHERE c.component_type = 'coaching_session_attendance'
+                       AND c.cycle_id = %d
+                       AND c.available_from IS NOT NULL
+                       AND c.available_from BETWEEN %s AND %s
+                       AND cs.session_id IS NULL
+                     LIMIT 5000",
+                    $cycle_id, $today, $plus7
+                ), ARRAY_A );
+            }
 
-            case 'cron:coaching_pre_end':
-                // Users nearing cycle end with no coaching session.
-                // TODO: Requires cycle end_date logic.
-                return array();
+            case 'cron:coaching_pre_end': {
+                // Cycles ending in 0-14 days; enrollments with coaching components and no attended session.
+                $today  = current_time( 'Y-m-d' );
+                $plus14 = wp_date( 'Y-m-d', strtotime( $today . ' +14 days' ) );
+                $rows = $wpdb->get_results( $wpdb->prepare(
+                    "SELECT DISTINCT en.user_id,
+                            en.enrollment_id AS enrollment_id,
+                            c.component_id AS entity_id,
+                            'component' AS entity_type
+                     FROM {$wpdb->prefix}hl_cycle cy
+                     INNER JOIN {$wpdb->prefix}hl_enrollment en
+                         ON en.cycle_id = cy.cycle_id AND en.status IN ('active','warning')
+                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.enrollment_id = en.enrollment_id
+                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = pa.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_component c
+                         ON c.pathway_id = p.pathway_id
+                        AND c.component_type = 'coaching_session_attendance'
+                     LEFT JOIN {$wpdb->prefix}hl_coaching_session cs
+                         ON cs.component_id = c.component_id
+                        AND cs.mentor_enrollment_id = en.enrollment_id
+                        AND cs.session_status = 'attended'
+                     WHERE cy.cycle_id = %d
+                       AND cy.status = 'active'
+                       AND cy.end_date IS NOT NULL
+                       AND cy.end_date BETWEEN %s AND %s
+                       AND cs.session_id IS NULL
+                     LIMIT 5000",
+                    $cycle_id, $today, $plus14
+                ), ARRAY_A );
+                if ( is_array( $rows ) && count( $rows ) >= 5000 && class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
+                        'entity_type' => 'email_workflow',
+                        'reason'      => 'cron:coaching_pre_end returned 5000 rows — may be truncated. Review cycle scope or add ORDER BY + cursor pagination.',
+                    ) );
+                }
+                return is_array( $rows ) ? $rows : array();
+            }
 
-            case 'cron:cv_window_7d':
-            case 'cron:cv_overdue_1d':
-            case 'cron:rp_window_7d':
-                // TODO: Requires component available_from/available_to columns (Task 7.4).
-                return array();
+            case 'cron:cv_window_7d': {
+                // Classroom-visit components opening in the next 7 days; users without a submitted visit this cycle.
+                $today = current_time( 'Y-m-d' );
+                $plus7 = wp_date( 'Y-m-d', strtotime( $today . ' +7 days' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT DISTINCT en.user_id,
+                            en.enrollment_id AS enrollment_id,
+                            c.component_id AS entity_id,
+                            'component' AS entity_type
+                     FROM {$wpdb->prefix}hl_component c
+                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_enrollment en
+                         ON en.enrollment_id = pa.enrollment_id
+                        AND en.status IN ('active','warning')
+                     WHERE c.component_type = 'classroom_visit'
+                       AND c.cycle_id = %d
+                       AND c.available_from IS NOT NULL
+                       AND c.available_from BETWEEN %s AND %s
+                       AND NOT EXISTS (
+                           SELECT 1
+                           FROM {$wpdb->prefix}hl_classroom_visit cv
+                           LEFT JOIN {$wpdb->prefix}hl_classroom_visit_submission cvs
+                               ON cvs.classroom_visit_id = cv.classroom_visit_id
+                              AND cvs.status = 'submitted'
+                           WHERE cv.cycle_id = en.cycle_id
+                             AND (cv.leader_enrollment_id = en.enrollment_id OR cv.teacher_enrollment_id = en.enrollment_id)
+                             AND cvs.submission_id IS NOT NULL
+                       )
+                     LIMIT 5000",
+                    $cycle_id, $today, $plus7
+                ), ARRAY_A );
+            }
+
+            case 'cron:cv_overdue_1d': {
+                // Classroom-visit components whose available_to = yesterday; users without a submitted visit.
+                $today     = current_time( 'Y-m-d' );
+                $yesterday = wp_date( 'Y-m-d', strtotime( $today . ' -1 day' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT DISTINCT en.user_id,
+                            en.enrollment_id AS enrollment_id,
+                            c.component_id AS entity_id,
+                            'component' AS entity_type
+                     FROM {$wpdb->prefix}hl_component c
+                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_enrollment en
+                         ON en.enrollment_id = pa.enrollment_id
+                        AND en.status IN ('active','warning')
+                     WHERE c.component_type = 'classroom_visit'
+                       AND c.cycle_id = %d
+                       AND c.available_to IS NOT NULL
+                       AND c.available_to = %s
+                       AND NOT EXISTS (
+                           SELECT 1
+                           FROM {$wpdb->prefix}hl_classroom_visit cv
+                           LEFT JOIN {$wpdb->prefix}hl_classroom_visit_submission cvs
+                               ON cvs.classroom_visit_id = cv.classroom_visit_id
+                              AND cvs.status = 'submitted'
+                           WHERE cv.cycle_id = en.cycle_id
+                             AND (cv.leader_enrollment_id = en.enrollment_id OR cv.teacher_enrollment_id = en.enrollment_id)
+                             AND cvs.submission_id IS NOT NULL
+                       )
+                     LIMIT 5000",
+                    $cycle_id, $yesterday
+                ), ARRAY_A );
+            }
+
+            case 'cron:rp_window_7d': {
+                // Reflective-practice components opening in the next 7 days; users without a submitted RP session.
+                $today = current_time( 'Y-m-d' );
+                $plus7 = wp_date( 'Y-m-d', strtotime( $today . ' +7 days' ) );
+                return $wpdb->get_results( $wpdb->prepare(
+                    "SELECT DISTINCT en.user_id,
+                            en.enrollment_id AS enrollment_id,
+                            c.component_id AS entity_id,
+                            'component' AS entity_type
+                     FROM {$wpdb->prefix}hl_component c
+                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
+                     INNER JOIN {$wpdb->prefix}hl_enrollment en
+                         ON en.enrollment_id = pa.enrollment_id
+                        AND en.status IN ('active','warning')
+                     WHERE c.component_type = 'reflective_practice_session'
+                       AND c.cycle_id = %d
+                       AND c.available_from IS NOT NULL
+                       AND c.available_from BETWEEN %s AND %s
+                       AND NOT EXISTS (
+                           SELECT 1
+                           FROM {$wpdb->prefix}hl_rp_session rps
+                           LEFT JOIN {$wpdb->prefix}hl_rp_session_submission rpss
+                               ON rpss.rp_session_id = rps.rp_session_id
+                              AND rpss.status = 'submitted'
+                           WHERE rps.cycle_id = en.cycle_id
+                             AND rpss.submitted_by_user_id = en.user_id
+                             AND rpss.submission_id IS NOT NULL
+                       )
+                     LIMIT 5000",
+                    $cycle_id, $today, $plus7
+                ), ARRAY_A );
+            }
 
             case 'cron:action_plan_24h':
                 // Sessions completed 24+ hours ago with no action plan submitted.
@@ -937,5 +1129,175 @@ class HL_Email_Automation_Service {
             default:
                 return array();
         }
+    }
+
+    /**
+     * Seconds elapsed since the last successful run_daily_checks() execution.
+     *
+     * @return int|null Seconds since last successful daily cron run, or null if never.
+     */
+    public static function cron_staleness_seconds() {
+        $last = get_option( 'hl_email_last_cron_run_at', null );
+        if ( ! $last ) return null;
+        $ts = strtotime( $last );
+        return $ts ? ( time() - $ts ) : null;
+    }
+
+    /**
+     * Register the HL Email daily cron freshness test with WordPress Site Health.
+     *
+     * @param array $tests Site Health test registry.
+     * @return array
+     */
+    public function register_site_health_test( $tests ) {
+        $tests['direct']['hl_email_cron_fresh'] = array(
+            'label' => __( 'HL Email daily cron', 'hl-core' ),
+            'test'  => array( $this, 'site_health_cron_test' ),
+        );
+        return $tests;
+    }
+
+    /**
+     * Site Health synchronous test: checks whether run_daily_checks() ran in the last 36 hours.
+     *
+     * @return array
+     */
+    public function site_health_cron_test() {
+        $gap = self::cron_staleness_seconds();
+        $ok  = $gap !== null && $gap < 36 * HOUR_IN_SECONDS;
+        return array(
+            'label'       => $ok
+                ? __( 'HL Email daily cron has run recently', 'hl-core' )
+                : __( 'HL Email daily cron is stale', 'hl-core' ),
+            'status'      => $ok ? 'good' : 'recommended',
+            'badge'       => array( 'label' => __( 'HL Email', 'hl-core' ), 'color' => $ok ? 'green' : 'orange' ),
+            'description' => sprintf(
+                '<p>%s</p>',
+                esc_html( $ok
+                    ? __( 'Last run within the last 36 hours.', 'hl-core' )
+                    : __( 'No successful run in the last 36 hours. Check wp-cron or trigger manually with `wp cron event run hl_email_cron_daily`.', 'hl-core' )
+                )
+            ),
+            'actions'     => '',
+            'test'        => 'hl_email_cron_fresh',
+        );
+    }
+
+    /**
+     * Render an admin warning on hl-emails* screens when the daily cron is stale.
+     */
+    public function maybe_render_cron_staleness_notice() {
+        if ( ! function_exists( 'get_current_screen' ) ) return;
+        $screen = get_current_screen();
+        if ( ! $screen || strpos( (string) $screen->id, 'hl-emails' ) === false ) return;
+
+        $gap = self::cron_staleness_seconds();
+        if ( $gap === null || $gap < 36 * HOUR_IN_SECONDS ) return;
+
+        $hours = floor( $gap / HOUR_IN_SECONDS );
+        echo '<div class="notice notice-warning"><p><strong>' .
+            esc_html__( 'HL Email daily cron is stale', 'hl-core' ) .
+            '</strong> &mdash; ' .
+            esc_html( sprintf( __( 'last successful run was %d hours ago.', 'hl-core' ), $hours ) ) .
+            ' <code>wp cron event run hl_email_cron_daily</code></p></div>';
+    }
+
+    /**
+     * Cached column-exists check for hl_component.available_from (Rev 35).
+     */
+    private static function has_component_window_column() {
+        static $cached = null;
+        if ( $cached !== null ) return $cached;
+
+        global $wpdb;
+        $row = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = %s
+               AND COLUMN_NAME = 'available_from' LIMIT 1",
+            $wpdb->prefix . 'hl_component'
+        ) );
+        $cached = ! empty( $row );
+        return $cached;
+    }
+
+    /**
+     * Sweep stale builder drafts from wp_options.
+     *
+     * Deletes hl_email_draft_* options whose envelope updated_at is older
+     * than 30 days. Corrupt envelopes (non-array JSON) are skipped and
+     * audit-logged but never deleted. First run uses a larger cap to
+     * absorb backlog; subsequent runs are capped at 500 rows each.
+     */
+    private function cleanup_stale_drafts() {
+        global $wpdb;
+
+        $first_run    = ! (bool) get_option( 'hl_email_draft_cleanup_seen', 0 );
+        $cap          = $first_run ? 5000 : 500;
+        $threshold_ts = time() - 30 * DAY_IN_SECONDS;
+        $cutoff       = gmdate( 'c', $threshold_ts ); // kept for audit log readability
+
+        $like = $wpdb->esc_like( 'hl_email_draft_' ) . '%';
+        $rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT option_id, option_name, option_value
+             FROM {$wpdb->options}
+             WHERE option_name LIKE %s
+             LIMIT %d",
+            $like, $cap
+        ) );
+
+        if ( empty( $rows ) ) {
+            update_option( 'hl_email_draft_cleanup_seen', 1, false );
+            return;
+        }
+
+        $to_delete = array();
+        $skipped   = 0;
+
+        foreach ( $rows as $row ) {
+            $decoded = json_decode( $row->option_value, true );
+
+            if ( ! is_array( $decoded ) ) {
+                // Corrupt payload — skip + audit, never delete.
+                $skipped++;
+                if ( class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'email_draft_cleanup_skip', array(
+                        'entity_type' => 'wp_options',
+                        'entity_id'   => (int) $row->option_id,
+                        'reason'      => 'corrupt_envelope',
+                    ) );
+                }
+                continue;
+            }
+
+            $updated_at = isset( $decoded['updated_at'] )
+                ? $decoded['updated_at']
+                : ( isset( $decoded['created_at'] ) ? $decoded['created_at'] : '2000-01-01T00:00:00+00:00' );
+            // strtotime handles non-UTC offsets (e.g. +05:30, Z) correctly;
+            // a naive strcmp against a +00:00 cutoff would be wrong at the
+            // offset boundary. Task 8's writer uses gmdate('c') so all
+            // envelopes are +00:00 today, but future-proof against that.
+            $ts_updated = strtotime( (string) $updated_at );
+            if ( $ts_updated !== false && $ts_updated < $threshold_ts ) {
+                $to_delete[] = (int) $row->option_id;
+            }
+        }
+
+        if ( ! empty( $to_delete ) ) {
+            $ids_sql = implode( ',', array_map( 'intval', $to_delete ) );
+            $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_id IN ({$ids_sql})" );
+            // Invalidate the autoloaded options cache so deleted rows don't
+            // resurrect from a stale alloptions snapshot on the next request.
+            wp_cache_delete( 'alloptions', 'options' );
+        }
+
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( 'email_draft_cleanup', array(
+                'entity_type' => 'wp_options',
+                'reason'      => sprintf( 'deleted=%d skipped=%d cap=%d', count( $to_delete ), $skipped, $cap ),
+            ) );
+        }
+
+        update_option( 'hl_email_draft_cleanup_seen', 1, false );
     }
 }

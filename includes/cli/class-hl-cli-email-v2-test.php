@@ -29,9 +29,25 @@ class HL_CLI_Email_V2_Test {
      *
      * [--only=<group>]
      * : Limit to one group: roles|schema|cron|drafts|resolver|deliverability|audit
+     *
+     * [--run-scrub]
+     * : Run HL_Roles_Scrub_Migration chunks until complete (Rev 37 backfill).
      */
     public function run( $args, $assoc_args ) {
         $only = isset( $assoc_args['only'] ) ? $assoc_args['only'] : null;
+
+        if ( ! empty( $assoc_args['run-scrub'] ) ) {
+            WP_CLI::log( 'Running role scrub chunks until complete...' );
+            $safety = 100;
+            while ( ! get_option( 'hl_roles_scrub_done', 0 ) && $safety-- > 0 ) {
+                HL_Roles_Scrub_Migration::run_chunk();
+            }
+            $done = (bool) get_option( 'hl_roles_scrub_done', 0 );
+            WP_CLI::log( $done ? 'Scrub complete.' : 'Scrub did not complete in 100 chunks.' );
+            if ( ! $done ) WP_CLI::halt( 1 );
+            return;
+        }
+
         $groups = array(
             'roles'          => 'test_roles',
             'schema'         => 'test_schema',
@@ -138,10 +154,288 @@ class HL_CLI_Email_V2_Test {
         delete_option( HL_Roles::OPTION_SCRUB_DONE );
     }
 
-    // Stubs — filled by later tasks.
-    private function test_schema() {}
-    private function test_cron() {}
-    private function test_drafts() {}
+    // ---- Test: schema ----
+    private function test_schema() {
+        global $wpdb;
+
+        $component_table = $wpdb->prefix . 'hl_component';
+        $coaching_table  = $wpdb->prefix . 'hl_coaching_session';
+        $audit_table     = $wpdb->prefix . 'hl_audit_log';
+
+        // 1. hl_component.available_from column exists AND is DATE type.
+        //    DATA_TYPE check guards against a future migration accidentally
+        //    creating the column as VARCHAR or similar.
+        $col_from_row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s
+             LIMIT 1",
+            $component_table, 'available_from'
+        ), ARRAY_A );
+        $this->assert_true(
+            is_array( $col_from_row )
+                && $col_from_row['COLUMN_NAME'] === 'available_from'
+                && strtolower( $col_from_row['DATA_TYPE'] ) === 'date',
+            'hl_component.available_from column exists with DATE type'
+        );
+
+        // 2. hl_component.available_to column exists AND is DATE type.
+        $col_to_row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s
+             LIMIT 1",
+            $component_table, 'available_to'
+        ), ARRAY_A );
+        $this->assert_true(
+            is_array( $col_to_row )
+                && $col_to_row['COLUMN_NAME'] === 'available_to'
+                && strtolower( $col_to_row['DATA_TYPE'] ) === 'date',
+            'hl_component.available_to column exists with DATE type'
+        );
+
+        // 3. hl_core_schema_revision >= 35.
+        $rev = (int) get_option( 'hl_core_schema_revision', 0 );
+        $this->assert_true(
+            $rev >= 35,
+            "hl_core_schema_revision >= 35 (actual: {$rev})"
+        );
+
+        // 4. hl_component has composite index type_pathway.
+        $idx_type_pathway = $wpdb->get_var( $wpdb->prepare(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s
+             LIMIT 1",
+            $component_table, 'type_pathway'
+        ) );
+        $this->assert_true(
+            $idx_type_pathway === 'type_pathway',
+            'hl_component index type_pathway exists'
+        );
+
+        // 5. hl_audit_log has composite index entity_action_time — this is the
+        //    foundation-polish addition that keeps HL_Audit_Service::get_last_event()
+        //    off the filesort path when Force Resend history loads.
+        $idx_entity_action_time = $wpdb->get_var( $wpdb->prepare(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s
+             LIMIT 1",
+            $audit_table, 'entity_action_time'
+        ) );
+        $this->assert_true(
+            $idx_entity_action_time === 'entity_action_time',
+            'hl_audit_log index entity_action_time exists'
+        );
+
+        // 6. hl_coaching_session has composite index component_mentor_status —
+        //    supports the Task 17 coaching_pre_end query path.
+        $idx_component_mentor_status = $wpdb->get_var( $wpdb->prepare(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s
+             LIMIT 1",
+            $coaching_table, 'component_mentor_status'
+        ) );
+        $this->assert_true(
+            $idx_component_mentor_status === 'component_mentor_status',
+            'hl_coaching_session index component_mentor_status exists'
+        );
+    }
+    private function test_cron() {
+        $svc = HL_Email_Automation_Service::instance();
+        global $wpdb;
+        $cycle = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE status='active' LIMIT 1" );
+        if ( ! $cycle ) {
+            WP_CLI::log( '  [SKIP] No active cycle — cron smoke test skipped' );
+            return;
+        }
+
+        $reflection = new ReflectionClass( $svc );
+        $method = $reflection->getMethod( 'get_cron_trigger_users' );
+        $method->setAccessible( true );
+
+        $triggers = array(
+            'cron:cv_window_7d',
+            'cron:cv_overdue_1d',
+            'cron:rp_window_7d',
+            'cron:coaching_window_7d',
+            'cron:coaching_pre_end',
+        );
+        foreach ( $triggers as $t ) {
+            try {
+                $out = $method->invoke( $svc, $t, $cycle );
+                $this->assert_true( is_array( $out ), $t . ' returned an array' );
+            } catch ( \Throwable $e ) {
+                $this->assert_true( false, $t . ' threw: ' . $e->getMessage() );
+            }
+        }
+    }
+    private function test_drafts() {
+        global $wpdb;
+
+        // Seed a fake draft option with autoload='yes' so the Rev 36 migration
+        // has something to flip. Unique suffix prevents concurrent test runs
+        // (or a prior aborted run) from colliding on the same option_name.
+        $suffix      = wp_generate_password( 12, false );
+        $option_name = 'hl_email_draft_rev36_test_' . $suffix;
+
+        // Direct INSERT (not add_option) so we can force autoload='yes'
+        // regardless of what the production draft-save path currently does.
+        $wpdb->insert(
+            $wpdb->options,
+            array(
+                'option_name'  => $option_name,
+                'option_value' => 'rev36_test_payload',
+                'autoload'     => 'yes',
+            ),
+            array( '%s', '%s', '%s' )
+        );
+        wp_cache_delete( $option_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+
+        // Invoke the private migration method directly via Closure::bind,
+        // mirroring the test_resolver pattern. This avoids having to reset
+        // hl_core_schema_revision and re-run maybe_upgrade() (which would
+        // touch every other migration in the ladder).
+        $invoke_migration = \Closure::bind(
+            function () {
+                return HL_Installer::migrate_email_drafts_autoload_off();
+            },
+            null,
+            HL_Installer::class
+        );
+        $migration_ok = $invoke_migration();
+
+        $this->assert_true(
+            $migration_ok === true,
+            'migrate_email_drafts_autoload_off() returns true'
+        );
+
+        // Verify the seeded row's autoload column is now 'no'.
+        $autoload_after = $wpdb->get_var( $wpdb->prepare(
+            "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+            $option_name
+        ) );
+        $this->assert_equals(
+            'no',
+            $autoload_after,
+            'seeded hl_email_draft_* row flipped to autoload=no'
+        );
+
+        // Schema revision must be at or above 36 after Rev 36 ships.
+        $rev = (int) get_option( 'hl_core_schema_revision', 0 );
+        $this->assert_true(
+            $rev >= 36,
+            "hl_core_schema_revision >= 36 (actual: {$rev})"
+        );
+
+        // Cleanup: drop the seeded option so we don't pollute wp_options.
+        delete_option( $option_name );
+
+        // =====================================================================
+        // Task 10: cleanup_stale_drafts() sweeper assertions.
+        // =====================================================================
+
+        // Invoke the private instance method directly via Closure::bind.
+        // Binding to the singleton instance ($newThis) because
+        // cleanup_stale_drafts() is a non-static method. We avoid calling
+        // run_daily_checks() because that fires all 10 cron workflows and
+        // is far heavier than we need for this unit check.
+        $invoke_cleanup = \Closure::bind(
+            function () {
+                $this->cleanup_stale_drafts();
+            },
+            HL_Email_Automation_Service::instance(),
+            HL_Email_Automation_Service::class
+        );
+
+        // Seed envelopes as JSON STRINGS (matching what Task 8's
+        // ajax_autosave writes via wp_json_encode → update_option).
+        // Passing an ARRAY to update_option would PHP-serialize it, and the
+        // sweeper's json_decode would see a corrupt envelope — breaking the
+        // test. Always mirror the production write path here.
+
+        // ----- Assertion 1: stale draft (> 30 days) is deleted. -------------
+        $stale_suffix = wp_generate_password( 6, false );
+        $stale_name   = 'hl_email_draft_stale_' . $stale_suffix;
+        $stale_env    = wp_json_encode( array(
+            'created_at' => gmdate( 'c', time() - 45 * DAY_IN_SECONDS ),
+            'updated_at' => gmdate( 'c', time() - 40 * DAY_IN_SECONDS ),
+            'payload'    => '{"subject":"old"}',
+        ) );
+        update_option( $stale_name, $stale_env, 'no' );
+        wp_cache_delete( $stale_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+
+        // ----- Assertion 2 setup: fresh draft survives. ---------------------
+        $fresh_suffix = wp_generate_password( 6, false );
+        $fresh_name   = 'hl_email_draft_fresh_' . $fresh_suffix;
+        $fresh_env    = wp_json_encode( array(
+            'created_at' => gmdate( 'c' ),
+            'updated_at' => gmdate( 'c' ),
+            'payload'    => '{"subject":"new"}',
+        ) );
+        update_option( $fresh_name, $fresh_env, 'no' );
+        wp_cache_delete( $fresh_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+
+        // ----- Assertion 3 setup: corrupt envelope is preserved. ------------
+        $corrupt_suffix = wp_generate_password( 6, false );
+        $corrupt_name   = 'hl_email_draft_corrupt_' . $corrupt_suffix;
+        // Direct INSERT so we can store a raw non-JSON value without
+        // update_option serializing it behind our back.
+        $wpdb->insert(
+            $wpdb->options,
+            array(
+                'option_name'  => $corrupt_name,
+                'option_value' => 'THIS IS NOT JSON',
+                'autoload'     => 'no',
+            ),
+            array( '%s', '%s', '%s' )
+        );
+        wp_cache_delete( $corrupt_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+
+        // Single sweep covers all three seeded rows.
+        $invoke_cleanup();
+
+        // Flush caches so get_option reads the post-sweep DB state.
+        wp_cache_delete( $stale_name, 'options' );
+        wp_cache_delete( $fresh_name, 'options' );
+        wp_cache_delete( $corrupt_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+
+        // Assertion 1: stale draft was deleted.
+        $this->assert_true(
+            get_option( $stale_name, null ) === null,
+            'cleanup_stale_drafts() deletes draft with updated_at > 30 days old'
+        );
+
+        // Assertion 2: fresh draft survived the sweep.
+        $fresh_after_raw = get_option( $fresh_name, null );
+        $fresh_after     = is_string( $fresh_after_raw ) ? json_decode( $fresh_after_raw, true ) : null;
+        $this->assert_true(
+            is_array( $fresh_after )
+                && isset( $fresh_after['payload'] )
+                && false !== strpos( (string) $fresh_after['payload'], '"subject":"new"' ),
+            'cleanup_stale_drafts() preserves draft with fresh updated_at'
+        );
+
+        // Assertion 3: corrupt envelope was NOT deleted — still present in DB.
+        $corrupt_raw = $wpdb->get_var( $wpdb->prepare(
+            "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+            $corrupt_name
+        ) );
+        $this->assert_equals(
+            'THIS IS NOT JSON',
+            $corrupt_raw,
+            'cleanup_stale_drafts() skips corrupt envelope (row preserved)'
+        );
+
+        // Cleanup: drop the seeded rows and the direct-inserted corrupt row.
+        delete_option( $stale_name );
+        delete_option( $fresh_name );
+        $wpdb->delete( $wpdb->options, array( 'option_name' => $corrupt_name ), array( '%s' ) );
+        wp_cache_delete( $corrupt_name, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+    }
     private function test_resolver() {
         $ev = HL_Email_Condition_Evaluator::instance();
 
@@ -613,7 +907,34 @@ class HL_CLI_Email_V2_Test {
         ) );
         delete_transient( $forced_lock );
     }
-    private function test_deliverability() {}
+    private function test_deliverability() {
+        // Subject encoding. PHP's mb_encode_mimeheader keeps ASCII prefix
+        // unencoded and only encodes the non-ASCII portion, so the =?UTF-8?B?
+        // marker appears somewhere in the result, not necessarily at position 0.
+        if ( function_exists( 'mb_encode_mimeheader' ) ) {
+            $encoded = mb_encode_mimeheader( 'Bienvenida — hoy comenzamos', 'UTF-8', 'B' );
+            $this->assert_true(
+                strpos( $encoded, '=?UTF-8?B?' ) !== false,
+                'mb_encode_mimeheader encodes UTF-8 subject (non-ASCII portion)'
+            );
+        }
+
+        // Unsubscribe secret exists or auto-generates on first read.
+        $secret_before = get_option( 'hl_email_unsubscribe_secret', '' );
+        if ( $secret_before === '' ) {
+            $reflection = new ReflectionClass( HL_Email_Queue_Processor::class );
+            $method = $reflection->getMethod( 'unsubscribe_secret' );
+            $method->setAccessible( true );
+            $method->invoke( HL_Email_Queue_Processor::instance() );
+        }
+        $secret_after = get_option( 'hl_email_unsubscribe_secret', '' );
+        $this->assert_true( $secret_after !== '' && strlen( $secret_after ) >= 32, 'hl_email_unsubscribe_secret bootstraps to a non-empty value' );
+
+        // HMAC determinism.
+        $a = hash_hmac( 'sha256', '1:99', $secret_after );
+        $b = hash_hmac( 'sha256', '1:99', $secret_after );
+        $this->assert_equals( $a, $b, 'HMAC unsubscribe token is deterministic' );
+    }
     private function test_audit() {
         $test_entity_id = 987654321; // unlikely to collide with any real entity
 

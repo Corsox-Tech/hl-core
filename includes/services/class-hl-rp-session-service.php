@@ -201,7 +201,7 @@ class HL_RP_Session_Service {
                AND e.status = 'active'
                AND e.roles LIKE %s
              LIMIT 1",
-            $teacher_enrollment_id, $teacher_enrollment_id, '%"mentor"%'
+            $teacher_enrollment_id, $teacher_enrollment_id, '%mentor%'
         ));
     }
 

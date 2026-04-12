@@ -321,8 +321,7 @@ class HL_Observation_Service {
 
         // Filter to only those with the Mentor role
         return array_filter( $rows, function ( $row ) {
-            $roles = HL_DB_Utils::json_decode( $row['roles'] );
-            return is_array( $roles ) && in_array( 'Mentor', $roles, true );
+            return HL_Roles::has_role( $row['roles'], 'mentor' );
         } );
     }
 

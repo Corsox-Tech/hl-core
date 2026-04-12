@@ -379,11 +379,11 @@ class HL_Reporting_Service {
             $params[] = $team_id;
         }
 
-        // Role filter — JSON LIKE search on enrollment.roles
+        // Role filter — CSV LIKE search on enrollment.roles
         $role = isset( $filters['role'] ) ? sanitize_text_field( $filters['role'] ) : '';
         if ( $role !== '' ) {
             $where[]  = 'e.roles LIKE %s';
-            $params[] = '%"' . $wpdb->esc_like( $role ) . '"%';
+            $params[] = '%' . $wpdb->esc_like( $role ) . '%';
         }
 
         $where_sql   = implode( ' AND ', $where );
@@ -817,8 +817,8 @@ class HL_Reporting_Service {
 
         // Data rows
         foreach ( $participants as $row ) {
-            $roles_raw = json_decode( $row['roles'], true );
-            $roles_str = is_array( $roles_raw ) ? implode( ', ', $roles_raw ) : $row['roles'];
+            $roles_raw = HL_Roles::parse_stored( $row['roles'] );
+            $roles_str = implode( ', ', $roles_raw );
 
             $line = array(
                 $row['display_name'],

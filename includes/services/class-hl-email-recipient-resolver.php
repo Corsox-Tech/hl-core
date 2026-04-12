@@ -92,7 +92,7 @@ class HL_Email_Recipient_Resolver {
      * @return bool
      */
     private function scrub_done() {
-        return class_exists( 'HL_Roles' ) && HL_Roles::scrub_is_complete();
+        return HL_Roles::scrub_is_complete();
     }
 
     /**

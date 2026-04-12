@@ -132,8 +132,8 @@ class HL_CLI_Sync_LD_Enrollment {
                 $source = 'explicit';
             } else {
                 // Role-based fallback.
-                $roles = json_decode( $e->roles, true );
-                if ( ! is_array( $roles ) || empty( $roles ) ) {
+                $roles = HL_Roles::parse_stored( $e->roles );
+                if ( empty( $roles ) ) {
                     continue;
                 }
                 $pw_ids = array();

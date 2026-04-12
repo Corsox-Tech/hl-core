@@ -132,6 +132,9 @@ class HL_Core {
         // Shared helpers
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-roles.php';
 
+        // Migrations
+        require_once HL_CORE_INCLUDES_DIR . 'migrations/class-hl-roles-scrub-migration.php';
+
         // Email system
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-email-block-renderer.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-email-merge-tag-registry.php';
@@ -267,6 +270,9 @@ class HL_Core {
         
         add_action('plugins_loaded', array($this, 'init'));
         add_action('init', array($this, 'load_textdomain'));
+
+        // Rev 37: chunked role scrub migration (runs on plugins_loaded@20 in admin/CLI only).
+        HL_Roles_Scrub_Migration::register();
 
         // Hide the WP admin bar on all front-end pages.
         // Priority 9999 ensures this runs after BuddyBoss or other plugins re-enable it.
