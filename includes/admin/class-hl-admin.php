@@ -24,6 +24,10 @@ class HL_Admin {
         // Eagerly instantiate so AJAX hooks register on admin-ajax.php requests.
         HL_Admin_Cycles::instance();
         HL_Admin_Pathways::instance();
+        HL_Admin_Emails::instance();
+
+        // A.2.24 — refresh workflow nonces via heartbeat for long editing sessions.
+        add_filter( 'wp_refresh_nonces', array( $this, 'refresh_email_workflow_nonces' ), 10, 3 );
     }
 
     /**
@@ -227,5 +231,56 @@ class HL_Admin {
                 'all_success'        => __('All selected rows were imported successfully!', 'hl-core'),
             ));
         }
+
+        // Email System v2 — Track 1 workflow builder assets.
+        // Enqueued only on hl-emails?tab=workflows&action=edit|new.
+        $is_workflow_edit = strpos( $hook, 'hl-emails' ) !== false
+            && isset( $_GET['tab'] ) && $_GET['tab'] === 'workflows'
+            && isset( $_GET['action'] ) && in_array( $_GET['action'], array( 'edit', 'new' ), true );
+
+        if ( $is_workflow_edit ) {
+            wp_enqueue_script(
+                'hl-email-workflow',
+                HL_CORE_ASSETS_URL . 'js/admin/email-workflow.js',
+                array( 'jquery' ),
+                HL_CORE_VERSION,
+                true
+            );
+
+            // A.3.4 — inject registries BEFORE the script so the IIFE can read them.
+            $workflow_id = (int) ( $_GET['workflow_id'] ?? 0 );
+            $inline = 'window.hlConditionFields = '    . wp_json_encode( HL_Admin_Emails::get_condition_fields(),    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . ';'
+                    . 'window.hlConditionOperators = ' . wp_json_encode( HL_Admin_Emails::get_condition_operators(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . ';'
+                    . 'window.hlRecipientTokens = '    . wp_json_encode( HL_Admin_Emails::get_recipient_tokens(),    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . ';'
+                    . 'window.hlEmailWorkflowCfg = '   . wp_json_encode( array(
+                        'ajaxUrl'  => admin_url( 'admin-ajax.php' ),
+                        'nonces'   => array(
+                            'toggleStatus'    => wp_create_nonce( 'hl_workflow_toggle_' . $workflow_id ),
+                            'recipientCount'  => wp_create_nonce( 'hl_workflow_recipient_count' ),
+                        ),
+                        'workflowId' => $workflow_id,
+                    ) ) . ';';
+
+            wp_add_inline_script( 'hl-email-workflow', $inline, 'before' );
+        }
+    }
+
+    /**
+     * A.2.24 — Refresh workflow autosave nonce via heartbeat so long
+     * (>24h) editing sessions don't silently lose autosave capability.
+     *
+     * @param array  $response  Heartbeat response payload.
+     * @param array  $data      Heartbeat request data.
+     * @param string $screen_id Current admin screen id.
+     * @return array
+     */
+    public function refresh_email_workflow_nonces( $response, $data, $screen_id ) {
+        if ( $screen_id === 'admin_page_hl-emails' ) {
+            if ( ! isset( $response['nonces'] ) ) {
+                $response['nonces'] = array();
+            }
+            $response['nonces']['hl_workflow_autosave'] = wp_create_nonce( 'hl_workflow_autosave' );
+        }
+        return $response;
     }
 }
