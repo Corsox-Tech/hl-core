@@ -8,6 +8,23 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * triggers, polls for cron-based triggers, evaluates conditions,
  * resolves recipients, and enqueues emails via the queue processor.
  *
+ * Cron dedup contract (A.1.6, A.7.6): dedup tokens have NO date component.
+ * Each (trigger, workflow, user, entity, cycle) tuple fires exactly once per
+ * window. Range matches (`available_from BETWEEN today AND today+7`) tolerate
+ * missed cron runs — if wp-cron skips a day, the next run still catches the
+ * same enrollment because its date still falls in the range. Downstream:
+ * the hl_email_queue.dedup_token unique-ish index (enforced in PHP via
+ * enqueue()'s dedup_token guard) suppresses duplicates.
+ *
+ * Workflows created mid-window fire on the next cron run for all users whose
+ * window is currently in range; users whose window already closed are NOT
+ * retroactively notified.
+ *
+ * Timezone contract: all window queries use current_time('Y-m-d') (WP site TZ).
+ * WP-Cron irregularity means edge-of-window enrollments may fire up to 24h
+ * before/after the exact calendar boundary. Sub-day precision needs a
+ * dedicated hourly trigger type.
+ *
  * @package HL_Core
  */
 class HL_Email_Automation_Service {
@@ -774,9 +791,6 @@ class HL_Email_Automation_Service {
                 $merge_registry  = HL_Email_Merge_Tag_Registry::instance();
                 $queue_processor = HL_Email_Queue_Processor::instance();
 
-                // Cron dedup token uses date_bucket instead of entity_id.
-                $date_bucket = gmdate( 'Y-m-d' );
-
                 foreach ( $recipients as $recipient ) {
                     $recipient_context = array_merge( $context, array(
                         'recipient_user_id' => $recipient['user_id'],
@@ -792,10 +806,13 @@ class HL_Email_Automation_Service {
                         $subject = str_replace( '{{' . $tag_key . '}}', $tag_value, $subject );
                     }
 
+                    // A.1.6: no date component — one reminder per (trigger, workflow, user, entity, cycle).
                     $dedup_token = md5(
-                        $trigger_key . '_' . $workflow->workflow_id . '_'
-                        . ( $recipient['user_id'] ?? 0 ) . '_' . ( $context['cycle_id'] ?? 0 )
-                        . '_' . $date_bucket
+                        $trigger_key . '|'
+                        . $workflow->workflow_id . '|'
+                        . ( $recipient['user_id'] ?? 0 ) . '|'
+                        . ( $context['entity_id'] ?? 0 ) . '|'
+                        . ( $context['cycle_id'] ?? 0 )
                     );
 
                     $context_data = array(
@@ -835,6 +852,22 @@ class HL_Email_Automation_Service {
     private function get_cron_trigger_users( $trigger_key, $cycle ) {
         global $wpdb;
         $cycle_id = (int) $cycle->cycle_id;
+
+        $needs_window_col = in_array( $trigger_key, array(
+            'cron:cv_window_7d',
+            'cron:cv_overdue_1d',
+            'cron:rp_window_7d',
+            'cron:coaching_window_7d',
+        ), true );
+
+        if ( $needs_window_col && ! self::has_component_window_column() ) {
+            static $warned = false;
+            if ( ! $warned ) {
+                $warned = true;
+                error_log( '[HL_EMAIL_V2] cron trigger ' . $trigger_key . ' skipped — hl_component.available_from column missing. Run HL_Installer::maybe_upgrade().' );
+            }
+            return array();
+        }
 
         switch ( $trigger_key ) {
             case 'cron:low_engagement_14d':
@@ -936,6 +969,25 @@ class HL_Email_Automation_Service {
             default:
                 return array();
         }
+    }
+
+    /**
+     * Cached column-exists check for hl_component.available_from (Rev 35).
+     */
+    private static function has_component_window_column() {
+        static $cached = null;
+        if ( $cached !== null ) return $cached;
+
+        global $wpdb;
+        $row = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = %s
+               AND COLUMN_NAME = 'available_from' LIMIT 1",
+            $wpdb->prefix . 'hl_component'
+        ) );
+        $cached = ! empty( $row );
+        return $cached;
     }
 
     /**
