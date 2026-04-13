@@ -281,4 +281,160 @@ class HL_CLI_Sync_Tickets {
         }
         return null;
     }
+
+    /**
+     * Close GitHub Issues for resolved/closed tickets.
+     *
+     * @param bool $dry_run
+     * @return array [ int $closed, int $errors ]
+     */
+    private function sync_close( $dry_run ) {
+        global $wpdb;
+
+        $rows = $wpdb->get_results(
+            "SELECT ticket_id, title, github_issue_id, status
+             FROM {$wpdb->prefix}hl_ticket
+             WHERE github_issue_id IS NOT NULL AND status IN ('resolved', 'closed')"
+        );
+
+        $closed = 0;
+        $errors = 0;
+
+        foreach ( $rows as $ticket ) {
+            if ( $dry_run ) {
+                WP_CLI::line( sprintf(
+                    'CLOSE:  #%d (GitHub #%d) — %s',
+                    $ticket->ticket_id,
+                    $ticket->github_issue_id,
+                    $ticket->status
+                ) );
+                $closed++;
+                continue;
+            }
+
+            $cmd = sprintf(
+                'gh issue close %d --repo %s 2>&1',
+                $ticket->github_issue_id,
+                escapeshellarg( self::REPO )
+            );
+
+            exec( $cmd, $output, $code );
+            $result = implode( "\n", $output );
+            $output = array();
+
+            // code 0 = closed, or already closed (gh doesn't error on double-close)
+            if ( $code !== 0 && strpos( $result, 'already closed' ) === false ) {
+                WP_CLI::line( sprintf(
+                    'ERROR:  #%d (GitHub #%d) — %s',
+                    $ticket->ticket_id,
+                    $ticket->github_issue_id,
+                    $result
+                ) );
+                $errors++;
+                continue;
+            }
+
+            WP_CLI::line( sprintf(
+                'CLOSE:  #%d (GitHub #%d) — %s',
+                $ticket->ticket_id,
+                $ticket->github_issue_id,
+                $ticket->status
+            ) );
+            $closed++;
+        }
+
+        return array( $closed, $errors );
+    }
+
+    /**
+     * Reopen GitHub Issues for tickets that returned to active status.
+     *
+     * Checks the GitHub issue state first to avoid unnecessary API calls.
+     *
+     * @param bool $dry_run
+     * @return array [ int $reopened, int $errors ]
+     */
+    private function sync_reopen( $dry_run ) {
+        global $wpdb;
+
+        $rows = $wpdb->get_results(
+            "SELECT ticket_id, title, github_issue_id, status
+             FROM {$wpdb->prefix}hl_ticket
+             WHERE github_issue_id IS NOT NULL
+               AND status NOT IN ('resolved', 'closed', 'draft')"
+        );
+
+        $reopened = 0;
+        $errors   = 0;
+
+        foreach ( $rows as $ticket ) {
+            // Check if the GitHub issue is actually closed before reopening.
+            $state_cmd = sprintf(
+                'gh issue view %d --repo %s --json state --jq .state 2>&1',
+                $ticket->github_issue_id,
+                escapeshellarg( self::REPO )
+            );
+
+            exec( $state_cmd, $output, $code );
+            $state = strtoupper( trim( implode( '', $output ) ) );
+            $output = array();
+
+            if ( $code !== 0 ) {
+                WP_CLI::line( sprintf(
+                    'ERROR:  #%d (GitHub #%d) — could not read issue state',
+                    $ticket->ticket_id,
+                    $ticket->github_issue_id
+                ) );
+                $errors++;
+                continue;
+            }
+
+            // If the issue is open, nothing to do.
+            if ( $state === 'OPEN' ) {
+                continue;
+            }
+
+            if ( $dry_run ) {
+                WP_CLI::line( sprintf(
+                    'REOPEN: #%d (GitHub #%d) — reopened to %s',
+                    $ticket->ticket_id,
+                    $ticket->github_issue_id,
+                    $ticket->status
+                ) );
+                $reopened++;
+                continue;
+            }
+
+            $cmd = sprintf(
+                'gh issue reopen %d --repo %s 2>&1',
+                $ticket->github_issue_id,
+                escapeshellarg( self::REPO )
+            );
+
+            exec( $cmd, $output, $code );
+            $result = implode( "\n", $output );
+            $output = array();
+
+            if ( $code !== 0 ) {
+                WP_CLI::line( sprintf(
+                    'ERROR:  #%d (GitHub #%d) — %s',
+                    $ticket->ticket_id,
+                    $ticket->github_issue_id,
+                    $result
+                ) );
+                $errors++;
+                continue;
+            }
+
+            WP_CLI::line( sprintf(
+                'REOPEN: #%d (GitHub #%d) — reopened to %s',
+                $ticket->ticket_id,
+                $ticket->github_issue_id,
+                $ticket->status
+            ) );
+            $reopened++;
+        }
+
+        return array( $reopened, $errors );
+    }
 }
