@@ -260,6 +260,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-translate-content.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-sync-ld-enrollment.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-test-email-renderer.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-sync-tickets.php';
         }
     }
     
@@ -370,6 +371,7 @@ class HL_Core {
             HL_CLI_Email_V2_Test::register();
             HL_CLI_Migrate_Routing_Types::register();
             HL_CLI_Translate_Content::register();
+            HL_CLI_Sync_Tickets::register();
         }
 
         // Email system: initialize automation service (registers hook listeners).
