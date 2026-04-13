@@ -287,6 +287,15 @@ Pick up from the first unchecked `[ ]` item each session.
 - Track gate: email-v2-test 63/63, Track 1 16/16, test-email-renderer 18/18, smoke-test 2 pre-existing
 - Browser verification: pending manual UI pass at PR review time
 
+### Classroom Management for Control Groups (Ticket #18 — April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-13-classroom-management-design.md` | **Plan:** `docs/superpowers/plans/2026-04-13-classroom-management.md`
+- [x] **Cycle tab deep links** — "Manage Classrooms" + "Add Classroom" buttons, View + Edit per row, all pass `cycle_id`.
+- [x] **Cycle-aware classrooms list** — Cycle filter dropdown (excludes archived), Cycle column, auto-select from inbound `cycle_id`.
+- [x] **Cycle field on create/edit form** — Required Cycle dropdown on create/edit, `cycle_id` saved in handler, back links preserve cycle context.
+- [x] **Reassignment service method** — `HL_Classroom_Service::reassign_teaching_assignment()` with DB transaction wrapping (atomic delete + create).
+- [x] **Teacher reassignment UI** — "Reassign from another classroom" optgroup, hidden field, JS confirmation dialog, handler branching, empty state hint with enrollment link, `assignment_reassigned` message key.
+- [x] **Deployed to test** — All features verified via Playwright browser testing (2026-04-13).
+
 ### Feature Tracker → GitHub Sync (April 2026)
 > **Spec:** `docs/superpowers/specs/2026-04-13-ticket-github-sync-design.md` | **Plan:** `docs/superpowers/plans/2026-04-13-ticket-github-sync.md`
 - [x] **Schema rev 38** — `github_issue_id` column on `hl_ticket`.
