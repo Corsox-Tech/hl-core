@@ -110,6 +110,19 @@ class HL_Admin_Emails {
                 ),
                 'is_csv' => true, // Tells evaluator to use HL_Roles::has_role.
             ),
+            // Session group.
+            'session.new_status' => array(
+                'label'   => 'Session New Status',
+                'group'   => 'Session',
+                'type'    => 'enum',
+                'options' => array(
+                    'scheduled'   => 'Scheduled',
+                    'attended'    => 'Attended',
+                    'missed'      => 'Missed / No Show',
+                    'cancelled'   => 'Cancelled',
+                    'rescheduled' => 'Rescheduled',
+                ),
+            ),
             // User group.
             'user.account_activated' => array(
                 'label'   => 'Account Activated',

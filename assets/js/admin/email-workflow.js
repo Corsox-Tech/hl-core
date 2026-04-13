@@ -344,7 +344,9 @@ jQuery(function ($) {
             var $card = $(this);
             var section = $card.closest('[class*="hl-token-"]').hasClass('hl-token-list-cc') ? 'cc' : 'primary';
             $card.toggleClass('hl-token-checked');
-            $card.find('input[type=checkbox]').prop('checked', $card.hasClass('hl-token-checked'));
+            var isChecked = $card.hasClass('hl-token-checked');
+            $card.find('input[type=checkbox]').prop('checked', isChecked);
+            $card.attr('aria-checked', isChecked ? 'true' : 'false');
             if (section === 'primary') applyPrimaryExclusion($wrap);
             serializeRecipients($wrap, $textarea);
             scheduleRecipientCount($wrap);
@@ -391,13 +393,13 @@ jQuery(function ($) {
             var isChecked = selected.indexOf(tokenKey) !== -1;
             var id = 'hl-tok-' + section + '-' + tokenKey;
             var $card = $(
-                '<label class="hl-token-card" tabindex="0">' +
+                '<div class="hl-token-card" tabindex="0" role="checkbox" aria-checked="' + (isChecked ? 'true' : 'false') + '">' +
                     '<input type="checkbox" id="' + id + '" data-token="' + escHtml(tokenKey) + '"' + (isChecked ? ' checked' : '') + '>' +
                     '<span class="hl-token-label">' + escHtml(def.label) + '</span>' +
                     (section === 'primary' && def.description
                         ? '<span class="hl-token-desc">' + escHtml(def.description) + '</span>'
                         : '') +
-                '</label>'
+                '</div>'
             );
             if (isChecked) $card.addClass('hl-token-checked');
             $container.append($card);
