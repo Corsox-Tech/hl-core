@@ -27,6 +27,7 @@ class HL_Admin_Email_Builder {
         add_action( 'wp_ajax_hl_email_preview_search', array( $this, 'ajax_preview_search' ) );
         add_action( 'wp_ajax_hl_email_preview_render', array( $this, 'ajax_preview_render' ) );
         add_action( 'wp_ajax_hl_email_template_delete', array( $this, 'ajax_delete' ) );
+        add_action( 'wp_ajax_hl_email_builder_dismiss_undo_notice', array( $this, 'ajax_dismiss_undo_notice' ) );
     }
 
     // =========================================================================
@@ -82,6 +83,7 @@ class HL_Admin_Email_Builder {
         wp_enqueue_media();
         wp_enqueue_style( 'wp-color-picker' );
         wp_enqueue_script( 'wp-color-picker' );
+        wp_enqueue_style( 'dashicons' );
 
         ?>
         <div class="wrap hl-email-builder-wrap">
@@ -150,9 +152,34 @@ class HL_Admin_Email_Builder {
                 <div class="hl-eb-canvas">
                     <div class="hl-eb-canvas-header">
                         <div class="hl-eb-toolbar">
+                            <div class="hl-eb-undo-group" role="group" aria-label="<?php esc_attr_e( 'Undo and redo', 'hl-core' ); ?>">
+                                <button type="button" class="button" id="hl-eb-undo" disabled
+                                    title="<?php esc_attr_e( 'Undo (Ctrl+Z) — Undo history clears on save', 'hl-core' ); ?>"
+                                    aria-label="<?php esc_attr_e( 'Undo', 'hl-core' ); ?>">&#x21A9;</button>
+                                <button type="button" class="button" id="hl-eb-redo" disabled
+                                    title="<?php esc_attr_e( 'Redo (Ctrl+Y) — Undo history clears on save', 'hl-core' ); ?>"
+                                    aria-label="<?php esc_attr_e( 'Redo', 'hl-core' ); ?>">&#x21AA;</button>
+                            </div>
                             <button type="button" class="button button-primary" id="hl-eb-save"><?php esc_html_e( 'Save Template', 'hl-core' ); ?></button>
+                            <button type="button" class="button" id="hl-eb-preview-btn">
+                                <span class="dashicons dashicons-visibility" style="vertical-align:text-bottom;"></span>
+                                <?php esc_html_e( 'Preview', 'hl-core' ); ?>
+                            </button>
                             <span class="hl-eb-autosave-status" id="hl-eb-autosave-status"></span>
                         </div>
+                        <?php
+                        // A.7.8 / A.7.14 — one-time per (user, template) undo-clear notice.
+                        $notice_tpl_id = $template_id ?: 0;
+                        $notice_seen   = (bool) get_user_meta( get_current_user_id(), 'hl_email_builder_undo_notice_seen_' . $notice_tpl_id, true );
+                        ?>
+                        <div class="hl-eb-undo-notice"
+                             id="hl-eb-undo-notice"
+                             style="display:none;"
+                             data-template-id="<?php echo (int) $notice_tpl_id; ?>">
+                            <span><?php esc_html_e( 'Your undo history was cleared by saving. Undo only works within a single editing session.', 'hl-core' ); ?></span>
+                            <button type="button" class="hl-eb-undo-notice-dismiss" aria-label="<?php esc_attr_e( 'Dismiss notice', 'hl-core' ); ?>">&times;</button>
+                        </div>
+                        <script>window.hlEmailUndoNoticeSeen = <?php echo $notice_seen ? 'true' : 'false'; ?>;</script>
                     </div>
                     <div class="hl-eb-canvas-body" id="hl-eb-blocks" style="max-width:600px;margin:0 auto;background:#fff;min-height:200px;padding:20px;border:1px solid #ddd;">
                         <!-- Blocks rendered by JS -->
@@ -198,6 +225,42 @@ class HL_Admin_Email_Builder {
                     </div>
                 </div>
             </div>
+
+            <!-- A.2 / A.6 — Preview modal (hidden until Preview button clicked) -->
+            <div class="hl-eb-modal-overlay" id="hl-eb-modal" style="display:none;"
+                 role="dialog" aria-modal="true" aria-labelledby="hl-eb-modal-title" aria-hidden="true">
+                <div class="hl-eb-modal-header">
+                    <div class="hl-eb-modal-title-wrap">
+                        <strong class="hl-eb-modal-title" id="hl-eb-modal-title"><?php esc_html_e( 'Preview', 'hl-core' ); ?></strong>
+                        <span class="hl-eb-modal-subtitle" id="hl-eb-modal-subtitle"></span>
+                    </div>
+                    <div class="hl-eb-modal-controls">
+                        <div class="hl-eb-modal-devices" role="group" aria-label="<?php esc_attr_e( 'Device preview', 'hl-core' ); ?>">
+                            <button type="button" class="hl-eb-modal-device active" data-mode="desktop"><?php esc_html_e( 'Desktop', 'hl-core' ); ?></button>
+                            <button type="button" class="hl-eb-modal-device"         data-mode="mobile"><?php esc_html_e( 'Mobile', 'hl-core' ); ?></button>
+                            <button type="button" class="hl-eb-modal-device"         data-mode="dark"><?php esc_html_e( 'Dark Backdrop', 'hl-core' ); ?></button>
+                        </div>
+                        <div class="hl-eb-modal-search">
+                            <input type="text" id="hl-eb-modal-enrollment-search"
+                                placeholder="<?php esc_attr_e( 'Search enrollments...', 'hl-core' ); ?>"
+                                aria-label="<?php esc_attr_e( 'Search enrollments for preview context', 'hl-core' ); ?>">
+                            <ul class="hl-eb-modal-search-results" id="hl-eb-modal-search-results" style="display:none;" role="listbox"></ul>
+                        </div>
+                        <button type="button" class="hl-eb-modal-close" id="hl-eb-modal-close"
+                            aria-label="<?php esc_attr_e( 'Close preview', 'hl-core' ); ?>">&times;</button>
+                    </div>
+                </div>
+                <div class="hl-eb-modal-body">
+                    <div class="hl-eb-modal-skeleton" id="hl-eb-modal-skeleton">
+                        <div class="hl-eb-skeleton-line" style="width:60%;"></div>
+                        <div class="hl-eb-skeleton-line" style="width:90%;"></div>
+                        <div class="hl-eb-skeleton-line" style="width:75%;"></div>
+                        <div class="hl-eb-skeleton-line" style="width:50%;"></div>
+                    </div>
+                    <iframe id="hl-eb-modal-iframe" title="<?php esc_attr_e( 'Email preview', 'hl-core' ); ?>"
+                            sandbox="allow-same-origin allow-popups"></iframe>
+                </div>
+            </div>
         </div>
 
         <script>
@@ -206,6 +269,7 @@ class HL_Admin_Email_Builder {
                 blocks: <?php echo wp_json_encode( $blocks ); ?>,
                 draftData: <?php echo wp_json_encode( $draft_data ); ?>,
                 nonce: <?php echo wp_json_encode( wp_create_nonce( 'hl_email_builder' ) ); ?>,
+                previewNonce: <?php echo wp_json_encode( wp_create_nonce( 'hl_email_preview' ) ); ?>,
                 ajaxUrl: <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>,
                 previewUrl: <?php echo wp_json_encode( admin_url( 'admin-ajax.php?action=hl_email_preview_render&_wpnonce=' . wp_create_nonce( 'hl_email_preview' ) ) ); ?>,
                 mergeTagsGrouped: <?php echo wp_json_encode( $tags_grouped ); ?>
@@ -433,19 +497,29 @@ class HL_Admin_Email_Builder {
 
         global $wpdb;
 
-        $template_id   = (int) ( $_GET['template_id'] ?? 0 );
-        $enrollment_id = (int) ( $_GET['enrollment_id'] ?? 0 );
-        $blocks_json   = wp_unslash( $_GET['blocks_json'] ?? '[]' );
-        $subject       = sanitize_text_field( $_GET['subject'] ?? '' );
+        // Accept both GET (legacy sidebar) and POST (v2 modal — avoids URL length limits).
+        $source = ! empty( $_POST ) ? $_POST : $_GET;
+
+        $template_id   = (int) ( $source['template_id'] ?? 0 );
+        $enrollment_id = (int) ( $source['enrollment_id'] ?? 0 );
+        $blocks_json   = wp_unslash( $source['blocks_json'] ?? '[]' );
+        $subject       = sanitize_text_field( $source['subject'] ?? '' );
+        $dark          = ! empty( $source['dark'] );
+
+        // A.1.4 — Unicode-safe subject for preview title.
+        if ( function_exists( 'mb_encode_mimeheader' ) && preg_match( '/[^\x20-\x7E]/', $subject ) ) {
+            $subject_title = mb_encode_mimeheader( $subject, 'UTF-8', 'B' );
+        } else {
+            $subject_title = $subject;
+        }
 
         $blocks = json_decode( $blocks_json, true );
         if ( ! is_array( $blocks ) ) {
             $blocks = array();
         }
-        // Sanitize blocks from GET input (not previously saved).
         $blocks = $this->sanitize_blocks( $blocks );
 
-        // Build context from enrollment.
+        // Build merge tag context from enrollment.
         $context = array();
         if ( $enrollment_id ) {
             $enrollment = $wpdb->get_row( $wpdb->prepare(
@@ -453,9 +527,9 @@ class HL_Admin_Email_Builder {
                 $enrollment_id
             ) );
             if ( $enrollment ) {
-                $context['user_id']       = (int) $enrollment->user_id;
-                $context['cycle_id']      = (int) $enrollment->cycle_id;
-                $context['enrollment_id'] = (int) $enrollment->enrollment_id;
+                $context['user_id']         = (int) $enrollment->user_id;
+                $context['cycle_id']        = (int) $enrollment->cycle_id;
+                $context['enrollment_id']   = (int) $enrollment->enrollment_id;
                 $context['enrollment_role'] = $enrollment->roles ?? '';
 
                 $user = get_userdata( (int) $enrollment->user_id );
@@ -465,7 +539,6 @@ class HL_Admin_Email_Builder {
                     $context['recipient_email']   = $user->user_email;
                 }
 
-                // Load cycle.
                 $cycle = $wpdb->get_row( $wpdb->prepare(
                     "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
                     $enrollment->cycle_id
@@ -479,10 +552,25 @@ class HL_Admin_Email_Builder {
         $registry   = HL_Email_Merge_Tag_Registry::instance();
         $merge_tags = $registry->resolve_all( $context );
         $renderer   = HL_Email_Block_Renderer::instance();
-        $html       = $renderer->render( $blocks, $subject, $merge_tags );
+        $html       = $renderer->render( $blocks, $subject_title, $merge_tags );
 
-        // Output raw HTML for iframe.
+        // A.2.3 — Dark Backdrop: wrap rendered HTML's body content in a dark container.
+        if ( $dark ) {
+            $html = preg_replace(
+                '#<body([^>]*)>#i',
+                '<body$1><meta name="color-scheme" content="dark"><div style="background-color:#1a1a2e;color:#e0e0e0;padding:20px;">',
+                $html,
+                1
+            );
+            $html = preg_replace( '#</body>#i', '</div></body>', $html, 1 );
+        }
+
+        // A.6.5 — CSP + security headers for the preview iframe.
         header( 'Content-Type: text/html; charset=utf-8' );
+        header( "Content-Security-Policy: default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; font-src https: data:" );
+        header( 'X-Content-Type-Options: nosniff' );
+        header( 'X-Frame-Options: SAMEORIGIN' );
+
         echo $html;
         exit;
     }
@@ -519,6 +607,28 @@ class HL_Admin_Email_Builder {
         ) );
 
         wp_send_json_success( array( 'message' => __( 'Template archived.', 'hl-core' ) ) );
+    }
+
+    // =========================================================================
+    // AJAX: Dismiss Undo Notice
+    // =========================================================================
+
+    /**
+     * Mark the per-template undo-clear notice as seen for the current user.
+     * A.7.8 / A.7.14 — meta key hl_email_builder_undo_notice_seen_{template_id}.
+     */
+    public function ajax_dismiss_undo_notice() {
+        check_ajax_referer( 'hl_email_builder', 'nonce' );
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( 'Unauthorized' );
+        }
+        $template_id = (int) ( $_POST['template_id'] ?? 0 );
+        update_user_meta(
+            get_current_user_id(),
+            'hl_email_builder_undo_notice_seen_' . $template_id,
+            1
+        );
+        wp_send_json_success();
     }
 
     // =========================================================================

@@ -204,7 +204,7 @@ Pick up from the first unchecked `[ ]` item each session.
 > **Handoff:** `docs/superpowers/plans/2026-04-11-email-v2-handoff.md`
 > **Plans:** `2026-04-11-email-v2-track{1,2,3}-*.md`
 > **Build journal:** `.claude/v2-build-journal.md`
-> **Progress:** 32 / 52 tasks complete — **Track 3 COMPLETE on `feature/email-v2-track3-backend` — ready for merge PR handoff**
+> **Progress:** 52 / 52 tasks complete — **All 3 tracks COMPLETE.** Track 3 merged. Track 1 merged. Track 2 on `feature/email-v2-track2-builder` — ready for merge PR.
 
 **Branches:**
 - `feature/email-v2-track3-backend` — **Track 3 all 32 tasks complete** + round-1/round-2 foundation polish + Task 21 post-scrub read-path regression fix (25 files patched to route `hl_enrollment.roles` reads through `HL_Roles::parse_stored()`). Ready for manual review + merge PR to `main`.
@@ -278,7 +278,14 @@ Pick up from the first unchecked `[ ]` item each session.
 - Smoke test: 2 failures (both pre-existing `hl_user_profile/completion_pct` baseline)
 - Browser verification: pending manual UI pass at PR review time
 
-**Track 2 — Builder (0/5):** Can start immediately on its own branch.
+**Track 2 — Builder (5/5 — COMPLETE on `feature/email-v2-track2-builder`):**
+- [x] Task A: Scaffolding — sortable registry, pushUndo stubs, test harness + fixtures
+- [x] Task B: Text alignment + font size (§2.4) — 3 align buttons, 6-step dropdown, Outlook inner span
+- [x] Task C: Undo / Redo (§2.2) — 50-snapshot ring buffer, Ctrl+Z/Y, autosave debounce, clear notice
+- [x] Task D: Columns editing (§2.1) — 5 splits, nested blocks, per-column Sortable, mini palette, move-to-other
+- [x] Task E: Preview modal (§2.3) — fullscreen overlay, device toggles, srcdoc, CSP, enrollment search
+- Track gate: email-v2-test 63/63, Track 1 16/16, test-email-renderer 18/18, smoke-test 2 pre-existing
+- Browser verification: pending manual UI pass at PR review time
 
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders

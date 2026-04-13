@@ -117,6 +117,11 @@ Full CRUD admin pages with WordPress-styled tables and forms:
   - **Send Log** — Paginated log of all queued/sent/failed emails with status filter pills (7 statuses), template name, scheduled/sent timestamps, failure reasons.
   - **Settings** — Queue health stat cards (Pending/Sending/Failed/Rate Limited), Retry Failed button, per-user rate limit configuration (hourly/daily/weekly).
   - **Email Builder** — Two-panel block editor (`HL_Admin_Email_Builder`): left sidebar (template settings + block palette), center canvas (600px email preview with sortable blocks), right sidebar (Email Health traffic light + grouped merge tag pills + preview iframe with enrollment search). 6 block types, contenteditable text with mini-toolbar, WP Media Library for images, SVG blocking, 3s debounced autosave, wp_kses_post sanitization.
+  - **Email Builder v2 (Track 2):**
+    - Columns block editing with 5 splits (50/50, 60/40, 40/60, 33/67, 67/33), nested blocks, per-column Sortable
+    - Undo / Redo with 50-snapshot ring buffer (Ctrl+Z / Ctrl+Y), autosave-race debounce, one-time undo-clear notice
+    - Fullscreen preview modal with Desktop / Mobile / Dark Backdrop toggles, enrollment search, srcdoc + CSP
+    - Text block alignment (3 buttons) + font size (6 presets), Outlook inner `<span>` wrapper
   - **Cycle Editor → Emails tab** — Manual sends section: template select, role filter, recipient checkboxes with dedup badges ("Already sent today"), Send Now button. Legacy invitation UI collapsed in `<details>` with deprecation notice.
 
 - **Assessment Hub** - Unified assessment management page with vertical sidebar navigation:
@@ -295,7 +300,7 @@ See `STATUS.md` for the current build queue and task tracking.
     class-hl-installer.php       # DB schema (50 tables, revision 30) + activation + migrations
     /domain/                     # Entity models (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Tour)
-    /cli/                        # WP-CLI commands (19 commands incl. seed-demo, seed-lutheran, nuke, create-pages, setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, migrate-routing-types, sync-ld-enrollment) + data files
+    /cli/                        # WP-CLI commands (20 commands incl. seed-demo, seed-lutheran, nuke, create-pages, setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, migrate-routing-types, sync-ld-enrollment, test-email-renderer) + data files
     /services/                   # Business logic (33 services incl. 7 email system: HL_Email_Block_Renderer, HL_Email_Merge_Tag_Registry, HL_Email_Rate_Limit_Service, HL_Email_Condition_Evaluator, HL_Email_Recipient_Resolver, HL_Email_Queue_Processor, HL_Email_Automation_Service)
     /migrations/                 # Data migrations (HL_Email_Template_Migration)
     /security/                   # Capabilities + authorization
