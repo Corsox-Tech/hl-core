@@ -1568,7 +1568,7 @@ class HL_Admin_Cycles {
 
     private function render_tab_classrooms($cycle) {
         global $wpdb;
-        $cycle_id = $cycle->cycle_id;
+        $cycle_id = absint($cycle->cycle_id);
 
         // Get schools linked to this cycle.
         $school_ids = $wpdb->get_col($wpdb->prepare(
@@ -1622,7 +1622,8 @@ class HL_Admin_Cycles {
         }
 
         echo '<div style="margin-bottom:15px;">';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-classrooms')) . '" class="button button-primary">' . esc_html__('Manage Classrooms', 'hl-core') . '</a>';
+        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-classrooms&cycle_id=' . $cycle_id)) . '" class="button button-primary">' . esc_html__('Manage Classrooms', 'hl-core') . '</a>';
+        echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-classrooms&action=new&cycle_id=' . $cycle_id)) . '" class="button">' . esc_html__('Add Classroom', 'hl-core') . '</a>';
         echo '</div>';
 
         if (empty($classrooms)) {
@@ -1650,7 +1651,10 @@ class HL_Admin_Cycles {
             echo '<td>' . esc_html($c->age_band ? ucfirst($c->age_band) : '-') . '</td>';
             echo '<td>' . esc_html($children) . '</td>';
             echo '<td>' . esc_html($teachers) . '</td>';
-            echo '<td><a href="' . esc_url(admin_url('admin.php?page=hl-classrooms&action=view&id=' . $c->classroom_id)) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a></td>';
+            echo '<td>';
+            echo '<a href="' . esc_url(admin_url('admin.php?page=hl-classrooms&action=view&id=' . $c->classroom_id . '&cycle_id=' . $cycle_id)) . '" class="button button-small">' . esc_html__('View', 'hl-core') . '</a> ';
+            echo '<a href="' . esc_url(admin_url('admin.php?page=hl-classrooms&action=edit&id=' . $c->classroom_id . '&cycle_id=' . $cycle_id)) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a>';
+            echo '</td>';
             echo '</tr>';
         }
 
