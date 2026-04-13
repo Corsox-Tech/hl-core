@@ -564,6 +564,7 @@ class HL_Admin_Email_Builder {
         $html       = $renderer->render( $blocks, $subject_title, $merge_tags );
 
         // A.2.3 — Dark Backdrop: wrap rendered HTML's body content in a dark container.
+        // Force color-scheme so the OS dark-mode preference doesn't leak into the preview.
         if ( $dark ) {
             $html = preg_replace(
                 '#<body([^>]*)>#i',
@@ -572,6 +573,14 @@ class HL_Admin_Email_Builder {
                 1
             );
             $html = preg_replace( '#</body>#i', '</div></body>', $html, 1 );
+        } else {
+            // Force light mode so prefers-color-scheme:dark rules don't fire.
+            $html = preg_replace(
+                '#<head>#i',
+                '<head><meta name="color-scheme" content="light only">',
+                $html,
+                1
+            );
         }
 
         // A.6.5 — CSP + security headers for the preview iframe.
