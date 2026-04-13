@@ -590,12 +590,13 @@ class HL_Admin_Email_Builder {
             );
             $html = preg_replace( '#</body>#i', '</div></body>', $html, 1 );
         } else {
-            // Force light mode so prefers-color-scheme:dark rules don't fire.
+            // Strip the @media (prefers-color-scheme:dark) block so the admin's
+            // OS dark mode doesn't affect the Desktop/Mobile preview. The meta tag
+            // alone isn't reliable in srcdoc iframes across all browsers.
             $html = preg_replace(
-                '#<head>#i',
-                '<head><meta name="color-scheme" content="light only">',
-                $html,
-                1
+                '#@media\s*\(prefers-color-scheme\s*:\s*dark\)\s*\{[^}]*(\{[^}]*\}[^}]*)*\}#i',
+                '',
+                $html
             );
         }
 
