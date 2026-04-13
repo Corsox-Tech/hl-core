@@ -102,20 +102,23 @@ class HL_Admin_Email_Builder {
                 </div>
             <?php endif; ?>
 
-            <div class="hl-email-builder" id="hl-email-builder">
-                <!-- Left: Block Palette + Settings -->
-                <div class="hl-eb-sidebar-left">
-                    <div class="hl-eb-section">
-                        <h3><?php esc_html_e( 'Template Settings', 'hl-core' ); ?></h3>
+            <!-- Template Settings — full-width bar -->
+            <div class="hl-eb-settings-bar hl-eb-section">
+                <h3><?php esc_html_e( 'Template Settings', 'hl-core' ); ?></h3>
+                <div class="hl-eb-settings-fields">
+                    <div class="hl-eb-field">
                         <label><?php esc_html_e( 'Template Key', 'hl-core' ); ?></label>
                         <input type="text" id="hl-eb-template-key" value="<?php echo esc_attr( $template->template_key ?? '' ); ?>" <?php echo $template ? 'readonly' : ''; ?>>
-
+                    </div>
+                    <div class="hl-eb-field hl-eb-field--wide">
                         <label><?php esc_html_e( 'Name', 'hl-core' ); ?></label>
                         <input type="text" id="hl-eb-name" value="<?php echo esc_attr( $template->name ?? '' ); ?>">
-
+                    </div>
+                    <div class="hl-eb-field hl-eb-field--wide">
                         <label><?php esc_html_e( 'Subject Line', 'hl-core' ); ?></label>
                         <input type="text" id="hl-eb-subject" value="<?php echo esc_attr( $template->subject ?? '' ); ?>" maxlength="500">
-
+                    </div>
+                    <div class="hl-eb-field">
                         <label><?php esc_html_e( 'Category', 'hl-core' ); ?></label>
                         <select id="hl-eb-category">
                             <?php
@@ -126,7 +129,8 @@ class HL_Admin_Email_Builder {
                                 <option value="<?php echo esc_attr( $c ); ?>" <?php selected( $current_cat, $c ); ?>><?php echo esc_html( ucwords( str_replace( '_', ' ', $c ) ) ); ?></option>
                             <?php endforeach; ?>
                         </select>
-
+                    </div>
+                    <div class="hl-eb-field">
                         <label><?php esc_html_e( 'Status', 'hl-core' ); ?></label>
                         <select id="hl-eb-status">
                             <option value="draft" <?php selected( $template->status ?? 'draft', 'draft' ); ?>><?php esc_html_e( 'Draft', 'hl-core' ); ?></option>
@@ -134,7 +138,12 @@ class HL_Admin_Email_Builder {
                             <option value="archived" <?php selected( $template->status ?? '', 'archived' ); ?>><?php esc_html_e( 'Archived', 'hl-core' ); ?></option>
                         </select>
                     </div>
+                </div>
+            </div>
 
+            <div class="hl-email-builder" id="hl-email-builder">
+                <!-- Left: Block Palette + Health + Merge Tags -->
+                <div class="hl-eb-sidebar-left">
                     <div class="hl-eb-section">
                         <h3><?php esc_html_e( 'Add Block', 'hl-core' ); ?></h3>
                         <div class="hl-eb-block-palette">
@@ -144,6 +153,28 @@ class HL_Admin_Email_Builder {
                             <button type="button" class="button hl-eb-add-block" data-type="divider"><?php esc_html_e( 'Divider', 'hl-core' ); ?></button>
                             <button type="button" class="button hl-eb-add-block" data-type="spacer"><?php esc_html_e( 'Spacer', 'hl-core' ); ?></button>
                             <button type="button" class="button hl-eb-add-block" data-type="columns"><?php esc_html_e( 'Columns', 'hl-core' ); ?></button>
+                        </div>
+                    </div>
+
+                    <div class="hl-eb-section">
+                        <h3><?php esc_html_e( 'Email Health', 'hl-core' ); ?></h3>
+                        <div id="hl-eb-health" class="hl-eb-health">
+                            <div class="hl-eb-health-light" id="hl-eb-health-light" data-status="green"></div>
+                            <ul id="hl-eb-health-warnings"></ul>
+                        </div>
+                    </div>
+
+                    <div class="hl-eb-section">
+                        <h3><?php esc_html_e( 'Merge Tags', 'hl-core' ); ?></h3>
+                        <div class="hl-eb-merge-tags">
+                            <?php foreach ( $tags_grouped as $category => $tags ) : ?>
+                                <div class="hl-eb-tag-group">
+                                    <strong><?php echo esc_html( ucwords( $category ) ); ?></strong>
+                                    <?php foreach ( $tags as $key => $label ) : ?>
+                                        <code class="hl-eb-tag-item" data-tag="<?php echo esc_attr( $key ); ?>" title="<?php echo esc_attr( $label ); ?>">{{<?php echo esc_html( $key ); ?>}}</code>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 </div>
@@ -185,44 +216,22 @@ class HL_Admin_Email_Builder {
                         <!-- Blocks rendered by JS -->
                     </div>
                 </div>
+            </div>
 
-                <!-- Right: Email Health + Merge Tags + Preview -->
-                <div class="hl-eb-sidebar-right">
-                    <div class="hl-eb-section">
-                        <h3><?php esc_html_e( 'Email Health', 'hl-core' ); ?></h3>
-                        <div id="hl-eb-health" class="hl-eb-health">
-                            <div class="hl-eb-health-light" id="hl-eb-health-light" data-status="green"></div>
-                            <ul id="hl-eb-health-warnings"></ul>
-                        </div>
+            <!-- Inline Preview — full-width below canvas -->
+            <div class="hl-eb-inline-preview hl-eb-section" style="margin-top:20px;">
+                <h3><?php esc_html_e( 'Preview', 'hl-core' ); ?></h3>
+                <div class="hl-eb-preview-controls">
+                    <input type="text" id="hl-eb-preview-search" placeholder="<?php esc_attr_e( 'Search enrollments...', 'hl-core' ); ?>">
+                    <select id="hl-eb-preview-enrollment" style="display:none;"></select>
+                    <div class="hl-eb-preview-toggles">
+                        <button type="button" class="button button-small hl-eb-preview-toggle active" data-mode="desktop"><?php esc_html_e( 'Desktop', 'hl-core' ); ?></button>
+                        <button type="button" class="button button-small hl-eb-preview-toggle" data-mode="mobile"><?php esc_html_e( 'Mobile', 'hl-core' ); ?></button>
+                        <button type="button" class="button button-small hl-eb-preview-toggle" data-mode="dark"><?php esc_html_e( 'Dark', 'hl-core' ); ?></button>
                     </div>
-
-                    <div class="hl-eb-section">
-                        <h3><?php esc_html_e( 'Merge Tags', 'hl-core' ); ?></h3>
-                        <div class="hl-eb-merge-tags">
-                            <?php foreach ( $tags_grouped as $category => $tags ) : ?>
-                                <div class="hl-eb-tag-group">
-                                    <strong><?php echo esc_html( ucwords( $category ) ); ?></strong>
-                                    <?php foreach ( $tags as $key => $label ) : ?>
-                                        <code class="hl-eb-tag-item" data-tag="<?php echo esc_attr( $key ); ?>" title="<?php echo esc_attr( $label ); ?>">{{<?php echo esc_html( $key ); ?>}}</code>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-
-                    <div class="hl-eb-section">
-                        <h3><?php esc_html_e( 'Preview', 'hl-core' ); ?></h3>
-                        <input type="text" id="hl-eb-preview-search" placeholder="<?php esc_attr_e( 'Search enrollments...', 'hl-core' ); ?>">
-                        <select id="hl-eb-preview-enrollment" style="display:none;"></select>
-                        <div class="hl-eb-preview-toggles">
-                            <button type="button" class="button button-small hl-eb-preview-toggle active" data-mode="desktop"><?php esc_html_e( 'Desktop', 'hl-core' ); ?></button>
-                            <button type="button" class="button button-small hl-eb-preview-toggle" data-mode="mobile"><?php esc_html_e( 'Mobile', 'hl-core' ); ?></button>
-                            <button type="button" class="button button-small hl-eb-preview-toggle" data-mode="dark"><?php esc_html_e( 'Dark', 'hl-core' ); ?></button>
-                        </div>
-                        <div id="hl-eb-preview-frame-wrap" style="margin-top:10px;">
-                            <iframe id="hl-eb-preview-frame" style="width:600px;height:400px;border:1px solid #ddd;"></iframe>
-                        </div>
-                    </div>
+                </div>
+                <div id="hl-eb-preview-frame-wrap" style="margin-top:12px;">
+                    <iframe id="hl-eb-preview-frame" style="width:100%;height:500px;border:1px solid var(--eb-border);border-radius:var(--eb-radius);"></iframe>
                 </div>
             </div>
 

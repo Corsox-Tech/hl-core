@@ -25,6 +25,7 @@ class HL_Admin {
         HL_Admin_Cycles::instance();
         HL_Admin_Pathways::instance();
         HL_Admin_Emails::instance();
+        HL_Admin_Email_Builder::instance();
 
         // A.2.24 — refresh workflow nonces via heartbeat for long editing sessions.
         add_filter( 'wp_refresh_nonces', array( $this, 'refresh_email_workflow_nonces' ), 10, 3 );
@@ -111,6 +112,9 @@ class HL_Admin {
                 break;
             case 'hl-course-catalog':
                 HL_Admin_Course_Catalog::instance()->handle_early_actions();
+                break;
+            case 'hl-emails':
+                HL_Admin_Emails::instance()->handle_early_actions();
                 break;
         }
     }

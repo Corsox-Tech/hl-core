@@ -114,7 +114,7 @@ class HL_Email_Block_Renderer {
         $html .= 'body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}';
         $html .= 'table,td{mso-table-lspace:0;mso-table-rspace:0}';
         $html .= 'img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none}';
-        $html .= 'body{margin:0;padding:0;width:100%!important;background-color:#F3F4F6}';
+        $html .= 'body{margin:0;padding:0;width:100%!important;background-color:#F0F5FA}';
         // Dark mode (Apple Mail, Outlook 2019+, iOS Mail).
         $html .= '@media (prefers-color-scheme:dark){';
         $html .= 'body,.hl-email-body{background-color:#1a1a2e!important}';
@@ -130,10 +130,10 @@ class HL_Email_Block_Renderer {
         $html .= '}';
         $html .= '</style>';
         $html .= '</head>';
-        $html .= '<body class="hl-email-body" style="margin:0;padding:0;background-color:#F3F4F6;">';
+        $html .= '<body class="hl-email-body" style="margin:0;padding:0;background-color:#F0F5FA;">';
 
         // Outer centering table.
-        $html .= '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#F3F4F6;">';
+        $html .= '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#F0F5FA;">';
         $html .= '<tr><td align="center" style="padding:24px 16px;">';
 
         // Container table.
@@ -141,11 +141,11 @@ class HL_Email_Block_Renderer {
 
         // ── Branded Header ──
         $html .= '<tr><td style="background:#1A2B47;padding:32px 40px;text-align:center;border-radius:12px 12px 0 0;">';
-        $html .= '<img src="' . $logo . '" alt="Housman Learning" width="200" style="display:inline-block;max-width:200px;width:200px;height:auto;">';
+        $html .= '<img src="' . $logo . '" alt="Housman Learning" width="140" style="display:inline-block;max-width:140px;width:140px;height:auto;">';
         $html .= '</td></tr>';
 
         // ── Content Card ──
-        $html .= '<tr><td class="hl-email-card" style="background:#FFFFFF;padding:40px;">';
+        $html .= '<tr><td class="hl-email-card" style="background:#FFFFFF;padding:40px 40px 60px;">';
         $html .= $inner_html;
         $html .= '</td></tr>';
 

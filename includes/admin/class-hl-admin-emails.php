@@ -36,6 +36,20 @@ class HL_Admin_Emails {
         add_action( 'wp_ajax_hl_workflow_toggle_status', array( $this, 'ajax_workflow_toggle_status' ) );
     }
 
+    /**
+     * Handle POST redirects before any HTML output.
+     *
+     * Called from HL_Admin::handle_early_actions() on admin_init so
+     * wp_redirect() can send headers before WordPress outputs the admin chrome.
+     */
+    public function handle_early_actions() {
+        $tab = sanitize_text_field( $_GET['tab'] ?? 'workflows' );
+
+        if ( $tab === 'workflows' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['hl_workflow_nonce'] ) ) {
+            $this->handle_workflow_save(); // Calls wp_redirect + exit.
+        }
+    }
+
     // =========================================================================
     // Static Registries (v2 Track 1)
     // =========================================================================
@@ -424,10 +438,7 @@ class HL_Admin_Emails {
             return;
         }
 
-        // Handle POST save.
-        if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['hl_workflow_nonce'] ) ) {
-            $this->handle_workflow_save();
-        }
+        // POST save is handled in render_page() before any HTML output.
 
         $status_filter = sanitize_text_field( $_GET['status'] ?? '' );
         $valid_statuses = array( 'draft', 'active', 'paused' );
