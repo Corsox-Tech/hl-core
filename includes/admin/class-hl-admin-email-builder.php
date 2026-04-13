@@ -590,14 +590,10 @@ class HL_Admin_Email_Builder {
             );
             $html = preg_replace( '#</body>#i', '</div></body>', $html, 1 );
         } else {
-            // Strip the @media (prefers-color-scheme:dark) block so the admin's
-            // OS dark mode doesn't affect the Desktop/Mobile preview. The meta tag
-            // alone isn't reliable in srcdoc iframes across all browsers.
-            $html = preg_replace(
-                '#@media\s*\(prefers-color-scheme\s*:\s*dark\)\s*\{[^}]*(\{[^}]*\}[^}]*)*\}#i',
-                '',
-                $html
-            );
+            // Strip the dark-mode CSS so the admin's OS theme doesn't affect
+            // the Desktop/Mobile preview. Uses exact string match via the
+            // renderer's constant — no fragile regex for nested braces.
+            $html = str_replace( HL_Email_Block_Renderer::DARK_MODE_CSS, '', $html );
         }
 
         // A.6.5 — CSP + security headers for the preview iframe.
