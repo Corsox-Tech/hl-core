@@ -170,22 +170,44 @@ class HL_Admin_Classrooms {
         global $wpdb;
 
         $filter_school = isset($_GET['school_id']) ? absint($_GET['school_id']) : 0;
+        $filter_cycle  = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : 0;
 
-        $where = '';
+        $where_parts = array();
+        $where_args  = array();
+
         if ($filter_school) {
-            $where = $wpdb->prepare(' WHERE c.school_id = %d', $filter_school);
+            $where_parts[] = 'c.school_id = %d';
+            $where_args[]  = $filter_school;
+        }
+        if ($filter_cycle) {
+            $where_parts[] = 'c.cycle_id = %d';
+            $where_args[]  = $filter_cycle;
         }
 
-        $classrooms = $wpdb->get_results(
-            "SELECT c.*, o.name AS school_name
-             FROM {$wpdb->prefix}hl_classroom c
-             LEFT JOIN {$wpdb->prefix}hl_orgunit o ON c.school_id = o.orgunit_id
-             {$where}
-             ORDER BY c.classroom_name ASC"
-        );
+        $where = '';
+        if (!empty($where_parts)) {
+            $where = 'WHERE ' . implode(' AND ', $where_parts);
+        }
+
+        $query = "SELECT c.*, o.name AS school_name, cy.cycle_name
+                  FROM {$wpdb->prefix}hl_classroom c
+                  LEFT JOIN {$wpdb->prefix}hl_orgunit o ON c.school_id = o.orgunit_id
+                  LEFT JOIN {$wpdb->prefix}hl_cycle cy ON c.cycle_id = cy.cycle_id
+                  {$where}
+                  ORDER BY c.classroom_name ASC";
+
+        if (!empty($where_args)) {
+            $classrooms = $wpdb->get_results($wpdb->prepare($query, $where_args));
+        } else {
+            $classrooms = $wpdb->get_results($query);
+        }
 
         $schools = $wpdb->get_results(
             "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' ORDER BY name ASC"
+        );
+
+        $cycles = $wpdb->get_results(
+            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle WHERE status != 'archived' ORDER BY cycle_name ASC"
         );
 
         // Messages
@@ -204,9 +226,10 @@ class HL_Admin_Classrooms {
         echo ' <a href="' . esc_url(admin_url('admin.php?page=hl-classrooms&action=new')) . '" class="page-title-action">' . esc_html__('Add New', 'hl-core') . '</a>';
         echo '<hr class="wp-header-end">';
 
-        // School filter
+        // School + Cycle filter
         echo '<form method="get" style="margin-bottom:15px;">';
         echo '<input type="hidden" name="page" value="hl-classrooms" />';
+
         echo '<label><strong>' . esc_html__('School:', 'hl-core') . '</strong> </label>';
         echo '<select name="school_id">';
         echo '<option value="">' . esc_html__('All', 'hl-core') . '</option>';
@@ -216,6 +239,17 @@ class HL_Admin_Classrooms {
             }
         }
         echo '</select> ';
+
+        echo '<label style="margin-left:10px;"><strong>' . esc_html__('Cycle:', 'hl-core') . '</strong> </label>';
+        echo '<select name="cycle_id">';
+        echo '<option value="">' . esc_html__('All', 'hl-core') . '</option>';
+        if ($cycles) {
+            foreach ($cycles as $cycle) {
+                echo '<option value="' . esc_attr($cycle->cycle_id) . '"' . selected($filter_cycle, $cycle->cycle_id, false) . '>' . esc_html($cycle->cycle_name) . '</option>';
+            }
+        }
+        echo '</select> ';
+
         submit_button(__('Filter', 'hl-core'), 'secondary', 'submit', false);
         echo '</form>';
 
@@ -229,6 +263,7 @@ class HL_Admin_Classrooms {
         echo '<th>' . esc_html__('ID', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Classroom Name', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('School', 'hl-core') . '</th>';
+        echo '<th>' . esc_html__('Cycle', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Age Band', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Status', 'hl-core') . '</th>';
         echo '<th>' . esc_html__('Actions', 'hl-core') . '</th>';
@@ -251,6 +286,7 @@ class HL_Admin_Classrooms {
             echo '<td>' . esc_html($classroom->classroom_id) . '</td>';
             echo '<td><strong><a href="' . esc_url($view_url) . '">' . esc_html($classroom->classroom_name) . '</a></strong></td>';
             echo '<td>' . esc_html($classroom->school_name) . '</td>';
+            echo '<td>' . esc_html($classroom->cycle_name ?: '-') . '</td>';
             echo '<td>' . esc_html($classroom->age_band ? ucfirst($classroom->age_band) : '-') . '</td>';
             echo '<td><span style="' . esc_attr($status_style) . '">' . esc_html(ucfirst($classroom->status)) . '</span></td>';
             echo '<td>';
