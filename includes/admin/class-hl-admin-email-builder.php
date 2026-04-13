@@ -555,6 +555,22 @@ class HL_Admin_Email_Builder {
                 if ( $cycle ) {
                     $context['cycle_name'] = $cycle->cycle_name;
                 }
+
+                // Look up assigned coach for this enrollment's user + cycle.
+                $coach_id = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT coach_user_id FROM {$wpdb->prefix}hl_coach_assignment
+                     WHERE mentor_user_id = %d AND cycle_id = %d AND status = 'active'
+                     LIMIT 1",
+                    $enrollment->user_id,
+                    $enrollment->cycle_id
+                ) );
+                if ( $coach_id ) {
+                    $coach = get_userdata( (int) $coach_id );
+                    if ( $coach ) {
+                        $context['coach_name']  = $coach->display_name;
+                        $context['coach_email'] = $coach->user_email;
+                    }
+                }
             }
         }
 

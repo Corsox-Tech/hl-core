@@ -213,6 +213,11 @@ class HL_Email_Merge_Tag_Registry {
             return $ctx['coach_name'] ?? '';
         } );
 
+        // Alias — templates may use {{coach_name}} as shorthand for full name.
+        $this->register( 'coach_name', 'Coach Name', 'coaching', function ( $ctx ) {
+            return $ctx['coach_name'] ?? '';
+        } );
+
         $this->register( 'coach_email', 'Coach Email', 'coaching', function ( $ctx ) {
             return $ctx['coach_email'] ?? '';
         } );
