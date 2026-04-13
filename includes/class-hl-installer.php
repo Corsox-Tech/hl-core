@@ -150,7 +150,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 37;
+        $current_revision = 38;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -248,6 +248,11 @@ class HL_Installer {
                 if ( get_option( 'hl_roles_scrub_done', null ) === null ) {
                     update_option( 'hl_roles_scrub_done', 0, false );
                 }
+            }
+
+            // Rev 38: Add github_issue_id column to hl_ticket for GitHub sync.
+            if ( (int) $stored < 38 ) {
+                self::migrate_ticket_add_github_issue_id();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -2056,6 +2061,7 @@ class HL_Installer {
             category enum('course_content','platform_issue','account_access','forms_assessments','reports_data','other') NOT NULL DEFAULT 'other',
             context_mode enum('self','view_as') NOT NULL DEFAULT 'self',
             context_user_id bigint(20) unsigned NULL DEFAULT NULL,
+            github_issue_id bigint(20) unsigned NULL DEFAULT NULL,
             PRIMARY KEY (ticket_id),
             UNIQUE KEY ticket_uuid (ticket_uuid),
             KEY status (status),
@@ -3763,5 +3769,25 @@ class HL_Installer {
         }
 
         return true;
+    }
+
+    /**
+     * Rev 38: Add github_issue_id column to hl_ticket for GitHub Issues sync.
+     */
+    private static function migrate_ticket_add_github_issue_id() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_ticket';
+
+        // Guard: skip if column already exists.
+        $col = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'github_issue_id'" );
+        if ( ! empty( $col ) ) {
+            return;
+        }
+
+        $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `github_issue_id` bigint(20) unsigned NULL DEFAULT NULL AFTER `context_user_id`" );
+
+        if ( $wpdb->last_error ) {
+            error_log( '[HL_INSTALLER] Rev 38 failed: ' . $wpdb->last_error );
+        }
     }
 }
