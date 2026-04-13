@@ -316,7 +316,7 @@ class HL_Frontend_Team_Progress {
 
         // Try the pre-computed rollup first.
         $rollup = $wpdb->get_var($wpdb->prepare(
-            "SELECT track_completion_percent FROM {$wpdb->prefix}hl_completion_rollup WHERE enrollment_id = %d",
+            "SELECT cycle_completion_percent FROM {$wpdb->prefix}hl_completion_rollup WHERE enrollment_id = %d",
             $enrollment_id
         ));
 

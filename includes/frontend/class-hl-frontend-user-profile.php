@@ -839,8 +839,8 @@ class HL_Frontend_User_Profile {
 
         // Completion rollup.
         $data['completion'] = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COALESCE(completion_pct, 0) FROM {$wpdb->prefix}hl_completion_rollup
-             WHERE enrollment_id = %d ORDER BY computed_at DESC LIMIT 1",
+            "SELECT COALESCE(cycle_completion_percent, 0) FROM {$wpdb->prefix}hl_completion_rollup
+             WHERE enrollment_id = %d ORDER BY last_computed_at DESC LIMIT 1",
             $enrollment->enrollment_id
         ));
 
