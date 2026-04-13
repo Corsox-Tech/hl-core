@@ -571,6 +571,29 @@ class HL_Admin_Email_Builder {
                         $context['coach_email'] = $coach->user_email;
                     }
                 }
+
+                // Look up most recent coaching session for this enrollment.
+                $session = $wpdb->get_row( $wpdb->prepare(
+                    "SELECT scheduled_date, meeting_url, session_status
+                     FROM {$wpdb->prefix}hl_coaching_session
+                     WHERE mentor_enrollment_id = %d
+                     ORDER BY scheduled_date DESC LIMIT 1",
+                    $enrollment->enrollment_id
+                ) );
+                if ( $session ) {
+                    $context['session_date'] = $session->scheduled_date
+                        ? wp_date( 'F j, Y \a\t g:i A', strtotime( $session->scheduled_date ) )
+                        : '';
+                    $context['new_session_date'] = $context['session_date'];
+                    $context['meeting_url']      = $session->meeting_url ?? '';
+                } else {
+                    // No real session — use placeholder so the template preview isn't blank.
+                    $context['session_date']     = 'June 15, 2026 at 2:00 PM';
+                    $context['new_session_date'] = 'June 20, 2026 at 10:00 AM';
+                    $context['old_session_date'] = 'June 15, 2026 at 2:00 PM';
+                    $context['meeting_url']      = 'https://zoom.us/j/example';
+                    $context['cancelled_by_name'] = 'Sample User';
+                }
             }
         }
 
