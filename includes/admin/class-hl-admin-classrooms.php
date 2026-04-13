@@ -116,21 +116,24 @@ class HL_Admin_Classrooms {
         $data = array(
             'classroom_name' => sanitize_text_field($_POST['classroom_name']),
             'school_id'      => absint($_POST['school_id']),
+            'cycle_id'       => absint($_POST['cycle_id']),
             'age_band'       => sanitize_text_field($_POST['age_band']),
             'status'         => sanitize_text_field($_POST['status']),
         );
 
         $service = new HL_Classroom_Service();
 
+        $cycle_param = isset($_POST['cycle_id']) ? '&cycle_id=' . absint($_POST['cycle_id']) : '';
+
         if ($classroom_id > 0) {
             $service->update_classroom($classroom_id, $data);
-            $redirect = admin_url('admin.php?page=hl-classrooms&message=updated');
+            $redirect = admin_url('admin.php?page=hl-classrooms&message=updated' . $cycle_param);
         } else {
             $result = $service->create_classroom($data);
             if (is_wp_error($result)) {
-                $redirect = admin_url('admin.php?page=hl-classrooms&action=new&message=error');
+                $redirect = admin_url('admin.php?page=hl-classrooms&action=new&message=error' . $cycle_param);
             } else {
-                $redirect = admin_url('admin.php?page=hl-classrooms&message=created');
+                $redirect = admin_url('admin.php?page=hl-classrooms&message=created' . $cycle_param);
             }
         }
 
@@ -313,8 +316,18 @@ class HL_Admin_Classrooms {
             "SELECT orgunit_id, name FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_type = 'school' AND status = 'active' ORDER BY name ASC"
         );
 
+        $cycles = $wpdb->get_results(
+            "SELECT cycle_id, cycle_name FROM {$wpdb->prefix}hl_cycle WHERE status != 'archived' ORDER BY cycle_name ASC"
+        );
+
         echo '<h1>' . esc_html($title) . '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-classrooms')) . '">&larr; ' . esc_html__('Back to Classrooms', 'hl-core') . '</a>';
+
+        $back_params = '';
+        $cycle_id_param = isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : ($is_edit && $classroom->cycle_id ? $classroom->cycle_id : 0);
+        if ($cycle_id_param) {
+            $back_params = '&cycle_id=' . $cycle_id_param;
+        }
+        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-classrooms' . $back_params)) . '">&larr; ' . esc_html__('Back to Classrooms', 'hl-core') . '</a>';
 
         echo '<form method="post" action="' . esc_url(admin_url('admin.php?page=hl-classrooms')) . '">';
         wp_nonce_field('hl_save_classroom', 'hl_classroom_nonce');
@@ -340,6 +353,20 @@ class HL_Admin_Classrooms {
         if ($schools) {
             foreach ($schools as $school) {
                 echo '<option value="' . esc_attr($school->orgunit_id) . '"' . selected($current_school, $school->orgunit_id, false) . '>' . esc_html($school->name) . '</option>';
+            }
+        }
+        echo '</select></td>';
+        echo '</tr>';
+
+        // Cycle
+        $current_cycle = $is_edit ? $classroom->cycle_id : (isset($_GET['cycle_id']) ? absint($_GET['cycle_id']) : '');
+        echo '<tr>';
+        echo '<th scope="row"><label for="cycle_id">' . esc_html__('Cycle', 'hl-core') . '</label></th>';
+        echo '<td><select id="cycle_id" name="cycle_id" required>';
+        echo '<option value="">' . esc_html__('-- Select Cycle --', 'hl-core') . '</option>';
+        if ($cycles) {
+            foreach ($cycles as $cycle) {
+                echo '<option value="' . esc_attr($cycle->cycle_id) . '"' . selected($current_cycle, $cycle->cycle_id, false) . '>' . esc_html($cycle->cycle_name) . '</option>';
             }
         }
         echo '</select></td>';
@@ -405,7 +432,12 @@ class HL_Admin_Classrooms {
         }
 
         echo '<h1>' . esc_html($classroom->classroom_name) . '</h1>';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-classrooms')) . '">&larr; ' . esc_html__('Back to Classrooms', 'hl-core') . '</a>';
+
+        $back_params = '';
+        if (isset($_GET['cycle_id']) && absint($_GET['cycle_id'])) {
+            $back_params = '&cycle_id=' . absint($_GET['cycle_id']);
+        }
+        echo '<a href="' . esc_url(admin_url('admin.php?page=hl-classrooms' . $back_params)) . '">&larr; ' . esc_html__('Back to Classrooms', 'hl-core') . '</a>';
 
         echo '<table class="form-table">';
         echo '<tr><th>' . esc_html__('School', 'hl-core') . '</th><td>' . esc_html($school ? $school->name : 'N/A') . '</td></tr>';
