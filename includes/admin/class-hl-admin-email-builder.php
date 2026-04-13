@@ -556,12 +556,12 @@ class HL_Admin_Email_Builder {
                     $context['cycle_name'] = $cycle->cycle_name;
                 }
 
-                // Look up assigned coach for this enrollment's user + cycle.
+                // Look up assigned coach: enrollment-scoped first, then school-scoped.
                 $coach_id = $wpdb->get_var( $wpdb->prepare(
                     "SELECT coach_user_id FROM {$wpdb->prefix}hl_coach_assignment
-                     WHERE mentor_user_id = %d AND cycle_id = %d AND status = 'active'
+                     WHERE scope_type = 'enrollment' AND scope_id = %d AND cycle_id = %d
                      LIMIT 1",
-                    $enrollment->user_id,
+                    $enrollment->enrollment_id,
                     $enrollment->cycle_id
                 ) );
                 if ( $coach_id ) {
