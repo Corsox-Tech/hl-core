@@ -420,8 +420,9 @@ class HL_Admin_Classrooms {
             $msg = sanitize_text_field($_GET['message']);
             $messages = array(
                 'assignment_created' => array('success', __('Teaching assignment added.', 'hl-core')),
-                'assignment_removed' => array('success', __('Teaching assignment removed.', 'hl-core')),
-                'assignment_error'   => array('error', __('Failed to add teaching assignment.', 'hl-core')),
+                'assignment_removed'    => array('success', __('Teaching assignment removed.', 'hl-core')),
+                'assignment_reassigned' => array('success', __('Teacher reassigned to this classroom.', 'hl-core')),
+                'assignment_error'      => array('error', __('Failed to add teaching assignment.', 'hl-core')),
                 'child_assigned'     => array('success', __('Child assigned to classroom.', 'hl-core')),
                 'child_unassigned'   => array('success', __('Child removed from classroom.', 'hl-core')),
                 'child_error'        => array('error', __('Failed to assign child.', 'hl-core')),
@@ -468,18 +469,32 @@ class HL_Admin_Classrooms {
                 wp_die(__('You do not have permission to perform this action.', 'hl-core'));
             }
 
-            $service = new HL_Classroom_Service();
-            $result = $service->create_teaching_assignment(array(
-                'enrollment_id'        => absint($_POST['enrollment_id']),
-                'classroom_id'         => absint($_POST['classroom_id']),
+            $service      = new HL_Classroom_Service();
+            $classroom_id = absint($_POST['classroom_id']);
+            $cycle_id     = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
+            $reassign_from = isset($_POST['reassign_from_classroom_id']) ? absint($_POST['reassign_from_classroom_id']) : 0;
+
+            $assignment_data = array(
                 'is_lead_teacher'      => !empty($_POST['is_lead_teacher']) ? 1 : 0,
                 'effective_start_date' => sanitize_text_field($_POST['effective_start_date']),
                 'effective_end_date'   => sanitize_text_field($_POST['effective_end_date']),
-            ));
+            );
 
-            $classroom_id = absint($_POST['classroom_id']);
-            $cycle_id    = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
-            $msg = is_wp_error($result) ? 'assignment_error' : 'assignment_created';
+            if ($reassign_from) {
+                $result = $service->reassign_teaching_assignment(
+                    absint($_POST['enrollment_id']),
+                    $reassign_from,
+                    $classroom_id,
+                    $assignment_data
+                );
+                $msg = is_wp_error($result) ? 'assignment_error' : 'assignment_reassigned';
+            } else {
+                $result = $service->create_teaching_assignment(array_merge($assignment_data, array(
+                    'enrollment_id' => absint($_POST['enrollment_id']),
+                    'classroom_id'  => $classroom_id,
+                )));
+                $msg = is_wp_error($result) ? 'assignment_error' : 'assignment_created';
+            }
 
             $redirect = admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom_id . '&cycle_id=' . $cycle_id . '&message=' . $msg);
             wp_redirect($redirect);
@@ -580,7 +595,7 @@ class HL_Admin_Classrooms {
 
         // Add form (only when cycle selected)
         if ($selected_cycle) {
-            // Get enrollments with Teacher role at this school for the selected cycle
+            // Get enrollments with Teacher role at this school for the selected cycle.
             $all_enrollments = $wpdb->get_results($wpdb->prepare(
                 "SELECT e.enrollment_id, e.roles, u.display_name, u.user_email
                  FROM {$wpdb->prefix}hl_enrollment e
@@ -591,42 +606,85 @@ class HL_Admin_Classrooms {
                 $classroom->school_id
             ));
 
-            // Filter to Teacher role
-            $available = array();
-            $assigned_enrollment_ids = array();
+            // Build list of enrollment IDs already assigned to THIS classroom in this cycle.
+            $assigned_here_ids = array();
             foreach ($assignments as $a) {
-                $assigned_enrollment_ids[] = (int) $a->enrollment_id;
+                if (isset($a->cycle_id) && (int) $a->cycle_id === (int) $selected_cycle) {
+                    $assigned_here_ids[] = (int) $a->enrollment_id;
+                }
             }
 
+            // Filter to Teacher role, exclude those already assigned here.
+            $available = array();
             foreach ($all_enrollments as $e) {
                 $roles = HL_Roles::parse_stored($e->roles);
                 if (!in_array('teacher', $roles, true)) {
                     continue;
                 }
-                if (in_array((int) $e->enrollment_id, $assigned_enrollment_ids)) {
+                if (in_array((int) $e->enrollment_id, $assigned_here_ids, true)) {
                     continue;
                 }
                 $available[] = $e;
             }
 
-            if (!empty($available)) {
+            // Query teachers assigned to OTHER classrooms at the same school in this cycle.
+            $reassignable = $wpdb->get_results($wpdb->prepare(
+                "SELECT ta.assignment_id, ta.classroom_id, ta.enrollment_id, cr.classroom_name, u.display_name, u.user_email
+                 FROM {$wpdb->prefix}hl_teaching_assignment ta
+                 JOIN {$wpdb->prefix}hl_enrollment e ON ta.enrollment_id = e.enrollment_id
+                 JOIN {$wpdb->prefix}hl_classroom cr ON ta.classroom_id = cr.classroom_id
+                 JOIN {$wpdb->users} u ON e.user_id = u.ID
+                 WHERE e.cycle_id = %d AND e.school_id = %d AND ta.classroom_id != %d
+                 ORDER BY u.display_name ASC",
+                $selected_cycle,
+                $classroom->school_id,
+                $classroom->classroom_id
+            ));
+
+            // Exclude teachers that are already assigned HERE from the reassignable list.
+            $reassignable_filtered = array();
+            foreach ($reassignable as $r) {
+                if (!in_array((int) $r->enrollment_id, $assigned_here_ids, true)) {
+                    $reassignable_filtered[] = $r;
+                }
+            }
+            $reassignable = $reassignable_filtered;
+
+            if (!empty($available) || !empty($reassignable)) {
                 echo '<h3>' . esc_html__('Add Teaching Assignment', 'hl-core') . '</h3>';
                 $form_url = admin_url('admin.php?page=hl-classrooms&action=view&id=' . $classroom->classroom_id . '&cycle_id=' . $selected_cycle);
-                echo '<form method="post" action="' . esc_url($form_url) . '">';
+                echo '<form method="post" action="' . esc_url($form_url) . '" id="hl-teaching-assignment-form">';
                 wp_nonce_field('hl_save_teaching_assignment', 'hl_teaching_assignment_nonce');
                 echo '<input type="hidden" name="classroom_id" value="' . esc_attr($classroom->classroom_id) . '" />';
                 echo '<input type="hidden" name="cycle_id" value="' . esc_attr($selected_cycle) . '" />';
+                echo '<input type="hidden" name="reassign_from_classroom_id" id="reassign_from_classroom_id" value="" />';
 
                 echo '<table class="form-table">';
 
-                // Teacher dropdown
+                // Teacher dropdown with optgroups
                 echo '<tr>';
                 echo '<th scope="row"><label for="enrollment_id">' . esc_html__('Teacher', 'hl-core') . '</label></th>';
-                echo '<td><select id="enrollment_id" name="enrollment_id" required>';
+                echo '<td><select id="enrollment_id" name="enrollment_id" required onchange="hlUpdateReassignField(this)">';
                 echo '<option value="">' . esc_html__('-- Select Teacher --', 'hl-core') . '</option>';
-                foreach ($available as $t) {
-                    echo '<option value="' . esc_attr($t->enrollment_id) . '">' . esc_html($t->display_name . ' (' . $t->user_email . ')') . '</option>';
+
+                if (!empty($available)) {
+                    echo '<optgroup label="' . esc_attr__('Available Teachers', 'hl-core') . '">';
+                    foreach ($available as $t) {
+                        echo '<option value="' . esc_attr($t->enrollment_id) . '" data-reassign="">' . esc_html($t->display_name . ' (' . $t->user_email . ')') . '</option>';
+                    }
+                    echo '</optgroup>';
                 }
+
+                if (!empty($reassignable)) {
+                    echo '<optgroup label="' . esc_attr__('Reassign from another classroom', 'hl-core') . '">';
+                    foreach ($reassignable as $r) {
+                        echo '<option value="' . esc_attr($r->enrollment_id) . '" data-reassign="' . esc_attr($r->classroom_id) . '" data-from-name="' . esc_attr($r->classroom_name) . '">'
+                            . esc_html($r->display_name . ' (currently: ' . $r->classroom_name . ')')
+                            . '</option>';
+                    }
+                    echo '</optgroup>';
+                }
+
                 echo '</select></td>';
                 echo '</tr>';
 
@@ -641,7 +699,6 @@ class HL_Admin_Classrooms {
                 echo '<th scope="row"><label for="effective_start_date">' . esc_html__('Start Date', 'hl-core') . '</label></th>';
                 echo '<td><input type="date" id="effective_start_date" name="effective_start_date" /></td>';
                 echo '</tr>';
-
                 echo '<tr>';
                 echo '<th scope="row"><label for="effective_end_date">' . esc_html__('End Date', 'hl-core') . '</label></th>';
                 echo '<td><input type="date" id="effective_end_date" name="effective_end_date" /></td>';
@@ -650,10 +707,36 @@ class HL_Admin_Classrooms {
                 echo '</table>';
                 submit_button(__('Add Assignment', 'hl-core'), 'primary');
                 echo '</form>';
+
+                // JavaScript: update hidden field + confirmation on reassign
+                echo '<script>
+                function hlUpdateReassignField(select) {
+                    var opt = select.options[select.selectedIndex];
+                    document.getElementById("reassign_from_classroom_id").value = opt.getAttribute("data-reassign") || "";
+                }
+                document.getElementById("hl-teaching-assignment-form").addEventListener("submit", function(e) {
+                    var reassignFrom = document.getElementById("reassign_from_classroom_id").value;
+                    if (reassignFrom) {
+                        var opt = document.getElementById("enrollment_id").options[document.getElementById("enrollment_id").selectedIndex];
+                        var fromName = opt.getAttribute("data-from-name") || "another classroom";
+                        if (!confirm("This will reassign " + opt.text.split(" (currently")[0] + " from " + fromName + " to this classroom. Continue?")) {
+                            e.preventDefault();
+                        }
+                    }
+                });
+                </script>';
+
             } elseif (empty($all_enrollments)) {
                 echo '<p>' . esc_html__('No active enrollments found for this cycle and school.', 'hl-core') . '</p>';
             } else {
-                echo '<p>' . esc_html__('All available teachers are already assigned.', 'hl-core') . '</p>';
+                // All teachers assigned here and no reassignable teachers from other classrooms.
+                echo '<p>' . wp_kses(
+                    sprintf(
+                        __('No teachers available to assign. <a href="%s">Create an enrollment</a> for this school first.', 'hl-core'),
+                        esc_url(admin_url('admin.php?page=hl-enrollments'))
+                    ),
+                    array('a' => array('href' => array()))
+                ) . '</p>';
             }
         } else {
             echo '<p class="description">' . esc_html__('Select a cycle above to add teaching assignments.', 'hl-core') . '</p>';
