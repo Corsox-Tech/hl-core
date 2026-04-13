@@ -240,7 +240,7 @@ Pick up from the first unchecked `[ ]` item each session.
 
 **Track gate results (Track 3 — MERGED to main via PR #1):**
 - ✅ `wp hl-core email-v2-test`: **63/63 PASS** (roles 12 + resolver 27 + audit 4 + schema 6 + drafts 6 + cron 5 + deliverability 3)
-- ✅ `wp hl-core smoke-test`: **2 failures, both pre-existing `hl_user_profile/completion_pct` baseline** — under the 6-failure ceiling from the dispatch. **3 new regressions from the read-path hole eliminated inline.**
+- ✅ `wp hl-core smoke-test`: **0 failures** (the 2 pre-existing `hl_user_profile/completion_pct` failures were fixed in commit `5090b83` — stale column names `completion_pct`→`cycle_completion_percent` and `computed_at`→`last_computed_at`). **3 new regressions from the read-path hole eliminated inline.**
 - ✅ **PR merged** — `610a047` via Corsox-Tech/hl-core#1.
 - ✅ **Browser verified** via Playwright (2026-04-12): Task 7 date pickers render with aria-labels, inverted-date swap warning fires correctly (DB confirmed `available_from < available_to`), Task 8 draft envelope unwraps to inner payload string (JS `config.draftData` is string not envelope), Restore banner appears and repopulates builder, Site Health shows "HL Email daily cron has run recently" in the passed-tests accordion.
 
@@ -286,6 +286,12 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] Task E: Preview modal (§2.3) — fullscreen overlay, device toggles, srcdoc, CSP, enrollment search
 - Track gate: email-v2-test 63/63, Track 1 16/16, test-email-renderer 18/18, smoke-test 2 pre-existing
 - Browser verification: pending manual UI pass at PR review time
+
+### Feature Tracker → GitHub Sync (April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-13-ticket-github-sync-design.md` | **Plan:** `docs/superpowers/plans/2026-04-13-ticket-github-sync.md`
+- [x] **Schema rev 38** — `github_issue_id` column on `hl_ticket`.
+- [x] **CLI command** — `wp hl-core sync-tickets-to-github [--dry-run]`. Creates issues, closes resolved, reopens active. Uses `gh` CLI.
+- [ ] **Deployed to test** — Pending.
 
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders

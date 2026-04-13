@@ -219,6 +219,9 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **LD enrollment sync** — automatic `ld_update_course_access()` on 3 triggers: pathway assignment, enrollment creation (role-based fallback), new LD component added to pathway. Language-aware via course catalog. Idempotent.
 - CLI: `wp hl-core sync-ld-enrollment --cycle_id=X [--dry-run]` — retroactive bulk sync for existing enrollments
 
+### Feature Tracker → GitHub Sync
+- **`wp hl-core sync-tickets-to-github [--dry-run]`** — One-way sync from Feature Tracker (`hl_ticket`) to GitHub Issues on `Corsox-Tech/hl-core`. Creates issues for unsynced non-draft tickets with type/priority/category labels, closes issues for resolved/closed tickets, reopens issues for tickets that return to active status. Requires `gh` CLI authenticated. `--dry-run` previews without API calls or DB writes.
+
 ### BuddyBoss Integration
 - **HL_BuddyBoss_Integration** service (`includes/integrations/class-hl-buddyboss-integration.php`)
 - **Custom HL Sidebar** — Dark navy sidebar replacing BuddyBoss BuddyPanel:
