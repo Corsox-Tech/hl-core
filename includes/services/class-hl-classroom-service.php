@@ -187,6 +187,58 @@ class HL_Classroom_Service {
         return (bool) $result;
     }
 
+    /**
+     * Reassign a teaching assignment from one classroom to another (atomic).
+     *
+     * @param int   $enrollment_id      The teacher's enrollment ID.
+     * @param int   $old_classroom_id   Classroom to remove from.
+     * @param int   $new_classroom_id   Classroom to assign to.
+     * @param array $data               Optional keys: is_lead_teacher, effective_start_date, effective_end_date.
+     * @return int|WP_Error New assignment_id on success, WP_Error on failure.
+     */
+    public function reassign_teaching_assignment($enrollment_id, $old_classroom_id, $new_classroom_id, $data = array()) {
+        global $wpdb;
+
+        // Look up the old assignment.
+        $old_assignment = $wpdb->get_row($wpdb->prepare(
+            "SELECT assignment_id FROM {$wpdb->prefix}hl_teaching_assignment
+             WHERE enrollment_id = %d AND classroom_id = %d",
+            $enrollment_id,
+            $old_classroom_id
+        ));
+
+        if (!$old_assignment) {
+            return new WP_Error('not_found', __('Existing teaching assignment not found.', 'hl-core'));
+        }
+
+        $wpdb->query('START TRANSACTION');
+
+        // Delete old assignment (with audit + hook).
+        $deleted = $this->delete_teaching_assignment($old_assignment->assignment_id);
+
+        if (!$deleted) {
+            $wpdb->query('ROLLBACK');
+            return new WP_Error('delete_failed', __('Failed to remove old teaching assignment.', 'hl-core'));
+        }
+
+        // Create new assignment (with audit + hook).
+        $new_assignment_id = $this->create_teaching_assignment(array(
+            'enrollment_id'        => absint($enrollment_id),
+            'classroom_id'         => absint($new_classroom_id),
+            'is_lead_teacher'      => !empty($data['is_lead_teacher']) ? 1 : 0,
+            'effective_start_date' => isset($data['effective_start_date']) ? $data['effective_start_date'] : '',
+            'effective_end_date'   => isset($data['effective_end_date']) ? $data['effective_end_date'] : '',
+        ));
+
+        if (is_wp_error($new_assignment_id)) {
+            $wpdb->query('ROLLBACK');
+            return $new_assignment_id;
+        }
+
+        $wpdb->query('COMMIT');
+        return $new_assignment_id;
+    }
+
     // =========================================================================
     // Child Classroom Assignment CRUD
     // =========================================================================
