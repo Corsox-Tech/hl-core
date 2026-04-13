@@ -305,3 +305,46 @@ All 32 Track 3 tasks committed on `feature/email-v2-track3-backend`:
   - **Task 8 draft envelope:** Seeded a draft for user 237 (System Administrator) via WP-CLI. Builder loaded with the Restore banner visible ("An unsaved draft was found. Restore / Discard"), `config.draftData` is a string (not the envelope array — inner payload correctly unwrapped server-side). Clicked Restore: subject populated to "Task 8 Verification Draft", block count = 1. Banner dismissed post-restore.
   - **Task 18 Site Health:** "HL Email daily cron has run recently" appears in the passed-tests accordion with badge "HL Email".
 
+### 2026-04-11 — Track 2 Task A: Scaffolding (registry, fixtures, test harness)
+- Created `tests/test-email-block-renderer.php` (~160 lines): 11 test methods, `assert_contains`/`assert_not_contains` helpers, fixture loader from JSON. Text + columns split assertions.
+- Created `includes/cli/class-hl-cli-test-email-renderer.php`: thin CLI wrapper registering `wp hl-core test-email-renderer`.
+- Created `docs/superpowers/fixtures/email-track2-samples.json`: 7 fixtures (text default, center, right+size, invalid, columns 60/40, 33/67, invalid split).
+- Modified `hl-core.php`: added require for CLI wrapper in WP_CLI block.
+- Modified `assets/js/admin/email-builder.js`: added `sortableRegistry[]`, `undoStack[]`, `redoStack[]`, `MAX_UNDO=50`, `autosaveSuppressUntil`, stub `pushUndo()`, `updateUndoButtons()`, `destroyAllSortables()`. Wired registry into `renderAllBlocks()` and `initSortable()` with filter/handle changes for nested block collision avoidance (A.1.1).
+- Red phase verified: 7/18 pass, 11 fail (renderer not yet updated).
+- Commit: `34f118f`.
+
+### 2026-04-11 — Track 2 Task B: Text block alignment + font size (§2.4)
+- Modified `includes/services/class-hl-email-block-renderer.php`: rewrote `render_text()` from `<div>` to `<table><tr><td>` wrapper with inline `text-align` + `font-size` on `<td>`, always-emitted inner `<span style="font-size:Npx">` for Outlook Word engine (A.3.1). Align allowlist: left/center/right. Size clamped 10..48. Default left = no alignment emitted.
+- Modified `assets/js/admin/email-builder.js`: replaced `case 'text':` with alignment buttons (3 Dashicons), font-size dropdown (6 presets: 12/14/16/18/20/24), text snapshot debounce (blur/2s idle). `pushUndo()` wired into bold/italic/link and alignment/size handlers.
+- Modified `includes/admin/class-hl-admin-email-builder.php`: added `wp_enqueue_style('dashicons')`.
+- Modified `assets/css/admin.css`: added Track 2 section with `.hl-eb-mini-sep`, `.hl-eb-align-group`, `.hl-eb-align`, `.hl-eb-size-select`.
+- Renderer test: 12/18 pass (all text green, columns still pending).
+- Commit: `e086e9f`.
+
+### 2026-04-11 — Track 2 Task C: Undo / Redo (§2.2)
+- Modified `includes/admin/class-hl-admin-email-builder.php`: replaced toolbar with undo/redo buttons + Preview placeholder, added undo-clear notice with per-user-per-template meta, added `ajax_dismiss_undo_notice()` handler, added `previewNonce` to JS config.
+- Modified `assets/js/admin/email-builder.js`: full `undo()`, `redo()`, `flushPendingTextSnapshot()` replacing stubs. Text block snapshot rewired to global `window._hlPendingTextSnap` slot. `pushUndo()` wired into all 9 mutation sites (add, delete, dup, sortable onEnd, image select, button label/url, color picker, spacer drag, columns split). Keyboard: Ctrl+Z/Y/Shift+Z with contenteditable passthrough. Save clears undo stack with one-time notice (A.7.8). `markDirty()` respects `autosaveSuppressUntil` (A.2.4). Safari `beforeinput historyUndo` flush (A.2.1).
+- Modified `assets/css/admin.css`: `.hl-eb-undo-group`, `.hl-eb-undo-notice`, `.hl-eb-undo-notice-dismiss`.
+- Commit: `7f2fd63`.
+
+### 2026-04-11 — Track 2 Task D: Columns block editing (§2.1)
+- Modified `includes/services/class-hl-email-block-renderer.php`: replaced `render_columns()` if/else with `get_column_widths()` switch supporting 5 splits. Added `is_array($sub) && !empty($sub['type'])` guard on sub-block iteration.
+- Modified `assets/js/admin/email-builder.js` (~370 new lines): `renderColumnsBlock()` with 5-split select, `renderColumnContainer()` with per-column Sortable (distinct group names A.1.1), `renderNestedBlock()` + `NestedBlockShim` proxy, `renderNestedContent()` (5 block types), `nestedCoords()`, `deleteNestedBlock()`, `duplicateNestedBlock()`, `addNestedBlock()`, `moveNestedBlock()` (A.2.5/A.6.9), `showMiniPalette()` with disabled Columns button (A.7.9), `closeMiniPalette()`, `getColumnWidthsJS()`, `makeDefaultBlock()`. `renderAllBlocks()` replaced with scroll + focus preservation (A.2.1). Top-level delete/dup guarded against nested class collision.
+- Modified `assets/css/admin.css`: `.hl-eb-col-*`, `.hl-eb-block-nested`, `.hl-eb-block-toolbar-nested`, `.hl-eb-block-type-nested`, `.hl-eb-text-editor-nested`, `.hl-eb-mini-palette*`.
+- Renderer test: 18/18 ALL PASS.
+- Commit: `ec77ae9`.
+
+### 2026-04-11 — Track 2 Task E: Preview modal (§2.3)
+- Modified `includes/admin/class-hl-admin-email-builder.php`: rewrote `ajax_preview_render()` to accept POST + GET, added `$dark` param with dark wrapper + `<meta name="color-scheme">` injection (A.2.3), added CSP + X-Content-Type-Options + X-Frame-Options headers (A.6.5), `mb_encode_mimeheader()` for Unicode subjects (A.1.4). Added modal HTML skeleton with `sandbox="allow-same-origin allow-popups"` (A.1.3), device toggle buttons, enrollment search input + results list, loading skeleton, close button.
+- Modified `assets/js/admin/email-builder.js` (~150 new lines): `modalState` object, `openPreviewModal()`, `closePreviewModal()`, `refreshModalPreview()` with `fetch()` POST + `srcdoc` assignment (A.2.2), `setModalDevice()`, `trapModalTab()` focus trap, `modalSearchEnrollments()` with 300ms debounce. All bound in `bindEvents()` with Escape precedence (search dropdown first, then modal — A.3.17).
+- Modified `assets/css/admin.css`: `.hl-eb-modal-*` overlay, header, controls, devices, search, close, body, iframe. `.hl-eb-skeleton-line` with `hlEbSkeletonShimmer` keyframe animation (A.6.15).
+- Commit: `c036127`.
+
+### 2026-04-11 — Track 2 completion gate
+- email-v2-test: 63/63 PASS
+- Track 1 tests: 16/16 PASS
+- test-email-renderer: 18/18 PASS
+- smoke-test: 2 failures (both pre-existing `hl_user_profile/completion_pct` baseline)
+- All 5 tasks (A–E) committed on `feature/email-v2-track2-builder`.
+
