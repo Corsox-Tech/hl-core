@@ -75,5 +75,6 @@ Claude Code launches from this directory (plugin root). GitHub: `Corsox-Tech/hl-
 ## On-Demand References
 - **Deployment, SSH, WP-CLI commands:** read `.claude/skills/deploy.md`
 - **Domain architecture, roles, forms, control groups:** read `.claude/skills/architecture.md`
+- **Security posture, hardening, incident log, checklists:** read `.claude/skills/security.md`
 - **Full implementation details, architecture tree:** read `README.md`
 - **Doc file index:** in `.claude/skills/architecture.md` (top section)

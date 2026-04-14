@@ -324,7 +324,7 @@ class HL_Coaching_Service {
             return false;
         }
 
-        // Mark the linked component as complete on attended OR missed.
+        // Recompute component state on attended or missed.
         if (in_array($status, array('attended', 'missed'), true)) {
             $session = $wpdb->get_row($wpdb->prepare(
                 "SELECT cycle_id, mentor_enrollment_id, component_id FROM {$wpdb->prefix}hl_coaching_session WHERE session_id = %d",
@@ -332,11 +332,11 @@ class HL_Coaching_Service {
             ));
 
             if ($session) {
-                // If session has a component_id, mark that specific component complete.
-                if (!empty($session->component_id)) {
+                // Only mark the linked component complete for attended — missed should not complete.
+                if ($status === 'attended' && !empty($session->component_id)) {
                     $this->mark_component_complete($session->mentor_enrollment_id, $session->component_id);
                 }
-                // Also run the legacy rollup for backward compat.
+                // Rollup recalculates based on attended count, safe for both statuses.
                 $this->update_coaching_component_state($session->mentor_enrollment_id, $session->cycle_id);
             }
         }

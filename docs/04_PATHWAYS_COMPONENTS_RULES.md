@@ -173,8 +173,9 @@ See doc 06 for full details on instance generation rules and the child assessmen
 ### 3.2.4 Coaching Session Attendance Component
 - component_type = "coaching_session_attendance"
 Completion:
-- 0% until a Coach marks attendance/complete for the required session(s)
-- 100% after completion
+- 0% until a Coach marks attendance as "attended" for the required session(s)
+- 100% when session_status = "attended" (only "attended" triggers completion — "missed" does not)
+- Coach can also use admin "Mark Complete" override
 
 Notes:
 - Coaching sessions are typically for Mentors.
@@ -234,8 +235,9 @@ A structured reflective practice session between a Mentor and a Teacher. The RP 
 Form submissions (RP Notes and Action Plan) are stored in `hl_rp_session_submission` with instrument references (`coaching_rp_notes`, `mentoring_rp_notes`, `coaching_action_plan`, `mentoring_action_plan`).
 
 Completion:
-- 0% until required form submissions are complete
-- 100% when all required submissions for the session are submitted
+- Mentor's component: 0% → 100% when mentor submits RP Notes (Action Plan submission by teacher does not affect this)
+- Teacher's component: 0% → 100% when teacher submits Action Plan
+- Coach can also manually mark complete via admin override
 
 Notes:
 - Present in all pathway types: Teacher pathways (paired with Self-Reflection), Mentor pathways (after mentor courses), Leader/Streamlined pathways (not present — leaders have Classroom Visits instead)

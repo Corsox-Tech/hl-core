@@ -545,8 +545,9 @@ The RP session page provides **role-based views**:
 - Read-only view of completed RP Notes and Action Plan submissions
 
 ## 5.5.4 Completion Rule
-- 0% until required form submissions are complete
-- 100% when the session is marked completed
+- Mentor's component: 0% → 100% when mentor submits RP Notes (regardless of Action Plan)
+- Teacher's component: 0% → 100% when teacher submits Action Plan
+- Coach can also manually mark complete during check-ins (admin override)
 
 ---
 

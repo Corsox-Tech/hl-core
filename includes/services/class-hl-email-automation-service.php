@@ -711,10 +711,16 @@ class HL_Email_Automation_Service {
     public function run_daily_checks() {
         global $wpdb;
 
-        // Load all active cycles.
-        $cycles = $wpdb->get_results(
-            "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE status = 'active'"
-        );
+        // Load all active cycles within date bounds.
+        $today_daily = wp_date( 'Y-m-d' );
+        $cycles = $wpdb->get_results( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_cycle
+             WHERE status = 'active'
+               AND start_date <= %s
+               AND (end_date IS NULL OR end_date >= %s)",
+            $today_daily,
+            $today_daily
+        ) );
         if ( empty( $cycles ) ) {
             return;
         }
@@ -764,9 +770,15 @@ class HL_Email_Automation_Service {
     public function run_hourly_checks() {
         global $wpdb;
 
-        $cycles = $wpdb->get_results(
-            "SELECT * FROM {$wpdb->prefix}hl_cycle WHERE status = 'active'"
-        );
+        $today_hourly = wp_date( 'Y-m-d' );
+        $cycles = $wpdb->get_results( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_cycle
+             WHERE status = 'active'
+               AND start_date <= %s
+               AND (end_date IS NULL OR end_date >= %s)",
+            $today_hourly,
+            $today_hourly
+        ) );
         if ( empty( $cycles ) ) {
             return;
         }
