@@ -204,6 +204,20 @@ class HL_Email_Queue_Processor {
         // Resolve deferred tags in body_html.
         $body_html = $this->resolve_deferred_tags( $row->body_html, $row->recipient_user_id );
 
+        // Temporary safety gate — restrict sends to internal domains during testing.
+        // Remove this gate once email system is fully validated.
+        if ( ! $this->is_domain_allowed( $row->recipient_email ) ) {
+            $this->log_blocked_send( $row->queue_id, $row->recipient_email, 'domain_not_allowed' );
+            $wpdb->update(
+                $table,
+                array( 'status' => 'blocked', 'sent_at' => gmdate( 'Y-m-d H:i:s' ) ),
+                array( 'queue_id' => $row->queue_id ),
+                array( '%s', '%s' ),
+                array( '%d' )
+            );
+            return;
+        }
+
         // Send via wp_mail.
         $headers = $this->build_headers( $row );
 
@@ -396,6 +410,33 @@ class HL_Email_Queue_Processor {
             'q'      => (int) $row->queue_id,
             't'      => $token,
         ), home_url( '/' ) );
+    }
+
+    // =========================================================================
+    // Domain Allowlist (Temporary Safety Gate — C.1)
+    // =========================================================================
+
+    /**
+     * Check if an email domain is on the temporary allowlist.
+     *
+     * @param string $email Email address.
+     * @return bool True if the domain is allowed.
+     */
+    public function is_domain_allowed( $email ) {
+        $allowed_domains = array( 'housmanlearning.com', 'corsox.com', 'yopmail.com' );
+        $domain = substr( strrchr( $email, '@' ), 1 );
+        return in_array( strtolower( $domain ), $allowed_domains, true );
+    }
+
+    private function log_blocked_send( $queue_id, $to, $reason ) {
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( 'email_send_blocked', array(
+                'entity_type' => 'email_queue',
+                'entity_id'   => $queue_id,
+                'email'       => $to,
+                'reason'      => $reason,
+            ) );
+        }
     }
 
     // =========================================================================
