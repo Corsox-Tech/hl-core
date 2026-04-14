@@ -178,7 +178,41 @@ class HL_Classroom_Service {
                 'before_data' => $before,
             ));
 
-            // Trigger child assessment instance auto-generation
+            // Invalidate non-submitted child assessment instances for the old classroom.
+            // Submitted instances are research data and must never be touched.
+            if (!empty($before['cycle_id']) && !empty($before['enrollment_id']) && !empty($before['classroom_id'])) {
+                $stale_instances = $wpdb->get_col($wpdb->prepare(
+                    "SELECT instance_id FROM {$wpdb->prefix}hl_child_assessment_instance
+                     WHERE cycle_id = %d AND enrollment_id = %d AND classroom_id = %d
+                       AND status != 'submitted'",
+                    $before['cycle_id'],
+                    $before['enrollment_id'],
+                    $before['classroom_id']
+                ));
+
+                if (!empty($stale_instances)) {
+                    $ids_in = implode(',', array_map('intval', $stale_instances));
+
+                    // Delete child rows for stale instances.
+                    $wpdb->query("DELETE FROM {$wpdb->prefix}hl_child_assessment_childrow WHERE instance_id IN ({$ids_in})");
+
+                    // Delete the stale instances.
+                    $wpdb->query("DELETE FROM {$wpdb->prefix}hl_child_assessment_instance WHERE instance_id IN ({$ids_in})");
+
+                    HL_Audit_Service::log('child_assessment.stale_instances_removed', array(
+                        'entity_type' => 'child_assessment_instance',
+                        'after_data'  => array(
+                            'removed_instance_ids' => $stale_instances,
+                            'reason'               => 'teaching_assignment_deleted',
+                            'cycle_id'             => $before['cycle_id'],
+                            'enrollment_id'        => $before['enrollment_id'],
+                            'old_classroom_id'     => $before['classroom_id'],
+                        ),
+                    ));
+                }
+            }
+
+            // Trigger child assessment instance auto-generation for new assignments.
             if (!empty($before['cycle_id'])) {
                 do_action('hl_core_teaching_assignment_changed', (int) $before['cycle_id']);
             }
