@@ -90,11 +90,8 @@ class HL_Admin_Emails {
                 'group'   => 'Enrollment',
                 'type'    => 'enum',
                 'options' => array(
-                    'active'    => 'Active',
-                    'warning'   => 'Warning',
-                    'withdrawn' => 'Withdrawn',
-                    'completed' => 'Completed',
-                    'expired'   => 'Expired',
+                    'active'   => 'Active',
+                    'inactive' => 'Inactive',
                 ),
             ),
             'enrollment.roles' => array(
