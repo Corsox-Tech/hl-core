@@ -1776,6 +1776,12 @@
     border-color: var(--eb-accent);
 }
 
+.hl-eb-tag-item.hl-eb-tag-copied {
+    background: var(--hl-a-accent, #2ECC71);
+    color: #fff;
+    border-color: var(--hl-a-accent, #2ECC71);
+}
+
 /* ---- Builder: Preview ---- */
 .hl-eb-preview-toggles {
     display: flex;

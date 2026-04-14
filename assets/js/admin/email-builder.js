@@ -773,11 +773,44 @@
 
         // Merge tag click-to-copy.
         $(document).on('click', '.hl-eb-tag-item', function () {
-            var tag = '{{' + $(this).data('tag') + '}}';
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(tag);
+            var $el  = $(this);
+
+            // Double-click guard — prevent re-entry while "Copied!" is showing.
+            if ($el.hasClass('hl-eb-tag-copied')) return;
+
+            var tag  = '{{' + $el.data('tag') + '}}';
+            var orig = $el.text();
+
+            function showCopied() {
+                $el.text('Copied!').addClass('hl-eb-tag-copied');
+                setTimeout(function () {
+                    $el.text(orig).removeClass('hl-eb-tag-copied');
+                }, 1200);
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(tag).then(showCopied).catch(function () {
+                    fallbackCopy(tag);
+                    showCopied();
+                });
+            } else {
+                fallbackCopy(tag);
+                showCopied();
             }
         });
+
+        // Clipboard fallback using deprecated document.execCommand('copy').
+        // Required for: older Safari, non-HTTPS contexts, iframe sandboxes.
+        function fallbackCopy(text) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
 
         // Undo / redo buttons.
         $('#hl-eb-undo').on('click', function () { undo(); });
