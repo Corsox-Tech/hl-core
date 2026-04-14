@@ -617,6 +617,13 @@ class HL_Admin_Email_Builder {
             // the Desktop/Mobile preview. Uses exact string match via the
             // renderer's constant — no fragile regex for nested braces.
             $html = str_replace( HL_Email_Block_Renderer::DARK_MODE_CSS, '', $html );
+
+            // Force browser to treat preview iframe as light-mode-only.
+            $html = preg_replace(
+                '#<head([^>]*)>#i',
+                '<head$1><meta name="color-scheme" content="light only">',
+                $html, 1
+            );
         }
 
         // A.6.5 — CSP + security headers for the preview iframe.

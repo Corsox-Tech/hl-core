@@ -20,7 +20,7 @@ class HL_Email_Block_Renderer {
     const MAX_WIDTH = 600;
 
     /** Dark mode CSS block — extracted as constant so the preview can strip it by exact match. */
-    const DARK_MODE_CSS = '@media (prefers-color-scheme:dark){body,.hl-email-body{background-color:#1a1a2e!important}.hl-email-card{background-color:#16213e!important}.hl-email-text{color:#e0e0e0!important}.hl-email-footer{background-color:#0f0f23!important}.hl-email-footer-text{color:#9CA3AF!important}}';
+    const DARK_MODE_CSS = '@media (prefers-color-scheme:dark){body,.hl-email-body{background-color:#1a1a2e!important}.hl-email-card{background-color:#16213e!important}.hl-email-text,.hl-email-text-span{color:#e0e0e0!important}.hl-email-footer{background-color:#0f0f23!important}.hl-email-footer-text{color:#9CA3AF!important}}';
 
     /** @var self|null */
     private static $instance = null;
@@ -222,7 +222,7 @@ class HL_Email_Block_Renderer {
 
         // A.3.1 — Outlook Word engine ignores <td> font-size. Wrap content in a <span>
         // that emits font-size on the inline element. Always emit (cheap, harmless for non-Outlook).
-        $open_span  = '<span style="font-size:' . $size . 'px;line-height:1.6;color:#374151;">';
+        $open_span  = '<span class="hl-email-text-span" style="font-size:' . $size . 'px;line-height:1.6;color:#374151;">';
         $close_span = '</span>';
 
         return '<table role="presentation" cellpadding="0" cellspacing="0" width="100%">'
