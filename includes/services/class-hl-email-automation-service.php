@@ -29,6 +29,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  */
 class HL_Email_Automation_Service {
 
+    /** Max rows per cron trigger query. Sizing: 200 enrollments x 25 components = 5000. */
+    const CRON_QUERY_ROW_CAP = 5000;
+
     /** @var self|null */
     private static $instance = null;
 
@@ -727,16 +730,24 @@ class HL_Email_Automation_Service {
 
         // Load all daily cron workflows.
         $daily_triggers = array(
-            'cron:cv_window_7d',
-            'cron:cv_overdue_1d',
-            'cron:rp_window_7d',
-            'cron:coaching_window_7d',
-            'cron:coaching_session_5d',
+            // New generic keys:
+            'cron:component_upcoming',
+            'cron:component_overdue',
+            // Note: cron:session_upcoming is intentionally NOT here — it runs hourly
+            // because session reminders (e.g., 1h before) need sub-day precision.
+            // See $hourly_triggers in run_hourly_checks().
+            // Retained non-offset keys:
             'cron:coaching_pre_end',
             'cron:action_plan_24h',
             'cron:session_notes_24h',
             'cron:low_engagement_14d',
             'cron:client_success',
+            // Legacy aliases (kept until next release for in-flight workflows):
+            'cron:cv_window_7d',
+            'cron:cv_overdue_1d',
+            'cron:rp_window_7d',
+            'cron:coaching_window_7d',
+            'cron:coaching_session_5d',
         );
 
         $placeholders = implode( ',', array_fill( 0, count( $daily_triggers ), '%s' ) );
@@ -784,6 +795,8 @@ class HL_Email_Automation_Service {
         }
 
         $hourly_triggers = array(
+            'cron:session_upcoming',
+            // Legacy aliases (kept until next release):
             'cron:session_24h',
             'cron:session_1h',
         );
@@ -852,7 +865,7 @@ class HL_Email_Automation_Service {
         $scheduled_at    = $this->compute_scheduled_at( $workflow );
 
         foreach ( $cycles as $cycle ) {
-            $users = $this->get_cron_trigger_users( $trigger_key, $cycle );
+            $users = $this->get_cron_trigger_users( $trigger_key, $cycle, $workflow );
             if ( empty( $users ) ) {
                 continue;
             }
@@ -960,13 +973,76 @@ class HL_Email_Automation_Service {
     }
 
     /**
+     * NOT EXISTS subquery for component-type-specific completion check.
+     *
+     * Used by cron:component_upcoming and cron:component_overdue to exclude
+     * users who have already completed the component.
+     *
+     * @param string $component_type Component type slug.
+     * @param object $wpdb           Global wpdb instance.
+     * @return string SQL NOT EXISTS clause (empty string if no check applicable).
+     */
+    private function component_completion_subquery( $component_type, $wpdb ) {
+        switch ( $component_type ) {
+            case 'classroom_visit':
+                return "AND NOT EXISTS (
+                    SELECT 1
+                    FROM {$wpdb->prefix}hl_classroom_visit cv
+                    LEFT JOIN {$wpdb->prefix}hl_classroom_visit_submission cvs
+                        ON cvs.classroom_visit_id = cv.classroom_visit_id
+                       AND cvs.status = 'submitted'
+                    WHERE cv.cycle_id = en.cycle_id
+                      AND (cv.leader_enrollment_id = en.enrollment_id OR cv.teacher_enrollment_id = en.enrollment_id)
+                      AND cvs.submission_id IS NOT NULL
+                )";
+
+            case 'reflective_practice_session':
+                return "AND NOT EXISTS (
+                    SELECT 1
+                    FROM {$wpdb->prefix}hl_rp_session rps
+                    LEFT JOIN {$wpdb->prefix}hl_rp_session_submission rpss
+                        ON rpss.rp_session_id = rps.rp_session_id
+                       AND rpss.status = 'submitted'
+                    WHERE rps.cycle_id = en.cycle_id
+                      AND rpss.submitted_by_user_id = en.user_id
+                      AND rpss.submission_id IS NOT NULL
+                )";
+
+            case 'coaching_session_attendance':
+                return "AND NOT EXISTS (
+                    SELECT 1
+                    FROM {$wpdb->prefix}hl_coaching_session cs_check
+                    WHERE cs_check.component_id = c.component_id
+                      AND cs_check.mentor_enrollment_id = en.enrollment_id
+                      AND cs_check.session_status IN ('scheduled','attended')
+                )";
+
+            // Intentionally no completion check for: learndash_course, self_reflection,
+            // teacher_self_assessment, child_assessment.
+            //
+            // Rationale: these are NOT one-time events. "Your course is due soon" is valid
+            // even if the user has started (but not completed) the course. Self-reflections
+            // and assessments may have multiple submissions or partial states that don't
+            // map cleanly to "completed." Only the three event-based types above (CV, RP,
+            // coaching) are true one-time submissions where a "you still need to do this"
+            // reminder after completion would be incorrect.
+            //
+            // If a completion guard is needed for these types later, add the subquery here
+            // with the appropriate table joins.
+            default:
+                return '';
+        }
+    }
+
+    /**
      * Get users qualifying for a cron-based trigger.
      *
-     * @param string $trigger_key Cron trigger key.
-     * @param object $cycle       Cycle row.
+     * @param string      $trigger_key Cron trigger key.
+     * @param object      $cycle       Cycle row.
+     * @param object|null $workflow    Workflow row (needed for configurable offset triggers).
      * @return array Array of [ user_id, enrollment_id, entity_id, entity_type ].
      */
-    private function get_cron_trigger_users( $trigger_key, $cycle ) {
+    private function get_cron_trigger_users( $trigger_key, $cycle, $workflow = null ) {
         global $wpdb;
         $cycle_id = (int) $cycle->cycle_id;
 
@@ -979,85 +1055,215 @@ class HL_Email_Automation_Service {
                      LEFT JOIN {$wpdb->usermeta} um ON um.user_id = e.user_id AND um.meta_key = 'last_login'
                      WHERE e.cycle_id = %d AND e.status IN ('active','warning')
                        AND (um.meta_value IS NULL OR um.meta_value < %s)
-                     LIMIT 5000",
+                     LIMIT " . self::CRON_QUERY_ROW_CAP,
                     $cycle_id,
                     gmdate( 'Y-m-d H:i:s', strtotime( '-14 days' ) )
                 ), ARRAY_A );
-                if ( is_array( $rows ) && count( $rows ) >= 5000 && class_exists( 'HL_Audit_Service' ) ) {
+                if ( is_array( $rows ) && count( $rows ) >= self::CRON_QUERY_ROW_CAP && class_exists( 'HL_Audit_Service' ) ) {
                     HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
                         'entity_type' => 'email_workflow',
-                        'reason'      => 'cron:low_engagement_14d returned 5000 rows — may be truncated.',
+                        'reason'      => 'cron:low_engagement_14d returned ' . self::CRON_QUERY_ROW_CAP . ' rows — may be truncated.',
                     ) );
                 }
                 return is_array( $rows ) ? $rows : array();
             }
 
-            case 'cron:session_24h':
-                // Coaching sessions starting in ~24 hours.
-                $from = gmdate( 'Y-m-d H:i:s', strtotime( '+23 hours' ) );
-                $to   = gmdate( 'Y-m-d H:i:s', strtotime( '+25 hours' ) );
-                return $wpdb->get_results( $wpdb->prepare(
-                    "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
-                     FROM {$wpdb->prefix}hl_coaching_session cs
-                     WHERE cs.cycle_id = %d AND cs.session_status = 'scheduled'
-                       AND cs.session_datetime BETWEEN %s AND %s
-                     LIMIT 5000",
-                    $cycle_id, $from, $to
-                ), ARRAY_A );
+            // =====================================================================
+            // New generic cron triggers with configurable offsets (Task 7).
+            // Old trigger keys are kept as fallthrough aliases.
+            // =====================================================================
 
-            case 'cron:session_1h':
-                // Coaching sessions starting in ~1 hour.
-                $from = gmdate( 'Y-m-d H:i:s', strtotime( '+30 minutes' ) );
-                $to   = gmdate( 'Y-m-d H:i:s', strtotime( '+90 minutes' ) );
-                return $wpdb->get_results( $wpdb->prepare(
-                    "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
-                     FROM {$wpdb->prefix}hl_coaching_session cs
-                     WHERE cs.cycle_id = %d AND cs.session_status = 'scheduled'
-                       AND cs.session_datetime BETWEEN %s AND %s
-                     LIMIT 5000",
-                    $cycle_id, $from, $to
-                ), ARRAY_A );
+            case 'cron:cv_window_7d':    /* fallthrough -- legacy alias */
+            case 'cron:rp_window_7d':    /* fallthrough -- legacy alias */
+            case 'cron:coaching_window_7d': /* fallthrough -- legacy alias */
+            case 'cron:component_upcoming': {
+                if ( ! $workflow ) {
+                    return array();
+                }
+                $offset_minutes = (int) ( $workflow->trigger_offset_minutes ?? 10080 ); // default 7 days
+                $offset_seconds = $offset_minutes * 60;
+                $range_start    = wp_date( 'Y-m-d', time() );
+                $range_end      = wp_date( 'Y-m-d', time() + $offset_seconds );
 
-            case 'cron:coaching_session_5d':
-                // Coaching sessions in 5 days.
-                $from = gmdate( 'Y-m-d H:i:s', strtotime( '+4 days 12 hours' ) );
-                $to   = gmdate( 'Y-m-d H:i:s', strtotime( '+5 days 12 hours' ) );
-                return $wpdb->get_results( $wpdb->prepare(
-                    "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
-                     FROM {$wpdb->prefix}hl_coaching_session cs
-                     WHERE cs.cycle_id = %d AND cs.session_status = 'scheduled'
-                       AND cs.session_datetime BETWEEN %s AND %s
-                     LIMIT 5000",
-                    $cycle_id, $from, $to
-                ), ARRAY_A );
+                $comp_type      = $workflow->component_type_filter ?? '';
+                $anchor         = $this->get_date_anchor( 'upcoming', $comp_type );
+                $col            = $anchor['column'];
 
-            case 'cron:coaching_window_7d': {
-                // Mentors with coaching components opening in the next 7 days and no scheduled/attended session.
-                $today = current_time( 'Y-m-d' );
-                $plus7 = wp_date( 'Y-m-d', strtotime( $today . ' +7 days' ) );
-                return $wpdb->get_results( $wpdb->prepare(
-                    "SELECT DISTINCT en.user_id,
-                            en.enrollment_id AS enrollment_id,
-                            c.component_id AS entity_id,
-                            'component' AS entity_type
-                     FROM {$wpdb->prefix}hl_component c
-                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
-                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
-                     INNER JOIN {$wpdb->prefix}hl_enrollment en
-                         ON en.enrollment_id = pa.enrollment_id
-                        AND en.status IN ('active','warning')
-                     LEFT JOIN {$wpdb->prefix}hl_coaching_session cs
-                         ON cs.component_id = c.component_id
-                        AND cs.mentor_enrollment_id = en.enrollment_id
-                        AND cs.session_status IN ('scheduled','attended')
-                     WHERE c.component_type = 'coaching_session_attendance'
-                       AND c.cycle_id = %d
-                       AND c.display_window_start IS NOT NULL
-                       AND c.display_window_start BETWEEN %s AND %s
-                       AND cs.session_id IS NULL
-                     LIMIT 5000",
-                    $cycle_id, $today, $plus7
+                // SQL column whitelist -- prevent injection.
+                $allowed_cols = array( 'complete_by', 'display_window_start', 'display_window_end' );
+                if ( ! in_array( $col, $allowed_cols, true ) ) {
+                    return array();
+                }
+
+                $type_clause = '';
+                $type_params = array();
+                if ( $comp_type !== '' ) {
+                    $type_clause = 'AND c.component_type = %s';
+                    $type_params = array( $comp_type );
+                }
+
+                // Component-type-specific completion check.
+                $completion_clause = $this->component_completion_subquery( $comp_type, $wpdb );
+
+                $cap = self::CRON_QUERY_ROW_CAP;
+                $sql = "SELECT DISTINCT en.user_id,
+                                en.enrollment_id AS enrollment_id,
+                                c.component_id AS entity_id,
+                                'component' AS entity_type
+                        FROM {$wpdb->prefix}hl_component c
+                        INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
+                        INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
+                        INNER JOIN {$wpdb->prefix}hl_enrollment en
+                            ON en.enrollment_id = pa.enrollment_id
+                           AND en.status IN ('active','warning')
+                        WHERE c.cycle_id = %d
+                          AND c.{$col} IS NOT NULL
+                          AND c.{$col} BETWEEN %s AND %s
+                          {$type_clause}
+                          {$completion_clause}
+                        LIMIT {$cap}";
+
+                $params = array_merge( array( $cycle_id, $range_start, $range_end ), $type_params );
+                $rows   = $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
+                if ( is_array( $rows ) && count( $rows ) >= $cap && class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
+                        'entity_type' => 'email_workflow',
+                        'reason'      => 'cron:component_upcoming returned ' . $cap . ' rows — may be truncated.',
+                    ) );
+                    set_transient(
+                        'hl_email_cron_cap_warning',
+                        sprintf(
+                            'Email cron trigger "%s" hit the %d-row safety cap for cycle %s. Some recipients may have been skipped. Contact your developer to review.',
+                            $trigger_key,
+                            $cap,
+                            $cycle->cycle_code ?? $cycle->cycle_id
+                        ),
+                        24 * HOUR_IN_SECONDS
+                    );
+                }
+                return is_array( $rows ) ? $rows : array();
+            }
+
+            case 'cron:cv_overdue_1d': /* fallthrough -- legacy alias */
+            case 'cron:component_overdue': {
+                if ( ! $workflow ) {
+                    return array();
+                }
+                $offset_minutes = (int) ( $workflow->trigger_offset_minutes ?? 1440 ); // default 1 day
+                $offset_seconds = $offset_minutes * 60;
+
+                // 48-hour tolerance window: catches overdue components even if cron
+                // skipped a day (server outage, low traffic). Dedup prevents double-sends.
+                $overdue_earliest = wp_date( 'Y-m-d', time() - $offset_seconds - ( 48 * 3600 ) );
+                $overdue_latest   = wp_date( 'Y-m-d', time() - $offset_seconds );
+
+                $comp_type      = $workflow->component_type_filter ?? '';
+                $anchor         = $this->get_date_anchor( 'overdue', $comp_type );
+                $col            = $anchor['column'];
+
+                $allowed_cols = array( 'complete_by', 'display_window_start', 'display_window_end' );
+                if ( ! in_array( $col, $allowed_cols, true ) ) {
+                    return array();
+                }
+
+                $type_clause = '';
+                $type_params = array();
+                if ( $comp_type !== '' ) {
+                    $type_clause = 'AND c.component_type = %s';
+                    $type_params = array( $comp_type );
+                }
+
+                $completion_clause = $this->component_completion_subquery( $comp_type, $wpdb );
+
+                $cap = self::CRON_QUERY_ROW_CAP;
+                $sql = "SELECT DISTINCT en.user_id,
+                                en.enrollment_id AS enrollment_id,
+                                c.component_id AS entity_id,
+                                'component' AS entity_type
+                        FROM {$wpdb->prefix}hl_component c
+                        INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
+                        INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
+                        INNER JOIN {$wpdb->prefix}hl_enrollment en
+                            ON en.enrollment_id = pa.enrollment_id
+                           AND en.status IN ('active','warning')
+                        WHERE c.cycle_id = %d
+                          AND c.{$col} IS NOT NULL
+                          AND c.{$col} BETWEEN %s AND %s
+                          {$type_clause}
+                          {$completion_clause}
+                        LIMIT {$cap}";
+
+                $params = array_merge( array( $cycle_id, $overdue_earliest, $overdue_latest ), $type_params );
+                $rows   = $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
+                if ( is_array( $rows ) && count( $rows ) >= $cap && class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
+                        'entity_type' => 'email_workflow',
+                        'reason'      => 'cron:component_overdue returned ' . $cap . ' rows — may be truncated.',
+                    ) );
+                    set_transient(
+                        'hl_email_cron_cap_warning',
+                        sprintf(
+                            'Email cron trigger "%s" hit the %d-row safety cap for cycle %s. Some recipients may have been skipped. Contact your developer to review.',
+                            $trigger_key,
+                            $cap,
+                            $cycle->cycle_code ?? $cycle->cycle_id
+                        ),
+                        24 * HOUR_IN_SECONDS
+                    );
+                }
+                return is_array( $rows ) ? $rows : array();
+            }
+
+            case 'cron:coaching_session_5d': /* fallthrough -- legacy alias */
+            case 'cron:session_24h':         /* fallthrough -- legacy alias */
+            case 'cron:session_1h':          /* fallthrough -- legacy alias */
+            case 'cron:session_upcoming': {
+                if ( ! $workflow ) {
+                    return array();
+                }
+                $offset_minutes = (int) ( $workflow->trigger_offset_minutes ?? 1440 ); // default 24h
+                // Note: session_datetime is stored in site timezone (WordPress "Timezone"
+                // setting). Use current_time() to get "now" in the same timezone so the
+                // BETWEEN comparison is apples-to-apples. Do NOT use gmdate()/time() here.
+                $now            = current_time( 'mysql' );
+
+                // Scale fuzz window proportionally: 10% of offset, clamped 5min-30min.
+                $fuzz_seconds   = min( 1800, max( 300, $offset_minutes * 60 * 0.1 ) );
+                $target_time    = strtotime( $now ) + ( $offset_minutes * 60 );
+                $window_start   = wp_date( 'Y-m-d H:i:s', $target_time - $fuzz_seconds );
+                $window_end     = wp_date( 'Y-m-d H:i:s', $target_time + $fuzz_seconds );
+
+                $cap = self::CRON_QUERY_ROW_CAP;
+                $rows = $wpdb->get_results( $wpdb->prepare(
+                    "SELECT DISTINCT e.user_id, e.enrollment_id,
+                            cs.session_id AS entity_id, 'coaching_session' AS entity_type
+                     FROM {$wpdb->prefix}hl_coaching_session cs
+                     JOIN {$wpdb->prefix}hl_enrollment e ON e.enrollment_id = cs.mentor_enrollment_id
+                     JOIN {$wpdb->users} u ON u.ID = e.user_id
+                     WHERE cs.cycle_id = %d
+                       AND cs.session_status = 'scheduled'
+                       AND cs.session_datetime BETWEEN %s AND %s
+                       AND e.status IN ('active','warning')
+                     LIMIT {$cap}",
+                    $cycle_id, $window_start, $window_end
                 ), ARRAY_A );
+                if ( is_array( $rows ) && count( $rows ) >= $cap && class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
+                        'entity_type' => 'email_workflow',
+                        'reason'      => 'cron:session_upcoming returned ' . $cap . ' rows — may be truncated.',
+                    ) );
+                    set_transient(
+                        'hl_email_cron_cap_warning',
+                        sprintf(
+                            'Email cron trigger "%s" hit the %d-row safety cap for cycle %s. Some recipients may have been skipped. Contact your developer to review.',
+                            $trigger_key,
+                            $cap,
+                            $cycle->cycle_code ?? $cycle->cycle_id
+                        ),
+                        24 * HOUR_IN_SECONDS
+                    );
+                }
+                return is_array( $rows ) ? $rows : array();
             }
 
             case 'cron:coaching_pre_end': {
@@ -1086,118 +1292,16 @@ class HL_Email_Automation_Service {
                        AND cy.end_date IS NOT NULL
                        AND cy.end_date BETWEEN %s AND %s
                        AND cs.session_id IS NULL
-                     LIMIT 5000",
+                     LIMIT " . self::CRON_QUERY_ROW_CAP,
                     $cycle_id, $today, $plus14
                 ), ARRAY_A );
-                if ( is_array( $rows ) && count( $rows ) >= 5000 && class_exists( 'HL_Audit_Service' ) ) {
+                if ( is_array( $rows ) && count( $rows ) >= self::CRON_QUERY_ROW_CAP && class_exists( 'HL_Audit_Service' ) ) {
                     HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
                         'entity_type' => 'email_workflow',
-                        'reason'      => 'cron:coaching_pre_end returned 5000 rows — may be truncated. Review cycle scope or add ORDER BY + cursor pagination.',
+                        'reason'      => 'cron:coaching_pre_end returned ' . self::CRON_QUERY_ROW_CAP . ' rows — may be truncated. Review cycle scope or add ORDER BY + cursor pagination.',
                     ) );
                 }
                 return is_array( $rows ) ? $rows : array();
-            }
-
-            case 'cron:cv_window_7d': {
-                // Classroom-visit components opening in the next 7 days; users without a submitted visit this cycle.
-                $today = current_time( 'Y-m-d' );
-                $plus7 = wp_date( 'Y-m-d', strtotime( $today . ' +7 days' ) );
-                return $wpdb->get_results( $wpdb->prepare(
-                    "SELECT DISTINCT en.user_id,
-                            en.enrollment_id AS enrollment_id,
-                            c.component_id AS entity_id,
-                            'component' AS entity_type
-                     FROM {$wpdb->prefix}hl_component c
-                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
-                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
-                     INNER JOIN {$wpdb->prefix}hl_enrollment en
-                         ON en.enrollment_id = pa.enrollment_id
-                        AND en.status IN ('active','warning')
-                     WHERE c.component_type = 'classroom_visit'
-                       AND c.cycle_id = %d
-                       AND c.complete_by IS NOT NULL
-                       AND c.complete_by BETWEEN %s AND %s
-                       AND NOT EXISTS (
-                           SELECT 1
-                           FROM {$wpdb->prefix}hl_classroom_visit cv
-                           LEFT JOIN {$wpdb->prefix}hl_classroom_visit_submission cvs
-                               ON cvs.classroom_visit_id = cv.classroom_visit_id
-                              AND cvs.status = 'submitted'
-                           WHERE cv.cycle_id = en.cycle_id
-                             AND (cv.leader_enrollment_id = en.enrollment_id OR cv.teacher_enrollment_id = en.enrollment_id)
-                             AND cvs.submission_id IS NOT NULL
-                       )
-                     LIMIT 5000",
-                    $cycle_id, $today, $plus7
-                ), ARRAY_A );
-            }
-
-            case 'cron:cv_overdue_1d': {
-                // Classroom-visit components whose complete_by = yesterday; users without a submitted visit.
-                $today     = current_time( 'Y-m-d' );
-                $yesterday = wp_date( 'Y-m-d', strtotime( $today . ' -1 day' ) );
-                return $wpdb->get_results( $wpdb->prepare(
-                    "SELECT DISTINCT en.user_id,
-                            en.enrollment_id AS enrollment_id,
-                            c.component_id AS entity_id,
-                            'component' AS entity_type
-                     FROM {$wpdb->prefix}hl_component c
-                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
-                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
-                     INNER JOIN {$wpdb->prefix}hl_enrollment en
-                         ON en.enrollment_id = pa.enrollment_id
-                        AND en.status IN ('active','warning')
-                     WHERE c.component_type = 'classroom_visit'
-                       AND c.cycle_id = %d
-                       AND c.complete_by IS NOT NULL
-                       AND c.complete_by = %s
-                       AND NOT EXISTS (
-                           SELECT 1
-                           FROM {$wpdb->prefix}hl_classroom_visit cv
-                           LEFT JOIN {$wpdb->prefix}hl_classroom_visit_submission cvs
-                               ON cvs.classroom_visit_id = cv.classroom_visit_id
-                              AND cvs.status = 'submitted'
-                           WHERE cv.cycle_id = en.cycle_id
-                             AND (cv.leader_enrollment_id = en.enrollment_id OR cv.teacher_enrollment_id = en.enrollment_id)
-                             AND cvs.submission_id IS NOT NULL
-                       )
-                     LIMIT 5000",
-                    $cycle_id, $yesterday
-                ), ARRAY_A );
-            }
-
-            case 'cron:rp_window_7d': {
-                // Reflective-practice components opening in the next 7 days; users without a submitted RP session.
-                $today = current_time( 'Y-m-d' );
-                $plus7 = wp_date( 'Y-m-d', strtotime( $today . ' +7 days' ) );
-                return $wpdb->get_results( $wpdb->prepare(
-                    "SELECT DISTINCT en.user_id,
-                            en.enrollment_id AS enrollment_id,
-                            c.component_id AS entity_id,
-                            'component' AS entity_type
-                     FROM {$wpdb->prefix}hl_component c
-                     INNER JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = c.pathway_id
-                     INNER JOIN {$wpdb->prefix}hl_pathway_assignment pa ON pa.pathway_id = p.pathway_id
-                     INNER JOIN {$wpdb->prefix}hl_enrollment en
-                         ON en.enrollment_id = pa.enrollment_id
-                        AND en.status IN ('active','warning')
-                     WHERE c.component_type = 'reflective_practice_session'
-                       AND c.cycle_id = %d
-                       AND c.complete_by IS NOT NULL
-                       AND c.complete_by BETWEEN %s AND %s
-                       AND NOT EXISTS (
-                           SELECT 1
-                           FROM {$wpdb->prefix}hl_rp_session rps
-                           LEFT JOIN {$wpdb->prefix}hl_rp_session_submission rpss
-                               ON rpss.rp_session_id = rps.rp_session_id
-                              AND rpss.status = 'submitted'
-                           WHERE rps.cycle_id = en.cycle_id
-                             AND rpss.submitted_by_user_id = en.user_id
-                             AND rpss.submission_id IS NOT NULL
-                       )
-                     LIMIT 5000",
-                    $cycle_id, $today, $plus7
-                ), ARRAY_A );
             }
 
             case 'cron:action_plan_24h': {
@@ -1210,14 +1314,14 @@ class HL_Email_Automation_Service {
                      WHERE cs.cycle_id = %d AND cs.session_status = 'attended'
                        AND cs.session_datetime < %s
                        AND sub.submission_id IS NULL
-                     LIMIT 5000",
+                     LIMIT " . self::CRON_QUERY_ROW_CAP,
                     $cycle_id,
                     gmdate( 'Y-m-d H:i:s', strtotime( '-24 hours' ) )
                 ), ARRAY_A );
-                if ( is_array( $rows ) && count( $rows ) >= 5000 && class_exists( 'HL_Audit_Service' ) ) {
+                if ( is_array( $rows ) && count( $rows ) >= self::CRON_QUERY_ROW_CAP && class_exists( 'HL_Audit_Service' ) ) {
                     HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
                         'entity_type' => 'email_workflow',
-                        'reason'      => 'cron:action_plan_24h returned 5000 rows — may be truncated.',
+                        'reason'      => 'cron:action_plan_24h returned ' . self::CRON_QUERY_ROW_CAP . ' rows — may be truncated.',
                     ) );
                 }
                 return is_array( $rows ) ? $rows : array();
@@ -1233,14 +1337,14 @@ class HL_Email_Automation_Service {
                      WHERE cs.cycle_id = %d AND cs.session_status = 'attended'
                        AND cs.session_datetime < %s
                        AND sub.submission_id IS NULL
-                     LIMIT 5000",
+                     LIMIT " . self::CRON_QUERY_ROW_CAP,
                     $cycle_id,
                     gmdate( 'Y-m-d H:i:s', strtotime( '-24 hours' ) )
                 ), ARRAY_A );
-                if ( is_array( $rows ) && count( $rows ) >= 5000 && class_exists( 'HL_Audit_Service' ) ) {
+                if ( is_array( $rows ) && count( $rows ) >= self::CRON_QUERY_ROW_CAP && class_exists( 'HL_Audit_Service' ) ) {
                     HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
                         'entity_type' => 'email_workflow',
-                        'reason'      => 'cron:session_notes_24h returned 5000 rows — may be truncated.',
+                        'reason'      => 'cron:session_notes_24h returned ' . self::CRON_QUERY_ROW_CAP . ' rows — may be truncated.',
                     ) );
                 }
                 return is_array( $rows ) ? $rows : array();

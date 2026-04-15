@@ -231,15 +231,21 @@ class HL_Admin_Emails {
                     'hl_teacher_assessment_submitted',
                     'hl_child_assessment_submitted',
                     'hl_pathway_completed',
+                    // New generic keys:
+                    'cron:component_upcoming',
+                    'cron:component_overdue',
+                    'cron:session_upcoming',
+                    // Retained non-offset keys:
+                    'cron:coaching_pre_end',
+                    'cron:action_plan_24h',
+                    'cron:session_notes_24h',
+                    'cron:low_engagement_14d',
+                    // Legacy aliases (kept until old workflows are fully migrated):
                     'cron:cv_window_7d',
                     'cron:cv_overdue_1d',
                     'cron:rp_window_7d',
                     'cron:coaching_window_7d',
                     'cron:coaching_session_5d',
-                    'cron:coaching_pre_end',
-                    'cron:action_plan_24h',
-                    'cron:session_notes_24h',
-                    'cron:low_engagement_14d',
                     'cron:session_24h',
                     'cron:session_1h',
                 ),
@@ -472,6 +478,21 @@ class HL_Admin_Emails {
             );
         }
 
+        // Task 7 Step 11b: Render LIMIT cap warning transient.
+        $cap_warning = get_transient( 'hl_email_cron_cap_warning' );
+        if ( $cap_warning ) {
+            echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html( $cap_warning ) . '</p></div>';
+        }
+
+        // Task 7 Step 16: Failed sends warning (last 24h).
+        $failed_24h = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}hl_email_queue WHERE status = 'failed' AND updated_at >= %s",
+            gmdate( 'Y-m-d H:i:s', time() - 86400 )
+        ) );
+        if ( $failed_24h > 0 ) {
+            echo '<div class="notice notice-error"><p>' . sprintf( '%d email(s) failed to send in the last 24 hours.', $failed_24h ) . '</p></div>';
+        }
+
         ?>
         <div class="hl-email-admin">
 
@@ -488,6 +509,23 @@ class HL_Admin_Emails {
             </div>
         </div>
 
+        <?php
+        // Task 7 Step 16: Pre-load 24h activity data for all workflows.
+        $activity_raw = $wpdb->get_results( $wpdb->prepare(
+            "SELECT workflow_id, status, COUNT(*) AS cnt FROM {$wpdb->prefix}hl_email_queue WHERE created_at >= %s GROUP BY workflow_id, status",
+            gmdate( 'Y-m-d H:i:s', time() - 86400 )
+        ) );
+        $activity_map = array();
+        if ( is_array( $activity_raw ) ) {
+            foreach ( $activity_raw as $a ) {
+                $wid = (int) $a->workflow_id;
+                if ( ! isset( $activity_map[ $wid ] ) ) {
+                    $activity_map[ $wid ] = array();
+                }
+                $activity_map[ $wid ][ $a->status ] = (int) $a->cnt;
+            }
+        }
+        ?>
         <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
@@ -496,20 +534,32 @@ class HL_Admin_Emails {
                     <th><?php esc_html_e( 'Template', 'hl-core' ); ?></th>
                     <th><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
                     <th><?php esc_html_e( 'Updated', 'hl-core' ); ?></th>
+                    <th><?php esc_html_e( '24h Activity', 'hl-core' ); ?></th>
                     <th><?php esc_html_e( 'Actions', 'hl-core' ); ?></th>
                 </tr>
             </thead>
             <tbody>
                 <?php if ( empty( $workflows ) ) : ?>
-                    <tr><td colspan="6"><?php esc_html_e( 'No workflows yet.', 'hl-core' ); ?></td></tr>
+                    <tr><td colspan="7"><?php esc_html_e( 'No workflows yet.', 'hl-core' ); ?></td></tr>
                 <?php else : ?>
-                    <?php foreach ( $workflows as $w ) : ?>
+                    <?php foreach ( $workflows as $w ) :
+                        $wid_activity = $activity_map[ (int) $w->workflow_id ] ?? array();
+                        $sent_count   = ( $wid_activity['sent'] ?? 0 );
+                        $failed_count = ( $wid_activity['failed'] ?? 0 );
+                        $pending_count = ( $wid_activity['pending'] ?? 0 ) + ( $wid_activity['claimed'] ?? 0 );
+                        $activity_parts = array();
+                        if ( $sent_count > 0 ) $activity_parts[] = "Sent: {$sent_count}";
+                        if ( $failed_count > 0 ) $activity_parts[] = "Failed: {$failed_count}";
+                        if ( $pending_count > 0 ) $activity_parts[] = "Pending: {$pending_count}";
+                        $activity_text = ! empty( $activity_parts ) ? implode( ' | ', $activity_parts ) : '—';
+                    ?>
                         <tr data-workflow-id="<?php echo (int) $w->workflow_id; ?>">
                             <td><strong><?php echo esc_html( $w->name ); ?></strong></td>
                             <td><code><?php echo esc_html( $w->trigger_key ); ?></code></td>
                             <td><?php echo esc_html( $w->template_name ?: '—' ); ?></td>
                             <td class="hl-wf-status-cell"><?php $this->render_status_badge( $w->status ); ?></td>
                             <td><?php echo esc_html( $w->updated_at ); ?></td>
+                            <td><?php echo esc_html( $activity_text ); ?></td>
                             <td class="hl-row-actions">
                                 <?php // Edit link. ?>
                                 <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows&action=edit&workflow_id=' . $w->workflow_id ) ); ?>"><?php esc_html_e( 'Edit', 'hl-core' ); ?></a>
@@ -676,24 +726,69 @@ class HL_Admin_Emails {
                             <optgroup label="<?php esc_attr_e( 'Cron-Based (Scheduled)', 'hl-core' ); ?>">
                                 <?php
                                 $cron_triggers = array(
-                                    'cron:cv_window_7d'         => 'CV Window Opens (7d)',
-                                    'cron:cv_overdue_1d'        => 'CV Overdue (1d)',
-                                    'cron:rp_window_7d'         => 'RP Window Opens (7d)',
-                                    'cron:coaching_window_7d'   => 'Coaching Window (7d)',
-                                    'cron:coaching_session_5d'  => 'Session in 5 Days',
-                                    'cron:coaching_pre_end'     => 'Pre-Cycle-End No Session',
-                                    'cron:action_plan_24h'      => 'Action Plan Overdue (24h)',
-                                    'cron:session_notes_24h'    => 'Session Notes Overdue (24h)',
-                                    'cron:low_engagement_14d'   => 'Low Engagement (14d)',
-                                    'cron:client_success'       => 'Client Success Touchpoint',
-                                    'cron:session_24h'          => 'Session in 24 Hours',
-                                    'cron:session_1h'           => 'Session in 1 Hour',
+                                    'cron:component_upcoming'  => 'Component Due Soon',
+                                    'cron:component_overdue'   => 'Component Overdue',
+                                    'cron:session_upcoming'    => 'Coaching Session Upcoming',
+                                    'cron:coaching_pre_end'    => 'Pre-Cycle-End No Session',
+                                    'cron:action_plan_24h'     => 'Action Plan Overdue (24h)',
+                                    'cron:session_notes_24h'   => 'Session Notes Overdue (24h)',
+                                    'cron:low_engagement_14d'  => 'Low Engagement (14d)',
+                                    'cron:client_success'      => 'Client Success Touchpoint',
                                 );
                                 foreach ( $cron_triggers as $key => $label ) :
                                 ?>
                                     <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $workflow->trigger_key ?? '', $key ); ?>><?php echo esc_html( $label ); ?></option>
                                 <?php endforeach; ?>
                             </optgroup>
+                        </select>
+                    </td>
+                </tr>
+                <?php
+                // Task 7: Compute current offset value + unit for display.
+                $offset_raw   = (int) ( $workflow->trigger_offset_minutes ?? 0 );
+                $offset_value = 0;
+                $offset_unit  = 'days';
+                if ( $offset_raw > 0 ) {
+                    if ( $offset_raw % 1440 === 0 ) {
+                        $offset_value = $offset_raw / 1440;
+                        $offset_unit  = 'days';
+                    } elseif ( $offset_raw % 60 === 0 ) {
+                        $offset_value = $offset_raw / 60;
+                        $offset_unit  = 'hours';
+                    } else {
+                        $offset_value = $offset_raw;
+                        $offset_unit  = 'minutes';
+                    }
+                }
+                ?>
+                <tr class="hl-wf-offset-row" style="display:none;">
+                    <th scope="row"><?php esc_html_e( 'Offset', 'hl-core' ); ?></th>
+                    <td>
+                        <input type="number" name="trigger_offset_value" min="1" max="9999" value="<?php echo esc_attr( $offset_value ); ?>" style="width:80px;">
+                        <select name="trigger_offset_unit">
+                            <option value="minutes" <?php selected( $offset_unit, 'minutes' ); ?>>Minutes</option>
+                            <option value="hours" <?php selected( $offset_unit, 'hours' ); ?>>Hours</option>
+                            <option value="days" <?php selected( $offset_unit, 'days' ); ?>>Days</option>
+                        </select>
+                        <p class="description">How far before the anchor date (for "upcoming") or after (for "overdue") to trigger this workflow.</p>
+                        <p class="description hl-wf-session-fuzz-note" style="display:none;">
+                            Session reminders use a tolerance window to account for cron timing.
+                            A "1 hour" reminder fires between ~54-66 minutes before the session.
+                        </p>
+                    </td>
+                </tr>
+                <tr class="hl-wf-component-type-row" style="display:none;">
+                    <th scope="row"><?php esc_html_e( 'Component Type', 'hl-core' ); ?></th>
+                    <td>
+                        <select name="component_type_filter">
+                            <option value="">All Component Types</option>
+                            <option value="learndash_course" <?php selected( $workflow->component_type_filter ?? '', 'learndash_course' ); ?>>Course</option>
+                            <option value="coaching_session_attendance" <?php selected( $workflow->component_type_filter ?? '', 'coaching_session_attendance' ); ?>>Coaching Session</option>
+                            <option value="classroom_visit" <?php selected( $workflow->component_type_filter ?? '', 'classroom_visit' ); ?>>Classroom Visit</option>
+                            <option value="reflective_practice_session" <?php selected( $workflow->component_type_filter ?? '', 'reflective_practice_session' ); ?>>Reflective Practice</option>
+                            <option value="self_reflection" <?php selected( $workflow->component_type_filter ?? '', 'self_reflection' ); ?>>Self-Reflection</option>
+                            <option value="teacher_self_assessment" <?php selected( $workflow->component_type_filter ?? '', 'teacher_self_assessment' ); ?>>Teacher Assessment</option>
+                            <option value="child_assessment" <?php selected( $workflow->component_type_filter ?? '', 'child_assessment' ); ?>>Child Assessment</option>
                         </select>
                     </td>
                 </tr>
@@ -945,6 +1040,16 @@ class HL_Admin_Emails {
             'status'            => sanitize_text_field( $_POST['status'] ?? 'draft' ),
         );
 
+        // Task 7: persist trigger offset + component type filter.
+        $offset_value = absint( $_POST['trigger_offset_value'] ?? 0 );
+        $offset_unit  = sanitize_text_field( $_POST['trigger_offset_unit'] ?? 'days' );
+
+        $multiplier = array( 'minutes' => 1, 'hours' => 60, 'days' => 1440 );
+        $mult       = $multiplier[ $offset_unit ] ?? 1440;
+        $data['trigger_offset_minutes'] = $offset_value > 0 ? $offset_value * $mult : null;
+
+        $data['component_type_filter'] = sanitize_text_field( $_POST['component_type_filter'] ?? '' ) ?: null;
+
         // Validate status — now includes 'deleted' as a valid persisted state
         // for soft-delete, but admins cannot set it via the form.
         if ( ! in_array( $data['status'], array( 'draft', 'active', 'paused' ), true ) ) {
@@ -959,10 +1064,16 @@ class HL_Admin_Emails {
             'hl_rp_session_created', 'hl_rp_session_status_changed',
             'hl_classroom_visit_submitted', 'hl_teacher_assessment_submitted',
             'hl_child_assessment_submitted', 'hl_coach_assigned',
-            'cron:cv_window_7d', 'cron:cv_overdue_1d', 'cron:rp_window_7d',
-            'cron:coaching_window_7d', 'cron:coaching_session_5d', 'cron:coaching_pre_end',
+            // New generic keys (v2):
+            'cron:component_upcoming', 'cron:component_overdue', 'cron:session_upcoming',
+            // Retained non-offset keys:
+            'cron:coaching_pre_end',
             'cron:action_plan_24h', 'cron:session_notes_24h', 'cron:low_engagement_14d',
-            'cron:client_success', 'cron:session_24h', 'cron:session_1h',
+            'cron:client_success',
+            // Legacy aliases — kept for backward compat until next release:
+            'cron:cv_window_7d', 'cron:cv_overdue_1d', 'cron:rp_window_7d',
+            'cron:coaching_window_7d', 'cron:coaching_session_5d',
+            'cron:session_24h', 'cron:session_1h',
         );
         if ( ! in_array( $data['trigger_key'], $valid_triggers, true ) ) {
             wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=workflows&hl_notice=invalid_trigger' ) );

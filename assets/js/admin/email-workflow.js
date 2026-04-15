@@ -380,10 +380,22 @@ jQuery(function ($) {
         });
 
         $triggerSelect.on('change', function () {
-            applyTriggerVisibility($wrap, $(this).val());
+            var val = $(this).val();
+            applyTriggerVisibility($wrap, val);
             serializeRecipients($wrap, $textarea);
             scheduleRecipientCount($wrap);
-        });
+
+            // Task 7: show/hide offset and component type fields.
+            var offsetTriggers = ['cron:component_upcoming', 'cron:component_overdue', 'cron:session_upcoming'];
+            var componentTypeTriggers = ['cron:component_upcoming', 'cron:component_overdue'];
+            $('.hl-wf-offset-row').toggle(offsetTriggers.indexOf(val) !== -1);
+            $('.hl-wf-component-type-row').toggle(componentTypeTriggers.indexOf(val) !== -1);
+            $('.hl-wf-session-fuzz-note').toggle(val === 'cron:session_upcoming');
+
+            // Task 8: show/hide status sub-filter.
+            var statusFilterTriggers = ['hl_coaching_session_status_changed', 'hl_rp_session_status_changed'];
+            $('.hl-wf-status-filter-row').toggle(statusFilterTriggers.indexOf(val) !== -1);
+        }).trigger('change');
     }
 
     function renderTokenCards($container, section, selected) {

@@ -150,7 +150,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 38;
+        $current_revision = 39;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -253,6 +253,11 @@ class HL_Installer {
             // Rev 38: Add github_issue_id column to hl_ticket for GitHub sync.
             if ( (int) $stored < 38 ) {
                 self::migrate_ticket_add_github_issue_id();
+            }
+
+            // Rev 39: Email v2 — configurable trigger offset + component type filter.
+            if ( (int) $stored < 39 ) {
+                self::migrate_workflow_trigger_offset();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -2154,6 +2159,8 @@ class HL_Installer {
             recipients longtext NOT NULL,
             template_id bigint(20) unsigned NULL,
             delay_minutes int(11) NOT NULL DEFAULT 0,
+            trigger_offset_minutes int DEFAULT NULL COMMENT 'Configurable offset for cron triggers (in minutes)',
+            component_type_filter varchar(100) DEFAULT NULL COMMENT 'Component type filter for cron triggers',
             send_window_start time NULL COMMENT 'America/New_York time',
             send_window_end time NULL COMMENT 'America/New_York time',
             send_window_days varchar(50) NULL COMMENT 'Comma-separated: mon,tue,wed,thu,fri',
@@ -3790,4 +3797,95 @@ class HL_Installer {
             error_log( '[HL_INSTALLER] Rev 38 failed: ' . $wpdb->last_error );
         }
     }
+
+    /**
+     * Rev 39: Email v2 — configurable trigger offset + component type filter.
+     * Adds trigger_offset_minutes + component_type_filter to hl_email_workflow,
+     * and idx_complete_by to hl_component for efficient date-range queries.
+     */
+    private static function migrate_workflow_trigger_offset() {
+        global $wpdb;
+
+        $workflow_table  = $wpdb->prefix . 'hl_email_workflow';
+        $component_table = $wpdb->prefix . 'hl_component';
+
+        $column_exists = function ( $table_name, $column_name ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_var( $wpdb->prepare(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s
+                 LIMIT 1",
+                $table_name, $column_name
+            ) ) );
+        };
+
+        $index_exists = function ( $table_name, $index_name ) use ( $wpdb ) {
+            return ! empty( $wpdb->get_var( $wpdb->prepare(
+                "SELECT INDEX_NAME FROM information_schema.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s
+                 LIMIT 1",
+                $table_name, $index_name
+            ) ) );
+        };
+
+        // Add trigger_offset_minutes column.
+        if ( ! $column_exists( $workflow_table, 'trigger_offset_minutes' ) ) {
+            $wpdb->query( "ALTER TABLE `{$workflow_table}` ADD COLUMN trigger_offset_minutes int DEFAULT NULL COMMENT 'Configurable offset for cron triggers (in minutes)' AFTER delay_minutes" );
+        }
+
+        // Add component_type_filter column.
+        if ( ! $column_exists( $workflow_table, 'component_type_filter' ) ) {
+            $wpdb->query( "ALTER TABLE `{$workflow_table}` ADD COLUMN component_type_filter varchar(100) DEFAULT NULL COMMENT 'Component type filter for cron triggers' AFTER trigger_offset_minutes" );
+        }
+
+        // Add index on complete_by for date-range queries.
+        if ( ! $index_exists( $component_table, 'idx_complete_by' ) ) {
+            $wpdb->query( "ALTER TABLE `{$component_table}` ADD INDEX idx_complete_by (complete_by)" );
+        }
+
+        // Migrate old trigger keys to new generic keys with default offsets.
+        $mappings = array(
+            'cron:cv_window_7d'        => array( 'cron:component_upcoming', 10080, 'classroom_visit' ),
+            'cron:rp_window_7d'        => array( 'cron:component_upcoming', 10080, 'reflective_practice_session' ),
+            'cron:coaching_window_7d'  => array( 'cron:component_upcoming', 10080, 'coaching_session_attendance' ),
+            'cron:cv_overdue_1d'       => array( 'cron:component_overdue',  1440,  'classroom_visit' ),
+            'cron:coaching_session_5d' => array( 'cron:session_upcoming',   7200,  null ),
+            'cron:session_24h'         => array( 'cron:session_upcoming',   1440,  null ),
+            'cron:session_1h'          => array( 'cron:session_upcoming',   60,    null ),
+        );
+
+        // Pre-migration backup: capture current trigger keys for rollback.
+        $current_keys = $wpdb->get_results(
+            "SELECT workflow_id, trigger_key FROM {$workflow_table}",
+            ARRAY_A
+        );
+        update_option( 'hl_rev39_trigger_key_backup', wp_json_encode( $current_keys ) );
+
+        $wpdb->query( 'START TRANSACTION' );
+        foreach ( $mappings as $old_key => $new ) {
+            $wpdb->update(
+                $workflow_table,
+                array(
+                    'trigger_key'            => $new[0],
+                    'trigger_offset_minutes' => $new[1],
+                    'component_type_filter'  => $new[2],
+                ),
+                array( 'trigger_key' => $old_key )
+            );
+        }
+        $wpdb->query( 'COMMIT' );
+
+        // Post-migration verification: ensure no old keys remain.
+        $old_keys = array( 'cron:cv_window_7d', 'cron:cv_overdue_1d', 'cron:rp_window_7d', 'cron:coaching_window_7d', 'cron:coaching_session_5d', 'cron:session_24h', 'cron:session_1h' );
+        $stale = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$workflow_table} WHERE trigger_key IN ('" . implode( "','", $old_keys ) . "')" );
+        if ( $stale > 0 ) {
+            error_log( "[HL_EMAIL_V2] WARNING: Rev 39 migration left {$stale} rows with old trigger keys." );
+        }
+    }
+
+    /**
+     * ROLLBACK: If this migration needs to be reversed:
+     * $backup = json_decode(get_option('hl_rev39_trigger_key_backup'), true);
+     * foreach ($backup as $row) { $wpdb->update($table, ['trigger_key' => $row['trigger_key']], ['workflow_id' => $row['workflow_id']]); }
+     * delete_option('hl_rev39_trigger_key_backup');
+     */
 }

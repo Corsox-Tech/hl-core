@@ -239,6 +239,33 @@ class HL_CLI_Email_V2_Test {
             $idx_component_mentor_status === 'component_mentor_status',
             'hl_coaching_session index component_mentor_status exists'
         );
+
+        // 7. trigger_offset_minutes column exists (Rev 39).
+        $toff_col = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s
+             LIMIT 1",
+            $wpdb->prefix . 'hl_email_workflow', 'trigger_offset_minutes'
+        ) );
+        $this->assert_true( ! empty( $toff_col ), 'hl_email_workflow.trigger_offset_minutes column exists' );
+
+        // 8. component_type_filter column exists (Rev 39).
+        $ctf_col = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s
+             LIMIT 1",
+            $wpdb->prefix . 'hl_email_workflow', 'component_type_filter'
+        ) );
+        $this->assert_true( ! empty( $ctf_col ), 'hl_email_workflow.component_type_filter column exists' );
+
+        // 9. idx_complete_by index exists on hl_component (Rev 39).
+        $idx_cb = $wpdb->get_var( $wpdb->prepare(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s
+             LIMIT 1",
+            $component_table, 'idx_complete_by'
+        ) );
+        $this->assert_true( ! empty( $idx_cb ), 'hl_component.idx_complete_by index exists' );
     }
     private function test_cron() {
         $svc = HL_Email_Automation_Service::instance();
@@ -254,15 +281,21 @@ class HL_CLI_Email_V2_Test {
         $method->setAccessible( true );
 
         $triggers = array(
-            'cron:cv_window_7d',
-            'cron:cv_overdue_1d',
-            'cron:rp_window_7d',
-            'cron:coaching_window_7d',
+            'cron:component_upcoming',
+            'cron:component_overdue',
+            'cron:session_upcoming',
             'cron:coaching_pre_end',
         );
+
+        // Build a mock workflow object for triggers that need it.
+        $mock_workflow = (object) array(
+            'trigger_offset_minutes' => 10080,
+            'component_type_filter'  => null,
+        );
+
         foreach ( $triggers as $t ) {
             try {
-                $out = $method->invoke( $svc, $t, $cycle );
+                $out = $method->invoke( $svc, $t, $cycle, $mock_workflow );
                 $this->assert_true( is_array( $out ), $t . ' returned an array' );
             } catch ( \Throwable $e ) {
                 $this->assert_true( false, $t . ' threw: ' . $e->getMessage() );
