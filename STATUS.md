@@ -204,7 +204,7 @@ Pick up from the first unchecked `[ ]` item each session.
 > **Handoff:** `docs/superpowers/plans/2026-04-11-email-v2-handoff.md`
 > **Plans:** `2026-04-11-email-v2-track{1,2,3}-*.md`
 > **Build journal:** `.claude/v2-build-journal.md`
-> **Progress:** 52 / 52 tasks complete — **All 3 tracks COMPLETE.** Track 3 merged. Track 1 merged. Track 2 on `feature/email-v2-track2-builder` — ready for merge PR.
+> **Progress:** 52 / 52 tasks complete — **All 3 tracks COMPLETE.** Track 3 merged. Track 1 merged. Track 2 on `feature/email-v2-track2-builder` — ready for merge PR. **Feedback fixes (11/11) on `feature/email-v2-feedback-fixes` — deployed to test, ready for merge.**
 
 **Branches:**
 - `feature/email-v2-track3-backend` — **Track 3 all 32 tasks complete** + round-1/round-2 foundation polish + Task 21 post-scrub read-path regression fix (25 files patched to route `hl_enrollment.roles` reads through `HL_Roles::parse_stored()`). Ready for manual review + merge PR to `main`.
@@ -286,6 +286,23 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] Task E: Preview modal (§2.3) — fullscreen overlay, device toggles, srcdoc, CSP, enrollment search
 - Track gate: email-v2-test 63/63, Track 1 16/16, test-email-renderer 18/18, smoke-test 2 pre-existing
 - Browser verification: pending manual UI pass at PR review time
+
+**Email V2 Feedback Fixes (11/11 — COMPLETE on `feature/email-v2-feedback-fixes`):**
+> Post-demo feedback from 2026-04-13 client review. Tasks 12-13 (draft save UX + workflow folders) deferred to next sprint.
+- [x] **Task 1: Enrollment status dropdown** — `enrollment.status` condition field options reduced to `active`/`inactive` (matches DB enum, removes spurious warning/completed values).
+- [x] **Task 2: Dark mode text color** — Added `<span class="hl-email-text-span">` wrapper + `<meta name="color-scheme" content="light">` in preview head so email text stays readable against dark backdrops.
+- [x] **Task 3: Merge tag click-to-copy feedback** — Clicking a merge tag pill shows "Copied!" flash with `hl-eb-tag-copied` class + clipboard fallback for non-HTTPS contexts.
+- [x] **Task 4: Domain allowlist safety gate** — `HL_Email_Queue_Processor::is_domain_allowed()` restricts sends to `housmanlearning.com` during testing. External domains are blocked.
+- [x] **Task 5: Cycle date-gating on cron queries** — Cron trigger queries now filter by `start_date <= CURDATE() AND (end_date IS NULL OR end_date >= CURDATE())`, skipping future/ended cycles.
+- [x] **Task 6: Rewire triggers to complete_by/display_window_start** — Removed Submission Window UI references; cron triggers now use `complete_by` and `display_window_start` columns.
+- [x] **Task 7: Configurable trigger offset** — Schema Rev 39: `trigger_offset_minutes` (int) + `component_type_filter` (varchar 100) on `hl_email_workflow`, `idx_complete_by` index on `hl_component`. UI: offset value + unit dropdown (minutes/hours/days), component type filter dropdown (8 types).
+- [x] **Task 8: UI sub-filter for coaching/RP status triggers** — Status filter dropdown (`trigger_status_filter`) on workflow form for coaching/RP session status changed triggers. Options: Any, Booked, Attended, Cancelled, Missed, Rescheduled.
+- [x] **Task 9: coaching.session_scheduled condition field** — New condition field for targeting scheduled coaching sessions in workflow conditions.
+- [x] **Task 10: Merge tag dropdown for button URL fields** — `<select class="hl-eb-merge-tag-url-select">` next to button URL input with all merge tags in optgroups. Selecting inserts the tag into the URL field.
+- [x] **Task 11: Expand preview context** — Preview rendering now populates all merge tags with real enrollment data for accurate preview.
+- [x] **Deployed to test** — 2026-04-15. Schema rev 39, email-v2-test 65/65 PASS, smoke-test 0 failures. All checklist items verified: Rev 39 columns + index, domain allowlist (ALLOWED/BLOCKED), cycle date-gating (4 active cycles), EXPLAIN uses idx_complete_by, enrollment dropdown = active/inactive. Browser verified: trigger dropdown (22 triggers), conditional sub-fields toggle correctly, merge tag "Copied!" feedback, button URL merge tag dropdown, dark mode preview span class present.
+- [ ] **Deferred: Task 12** — Draft save UX improvements (next sprint).
+- [ ] **Deferred: Task 13** — Workflow folders/categories (next sprint).
 
 ### Classroom Management for Control Groups (Ticket #18 — April 2026)
 > **Spec:** `docs/superpowers/specs/2026-04-13-classroom-management-design.md` | **Plan:** `docs/superpowers/plans/2026-04-13-classroom-management.md`
