@@ -10,6 +10,7 @@ class HL_OrgUnit {
     public $name;
     public $status;
     public $metadata;
+    public $bb_group_id;
     public $created_at;
     public $updated_at;
 

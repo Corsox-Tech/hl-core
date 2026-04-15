@@ -150,7 +150,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 39;
+        $current_revision = 40;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -258,6 +258,11 @@ class HL_Installer {
             // Rev 39: Email v2 — configurable trigger offset + component type filter.
             if ( (int) $stored < 39 ) {
                 self::migrate_workflow_trigger_offset();
+            }
+
+            // Rev 40: BB group sync — add bb_group_id to hl_orgunit
+            if ( (int) $stored < 40 ) {
+                self::migrate_orgunit_add_bb_group_id();
             }
 
             update_option( 'hl_core_schema_revision', $current_revision );
@@ -2243,6 +2248,21 @@ class HL_Installer {
             $coach_role->add_cap('hl_view_cohorts');
             $coach_role->add_cap('hl_view_enrollments');
         }
+
+        // Create Coaching Director role if it doesn't exist
+        if ( ! get_role( 'coaching_director' ) ) {
+            add_role( 'coaching_director', __( 'Coaching Director', 'hl-core' ), array(
+                'read'               => true,
+                'manage_hl_core'     => true,
+                'hl_view_cohorts'    => true,
+                'hl_view_enrollments'=> true,
+            ));
+        } else {
+            $cd_role = get_role( 'coaching_director' );
+            $cd_role->add_cap( 'manage_hl_core' );
+            $cd_role->add_cap( 'hl_view_cohorts' );
+            $cd_role->add_cap( 'hl_view_enrollments' );
+        }
     }
     
     /**
@@ -3888,4 +3908,21 @@ class HL_Installer {
      * foreach ($backup as $row) { $wpdb->update($table, ['trigger_key' => $row['trigger_key']], ['workflow_id' => $row['workflow_id']]); }
      * delete_option('hl_rev39_trigger_key_backup');
      */
+
+    /**
+     * Rev 40: BB group sync — add bb_group_id to hl_orgunit.
+     */
+    private static function migrate_orgunit_add_bb_group_id() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_orgunit';
+        $col_exists = $wpdb->get_var(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+             AND TABLE_NAME = '{$table}'
+             AND COLUMN_NAME = 'bb_group_id'"
+        );
+        if ( ! $col_exists ) {
+            $wpdb->query( "ALTER TABLE {$table} ADD COLUMN bb_group_id BIGINT UNSIGNED NULL" );
+        }
+    }
 }
