@@ -113,7 +113,8 @@ class HL_BB_Group_Sync_Service {
         }
         // Use BP_Groups_Member::delete() directly for consistency with add_member()
         // (groups_leave_group() may trigger notifications or permission checks)
-        return (bool) BP_Groups_Member::delete( $user_id, $group_id );
+        // BP_Groups_Member::delete() signature is ( $group_id, $user_id ) — group first!
+        return (bool) BP_Groups_Member::delete( $group_id, $user_id );
     }
 
     private static function promote_to_mod( int $user_id, int $group_id ): bool {
@@ -282,8 +283,11 @@ class HL_BB_Group_Sync_Service {
             // Demote from all managed groups
             foreach ( $managed as $gid ) {
                 try {
-                    if ( groups_is_user_mod( $user_id, $gid ) ) {
-                        self::demote_from_mod( $user_id, $gid );
+                    if ( groups_is_user_mod( $user_id, $gid )
+                      || groups_is_user_admin( $user_id, $gid ) ) {
+                        if ( ! self::demote_from_mod( $user_id, $gid ) ) {
+                            continue; // Demotion failed — don't log false success
+                        }
                         HL_Audit_Service::log( 'bb_group_sync.mod_demoted', array(
                             'entity_type' => 'user',
                             'entity_id'   => $user_id,
@@ -324,12 +328,12 @@ class HL_BB_Group_Sync_Service {
         if ( function_exists( 'groups_get_group_members' ) ) {
             $members = groups_get_group_members( array(
                 'group_id'   => $bb_group_id,
-                'per_page'   => 0,
+                'per_page'   => 9999,
                 'exclude_admins_mods' => false,
             ) );
             if ( ! empty( $members['members'] ) ) {
                 foreach ( $members['members'] as $m ) {
-                    $user_ids[] = $m->ID;
+                    $user_ids[] = $m->user_id;
                 }
             }
         }
