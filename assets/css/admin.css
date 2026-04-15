@@ -2594,3 +2594,12 @@ body.hl-js-loaded .hl-email-admin .hl-js-fallback { display: none; }
     0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
+
+/* ---- B.3: Merge tag dropdown for button URL fields ---- */
+.hl-eb-merge-tag-url-select {
+    font-size: 12px;
+    padding: 2px 4px;
+    margin-left: 6px;
+    max-width: 160px;
+    vertical-align: middle;
+}

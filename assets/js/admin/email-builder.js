@@ -57,6 +57,33 @@
     });
 
     // =========================================================================
+    // Helpers
+    // =========================================================================
+
+    function buildMergeTagSelect(targetInput) {
+        var $sel = $('<select class="hl-eb-merge-tag-url-select" aria-label="Insert merge tag into URL"><option value="">Insert tag...</option></select>');
+        $.each(config.mergeTagsGrouped || {}, function (group, tags) {
+            var $og = $('<optgroup label="' + escHtml(group) + '">');
+            $.each(tags, function (key, label) {
+                $og.append('<option value="{{' + key + '}}">' + escHtml(label) + '</option>');
+            });
+            $sel.append($og);
+        });
+        $sel.on('change', function () {
+            var tag = $(this).val();
+            if (!tag) return;
+            var input = targetInput[0];
+            var start = input.selectionStart || input.value.length;
+            var val   = input.value;
+            input.value = val.slice(0, start) + tag + val.slice(start);
+            input.selectionStart = input.selectionEnd = start + tag.length;
+            $(this).val('');
+            targetInput.trigger('change');
+        });
+        return $sel;
+    }
+
+    // =========================================================================
     // Rendering
     // =========================================================================
 
@@ -307,7 +334,8 @@
                 var $url = $('<input type="text" placeholder="URL or {{merge_tag}}" value="' + escHtml(block.url || '') + '">');
                 $label.on('change', function () { pushUndo(); blocks[index].label = $(this).val(); markDirty(); });
                 $url.on('change',   function () { pushUndo(); blocks[index].url   = $(this).val(); markDirty(); });
-                $wrap.append($label).append($url);
+                var $urlTagSelect = buildMergeTagSelect($url);
+                $wrap.append($label).append($url).append($urlTagSelect);
                 var $colorWrap = $('<div style="margin-top:8px;"><label>BG: </label></div>');
                 var $bgInput = $('<input type="text" class="hl-eb-color" value="' + escHtml(block.bg_color || '#2C7BE5') + '">');
                 $colorWrap.append($bgInput);
@@ -561,7 +589,8 @@
                 var $u   = $('<input type="text" placeholder="URL" value="' + escHtml(block.url || '') + '">');
                 $lbl.on('change', function () { pushUndo(); shim.set('label', $(this).val()); markDirty(); });
                 $u.on('change',   function () { pushUndo(); shim.set('url',   $(this).val()); markDirty(); });
-                $content.append($lbl).append($u);
+                var $uTagSel = buildMergeTagSelect($u);
+                $content.append($lbl).append($u).append($uTagSel);
                 break;
             case 'divider':
                 $content.append('<hr style="border-top:' + (block.thickness || 1) + 'px solid ' + escHtml(block.color || '#E5E7EB') + ';">');
