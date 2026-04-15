@@ -126,6 +126,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
     - Undo / Redo with 50-snapshot ring buffer (Ctrl+Z / Ctrl+Y), autosave-race debounce, one-time undo-clear notice
     - Fullscreen preview modal with Desktop / Mobile / Dark Backdrop toggles, enrollment search, srcdoc + CSP
     - Text block alignment (3 buttons) + font size (6 presets), Outlook inner `<span>` wrapper
+  - **Workflow Builder UX Redesign (M1):** Two-panel card layout (form cards + sticky summary) with dark top bar, progressive disclosure, and activation guardrails (hard gate on template, soft warning on recipients). Send Test Email endpoint with domain allowlist + transient rate limit. Recipient preview with sample names, responsive bottom drawer at <900px, and server-side draft-before-activate safety net. Rollback toggle (`hl_workflow_ux_version`) for safe incremental rollout.
   - **Cycle Editor → Emails tab** — Manual sends section: template select, role filter, recipient checkboxes with dedup badges ("Already sent today"), Send Now button. Legacy invitation UI collapsed in `<details>` with deprecation notice.
 
 - **Assessment Hub** - Unified assessment management page with vertical sidebar navigation:

@@ -304,6 +304,19 @@ Pick up from the first unchecked `[ ]` item each session.
 - [ ] **Deferred: Task 12** — Draft save UX improvements (next sprint).
 - [ ] **Deferred: Task 13** — Workflow folders/categories (next sprint).
 
+### Workflow Builder UX Redesign — M1 (April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-15-workflow-ux-redesign-design.md` | **Plan:** `docs/superpowers/plans/2026-04-15-workflow-ux-redesign-m1.md`
+- [x] **Rollback toggle + condition migration** — `hl_workflow_ux_version` option, `coaching.session_status` enum (6 values), coded migration with table guard + backup. Replaces binary `coaching.session_scheduled`.
+- [x] **Card layout + top bar** — Two-panel layout (form + sticky summary), 5 card sections, dark top bar with Save Draft + Activate. Progressive disclosure (cards 3-5 hidden on new workflows until trigger selected).
+- [x] **CSS** — `.hl-wf-*` styles, responsive bottom drawer at <900px. Version bump 1.2.3.
+- [x] **JS interactions** — Summary sentence sync, activation guardrails (hard gate on template, soft warning on recipients), Send Test UI, progressive disclosure, top bar name sync, mobile drawer toggle.
+- [x] **Send Test Email** — AJAX endpoint with server-side domain allowlist, transient rate limit (5/admin/10min), `manage_hl_core` capability check, nonce, audit logging. Uses singleton renderer + resolve_all() pattern.
+- [x] **component_id propagation** — Coaching session status condition now queries by component_id (not just cycle). Handles both entity_type=component and entity_type=coaching_session cron paths.
+- [x] **Operator labels** — "is any of" / "is none of" (was "matches any of" / "does not match any of").
+- [x] **Recipient preview** — Sample display names (up to 3) shown in recipient count hint.
+- [x] **Activation guardrail** — Server-side blocks activation without template. New workflows saved as draft before redirect (no data loss).
+- [ ] **Deployed to test** — Pending.
+
 ### Classroom Management for Control Groups (Ticket #18 — April 2026)
 > **Spec:** `docs/superpowers/specs/2026-04-13-classroom-management-design.md` | **Plan:** `docs/superpowers/plans/2026-04-13-classroom-management.md`
 - [x] **Cycle tab deep links** — "Manage Classrooms" + "Add Classroom" buttons, View + Edit per row, all pass `cycle_id`.
