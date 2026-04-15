@@ -399,6 +399,9 @@ class HL_Email_Automation_Service {
         $context['user_id']       = (int) $session->mentor_user_id;
         $context['cycle_id']      = (int) $session->cycle_id;
         $context['enrollment_id'] = $session->enrollment_id ? (int) $session->enrollment_id : null;
+        if ( ! empty( $session->component_id ) ) {
+            $context['component_id'] = (int) $session->component_id;
+        }
         $context['meeting_url']   = $session->meeting_url ?? '';
         $context['zoom_link']     = $session->meeting_url ?? '';
 
@@ -562,18 +565,53 @@ class HL_Email_Automation_Service {
             }
         }
 
-        // A.5 — Lazy hydration: coaching.session_scheduled (only when a condition references it).
-        if ( ! empty( $context['_needs_coaching_check'] ) && ! empty( $context['enrollment_id'] ) && ! empty( $context['cycle_id'] ) ) {
-            $has_session = $wpdb->get_var( $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}hl_coaching_session
-                 WHERE mentor_enrollment_id = %d AND cycle_id = %d
-                   AND session_status IN ('scheduled', 'attended')",
-                $context['enrollment_id'],
-                $context['cycle_id']
+        // Propagate component_id from entity context (cron triggers).
+        if ( ! empty( $context['entity_type'] ) && $context['entity_type'] === 'component' && ! empty( $context['entity_id'] ) ) {
+            $context['component_id'] = (int) $context['entity_id'];
+        } elseif ( ! empty( $context['entity_type'] ) && $context['entity_type'] === 'coaching_session' && ! empty( $context['entity_id'] ) ) {
+            // cron:session_upcoming returns entity_type=coaching_session, entity_id=session_id.
+            // Look up component_id from the session row.
+            $session_component = $wpdb->get_var( $wpdb->prepare(
+                "SELECT component_id FROM {$wpdb->prefix}hl_coaching_session WHERE session_id = %d",
+                $context['entity_id']
             ) );
+            if ( $session_component ) {
+                $context['component_id'] = (int) $session_component;
+            }
+        }
+
+        // Lazy hydration: coaching.session_status (component-scoped enum).
+        if ( ! empty( $context['_needs_coaching_check'] ) && ! empty( $context['enrollment_id'] ) ) {
+            $session_status = 'not_scheduled';
+
+            if ( ! empty( $context['component_id'] ) ) {
+                $status = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT session_status FROM {$wpdb->prefix}hl_coaching_session
+                     WHERE mentor_enrollment_id = %d AND component_id = %d
+                     ORDER BY created_at DESC LIMIT 1",
+                    $context['enrollment_id'],
+                    $context['component_id']
+                ) );
+                if ( $status ) {
+                    $session_status = $status;
+                }
+            } elseif ( ! empty( $context['cycle_id'] ) ) {
+                // Fallback for triggers without component_id (e.g., enrollment-level hooks).
+                $status = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT session_status FROM {$wpdb->prefix}hl_coaching_session
+                     WHERE mentor_enrollment_id = %d AND cycle_id = %d
+                     ORDER BY created_at DESC LIMIT 1",
+                    $context['enrollment_id'],
+                    $context['cycle_id']
+                ) );
+                if ( $status ) {
+                    $session_status = $status;
+                }
+            }
+
             $context['coaching'] = array_merge(
                 $context['coaching'] ?? array(),
-                array( 'session_scheduled' => $has_session > 0 ? 'yes' : 'no' )
+                array( 'session_status' => $session_status )
             );
         }
 
@@ -871,10 +909,10 @@ class HL_Email_Automation_Service {
             $recipient_config = array( 'primary' => array(), 'cc' => array() );
         }
 
-        // Detect whether any condition references coaching.session_scheduled (lazy hydration flag).
+        // Detect whether any condition references coaching.session_status (lazy hydration flag).
         $needs_coaching_check = false;
         foreach ( $conditions as $cond ) {
-            if ( isset( $cond['field'] ) && strpos( $cond['field'], 'coaching.session_scheduled' ) === 0 ) {
+            if ( isset( $cond['field'] ) && strpos( $cond['field'], 'coaching.session_status' ) === 0 ) {
                 $needs_coaching_check = true;
                 break;
             }
