@@ -927,3 +927,27 @@ During implementation-plan drafting, a codebase audit found 9 places where earli
 - **Phase 5:** Error-likelihood reduction — 9 more refinements (5 from UX reviewer, 5 from Architecture reviewer, 1 overlap).
 - **Total:** ~86 unique issues addressed.
 - **Final error-likelihood target:** 0/10 from both reviewers.
+
+---
+
+## Post-M1 Amendment (2026-04-15)
+
+The following changes were made as part of the Workflow Builder UX Redesign M1 (`feature/workflow-ux-m1`). See spec: `docs/superpowers/specs/2026-04-15-workflow-ux-redesign-design.md`.
+
+**Condition field change:**
+- `coaching.session_scheduled` (binary yes/no) replaced by `coaching.session_status` (enum: not_scheduled, scheduled, attended, missed, cancelled, rescheduled)
+- Existing workflows auto-migrated via `HL_Admin_Emails::migrate_coaching_session_conditions()`
+- Context hydration now queries by `component_id` (component-scoped), not just `cycle_id`
+
+**Admin UX:**
+- `render_workflow_form_v2()` — two-panel card layout with progressive disclosure, gated by `hl_workflow_ux_version` wp_option (rollback toggle)
+- Send Test Email endpoint (`ajax_send_test`) with domain allowlist, rate limit, audit logging
+- Activation guardrails: server-side + client-side template validation
+- Operator labels changed to "is any of" / "is none of"
+- Recipient preview shows sample display names (up to 3)
+
+**New CSS prefix:** `.hl-wf-*` for v2 workflow card layout
+
+**JS modules added to `email-workflow.js`:** Summary panel sync, guardrails, send test UI, progressive disclosure, name sync, activate dialog, mobile drawer toggle
+
+**Version:** 1.2.3
