@@ -2643,15 +2643,20 @@ body.hl-js-loaded .hl-email-admin .hl-js-fallback { display: none; }
 .hl-wf-btn-activate:hover { background: #4338CA; }
 .hl-wf-btn-activate:disabled { background: #6B7280; cursor: not-allowed; }
 
+/* --- V2 form override — remove v1 max-width constraint ------------- */
+.hl-workflow-form.hl-wf-v2 {
+    max-width: 100%;
+}
+
 /* --- Two-panel layout ---------------------------------------------- */
 .hl-wf-layout {
     display: flex; gap: 0; min-height: calc(100vh - 140px);
 }
 .hl-wf-form-panel {
-    flex: 3; padding: 24px 24px 24px 0; overflow-y: auto;
+    flex: 1 1 0%; min-width: 0; padding: 24px 24px 24px 0; overflow-y: auto;
 }
 .hl-wf-summary-panel {
-    flex: 2; max-width: 380px; min-width: 320px;
+    flex: 0 0 340px; width: 340px;
     background: #fff; border-left: 1px solid #E5E7EB;
     padding: 24px; position: sticky; top: 32px;
     height: calc(100vh - 140px); overflow-y: auto;
@@ -2763,11 +2768,11 @@ body.hl-js-loaded .hl-email-admin .hl-js-fallback { display: none; }
 }
 
 /* --- Responsive: narrow screens -> bottom drawer ------------------- */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
     .hl-wf-layout { flex-direction: column; }
     .hl-wf-form-panel { padding: 16px; }
     .hl-wf-summary-panel {
-        max-width: 100%; position: fixed; bottom: 0; left: 0; right: 0;
+        flex: none; width: 100%; max-width: 100%; position: fixed; bottom: 0; left: 0; right: 0;
         height: auto; max-height: 50vh; border-left: none;
         border-top: 1px solid #E5E7EB; z-index: 100;
         transform: translateY(calc(100% - 48px)); transition: transform 0.3s ease;
@@ -2781,6 +2786,6 @@ body.hl-js-loaded .hl-email-admin .hl-js-fallback { display: none; }
     border: none; font-size: 13px; font-weight: 600; cursor: pointer;
     border-radius: 8px 8px 0 0;
 }
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
     .hl-wf-drawer-toggle { display: block; }
 }

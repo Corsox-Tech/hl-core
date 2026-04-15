@@ -1215,7 +1215,7 @@ class HL_Admin_Emails {
         <?php endif; ?>
 
         <?php // ── Form wrapper ─────────────────────────────────────────────── ?>
-        <form id="hl-wf-form-v2" method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows' ) ); ?>" class="hl-workflow-form">
+        <form id="hl-wf-form-v2" method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows' ) ); ?>" class="hl-workflow-form hl-wf-v2">
             <?php wp_nonce_field( 'hl_workflow_save', 'hl_workflow_nonce' ); ?>
             <input type="hidden" name="workflow_id" value="<?php echo (int) $workflow_id; ?>">
             <input type="hidden" name="status" id="hl-wf-status-field" value="<?php echo esc_attr( $wf_status ); ?>">
