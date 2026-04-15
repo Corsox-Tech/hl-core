@@ -39,7 +39,7 @@ class HL_Enrollment_Service {
 
     public function update_enrollment($enrollment_id, $data) {
         $result = $this->repository->update($enrollment_id, $data);
-        if ($result !== false) {
+        if ($result !== null) {
             do_action('hl_enrollment_updated', $enrollment_id, $data);
         }
         return $result;
