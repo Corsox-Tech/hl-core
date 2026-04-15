@@ -536,4 +536,221 @@ jQuery(function ($) {
             $hint.text('');
         });
     }
+
+    // =====================================================================
+    // MODULE: Summary Panel (v2)
+    // =====================================================================
+    var $summaryPanel = $('.hl-wf-summary-panel');
+    if ($summaryPanel.length) {
+        function updateSummary() {
+            var templateText = $('select[name="template_id"] option:selected').text();
+            var templateName = (templateText && templateText !== '— Select —') ? templateText : '';
+            var triggerText = $('select[name="trigger_key"] option:selected').text();
+            var triggerLabel = (triggerText && triggerText !== '— Select —') ? triggerText : '';
+
+            // Build recipient list from checked tokens.
+            var primaryTokens = [];
+            $('.hl-recipient-primary .hl-token-card.hl-token-checked .hl-token-label').each(function() {
+                primaryTokens.push($(this).text());
+            });
+            var ccTokens = [];
+            $('.hl-recipient-cc .hl-token-card.hl-token-checked .hl-token-label').each(function() {
+                ccTokens.push($(this).text());
+            });
+            // Note: also count pill-based recipients
+            $('.hl-recipient-primary .hl-pill-role').each(function() {
+                primaryTokens.push('role:' + $(this).attr('data-value'));
+            });
+
+            var recipientText = primaryTokens.length ? '<strong>' + primaryTokens.map(escHtml).join(', ') + '</strong>' : '<em style="color:#9CA3AF;">select recipients</em>';
+            var ccText = ccTokens.length ? ' (CC: <strong>' + ccTokens.map(escHtml).join(', ') + '</strong>)' : '';
+
+            // Build condition summary from condition rows.
+            var condParts = [];
+            $('.hl-condition-row').each(function() {
+                var fieldLabel = $(this).find('.hl-condition-field option:selected').text();
+                var opLabel = $(this).find('.hl-condition-op option:selected').text();
+                var $pillbox = $(this).find('.hl-pill-input');
+                var valText;
+                if ($pillbox.length && $pillbox.find('.hl-pill').length) {
+                    valText = $pillbox.find('.hl-pill').map(function(){ return $(this).attr('data-value'); }).get().join(', ');
+                } else {
+                    valText = $(this).find('.hl-condition-value').val() || '';
+                }
+                if (fieldLabel && fieldLabel !== '— Select field —') {
+                    condParts.push(escHtml(fieldLabel) + ' ' + escHtml(opLabel) + ' <strong>' + escHtml(valText) + '</strong>');
+                }
+            });
+            var condText = condParts.length ? condParts.join(' AND ') : '<em style="color:#9CA3AF;">no conditions (matches all)</em>';
+
+            var sentence = '';
+            if (templateName) {
+                sentence += 'Send <strong>&ldquo;' + escHtml(templateName) + '&rdquo;</strong>';
+            } else {
+                sentence += 'Send <em style="color:#9CA3AF;">select a template</em>';
+            }
+            sentence += ' to ' + recipientText + ccText;
+            if (triggerLabel) {
+                sentence += '<br><br><strong>When:</strong> ' + escHtml(triggerLabel);
+            }
+            if (condParts.length) {
+                sentence += '<br><br><strong>Only if:</strong> ' + condText;
+            }
+
+            $summaryPanel.find('.hl-wf-summary-sentence').html(sentence);
+            updateGuardrails();
+        }
+
+        // Listen to all form changes.
+        $('select[name="trigger_key"], select[name="template_id"]').on('change', updateSummary);
+        // Condition/recipient changes fire through their existing modules.
+        $(document).on('change click', '.hl-condition-builder, .hl-recipient-picker', function() {
+            setTimeout(updateSummary, 100); // slight delay for serialization
+        });
+        // Initial render.
+        setTimeout(updateSummary, 200);
+    }
+
+    // =====================================================================
+    // MODULE: Guardrails (v2)
+    // =====================================================================
+    function updateGuardrails() {
+        if (!$('.hl-wf-guardrails').length) return;
+
+        var checks = {
+            trigger: !!$('select[name="trigger_key"]').val(),
+            template: !!$('select[name="template_id"]').val(),
+            recipients: ($('.hl-recipient-picker .hl-token-card.hl-token-checked').length > 0
+                || $('.hl-recipient-picker .hl-pill').length > 0)
+        };
+
+        $.each(checks, function(key, ok) {
+            var $item = $('.hl-wf-guardrail[data-check="' + key + '"]');
+            $item.toggleClass('hl-wf-guardrail-ok', ok);
+            $item.find('.hl-wf-guardrail-icon').html(ok ? '&#10003;' : '&#10007;');
+        });
+
+        // Disable Activate button if template is missing (hard gate).
+        var $activateBtn = $('.hl-wf-btn-activate');
+        if (!checks.template) {
+            $activateBtn.prop('disabled', true).attr('title', 'Select a template first');
+        } else {
+            $activateBtn.prop('disabled', false).removeAttr('title');
+        }
+    }
+
+    // =====================================================================
+    // MODULE: Send Test Email (v2)
+    // =====================================================================
+    $(document).on('click', '.hl-wf-send-test-btn', function(e) {
+        e.preventDefault();
+        var $btn = $(this);
+        var $box = $btn.closest('.hl-wf-send-test');
+        var $feedback = $box.find('.hl-wf-send-test-feedback');
+        var cfg = window.hlEmailWorkflowCfg || {};
+
+        var templateId = $('select[name="template_id"]').val() || $('input[name="template_id"]').val();
+        var enrollmentId = $box.find('select[name="hl_test_enrollment"]').val() || '';
+        var toEmail = $box.find('input[name="hl_test_email"]').val() || '';
+
+        if (!templateId) {
+            $feedback.text('Select a template first.').css('color', '#DC2626');
+            return;
+        }
+        if (!toEmail) {
+            $feedback.text('Enter an email address.').css('color', '#DC2626');
+            return;
+        }
+
+        $btn.prop('disabled', true).text('Sending...');
+        $feedback.text('').css('color', '');
+
+        $.post(cfg.ajaxUrl, {
+            action: 'hl_email_send_test',
+            nonce: cfg.nonces.sendTest,
+            template_id: templateId,
+            enrollment_id: enrollmentId,
+            to_email: toEmail
+        }).done(function(res) {
+            if (res.success) {
+                $feedback.text(res.data.message).css('color', '#059669');
+            } else {
+                $feedback.text(res.data || 'Send failed.').css('color', '#DC2626');
+            }
+        }).fail(function() {
+            $feedback.text('Network error.').css('color', '#DC2626');
+        }).always(function() {
+            $btn.prop('disabled', false).text('Send Test');
+        });
+    });
+
+    // =====================================================================
+    // MODULE: Progressive Disclosure (v2)
+    // =====================================================================
+    (function() {
+        var $progressiveCards = $('.hl-wf-card[data-progressive]');
+        if (!$progressiveCards.length) return;
+
+        // On edit (workflowId > 0), reveal immediately.
+        if ((window.hlEmailWorkflowCfg || {}).workflowId > 0) {
+            $progressiveCards.addClass('hl-wf-revealed');
+            return;
+        }
+
+        // On new: reveal when trigger is selected.
+        $('select[name="trigger_key"]').on('change', function() {
+            if ($(this).val()) {
+                $progressiveCards.addClass('hl-wf-revealed');
+                // Hide onboarding, show summary.
+                $('.hl-wf-summary-onboarding').hide();
+                $('.hl-wf-summary-sentence').show();
+            }
+        });
+
+        // Check on load in case trigger is pre-selected.
+        if ($('select[name="trigger_key"]').val()) {
+            $progressiveCards.addClass('hl-wf-revealed');
+            $('.hl-wf-summary-onboarding').hide();
+        }
+    })();
+
+    // =====================================================================
+    // MODULE: Top Bar Name Sync (v2)
+    // =====================================================================
+    $('input[name="name"]').on('input', function() {
+        var val = $(this).val() || 'New Workflow';
+        $('.hl-wf-topbar-name').text(val);
+    });
+
+    // =====================================================================
+    // MODULE: Activate Soft-Warning Dialog (v2)
+    // =====================================================================
+    $(document).on('click', '.hl-wf-btn-activate', function(e) {
+        var templateId = $('select[name="template_id"]').val() || $('input[name="template_id"]').val();
+        if (!templateId) {
+            e.preventDefault();
+            alert('Cannot activate: please select an email template first.');
+            return;
+        }
+
+        var warnings = [];
+        var hasRecipients = ($('.hl-recipient-picker .hl-token-card.hl-token-checked').length > 0
+            || $('.hl-recipient-picker .hl-pill').length > 0);
+        if (!hasRecipients) warnings.push('No recipients selected');
+
+        if (warnings.length > 0) {
+            if (!confirm('Activate with warnings?\n\n- ' + warnings.join('\n- ') + '\n\nContinue anyway?')) {
+                e.preventDefault();
+            }
+        }
+    });
+
+    // =====================================================================
+    // MODULE: Mobile Drawer Toggle (v2)
+    // =====================================================================
+    $(document).on('click', '.hl-wf-drawer-toggle', function() {
+        var $panel = $('.hl-wf-summary-panel');
+        $panel.toggleClass('hl-wf-drawer-open');
+        $(this).text($panel.hasClass('hl-wf-drawer-open') ? 'Hide Summary' : 'Show Summary');
+    });
 });
