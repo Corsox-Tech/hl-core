@@ -552,6 +552,9 @@ class HL_Import_Participant_Handler {
             // Track created teams to avoid duplicates within this import
             $created_teams = array(); // "school_id|team_name_lower" => team_id
 
+            HL_BB_Group_Sync_Service::begin_bulk();
+            try {
+
             foreach ($rows_to_process as $row) {
                 $email      = $row['parsed_email'];
                 $role       = $row['parsed_role'];
@@ -623,7 +626,8 @@ class HL_Import_Participant_Handler {
                         'school_id'           => $school_id,
                         'language_preference' => !empty($row['parsed_language']) ? $row['parsed_language'] : 'en',
                     );
-                    $enrollment_repo->update($enrollment_id, $update_data);
+                    $enrollment_service = new HL_Enrollment_Service();
+                    $enrollment_service->update_enrollment($enrollment_id, $update_data);
 
                     HL_Audit_Service::log('import_enrollment_updated', array(
                         'cycle_id'    => $cycle_id,
@@ -826,6 +830,10 @@ class HL_Import_Participant_Handler {
                         }
                     }
                 }
+            }
+
+            } finally {
+                HL_BB_Group_Sync_Service::end_bulk();
             }
 
             $wpdb->query('COMMIT');
