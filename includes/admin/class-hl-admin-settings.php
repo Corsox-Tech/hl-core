@@ -51,6 +51,12 @@ class HL_Admin_Settings {
                 }
                 break;
 
+            case 'bb_groups':
+                if ( isset( $_POST['hl_bb_groups_nonce'] ) ) {
+                    HL_Admin_BB_Groups_Settings::instance()->handle_save();
+                }
+                break;
+
             default:
                 // Imports early actions are AJAX-based (no handle_early_actions needed).
                 break;
@@ -93,6 +99,10 @@ class HL_Admin_Settings {
                 HL_Admin_Tours::instance()->render_page_content();
                 break;
 
+            case 'bb_groups':
+                HL_Admin_BB_Groups_Settings::instance()->render_page_content();
+                break;
+
             case 'imports':
                 echo '<div class="notice notice-info"><p>';
                 echo esc_html__('The Import feature has moved! Go to Cycles → [Your Cycle] → Import tab.', 'hl-core');
@@ -121,6 +131,7 @@ class HL_Admin_Settings {
             'scheduling'       => __('Scheduling & Integrations', 'hl-core'),
             'email_templates'  => __('Email Templates', 'hl-core'),
             'tours'            => __('Tours', 'hl-core'),
+            'bb_groups'        => __('BuddyBoss Groups', 'hl-core'),
         );
         $base_url = admin_url('admin.php?page=hl-settings');
 
