@@ -1,6 +1,6 @@
 # STATUS.md — HL Core Build Status
 
-**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 22 admin controllers, 54 DB tables, 33 services, 19 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools). **Email system deployed to test (April 2026).**
+**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 23 admin controllers, 54 DB tables (schema rev 40), 34 services, 20 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools). **Email system deployed to test (April 2026).**
 
 ---
 
@@ -197,7 +197,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Code Reviews** — 3 review cycles (Phase 1, Phase 2, Phases 3-6). 19 MUST FIX issues caught and resolved: cron race condition, SQL injection patterns, XSS in preview, N+1 queries, dedup token correctness, draft cleanup scope, capability checks, javascript: URL blocking.
 - [x] **CLI Testing** — 8 test suites (37 assertions), all pass: block renderer, merge tags, condition evaluator, rate limiter, recipient resolver, queue processor, end-to-end automation, cleanup verification. Zero real emails sent.
 - [x] **Deployed to test** — 2026-04-10. Schema rev 34, 4 tables, 6 migrated templates, 3 cron events, all verified.
-- [ ] **Phase 7: Hardening** — Security review, cron reliability, performance verification, component window columns (`available_from`/`available_to` on `hl_component` for cron triggers REM-2, REM-4, REM-5). Pending — subsumed into Email System v2 Track 3.
+- [x] **Phase 7: Hardening** — Security review, cron reliability, performance verification. Component window columns (`available_from`/`available_to`) added in Rev 35 but cron triggers rewired to use `complete_by`/`display_window_start` in feedback fixes (Task 6). Configurable trigger offset (`trigger_offset_minutes`) + component type filter added in Rev 39. Domain allowlist safety gate, cycle date-gating, HMAC unsubscribe — all implemented across v2 Tracks + feedback fixes. Subsumed into Email System v2.
 
 ### Email System v2 Build (Active — April 2026)
 > **Spec:** `docs/superpowers/specs/2026-04-10-email-system-v2-design.md` (Appendix A 86 items addressed)
@@ -318,6 +318,15 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Schema rev 38** — `github_issue_id` column on `hl_ticket`.
 - [x] **CLI command** — `wp hl-core sync-tickets-to-github [--dry-run]`. Creates issues, closes resolved, reopens active. Uses `gh` CLI.
 - [ ] **Deployed to test** — Pending.
+
+### B2E Group Sync (Ticket #11 — April 2026)
+- [x] **Schema Rev 40** — `bb_group_id` column on `hl_orgunit`, `coaching_director` WP role.
+- [x] **Sync service** — `HL_BB_Group_Sync_Service` with full recompute sync using `BP_Groups_Member` directly (private/hidden group safe). Hook-driven: enrollment create/update/delete + WP role change hooks. Bulk defer mechanism (`begin_bulk`/`end_bulk`) to prevent N recomputes during imports. Audit logging for all group membership changes.
+- [x] **Settings page** — `HL_Admin_BB_Groups_Settings` new "BuddyBoss Groups" tab in Settings hub with Global Community + Global Mentor group mapping.
+- [x] **OrgUnit admin** — BB Group dropdown with change detection, resync button, duplicate/stale warnings.
+- [x] **CLI command** — `wp hl-core bb-sync` with `--all`, `--user=N`, `--coaches`, `--dry-run` for backfill and repair.
+- [x] **Enrollment service fixes** — Admin update/delete now routes through service layer for hook consistency.
+- [x] **Import handler integration** — Bulk defer in `HL_Import_Participant_Handler` (`begin_bulk`/`end_bulk`) to prevent N recomputes.
 
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders

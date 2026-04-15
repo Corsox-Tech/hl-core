@@ -2,7 +2,7 @@
 
 > **Ticket:** #11 — Automation Request: B2E Group Creation & Group Assignment
 > **Date:** 2026-04-14 (revised 2026-04-15)
-> **Status:** Draft v2 — Post-review revision
+> **Status:** Implemented
 > **Schema Revision:** 40
 
 ## Problem

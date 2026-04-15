@@ -18,7 +18,7 @@
 - Modify: `includes/class-hl-installer.php` (lines 150-265 for `maybe_upgrade()`, lines 2218-2246 for `create_capabilities()`)
 - Modify: `includes/domain/class-hl-orgunit.php` (add `bb_group_id` property)
 
-- [ ] **Step 1: Add `bb_group_id` property to `HL_OrgUnit`**
+- [x] **Step 1: Add `bb_group_id` property to `HL_OrgUnit`**
 
 In `includes/domain/class-hl-orgunit.php`, add the property after `$metadata`:
 
@@ -30,7 +30,7 @@ public $created_at;
 
 The constructor uses `property_exists()` to hydrate — declaring the property is all that's needed.
 
-- [ ] **Step 2: Add Rev 40 migration to installer**
+- [x] **Step 2: Add Rev 40 migration to installer**
 
 In `includes/class-hl-installer.php`, change the revision constant from 39 to 40:
 
@@ -65,7 +65,7 @@ private static function migrate_orgunit_add_bb_group_id() {
 }
 ```
 
-- [ ] **Step 3: Register `coaching_director` role**
+- [x] **Step 3: Register `coaching_director` role**
 
 In `includes/class-hl-installer.php`, inside `create_capabilities()` after the `coach` role block, add:
 
@@ -86,7 +86,7 @@ if ( ! get_role( 'coaching_director' ) ) {
 }
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```
 git add includes/class-hl-installer.php includes/domain/class-hl-orgunit.php
@@ -101,7 +101,7 @@ git commit -m "feat(bb-sync): schema rev 40 — bb_group_id column + coaching_di
 - Modify: `includes/services/class-hl-enrollment-service.php` (lines 40-48)
 - Modify: `includes/admin/class-hl-admin-enrollments.php` (lines 222-232 for update, lines 319-320 for delete)
 
-- [ ] **Step 1: Fix `update_enrollment()` — guard hook on success**
+- [x] **Step 1: Fix `update_enrollment()` — guard hook on success**
 
 In `includes/services/class-hl-enrollment-service.php`, replace the `update_enrollment` method (lines 40-44):
 
@@ -115,7 +115,7 @@ public function update_enrollment($enrollment_id, $data) {
 }
 ```
 
-- [ ] **Step 2: Add `delete_enrollment()` hook with null guard**
+- [x] **Step 2: Add `delete_enrollment()` hook with null guard**
 
 Replace the `delete_enrollment` method (lines 46-48):
 
@@ -134,7 +134,7 @@ public function delete_enrollment($enrollment_id) {
 }
 ```
 
-- [ ] **Step 3: Route admin enrollment UPDATE through service**
+- [x] **Step 3: Route admin enrollment UPDATE through service**
 
 In `includes/admin/class-hl-admin-enrollments.php`, find the update block inside `handle_actions()` (around line 222). Replace the direct `$wpdb->update()` call:
 
@@ -149,7 +149,7 @@ $service->update_enrollment($enrollment_id, $data);
 
 The redirect logic after remains unchanged.
 
-- [ ] **Step 4: Route admin enrollment DELETE through service**
+- [x] **Step 4: Route admin enrollment DELETE through service**
 
 In `includes/admin/class-hl-admin-enrollments.php`, find `handle_delete()` (around line 319). Replace the direct `$wpdb->delete()` call:
 
@@ -165,7 +165,7 @@ $service->delete_enrollment($enrollment_id);
 
 The nonce check, capability check, and redirect logic remain unchanged.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```
 git add includes/services/class-hl-enrollment-service.php includes/admin/class-hl-admin-enrollments.php
@@ -181,7 +181,7 @@ git commit -m "fix(enrollments): route admin update/delete through service layer
 
 This is the largest file. It contains: availability guard, managed group cache, dropdown helper, BP_Groups_Member operations, sync logic, hook callbacks, and batch defer.
 
-- [ ] **Step 1: Create the service class with guards and helpers**
+- [x] **Step 1: Create the service class with guards and helpers**
 
 Create `includes/services/class-hl-bb-group-sync-service.php` with all static helpers — `is_bb_groups_available()`, `get_managed_group_ids()`, `invalidate_cache()`, `get_bb_groups_dropdown()`. See spec sections "BB Availability Guard", "Helper: get_managed_group_ids()", and "Helper: get_bb_groups_dropdown()".
 
@@ -579,7 +579,7 @@ class HL_BB_Group_Sync_Service {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```
 git add includes/services/class-hl-bb-group-sync-service.php
@@ -593,7 +593,7 @@ git commit -m "feat(bb-sync): create HL_BB_Group_Sync_Service with full sync log
 **Files:**
 - Modify: `hl-core.php` (lines 307-375 — init() and CLI registration)
 
-- [ ] **Step 1: Require the service file**
+- [x] **Step 1: Require the service file**
 
 Add the require alongside other service includes (near line 100 where services are required):
 
@@ -601,7 +601,7 @@ Add the require alongside other service includes (near line 100 where services a
 require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-bb-group-sync-service.php';
 ```
 
-- [ ] **Step 2: Register enrollment hooks in `init()`**
+- [x] **Step 2: Register enrollment hooks in `init()`**
 
 After the `HL_BuddyBoss_Integration::instance();` line (around line 330), add:
 
@@ -617,7 +617,7 @@ add_action( 'add_user_role',    array( 'HL_BB_Group_Sync_Service', 'on_role_adde
 add_action( 'remove_user_role', array( 'HL_BB_Group_Sync_Service', 'on_role_removed' ), 10, 2 );
 ```
 
-- [ ] **Step 3: Require the settings class (admin only)**
+- [x] **Step 3: Require the settings class (admin only)**
 
 Inside the `if (is_admin())` block (around line 185), add alongside other admin includes:
 
@@ -625,7 +625,7 @@ Inside the `if (is_admin())` block (around line 185), add alongside other admin 
 require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-bb-groups-settings.php';
 ```
 
-- [ ] **Step 4: Register CLI command**
+- [x] **Step 4: Register CLI command**
 
 In the CLI require block (around line 263), add:
 
@@ -639,7 +639,7 @@ In the CLI registration block (around line 374), add:
 HL_CLI_BB_Sync::register();
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```
 git add hl-core.php
@@ -654,7 +654,7 @@ git commit -m "feat(bb-sync): wire enrollment + role hooks and CLI registration"
 - Modify: `includes/admin/class-hl-admin-settings.php` (tab list, switch cases)
 - Create: `includes/admin/class-hl-admin-bb-groups-settings.php`
 
-- [ ] **Step 1: Add `bb_groups` tab to Settings page**
+- [x] **Step 1: Add `bb_groups` tab to Settings page**
 
 In `includes/admin/class-hl-admin-settings.php`:
 
@@ -682,7 +682,7 @@ case 'bb_groups':
     break;
 ```
 
-- [ ] **Step 2: Create BB Groups settings page class**
+- [x] **Step 2: Create BB Groups settings page class**
 
 Create `includes/admin/class-hl-admin-bb-groups-settings.php`:
 
@@ -805,7 +805,7 @@ class HL_Admin_BB_Groups_Settings {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```
 git add includes/admin/class-hl-admin-settings.php includes/admin/class-hl-admin-bb-groups-settings.php hl-core.php
@@ -819,7 +819,7 @@ git commit -m "feat(bb-sync): add BuddyBoss Groups settings tab"
 **Files:**
 - Modify: `includes/admin/class-hl-admin-orgunits.php` (handle_actions ~line 240, form rendering)
 
-- [ ] **Step 1: Add `bb_group_id` to save handler `$data` array**
+- [x] **Step 1: Add `bb_group_id` to save handler `$data` array**
 
 In `includes/admin/class-hl-admin-orgunits.php`, inside `handle_actions()`, add `bb_group_id` to the `$data` array (after `'status'`):
 
@@ -827,7 +827,7 @@ In `includes/admin/class-hl-admin-orgunits.php`, inside `handle_actions()`, add 
 'bb_group_id' => ! empty( $_POST['bb_group_id'] ) ? absint( $_POST['bb_group_id'] ) : null,
 ```
 
-- [ ] **Step 2: Add change detection + duplicate warning for `bb_group_id` on update**
+- [x] **Step 2: Add change detection + duplicate warning for `bb_group_id` on update**
 
 In the update block (around line 252), replace the existing `$wpdb->update()` block with change detection:
 
@@ -874,7 +874,7 @@ if ( $orgunit_id > 0 ) {
 }
 ```
 
-- [ ] **Step 3: Add dropdown field to the edit form**
+- [x] **Step 3: Add dropdown field to the edit form**
 
 In the `render_form()` method, insert BEFORE the `echo '</table>';` line (around line 732) — the form uses `echo` style exclusively, so match that pattern:
 
@@ -915,7 +915,7 @@ if ( $is_school ) {
 }
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```
 git add includes/admin/class-hl-admin-orgunits.php
@@ -929,7 +929,7 @@ git commit -m "feat(bb-sync): add bb_group_id dropdown to OrgUnit form with chan
 **Files:**
 - Create: `includes/cli/class-hl-cli-bb-sync.php`
 
-- [ ] **Step 1: Create the CLI command class**
+- [x] **Step 1: Create the CLI command class**
 
 Create `includes/cli/class-hl-cli-bb-sync.php`:
 
@@ -1059,7 +1059,7 @@ class HL_CLI_BB_Sync {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```
 git add includes/cli/class-hl-cli-bb-sync.php
@@ -1073,7 +1073,7 @@ git commit -m "feat(bb-sync): add WP-CLI bb-sync command for backfill and repair
 **Files:**
 - Modify: `includes/services/class-hl-import-participant-handler.php` (around line 590-630 in `commit()`)
 
-- [ ] **Step 1: Route import UPDATE path through enrollment service**
+- [x] **Step 1: Route import UPDATE path through enrollment service**
 
 In `includes/services/class-hl-import-participant-handler.php`, find the UPDATE branch (around line 626) where `$enrollment_repo->update()` is called directly. Replace it to go through the service so `hl_enrollment_updated` fires:
 
@@ -1088,7 +1088,7 @@ $enrollment_service->update_enrollment($enrollment_id, $update_data);
 
 This ensures import updates (not just creates) trigger BB group sync.
 
-- [ ] **Step 2: Wrap the enrollment loop with bulk defer**
+- [x] **Step 2: Wrap the enrollment loop with bulk defer**
 
 In the same `commit()` method, before the loop that processes enrollments (both CREATE and UPDATE), add `begin_bulk()`. After the loop, add `end_bulk()`. Use try/finally to ensure `end_bulk()` always runs:
 
@@ -1103,7 +1103,7 @@ try {
 
 The exact placement depends on the loop boundaries. The key is that `begin_bulk()` is called before any `hl_enrollment_created` or `hl_enrollment_updated` fires, and `end_bulk()` is called after all enrollments are processed.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```
 git add includes/services/class-hl-import-participant-handler.php
@@ -1114,17 +1114,17 @@ git commit -m "feat(bb-sync): route import updates through service + wrap in bul
 
 ### Task 9: Deploy to Test & Verify
 
-- [ ] **Step 1: Push to GitHub**
+- [x] **Step 1: Push to GitHub**
 
 ```
 git push origin main
 ```
 
-- [ ] **Step 2: Deploy to test server**
+- [x] **Step 2: Deploy to test server**
 
 Read `.claude/skills/deploy.md` for SSH commands. Deploy via git pull on test server.
 
-- [ ] **Step 3: Verify schema migration**
+- [x] **Step 3: Verify schema migration**
 
 SSH into test server and run:
 
@@ -1134,7 +1134,7 @@ wp db query "SHOW COLUMNS FROM wp_hl_orgunit LIKE 'bb_group_id'"
 
 Expected: one row showing `bb_group_id | bigint unsigned | YES | NULL`
 
-- [ ] **Step 4: Verify coaching_director role**
+- [x] **Step 4: Verify coaching_director role**
 
 ```bash
 wp role list | grep coaching_director
@@ -1142,7 +1142,7 @@ wp role list | grep coaching_director
 
 Expected: `coaching_director` appears in the list.
 
-- [ ] **Step 5: Verify CLI command**
+- [x] **Step 5: Verify CLI command**
 
 ```bash
 wp hl-core bb-sync --all --dry-run
@@ -1150,32 +1150,32 @@ wp hl-core bb-sync --all --dry-run
 
 Expected: shows count of users found, progress bar, "would sync" message. No errors.
 
-- [ ] **Step 6: Verify Settings tab**
+- [x] **Step 6: Verify Settings tab**
 
 Navigate to WP Admin → Housman LMS → Settings → BuddyBoss Groups. Verify:
 - Two dropdown fields appear with BB group options
 - Help text is visible
 - Save works
 
-- [ ] **Step 7: Verify OrgUnit form**
+- [x] **Step 7: Verify OrgUnit form**
 
 Navigate to WP Admin → Housman LMS → Org Units → Edit a school. Verify:
 - BuddyBoss Group dropdown appears
 - "— None —" is the default
 - Save persists the value
 
-- [ ] **Step 8: Configure and run backfill**
+- [x] **Step 8: Configure and run backfill**
 
 1. Set Global Community and Global Mentor group IDs in Settings
 2. Map school orgunits to their BB groups
 3. Run `wp hl-core bb-sync --all` for full backfill
 4. Spot-check group memberships in BuddyBoss admin
 
-- [ ] **Step 9: Update STATUS.md and README.md**
+- [x] **Step 9: Update STATUS.md and README.md**
 
 Mark this feature complete in STATUS.md build queue. Update README.md "What's Implemented" section.
 
-- [ ] **Step 10: Commit docs**
+- [x] **Step 10: Commit docs**
 
 ```
 git add STATUS.md README.md
