@@ -243,6 +243,7 @@ class HL_Admin_OrgUnits {
             'orgunit_type'     => sanitize_text_field($_POST['orgunit_type']),
             'parent_orgunit_id'=> !empty($_POST['parent_orgunit_id']) ? absint($_POST['parent_orgunit_id']) : null,
             'status'           => sanitize_text_field($_POST['status']),
+            'bb_group_id'      => ! empty( $_POST['bb_group_id'] ) ? absint( $_POST['bb_group_id'] ) : null,
         );
 
         if (empty($data['orgunit_code'])) {
@@ -250,11 +251,45 @@ class HL_Admin_OrgUnits {
         }
 
         if ($orgunit_id > 0) {
+            // Read old bb_group_id before saving
+            $old_bb_group_id = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT bb_group_id FROM {$wpdb->prefix}hl_orgunit WHERE orgunit_id = %d",
+                $orgunit_id
+            ) );
+
             $wpdb->update(
                 $wpdb->prefix . 'hl_orgunit',
                 $data,
-                array('orgunit_id' => $orgunit_id)
+                array( 'orgunit_id' => $orgunit_id )
             );
+
+            $new_bb_group_id = (int) ( $data['bb_group_id'] ?? 0 );
+
+            // Duplicate detection
+            if ( $new_bb_group_id > 0 ) {
+                $other_name = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT name FROM {$wpdb->prefix}hl_orgunit WHERE bb_group_id = %d AND orgunit_id != %d",
+                    $new_bb_group_id, $orgunit_id
+                ) );
+                if ( $other_name ) {
+                    add_settings_error( 'hl_orgunit', 'duplicate_bb_group',
+                        sprintf( __( 'Warning: This BuddyBoss group is already assigned to %s.', 'hl-core' ), $other_name ),
+                        'warning'
+                    );
+                }
+            }
+
+            // Resync if bb_group_id changed
+            if ( $old_bb_group_id !== $new_bb_group_id && class_exists( 'HL_BB_Group_Sync_Service' ) ) {
+                HL_BB_Group_Sync_Service::invalidate_cache();
+                if ( $old_bb_group_id > 0 ) {
+                    HL_BB_Group_Sync_Service::sync_users_in_group( $old_bb_group_id );
+                }
+                if ( $new_bb_group_id > 0 ) {
+                    HL_BB_Group_Sync_Service::sync_users_in_group( $new_bb_group_id );
+                }
+            }
+
             $redirect = admin_url('admin.php?page=hl-orgunits&message=updated');
         } else {
             $data['orgunit_uuid'] = HL_DB_Utils::generate_uuid();
@@ -728,6 +763,41 @@ class HL_Admin_OrgUnits {
         }
         echo '</select></td>';
         echo '</tr>';
+
+        // BuddyBoss Group field (schools only)
+        $is_school = ! $orgunit || $orgunit->orgunit_type === 'school';
+        if ( $is_school ) {
+            echo '<tr>';
+            echo '<th scope="row"><label for="bb_group_id">' . esc_html__( 'BuddyBoss Group', 'hl-core' ) . '</label></th>';
+            echo '<td>';
+
+            if ( HL_BB_Group_Sync_Service::is_bb_groups_available() ) {
+                $bb_groups = HL_BB_Group_Sync_Service::get_bb_groups_dropdown();
+                $current_bb_group_id = $orgunit ? (int) $orgunit->bb_group_id : 0;
+
+                // Stale group warning
+                if ( $current_bb_group_id > 0 && ! isset( $bb_groups[ $current_bb_group_id ] ) ) {
+                    echo '<div class="notice notice-warning inline" style="margin:0 0 8px;"><p>';
+                    echo esc_html( sprintf(
+                        __( 'Warning: The saved group (ID: %d) was not found in BuddyBoss. It may have been deleted.', 'hl-core' ),
+                        $current_bb_group_id
+                    ) );
+                    echo '</p></div>';
+                }
+
+                echo '<select name="bb_group_id" id="bb_group_id">';
+                echo '<option value="">' . esc_html__( '— None —', 'hl-core' ) . '</option>';
+                foreach ( $bb_groups as $gid => $label ) {
+                    echo '<option value="' . esc_attr( $gid ) . '"' . selected( $current_bb_group_id, $gid, false ) . '>' . esc_html( $label ) . '</option>';
+                }
+                echo '</select>';
+            } else {
+                echo '<p class="description">' . esc_html__( 'BuddyBoss Group mapping is unavailable (BuddyBoss not active).', 'hl-core' ) . '</p>';
+            }
+
+            echo '</td>';
+            echo '</tr>';
+        }
 
         echo '</table>';
 
