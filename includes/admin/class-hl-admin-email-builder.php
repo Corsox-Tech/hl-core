@@ -554,7 +554,41 @@ class HL_Admin_Email_Builder {
                 ) );
                 if ( $cycle ) {
                     $context['cycle_name'] = $cycle->cycle_name;
+
+                    if ( ! empty( $cycle->partnership_id ) ) {
+                        $partnership = $wpdb->get_row( $wpdb->prepare(
+                            "SELECT partnership_name FROM {$wpdb->prefix}hl_partnership WHERE partnership_id = %d",
+                            $cycle->partnership_id
+                        ) );
+                        $context['partnership_name'] = $partnership->partnership_name ?? '';
+                    }
                 }
+
+                // School name and district from the enrollment's school.
+                if ( ! empty( $enrollment->school_id ) ) {
+                    $school = $wpdb->get_row( $wpdb->prepare(
+                        "SELECT o.name, p.name AS parent_name
+                         FROM {$wpdb->prefix}hl_orgunit o
+                         LEFT JOIN {$wpdb->prefix}hl_orgunit p ON p.orgunit_id = o.parent_id
+                         WHERE o.orgunit_id = %d",
+                        $enrollment->school_id
+                    ) );
+                    $context['school_name']     = $school->name ?? '';
+                    $context['school_district'] = $school->parent_name ?? '';
+                }
+
+                // Pathway name from the enrollment's pathway assignment.
+                $pathway = $wpdb->get_row( $wpdb->prepare(
+                    "SELECT p.pathway_name FROM {$wpdb->prefix}hl_pathway_assignment pa
+                     JOIN {$wpdb->prefix}hl_pathway p ON p.pathway_id = pa.pathway_id
+                     WHERE pa.enrollment_id = %d LIMIT 1",
+                    $enrollment->enrollment_id
+                ) );
+                $context['pathway_name'] = $pathway->pathway_name ?? '';
+
+                // Scheduling URL and mentor name (mentor = the enrolled user in mentor emails).
+                $context['coaching_schedule_url'] = home_url( '/schedule-session/' );
+                $context['mentor_name']           = $context['recipient_name'] ?? '';
 
                 // Look up assigned coach: enrollment-scoped first, then school-scoped.
                 $coach_id = $wpdb->get_var( $wpdb->prepare(
@@ -584,8 +618,10 @@ class HL_Admin_Email_Builder {
                     $context['session_date'] = $session->scheduled_date
                         ? wp_date( 'F j, Y \a\t g:i A', strtotime( $session->scheduled_date ) )
                         : '';
-                    $context['new_session_date'] = $context['session_date'];
-                    $context['meeting_url']      = $session->meeting_url ?? '';
+                    $context['new_session_date']  = $context['session_date'];
+                    $context['meeting_url']       = $session->meeting_url ?? '';
+                    $context['old_session_date']  = $context['session_date'] ?? 'June 15, 2026 at 2:00 PM';
+                    $context['cancelled_by_name'] = $context['cancelled_by_name'] ?? 'Sample User';
                 } else {
                     // No real session — use placeholder so the template preview isn't blank.
                     $context['session_date']     = 'June 15, 2026 at 2:00 PM';
