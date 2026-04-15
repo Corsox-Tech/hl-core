@@ -127,6 +127,16 @@ class HL_Admin_Emails {
                 'type'    => 'boolean',
                 'options' => array(),
             ),
+            // Coaching group.
+            'coaching.session_scheduled' => array(
+                'label'   => 'Coaching Session Scheduled',
+                'group'   => 'Coaching',
+                'type'    => 'enum',
+                'options' => array(
+                    'yes' => 'Yes — session exists',
+                    'no'  => 'No — no session scheduled',
+                ),
+            ),
         );
     }
 

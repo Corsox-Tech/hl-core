@@ -562,6 +562,21 @@ class HL_Email_Automation_Service {
             }
         }
 
+        // A.5 — Lazy hydration: coaching.session_scheduled (only when a condition references it).
+        if ( ! empty( $context['_needs_coaching_check'] ) && ! empty( $context['enrollment_id'] ) && ! empty( $context['cycle_id'] ) ) {
+            $has_session = $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}hl_coaching_session
+                 WHERE mentor_enrollment_id = %d AND cycle_id = %d
+                   AND session_status IN ('scheduled', 'attended')",
+                $context['enrollment_id'],
+                $context['cycle_id']
+            ) );
+            $context['coaching'] = array_merge(
+                $context['coaching'] ?? array(),
+                array( 'session_scheduled' => $has_session > 0 ? 'yes' : 'no' )
+            );
+        }
+
         return $context;
     }
 
@@ -856,6 +871,15 @@ class HL_Email_Automation_Service {
             $recipient_config = array( 'primary' => array(), 'cc' => array() );
         }
 
+        // Detect whether any condition references coaching.session_scheduled (lazy hydration flag).
+        $needs_coaching_check = false;
+        foreach ( $conditions as $cond ) {
+            if ( isset( $cond['field'] ) && strpos( $cond['field'], 'coaching.session_scheduled' ) === 0 ) {
+                $needs_coaching_check = true;
+                break;
+            }
+        }
+
         // Singleton instances — once per workflow.
         $evaluator       = HL_Email_Condition_Evaluator::instance();
         $resolver        = HL_Email_Recipient_Resolver::instance();
@@ -875,12 +899,13 @@ class HL_Email_Automation_Service {
 
             foreach ( $users as $user_data ) {
                 $context = array_merge( $cycle_context_fragment, array(
-                    'trigger_key'   => $trigger_key,
-                    'user_id'       => $user_data['user_id'],
-                    'cycle_id'      => (int) $cycle->cycle_id,
-                    'enrollment_id' => $user_data['enrollment_id'] ?? null,
-                    'entity_id'     => $user_data['entity_id'] ?? null,
-                    'entity_type'   => $user_data['entity_type'] ?? null,
+                    'trigger_key'          => $trigger_key,
+                    'user_id'              => $user_data['user_id'],
+                    'cycle_id'             => (int) $cycle->cycle_id,
+                    'enrollment_id'        => $user_data['enrollment_id'] ?? null,
+                    'entity_id'            => $user_data['entity_id'] ?? null,
+                    'entity_type'          => $user_data['entity_type'] ?? null,
+                    '_needs_coaching_check' => $needs_coaching_check,
                 ) );
                 $context = $this->hydrate_context( $context );
 
