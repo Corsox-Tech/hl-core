@@ -1196,6 +1196,7 @@ class HL_Installer {
             name varchar(255) NOT NULL,
             status enum('active','inactive','archived') DEFAULT 'active',
             metadata longtext NULL,
+            bb_group_id bigint(20) unsigned NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (orgunit_id),
@@ -2259,6 +2260,7 @@ class HL_Installer {
             ));
         } else {
             $cd_role = get_role( 'coaching_director' );
+            $cd_role->add_cap( 'read' );
             $cd_role->add_cap( 'manage_hl_core' );
             $cd_role->add_cap( 'hl_view_cohorts' );
             $cd_role->add_cap( 'hl_view_enrollments' );
@@ -3922,7 +3924,7 @@ class HL_Installer {
              AND COLUMN_NAME = 'bb_group_id'"
         );
         if ( ! $col_exists ) {
-            $wpdb->query( "ALTER TABLE {$table} ADD COLUMN bb_group_id BIGINT UNSIGNED NULL" );
+            $wpdb->query( "ALTER TABLE {$table} ADD COLUMN bb_group_id BIGINT UNSIGNED NULL AFTER metadata" );
         }
     }
 }
