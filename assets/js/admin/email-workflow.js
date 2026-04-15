@@ -528,7 +528,15 @@ jQuery(function ($) {
             recipients: recipients
         }).done(function (res) {
             if (res && res.success && typeof res.data.count === 'number') {
-                $hint.text('Resolves to ' + res.data.count + ' recipient' + (res.data.count === 1 ? '' : 's') + ' at send time (based on current data).');
+                var count = res.data.count;
+                var text = 'Would match ' + count + ' recipient' + (count === 1 ? '' : 's');
+                if (res.data.samples && res.data.samples.length) {
+                    text += ': ' + res.data.samples.join(', ');
+                    if (count > res.data.samples.length) {
+                        text += ' +' + (count - res.data.samples.length) + ' more';
+                    }
+                }
+                $hint.text(text);
             } else {
                 $hint.text('');
             }
