@@ -733,6 +733,11 @@ class HL_Admin_Emails {
     }
 
     private function render_workflow_form( $workflow_id ) {
+        if ( self::is_v2_ux() ) {
+            $this->render_workflow_form_v2( $workflow_id );
+            return;
+        }
+
         global $wpdb;
 
         $workflow = null;
@@ -1108,6 +1113,257 @@ class HL_Admin_Emails {
             </div>
         </div>
         <?php endif; ?>
+        <?php
+    }
+
+    /**
+     * Render the v2 workflow form (card-based layout).
+     *
+     * Delegates from render_workflow_form() when is_v2_ux() is true.
+     * Uses the same field names as v1 so handle_workflow_save() works unchanged.
+     *
+     * @param int $workflow_id Workflow ID (0 for new).
+     */
+    private function render_workflow_form_v2( $workflow_id ) {
+        global $wpdb;
+
+        // ── Data loading (same as v1) ──────────────────────────────────────
+        $workflow = null;
+        if ( $workflow_id ) {
+            $workflow = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_email_workflow WHERE workflow_id = %d AND status != 'deleted'",
+                $workflow_id
+            ) );
+        }
+
+        // Templates: show all non-archived + currently assigned (even if archived).
+        $current_template_id = $workflow ? (int) $workflow->template_id : 0;
+        if ( $current_template_id > 0 ) {
+            $templates = $wpdb->get_results( $wpdb->prepare(
+                "SELECT template_id, name, status FROM {$wpdb->prefix}hl_email_template
+                 WHERE status != 'archived' OR template_id = %d
+                 ORDER BY name",
+                $current_template_id
+            ) );
+        } else {
+            $templates = $wpdb->get_results(
+                "SELECT template_id, name, status FROM {$wpdb->prefix}hl_email_template WHERE status != 'archived' ORDER BY name"
+            );
+        }
+
+        $conditions = array();
+        if ( $workflow && ! empty( $workflow->conditions ) ) {
+            $conditions = json_decode( $workflow->conditions, true ) ?: array();
+        }
+
+        $recipients = array( 'primary' => array(), 'cc' => array() );
+        if ( $workflow && ! empty( $workflow->recipients ) ) {
+            $recipients = json_decode( $workflow->recipients, true ) ?: $recipients;
+        }
+
+        // Compute offset value + unit from trigger_offset_minutes.
+        $offset_raw   = (int) ( $workflow->trigger_offset_minutes ?? 0 );
+        $offset_value = 0;
+        $offset_unit  = 'days';
+        if ( $offset_raw > 0 ) {
+            if ( $offset_raw % 1440 === 0 ) {
+                $offset_value = $offset_raw / 1440;
+                $offset_unit  = 'days';
+            } elseif ( $offset_raw % 60 === 0 ) {
+                $offset_value = $offset_raw / 60;
+                $offset_unit  = 'hours';
+            } else {
+                $offset_value = $offset_raw;
+                $offset_unit  = 'minutes';
+            }
+        }
+
+        // Extract trigger status sub-filter from conditions.
+        $trigger_status_val = '';
+        if ( $workflow ) {
+            $conds_check = json_decode( $workflow->conditions, true ) ?: array();
+            foreach ( $conds_check as $c ) {
+                if ( ( $c['field'] ?? '' ) === 'session.new_status' && ( $c['op'] ?? '' ) === 'eq' ) {
+                    $trigger_status_val = $c['value'] ?? '';
+                    break;
+                }
+            }
+        }
+
+        $wf_name   = $workflow->name ?? '';
+        $wf_status = $workflow->status ?? 'draft';
+
+        // ── Top Bar ────────────────────────────────────────────────────────
+        ?>
+        <div class="hl-wf-topbar">
+            <div class="hl-wf-topbar-left">
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows' ) ); ?>">&larr; All Workflows</a>
+                <span class="hl-wf-topbar-name"><?php echo esc_html( $wf_name ?: __( 'New Workflow', 'hl-core' ) ); ?></span>
+            </div>
+            <div class="hl-wf-topbar-right">
+                <span class="hl-wf-status-badge hl-wf-status-<?php echo esc_attr( $wf_status ); ?>"><?php echo esc_html( ucfirst( $wf_status ) ); ?></span>
+                <button type="submit" form="hl-wf-form-v2" name="save_action" value="draft" class="hl-wf-btn hl-wf-btn-secondary">Save Draft</button>
+                <button type="submit" form="hl-wf-form-v2" name="save_action" value="activate" class="hl-wf-btn hl-wf-btn-activate">Activate</button>
+            </div>
+        </div>
+
+        <?php // ── Form wrapper ─────────────────────────────────────────────── ?>
+        <form id="hl-wf-form-v2" method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows' ) ); ?>" class="hl-workflow-form">
+            <?php wp_nonce_field( 'hl_workflow_save', 'hl_workflow_nonce' ); ?>
+            <input type="hidden" name="workflow_id" value="<?php echo (int) $workflow_id; ?>">
+            <input type="hidden" name="status" id="hl-wf-status-field" value="<?php echo esc_attr( $wf_status ); ?>">
+
+            <div class="hl-wf-layout">
+                <div class="hl-wf-form-panel">
+
+                    <?php // ── Card 1: Basics ──────────────────────────────────── ?>
+                    <div class="hl-wf-card">
+                        <div class="hl-wf-card-header">
+                            <div class="hl-wf-card-title"><?php esc_html_e( 'Basics', 'hl-core' ); ?></div>
+                        </div>
+                        <div class="hl-wf-card-body">
+                            <div class="hl-wf-form-row">
+                                <label class="hl-wf-form-label"><?php esc_html_e( 'Workflow Name', 'hl-core' ); ?></label>
+                                <input type="text" name="name" class="hl-wf-form-input" value="<?php echo esc_attr( $wf_name ); ?>" required placeholder="<?php esc_attr_e( 'e.g., Coaching Session Reminder — 7 Days', 'hl-core' ); ?>">
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php // ── Card 2: Trigger ─────────────────────────────────── ?>
+                    <div class="hl-wf-card">
+                        <div class="hl-wf-card-header">
+                            <div>
+                                <div class="hl-wf-card-title"><?php esc_html_e( 'Trigger', 'hl-core' ); ?></div>
+                                <div class="hl-wf-card-subtitle"><?php esc_html_e( 'What event causes this email to be sent?', 'hl-core' ); ?></div>
+                            </div>
+                            <span class="hl-wf-card-badge hl-wf-badge-required"><?php esc_html_e( 'Required', 'hl-core' ); ?></span>
+                        </div>
+                        <div class="hl-wf-card-body">
+                            <div class="hl-wf-form-row">
+                                <label class="hl-wf-form-label"><?php esc_html_e( 'Event', 'hl-core' ); ?></label>
+                                <select name="trigger_key" class="hl-wf-form-input" required>
+                                    <option value=""><?php esc_html_e( '— Select Trigger —', 'hl-core' ); ?></option>
+                                    <optgroup label="<?php esc_attr_e( 'Hook-Based (Immediate)', 'hl-core' ); ?>">
+                                        <?php
+                                        $hook_triggers = array(
+                                            'user_register'                       => 'User Registered',
+                                            'hl_enrollment_created'               => 'Enrollment Created',
+                                            'hl_pathway_assigned'                 => 'Pathway Assigned',
+                                            'hl_learndash_course_completed'       => 'Course Completed',
+                                            'hl_pathway_completed'                => 'Pathway Completed',
+                                            'hl_coaching_session_created'         => 'Coaching Session Created',
+                                            'hl_coaching_session_status_changed'  => 'Coaching Session Status Changed',
+                                            'hl_rp_session_created'               => 'RP Session Created',
+                                            'hl_rp_session_status_changed'        => 'RP Session Status Changed',
+                                            'hl_classroom_visit_submitted'        => 'Classroom Visit Submitted',
+                                            'hl_teacher_assessment_submitted'     => 'Teacher Assessment Submitted',
+                                            'hl_child_assessment_submitted'       => 'Child Assessment Submitted',
+                                            'hl_coach_assigned'                   => 'Coach Assigned',
+                                        );
+                                        foreach ( $hook_triggers as $key => $label ) :
+                                        ?>
+                                            <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $workflow->trigger_key ?? '', $key ); ?>><?php echo esc_html( $label ); ?></option>
+                                        <?php endforeach; ?>
+                                    </optgroup>
+                                    <optgroup label="<?php esc_attr_e( 'Cron-Based (Scheduled)', 'hl-core' ); ?>">
+                                        <?php
+                                        $cron_triggers = array(
+                                            'cron:component_upcoming'  => 'Component Due Soon',
+                                            'cron:component_overdue'   => 'Component Overdue',
+                                            'cron:session_upcoming'    => 'Coaching Session Upcoming',
+                                            'cron:coaching_pre_end'    => 'Pre-Cycle-End No Session',
+                                            'cron:action_plan_24h'     => 'Action Plan Overdue (24h)',
+                                            'cron:session_notes_24h'   => 'Session Notes Overdue (24h)',
+                                            'cron:low_engagement_14d'  => 'Low Engagement (14d)',
+                                            'cron:client_success'      => 'Client Success Touchpoint',
+                                        );
+                                        foreach ( $cron_triggers as $key => $label ) :
+                                        ?>
+                                            <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $workflow->trigger_key ?? '', $key ); ?>><?php echo esc_html( $label ); ?></option>
+                                        <?php endforeach; ?>
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                            <?php // Offset row — shown/hidden by JS based on trigger selection. ?>
+                            <div class="hl-wf-form-row hl-wf-offset-row" style="display:none;">
+                                <label class="hl-wf-form-label"><?php esc_html_e( 'Offset', 'hl-core' ); ?></label>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <input type="number" name="trigger_offset_value" min="1" max="9999" value="<?php echo esc_attr( $offset_value ); ?>" class="hl-wf-form-input" style="width:100px;">
+                                    <select name="trigger_offset_unit" class="hl-wf-form-input" style="width:auto;">
+                                        <option value="minutes" <?php selected( $offset_unit, 'minutes' ); ?>><?php esc_html_e( 'Minutes', 'hl-core' ); ?></option>
+                                        <option value="hours" <?php selected( $offset_unit, 'hours' ); ?>><?php esc_html_e( 'Hours', 'hl-core' ); ?></option>
+                                        <option value="days" <?php selected( $offset_unit, 'days' ); ?>><?php esc_html_e( 'Days', 'hl-core' ); ?></option>
+                                    </select>
+                                </div>
+                                <p class="hl-wf-form-hint"><?php esc_html_e( 'How far before the anchor date (for "upcoming") or after (for "overdue") to trigger this workflow.', 'hl-core' ); ?></p>
+                                <p class="hl-wf-form-hint hl-wf-session-fuzz-note" style="display:none;">
+                                    <?php esc_html_e( 'Session reminders use a tolerance window to account for cron timing. A "1 hour" reminder fires between ~54-66 minutes before the session.', 'hl-core' ); ?>
+                                </p>
+                            </div>
+
+                            <?php // Component type row — shown/hidden by JS. ?>
+                            <div class="hl-wf-form-row hl-wf-component-type-row" style="display:none;">
+                                <label class="hl-wf-form-label"><?php esc_html_e( 'Component Type', 'hl-core' ); ?></label>
+                                <select name="component_type_filter" class="hl-wf-form-input">
+                                    <option value=""><?php esc_html_e( 'All Component Types', 'hl-core' ); ?></option>
+                                    <option value="learndash_course" <?php selected( $workflow->component_type_filter ?? '', 'learndash_course' ); ?>><?php esc_html_e( 'Course', 'hl-core' ); ?></option>
+                                    <option value="coaching_session_attendance" <?php selected( $workflow->component_type_filter ?? '', 'coaching_session_attendance' ); ?>><?php esc_html_e( 'Coaching Session', 'hl-core' ); ?></option>
+                                    <option value="classroom_visit" <?php selected( $workflow->component_type_filter ?? '', 'classroom_visit' ); ?>><?php esc_html_e( 'Classroom Visit', 'hl-core' ); ?></option>
+                                    <option value="reflective_practice_session" <?php selected( $workflow->component_type_filter ?? '', 'reflective_practice_session' ); ?>><?php esc_html_e( 'Reflective Practice', 'hl-core' ); ?></option>
+                                    <option value="self_reflection" <?php selected( $workflow->component_type_filter ?? '', 'self_reflection' ); ?>><?php esc_html_e( 'Self-Reflection', 'hl-core' ); ?></option>
+                                    <option value="teacher_self_assessment" <?php selected( $workflow->component_type_filter ?? '', 'teacher_self_assessment' ); ?>><?php esc_html_e( 'Teacher Assessment', 'hl-core' ); ?></option>
+                                    <option value="child_assessment" <?php selected( $workflow->component_type_filter ?? '', 'child_assessment' ); ?>><?php esc_html_e( 'Child Assessment', 'hl-core' ); ?></option>
+                                </select>
+                            </div>
+
+                            <?php // Status filter row — shown/hidden by JS for coaching/RP triggers. ?>
+                            <div class="hl-wf-form-row hl-wf-status-filter-row" style="display:none;">
+                                <label class="hl-wf-form-label"><?php esc_html_e( 'Status Filter', 'hl-core' ); ?></label>
+                                <select name="trigger_status_filter" id="wf-trigger-status-filter" class="hl-wf-form-input" aria-label="<?php esc_attr_e( 'Filter by session status', 'hl-core' ); ?>">
+                                    <option value="" <?php selected( $trigger_status_val, '' ); ?>><?php esc_html_e( 'Any Status Change', 'hl-core' ); ?></option>
+                                    <option value="scheduled" <?php selected( $trigger_status_val, 'scheduled' ); ?>><?php esc_html_e( 'Session Booked', 'hl-core' ); ?></option>
+                                    <option value="attended" <?php selected( $trigger_status_val, 'attended' ); ?>><?php esc_html_e( 'Session Attended', 'hl-core' ); ?></option>
+                                    <option value="cancelled" <?php selected( $trigger_status_val, 'cancelled' ); ?>><?php esc_html_e( 'Session Cancelled', 'hl-core' ); ?></option>
+                                    <option value="missed" <?php selected( $trigger_status_val, 'missed' ); ?>><?php esc_html_e( 'Session Missed', 'hl-core' ); ?></option>
+                                    <option value="rescheduled" <?php selected( $trigger_status_val, 'rescheduled' ); ?>><?php esc_html_e( 'Session Rescheduled', 'hl-core' ); ?></option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php // Cards 3-5 will be added in Task 5b. ?>
+
+                </div><!-- /.hl-wf-form-panel -->
+
+                <div class="hl-wf-summary-panel">
+                    <!-- Summary panel content will come in Task 5b -->
+                    <p style="color:#9CA3AF;font-style:italic;"><?php esc_html_e( 'Summary panel — coming soon', 'hl-core' ); ?></p>
+                </div>
+            </div><!-- /.hl-wf-layout -->
+
+            <?php // ── Hidden textareas for conditions + recipients (JS serialization targets). ?>
+            <textarea name="conditions" style="display:none;"><?php echo esc_textarea( wp_json_encode( $conditions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?></textarea>
+            <textarea name="recipients" style="display:none;"><?php echo esc_textarea( wp_json_encode( $recipients, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?></textarea>
+
+            <?php // ── Hidden inputs for Card 3-5 fields (replaced with card UI in Task 5b). ?>
+            <input type="hidden" name="template_id" value="<?php echo (int) ( $workflow->template_id ?? 0 ); ?>">
+            <input type="hidden" name="delay_minutes" value="<?php echo (int) ( $workflow->delay_minutes ?? 0 ); ?>">
+            <input type="hidden" name="send_window_start" value="<?php echo esc_attr( $workflow->send_window_start ?? '' ); ?>">
+            <input type="hidden" name="send_window_end" value="<?php echo esc_attr( $workflow->send_window_end ?? '' ); ?>">
+            <input type="hidden" name="send_window_days" value="<?php echo esc_attr( $workflow->send_window_days ?? '' ); ?>">
+        </form>
+
+        <script>
+        (function($){
+            // Bridge save_action buttons to the hidden status field.
+            $('#hl-wf-form-v2').on('click', '[name="save_action"]', function(){
+                var action = $(this).val();
+                var status = action === 'activate' ? 'active' : 'draft';
+                $('#hl-wf-status-field').val( status );
+            });
+        })(jQuery);
+        </script>
         <?php
     }
 
