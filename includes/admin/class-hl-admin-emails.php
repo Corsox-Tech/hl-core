@@ -1208,6 +1208,12 @@ class HL_Admin_Emails {
             </div>
         </div>
 
+        <?php if ( ( $_GET['hl_notice'] ?? '' ) === 'activation_blocked' ) : ?>
+            <div class="notice notice-error" style="margin:0 0 16px;">
+                <p>Cannot activate: please select an email template first.</p>
+            </div>
+        <?php endif; ?>
+
         <?php // ── Form wrapper ─────────────────────────────────────────────── ?>
         <form id="hl-wf-form-v2" method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows' ) ); ?>" class="hl-workflow-form">
             <?php wp_nonce_field( 'hl_workflow_save', 'hl_workflow_nonce' ); ?>
@@ -1682,6 +1688,24 @@ class HL_Admin_Emails {
             exit;
         }
 
+        // Activation guardrails: block if template is missing.
+        if ( $data['status'] === 'active' && empty( $data['template_id'] ) ) {
+            // For new workflows, save as draft first so form data isn't lost.
+            if ( ! $workflow_id ) {
+                $data['status'] = 'draft';
+                $wpdb->insert( $table, $data );
+                $workflow_id = (int) $wpdb->insert_id;
+            }
+            wp_redirect( add_query_arg( array(
+                'page'        => 'hl-emails',
+                'tab'         => 'workflows',
+                'action'      => 'edit',
+                'workflow_id'  => $workflow_id,
+                'hl_notice'   => 'activation_blocked',
+            ), admin_url( 'admin.php' ) ) );
+            exit;
+        }
+
         if ( $workflow_id > 0 ) {
             $wpdb->update( $table, $data, array( 'workflow_id' => $workflow_id ) );
             if ( class_exists( 'HL_Audit_Service' ) ) {
@@ -2069,13 +2093,16 @@ class HL_Admin_Emails {
         $tokens = self::get_recipient_tokens();
         global $wpdb;
 
-        $count = 0;
+        $matched_user_ids = array(); // user_id => true
+        $static_count     = 0;
+        $token_count      = 0;
+
         foreach ( array( 'primary', 'cc' ) as $section ) {
             if ( empty( $recipients[ $section ] ) || ! is_array( $recipients[ $section ] ) ) continue;
             foreach ( $recipients[ $section ] as $entry ) {
                 if ( ! is_string( $entry ) ) continue;
                 if ( strpos( $entry, 'static:' ) === 0 ) {
-                    $count++;
+                    $static_count++;
                     continue;
                 }
                 if ( strpos( $entry, 'role:' ) === 0 ) {
@@ -2087,13 +2114,11 @@ class HL_Admin_Emails {
                         "SELECT DISTINCT user_id, roles FROM {$wpdb->prefix}hl_enrollment
                          WHERE status = 'active'"
                     );
-                    $matched = array();
                     foreach ( $rows as $row ) {
                         if ( HL_Roles::has_role( $row->roles, $role ) ) {
-                            $matched[ (int) $row->user_id ] = true;
+                            $matched_user_ids[ (int) $row->user_id ] = true;
                         }
                     }
-                    $count += count( $matched );
                     continue;
                 }
                 if ( ! isset( $tokens[ $entry ] ) ) continue;
@@ -2101,11 +2126,30 @@ class HL_Admin_Emails {
                 if ( $def['triggers'] !== '*' && is_array( $def['triggers'] ) && ! in_array( $trigger, $def['triggers'], true ) ) {
                     continue;
                 }
-                $count += 1;
+                $token_count++;
             }
         }
 
-        wp_send_json_success( array( 'count' => $count ) );
+        $total_count = count( $matched_user_ids ) + $static_count + $token_count;
+
+        // Collect up to 3 sample names from matched user IDs.
+        $sample_names = array();
+        if ( ! empty( $matched_user_ids ) ) {
+            $sample_ids = array_slice( array_keys( $matched_user_ids ), 0, 3 );
+            if ( $sample_ids ) {
+                $placeholders = implode( ',', array_fill( 0, count( $sample_ids ), '%d' ) );
+                $names = $wpdb->get_col( $wpdb->prepare(
+                    "SELECT display_name FROM {$wpdb->users} WHERE ID IN ($placeholders)",
+                    ...$sample_ids
+                ) );
+                $sample_names = $names ?: array();
+            }
+        }
+
+        wp_send_json_success( array(
+            'count'   => $total_count,
+            'samples' => $sample_names,
+        ) );
     }
 
     // =========================================================================
