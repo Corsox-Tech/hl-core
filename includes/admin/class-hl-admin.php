@@ -261,6 +261,7 @@ class HL_Admin {
                         'nonces'   => array(
                             'toggleStatus'    => wp_create_nonce( 'hl_workflow_toggle_' . $workflow_id ),
                             'recipientCount'  => wp_create_nonce( 'hl_workflow_recipient_count' ),
+                            'sendTest'        => wp_create_nonce( 'hl_workflow_send_test' ),
                         ),
                         'workflowId' => $workflow_id,
                     ) ) . ';';

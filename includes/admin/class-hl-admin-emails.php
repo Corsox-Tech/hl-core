@@ -43,6 +43,7 @@ class HL_Admin_Emails {
         add_action( 'admin_post_hl_workflow_force_resend', array( $this, 'handle_workflow_force_resend' ) );
 
         add_action( 'wp_ajax_hl_workflow_toggle_status', array( $this, 'ajax_workflow_toggle_status' ) );
+        add_action( 'wp_ajax_hl_email_send_test', array( $this, 'ajax_send_test' ) );
     }
 
     /**
@@ -2047,6 +2048,114 @@ class HL_Admin_Emails {
         }
 
         wp_send_json_success( array( 'new_status' => $new_status ) );
+    }
+
+    /**
+     * AJAX: Send a test email using a real enrollment's context.
+     *
+     * Security: capability check, nonce, server-side domain allowlist, rate limit, audit log.
+     */
+    public function ajax_send_test() {
+        check_ajax_referer( 'hl_workflow_send_test', 'nonce' );
+        if ( ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( 'Unauthorized.' );
+        }
+
+        $template_id   = (int) ( $_POST['template_id'] ?? 0 );
+        $enrollment_id = (int) ( $_POST['enrollment_id'] ?? 0 );
+        $to_email      = sanitize_email( wp_unslash( $_POST['to_email'] ?? '' ) );
+
+        if ( ! $template_id || ! $to_email ) {
+            wp_send_json_error( 'Template and email address are required.' );
+        }
+
+        // Server-side domain allowlist.
+        $processor = new HL_Email_Queue_Processor();
+        if ( ! $processor->is_domain_allowed( $to_email ) ) {
+            wp_send_json_error( 'Email domain not in allowlist. Allowed: @housmanlearning.com, @corsox.com, @yopmail.com' );
+        }
+
+        // Transient rate limit: 5 per admin per 10 minutes.
+        $user_id   = get_current_user_id();
+        $cache_key = 'hl_send_test_' . $user_id;
+        $count     = (int) get_transient( $cache_key );
+        if ( $count >= 5 ) {
+            wp_send_json_error( 'Rate limit reached. Please wait a few minutes before sending another test.' );
+        }
+        set_transient( $cache_key, $count + 1, 600 );
+
+        // Load template.
+        global $wpdb;
+        $template = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hl_email_template WHERE template_id = %d",
+            $template_id
+        ) );
+        if ( ! $template ) {
+            wp_send_json_error( 'Template not found.' );
+        }
+
+        // Build context from enrollment.
+        $context      = array();
+        $preview_name = 'sample user';
+        if ( $enrollment_id > 0 ) {
+            $enrollment = $wpdb->get_row( $wpdb->prepare(
+                "SELECT e.*, u.display_name, u.user_email
+                 FROM {$wpdb->prefix}hl_enrollment e
+                 LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+                 WHERE e.enrollment_id = %d",
+                $enrollment_id
+            ) );
+            if ( $enrollment ) {
+                $preview_name = $enrollment->display_name ?: 'User #' . $enrollment->user_id;
+                $context['user_id']       = (int) $enrollment->user_id;
+                $context['enrollment_id'] = (int) $enrollment->enrollment_id;
+                $context['cycle_id']      = (int) $enrollment->cycle_id;
+            }
+        }
+
+        // Render blocks using the correct singleton + resolve pattern.
+        $blocks  = json_decode( $template->blocks_json, true ) ?: array();
+        $subject = $template->subject ?: $template->name;
+
+        // Resolve merge tags via registry, then pass resolved map to renderer.
+        $resolved = array();
+        if ( class_exists( 'HL_Email_Merge_Tag_Registry' ) ) {
+            $registry = HL_Email_Merge_Tag_Registry::instance();
+            $resolved = $registry->resolve_all( $context );
+        }
+
+        // Renderer is a singleton — never use `new`.
+        $renderer  = HL_Email_Block_Renderer::instance();
+        $body_html = $renderer->render( $blocks, $subject, $resolved );
+
+        // Resolve merge tags in subject line.
+        foreach ( $resolved as $tag => $val ) {
+            $subject = str_replace( $tag, (string) $val, $subject );
+        }
+
+        // Send via wp_mail.
+        $headers = array( 'Content-Type: text/html; charset=UTF-8' );
+        $sent    = wp_mail( $to_email, '[TEST] ' . $subject, $body_html, $headers );
+
+        // Audit log.
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            HL_Audit_Service::log( 'email_test_sent', array(
+                'entity_type'   => 'email_template',
+                'entity_id'     => $template_id,
+                'to_email'      => $to_email,
+                'enrollment_id' => $enrollment_id,
+                'sent'          => $sent,
+                'actor_user_id' => $user_id,
+            ) );
+        }
+
+        if ( $sent ) {
+            wp_send_json_success( array(
+                'message' => sprintf( 'Test sent to %s using %s\'s data.', esc_html( $to_email ), esc_html( $preview_name ) ),
+            ) );
+        } else {
+            wp_send_json_error( 'wp_mail() failed. Check server mail configuration.' );
+        }
     }
 
     /**
