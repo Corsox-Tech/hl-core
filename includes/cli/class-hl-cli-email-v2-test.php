@@ -165,6 +165,7 @@ class HL_CLI_Email_V2_Test {
         // 1. hl_component.available_from column exists AND is DATE type.
         //    DATA_TYPE check guards against a future migration accidentally
         //    creating the column as VARCHAR or similar.
+        //    NOTE: legacy — triggers now use complete_by (see A.4+A.6). Column kept for data continuity; drop pending Task 7.
         $col_from_row = $wpdb->get_row( $wpdb->prepare(
             "SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS
              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s
@@ -175,10 +176,11 @@ class HL_CLI_Email_V2_Test {
             is_array( $col_from_row )
                 && $col_from_row['COLUMN_NAME'] === 'available_from'
                 && strtolower( $col_from_row['DATA_TYPE'] ) === 'date',
-            'hl_component.available_from column exists with DATE type'
+            'hl_component.available_from column exists with DATE type (legacy — triggers now use complete_by)'
         );
 
         // 2. hl_component.available_to column exists AND is DATE type.
+        //    NOTE: legacy — triggers now use complete_by (see A.4+A.6). Column kept for data continuity; drop pending Task 7.
         $col_to_row = $wpdb->get_row( $wpdb->prepare(
             "SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS
              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s
@@ -189,7 +191,7 @@ class HL_CLI_Email_V2_Test {
             is_array( $col_to_row )
                 && $col_to_row['COLUMN_NAME'] === 'available_to'
                 && strtolower( $col_to_row['DATA_TYPE'] ) === 'date',
-            'hl_component.available_to column exists with DATE type'
+            'hl_component.available_to column exists with DATE type (legacy — triggers now use complete_by)'
         );
 
         // 3. hl_core_schema_revision >= 35.

@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *
  * Cron dedup contract (A.1.6, A.7.6): dedup tokens have NO date component.
  * Each (trigger, workflow, user, entity, cycle) tuple fires exactly once per
- * window. Range matches (`available_from BETWEEN today AND today+7`) tolerate
+ * window. Range matches (`complete_by BETWEEN today AND today+7`) tolerate
  * missed cron runs — if wp-cron skips a day, the next run still catches the
  * same enrollment because its date still falls in the range. Downstream:
  * the hl_email_queue.dedup_token unique-ish index (enforced in PHP via
@@ -941,6 +941,25 @@ class HL_Email_Automation_Service {
     }
 
     /**
+     * Return the date column used as a trigger anchor for a given trigger type.
+     *
+     * Coaching-session components use display_window_start (opening) or
+     * display_window_end (overdue). All other components use complete_by.
+     *
+     * @param string $trigger_type  'window' or 'overdue'.
+     * @param string $component_type Component type string.
+     * @return array { column: string, table_alias: string }
+     */
+    private function get_date_anchor( $trigger_type, $component_type = '' ) {
+        if ( $component_type === 'coaching_session_attendance' ) {
+            return $trigger_type === 'overdue'
+                ? array( 'column' => 'display_window_end', 'table_alias' => 'c' )
+                : array( 'column' => 'display_window_start', 'table_alias' => 'c' );
+        }
+        return array( 'column' => 'complete_by', 'table_alias' => 'c' );
+    }
+
+    /**
      * Get users qualifying for a cron-based trigger.
      *
      * @param string $trigger_key Cron trigger key.
@@ -950,22 +969,6 @@ class HL_Email_Automation_Service {
     private function get_cron_trigger_users( $trigger_key, $cycle ) {
         global $wpdb;
         $cycle_id = (int) $cycle->cycle_id;
-
-        $needs_window_col = in_array( $trigger_key, array(
-            'cron:cv_window_7d',
-            'cron:cv_overdue_1d',
-            'cron:rp_window_7d',
-            'cron:coaching_window_7d',
-        ), true );
-
-        if ( $needs_window_col && ! self::has_component_window_column() ) {
-            static $warned = false;
-            if ( ! $warned ) {
-                $warned = true;
-                error_log( '[HL_EMAIL_V2] cron trigger ' . $trigger_key . ' skipped — hl_component.available_from column missing. Run HL_Installer::maybe_upgrade().' );
-            }
-            return array();
-        }
 
         switch ( $trigger_key ) {
             case 'cron:low_engagement_14d': {
@@ -1049,8 +1052,8 @@ class HL_Email_Automation_Service {
                         AND cs.session_status IN ('scheduled','attended')
                      WHERE c.component_type = 'coaching_session_attendance'
                        AND c.cycle_id = %d
-                       AND c.available_from IS NOT NULL
-                       AND c.available_from BETWEEN %s AND %s
+                       AND c.display_window_start IS NOT NULL
+                       AND c.display_window_start BETWEEN %s AND %s
                        AND cs.session_id IS NULL
                      LIMIT 5000",
                     $cycle_id, $today, $plus7
@@ -1112,8 +1115,8 @@ class HL_Email_Automation_Service {
                         AND en.status IN ('active','warning')
                      WHERE c.component_type = 'classroom_visit'
                        AND c.cycle_id = %d
-                       AND c.available_from IS NOT NULL
-                       AND c.available_from BETWEEN %s AND %s
+                       AND c.complete_by IS NOT NULL
+                       AND c.complete_by BETWEEN %s AND %s
                        AND NOT EXISTS (
                            SELECT 1
                            FROM {$wpdb->prefix}hl_classroom_visit cv
@@ -1130,7 +1133,7 @@ class HL_Email_Automation_Service {
             }
 
             case 'cron:cv_overdue_1d': {
-                // Classroom-visit components whose available_to = yesterday; users without a submitted visit.
+                // Classroom-visit components whose complete_by = yesterday; users without a submitted visit.
                 $today     = current_time( 'Y-m-d' );
                 $yesterday = wp_date( 'Y-m-d', strtotime( $today . ' -1 day' ) );
                 return $wpdb->get_results( $wpdb->prepare(
@@ -1146,8 +1149,8 @@ class HL_Email_Automation_Service {
                         AND en.status IN ('active','warning')
                      WHERE c.component_type = 'classroom_visit'
                        AND c.cycle_id = %d
-                       AND c.available_to IS NOT NULL
-                       AND c.available_to = %s
+                       AND c.complete_by IS NOT NULL
+                       AND c.complete_by = %s
                        AND NOT EXISTS (
                            SELECT 1
                            FROM {$wpdb->prefix}hl_classroom_visit cv
@@ -1180,8 +1183,8 @@ class HL_Email_Automation_Service {
                         AND en.status IN ('active','warning')
                      WHERE c.component_type = 'reflective_practice_session'
                        AND c.cycle_id = %d
-                       AND c.available_from IS NOT NULL
-                       AND c.available_from BETWEEN %s AND %s
+                       AND c.complete_by IS NOT NULL
+                       AND c.complete_by BETWEEN %s AND %s
                        AND NOT EXISTS (
                            SELECT 1
                            FROM {$wpdb->prefix}hl_rp_session rps
