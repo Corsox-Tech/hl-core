@@ -2603,3 +2603,184 @@ body.hl-js-loaded .hl-email-admin .hl-js-fallback { display: none; }
     max-width: 160px;
     vertical-align: middle;
 }
+
+/* =================================================================== */
+/* Email System v2 — Workflow Builder Two-Panel Card Layout            */
+/* =================================================================== */
+
+/* --- Top bar ------------------------------------------------------- */
+.hl-wf-topbar {
+    background: #1F2937;
+    color: white;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: -20px -20px 20px -20px; /* bleed into WP admin chrome */
+}
+.hl-wf-topbar-left { display: flex; align-items: center; gap: 12px; }
+.hl-wf-topbar-left a { color: #9CA3AF; text-decoration: none; font-size: 13px; }
+.hl-wf-topbar-left a:hover { color: white; }
+.hl-wf-topbar-name { font-weight: 600; font-size: 15px; }
+.hl-wf-topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* --- Status badges ------------------------------------------------- */
+.hl-wf-status-badge {
+    font-size: 12px; padding: 3px 10px; border-radius: 12px; font-weight: 600;
+}
+.hl-wf-status-draft { background: #374151; color: #9CA3AF; }
+.hl-wf-status-active { background: #065F46; color: #D1FAE5; }
+.hl-wf-status-paused { background: #92400E; color: #FEF3C7; }
+
+/* --- Buttons ------------------------------------------------------- */
+.hl-wf-btn {
+    padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; font-family: inherit;
+}
+.hl-wf-btn-secondary { background: #374151; color: #D1D5DB; border: 1px solid #4B5563; }
+.hl-wf-btn-secondary:hover { background: #4B5563; }
+.hl-wf-btn-activate { background: #4F46E5; color: white; }
+.hl-wf-btn-activate:hover { background: #4338CA; }
+.hl-wf-btn-activate:disabled { background: #6B7280; cursor: not-allowed; }
+
+/* --- Two-panel layout ---------------------------------------------- */
+.hl-wf-layout {
+    display: flex; gap: 0; min-height: calc(100vh - 140px);
+}
+.hl-wf-form-panel {
+    flex: 3; padding: 24px 24px 24px 0; overflow-y: auto;
+}
+.hl-wf-summary-panel {
+    flex: 2; max-width: 380px; min-width: 320px;
+    background: #fff; border-left: 1px solid #E5E7EB;
+    padding: 24px; position: sticky; top: 32px;
+    height: calc(100vh - 140px); overflow-y: auto;
+}
+
+/* --- Cards --------------------------------------------------------- */
+.hl-wf-card {
+    background: #fff; border: 1px solid #E5E7EB; border-radius: 10px;
+    padding: 20px 24px; margin-bottom: 12px;
+}
+.hl-wf-card:hover { border-color: #C7D2FE; }
+.hl-wf-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+}
+.hl-wf-card-title { font-weight: 700; font-size: 14px; color: #1F2937; }
+.hl-wf-card-subtitle { font-size: 12px; color: #9CA3AF; margin-top: 2px; }
+.hl-wf-card-badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600;
+}
+.hl-wf-badge-required { background: #FEE2E2; color: #991B1B; }
+.hl-wf-badge-optional { background: #F3F4F6; color: #6B7280; }
+
+/* --- Form elements ------------------------------------------------- */
+.hl-wf-form-row { margin-bottom: 14px; }
+.hl-wf-form-row:last-child { margin-bottom: 0; }
+.hl-wf-form-label {
+    font-size: 12px; font-weight: 600; color: #6B7280; margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.3px; display: block;
+}
+.hl-wf-form-input, .hl-wf-form-select {
+    width: 100%; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px;
+    font-size: 14px; background: white; color: #1F2937; font-family: inherit;
+}
+.hl-wf-form-input:focus, .hl-wf-form-select:focus {
+    outline: none; border-color: #818CF8; box-shadow: 0 0 0 3px rgba(129,140,248,0.15);
+}
+
+/* --- Progressive disclosure ---------------------------------------- */
+.hl-wf-card[data-progressive]:not(.hl-wf-revealed) { display: none; }
+
+/* --- Summary panel elements ---------------------------------------- */
+.hl-wf-summary-sentence {
+    background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 8px;
+    padding: 14px 16px; font-size: 13px; color: #374151; line-height: 1.6;
+    margin-bottom: 20px;
+}
+.hl-wf-summary-sentence strong { color: #4F46E5; }
+.hl-wf-summary-onboarding {
+    text-align: center; padding: 40px 20px; color: #9CA3AF; font-style: italic;
+}
+
+/* --- Send Test box ------------------------------------------------- */
+.hl-wf-send-test {
+    background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px;
+    padding: 14px 16px; margin-bottom: 16px;
+}
+.hl-wf-send-test-label { font-size: 12px; font-weight: 700; color: #92400E; margin-bottom: 8px; }
+.hl-wf-send-test-row { display: flex; gap: 8px; align-items: center; }
+.hl-wf-send-test-input {
+    flex: 1; padding: 6px 10px; border: 1px solid #FDE68A; border-radius: 6px;
+    font-size: 13px; background: white;
+}
+.hl-wf-send-test-btn {
+    padding: 6px 14px; background: #F59E0B; color: white; border: none;
+    border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.hl-wf-send-test-btn:hover { background: #D97706; }
+.hl-wf-send-test-btn:disabled { background: #D1D5DB; cursor: not-allowed; }
+.hl-wf-send-test-feedback { font-size: 12px; margin-top: 6px; }
+.hl-wf-send-test-hint { font-size: 11px; color: #B45309; margin-top: 6px; }
+
+/* --- Guardrails ---------------------------------------------------- */
+.hl-wf-guardrails { margin-top: 16px; }
+.hl-wf-guardrails-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: #9CA3AF; margin-bottom: 6px;
+}
+.hl-wf-guardrail {
+    display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 6px;
+    color: #DC2626;
+}
+.hl-wf-guardrail-ok { color: #059669; }
+.hl-wf-guardrail-icon { width: 18px; text-align: center; }
+
+/* --- Recipient preview --------------------------------------------- */
+.hl-wf-recipient-preview {
+    background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 16px;
+}
+
+/* --- Divider ------------------------------------------------------- */
+.hl-wf-divider { height: 1px; background: #F3F4F6; margin: 16px 0; }
+
+/* --- Advanced collapsed -------------------------------------------- */
+.hl-wf-advanced-collapsed {
+    background: white; border: 1px solid #E5E7EB; border-radius: 10px;
+    padding: 14px 24px; margin-bottom: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.hl-wf-advanced-collapsed:hover { border-color: #C7D2FE; }
+.hl-wf-advanced-title { font-size: 13px; color: #6B7280; }
+.hl-wf-advanced-values { font-size: 12px; color: #9CA3AF; }
+
+/* --- Day checkboxes ------------------------------------------------ */
+.hl-wf-days-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.hl-wf-day-check {
+    display: flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer;
+}
+
+/* --- Responsive: narrow screens -> bottom drawer ------------------- */
+@media (max-width: 900px) {
+    .hl-wf-layout { flex-direction: column; }
+    .hl-wf-form-panel { padding: 16px; }
+    .hl-wf-summary-panel {
+        max-width: 100%; position: fixed; bottom: 0; left: 0; right: 0;
+        height: auto; max-height: 50vh; border-left: none;
+        border-top: 1px solid #E5E7EB; z-index: 100;
+        transform: translateY(calc(100% - 48px)); transition: transform 0.3s ease;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+    }
+    .hl-wf-summary-panel.hl-wf-drawer-open { transform: translateY(0); }
+}
+.hl-wf-drawer-toggle {
+    display: none; /* hidden on desktop */
+    width: 100%; padding: 12px; background: #4F46E5; color: white;
+    border: none; font-size: 13px; font-weight: 600; cursor: pointer;
+    border-radius: 8px 8px 0 0;
+}
+@media (max-width: 900px) {
+    .hl-wf-drawer-toggle { display: block; }
+}
