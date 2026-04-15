@@ -129,6 +129,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scheduling-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-tour-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-ticket-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-bb-group-sync-service.php';
 
         // Shared helpers
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-roles.php';
@@ -183,6 +184,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-course-catalog.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-emails.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-email-builder.php';
+            require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-bb-groups-settings.php';
         }
         
         // Front-end (shortcodes)
@@ -261,6 +263,7 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-sync-ld-enrollment.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-test-email-renderer.php';
             require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-sync-tickets.php';
+            require_once HL_CORE_INCLUDES_DIR . 'cli/class-hl-cli-bb-sync.php';
         }
     }
     
@@ -329,6 +332,16 @@ class HL_Core {
         HL_LearnDash_Integration::instance();
         HL_BuddyBoss_Integration::instance();
 
+        // BB Group Sync hooks (enrollment events)
+        add_action( 'hl_enrollment_created', array( 'HL_BB_Group_Sync_Service', 'on_enrollment_changed' ), 25, 2 );
+        add_action( 'hl_enrollment_updated', array( 'HL_BB_Group_Sync_Service', 'on_enrollment_changed' ), 25, 2 );
+        add_action( 'hl_enrollment_deleted', array( 'HL_BB_Group_Sync_Service', 'on_enrollment_deleted' ), 25, 2 );
+
+        // BB Group Sync hooks (WP role changes)
+        add_action( 'set_user_role',    array( 'HL_BB_Group_Sync_Service', 'on_role_changed' ), 10, 3 );
+        add_action( 'add_user_role',    array( 'HL_BB_Group_Sync_Service', 'on_role_added' ),   10, 2 );
+        add_action( 'remove_user_role', array( 'HL_BB_Group_Sync_Service', 'on_role_removed' ), 10, 2 );
+
         // Initialize reporting service (registers rollup listener)
         HL_Reporting_Service::instance();
 
@@ -372,6 +385,7 @@ class HL_Core {
             HL_CLI_Migrate_Routing_Types::register();
             HL_CLI_Translate_Content::register();
             HL_CLI_Sync_Tickets::register();
+            HL_CLI_BB_Sync::register();
         }
 
         // Email system: initialize automation service (registers hook listeners).
