@@ -167,8 +167,8 @@ class HL_Admin_Emails {
             'enum' => array(
                 'eq'       => 'equals',
                 'neq'      => 'not equals',
-                'in'       => 'matches any of',
-                'not_in'   => 'does not match any of',
+                'in'       => 'is any of',
+                'not_in'   => 'is none of',
                 'is_null'  => 'is empty',
                 'not_null' => 'is not empty',
             ),
@@ -178,8 +178,8 @@ class HL_Admin_Emails {
             'text' => array(
                 'eq'       => 'equals',
                 'neq'      => 'not equals',
-                'in'       => 'matches any of',
-                'not_in'   => 'does not match any of',
+                'in'       => 'is any of',
+                'not_in'   => 'is none of',
                 'is_null'  => 'is empty',
                 'not_null' => 'is not empty',
             ),
