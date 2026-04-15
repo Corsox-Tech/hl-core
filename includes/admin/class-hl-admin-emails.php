@@ -2323,7 +2323,7 @@ class HL_Admin_Emails {
         }
 
         // Server-side domain allowlist.
-        $processor = new HL_Email_Queue_Processor();
+        $processor = HL_Email_Queue_Processor::instance();
         if ( ! $processor->is_domain_allowed( $to_email ) ) {
             wp_send_json_error( 'Email domain not in allowlist. Allowed: @housmanlearning.com, @corsox.com, @yopmail.com' );
         }
