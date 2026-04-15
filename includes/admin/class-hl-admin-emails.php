@@ -792,6 +792,31 @@ class HL_Admin_Emails {
                         </select>
                     </td>
                 </tr>
+                <?php
+                $trigger_status_val = '';
+                if ( $workflow ) {
+                    $conds = json_decode( $workflow->conditions, true ) ?: array();
+                    foreach ( $conds as $c ) {
+                        if ( ( $c['field'] ?? '' ) === 'session.new_status' && ( $c['op'] ?? '' ) === 'eq' ) {
+                            $trigger_status_val = $c['value'] ?? '';
+                            break;
+                        }
+                    }
+                }
+                ?>
+                <tr class="hl-wf-status-filter-row" style="display:none;">
+                    <th scope="row"><?php esc_html_e( 'Status Filter', 'hl-core' ); ?></th>
+                    <td>
+                        <select name="trigger_status_filter" id="wf-trigger-status-filter" aria-label="Filter by session status">
+                            <option value="" <?php selected( $trigger_status_val, '' ); ?>>Any Status Change</option>
+                            <option value="scheduled" <?php selected( $trigger_status_val, 'scheduled' ); ?>>Session Booked</option>
+                            <option value="attended" <?php selected( $trigger_status_val, 'attended' ); ?>>Session Attended</option>
+                            <option value="cancelled" <?php selected( $trigger_status_val, 'cancelled' ); ?>>Session Cancelled</option>
+                            <option value="missed" <?php selected( $trigger_status_val, 'missed' ); ?>>Session Missed</option>
+                            <option value="rescheduled" <?php selected( $trigger_status_val, 'rescheduled' ); ?>>Session Rescheduled</option>
+                        </select>
+                    </td>
+                </tr>
                 <tr>
                     <th><label><?php esc_html_e( 'Template', 'hl-core' ); ?></label></th>
                     <td>
@@ -1049,6 +1074,20 @@ class HL_Admin_Emails {
         $data['trigger_offset_minutes'] = $offset_value > 0 ? $offset_value * $mult : null;
 
         $data['component_type_filter'] = sanitize_text_field( $_POST['component_type_filter'] ?? '' ) ?: null;
+
+        // Task 8 (A.1): persist trigger status sub-filter for coaching/RP session triggers.
+        $status_filter = sanitize_text_field( $_POST['trigger_status_filter'] ?? '' );
+        if ( $status_filter !== '' && in_array( $data['trigger_key'], array( 'hl_coaching_session_status_changed', 'hl_rp_session_status_changed' ), true ) ) {
+            $conditions = array_filter( $conditions, function ( $c ) {
+                return ( $c['field'] ?? '' ) !== 'session.new_status';
+            } );
+            $conditions[] = array(
+                'field' => 'session.new_status',
+                'op'    => 'eq',
+                'value' => $status_filter,
+            );
+            $data['conditions'] = wp_json_encode( array_values( $conditions ) );
+        }
 
         // Validate status — now includes 'deleted' as a valid persisted state
         // for soft-delete, but admins cannot set it via the form.
