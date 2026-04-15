@@ -1333,26 +1333,209 @@ class HL_Admin_Emails {
                         </div>
                     </div>
 
-                    <?php // Cards 3-5 will be added in Task 5b. ?>
+                    <?php // ── Card 3: Conditions ─────────────────────────── ?>
+                    <div class="hl-wf-card" data-progressive="true">
+                        <div class="hl-wf-card-header">
+                            <div>
+                                <div class="hl-wf-card-title"><?php esc_html_e( 'Conditions', 'hl-core' ); ?></div>
+                                <div class="hl-wf-card-subtitle"><?php esc_html_e( 'Only send when ALL of these are true', 'hl-core' ); ?></div>
+                            </div>
+                            <span class="hl-wf-card-badge hl-wf-badge-optional"><?php esc_html_e( 'Optional', 'hl-core' ); ?></span>
+                        </div>
+                        <div class="hl-wf-card-body">
+                            <div class="hl-condition-builder" data-initial="<?php echo esc_attr( wp_json_encode( $conditions ) ); ?>">
+                                <div class="hl-condition-rows" aria-live="polite"></div>
+                                <button type="button" class="hl-condition-add button-link">
+                                    <span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>
+                                    <?php esc_html_e( 'Add Condition', 'hl-core' ); ?>
+                                </button>
+                                <p class="hl-condition-hint">
+                                    <span class="hl-badge-and"><?php esc_html_e( 'All conditions must match (AND)', 'hl-core' ); ?></span>
+                                    <?php esc_html_e( 'Empty = matches every event for this trigger.', 'hl-core' ); ?>
+                                </p>
+                            </div>
+                            <details class="hl-js-fallback">
+                                <summary><?php esc_html_e( 'Raw JSON edit mode', 'hl-core' ); ?></summary>
+                                <textarea name="conditions" rows="4" class="large-text code" spellcheck="false"><?php echo esc_textarea( wp_json_encode( $conditions ) ); ?></textarea>
+                            </details>
+                        </div>
+                    </div>
+
+                    <?php // ── Card 4: Recipients ──────────────────────────── ?>
+                    <div class="hl-wf-card" data-progressive="true">
+                        <div class="hl-wf-card-header">
+                            <div>
+                                <div class="hl-wf-card-title"><?php esc_html_e( 'Recipients', 'hl-core' ); ?></div>
+                                <div class="hl-wf-card-subtitle"><?php esc_html_e( 'Who receives this email?', 'hl-core' ); ?></div>
+                            </div>
+                            <span class="hl-wf-card-badge hl-wf-badge-required"><?php esc_html_e( 'Required', 'hl-core' ); ?></span>
+                        </div>
+                        <div class="hl-wf-card-body">
+                            <div class="hl-recipient-picker" data-initial="<?php echo esc_attr( wp_json_encode( $recipients ) ); ?>" data-current-trigger="<?php echo esc_attr( $workflow->trigger_key ?? '' ); ?>">
+                                <section class="hl-recipient-section hl-recipient-primary" aria-labelledby="hl-recip-primary-h">
+                                    <h4 id="hl-recip-primary-h"><?php esc_html_e( 'Primary Recipients (To:)', 'hl-core' ); ?></h4>
+                                    <div class="hl-token-grid" role="group" aria-label="<?php esc_attr_e( 'Primary recipient tokens', 'hl-core' ); ?>"></div>
+                                    <div class="hl-recipient-roles">
+                                        <label><?php esc_html_e( 'By Role', 'hl-core' ); ?></label>
+                                        <div class="hl-pill-input hl-pill-input-role" role="list" aria-label="<?php esc_attr_e( 'Role-based recipients', 'hl-core' ); ?>">
+                                            <input type="text" placeholder="<?php esc_attr_e( 'teacher, mentor, coach... (Enter to add)', 'hl-core' ); ?>">
+                                        </div>
+                                    </div>
+                                    <div class="hl-recipient-static">
+                                        <label><?php esc_html_e( 'Static Emails', 'hl-core' ); ?></label>
+                                        <div class="hl-pill-input hl-pill-input-email" role="list" aria-label="<?php esc_attr_e( 'Static email recipients', 'hl-core' ); ?>">
+                                            <input type="email" placeholder="<?php esc_attr_e( 'name@example.com (Enter to add)', 'hl-core' ); ?>">
+                                        </div>
+                                    </div>
+                                </section>
+                                <section class="hl-recipient-section hl-recipient-cc" aria-labelledby="hl-recip-cc-h">
+                                    <h4 id="hl-recip-cc-h"><?php esc_html_e( 'CC Recipients', 'hl-core' ); ?></h4>
+                                    <div class="hl-token-list hl-token-list-cc" role="group" aria-label="<?php esc_attr_e( 'CC recipient tokens', 'hl-core' ); ?>"></div>
+                                    <div class="hl-recipient-roles">
+                                        <label><?php esc_html_e( 'CC By Role', 'hl-core' ); ?></label>
+                                        <div class="hl-pill-input hl-pill-input-role" role="list">
+                                            <input type="text" placeholder="<?php esc_attr_e( 'Role name (Enter to add)', 'hl-core' ); ?>">
+                                        </div>
+                                    </div>
+                                    <div class="hl-recipient-static">
+                                        <label><?php esc_html_e( 'CC Static Emails', 'hl-core' ); ?></label>
+                                        <div class="hl-pill-input hl-pill-input-email" role="list">
+                                            <input type="email" placeholder="<?php esc_attr_e( 'name@example.com (Enter to add)', 'hl-core' ); ?>">
+                                        </div>
+                                    </div>
+                                </section>
+                                <p class="hl-recipient-count-hint" aria-live="polite" role="status"></p>
+                            </div>
+                            <details class="hl-js-fallback">
+                                <summary><?php esc_html_e( 'Raw JSON edit mode', 'hl-core' ); ?></summary>
+                                <textarea name="recipients" rows="3" class="large-text code" spellcheck="false"><?php echo esc_textarea( wp_json_encode( $recipients ) ); ?></textarea>
+                            </details>
+                        </div>
+                    </div>
+
+                    <?php // ── Card 5: Email Template ──────────────────────── ?>
+                    <div class="hl-wf-card" data-progressive="true">
+                        <div class="hl-wf-card-header">
+                            <div class="hl-wf-card-title"><?php esc_html_e( 'Email Template', 'hl-core' ); ?></div>
+                            <span class="hl-wf-card-badge hl-wf-badge-required"><?php esc_html_e( 'Required', 'hl-core' ); ?></span>
+                        </div>
+                        <div class="hl-wf-card-body">
+                            <select name="template_id" class="hl-wf-form-select">
+                                <option value=""><?php esc_html_e( '— Select a template —', 'hl-core' ); ?></option>
+                                <?php foreach ( $templates as $t ) :
+                                    $label = $t->name;
+                                    if ( $t->status === 'archived' ) $label .= ' (archived)';
+                                ?>
+                                    <option value="<?php echo (int) $t->template_id; ?>" <?php selected( $workflow->template_id ?? 0, $t->template_id ); ?>><?php echo esc_html( $label ); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <?php // ── Advanced Collapsed Section ──────────────────── ?>
+                    <div class="hl-wf-advanced-collapsed" id="hl-wf-advanced-toggle">
+                        <div class="hl-wf-advanced-title">&#9654; <?php esc_html_e( 'Advanced Options', 'hl-core' ); ?></div>
+                        <div class="hl-wf-advanced-values">
+                            <?php esc_html_e( 'Delay:', 'hl-core' ); ?> <?php echo (int) ( $workflow->delay_minutes ?? 0 ); ?> min
+                            &bull; <?php esc_html_e( 'Send Window:', 'hl-core' ); ?> <?php echo esc_html( $workflow->send_window_days ?? 'mon,tue,wed,thu,fri' ); ?>
+                            <?php echo esc_html( $workflow->send_window_start ?? '' ); ?>-<?php echo esc_html( $workflow->send_window_end ?? '' ); ?> ET
+                        </div>
+                    </div>
+                    <div class="hl-wf-card" id="hl-wf-advanced-body" style="display:none;">
+                        <div class="hl-wf-card-header">
+                            <div class="hl-wf-card-title"><?php esc_html_e( 'Advanced Options', 'hl-core' ); ?></div>
+                        </div>
+                        <div class="hl-wf-card-body">
+                            <div class="hl-wf-form-row">
+                                <label class="hl-wf-form-label"><?php esc_html_e( 'Delay', 'hl-core' ); ?></label>
+                                <input type="number" name="delay_minutes" class="hl-wf-form-input" value="<?php echo (int) ( $workflow->delay_minutes ?? 0 ); ?>" min="0" style="width:120px;">
+                                <span style="font-size:12px;color:#6B7280;margin-left:8px;"><?php esc_html_e( 'minutes after trigger', 'hl-core' ); ?></span>
+                            </div>
+                            <div class="hl-wf-form-row">
+                                <label class="hl-wf-form-label"><?php esc_html_e( 'Send Window', 'hl-core' ); ?></label>
+                                <div class="hl-wf-days-row">
+                                    <?php
+                                    $days = array( 'mon' => 'Mon', 'tue' => 'Tue', 'wed' => 'Wed', 'thu' => 'Thu', 'fri' => 'Fri', 'sat' => 'Sat', 'sun' => 'Sun' );
+                                    $current_days = array_map( 'trim', explode( ',', $workflow->send_window_days ?? 'mon,tue,wed,thu,fri' ) );
+                                    foreach ( $days as $key => $label ) :
+                                    ?>
+                                        <label class="hl-wf-day-check">
+                                            <input type="checkbox" name="send_window_day_<?php echo esc_attr( $key ); ?>" value="<?php echo esc_attr( $key ); ?>" <?php checked( in_array( $key, $current_days, true ) ); ?>>
+                                            <?php echo esc_html( $label ); ?>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <div class="hl-wf-form-row" style="display:flex;gap:16px;align-items:end;">
+                                <div>
+                                    <label class="hl-wf-form-label"><?php esc_html_e( 'Start (ET)', 'hl-core' ); ?></label>
+                                    <input type="time" name="send_window_start" class="hl-wf-form-input" value="<?php echo esc_attr( $workflow->send_window_start ?? '' ); ?>" style="width:140px;">
+                                </div>
+                                <div>
+                                    <label class="hl-wf-form-label"><?php esc_html_e( 'End (ET)', 'hl-core' ); ?></label>
+                                    <input type="time" name="send_window_end" class="hl-wf-form-input" value="<?php echo esc_attr( $workflow->send_window_end ?? '' ); ?>" style="width:140px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                 </div><!-- /.hl-wf-form-panel -->
 
                 <div class="hl-wf-summary-panel">
-                    <!-- Summary panel content will come in Task 5b -->
-                    <p style="color:#9CA3AF;font-style:italic;"><?php esc_html_e( 'Summary panel — coming soon', 'hl-core' ); ?></p>
+                    <!-- Onboarding message (new workflows) -->
+                    <div class="hl-wf-summary-onboarding" <?php echo $workflow ? 'style="display:none;"' : ''; ?>>
+                        <p><?php esc_html_e( 'Select a trigger to begin building your workflow.', 'hl-core' ); ?></p>
+                    </div>
+
+                    <!-- Summary sentence -->
+                    <div class="hl-wf-summary-sentence" <?php echo ! $workflow ? 'style="display:none;"' : ''; ?>></div>
+
+                    <!-- Recipient preview -->
+                    <p class="hl-recipient-count-hint" aria-live="polite" style="margin:16px 0;"></p>
+
+                    <div class="hl-wf-divider"></div>
+
+                    <!-- Send Test box -->
+                    <div class="hl-wf-send-test">
+                        <div class="hl-wf-send-test-label">&#9993; <?php esc_html_e( 'Send Test Email', 'hl-core' ); ?></div>
+                        <div style="margin-bottom:8px;">
+                            <label class="hl-wf-form-label"><?php esc_html_e( 'Preview as:', 'hl-core' ); ?></label>
+                            <select name="hl_test_enrollment" class="hl-wf-form-select" style="font-size:13px;">
+                                <?php
+                                $active_enrollments = $wpdb->get_results(
+                                    "SELECT e.enrollment_id, u.display_name FROM {$wpdb->prefix}hl_enrollment e
+                                     LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+                                     WHERE e.status = 'active' ORDER BY u.display_name LIMIT 50"
+                                );
+                                foreach ( $active_enrollments as $ae ) :
+                                ?>
+                                    <option value="<?php echo (int) $ae->enrollment_id; ?>"><?php echo esc_html( $ae->display_name ); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="hl-wf-send-test-row">
+                            <input type="email" name="hl_test_email" class="hl-wf-send-test-input" value="<?php echo esc_attr( wp_get_current_user()->user_email ); ?>">
+                            <button type="button" class="hl-wf-send-test-btn" <?php echo empty( $workflow->template_id ) ? 'disabled' : ''; ?>><?php esc_html_e( 'Send Test', 'hl-core' ); ?></button>
+                        </div>
+                        <div class="hl-wf-send-test-feedback"></div>
+                        <div class="hl-wf-send-test-hint"><?php esc_html_e( 'Allowed: @housmanlearning.com, @corsox.com, @yopmail.com', 'hl-core' ); ?></div>
+                    </div>
+
+                    <div class="hl-wf-divider"></div>
+
+                    <!-- Guardrails -->
+                    <div class="hl-wf-guardrails">
+                        <div class="hl-wf-guardrails-label"><?php esc_html_e( 'Activation Checklist', 'hl-core' ); ?></div>
+                        <div class="hl-wf-guardrail" data-check="trigger"><span class="hl-wf-guardrail-icon">&#10007;</span> <?php esc_html_e( 'Trigger configured', 'hl-core' ); ?></div>
+                        <div class="hl-wf-guardrail" data-check="template"><span class="hl-wf-guardrail-icon">&#10007;</span> <?php esc_html_e( 'Template selected', 'hl-core' ); ?></div>
+                        <div class="hl-wf-guardrail" data-check="recipients"><span class="hl-wf-guardrail-icon">&#10007;</span> <?php esc_html_e( 'At least one recipient', 'hl-core' ); ?></div>
+                    </div>
+
+                    <!-- Mobile drawer toggle (visible only on narrow screens via CSS) -->
+                    <button type="button" class="hl-wf-drawer-toggle"><?php esc_html_e( 'Show Summary', 'hl-core' ); ?></button>
                 </div>
             </div><!-- /.hl-wf-layout -->
 
-            <?php // ── Hidden textareas for conditions + recipients (JS serialization targets). ?>
-            <textarea name="conditions" style="display:none;"><?php echo esc_textarea( wp_json_encode( $conditions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?></textarea>
-            <textarea name="recipients" style="display:none;"><?php echo esc_textarea( wp_json_encode( $recipients, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?></textarea>
-
-            <?php // ── Hidden inputs for Card 3-5 fields (replaced with card UI in Task 5b). ?>
-            <input type="hidden" name="template_id" value="<?php echo (int) ( $workflow->template_id ?? 0 ); ?>">
-            <input type="hidden" name="delay_minutes" value="<?php echo (int) ( $workflow->delay_minutes ?? 0 ); ?>">
-            <input type="hidden" name="send_window_start" value="<?php echo esc_attr( $workflow->send_window_start ?? '' ); ?>">
-            <input type="hidden" name="send_window_end" value="<?php echo esc_attr( $workflow->send_window_end ?? '' ); ?>">
-            <input type="hidden" name="send_window_days" value="<?php echo esc_attr( $workflow->send_window_days ?? '' ); ?>">
         </form>
 
         <script>
@@ -1362,6 +1545,17 @@ class HL_Admin_Emails {
                 var action = $(this).val();
                 var status = action === 'activate' ? 'active' : 'draft';
                 $('#hl-wf-status-field').val( status );
+            });
+
+            // Advanced section toggle.
+            $('#hl-wf-advanced-toggle').on('click', function(){
+                $('#hl-wf-advanced-body').toggle();
+                var $title = $(this).find('.hl-wf-advanced-title');
+                if ( $('#hl-wf-advanced-body').is(':visible') ) {
+                    $title.html( $title.html().replace('\u25B6', '\u25BC').replace('&#9654;', '&#9660;') );
+                } else {
+                    $title.html( $title.html().replace('\u25BC', '\u25B6').replace('&#9660;', '&#9654;') );
+                }
             });
         })(jQuery);
         </script>
@@ -1415,9 +1609,24 @@ class HL_Admin_Emails {
             'delay_minutes'     => (int) ( $_POST['delay_minutes'] ?? 0 ),
             'send_window_start' => sanitize_text_field( $_POST['send_window_start'] ?? '' ) ?: null,
             'send_window_end'   => sanitize_text_field( $_POST['send_window_end'] ?? '' ) ?: null,
-            'send_window_days'  => sanitize_text_field( $_POST['send_window_days'] ?? '' ) ?: null,
+            'send_window_days'  => null, // Populated below from checkboxes (v2) or text field (v1).
             'status'            => sanitize_text_field( $_POST['status'] ?? 'draft' ),
         );
+
+        // Collect send_window_days from individual checkboxes (v2) or text field (v1).
+        $day_keys     = array( 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun' );
+        $checked_days = array();
+        foreach ( $day_keys as $dk ) {
+            if ( ! empty( $_POST[ 'send_window_day_' . $dk ] ) ) {
+                $checked_days[] = $dk;
+            }
+        }
+        if ( ! empty( $checked_days ) ) {
+            $data['send_window_days'] = implode( ',', $checked_days );
+        } else {
+            // Fallback to text field for v1 form.
+            $data['send_window_days'] = sanitize_text_field( $_POST['send_window_days'] ?? '' ) ?: null;
+        }
 
         // Task 7: persist trigger offset + component type filter.
         $offset_value = absint( $_POST['trigger_offset_value'] ?? 0 );
