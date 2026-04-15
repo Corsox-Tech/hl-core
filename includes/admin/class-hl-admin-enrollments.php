@@ -220,11 +220,8 @@ class HL_Admin_Enrollments {
         $cycle_context = isset($_POST['_hl_cycle_context']) ? absint($_POST['_hl_cycle_context']) : 0;
 
         if ($enrollment_id > 0) {
-            $wpdb->update(
-                $wpdb->prefix . 'hl_enrollment',
-                $data,
-                array('enrollment_id' => $enrollment_id)
-            );
+            $service = new HL_Enrollment_Service();
+            $service->update_enrollment($enrollment_id, $data);
             if ($cycle_context) {
                 $redirect = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $cycle_context . '&tab=enrollments&message=enrollment_updated');
             } else {
@@ -316,8 +313,8 @@ class HL_Admin_Enrollments {
             wp_die(__('You do not have permission to perform this action.', 'hl-core'));
         }
 
-        global $wpdb;
-        $wpdb->delete($wpdb->prefix . 'hl_enrollment', array('enrollment_id' => $enrollment_id));
+        $service = new HL_Enrollment_Service();
+        $service->delete_enrollment($enrollment_id);
 
         $cycle_context = isset($_GET['cycle_context']) ? absint($_GET['cycle_context']) : 0;
         if ($cycle_context) {

@@ -39,11 +39,22 @@ class HL_Enrollment_Service {
 
     public function update_enrollment($enrollment_id, $data) {
         $result = $this->repository->update($enrollment_id, $data);
-        do_action('hl_enrollment_updated', $enrollment_id, $data);
+        if ($result !== false) {
+            do_action('hl_enrollment_updated', $enrollment_id, $data);
+        }
         return $result;
     }
 
     public function delete_enrollment($enrollment_id) {
-        return $this->repository->delete($enrollment_id);
+        $enrollment = $this->repository->get_by_id($enrollment_id);
+        if (!$enrollment) {
+            return false;
+        }
+        $user_id = (int) $enrollment->user_id;
+        $result = $this->repository->delete($enrollment_id);
+        if ($result !== false && $user_id > 0) {
+            do_action('hl_enrollment_deleted', $enrollment_id, $user_id);
+        }
+        return $result;
     }
 }
