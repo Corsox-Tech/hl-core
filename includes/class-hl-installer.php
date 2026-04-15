@@ -265,6 +265,11 @@ class HL_Installer {
                 self::migrate_orgunit_add_bb_group_id();
             }
 
+            // Migrate coaching.session_scheduled → coaching.session_status conditions.
+            if ( class_exists( 'HL_Admin_Emails' ) ) {
+                HL_Admin_Emails::migrate_coaching_session_conditions();
+            }
+
             update_option( 'hl_core_schema_revision', $current_revision );
         }
     }

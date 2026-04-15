@@ -12,6 +12,15 @@ class HL_Admin_Emails {
 
     private static $instance = null;
 
+    /**
+     * Check whether the v2 workflow UX is active.
+     *
+     * @return bool
+     */
+    public static function is_v2_ux() {
+        return get_option( 'hl_workflow_ux_version', 'v2' ) === 'v2';
+    }
+
     public static function instance() {
         if ( self::$instance === null ) {
             self::$instance = new self();
@@ -128,13 +137,17 @@ class HL_Admin_Emails {
                 'options' => array(),
             ),
             // Coaching group.
-            'coaching.session_scheduled' => array(
-                'label'   => 'Coaching Session Scheduled',
+            'coaching.session_status' => array(
+                'label'   => 'Coaching Session Status',
                 'group'   => 'Coaching',
                 'type'    => 'enum',
                 'options' => array(
-                    'yes' => 'Yes — session exists',
-                    'no'  => 'No — no session scheduled',
+                    'not_scheduled' => 'Not Scheduled',
+                    'scheduled'     => 'Scheduled',
+                    'attended'      => 'Attended',
+                    'missed'        => 'Missed',
+                    'cancelled'     => 'Cancelled',
+                    'rescheduled'   => 'Rescheduled',
                 ),
             ),
         );
@@ -208,6 +221,80 @@ class HL_Admin_Emails {
     public static function operator_label( $op ) {
         $labels = self::get_all_operator_labels();
         return isset( $labels[ $op ] ) ? $labels[ $op ] : $op;
+    }
+
+    /**
+     * Migrate workflows using the old coaching.session_scheduled condition
+     * to the new coaching.session_status enum.
+     *
+     * Called from HL_Installer::maybe_upgrade() on plugin activation.
+     */
+    public static function migrate_coaching_session_conditions() {
+        if ( get_option( 'hl_coaching_condition_migrated', false ) ) {
+            return;
+        }
+
+        global $wpdb;
+        $table = "{$wpdb->prefix}hl_email_workflow";
+
+        // Guard: table may not exist on fresh installs.
+        if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) ) {
+            return;
+        }
+
+        // Pre-migration backup for rollback safety.
+        $backup = "{$table}_pre_coaching_migration";
+        if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $backup ) ) ) {
+            $wpdb->query( "CREATE TABLE `{$backup}` AS SELECT workflow_id, conditions FROM `{$table}` WHERE conditions LIKE '%coaching.session_scheduled%'" );
+        }
+
+        $rows = $wpdb->get_results(
+            "SELECT workflow_id, conditions FROM {$table} WHERE conditions LIKE '%coaching.session_scheduled%'"
+        );
+
+        foreach ( $rows as $row ) {
+            $conditions = json_decode( $row->conditions, true );
+            if ( ! is_array( $conditions ) ) continue;
+
+            $changed = false;
+            foreach ( $conditions as &$cond ) {
+                if ( ( $cond['field'] ?? '' ) !== 'coaching.session_scheduled' ) continue;
+
+                $old_value = $cond['value'] ?? '';
+                $cond['field'] = 'coaching.session_status';
+
+                if ( $old_value === 'yes' ) {
+                    $cond['op']    = 'in';
+                    $cond['value'] = array( 'scheduled', 'attended' );
+                } else {
+                    $cond['op']    = 'in';
+                    $cond['value'] = array( 'not_scheduled', 'cancelled', 'missed', 'rescheduled' );
+                }
+                $changed = true;
+            }
+            unset( $cond );
+
+            if ( $changed ) {
+                $wpdb->update(
+                    $table,
+                    array( 'conditions' => wp_json_encode( $conditions ) ),
+                    array( 'workflow_id' => $row->workflow_id ),
+                    array( '%s' ),
+                    array( '%d' )
+                );
+
+                if ( class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'workflow_condition_migrated', array(
+                        'entity_type' => 'email_workflow',
+                        'entity_id'   => (int) $row->workflow_id,
+                        'old_field'   => 'coaching.session_scheduled',
+                        'new_field'   => 'coaching.session_status',
+                    ) );
+                }
+            }
+        }
+
+        update_option( 'hl_coaching_condition_migrated', true );
     }
 
     /**
