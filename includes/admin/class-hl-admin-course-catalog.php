@@ -61,6 +61,7 @@ class HL_Admin_Course_Catalog {
         $ld_course_pt  = absint($_POST['ld_course_pt'] ?? 0);
         $status        = in_array($_POST['status'] ?? '', array('active', 'archived'), true)
                             ? $_POST['status'] : 'active';
+        $requires_survey = !empty($_POST['requires_survey']) ? 1 : 0;
 
         // Validation.
         $errors = array();
@@ -102,7 +103,8 @@ class HL_Admin_Course_Catalog {
             'ld_course_en' => $ld_course_en ?: null,
             'ld_course_es' => $ld_course_es ?: null,
             'ld_course_pt' => $ld_course_pt ?: null,
-            'status'       => $status,
+            'status'          => $status,
+            'requires_survey' => $requires_survey,
         );
 
         if ($catalog_id) {
@@ -399,6 +401,16 @@ class HL_Admin_Course_Catalog {
                             <option value="active" <?php selected($entry->status ?? 'active', 'active'); ?>>Active</option>
                             <option value="archived" <?php selected($entry->status ?? 'active', 'archived'); ?>>Archived</option>
                         </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th><?php esc_html_e('Survey', 'hl-core'); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="requires_survey" value="1" <?php checked($entry->requires_survey ?? 1, 1); ?>>
+                            <?php esc_html_e('Requires End of Course Survey', 'hl-core'); ?>
+                        </label>
+                        <p class="description"><?php esc_html_e('When checked, participants must complete the assigned survey after finishing this course.', 'hl-core'); ?></p>
                     </td>
                 </tr>
             </table>
