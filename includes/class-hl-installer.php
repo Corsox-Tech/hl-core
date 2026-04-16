@@ -4139,14 +4139,14 @@ class HL_Installer {
         // --- Survey 1: 2025 (draft, empty questions, version 1) ---
         $exists_2025 = $wpdb->get_var( $wpdb->prepare(
             "SELECT survey_id FROM `{$table}` WHERE internal_name = %s LIMIT 1",
-            'eoc_survey_2025'
+            'End of Course Survey - 2025'
         ) );
 
         if ( ! $exists_2025 ) {
             $wpdb->insert( $table, array(
                 'survey_uuid'    => HL_DB_Utils::generate_uuid(),
-                'internal_name'  => 'eoc_survey_2025',
-                'display_name'   => 'End of Course Survey - 2025',
+                'internal_name'  => 'End of Course Survey - 2025',
+                'display_name'   => 'End of Course Survey',
                 'survey_type'    => 'end_of_course',
                 'version'        => 1,
                 'questions_json' => wp_json_encode( array() ),
@@ -4157,28 +4157,28 @@ class HL_Installer {
         // --- Survey 2: 2026 (published, full 8 questions, version 2) ---
         $exists_2026 = $wpdb->get_var( $wpdb->prepare(
             "SELECT survey_id FROM `{$table}` WHERE internal_name = %s LIMIT 1",
-            'eoc_survey_2026'
+            'End of Course Survey - 2026'
         ) );
 
         if ( ! $exists_2026 ) {
             $wpdb->insert( $table, array(
                 'survey_uuid'       => HL_DB_Utils::generate_uuid(),
-                'internal_name'     => 'eoc_survey_2026',
-                'display_name'      => 'End of Course Survey - 2026',
+                'internal_name'     => 'End of Course Survey - 2026',
+                'display_name'      => 'End of Course Survey',
                 'survey_type'       => 'end_of_course',
                 'version'           => 2,
                 'questions_json'    => wp_json_encode( self::get_eoc_survey_2026_questions() ),
                 'scale_labels_json' => wp_json_encode( self::get_eoc_survey_scale_labels() ),
                 'intro_text_json'   => wp_json_encode( array(
-                    'en' => 'Thank you for completing this course! Please take a few minutes to share your feedback. Your responses will help us improve the program.',
-                    'es' => 'Gracias por completar este curso. Por favor, tome unos minutos para compartir sus comentarios. Sus respuestas nos ayudarán a mejorar el programa.',
-                    'pt' => 'Obrigado por concluir este curso! Por favor, reserve alguns minutos para compartilhar seus comentários. Suas respostas nos ajudarão a melhorar o programa.',
+                    'en' => 'Please fill out this end-of-course survey to let us know how we are doing and how we can better support you in the future!',
+                    'es' => 'Por favor, complete esta encuesta de fin de curso para informarnos como lo estamos haciendo y como podemos apoyarle mejor en el futuro.',
+                    'pt' => 'Por favor, preencha esta pesquisa de final de curso para nos informar como estamos indo e como podemos apoiar voce melhor no futuro!',
                 ) ),
                 'group_labels_json' => wp_json_encode( array(
                     'agreement_scale' => array(
-                        'en' => 'Please rate your agreement with each statement below.',
-                        'es' => 'Por favor, califique su acuerdo con cada afirmación a continuación.',
-                        'pt' => 'Por favor, avalie sua concordância com cada afirmação abaixo.',
+                        'en' => 'Please indicate your level of agreement with each statement based on your experiences with this course.',
+                        'es' => 'Por favor, indique su nivel de acuerdo con cada afirmacion basandose en sus experiencias con este curso.',
+                        'pt' => 'Por favor, indique seu nivel de concordancia com cada afirmacao com base em suas experiencias com este curso.',
                     ),
                 ) ),
                 'status'            => 'published',
@@ -4195,85 +4195,77 @@ class HL_Installer {
         return array(
             // 6 Likert questions (agreement_scale group)
             array(
-                'key'   => 'time_worthwhile',
-                'type'  => 'likert',
-                'group' => 'agreement_scale',
-                'label' => array(
-                    'en' => 'The time I spent on this course was worthwhile.',
-                    'es' => 'El tiempo que dediqué a este curso valió la pena.',
-                    'pt' => 'O tempo que dediquei a este curso valeu a pena.',
-                ),
+                'question_key' => 'time_worthwhile',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'The time I spent on this course was worthwhile.',
+                'text_es'      => 'El tiempo que dedique a este curso valio la pena.',
+                'text_pt'      => 'O tempo que dediquei a este curso valeu a pena.',
             ),
             array(
-                'key'   => 'prepared_to_apply',
-                'type'  => 'likert',
-                'group' => 'agreement_scale',
-                'label' => array(
-                    'en' => 'I feel prepared to apply what I learned in my classroom.',
-                    'es' => 'Me siento preparado/a para aplicar lo que aprendí en mi salón de clases.',
-                    'pt' => 'Sinto-me preparado(a) para aplicar o que aprendi na minha sala de aula.',
-                ),
+                'question_key' => 'prepared_to_apply',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'I feel prepared to apply information from this course in real-world situations.',
+                'text_es'      => 'Me siento preparado/a para aplicar la informacion de este curso en situaciones de la vida real.',
+                'text_pt'      => 'Sinto-me preparado(a) para aplicar as informacoes deste curso em situacoes da vida real.',
             ),
             array(
-                'key'   => 'emotional_development',
-                'type'  => 'likert',
-                'group' => 'agreement_scale',
-                'label' => array(
-                    'en' => 'This course improved my understanding of children\'s emotional development.',
-                    'es' => 'Este curso mejoró mi comprensión del desarrollo emocional de los niños.',
-                    'pt' => 'Este curso melhorou minha compreensão do desenvolvimento emocional das crianças.',
-                ),
+                'question_key' => 'emotional_development',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'The strategies covered in this course will be useful in supporting my students\' emotional development.',
+                'text_es'      => 'Las estrategias cubiertas en este curso seran utiles para apoyar el desarrollo emocional de mis estudiantes.',
+                'text_pt'      => 'As estrategias abordadas neste curso serao uteis para apoiar o desenvolvimento emocional dos meus alunos.',
             ),
             array(
-                'key'   => 'emotional_wellbeing',
-                'type'  => 'likert',
-                'group' => 'agreement_scale',
-                'label' => array(
-                    'en' => 'This course helped me reflect on my own emotional well-being.',
-                    'es' => 'Este curso me ayudó a reflexionar sobre mi propio bienestar emocional.',
-                    'pt' => 'Este curso me ajudou a refletir sobre meu próprio bem-estar emocional.',
-                ),
+                'question_key' => 'emotional_wellbeing',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'The strategies covered in this course will be useful in supporting my own emotional wellbeing.',
+                'text_es'      => 'Las estrategias cubiertas en este curso seran utiles para apoyar mi propio bienestar emocional.',
+                'text_pt'      => 'As estrategias abordadas neste curso serao uteis para apoiar meu proprio bem-estar emocional.',
             ),
             array(
-                'key'   => 'classroom_routine',
-                'type'  => 'likert',
-                'group' => 'agreement_scale',
-                'label' => array(
-                    'en' => 'I can integrate what I learned into my daily classroom routine.',
-                    'es' => 'Puedo integrar lo que aprendí en mi rutina diaria del salón de clases.',
-                    'pt' => 'Consigo integrar o que aprendi na minha rotina diária de sala de aula.',
-                ),
+                'question_key' => 'classroom_routine',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'The strategies covered in this course will fit into my classroom routine.',
+                'text_es'      => 'Las estrategias cubiertas en este curso se adaptaran a mi rutina del salon de clases.',
+                'text_pt'      => 'As estrategias abordadas neste curso se encaixarao na minha rotina de sala de aula.',
             ),
             array(
-                'key'   => 'resources_supports',
-                'type'  => 'likert',
-                'group' => 'agreement_scale',
-                'label' => array(
-                    'en' => 'The resources and supports provided were helpful.',
-                    'es' => 'Los recursos y apoyos proporcionados fueron útiles.',
-                    'pt' => 'Os recursos e apoios fornecidos foram úteis.',
-                ),
+                'question_key' => 'resources_supports',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'I have the necessary resources and supports to implement the strategies covered in this course.',
+                'text_es'      => 'Tengo los recursos y apoyos necesarios para implementar las estrategias cubiertas en este curso.',
+                'text_pt'      => 'Tenho os recursos e apoios necessarios para implementar as estrategias abordadas neste curso.',
             ),
             // 2 Open text questions
             array(
-                'key'   => 'liked_most',
-                'type'  => 'open_text',
-                'group' => null,
-                'label' => array(
-                    'en' => 'What did you like most about this course?',
-                    'es' => '¿Qué fue lo que más le gustó de este curso?',
-                    'pt' => 'O que você mais gostou neste curso?',
-                ),
+                'question_key' => 'liked_most',
+                'type'         => 'open_text',
+                'group'        => null,
+                'required'     => true,
+                'text_en'      => 'What did you like the most about this e-learning course?',
+                'text_es'      => 'Que fue lo que mas le gusto de este curso en linea?',
+                'text_pt'      => 'O que voce mais gostou neste curso online?',
             ),
             array(
-                'key'   => 'could_improve',
-                'type'  => 'open_text',
-                'group' => null,
-                'label' => array(
-                    'en' => 'What could be improved?',
-                    'es' => '¿Qué se podría mejorar?',
-                    'pt' => 'O que poderia ser melhorado?',
-                ),
+                'question_key' => 'could_improve',
+                'type'         => 'open_text',
+                'group'        => null,
+                'required'     => true,
+                'text_en'      => 'How could this e-learning course be improved?',
+                'text_es'      => 'Como se podria mejorar este curso en linea?',
+                'text_pt'      => 'Como este curso online poderia ser melhorado?',
             ),
         );
     }
@@ -4297,9 +4289,9 @@ class HL_Installer {
                     'pt' => 'Discordo',
                 ),
                 3 => array(
-                    'en' => 'Neutral',
-                    'es' => 'Neutral',
-                    'pt' => 'Neutro',
+                    'en' => 'No Opinion',
+                    'es' => 'Sin Opinion',
+                    'pt' => 'Sem Opiniao',
                 ),
                 4 => array(
                     'en' => 'Agree',
