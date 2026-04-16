@@ -185,8 +185,30 @@ class HL_LearnDash_Integration {
                 $enrollment_id, $component->component_id
             ));
 
-            if ($existing_state && $existing_state->completion_status === 'complete') {
+            if ($existing_state && in_array($existing_state->completion_status, array('complete', 'survey_pending'), true)) {
                 continue;
+            }
+
+            // Survey gate: check if survey required before marking complete (catalog path only).
+            // Lazy-init: only construct service when cycle actually has a survey.
+            if (isset($catalog_entry) && $catalog_entry) {
+                $cycle_survey_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT survey_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+                    $component->cycle_id
+                ));
+                if ($cycle_survey_id) {
+                    $survey_service  = new HL_Survey_Service();
+                    $gate_triggered  = $survey_service->check_survey_gate(
+                        $enrollment_id,
+                        $catalog_entry->catalog_id,
+                        $component->cycle_id,
+                        $component->component_id,
+                        $user_id
+                    );
+                    if ($gate_triggered) {
+                        continue; // Skip normal completion — survey_pending written by gate.
+                    }
+                }
             }
 
             $state_data = array(
