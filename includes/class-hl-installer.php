@@ -150,7 +150,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 40;
+        $current_revision = 41;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -263,6 +263,14 @@ class HL_Installer {
             // Rev 40: BB group sync — add bb_group_id to hl_orgunit
             if ( (int) $stored < 40 ) {
                 self::migrate_orgunit_add_bb_group_id();
+            }
+
+            // Rev 41: QA workflow — expand ticket status enum + drop github_issue_id.
+            if ( (int) $stored < 41 ) {
+                $ok = self::migrate_ticket_qa_workflow();
+                if ( ! $ok ) {
+                    return; // Bail — next plugins_loaded retries.
+                }
             }
 
             // Migrate coaching.session_scheduled → coaching.session_status conditions.
@@ -2069,7 +2077,7 @@ class HL_Installer {
             description longtext NOT NULL,
             type enum('bug','improvement','feature_request') NOT NULL,
             priority enum('low','medium','high','critical') NOT NULL DEFAULT 'medium',
-            status enum('draft','open','in_review','in_progress','resolved','closed') NOT NULL DEFAULT 'open',
+            status enum('draft','open','in_review','in_progress','ready_for_test','test_failed','resolved','closed') NOT NULL DEFAULT 'open',
             creator_user_id bigint(20) unsigned NOT NULL,
             resolved_at datetime NULL DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -2077,7 +2085,6 @@ class HL_Installer {
             category enum('course_content','platform_issue','account_access','forms_assessments','reports_data','other') NOT NULL DEFAULT 'other',
             context_mode enum('self','view_as') NOT NULL DEFAULT 'self',
             context_user_id bigint(20) unsigned NULL DEFAULT NULL,
-            github_issue_id bigint(20) unsigned NULL DEFAULT NULL,
             PRIMARY KEY (ticket_id),
             UNIQUE KEY ticket_uuid (ticket_uuid),
             KEY status (status),
@@ -3823,6 +3830,43 @@ class HL_Installer {
         if ( $wpdb->last_error ) {
             error_log( '[HL_INSTALLER] Rev 38 failed: ' . $wpdb->last_error );
         }
+    }
+
+    /**
+     * Rev 41: QA Workflow — expand status enum, drop github_issue_id column.
+     *
+     * Idempotent:
+     *   - MODIFY COLUMN is safe to re-run (enum expansion is additive).
+     *   - DROP COLUMN is guarded by SHOW COLUMNS check.
+     *
+     * @return bool True on success, false on failure.
+     */
+    private static function migrate_ticket_qa_workflow() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_ticket';
+
+        // 1. Expand status enum.
+        $res = $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN `status`
+            enum('draft','open','in_review','in_progress','ready_for_test','test_failed','resolved','closed')
+            NOT NULL DEFAULT 'open'
+            CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" );
+
+        if ( $res === false ) {
+            error_log( '[HL_INSTALLER] Rev 41 failed on status enum expansion: ' . $wpdb->last_error );
+            return false;
+        }
+
+        // 2. Drop github_issue_id (idempotent guard).
+        $col = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'github_issue_id'" );
+        if ( ! empty( $col ) ) {
+            $res = $wpdb->query( "ALTER TABLE `{$table}` DROP COLUMN `github_issue_id`" );
+            if ( $res === false ) {
+                error_log( '[HL_INSTALLER] Rev 41 failed on DROP github_issue_id: ' . $wpdb->last_error );
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
