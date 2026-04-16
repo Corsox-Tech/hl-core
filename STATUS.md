@@ -317,6 +317,18 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Activation guardrail** — Server-side blocks activation without template. New workflows saved as draft before redirect (no data loss).
 - [ ] **Deployed to test** — Pending.
 
+### Workflow Builder UX Redesign — M2 (April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-15-workflow-ux-redesign-design.md` (Sections 2.2, 6, 7) | **Plan:** `docs/superpowers/plans/2026-04-16-workflow-ux-redesign-m2.md`
+- [x] **TRIGGER_MAP registry + injection** — `get_trigger_categories()` static registry (7 categories, 24 events). `window.hlTriggerMap` injected via `wp_add_inline_script`.
+- [x] **Cascading trigger dropdowns** — Category + Event selects replace flat 22-option dropdown. Hidden `<input name="trigger_key">` preserves save handler compat. Visible: Coaching Session, Enrollment, Course. Hidden: CV, RP, Assessment, Schedule.
+- [x] **Event type hint** — Green "Instant trigger" / blue "Scheduled trigger" bar below dropdowns.
+- [x] **Timing config panel** — Offset + unit + "before" label for cron events. Human-readable translation line. Slide-down animation.
+- [x] **Reverse mapping** — Edit mode resolves stored trigger_key + status_filter + component_type back to Category + Event via PHP disambiguation. Unrecognized triggers show yellow warning banner + read-only cascade.
+- [x] **Full summary panel** — Plain-English sentence with cascade labels (Category — Event) + timing line for cron events. 24h activity display (sent/failed/pending from hl_email_queue).
+- [x] **Stale selector fixes** — 3 M1 JS refs updated from `select[name="trigger_key"]` to dual `select/input` for v1/v2 compat.
+- [x] **CSS** — `.hl-wf-trigger-cascade`, `.hl-wf-event-hint`, `.hl-wf-timing-config`, `.hl-wf-trigger-warning`, `.hl-wf-activity` styles. Responsive cascade stacking at <1100px. Version bump 1.2.5.
+- [ ] **Deployed to test** — Pending.
+
 ### Classroom Management for Control Groups (Ticket #18 — April 2026)
 > **Spec:** `docs/superpowers/specs/2026-04-13-classroom-management-design.md` | **Plan:** `docs/superpowers/plans/2026-04-13-classroom-management.md`
 - [x] **Cycle tab deep links** — "Manage Classrooms" + "Add Classroom" buttons, View + Edit per row, all pass `cycle_id`.
