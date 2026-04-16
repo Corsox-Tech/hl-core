@@ -319,7 +319,7 @@ jQuery(function ($) {
 
     function initRecipientPicker($wrap) {
         var $textarea = $wrap.closest('td').find('textarea[name="recipients"]');
-        var $triggerSelect = $('select[name="trigger_key"]');
+        var $triggerSelect = $('select[name="trigger_key"], input[name="trigger_key"]').first();
         var initial = { primary: [], cc: [] };
         try {
             var parsed = JSON.parse($wrap.attr('data-initial') || '{}');
@@ -517,7 +517,7 @@ jQuery(function ($) {
     function fetchRecipientCount($wrap) {
         var cfg = window.hlEmailWorkflowCfg || {};
         if (!cfg.ajaxUrl) return;
-        var trigger = $('select[name="trigger_key"]').val() || '';
+        var trigger = $('select[name="trigger_key"], input[name="trigger_key"]').first().val() || '';
         var recipients = $wrap.closest('td').find('textarea[name="recipients"]').val() || '{}';
         var $hint = $wrap.find('.hl-recipient-count-hint');
         $hint.text('').removeClass('hl-hint-error');
@@ -554,8 +554,15 @@ jQuery(function ($) {
         function updateSummary() {
             var templateText = $('select[name="template_id"] option:selected').text();
             var templateName = (templateText && templateText !== '— Select —') ? templateText : '';
-            var triggerText = $('select[name="trigger_key"] option:selected').text();
-            var triggerLabel = (triggerText && triggerText !== '— Select —') ? triggerText : '';
+            // Build trigger label from cascade dropdowns (M2).
+            var MAP = window.hlTriggerMap || {};
+            var catKey = $('select[name="trigger_category"]').val();
+            var evtKey = $('select[name="trigger_event"]').val();
+            var catLabel = (MAP[catKey] && MAP[catKey].label) ? MAP[catKey].label : '';
+            var evtLabel = (MAP[catKey] && MAP[catKey].events && MAP[catKey].events[evtKey])
+                ? MAP[catKey].events[evtKey].label : '';
+            var triggerLabel = catLabel && evtLabel ? catLabel + ' \u2014 ' + evtLabel : (catLabel || evtLabel || '');
+            var triggerEvt = (MAP[catKey] && MAP[catKey].events) ? MAP[catKey].events[evtKey] : null;
 
             // Build recipient list from checked tokens.
             var primaryTokens = [];
@@ -601,6 +608,14 @@ jQuery(function ($) {
             sentence += ' to ' + recipientText + ccText;
             if (triggerLabel) {
                 sentence += '<br><br><strong>When:</strong> ' + escHtml(triggerLabel);
+                // Add timing translation for cron events.
+                if (triggerEvt && triggerEvt.type === 'cron') {
+                    var offsetVal  = parseInt($('input[name="trigger_offset_value"]').val(), 10) || 0;
+                    var offsetUnit = $('select[name="trigger_offset_unit"] option:selected').text() || 'Days';
+                    if (offsetVal > 0) {
+                        sentence += '<br><em style="color:#6B7280;font-size:12px;">' + escHtml(offsetVal + ' ' + offsetUnit.toLowerCase() + ' before ' + catLabel.toLowerCase() + ' display window start') + '</em>';
+                    }
+                }
             }
             if (condParts.length) {
                 sentence += '<br><br><strong>Only if:</strong> ' + condText;
@@ -611,7 +626,9 @@ jQuery(function ($) {
         }
 
         // Listen to all form changes.
-        $('select[name="trigger_key"], select[name="template_id"]').on('change', updateSummary);
+        $('select[name="trigger_category"], select[name="trigger_event"], select[name="template_id"]').on('change', updateSummary);
+        $('input[name="trigger_key"]').on('cascade-sync', updateSummary);
+        $('input[name="trigger_offset_value"], select[name="trigger_offset_unit"]').on('change input', updateSummary);
         // Condition/recipient changes fire through their existing modules.
         $(document).on('change click', '.hl-condition-builder, .hl-recipient-picker', function() {
             setTimeout(updateSummary, 100); // slight delay for serialization
@@ -627,7 +644,7 @@ jQuery(function ($) {
         if (!$('.hl-wf-guardrails').length) return;
 
         var checks = {
-            trigger: !!$('select[name="trigger_key"]').val(),
+            trigger: !!$('select[name="trigger_key"], input[name="trigger_key"]').first().val(),
             template: !!$('select[name="template_id"]').val(),
             recipients: ($('.hl-recipient-picker .hl-token-card.hl-token-checked').length > 0
                 || $('.hl-recipient-picker .hl-pill').length > 0)
