@@ -82,7 +82,8 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-component.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-course-catalog.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-teacher-assessment-instrument.php';
-        
+        require_once HL_CORE_INCLUDES_DIR . 'domain/class-hl-survey.php';
+
         // Repositories
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-orgunit-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-partnership-repository.php';
@@ -95,6 +96,8 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-component-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-course-catalog-repository.php';
         require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-tour-repository.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-survey-repository.php';
+        require_once HL_CORE_INCLUDES_DIR . 'domain/repositories/class-hl-survey-response-repository.php';
 
         // Security
         require_once HL_CORE_INCLUDES_DIR . 'security/class-hl-capabilities.php';
@@ -130,6 +133,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-tour-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-ticket-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-bb-group-sync-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-survey-service.php';
 
         // Shared helpers
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-roles.php';
@@ -185,6 +189,12 @@ class HL_Core {
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-emails.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-email-builder.php';
             require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-bb-groups-settings.php';
+            if (file_exists(HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-survey.php')) {
+                require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-survey.php';
+            }
+            if (file_exists(HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-survey-reports.php')) {
+                require_once HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-survey-reports.php';
+            }
         }
         
         // Front-end (shortcodes)
@@ -235,6 +245,9 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-login.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-password-reset.php';
         require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-profile-setup.php';
+        if (file_exists(HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-survey-modal.php')) {
+            require_once HL_CORE_INCLUDES_DIR . 'frontend/class-hl-frontend-survey-modal.php';
+        }
 
         // REST API
         require_once HL_CORE_INCLUDES_DIR . 'api/class-hl-rest-api.php';
@@ -354,6 +367,11 @@ class HL_Core {
 
         // Initialize feature tracker (registers AJAX hooks)
         HL_Frontend_Feature_Tracker::instance();
+
+        // Initialize survey modal (registers AJAX hooks + enqueues assets)
+        if (class_exists('HL_Frontend_Survey_Modal')) {
+            HL_Frontend_Survey_Modal::instance()->init();
+        }
 
         // Initialize auth manager (registers hooks)
         HL_Auth_Manager::instance();
