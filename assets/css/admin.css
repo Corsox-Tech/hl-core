@@ -2789,3 +2789,82 @@ body.hl-js-loaded .hl-email-admin .hl-js-fallback { display: none; }
 @media (max-width: 1100px) {
     .hl-wf-drawer-toggle { display: block; }
 }
+
+/* =================================================================== */
+/* Email System v2 M2 — Cascading Triggers + Timing Config             */
+/* =================================================================== */
+
+/* --- Trigger cascade layout ---------------------------------------- */
+.hl-wf-trigger-cascade {
+    display: flex; gap: 10px; align-items: start;
+}
+.hl-wf-trigger-cascade-col { flex: 1; }
+
+/* --- Event type hints ---------------------------------------------- */
+.hl-wf-event-hint {
+    margin-top: 8px; padding: 10px 14px; border-radius: 6px;
+    font-size: 12px; display: flex; align-items: center; gap: 8px;
+}
+.hl-wf-event-hint-hook {
+    background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534;
+}
+.hl-wf-event-hint-cron {
+    background: #EEF2FF; border: 1px solid #C7D2FE; color: #3730A3;
+}
+
+/* --- Timing config panel ------------------------------------------- */
+.hl-wf-timing-config {
+    margin-top: 14px; padding: 16px; background: #F9FAFB;
+    border: 1px solid #E5E7EB; border-radius: 8px;
+    animation: hlWfSlideDown 0.2s ease-out;
+}
+@keyframes hlWfSlideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.hl-wf-timing-config-title {
+    font-size: 12px; font-weight: 700; color: #4F46E5;
+    text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 10px;
+}
+.hl-wf-timing-row {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.hl-wf-timing-row input[type="number"] {
+    width: 70px; padding: 8px 10px; border: 1px solid #D1D5DB;
+    border-radius: 6px; font-size: 14px; text-align: center;
+}
+.hl-wf-timing-row select {
+    padding: 8px 12px; border: 1px solid #D1D5DB;
+    border-radius: 6px; font-size: 14px; background: white;
+}
+.hl-wf-timing-label {
+    font-size: 13px; color: #6B7280; font-weight: 500;
+}
+.hl-wf-timing-anchor {
+    margin-top: 8px; font-size: 11px; color: #9CA3AF;
+    padding: 6px 10px; background: #F3F4F6; border-radius: 4px;
+    display: inline-block;
+}
+.hl-wf-timing-anchor strong { color: #374151; }
+
+/* --- Unrecognized trigger warning banner --------------------------- */
+.hl-wf-trigger-warning {
+    margin-top: 12px; padding: 12px 16px; border-radius: 8px;
+    background: #FFFBEB; border: 1px solid #FDE68A;
+    font-size: 13px; color: #92400E;
+    display: flex; align-items: center; gap: 8px;
+}
+
+/* --- 24h activity in summary panel --------------------------------- */
+.hl-wf-activity {
+    font-size: 13px; color: #6B7280;
+}
+.hl-wf-activity-stat {
+    display: inline-block; margin-right: 12px;
+}
+.hl-wf-activity-stat strong { color: #374151; }
+
+/* --- Responsive: cascade stacks on narrow screens ------------------ */
+@media (max-width: 1100px) {
+    .hl-wf-trigger-cascade { flex-direction: column; gap: 8px; }
+}
