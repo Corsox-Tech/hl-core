@@ -725,6 +725,106 @@ class HL_Ticket_Service {
         return $this->get_ticket( $uuid );
     }
 
+    /**
+     * Creator approve/reject a ticket in ready_for_test status.
+     *
+     * Uses optimistic locking via WHERE clause to prevent TOCTOU races.
+     *
+     * @param string $uuid          Ticket UUID.
+     * @param string $review_action 'approve' or 'reject'.
+     * @param string $comment       Required for reject; ignored for approve.
+     * @return array|WP_Error Updated ticket or error.
+     */
+    public function creator_review_ticket( $uuid, $review_action, $comment = '' ) {
+        global $wpdb;
+
+        $ticket = $this->get_ticket_raw( $uuid );
+        if ( ! $ticket ) {
+            return new WP_Error( 'not_found', __( 'Ticket not found.', 'hl-core' ) );
+        }
+
+        // Auth: only the ticket creator can review.
+        $current_user_id = get_current_user_id();
+        if ( (int) $ticket['creator_user_id'] !== $current_user_id ) {
+            return new WP_Error( 'forbidden', __( 'Only the ticket creator can approve or reject.', 'hl-core' ) );
+        }
+
+        // Status gate: must be ready_for_test.
+        if ( $ticket['status'] !== 'ready_for_test' ) {
+            return new WP_Error(
+                'invalid_action',
+                __( 'This ticket is no longer awaiting review. It may have been updated by an admin. Please refresh to see the current status.', 'hl-core' )
+            );
+        }
+
+        // Validate action.
+        if ( ! in_array( $review_action, array( 'approve', 'reject' ), true ) ) {
+            return new WP_Error( 'invalid_action', __( 'Invalid review action.', 'hl-core' ) );
+        }
+
+        $now = current_time( 'mysql' );
+
+        if ( $review_action === 'approve' ) {
+            // Optimistic lock: WHERE includes status = 'ready_for_test'.
+            $rows = $wpdb->update(
+                $wpdb->prefix . 'hl_ticket',
+                array(
+                    'status'      => 'resolved',
+                    'resolved_at' => $now,
+                    'updated_at'  => $now,
+                ),
+                array(
+                    'ticket_uuid' => $uuid,
+                    'status'      => 'ready_for_test',
+                )
+            );
+        } else {
+            // Reject: validate comment.
+            $comment = trim( $comment );
+            if ( empty( $comment ) ) {
+                return new WP_Error(
+                    'comment_required',
+                    __( 'Please describe what failed so the developer can investigate.', 'hl-core' )
+                );
+            }
+
+            // Raw query to guarantee resolved_at = NULL (not empty string).
+            $rows = $wpdb->query( $wpdb->prepare(
+                "UPDATE `{$wpdb->prefix}hl_ticket`
+                 SET status = %s, updated_at = %s, resolved_at = NULL
+                 WHERE ticket_uuid = %s AND status = 'ready_for_test'",
+                'test_failed',
+                $now,
+                $uuid
+            ) );
+
+            // Post rejection comment (add_comment sanitizes internally — do NOT double-sanitize).
+            if ( $rows > 0 ) {
+                $comment_result = $this->add_comment( $uuid, $comment );
+                if ( is_wp_error( $comment_result ) ) {
+                    error_log( '[HL_TICKET] Failed to add rejection comment for ticket ' . $uuid . ': ' . $comment_result->get_error_message() );
+                }
+            }
+        }
+
+        // Optimistic lock check.
+        if ( $rows === 0 ) {
+            return new WP_Error(
+                'status_changed',
+                __( 'This ticket was updated by someone else. Please refresh.', 'hl-core' )
+            );
+        }
+
+        HL_Audit_Service::log( 'ticket_creator_review', array(
+            'entity_type' => 'ticket',
+            'entity_id'   => $ticket['ticket_id'],
+            'before_data' => array( 'status' => 'ready_for_test' ),
+            'after_data'  => array( 'status' => ( $review_action === 'approve' ) ? 'resolved' : 'test_failed', 'review_action' => $review_action ),
+        ) );
+
+        return $this->get_ticket( $uuid );
+    }
+
     // ─── Comments ───
 
     /**
