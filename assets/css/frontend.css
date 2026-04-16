@@ -10370,6 +10370,33 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
     color: var(--hl-text-secondary);
     background: transparent;
 }
+.hlft-status-pill--ready_for_test { background: #0d9488; color: #ffffff; }
+.hlft-status-pill--test_failed { background: #ea580c; color: #ffffff; }
+
+/* QA Review Panel */
+.hlft-review-panel {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+.hlft-reject-form {
+    margin-top: 8px;
+}
+.hlft-reject-textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-xs);
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    margin-bottom: 8px;
+}
+.hlft-reject-textarea:focus {
+    outline: none;
+    border-color: var(--hl-interactive);
+    box-shadow: 0 0 0 3px rgba(var(--hl-interactive-rgb, 99,102,241), 0.15);
+}
 
 /* Type badge (used in detail modal) */
 .hlft-type-badge {
