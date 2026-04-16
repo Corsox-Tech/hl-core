@@ -65,6 +65,19 @@ The following fixes from the 4-agent review (2 technical + 2 business) are incor
 16. **CEO-2:** Admin delete survey resolves all pending rows first.
 17. **CEO-3:** Lazy-init HL_Survey_Service — check cycle `survey_id` before constructing service.
 
+**Final peer review (3 Sr. Engineers) — additional amendments:**
+
+18. **F1 (Critical):** `check_survey_gate()` must wrap state UPDATE + pending INSERT in transaction. If INSERT fails after UPDATE, component is stuck forever. Reverse order: INSERT pending first, then UPDATE state.
+19. **F2 (Critical):** `submit_response()` must have actual `START TRANSACTION` / `COMMIT` code (amendment I5 was listed but not applied to code). Wrap INSERT response + UPDATE component + DELETE pending.
+20. **F3 (Critical):** Rollup inflation — `completion_percent = 100` with `survey_pending` causes premature `hl_pathway_completed`. Fix: in `compute_rollups()`, when `completion_status === 'survey_pending'`, treat `completion_percent` as 0 for the weighted sum. Display 100% on the component card, but rollup ignores it.
+21. **F4:** `is_survey_trigger_page()` — `$post` may be null on BuddyBoss virtual pages. Add fallback: check page ID from `HL_Page_Cache::get_page_id('hl_program_page')` and `HL_Page_Cache::get_page_id('hl_dashboard')`.
+22. **F5:** Rate limiter `set_transient()` must fire BEFORE `submit_response()`, not after.
+23. **F6:** `get_pending_for_user()` use LEFT JOIN on catalog, handle NULL catalog as orphan.
+24. **F7:** Add UNIQUE KEY `(survey_type, version)` to `hl_survey` table to prevent duplicate version numbers on concurrent duplicates.
+25. **F8:** JS submit error handler: detect nonce expiry (403/-1 response), auto-retry check endpoint for fresh nonce.
+26. **F9:** Pass `$cycle_survey_id` into `check_survey_gate()` to avoid redundant query.
+27. **F10:** `yes_no` rendering branch must be in the actual `build_modal_html()` code (amendment I7 was listed but code was not updated — now fixed).
+
 ---
 
 ## Task 1: Schema — Tables, Migrations, Seed Data
@@ -104,6 +117,7 @@ In `get_schema()` (after the last `$tables[]` entry, before `return $tables;` at
             updated_at      datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (survey_id),
             UNIQUE KEY survey_uuid (survey_uuid),
+            UNIQUE KEY unique_type_version (survey_type, version),
             KEY idx_type_status (survey_type, status)
         ) $charset_collate;";
 
@@ -761,11 +775,12 @@ class HL_Survey_Response_Repository {
         return $wpdb->get_results( $wpdb->prepare(
             "SELECT p.*, c.title AS course_title, c.catalog_code
              FROM {$this->pending_table()} p
-             JOIN {$wpdb->prefix}hl_course_catalog c ON c.catalog_id = p.catalog_id
+             LEFT JOIN {$wpdb->prefix}hl_course_catalog c ON c.catalog_id = p.catalog_id
              WHERE p.user_id = %d
              ORDER BY p.triggered_at ASC",
             $user_id
         ), ARRAY_A ) ?: array();
+        // Note: NULL course_title means catalog entry was deleted — treated as orphan by get_next_pending_for_user().
     }
 
     public function delete_pending( $pending_id ) {
@@ -863,7 +878,24 @@ class HL_Survey_Service {
             return false;
         }
 
-        // 5. Gate: write survey_pending state.
+        // 5+6. Atomic: INSERT pending first, THEN update state.
+        // If INSERT fails, state is unchanged. If state update fails, pending row is harmless (cleaned up by orphan resolver).
+        $wpdb->query( 'START TRANSACTION' );
+
+        $pending_result = $this->response_repo->insert_pending( array(
+            'user_id'       => $user_id,
+            'survey_id'     => $survey_id,
+            'enrollment_id' => $enrollment_id,
+            'catalog_id'    => $catalog_id,
+            'cycle_id'      => $cycle_id,
+            'component_id'  => $component_id,
+        ) );
+
+        if ( is_wp_error( $pending_result ) ) {
+            $wpdb->query( 'ROLLBACK' );
+            return false; // Don't gate — let normal completion proceed.
+        }
+
         $state_table = $wpdb->prefix . 'hl_component_state';
         $existing = $wpdb->get_row( $wpdb->prepare(
             "SELECT * FROM {$state_table} WHERE enrollment_id = %d AND component_id = %d",
@@ -887,16 +919,7 @@ class HL_Survey_Service {
             ) );
         }
 
-        // 6. Insert pending survey.
-        $this->response_repo->insert_pending( array(
-            'user_id'       => $user_id,
-            'survey_id'     => $survey_id,
-            'enrollment_id' => $enrollment_id,
-            'catalog_id'    => $catalog_id,
-            'cycle_id'      => $cycle_id,
-            'component_id'  => $component_id,
-        ) );
-
+        $wpdb->query( 'COMMIT' );
         return true;
     }
 
@@ -936,7 +959,10 @@ class HL_Survey_Service {
             $pending['enrollment_id']
         ) ) ?: 'en';
 
-        // Insert response.
+        // Insert response + complete component + delete pending — in a transaction.
+        global $wpdb;
+        $wpdb->query( 'START TRANSACTION' );
+
         $result = $this->response_repo->insert_response( array(
             'survey_id'     => $pending['survey_id'],
             'user_id'       => $pending['user_id'],
@@ -949,18 +975,21 @@ class HL_Survey_Service {
 
         // Handle duplicate (double-submit from another tab).
         if ( is_wp_error( $result ) && $result->get_error_code() === 'duplicate_response' ) {
+            $wpdb->query( 'COMMIT' );
             $this->complete_component( $pending );
             $this->response_repo->delete_pending( $pending_id );
             return 'already_submitted';
         }
 
         if ( is_wp_error( $result ) ) {
+            $wpdb->query( 'ROLLBACK' );
             return $result;
         }
 
         // Mark component complete and remove pending.
         $this->complete_component( $pending );
         $this->response_repo->delete_pending( $pending_id );
+        $wpdb->query( 'COMMIT' );
 
         // Audit log.
         if ( class_exists( 'HL_Audit_Service' ) ) {
@@ -1402,6 +1431,9 @@ class HL_Frontend_Survey_Modal {
             wp_send_json_error( 'Invalid responses.' );
         }
 
+        // Set rate limit BEFORE submit to block concurrent rapid requests.
+        set_transient( $throttle_key, 1, 3 );
+
         $service = new HL_Survey_Service();
         $result  = $service->submit_response( $pending_id, $responses );
 
@@ -1410,10 +1442,10 @@ class HL_Frontend_Survey_Modal {
         }
 
         if ( is_wp_error( $result ) ) {
+            delete_transient( $throttle_key ); // Clear on failure so user can retry.
             wp_send_json_error( $result->get_error_message() );
         }
 
-        set_transient( $throttle_key, 1, 3 ); // 3-second cooldown.
         wp_send_json_success( array( 'status' => 'submitted', 'response_id' => $result ) );
     }
 
@@ -1474,6 +1506,26 @@ class HL_Frontend_Survey_Modal {
                     </div>
                 </fieldset>
 
+            <?php elseif ( $q['type'] === 'yes_no' ) : ?>
+                <fieldset class="hl-survey-question hl-survey-yes-no" data-key="<?php echo esc_attr( $q['question_key'] ); ?>">
+                    <legend><?php echo esc_html( $qtext ); ?></legend>
+                    <div class="hl-survey-pills" role="radiogroup" aria-label="<?php echo esc_attr( $qtext ); ?>">
+                        <label class="hl-survey-pill" for="hl-q-<?php echo esc_attr( $q['question_key'] ); ?>-yes">
+                            <input type="radio" id="hl-q-<?php echo esc_attr( $q['question_key'] ); ?>-yes"
+                                   name="<?php echo esc_attr( $q['question_key'] ); ?>" value="yes"
+                                   tabindex="0" role="radio" aria-checked="false"
+                                   <?php echo ! empty( $q['required'] ) ? 'required' : ''; ?>>
+                            <span class="hl-pill-text"><?php esc_html_e( 'Yes', 'hl-core' ); ?></span>
+                        </label>
+                        <label class="hl-survey-pill" for="hl-q-<?php echo esc_attr( $q['question_key'] ); ?>-no">
+                            <input type="radio" id="hl-q-<?php echo esc_attr( $q['question_key'] ); ?>-no"
+                                   name="<?php echo esc_attr( $q['question_key'] ); ?>" value="no"
+                                   tabindex="-1" role="radio" aria-checked="false">
+                            <span class="hl-pill-text"><?php esc_html_e( 'No', 'hl-core' ); ?></span>
+                        </label>
+                    </div>
+                </fieldset>
+
             <?php elseif ( $q['type'] === 'open_text' ) : ?>
                 <div class="hl-survey-question hl-survey-open-text" data-key="<?php echo esc_attr( $q['question_key'] ); ?>">
                     <label for="hl-q-<?php echo esc_attr( $q['question_key'] ); ?>"><?php echo esc_html( $qtext ); ?></label>
@@ -1499,12 +1551,24 @@ class HL_Frontend_Survey_Modal {
 
     private function is_survey_trigger_page() {
         global $post;
-        if ( ! $post ) {
-            return false;
+        // Primary check: shortcode in post content.
+        if ( $post && ! empty( $post->post_content ) ) {
+            if ( has_shortcode( $post->post_content, 'hl_program_page' )
+                || has_shortcode( $post->post_content, 'hl_dashboard' ) ) {
+                return true;
+            }
         }
-        // Check for Program Page or Dashboard shortcodes.
-        return has_shortcode( $post->post_content, 'hl_program_page' )
-            || has_shortcode( $post->post_content, 'hl_dashboard' );
+        // Fallback for BuddyBoss virtual pages where $post may be null/empty.
+        // Uses HL_Page_Cache which maps shortcodes to page IDs.
+        if ( class_exists( 'HL_Page_Cache' ) ) {
+            $current_id = get_queried_object_id();
+            $program_id = HL_Page_Cache::get_page_id( 'hl_program_page' );
+            $dashboard_id = HL_Page_Cache::get_page_id( 'hl_dashboard' );
+            if ( $current_id && ( $current_id === $program_id || $current_id === $dashboard_id ) ) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 ```
