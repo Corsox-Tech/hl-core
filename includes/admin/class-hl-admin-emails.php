@@ -1760,6 +1760,43 @@ class HL_Admin_Emails {
                         <div class="hl-wf-guardrail" data-check="recipients"><span class="hl-wf-guardrail-icon">&#10007;</span> <?php esc_html_e( 'At least one recipient', 'hl-core' ); ?></div>
                     </div>
 
+                    <div class="hl-wf-divider"></div>
+
+                    <?php // 24h Activity. ?>
+                    <div class="hl-wf-activity-section">
+                        <div class="hl-wf-guardrails-label"><?php esc_html_e( 'Last 24h Activity', 'hl-core' ); ?></div>
+                        <?php if ( $workflow_id ) :
+                            $activity = $wpdb->get_row( $wpdb->prepare(
+                                "SELECT
+                                    SUM(status = 'sent') AS sent_count,
+                                    SUM(status = 'failed') AS failed_count,
+                                    SUM(status IN ('pending','processing')) AS pending_count
+                                 FROM {$wpdb->prefix}hl_email_queue
+                                 WHERE workflow_id = %d AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)",
+                                $workflow_id
+                            ) );
+                            $sent    = (int) ( $activity->sent_count ?? 0 );
+                            $failed  = (int) ( $activity->failed_count ?? 0 );
+                            $pending = (int) ( $activity->pending_count ?? 0 );
+                            if ( $sent || $failed || $pending ) :
+                        ?>
+                            <div class="hl-wf-activity">
+                                <span class="hl-wf-activity-stat"><strong><?php echo $sent; ?></strong> <?php esc_html_e( 'sent', 'hl-core' ); ?></span>
+                                <?php if ( $failed ) : ?>
+                                    <span class="hl-wf-activity-stat" style="color:#DC2626;"><strong><?php echo $failed; ?></strong> <?php esc_html_e( 'failed', 'hl-core' ); ?></span>
+                                <?php endif; ?>
+                                <?php if ( $pending ) : ?>
+                                    <span class="hl-wf-activity-stat" style="color:#D97706;"><strong><?php echo $pending; ?></strong> <?php esc_html_e( 'pending', 'hl-core' ); ?></span>
+                                <?php endif; ?>
+                            </div>
+                        <?php else : ?>
+                            <div class="hl-wf-activity"><?php esc_html_e( 'No activity yet.', 'hl-core' ); ?></div>
+                        <?php endif; ?>
+                        <?php else : ?>
+                            <div class="hl-wf-activity"><?php esc_html_e( 'No activity yet (draft).', 'hl-core' ); ?></div>
+                        <?php endif; ?>
+                    </div>
+
                     <!-- Mobile drawer toggle (visible only on narrow screens via CSS) -->
                     <button type="button" class="hl-wf-drawer-toggle"><?php esc_html_e( 'Show Summary', 'hl-core' ); ?></button>
                 </div>
