@@ -379,23 +379,24 @@ jQuery(function ($) {
             scheduleRecipientCount($wrap);
         });
 
-        $triggerSelect.on('change', function () {
-            var val = $(this).val();
+        function onTriggerChange() {
+            var val = $triggerSelect.val();
             applyTriggerVisibility($wrap, val);
             serializeRecipients($wrap, $textarea);
             scheduleRecipientCount($wrap);
 
-            // Task 7: show/hide offset and component type fields.
+            // Show/hide offset and component type fields.
             var offsetTriggers = ['cron:component_upcoming', 'cron:component_overdue', 'cron:session_upcoming'];
             var componentTypeTriggers = ['cron:component_upcoming', 'cron:component_overdue'];
             $('.hl-wf-offset-row').toggle(offsetTriggers.indexOf(val) !== -1);
             $('.hl-wf-component-type-row').toggle(componentTypeTriggers.indexOf(val) !== -1);
             $('.hl-wf-session-fuzz-note').toggle(val === 'cron:session_upcoming');
 
-            // Task 8: show/hide status sub-filter.
+            // Show/hide status sub-filter.
             var statusFilterTriggers = ['hl_coaching_session_status_changed', 'hl_rp_session_status_changed'];
             $('.hl-wf-status-filter-row').toggle(statusFilterTriggers.indexOf(val) !== -1);
-        }).trigger('change');
+        }
+        $triggerSelect.on('change cascade-sync', onTriggerChange).trigger('change');
     }
 
     function renderTokenCards($container, section, selected) {
@@ -705,18 +706,22 @@ jQuery(function ($) {
             return;
         }
 
-        // On new: reveal when trigger is selected.
-        $('select[name="trigger_key"]').on('change', function() {
-            if ($(this).val()) {
-                $progressiveCards.addClass('hl-wf-revealed');
-                // Hide onboarding, show summary.
-                $('.hl-wf-summary-onboarding').hide();
-                $('.hl-wf-summary-sentence').show();
-            }
+        // On new: reveal when trigger category is selected.
+        function revealCards() {
+            $progressiveCards.addClass('hl-wf-revealed');
+            $('.hl-wf-summary-onboarding').hide();
+            $('.hl-wf-summary-sentence').show();
+        }
+        $('select[name="trigger_category"]').on('change', function() {
+            if ($(this).val()) revealCards();
+        });
+        // Fallback: also listen to hidden trigger_key for compat.
+        $('input[name="trigger_key"], select[name="trigger_key"]').on('change cascade-sync', function() {
+            if ($(this).val()) revealCards();
         });
 
         // Check on load in case trigger is pre-selected.
-        if ($('select[name="trigger_key"]').val()) {
+        if ($('input[name="trigger_key"]').val() || $('select[name="trigger_key"]').val() || $('select[name="trigger_category"]').val()) {
             $progressiveCards.addClass('hl-wf-revealed');
             $('.hl-wf-summary-onboarding').hide();
         }
@@ -761,4 +766,163 @@ jQuery(function ($) {
         $panel.toggleClass('hl-wf-drawer-open');
         $(this).text($panel.hasClass('hl-wf-drawer-open') ? 'Hide Summary' : 'Show Summary');
     });
+
+    // =====================================================================
+    // MODULE: Trigger Cascade (M2)
+    // =====================================================================
+    (function () {
+        var MAP = window.hlTriggerMap || {};
+        var $catSelect   = $('select[name="trigger_category"]');
+        var $eventSelect = $('select[name="trigger_event"]');
+        var $keyInput    = $('input[name="trigger_key"]');
+
+        if (!$catSelect.length || !$eventSelect.length || !$keyInput.length) return;
+
+        // Build reverse lookup: trigger_key + statusFilter + componentType -> {cat, event}
+        var REVERSE = {};
+        $.each(MAP, function (catKey, catDef) {
+            $.each(catDef.events || {}, function (evtKey, evtDef) {
+                var rKey = evtDef.key;
+                if (evtDef.statusFilter) rKey += '|sf:' + evtDef.statusFilter;
+                if (evtDef.componentType) rKey += '|ct:' + evtDef.componentType;
+                REVERSE[rKey] = { cat: catKey, event: evtKey };
+            });
+        });
+
+        // Populate event dropdown from category.
+        function populateEvents(catKey, preserveEvent) {
+            var cat = MAP[catKey];
+            $eventSelect.empty().append('<option value="">\u2014 Select Event \u2014</option>');
+            if (!cat || !cat.events) return;
+            $.each(cat.events, function (evtKey, evtDef) {
+                $eventSelect.append(
+                    '<option value="' + escHtml(evtKey) + '">' + escHtml(evtDef.label) + '</option>'
+                );
+            });
+            if (preserveEvent) {
+                $eventSelect.val(preserveEvent);
+            }
+        }
+
+        // Sync hidden fields from the selected event.
+        function syncFromEvent() {
+            var catKey = $catSelect.val();
+            var evtKey = $eventSelect.val();
+            var cat = MAP[catKey];
+            if (!cat || !evtKey) {
+                $keyInput.val('');
+                updateEventHint(null);
+                updateTimingPanel(null);
+                return;
+            }
+            var evt = cat.events[evtKey];
+            if (!evt) {
+                $keyInput.val('');
+                return;
+            }
+
+            // Set the hidden trigger_key — this is what the save handler reads.
+            $keyInput.val(evt.key);
+
+            // Auto-set status filter hidden field.
+            var $statusFilter = $('select[name="trigger_status_filter"]');
+            if (evt.statusFilter) {
+                $statusFilter.val(evt.statusFilter);
+            } else {
+                $statusFilter.val('');
+            }
+
+            // Auto-set component type filter.
+            var $compType = $('select[name="component_type_filter"]');
+            if (evt.componentType) {
+                $compType.val(evt.componentType);
+            }
+
+            // Fire the existing trigger_key change handler to update offset/component-type/status-filter visibility.
+            $keyInput.trigger('cascade-sync');
+
+            // Update hint + timing panel.
+            updateEventHint(evt);
+            updateTimingPanel(evt);
+        }
+
+        // Category change -> repopulate events.
+        $catSelect.on('change', function () {
+            populateEvents($(this).val(), null);
+            $eventSelect.trigger('change');
+        });
+
+        // Event change -> sync hidden fields.
+        $eventSelect.on('change', syncFromEvent);
+
+        // Expose for Task 6 (reverse mapping on edit mode).
+        window._hlTriggerReverse = REVERSE;
+        window._hlTriggerPopulateEvents = populateEvents;
+
+        // Event hint updater.
+        function updateEventHint(evt) {
+            var $hintHook = $('.hl-wf-event-hint-hook');
+            var $hintCron = $('.hl-wf-event-hint-cron');
+            if (!evt) {
+                $hintHook.hide();
+                $hintCron.hide();
+                return;
+            }
+            if (evt.type === 'cron') {
+                $hintCron.show();
+                $hintHook.hide();
+            } else {
+                $hintHook.show();
+                $hintCron.hide();
+            }
+        }
+
+        // Timing panel updater.
+        function updateTimingPanel(evt) {
+            var $panel = $('.hl-wf-timing-config');
+            if (!evt || evt.type !== 'cron') {
+                $panel.hide();
+                return;
+            }
+            $panel.show();
+
+            // Build human-readable translation.
+            var offsetVal  = parseInt($('input[name="trigger_offset_value"]').val(), 10) || 0;
+            var offsetUnit = $('select[name="trigger_offset_unit"] option:selected').text() || 'Days';
+            var catLabel   = MAP[$catSelect.val()] ? MAP[$catSelect.val()].label : '';
+            var anchorLabel = 'Display Window Start';
+            var translation = offsetVal + ' ' + offsetUnit.toLowerCase() + ' before ' + catLabel.toLowerCase() + ' ' + anchorLabel.toLowerCase();
+
+            $('.hl-wf-timing-translation').text(translation);
+        }
+
+        // Update timing translation when offset fields change.
+        $('input[name="trigger_offset_value"], select[name="trigger_offset_unit"]').on('change input', function () {
+            var catKey = $catSelect.val();
+            var evtKey = $eventSelect.val();
+            var cat = MAP[catKey];
+            if (cat && cat.events && cat.events[evtKey]) {
+                updateTimingPanel(cat.events[evtKey]);
+            }
+        });
+
+        // ── Edit-mode initialization: pre-select from data attributes. ──
+        var $cascade = $('.hl-wf-trigger-cascade');
+        var resolvedCat   = $cascade.attr('data-resolved-cat') || '';
+        var resolvedEvent = $cascade.attr('data-resolved-event') || '';
+        var unrecognized  = $cascade.attr('data-unrecognized') === '1';
+
+        if (unrecognized) {
+            $catSelect.prop('disabled', true);
+            $eventSelect.prop('disabled', true);
+        } else if (resolvedCat) {
+            $catSelect.val(resolvedCat);
+            populateEvents(resolvedCat, resolvedEvent);
+            var cat = MAP[resolvedCat];
+            if (cat && cat.events && cat.events[resolvedEvent]) {
+                updateEventHint(cat.events[resolvedEvent]);
+                updateTimingPanel(cat.events[resolvedEvent]);
+            }
+        }
+    })();
 });
