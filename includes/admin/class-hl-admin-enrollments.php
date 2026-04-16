@@ -538,7 +538,24 @@ class HL_Admin_Enrollments {
                 ),
             ));
 
-            // 5. Redirect.
+            // 5. Clean up any pending survey (admin bypass).
+            $pending = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hl_pending_survey WHERE enrollment_id = %d AND component_id = %d",
+                $enrollment_id, $component_id
+            ), ARRAY_A);
+            if ($pending) {
+                $wpdb->delete($wpdb->prefix . 'hl_pending_survey', array('pending_id' => $pending['pending_id']));
+                if (class_exists('HL_Audit_Service')) {
+                    HL_Audit_Service::log('survey_gate.admin_bypass', array(
+                        'enrollment_id' => $enrollment_id,
+                        'component_id'  => $component_id,
+                        'survey_id'     => $pending['survey_id'],
+                        'bypassed_by'   => get_current_user_id(),
+                    ));
+                }
+            }
+
+            // 6. Redirect.
             $msg = $ld_warning ? 'component_complete_ld_warning' : 'component_complete';
             $this->redirect_to_enrollment_edit($enrollment_id, $cycle_context, $msg);
         }
