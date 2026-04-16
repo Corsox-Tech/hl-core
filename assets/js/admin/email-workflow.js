@@ -319,7 +319,7 @@ jQuery(function ($) {
 
     function initRecipientPicker($wrap) {
         var $textarea = $wrap.closest('td').find('textarea[name="recipients"]');
-        var $triggerSelect = $('select[name="trigger_key"]');
+        var $triggerSelect = $('select[name="trigger_key"], input[name="trigger_key"]').first();
         var initial = { primary: [], cc: [] };
         try {
             var parsed = JSON.parse($wrap.attr('data-initial') || '{}');
@@ -517,7 +517,7 @@ jQuery(function ($) {
     function fetchRecipientCount($wrap) {
         var cfg = window.hlEmailWorkflowCfg || {};
         if (!cfg.ajaxUrl) return;
-        var trigger = $('select[name="trigger_key"]').val() || '';
+        var trigger = $('select[name="trigger_key"], input[name="trigger_key"]').first().val() || '';
         var recipients = $wrap.closest('td').find('textarea[name="recipients"]').val() || '{}';
         var $hint = $wrap.find('.hl-recipient-count-hint');
         $hint.text('').removeClass('hl-hint-error');
@@ -644,7 +644,7 @@ jQuery(function ($) {
         if (!$('.hl-wf-guardrails').length) return;
 
         var checks = {
-            trigger: !!$('select[name="trigger_key"]').val(),
+            trigger: !!$('select[name="trigger_key"], input[name="trigger_key"]').first().val(),
             template: !!$('select[name="template_id"]').val(),
             recipients: ($('.hl-recipient-picker .hl-token-card.hl-token-checked').length > 0
                 || $('.hl-recipient-picker .hl-pill').length > 0)
