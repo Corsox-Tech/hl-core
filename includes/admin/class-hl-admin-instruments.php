@@ -45,7 +45,9 @@ class HL_Admin_Instruments {
     public function handle_early_actions() {
         $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'children';
 
-        if ($tab === 'teacher') {
+        if ($tab === 'surveys') {
+            HL_Admin_Survey::instance()->handle_early_actions();
+        } elseif ($tab === 'teacher') {
             $this->handle_teacher_actions();
             if (isset($_GET['action']) && $_GET['action'] === 'delete') {
                 $this->handle_teacher_delete();
@@ -70,7 +72,9 @@ class HL_Admin_Instruments {
         // Tab navigation
         $this->render_tabs($tab);
 
-        if ($tab === 'teacher') {
+        if ($tab === 'surveys') {
+            HL_Admin_Survey::instance()->render_tab();
+        } elseif ($tab === 'teacher') {
             $this->render_teacher_tab($action);
         } else {
             $this->render_children_tab($action);
@@ -86,6 +90,7 @@ class HL_Admin_Instruments {
         $tabs = array(
             'children' => __('Child Assessment Instruments', 'hl-core'),
             'teacher'  => __('Teacher Assessment Instruments', 'hl-core'),
+            'surveys'  => __('Course Surveys', 'hl-core'),
         );
 
         echo '<nav class="nav-tab-wrapper">';
