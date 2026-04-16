@@ -27,7 +27,7 @@ class HL_Ticket_Service {
     const VALID_PRIORITIES = array( 'low', 'medium', 'high', 'critical' );
 
     /** @var string[] Valid statuses (includes draft — checked explicitly in get_tickets()). */
-    const VALID_STATUSES = array( 'draft', 'open', 'in_review', 'in_progress', 'resolved', 'closed' );
+    const VALID_STATUSES = array( 'draft', 'open', 'in_review', 'in_progress', 'ready_for_test', 'test_failed', 'resolved', 'closed' );
 
     /** @var string Draft status identifier. */
     const DRAFT_STATUS = 'draft';
@@ -37,6 +37,18 @@ class HL_Ticket_Service {
 
     /** @var int Edit window in seconds (2 hours). */
     const EDIT_WINDOW_SECONDS = 7200;
+
+    /**
+     * Statuses where the creator cannot edit ticket content.
+     *
+     * - ready_for_test: fix deployed, awaiting creator verification. Editing would change what was fixed.
+     * - resolved / closed: terminal.
+     *
+     * Note: test_failed intentionally excluded — creator may add reproduction details.
+     *
+     * @var string[]
+     */
+    const CREATOR_LOCKED_STATUSES = array( 'ready_for_test', 'resolved', 'closed' );
 
     private static $instance = null;
 
@@ -116,7 +128,7 @@ class HL_Ticket_Service {
             return false;
         }
 
-        if ( in_array( $ticket['status'], self::TERMINAL_STATUSES, true ) ) {
+        if ( in_array( $ticket['status'], self::CREATOR_LOCKED_STATUSES, true ) ) {
             return false;
         }
 
