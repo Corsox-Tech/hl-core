@@ -1386,6 +1386,38 @@ class HL_Admin_Emails {
         $wf_name   = $workflow->name ?? '';
         $wf_status = $workflow->status ?? 'draft';
 
+        // Reverse-map stored trigger_key to category + event for cascade pre-selection.
+        $resolved_cat   = '';
+        $resolved_event = '';
+        $trigger_unrecognized = false;
+
+        if ( $workflow && ! empty( $workflow->trigger_key ) ) {
+            $categories = self::get_trigger_categories();
+            $stored_key    = $workflow->trigger_key;
+            $stored_status = $trigger_status_val;
+            $stored_comp   = $workflow->component_type_filter ?? '';
+
+            foreach ( $categories as $cat_key => $cat_def ) {
+                foreach ( $cat_def['events'] as $evt_key => $evt_def ) {
+                    if ( $evt_def['key'] !== $stored_key ) continue;
+
+                    // Disambiguate by statusFilter if present.
+                    if ( ! empty( $evt_def['statusFilter'] ) && $evt_def['statusFilter'] !== $stored_status ) continue;
+
+                    // Disambiguate by componentType if present.
+                    if ( ! empty( $evt_def['componentType'] ) && $stored_comp && $evt_def['componentType'] !== $stored_comp ) continue;
+
+                    $resolved_cat   = $cat_key;
+                    $resolved_event = $evt_key;
+                    break 2;
+                }
+            }
+
+            if ( ! $resolved_cat ) {
+                $trigger_unrecognized = true;
+            }
+        }
+
         // ── Top Bar ────────────────────────────────────────────────────────
         ?>
         <div class="hl-wf-topbar">
@@ -1438,73 +1470,72 @@ class HL_Admin_Emails {
                             <span class="hl-wf-card-badge hl-wf-badge-required"><?php esc_html_e( 'Required', 'hl-core' ); ?></span>
                         </div>
                         <div class="hl-wf-card-body">
-                            <div class="hl-wf-form-row">
-                                <label class="hl-wf-form-label"><?php esc_html_e( 'Event', 'hl-core' ); ?></label>
-                                <select name="trigger_key" class="hl-wf-form-input" required>
-                                    <option value=""><?php esc_html_e( '— Select Trigger —', 'hl-core' ); ?></option>
-                                    <optgroup label="<?php esc_attr_e( 'Hook-Based (Immediate)', 'hl-core' ); ?>">
-                                        <?php
-                                        $hook_triggers = array(
-                                            'user_register'                       => 'User Registered',
-                                            'hl_enrollment_created'               => 'Enrollment Created',
-                                            'hl_pathway_assigned'                 => 'Pathway Assigned',
-                                            'hl_learndash_course_completed'       => 'Course Completed',
-                                            'hl_pathway_completed'                => 'Pathway Completed',
-                                            'hl_coaching_session_created'         => 'Coaching Session Created',
-                                            'hl_coaching_session_status_changed'  => 'Coaching Session Status Changed',
-                                            'hl_rp_session_created'               => 'RP Session Created',
-                                            'hl_rp_session_status_changed'        => 'RP Session Status Changed',
-                                            'hl_classroom_visit_submitted'        => 'Classroom Visit Submitted',
-                                            'hl_teacher_assessment_submitted'     => 'Teacher Assessment Submitted',
-                                            'hl_child_assessment_submitted'       => 'Child Assessment Submitted',
-                                            'hl_coach_assigned'                   => 'Coach Assigned',
-                                        );
-                                        foreach ( $hook_triggers as $key => $label ) :
-                                        ?>
-                                            <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $workflow->trigger_key ?? '', $key ); ?>><?php echo esc_html( $label ); ?></option>
-                                        <?php endforeach; ?>
-                                    </optgroup>
-                                    <optgroup label="<?php esc_attr_e( 'Cron-Based (Scheduled)', 'hl-core' ); ?>">
-                                        <?php
-                                        $cron_triggers = array(
-                                            'cron:component_upcoming'  => 'Component Due Soon',
-                                            'cron:component_overdue'   => 'Component Overdue',
-                                            'cron:session_upcoming'    => 'Coaching Session Upcoming',
-                                            'cron:coaching_pre_end'    => 'Pre-Cycle-End No Session',
-                                            'cron:action_plan_24h'     => 'Action Plan Overdue (24h)',
-                                            'cron:session_notes_24h'   => 'Session Notes Overdue (24h)',
-                                            'cron:low_engagement_14d'  => 'Low Engagement (14d)',
-                                            'cron:client_success'      => 'Client Success Touchpoint',
-                                        );
-                                        foreach ( $cron_triggers as $key => $label ) :
-                                        ?>
-                                            <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $workflow->trigger_key ?? '', $key ); ?>><?php echo esc_html( $label ); ?></option>
-                                        <?php endforeach; ?>
-                                    </optgroup>
-                                </select>
-                            </div>
+                            <?php // Hidden input — this is what the save handler reads. ?>
+                            <input type="hidden" name="trigger_key" value="<?php echo esc_attr( $workflow->trigger_key ?? '' ); ?>">
 
-                            <?php // Offset row — shown/hidden by JS based on trigger selection. ?>
-                            <div class="hl-wf-form-row hl-wf-offset-row" style="display:none;">
-                                <label class="hl-wf-form-label"><?php esc_html_e( 'Offset', 'hl-core' ); ?></label>
-                                <div style="display:flex;align-items:center;gap:8px;">
-                                    <input type="number" name="trigger_offset_value" min="1" max="9999" value="<?php echo esc_attr( $offset_value ); ?>" class="hl-wf-form-input" style="width:100px;">
-                                    <select name="trigger_offset_unit" class="hl-wf-form-input" style="width:auto;">
-                                        <option value="minutes" <?php selected( $offset_unit, 'minutes' ); ?>><?php esc_html_e( 'Minutes', 'hl-core' ); ?></option>
-                                        <option value="hours" <?php selected( $offset_unit, 'hours' ); ?>><?php esc_html_e( 'Hours', 'hl-core' ); ?></option>
-                                        <option value="days" <?php selected( $offset_unit, 'days' ); ?>><?php esc_html_e( 'Days', 'hl-core' ); ?></option>
+                            <?php // Cascading Category + Event dropdowns. ?>
+                            <div class="hl-wf-trigger-cascade" data-resolved-cat="<?php echo esc_attr( $resolved_cat ?? '' ); ?>" data-resolved-event="<?php echo esc_attr( $resolved_event ?? '' ); ?>" data-unrecognized="<?php echo ! empty( $trigger_unrecognized ) ? '1' : '0'; ?>">
+                                <div class="hl-wf-trigger-cascade-col">
+                                    <label class="hl-wf-form-label"><?php esc_html_e( 'Category', 'hl-core' ); ?></label>
+                                    <select name="trigger_category" class="hl-wf-form-select" required>
+                                        <option value=""><?php esc_html_e( '— Select Category —', 'hl-core' ); ?></option>
+                                        <?php
+                                        $categories = self::get_trigger_categories();
+                                        foreach ( $categories as $cat_key => $cat_def ) :
+                                            if ( ! empty( $cat_def['hidden'] ) ) continue;
+                                        ?>
+                                            <option value="<?php echo esc_attr( $cat_key ); ?>"><?php echo esc_html( $cat_def['label'] ); ?></option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
-                                <p class="hl-wf-form-hint"><?php esc_html_e( 'How far before the anchor date (for "upcoming") or after (for "overdue") to trigger this workflow.', 'hl-core' ); ?></p>
+                                <div class="hl-wf-trigger-cascade-col">
+                                    <label class="hl-wf-form-label"><?php esc_html_e( 'Event', 'hl-core' ); ?></label>
+                                    <select name="trigger_event" class="hl-wf-form-select" required>
+                                        <option value=""><?php esc_html_e( '— Select Event —', 'hl-core' ); ?></option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <?php // Event type hints (shown/hidden by JS). ?>
+                            <div class="hl-wf-event-hint hl-wf-event-hint-hook" style="display:none;">
+                                &#9889; <span><strong><?php esc_html_e( 'Instant trigger', 'hl-core' ); ?></strong> &mdash; <?php esc_html_e( 'fires immediately when the event happens.', 'hl-core' ); ?></span>
+                            </div>
+                            <div class="hl-wf-event-hint hl-wf-event-hint-cron" style="display:none;">
+                                &#128337; <span><strong><?php esc_html_e( 'Scheduled trigger', 'hl-core' ); ?></strong> &mdash; <?php esc_html_e( 'runs on a timer relative to a date. Configure timing below.', 'hl-core' ); ?></span>
+                            </div>
+
+                            <?php // Timing config panel (shown only for cron events by JS). ?>
+                            <div class="hl-wf-timing-config" style="display:none;">
+                                <div class="hl-wf-timing-config-title"><?php esc_html_e( 'Timing', 'hl-core' ); ?></div>
+                                <div class="hl-wf-timing-row">
+                                    <input type="number" name="trigger_offset_value" min="1" max="9999" value="<?php echo esc_attr( $offset_value ); ?>" class="hl-wf-form-input" style="width:70px;text-align:center;">
+                                    <select name="trigger_offset_unit" class="hl-wf-form-select" style="width:auto;">
+                                        <option value="days" <?php selected( $offset_unit, 'days' ); ?>><?php esc_html_e( 'Days', 'hl-core' ); ?></option>
+                                        <option value="hours" <?php selected( $offset_unit, 'hours' ); ?>><?php esc_html_e( 'Hours', 'hl-core' ); ?></option>
+                                        <option value="minutes" <?php selected( $offset_unit, 'minutes' ); ?>><?php esc_html_e( 'Minutes', 'hl-core' ); ?></option>
+                                    </select>
+                                    <span class="hl-wf-timing-label"><?php esc_html_e( 'before', 'hl-core' ); ?></span>
+                                </div>
+                                <div class="hl-wf-timing-anchor">
+                                    &#128197; <?php esc_html_e( 'Translates to:', 'hl-core' ); ?> <strong class="hl-wf-timing-translation"></strong>
+                                </div>
                                 <p class="hl-wf-form-hint hl-wf-session-fuzz-note" style="display:none;">
-                                    <?php esc_html_e( 'Session reminders use a tolerance window to account for cron timing. A "1 hour" reminder fires between ~54-66 minutes before the session.', 'hl-core' ); ?>
+                                    <?php esc_html_e( 'Session reminders use a tolerance window to account for cron timing.', 'hl-core' ); ?>
                                 </p>
                             </div>
 
-                            <?php // Component type row — shown/hidden by JS. ?>
+                            <?php // Warning banner for unrecognized triggers (Task 6 — populated by reverse mapping). ?>
+                            <?php if ( ! empty( $trigger_unrecognized ) ) : ?>
+                                <div class="hl-wf-trigger-warning">
+                                    &#9888; <?php esc_html_e( 'This workflow uses a trigger that was configured manually. The trigger section is read-only — contact support to modify it.', 'hl-core' ); ?>
+                                    <br><small><?php echo esc_html( sprintf( 'Raw trigger_key: %s', $workflow->trigger_key ) ); ?></small>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php // Component type row — shown/hidden by JS for cron:component_upcoming/overdue. ?>
                             <div class="hl-wf-form-row hl-wf-component-type-row" style="display:none;">
                                 <label class="hl-wf-form-label"><?php esc_html_e( 'Component Type', 'hl-core' ); ?></label>
-                                <select name="component_type_filter" class="hl-wf-form-input">
+                                <select name="component_type_filter" class="hl-wf-form-select">
                                     <option value=""><?php esc_html_e( 'All Component Types', 'hl-core' ); ?></option>
                                     <option value="learndash_course" <?php selected( $workflow->component_type_filter ?? '', 'learndash_course' ); ?>><?php esc_html_e( 'Course', 'hl-core' ); ?></option>
                                     <option value="coaching_session_attendance" <?php selected( $workflow->component_type_filter ?? '', 'coaching_session_attendance' ); ?>><?php esc_html_e( 'Coaching Session', 'hl-core' ); ?></option>
@@ -1519,7 +1550,7 @@ class HL_Admin_Emails {
                             <?php // Status filter row — shown/hidden by JS for coaching/RP triggers. ?>
                             <div class="hl-wf-form-row hl-wf-status-filter-row" style="display:none;">
                                 <label class="hl-wf-form-label"><?php esc_html_e( 'Status Filter', 'hl-core' ); ?></label>
-                                <select name="trigger_status_filter" id="wf-trigger-status-filter" class="hl-wf-form-input" aria-label="<?php esc_attr_e( 'Filter by session status', 'hl-core' ); ?>">
+                                <select name="trigger_status_filter" id="wf-trigger-status-filter" class="hl-wf-form-select" aria-label="<?php esc_attr_e( 'Filter by session status', 'hl-core' ); ?>">
                                     <option value="" <?php selected( $trigger_status_val, '' ); ?>><?php esc_html_e( 'Any Status Change', 'hl-core' ); ?></option>
                                     <option value="scheduled" <?php selected( $trigger_status_val, 'scheduled' ); ?>><?php esc_html_e( 'Session Booked', 'hl-core' ); ?></option>
                                     <option value="attended" <?php selected( $trigger_status_val, 'attended' ); ?>><?php esc_html_e( 'Session Attended', 'hl-core' ); ?></option>
