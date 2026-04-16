@@ -119,7 +119,18 @@ class HL_Reporting_Service {
 
             $percent = 0;
             if (isset($state_map[$component->component_id])) {
-                $percent = intval($state_map[$component->component_id]->completion_percent);
+                $state_row = $state_map[$component->component_id];
+
+                // survey_pending: LD course is done (completion_percent=100) but
+                // the required survey has not been submitted yet.  Display 100%
+                // on the component card, but exclude from the rollup weighted sum
+                // so the pathway does not reach 100% prematurely — preventing
+                // early hl_pathway_completed (certificates / notifications).
+                if ($state_row->completion_status === 'survey_pending') {
+                    $percent = 0;
+                } else {
+                    $percent = intval($state_row->completion_percent);
+                }
             } else {
                 // No state record — try to compute for LearnDash courses (live progress)
                 $percent = $this->get_live_component_percent($component, $enrollment);
