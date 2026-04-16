@@ -14,7 +14,7 @@
 
 ## File Map
 
-### New Files (7)
+### New Files (9)
 
 | File | Responsibility |
 |------|---------------|
@@ -25,24 +25,45 @@
 | `includes/frontend/class-hl-frontend-survey-modal.php` | Modal shell in wp_footer, AJAX endpoints (check pending, submit) |
 | `includes/admin/class-hl-admin-survey.php` | Survey editor tab (list, edit, duplicate, preview, delete responses) |
 | `includes/admin/class-hl-admin-survey-reports.php` | Report views (summary, open text, per-course), CSV export |
+| `assets/js/survey-modal.js` | Survey modal JS — AJAX check, focus trap, Likert keyboard nav, submit, sessionStorage draft save |
+| `assets/css/survey-modal.css` | Survey modal styles — overlay, modal box, pills, responsive 576px stack |
 
-### Modified Files (13)
+### Modified Files (12)
 
 | File | Lines | Change |
 |------|-------|--------|
-| `includes/class-hl-installer.php` | ~1192 (get_schema), ~150 (maybe_upgrade) | 3 new CREATE TABLEs, 3 migrations, 1 seed method. Rev 40→41 |
-| `includes/integrations/class-hl-learndash-integration.php` | ~170-210 (on_course_completed) | Survey gate before component completion |
+| `includes/class-hl-installer.php` | ~1192 (get_schema), ~150 (maybe_upgrade) | 3 new CREATE TABLEs, 3 migrations, 1 seed method. Rev 40→41. Seed also called from create_tables(). |
+| `includes/integrations/class-hl-learndash-integration.php` | ~170-210 (on_course_completed) | Survey gate before component completion (catalog path only). Skip survey_pending re-gate. Lazy-init service only when cycle has survey_id. |
 | `includes/admin/class-hl-admin-instruments.php` | ~85-98 (tabs array) | Add "Course Surveys" tab |
 | `includes/admin/class-hl-admin-cycles.php` | ~632-697 (form dropdowns), ~110-121 (save) | Survey dropdown field |
 | `includes/admin/class-hl-admin-course-catalog.php` | ~355-407 (form), ~54-64 (save) | Requires Survey checkbox |
 | `includes/admin/class-hl-admin-enrollments.php` | ~482-543 (handle_component_actions) | Audit event on survey gate bypass |
 | `includes/frontend/class-hl-frontend-program-page.php` | ~986-1004 (overlay classes) | survey_pending overlay + sub-label |
-| `includes/frontend/class-hl-frontend-dashboard.php` | ~32-83 (render) | Modal shell in footer |
 | `includes/services/class-hl-reporting-service.php` | rollup compute | Treat survey_pending as not-complete |
 | `includes/services/class-hl-rules-engine-service.php` | ~178 (prerequisite check) | survey_pending blocks next component |
-| `hl-core.php` | ~73-188 (includes) | Require 7 new files |
-| `assets/css/frontend.css` | end of file | Modal styles, pill Likert, responsive 576px |
-| `assets/js/frontend.js` | end of file | AJAX pending check, modal, focus trap, submit |
+| `hl-core.php` | ~73-188 (includes) | Require 9 new files, init modal with !is_admin() guard |
+
+### Review Amendments (applied throughout plan)
+
+The following fixes from the 4-agent review (2 technical + 2 business) are incorporated:
+
+1. **C1:** User ownership check in `ajax_submit()` — verify `$pending['user_id'] === get_current_user_id()`. `get_pending_by_id()` moved to repository as public method.
+2. **C2:** Variable name fix in Task 6 — use `$enrollment_id`, `$catalog_entry->catalog_id`, `$component->component_id`. Gate inside catalog path only. Skip `survey_pending` re-gate.
+3. **C3:** ENUM migration guarded with `SHOW COLUMNS` check for 'survey_pending' before modifying.
+4. **I1:** `get_next_pending_for_user()` converted from recursion to while loop.
+5. **I2:** `complete_component()` now sets `completed_at` and `last_computed_at`.
+6. **I3:** JS/CSS in separate files (`survey-modal.js`, `survey-modal.css`), conditionally enqueued.
+7. **I4:** `init()` registers AJAX hooks globally, but `wp_footer` + `wp_enqueue_scripts` guarded with `!is_admin()`.
+8. **I5:** Submit path wrapped in `START TRANSACTION` / `COMMIT`.
+9. **I6:** `seed_surveys()` also called from `create_tables()` for fresh installs.
+10. **I7:** `yes_no` question type rendering added to `build_modal_html()`.
+11. **B1:** sessionStorage draft save/restore in `survey-modal.js` (~20 lines).
+12. **B2:** Tasks 10+13 split into explicit sub-steps.
+13. **B3:** Orphan detection — admin notice on survey list for pending rows > 30 days old.
+14. **B5:** Code comment documenting survey version transition with pending rows.
+15. **CEO-1:** Rate limiter (3s transient) on `ajax_submit()`.
+16. **CEO-2:** Admin delete survey resolves all pending rows first.
+17. **CEO-3:** Lazy-init HL_Survey_Service — check cycle `survey_id` before constructing service.
 
 ---
 
@@ -163,11 +184,17 @@ After the last `migrate_*` method in the file, add:
 
     /**
      * Rev 41: Add survey_pending to component_state completion_status ENUM.
+     * Guarded: only modifies if 'survey_pending' not already in ENUM (safe for future revisions).
      */
     private static function migrate_add_survey_pending_status() {
         global $wpdb;
         $table = $wpdb->prefix . 'hl_component_state';
         if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return;
+        }
+        // Check if survey_pending already exists in the ENUM.
+        $col_info = $wpdb->get_row( "SHOW COLUMNS FROM `{$table}` LIKE 'completion_status'", ARRAY_A );
+        if ( $col_info && strpos( $col_info['Type'], 'survey_pending' ) !== false ) {
             return;
         }
         $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN completion_status
@@ -342,6 +369,16 @@ In the `maybe_upgrade()` method, add a new revision block after the last `if ( (
             self::seed_surveys();
         }
 ```
+
+- [ ] **Step 5b: Also call seed_surveys() from create_tables()**
+
+Fresh installs run `create_tables()` via dbDelta but may skip `maybe_upgrade()` if no stored revision exists. Add at the end of `create_tables()`, after the dbDelta call:
+
+```php
+        self::seed_surveys();
+```
+
+The existence guard in `seed_surveys()` (checks table + internal_name) makes this safe to call multiple times.
 
 - [ ] **Step 6: Commit**
 
@@ -736,6 +773,14 @@ class HL_Survey_Response_Repository {
         return $wpdb->delete( $this->pending_table(), array( 'pending_id' => $pending_id ) );
     }
 
+    public function get_pending_by_id( $pending_id ) {
+        global $wpdb;
+        return $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$this->pending_table()} WHERE pending_id = %d",
+            $pending_id
+        ), ARRAY_A );
+    }
+
     public function delete_pending_by_keys( $enrollment_id, $catalog_id, $survey_id ) {
         global $wpdb;
         return $wpdb->delete( $this->pending_table(), array(
@@ -1001,6 +1046,8 @@ class HL_Survey_Service {
             array(
                 'completion_status'  => 'complete',
                 'completion_percent' => 100,
+                'completed_at'       => current_time( 'mysql' ),
+                'last_computed_at'   => current_time( 'mysql' ),
             ),
             array(
                 'enrollment_id' => $pending['enrollment_id'],
@@ -1028,26 +1075,32 @@ class HL_Survey_Service {
      * Returns pending data with survey + course info, or null.
      */
     public function get_next_pending_for_user( $user_id ) {
-        $pending_list = $this->response_repo->get_pending_for_user( $user_id );
-        if ( empty( $pending_list ) ) {
-            return null;
-        }
+        // While loop instead of recursion to avoid stack overflow with many orphans.
+        $max_iterations = 50;
+        $i = 0;
+        while ( $i++ < $max_iterations ) {
+            $pending_list = $this->response_repo->get_pending_for_user( $user_id );
+            if ( empty( $pending_list ) ) {
+                return null;
+            }
 
-        $pending = $pending_list[0]; // FIFO — oldest first.
-        $survey  = $this->survey_repo->get_by_id( $pending['survey_id'] );
+            $pending = $pending_list[0]; // FIFO — oldest first.
+            $survey  = $this->survey_repo->get_by_id( $pending['survey_id'] );
 
-        // If survey no longer valid, resolve and try next.
-        if ( ! $survey || ! $survey->is_published() ) {
+            // If survey still valid, return it.
+            if ( $survey && $survey->is_published() ) {
+                return array(
+                    'pending'      => $pending,
+                    'survey'       => $survey,
+                    'course_title' => $pending['course_title'] ?? '',
+                    'catalog_code' => $pending['catalog_code'] ?? '',
+                );
+            }
+
+            // Survey invalid — resolve orphan and loop to next.
             $this->resolve_orphan_pending( $pending );
-            return $this->get_next_pending_for_user( $user_id ); // Recurse.
         }
-
-        return array(
-            'pending'     => $pending,
-            'survey'      => $survey,
-            'course_title' => $pending['course_title'] ?? '',
-            'catalog_code' => $pending['catalog_code'] ?? '',
-        );
+        return null;
     }
 
     // ── Admin: Duplicate ────────────────────────────────────
@@ -1128,25 +1181,43 @@ git commit -m "feat(survey): wire class loading for all survey modules"
 
 - [ ] **Step 1: Add survey gate in on_course_completed()**
 
-In `on_course_completed()`, find the section where component_state is updated (around lines 192-209, inside the loop that processes matching components). BEFORE the existing completion upsert, add the survey gate check:
+In `on_course_completed()`, make TWO changes:
+
+**Change 1:** At ~line 188, update the existing "already complete" skip to also skip `survey_pending`:
+
+```php
+                // Skip already-completed or survey-pending components.
+                if ( $existing_state && in_array( $existing_state->completion_status, array( 'complete', 'survey_pending' ), true ) ) {
+                    continue;
+                }
+```
+
+**Change 2:** INSIDE the catalog path only (where `$catalog_entry` is available, ~line 122-130), BEFORE the existing completion upsert, add the survey gate. Lazy-init the service only when needed:
 
 ```php
                 // --- Survey gate: check if survey is required before marking complete ---
-                $survey_service = new HL_Survey_Service();
-                $gate_triggered = $survey_service->check_survey_gate(
-                    $eid,
-                    $catalog_id,     // already resolved earlier in the method
-                    $enrollment->cycle_id,
-                    $comp['component_id'],
-                    $user_id
-                );
-                if ( $gate_triggered ) {
-                    continue; // Skip normal completion — survey_pending state written by gate.
+                // Check cycle's survey_id first (cheap query) before constructing service.
+                $cycle_survey_id = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT survey_id FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+                    $enrollment->cycle_id
+                ) );
+                if ( $cycle_survey_id ) {
+                    $survey_service = new HL_Survey_Service();
+                    $gate_triggered = $survey_service->check_survey_gate(
+                        $enrollment_id,
+                        $catalog_entry->catalog_id,
+                        $enrollment->cycle_id,
+                        $component->component_id,
+                        $user_id
+                    );
+                    if ( $gate_triggered ) {
+                        continue; // Skip normal completion — survey_pending state written by gate.
+                    }
                 }
                 // --- End survey gate ---
 ```
 
-This goes right before the existing `if ( $existing_state ) { ... } else { ... }` block that upserts completion_status to 'complete'.
+**Note:** This gate is placed INSIDE the catalog path block only (not the fallback path), because `$catalog_entry` does not exist in the fallback path. The variable names match the actual code: `$enrollment_id`, `$catalog_entry->catalog_id`, `$component->component_id`.
 
 - [ ] **Step 2: Commit**
 
@@ -1208,9 +1279,29 @@ class HL_Frontend_Survey_Modal {
     }
 
     public function init() {
-        add_action( 'wp_footer', array( $this, 'render_modal_shell' ) );
+        // AJAX endpoints — must fire on admin-ajax.php for logged-in users.
         add_action( 'wp_ajax_hl_check_pending_surveys', array( $this, 'ajax_check_pending' ) );
         add_action( 'wp_ajax_hl_submit_survey', array( $this, 'ajax_submit' ) );
+
+        // Frontend-only: modal shell + conditional asset enqueue.
+        if ( ! is_admin() ) {
+            add_action( 'wp_footer', array( $this, 'render_modal_shell' ) );
+            add_action( 'wp_enqueue_scripts', array( $this, 'maybe_enqueue_assets' ) );
+        }
+    }
+
+    /**
+     * Conditionally enqueue survey modal JS/CSS only on trigger pages.
+     */
+    public function maybe_enqueue_assets() {
+        if ( ! $this->is_survey_trigger_page() ) {
+            return;
+        }
+        wp_enqueue_style( 'hl-survey-modal', HL_CORE_PLUGIN_URL . 'assets/css/survey-modal.css', array(), HL_CORE_VERSION );
+        wp_enqueue_script( 'hl-survey-modal', HL_CORE_PLUGIN_URL . 'assets/js/survey-modal.js', array( 'jquery' ), HL_CORE_VERSION, true );
+        wp_localize_script( 'hl-survey-modal', 'hlSurveyModal', array(
+            'ajaxurl' => admin_url( 'admin-ajax.php' ),
+        ) );
     }
 
     /**
@@ -1279,6 +1370,7 @@ class HL_Frontend_Survey_Modal {
 
     /**
      * AJAX: Submit survey response.
+     * Security: nonce + login + user ownership + rate limit.
      */
     public function ajax_submit() {
         $pending_id = absint( $_POST['pending_id'] ?? 0 );
@@ -1290,6 +1382,19 @@ class HL_Frontend_Survey_Modal {
 
         if ( ! is_user_logged_in() ) {
             wp_send_json_error( 'Not logged in.' );
+        }
+
+        // Rate limit: 3-second cooldown per user.
+        $throttle_key = 'hl_survey_throttle_' . get_current_user_id();
+        if ( get_transient( $throttle_key ) ) {
+            wp_send_json_error( 'Please wait a moment before submitting again.' );
+        }
+
+        // User ownership check: verify current user owns this pending survey.
+        $response_repo = new HL_Survey_Response_Repository();
+        $pending = $response_repo->get_pending_by_id( $pending_id );
+        if ( ! $pending || (int) $pending['user_id'] !== get_current_user_id() ) {
+            wp_send_json_error( 'Unauthorized.' );
         }
 
         $responses = json_decode( wp_unslash( $_POST['responses'] ?? '{}' ), true );
@@ -1308,6 +1413,7 @@ class HL_Frontend_Survey_Modal {
             wp_send_json_error( $result->get_error_message() );
         }
 
+        set_transient( $throttle_key, 1, 3 ); // 3-second cooldown.
         wp_send_json_success( array( 'status' => 'submitted', 'response_id' => $result ) );
     }
 
@@ -1411,19 +1517,42 @@ In `hl-core.php`, in the `init()` method or `init_hooks()`, add:
 HL_Frontend_Survey_Modal::instance()->init();
 ```
 
-- [ ] **Step 3: Add frontend JS for modal AJAX + focus trap + submit**
+- [ ] **Step 3: Create `assets/js/survey-modal.js`**
 
-At the end of `assets/js/frontend.js`, add the survey modal JS module. This handles: checking for pending surveys on DOMContentLoaded, populating the modal, focus trap, Likert keyboard navigation, form validation, and AJAX submission with double-submit protection. *(Full JS implementation — ~200 lines — to be written in implementation step.)*
+Create a new file (NOT appended to frontend.js — conditionally enqueued). Must implement:
 
-- [ ] **Step 4: Add frontend CSS for modal + pills + responsive**
+1. **DOMContentLoaded**: Find `#hl-survey-modal-shell`, read `data-check-url` and `data-check-nonce`, fire AJAX check
+2. **AJAX check handler**: If `has_pending === true`, inject returned HTML into `.hl-survey-content`, show overlay + modal, hide loading spinner
+3. **Focus trap**: On modal show, set `inert` on `#page` wrapper, find all focusable elements, loop Tab between first/last, intercept Escape key (refocus first element, do not close)
+4. **Likert keyboard nav**: Arrow Left/Right moves selection within `role="radiogroup"`, updates `aria-checked` and `tabindex` (roving)
+5. **Form validation**: On submit click, check all `[required]` inputs. If incomplete, show error in `aria-live` region, refocus first empty field
+6. **Submit handler**: Disable button, show "Submitting..." text, serialize form to JSON, AJAX POST with pending_id + nonce + responses. On success: close modal, remove inert, reload page. On duplicate: same. On error: re-enable button, show error message.
+7. **sessionStorage draft save**: On every input/change event, serialize form state to `sessionStorage.setItem('hl_survey_draft_' + pendingId, JSON.stringify(data))`. On modal populate, check for existing draft and restore values. On successful submit, clear draft.
 
-At the end of `assets/css/frontend.css`, add survey modal styles: overlay (z-index: 100001), modal box (z-index: 100002, max-width: 640px), pill buttons (min-height: 44px), responsive vertical stack below 576px, spinner, error region. *(Full CSS — ~150 lines — to be written in implementation step.)*
+~220 lines total. jQuery-based (matches existing codebase).
+
+- [ ] **Step 4: Create `assets/css/survey-modal.css`**
+
+Create a new file with:
+
+1. **Overlay**: `.hl-survey-overlay` — fixed, full-screen, `background: rgba(0,0,0,0.6)`, `z-index: 100001`
+2. **Modal box**: `.hl-survey-modal` — fixed, centered, `max-width: 640px`, `max-height: 90vh`, `overflow-y: auto`, `z-index: 100002`, white bg, `border-radius: 12px`, shadow
+3. **Title + course name**: styled heading + subtitle
+4. **Likert pills**: `.hl-survey-pill` — inline-flex, `min-height: 44px`, `min-width: 44px`, border, rounded, pointer cursor. Selected state: filled bg + white text. Visually hidden radio inputs.
+5. **Responsive**: `@media (max-width: 576px)` — `.hl-survey-pills` flex-direction: column, pills full-width
+6. **Open text**: textarea full-width, min-height 80px
+7. **Error region**: `.hl-survey-error` — red text, margin-top
+8. **Spinner**: `.hl-spinner` — CSS animation
+9. **Submit button**: `.hl-btn-primary` — matches existing HL Core button styles
+10. **Group header**: `.hl-survey-group-header` — border-bottom, margin, italic
+
+~150 lines total.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add includes/frontend/class-hl-frontend-survey-modal.php hl-core.php assets/js/frontend.js assets/css/frontend.css
-git commit -m "feat(survey): AJAX modal — shell, check endpoint, submit endpoint, focus trap"
+git add includes/frontend/class-hl-frontend-survey-modal.php hl-core.php assets/js/survey-modal.js assets/css/survey-modal.css
+git commit -m "feat(survey): AJAX modal — shell, check endpoint, submit endpoint, focus trap, draft save"
 ```
 
 ---
@@ -1509,19 +1638,48 @@ Then in the main render routing, add the case for the surveys tab that delegates
             break;
 ```
 
-- [ ] **Step 2: Create HL_Admin_Survey**
+- [ ] **Step 2a: Create HL_Admin_Survey — singleton + scaffolding**
 
-Create `includes/admin/class-hl-admin-survey.php` with:
-- Singleton pattern (matching existing admin controllers)
-- `handle_early_actions()` — process save, duplicate, delete-responses POST actions
-- `render_tab()` — dispatch to list/edit/preview based on `$_GET['survey_action']`
-- `render_list()` — table of surveys with status pills, response count, used-by cycles, action links
-- `render_form()` — editor with internal name, display name, type, status, questions (EN/ES/PT), scale labels
-- `handle_save()` — nonce + capability + sanitize + validate + create/update
-- `handle_duplicate()` — calls `HL_Survey_Service::duplicate_survey()`
-- `handle_delete_responses()` — two-step confirmation, calls repository
+Create `includes/admin/class-hl-admin-survey.php`. Singleton pattern (match `HL_Admin_Course_Catalog`). Methods: `instance()`, `handle_early_actions()`, `render_tab()`. The `render_tab()` dispatches based on `$_GET['survey_action']`:
+- `''` (default) → `render_list()`
+- `'new'` / `'edit'` → `render_form()`
+- `'preview'` → `render_preview()`
 
-*(Full class implementation — ~600 lines — follows existing patterns from class-hl-admin-course-catalog.php. Complete code to be written during implementation.)*
+`handle_early_actions()` checks for POST nonces: `hl_save_survey_nonce` → `handle_save()`, `hl_duplicate_survey_nonce` → `handle_duplicate()`, `hl_delete_survey_responses_nonce` → `handle_delete_responses()`.
+
+- [ ] **Step 2b: Implement render_list()**
+
+List view table with columns: Internal Name (link to edit), Display Name, Type, Version, Status (pill badge — `<span class="hl-status-pill hl-status-{status}">`), Responses (computed via `HL_Survey_Repository::get_response_count()`), Used By (cycle names from `get_cycles_using_survey()`), Actions (Edit | Duplicate | Preview links).
+
+Add orphan detection admin notice at top: query `SELECT COUNT(*) FROM hl_pending_survey WHERE triggered_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`. If > 0, show warning notice.
+
+When survey has responses: Edit link replaced with "View (Locked)" + "Duplicate as New Version" link.
+
+- [ ] **Step 2c: Implement render_form() — question editor with EN/ES/PT**
+
+Editor form with nonce `hl_save_survey_nonce`:
+- Hidden: `survey_id` (0 for new)
+- Fields: internal_name (text), display_name (text), survey_type (select), status (select: draft/published)
+- **Questions section**: Dynamic rows. Each row has: question_key (text, auto-slug), type (select: likert_5/open_text/yes_no), required (checkbox), group (text), text_en (textarea), text_es (textarea), text_pt (textarea). "Add Question" button appends new row. "Remove" button per row. Drag handle for reorder (use existing jQuery UI sortable).
+- **Scale Labels section** (collapsible): editable labels per scale value in EN/ES/PT.
+- **Intro Text section**: EN/ES/PT textareas for intro paragraph.
+- **Group Labels section**: EN/ES/PT textareas per group key.
+- **Locked state**: If `has_responses()` true, all fields `disabled`. Banner: "This survey has X responses and is locked." Buttons: "Duplicate as New Version", "Delete Responses".
+- Questions JSON is serialized to a hidden field on form submit via JS.
+
+- [ ] **Step 2d: Implement handle_save()**
+
+Nonce: `wp_verify_nonce($_POST['hl_save_survey_nonce'], 'hl_save_survey')`. Capability: `manage_hl_core`. Sanitize: `sanitize_text_field` for names, `sanitize_text_field` for type/status, `json_decode` + re-encode for questions/scales/labels JSON (reject invalid). Validate: internal_name required, at least one question, all questions have text_en. Create or update via repository. Audit log. Redirect with success message.
+
+- [ ] **Step 2e: Implement handle_duplicate() and handle_delete_responses()**
+
+Duplicate: nonce check, capability check, call `HL_Survey_Service::duplicate_survey()`, audit log, redirect.
+
+Delete Responses: nonce check, capability check, call `HL_Survey_Response_Repository::delete_all_responses_for_survey()`, **also resolve any pending rows**: `DELETE FROM hl_pending_survey WHERE survey_id = %d` + mark those components complete. Audit log. Redirect.
+
+- [ ] **Step 2f: Implement render_preview()**
+
+Read-only modal rendering: loads the survey, renders the questions in English using the same `build_modal_html()` pattern from `HL_Frontend_Survey_Modal`. Show in a styled container with a note: "Preview — switch site language (WPML) to preview other translations."
 
 - [ ] **Step 3: Commit**
 
@@ -1624,22 +1782,40 @@ git commit -m "feat(survey): requires_survey checkbox on course catalog"
 **Files:**
 - Create: `includes/admin/class-hl-admin-survey-reports.php`
 
-- [ ] **Step 1: Create HL_Admin_Survey_Reports**
+- [ ] **Step 1a: Create HL_Admin_Survey_Reports — scaffolding + filters**
 
-This provides: summary view (per-question breakdown + per-course comparison), open text view, and CSV export. Follows existing report patterns.
+Create `includes/admin/class-hl-admin-survey-reports.php`. Singleton pattern. `render_page()` checks capability, renders filter bar, dispatches to view.
 
-Key methods:
-- `render_page()` — filters bar + dispatch to summary/open-text
-- `render_summary()` — summary cards, Likert distribution table, per-course comparison
-- `render_open_text()` — paginated table of text responses
-- `handle_csv_export()` — flat CSV with two header rows (keys + question text)
-- `handle_delete_responses()` — bulk delete from report view
+Filter bar: Survey dropdown (all surveys), Cycle multi-select, Partnership dropdown, School dropdown, Date range (from/to). Filters passed to `HL_Survey_Response_Repository::get_responses_for_report()`.
 
-*(Full class implementation — ~500 lines — to be written during implementation.)*
+- [ ] **Step 1b: Implement render_summary()**
+
+Summary cards row: Total Responses (COUNT), Average Overall Agreement (mean of all Likert means), Completion Rate (responses / course completions where survey was required).
+
+**Per-question Likert distribution table**: For each Likert question, calculate distribution (% per scale value 1-5) and mean. Decode `responses_json` in PHP (not JSON_EXTRACT — per data agent recommendation). Loop responses once, accumulate counts per question_key per value.
+
+**Per-course comparison table**: GROUP BY `catalog_id` → count responses, compute mean of all Likert items, find lowest-scoring question. Sort by mean ascending (weakest first). Display catalog_code, course_title, response count, mean, lowest question.
+
+- [ ] **Step 1c: Implement render_open_text()**
+
+Table: Participant name, School, Course, Response text, Date. Paginated (25 per page). Filter by specific question dropdown (liked_most / could_improve). Always show English question text in header. Response text shown as-is (in submitted language). Sortable by date.
+
+- [ ] **Step 1d: Implement handle_csv_export()**
+
+CSV with two header rows per spec:
+- Row 1: column keys (Participant, Email, School, Cycle, Course Code, Course Title, Survey Version, Language, question_key_1, question_key_2, ..., Submitted At)
+- Row 2: full English question text for each question column
+- Row 3+: one row per response, Likert as integers 1-5, open text as-is
+
+Set headers: `Content-Type: text/csv`, `Content-Disposition: attachment; filename="survey-responses-{date}.csv"`. Use `fputcsv()` to PHP output stream. Respect active filters.
+
+- [ ] **Step 1e: Implement handle_delete_responses() from report view**
+
+Bulk delete: checkboxes per response row, "Delete Selected" action. Nonce check, capability check, call `HL_Survey_Response_Repository::delete_responses($response_ids)`. Audit log each deletion. Two-step confirmation: "Delete X selected responses? This cannot be undone." with 3-second delay on confirm button.
 
 - [ ] **Step 2: Register the report page**
 
-In `class-hl-admin.php` or wherever reports are registered, add the Course Surveys report tab.
+In `class-hl-admin.php`, add the Course Surveys report as a submenu page or tab in the existing reports section. Route to `HL_Admin_Survey_Reports::instance()->render_page()`.
 
 - [ ] **Step 3: Commit**
 
