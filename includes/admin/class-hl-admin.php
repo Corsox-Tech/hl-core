@@ -256,6 +256,7 @@ class HL_Admin {
             $inline = 'window.hlConditionFields = '    . wp_json_encode( HL_Admin_Emails::get_condition_fields(),    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . ';'
                     . 'window.hlConditionOperators = ' . wp_json_encode( HL_Admin_Emails::get_condition_operators(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . ';'
                     . 'window.hlRecipientTokens = '    . wp_json_encode( HL_Admin_Emails::get_recipient_tokens(),    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . ';'
+                    . 'window.hlTriggerMap = '         . wp_json_encode( HL_Admin_Emails::get_trigger_categories(),  JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . ';'
                     . 'window.hlEmailWorkflowCfg = '   . wp_json_encode( array(
                         'ajaxUrl'  => admin_url( 'admin-ajax.php' ),
                         'nonces'   => array(

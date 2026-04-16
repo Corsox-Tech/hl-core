@@ -373,6 +373,198 @@ class HL_Admin_Emails {
     }
 
     /**
+     * Trigger category → event → trigger_key mapping.
+     *
+     * Used for:
+     * 1. JS TRIGGER_MAP injection (cascading dropdown)
+     * 2. Server-side reverse mapping on edit load
+     *
+     * Categories with hidden=true are not shown in the dropdown for new
+     * workflows but are recognized during reverse mapping so existing
+     * workflows using those triggers render correctly.
+     *
+     * @return array
+     */
+    public static function get_trigger_categories() {
+        return array(
+            'coaching' => array(
+                'label'  => 'Coaching Session',
+                'hidden' => false,
+                'events' => array(
+                    'booked' => array(
+                        'label' => 'Session Booked',
+                        'key'   => 'hl_coaching_session_created',
+                        'type'  => 'hook',
+                    ),
+                    'attended' => array(
+                        'label'        => 'Session Attended',
+                        'key'          => 'hl_coaching_session_status_changed',
+                        'type'         => 'hook',
+                        'statusFilter' => 'attended',
+                    ),
+                    'missed' => array(
+                        'label'        => 'Session Missed / Not Attended',
+                        'key'          => 'hl_coaching_session_status_changed',
+                        'type'         => 'hook',
+                        'statusFilter' => 'missed',
+                    ),
+                    'cancelled' => array(
+                        'label'        => 'Session Cancelled',
+                        'key'          => 'hl_coaching_session_status_changed',
+                        'type'         => 'hook',
+                        'statusFilter' => 'cancelled',
+                    ),
+                    'rescheduled' => array(
+                        'label'        => 'Session Rescheduled',
+                        'key'          => 'hl_coaching_session_status_changed',
+                        'type'         => 'hook',
+                        'statusFilter' => 'rescheduled',
+                    ),
+                    'reminder' => array(
+                        'label'         => 'Scheduling Reminder',
+                        'key'           => 'cron:component_upcoming',
+                        'type'          => 'cron',
+                        'componentType' => 'coaching_session_attendance',
+                    ),
+                ),
+            ),
+            'enrollment' => array(
+                'label'  => 'Enrollment',
+                'hidden' => false,
+                'events' => array(
+                    'created' => array(
+                        'label' => 'Enrollment Created',
+                        'key'   => 'hl_enrollment_created',
+                        'type'  => 'hook',
+                    ),
+                    'pathway_assigned' => array(
+                        'label' => 'Pathway Assigned',
+                        'key'   => 'hl_pathway_assigned',
+                        'type'  => 'hook',
+                    ),
+                    'pathway_completed' => array(
+                        'label' => 'Pathway Completed',
+                        'key'   => 'hl_pathway_completed',
+                        'type'  => 'hook',
+                    ),
+                    'coach_assigned' => array(
+                        'label' => 'Coach Assigned',
+                        'key'   => 'hl_coach_assigned',
+                        'type'  => 'hook',
+                    ),
+                ),
+            ),
+            'course' => array(
+                'label'  => 'Course',
+                'hidden' => false,
+                'events' => array(
+                    'completed' => array(
+                        'label' => 'Course Completed',
+                        'key'   => 'hl_learndash_course_completed',
+                        'type'  => 'hook',
+                    ),
+                    'reminder' => array(
+                        'label'         => 'Course Due Reminder',
+                        'key'           => 'cron:component_upcoming',
+                        'type'          => 'cron',
+                        'componentType' => 'learndash_course',
+                    ),
+                    'overdue' => array(
+                        'label'         => 'Course Overdue',
+                        'key'           => 'cron:component_overdue',
+                        'type'          => 'cron',
+                        'componentType' => 'learndash_course',
+                    ),
+                ),
+            ),
+            'classroom_visit' => array(
+                'label'  => 'Classroom Visit',
+                'hidden' => true,
+                'events' => array(
+                    'submitted' => array(
+                        'label' => 'Visit Form Submitted',
+                        'key'   => 'hl_classroom_visit_submitted',
+                        'type'  => 'hook',
+                    ),
+                    'reminder' => array(
+                        'label'         => 'Visit Due Reminder',
+                        'key'           => 'cron:component_upcoming',
+                        'type'          => 'cron',
+                        'componentType' => 'classroom_visit',
+                    ),
+                ),
+            ),
+            'rp_session' => array(
+                'label'  => 'RP Session',
+                'hidden' => true,
+                'events' => array(
+                    'created' => array(
+                        'label' => 'Session Created',
+                        'key'   => 'hl_rp_session_created',
+                        'type'  => 'hook',
+                    ),
+                    'attended' => array(
+                        'label'        => 'Session Attended',
+                        'key'          => 'hl_rp_session_status_changed',
+                        'type'         => 'hook',
+                        'statusFilter' => 'attended',
+                    ),
+                    'missed' => array(
+                        'label'        => 'Session Missed',
+                        'key'          => 'hl_rp_session_status_changed',
+                        'type'         => 'hook',
+                        'statusFilter' => 'missed',
+                    ),
+                    'cancelled' => array(
+                        'label'        => 'Session Cancelled',
+                        'key'          => 'hl_rp_session_status_changed',
+                        'type'         => 'hook',
+                        'statusFilter' => 'cancelled',
+                    ),
+                    'reminder' => array(
+                        'label'         => 'Session Due Reminder',
+                        'key'           => 'cron:component_upcoming',
+                        'type'          => 'cron',
+                        'componentType' => 'reflective_practice_session',
+                    ),
+                ),
+            ),
+            'assessment' => array(
+                'label'  => 'Assessment',
+                'hidden' => true,
+                'events' => array(
+                    'tsa_submitted' => array(
+                        'label' => 'Teacher Assessment Submitted',
+                        'key'   => 'hl_teacher_assessment_submitted',
+                        'type'  => 'hook',
+                    ),
+                    'ca_submitted' => array(
+                        'label' => 'Child Assessment Submitted',
+                        'key'   => 'hl_child_assessment_submitted',
+                        'type'  => 'hook',
+                    ),
+                ),
+            ),
+            'schedule' => array(
+                'label'  => 'Schedule',
+                'hidden' => true,
+                'events' => array(
+                    'low_engagement' => array(
+                        'label' => 'Low Engagement (14 days)',
+                        'key'   => 'cron:low_engagement_14d',
+                        'type'  => 'cron',
+                    ),
+                    'account_activated' => array(
+                        'label' => 'Account Activated',
+                        'key'   => 'user_register',
+                        'type'  => 'hook',
+                    ),
+                ),
+            ),
+        );
+    }
+
+    /**
      * Generate a unique "(Copy)" suffix for duplicated rows.
      * A.2.12 — unified helper for both workflow and template duplication.
      *
