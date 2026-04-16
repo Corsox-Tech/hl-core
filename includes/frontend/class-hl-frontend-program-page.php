@@ -951,6 +951,7 @@ class HL_Frontend_Program_Page {
         $component          = $ad['component'];
         $availability       = $ad['availability'];
         $completion_percent = (int) $ad['completion_percent'];
+        $completion_status  = isset($ad['completion_status']) ? $ad['completion_status'] : 'not_started';
         $completed_at       = $ad['completed_at'];
         $course_url         = $ad['course_url'];
         $assess_status      = isset($ad['assess_status']) ? $ad['assess_status'] : 'not_started';
@@ -986,6 +987,7 @@ class HL_Frontend_Program_Page {
         // Status overlay text and class.
         $overlay_class = 'hl-pp-overlay-not-started';
         $overlay_text  = __('Not Started', 'hl-core');
+        $overlay_sub   = '';
         if ($avail_status === 'not_applicable') {
             $overlay_class = 'hl-pp-overlay-not-applicable';
             $overlay_text  = __('Not Applicable', 'hl-core');
@@ -995,6 +997,10 @@ class HL_Frontend_Program_Page {
         } elseif ($avail_status === 'locked') {
             $overlay_class = 'hl-pp-overlay-locked';
             $overlay_text  = __('Locked', 'hl-core');
+        } elseif ($completion_status === 'survey_pending') {
+            $overlay_class = 'hl-pp-overlay-survey-pending';
+            $overlay_text  = __('Survey Pending', 'hl-core');
+            $overlay_sub   = __('Complete the survey to finish this course', 'hl-core');
         } elseif ($completion_percent >= 100) {
             $overlay_class = 'hl-pp-overlay-completed';
             $overlay_text  = __('Completed', 'hl-core');
@@ -1126,6 +1132,9 @@ class HL_Frontend_Program_Page {
                     <?php echo $course_image; ?>
                     <div class="hl-pp-status-overlay <?php echo esc_attr($overlay_class); ?>">
                         <?php echo esc_html($overlay_text); ?>
+                        <?php if (!empty($overlay_sub)) : ?>
+                            <span class="hl-pp-overlay-sub"><?php echo esc_html($overlay_sub); ?></span>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php elseif (!$is_course) : ?>

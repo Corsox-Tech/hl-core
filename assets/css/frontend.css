@@ -3068,6 +3068,21 @@ button.hl-btn-danger:hover,
     color: #fff;
 }
 
+.hl-pp-overlay-survey-pending {
+    background: rgba(245, 158, 11, 0.9);
+    color: #fff;
+}
+
+.hl-pp-overlay-sub {
+    display: block;
+    font-size: 7px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-top: 1px;
+    opacity: 0.9;
+}
+
 /* Non-course component icon */
 .hl-pp-component-icon {
     width: 52px;
