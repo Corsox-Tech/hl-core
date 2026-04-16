@@ -1,0 +1,274 @@
+/**
+ * Survey Modal — overlay, modal box, pills, spinner, responsive.
+ *
+ * Conditionally enqueued on trigger pages only.
+ * Uses HL Core CSS custom properties (--hl-*) for consistency.
+ *
+ * @package HL_Core
+ */
+
+/* ── Overlay ──────────────────────────────────────────── */
+
+.hl-survey-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 100001;
+}
+
+/* ── Modal Box ────────────────────────────────────────── */
+
+.hl-survey-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 640px;
+    width: calc(100% - 2rem);
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 100002;
+    background: #FFFFFF;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    padding: 2rem;
+}
+
+/* ── Title + Course Name ──────────────────────────────── */
+
+.hl-survey-modal h2#hl-survey-title {
+    margin: 0 0 0.25rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--hl-text-heading, #1A2B47);
+    line-height: 1.3;
+}
+
+.hl-survey-course-name {
+    margin: 0 0 1rem;
+    font-size: 0.95rem;
+    color: var(--hl-text-secondary, #6B7280);
+    font-weight: 500;
+}
+
+/* ── Intro Text ───────────────────────────────────────── */
+
+.hl-survey-intro {
+    color: var(--hl-text-secondary, #6B7280);
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+/* ── Group Header ─────────────────────────────────────── */
+
+.hl-survey-group-header {
+    border-bottom: 1px solid var(--hl-border, #E8EAF0);
+    margin: 1.5rem 0 1rem;
+    padding-bottom: 0.5rem;
+}
+
+.hl-survey-group-label {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--hl-text-secondary, #6B7280);
+    font-style: italic;
+}
+
+/* ── Question Blocks ──────────────────────────────────── */
+
+.hl-survey-question {
+    margin-bottom: 1.25rem;
+    border: none;
+    padding: 0;
+}
+
+.hl-survey-question legend,
+.hl-survey-question > label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--hl-text, #374151);
+    line-height: 1.5;
+}
+
+/* ── Pill Radio Buttons ───────────────────────────────── */
+
+.hl-survey-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.hl-survey-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 16px;
+    border: 1.5px solid var(--hl-border-medium, #D4D8E0);
+    border-radius: var(--hl-radius-xs, 8px);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--hl-text, #374151);
+    background: var(--hl-surface, #FFFFFF);
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.hl-survey-pill:hover {
+    border-color: var(--hl-primary, #1A2B47);
+    background: var(--hl-bg, #F4F5F7);
+}
+
+.hl-survey-pill.selected {
+    background: var(--hl-primary, #1A2B47);
+    color: #FFFFFF;
+    border-color: var(--hl-primary, #1A2B47);
+}
+
+.hl-survey-pill input[type="radio"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.hl-survey-pill input[type="radio"]:focus-visible + .hl-pill-text {
+    outline: 2px solid var(--hl-primary, #1A2B47);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.hl-pill-text {
+    pointer-events: none;
+}
+
+/* ── Open Text ────────────────────────────────────────── */
+
+.hl-survey-open-text textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--hl-border-medium, #D4D8E0);
+    border-radius: var(--hl-radius-xs, 8px);
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--hl-text, #374151);
+    background: var(--hl-surface, #FFFFFF);
+    resize: vertical;
+    transition: border-color 0.15s ease;
+    box-sizing: border-box;
+}
+
+.hl-survey-open-text textarea:focus {
+    outline: none;
+    border-color: var(--hl-primary, #1A2B47);
+    box-shadow: 0 0 0 3px rgba(26, 43, 71, 0.1);
+}
+
+/* ── Error Region ─────────────────────────────────────── */
+
+.hl-survey-error {
+    color: #DC2626;
+    font-size: 0.85rem;
+    margin-top: 0.75rem;
+    font-weight: 500;
+}
+
+/* ── Actions ──────────────────────────────────────────── */
+
+.hl-survey-actions {
+    text-align: right;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--hl-border-light, #F0F1F5);
+}
+
+#hl-survey-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 22px;
+    border-radius: var(--hl-radius-sm, 12px);
+    font-size: 14px;
+    font-weight: 600;
+    border: 1.5px solid var(--hl-primary, #1A2B47);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    line-height: 1.4;
+    background: var(--hl-primary, #1A2B47);
+    color: #FFFFFF;
+}
+
+#hl-survey-submit:hover:not(:disabled) {
+    background: var(--hl-primary-light, #2C3E5A);
+    border-color: var(--hl-primary-light, #2C3E5A);
+    box-shadow: 0 2px 8px rgba(26, 43, 71, 0.25);
+    transform: translateY(-1px);
+}
+
+#hl-survey-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ── Loading Spinner ──────────────────────────────────── */
+
+.hl-survey-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+}
+
+.hl-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--hl-border, #E8EAF0);
+    border-top-color: var(--hl-primary, #1A2B47);
+    border-radius: 50%;
+    animation: hl-spin 0.8s linear infinite;
+}
+
+@keyframes hl-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ───────────────────────────────────────── */
+
+@media (max-width: 576px) {
+    .hl-survey-modal {
+        padding: 1.25rem;
+        max-height: 95vh;
+    }
+
+    .hl-survey-pills {
+        flex-direction: column;
+    }
+
+    .hl-survey-pill {
+        width: 100%;
+    }
+
+    .hl-survey-actions {
+        text-align: center;
+    }
+
+    #hl-survey-submit {
+        width: 100%;
+    }
+}
