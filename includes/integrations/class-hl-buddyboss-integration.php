@@ -459,6 +459,7 @@ class HL_BuddyBoss_Integration {
                 array('documentation',      'hl_docs',               __('Documentation', 'hl-core'),    'dashicons-media-document',       true),
                 array('community',        null,                  __('Community', 'hl-core'),        'dashicons-format-status',        true),
                 array('feature-tracker', 'hl_feature_tracker', __('Feature Tracker', 'hl-core'), 'dashicons-feedback', true),
+                array('support',         null,                 __('Support', 'hl-core'),         'dashicons-sos',                  true),
             );
         } else {
             $menu_def = array(
@@ -485,6 +486,7 @@ class HL_BuddyBoss_Integration {
                 array('documentation', 'hl_docs',                 __('Documentation', 'hl-core'),  'dashicons-media-document',       $is_admin_level),
                 array('community',      null,                  __('Community', 'hl-core'),        'dashicons-format-status',        $has_enrollment || $is_coach || $is_staff),
                 array('feature-tracker', 'hl_feature_tracker', __('Feature Tracker', 'hl-core'), 'dashicons-feedback', $is_staff),
+                array('support',        null,                 __('Support', 'hl-core'),         'dashicons-sos',                  true),
                 // --- Admin ---
                 array('wp-admin', null, __('WP Admin', 'hl-core'), 'dashicons-admin-generic', $is_admin_level),
             );
@@ -501,6 +503,9 @@ class HL_BuddyBoss_Integration {
                     $url = admin_url();
                 } elseif ($slug === 'community') {
                     $url = home_url('/groups/begin-to-ecsel-global-community/');
+                } elseif ($slug === 'support') {
+                    $support_page = get_page_by_path('support');
+                    $url = $support_page ? get_permalink($support_page) : '';
                 } else {
                     $url = '';
                 }

@@ -244,6 +244,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
   - **Staff tools:** Coaching Hub (staff), Reports (staff or leader)
   - **Coach tools:** Coaching Home (coach WP role), My Mentors (coach), My Availability (coach), Coach Reports (coach)
   - **Documentation:** Documentation (manage_options only)
+  - **Support:** Support (all menu-seeing users — links to the existing `/support/` WP page with Zoho Forms embed; resolved defensively via `get_page_by_path('support')`, `dashicons-sos`, appended at the bottom)
   - **Disabled:** Pathways (show_condition = false)
 - Staff WITHOUT enrollment see only directory/management pages; staff WITH enrollment see both personal and management pages
 

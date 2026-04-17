@@ -363,6 +363,10 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Enrollment service fixes** — Admin update/delete now routes through service layer for hook consistency.
 - [x] **Import handler integration** — Bulk defer in `HL_Import_Participant_Handler` (`begin_bulk`/`end_bulk`) to prevent N recomputes.
 
+### Support Menu Link Restored (Ticket #6 — April 2026)
+- [x] **Sidebar link re-added** — `Support` item appended at the bottom of both menu defs (coach + non-coach) in `HL_BuddyBoss_Integration::build_menu_items()`. URL resolved defensively via `get_page_by_path('support')` → `get_permalink()`. Visible to all menu-seeing users (teachers, mentors, leaders, coaches, staff). Icon: `dashicons-sos`. Existing Support page (ID 27383, Zoho Forms embed) unchanged.
+- [x] **Deployed to test** — 2026-04-17. WP-CLI verified: admin, teacher, and coach menus all include Support at correct position with resolved URL.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
