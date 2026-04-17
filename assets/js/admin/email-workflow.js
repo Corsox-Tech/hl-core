@@ -385,15 +385,27 @@ jQuery(function ($) {
             serializeRecipients($wrap, $textarea);
             scheduleRecipientCount($wrap);
 
-            // Show/hide offset and component type fields.
-            var offsetTriggers = ['cron:component_upcoming', 'cron:component_overdue', 'cron:session_upcoming'];
-            var componentTypeTriggers = ['cron:component_upcoming', 'cron:component_overdue'];
+            // Derive cron/status triggers from TRIGGER_MAP to prevent drift.
+            var _MAP = window.hlTriggerMap || {};
+            var offsetTriggers = [];
+            var componentTypeTriggers = [];
+            var statusFilterTriggers = [];
+            $.each(_MAP, function(ck, cd) {
+                $.each(cd.events || {}, function(ek, ed) {
+                    if (ed.type === 'cron' && offsetTriggers.indexOf(ed.key) === -1) {
+                        offsetTriggers.push(ed.key);
+                    }
+                    if (ed.componentType && componentTypeTriggers.indexOf(ed.key) === -1) {
+                        componentTypeTriggers.push(ed.key);
+                    }
+                    if (ed.statusFilter && statusFilterTriggers.indexOf(ed.key) === -1) {
+                        statusFilterTriggers.push(ed.key);
+                    }
+                });
+            });
             $('.hl-wf-offset-row').toggle(offsetTriggers.indexOf(val) !== -1);
             $('.hl-wf-component-type-row').toggle(componentTypeTriggers.indexOf(val) !== -1);
             $('.hl-wf-session-fuzz-note').toggle(val === 'cron:session_upcoming');
-
-            // Show/hide status sub-filter.
-            var statusFilterTriggers = ['hl_coaching_session_status_changed', 'hl_rp_session_status_changed'];
             $('.hl-wf-status-filter-row').toggle(statusFilterTriggers.indexOf(val) !== -1);
         }
         $triggerSelect.on('change cascade-sync', onTriggerChange).trigger('change');
@@ -866,7 +878,16 @@ jQuery(function ($) {
         // Category change -> repopulate events.
         $catSelect.on('change', function () {
             populateEvents($(this).val(), null);
-            $eventSelect.trigger('change');
+            // Only fire event change if an event is actually selected
+            // (prevents summary flash to empty state on category switch).
+            if ($eventSelect.val()) {
+                $eventSelect.trigger('change');
+            } else {
+                // Clear hidden trigger_key and update hints.
+                $keyInput.val('');
+                updateEventHint(null);
+                updateTimingPanel(null);
+            }
         });
 
         // Event change -> sync hidden fields.
@@ -940,6 +961,12 @@ jQuery(function ($) {
                 updateEventHint(cat.events[resolvedEvent]);
                 updateTimingPanel(cat.events[resolvedEvent]);
             }
+        }
+
+        // Fire cascade-sync so the recipient picker's onTriggerChange runs
+        // and shows/hides offset, component-type, and status-filter rows.
+        if (resolvedCat && $keyInput.val()) {
+            $keyInput.trigger('cascade-sync');
         }
     })();
 });

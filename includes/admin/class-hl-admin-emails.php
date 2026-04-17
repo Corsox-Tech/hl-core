@@ -549,6 +549,16 @@ class HL_Admin_Emails {
                 'label'  => 'Schedule',
                 'hidden' => true,
                 'events' => array(
+                    'coaching_pre_end' => array(
+                        'label' => 'Pre-Cycle-End No Session',
+                        'key'   => 'cron:coaching_pre_end',
+                        'type'  => 'cron',
+                    ),
+                    'client_success' => array(
+                        'label' => 'Client Success Touchpoint',
+                        'key'   => 'cron:client_success',
+                        'type'  => 'cron',
+                    ),
                     'low_engagement' => array(
                         'label' => 'Low Engagement (14 days)',
                         'key'   => 'cron:low_engagement_14d',
@@ -780,7 +790,7 @@ class HL_Admin_Emails {
             gmdate( 'Y-m-d H:i:s', time() - 86400 )
         ) );
         if ( $failed_24h > 0 ) {
-            echo '<div class="notice notice-error"><p>' . sprintf( '%d email(s) failed to send in the last 24 hours.', $failed_24h ) . '</p></div>';
+            echo '<div class="notice notice-error"><p>' . esc_html( sprintf( '%d email(s) failed to send in the last 24 hours.', $failed_24h ) ) . '</p></div>';
         }
 
         ?>
@@ -1405,7 +1415,12 @@ class HL_Admin_Emails {
                     if ( ! empty( $evt_def['statusFilter'] ) && $evt_def['statusFilter'] !== $stored_status ) continue;
 
                     // Disambiguate by componentType if present.
-                    if ( ! empty( $evt_def['componentType'] ) && $stored_comp && $evt_def['componentType'] !== $stored_comp ) continue;
+                    if ( ! empty( $evt_def['componentType'] ) ) {
+                        if ( $stored_comp && $evt_def['componentType'] !== $stored_comp ) continue;
+                        // Pre-M2 workflow with no component_type_filter: skip componentType-bearing events
+                        // to avoid false matches. These will fall through to unrecognized mode.
+                        if ( ! $stored_comp ) continue;
+                    }
 
                     $resolved_cat   = $cat_key;
                     $resolved_event = $evt_key;
@@ -1477,7 +1492,7 @@ class HL_Admin_Emails {
                             <div class="hl-wf-trigger-cascade" data-resolved-cat="<?php echo esc_attr( $resolved_cat ?? '' ); ?>" data-resolved-event="<?php echo esc_attr( $resolved_event ?? '' ); ?>" data-unrecognized="<?php echo ! empty( $trigger_unrecognized ) ? '1' : '0'; ?>">
                                 <div class="hl-wf-trigger-cascade-col">
                                     <label class="hl-wf-form-label"><?php esc_html_e( 'Category', 'hl-core' ); ?></label>
-                                    <select name="trigger_category" class="hl-wf-form-select" required>
+                                    <select name="trigger_category" class="hl-wf-form-select">
                                         <option value=""><?php esc_html_e( '— Select Category —', 'hl-core' ); ?></option>
                                         <?php
                                         $categories = self::get_trigger_categories();
@@ -1490,7 +1505,7 @@ class HL_Admin_Emails {
                                 </div>
                                 <div class="hl-wf-trigger-cascade-col">
                                     <label class="hl-wf-form-label"><?php esc_html_e( 'Event', 'hl-core' ); ?></label>
-                                    <select name="trigger_event" class="hl-wf-form-select" required>
+                                    <select name="trigger_event" class="hl-wf-form-select">
                                         <option value=""><?php esc_html_e( '— Select Event —', 'hl-core' ); ?></option>
                                     </select>
                                 </div>
@@ -1781,12 +1796,12 @@ class HL_Admin_Emails {
                             if ( $sent || $failed || $pending ) :
                         ?>
                             <div class="hl-wf-activity">
-                                <span class="hl-wf-activity-stat"><strong><?php echo $sent; ?></strong> <?php esc_html_e( 'sent', 'hl-core' ); ?></span>
+                                <span class="hl-wf-activity-stat"><strong><?php echo esc_html( $sent ); ?></strong> <?php esc_html_e( 'sent', 'hl-core' ); ?></span>
                                 <?php if ( $failed ) : ?>
-                                    <span class="hl-wf-activity-stat" style="color:#DC2626;"><strong><?php echo $failed; ?></strong> <?php esc_html_e( 'failed', 'hl-core' ); ?></span>
+                                    <span class="hl-wf-activity-stat" style="color:#DC2626;"><strong><?php echo esc_html( $failed ); ?></strong> <?php esc_html_e( 'failed', 'hl-core' ); ?></span>
                                 <?php endif; ?>
                                 <?php if ( $pending ) : ?>
-                                    <span class="hl-wf-activity-stat" style="color:#D97706;"><strong><?php echo $pending; ?></strong> <?php esc_html_e( 'pending', 'hl-core' ); ?></span>
+                                    <span class="hl-wf-activity-stat" style="color:#D97706;"><strong><?php echo esc_html( $pending ); ?></strong> <?php esc_html_e( 'pending', 'hl-core' ); ?></span>
                                 <?php endif; ?>
                             </div>
                         <?php else : ?>
