@@ -171,6 +171,12 @@ class HL_Admin_Survey {
             echo '<button type="submit" class="button-link" onclick="return confirm(\'Duplicate this survey?\')">Duplicate</button>';
             echo '</form>';
 
+            // Reports link (only if has responses).
+            if ($has_responses) {
+                $report_url = admin_url('admin.php?page=hl-survey-reports&survey_id=' . $survey_id);
+                echo ' | <a href="' . esc_url($report_url) . '">Reports</a>';
+            }
+
             // Delete responses (only if has responses).
             if ($has_responses) {
                 echo ' | ';

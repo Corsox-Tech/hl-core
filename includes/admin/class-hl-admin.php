@@ -116,6 +116,9 @@ class HL_Admin {
             case 'hl-emails':
                 HL_Admin_Emails::instance()->handle_early_actions();
                 break;
+            case 'hl-survey-reports':
+                HL_Admin_Survey_Reports::instance()->handle_early_actions();
+                break;
         }
     }
 
@@ -155,6 +158,7 @@ class HL_Admin {
         // ── Hidden pages (no menu entry, but accessible via URL) ────
         add_submenu_page(null, 'Instruments', '', 'manage_hl_core', 'hl-instruments', array(HL_Admin_Instruments::instance(), 'render_page'));
         add_submenu_page(null, 'Assessments (Standalone)', '', 'manage_hl_core', 'hl-assessments', array(HL_Admin_Assessments::instance(), 'render_page'));
+        add_submenu_page(null, 'Survey Reports', '', 'manage_hl_core', 'hl-survey-reports', array(HL_Admin_Survey_Reports::instance(), 'render_page'));
         // Partnerships is now a visible menu item (registered above)
     }
 
