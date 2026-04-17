@@ -259,7 +259,7 @@
             $error.text(res.data || 'An error occurred. Please try again.').show();
         }).fail(function (xhr) {
             // 403 or -1 typically means nonce expired — auto-retry check for fresh nonce.
-            if (xhr.status === 403 || (xhr.responseJSON && xhr.responseJSON.data === '-1')) {
+            if (xhr.status === 403 || (xhr.responseJSON && (xhr.responseJSON.data === '-1' || xhr.responseJSON.data === '0'))) {
                 refreshNonceAndRetry($form, $btn, $error, responses);
                 return;
             }

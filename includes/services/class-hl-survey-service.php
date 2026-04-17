@@ -94,7 +94,7 @@ class HL_Survey_Service {
         ), ARRAY_A );
 
         if ( $existing ) {
-            $wpdb->update( $state_table, array(
+            $state_result = $wpdb->update( $state_table, array(
                 'completion_status'  => 'survey_pending',
                 'completion_percent' => 100,
             ), array(
@@ -102,12 +102,17 @@ class HL_Survey_Service {
                 'component_id'  => $component_id,
             ) );
         } else {
-            $wpdb->insert( $state_table, array(
+            $state_result = $wpdb->insert( $state_table, array(
                 'enrollment_id'      => $enrollment_id,
                 'component_id'       => $component_id,
                 'completion_status'  => 'survey_pending',
                 'completion_percent' => 100,
             ) );
+        }
+
+        if ( $state_result === false ) {
+            $wpdb->query( 'ROLLBACK' );
+            return false;
         }
 
         $wpdb->query( 'COMMIT' );
@@ -171,9 +176,11 @@ class HL_Survey_Service {
 
         // Handle duplicate (double-submit from another tab).
         if ( is_wp_error( $result ) && $result->get_error_code() === 'duplicate_response' ) {
-            $wpdb->query( 'COMMIT' );
+            $wpdb->query( 'COMMIT' ); // Commit the failed INSERT (no-op).
+            $wpdb->query( 'START TRANSACTION' );
             $this->complete_component( $pending );
             $this->response_repo->delete_pending( $pending_id );
+            $wpdb->query( 'COMMIT' );
             return 'already_submitted';
         }
 

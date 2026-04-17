@@ -236,7 +236,7 @@ class HL_Frontend_Survey_Modal {
                                        <?php echo $v === 1 ? 'tabindex="0"' : 'tabindex="-1"'; ?>
                                        role="radio"
                                        aria-checked="false"
-                                       required>
+                                       <?php echo ! empty( $q['required'] ) ? 'required' : ''; ?>>
                                 <span class="hl-pill-text"><?php echo esc_html( $label ); ?></span>
                             </label>
                         <?php endfor; ?>

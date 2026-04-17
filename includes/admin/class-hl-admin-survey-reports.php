@@ -201,7 +201,7 @@ class HL_Admin_Survey_Reports {
             if ($filters['date_to']) {
                 $export_args['date_to'] = $filters['date_to'];
             }
-            $export_url = $this->page_url($export_args);
+            $export_url = wp_nonce_url($this->page_url($export_args), 'hl_export_survey_csv');
             echo '<a href="' . esc_url($export_url) . '" class="button">';
             echo '<span class="dashicons dashicons-download" style="vertical-align:middle;margin-right:4px;"></span>';
             echo esc_html__('Export CSV', 'hl-core');
@@ -782,6 +782,8 @@ class HL_Admin_Survey_Reports {
      * Stream CSV export. Must be called before any HTML output.
      */
     private function handle_csv_export() {
+        check_admin_referer('hl_export_survey_csv');
+
         if (!current_user_can('manage_hl_core')) {
             wp_die(esc_html__('Unauthorized.', 'hl-core'));
         }

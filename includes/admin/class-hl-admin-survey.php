@@ -265,8 +265,6 @@ class HL_Admin_Survey {
                     <td>
                         <select name="survey_type" id="survey_type"<?php echo $disabled; ?>>
                             <option value="end_of_course" <?php selected($survey->survey_type ?? 'end_of_course', 'end_of_course'); ?>>End of Course</option>
-                            <option value="mid_course" <?php selected($survey->survey_type ?? '', 'mid_course'); ?>>Mid Course</option>
-                            <option value="program_exit" <?php selected($survey->survey_type ?? '', 'program_exit'); ?>>Program Exit</option>
                         </select>
                     </td>
                 </tr>
@@ -428,7 +426,7 @@ class HL_Admin_Survey {
                     + '    </select>'
                     + '  </div>'
                     + '  <div><label>Group</label><br><input type="text" name="question_group[]" class="regular-text" placeholder="e.g. agreement_scale"></div>'
-                    + '  <div style="display:flex;align-items:center;padding-top:20px;"><label><input type="checkbox" name="question_required[' + i + ']" value="1" checked> Required</label></div>'
+                    + '  <div style="display:flex;align-items:center;padding-top:20px;"><label><input type="hidden" name="question_required_key[]" value=""><input type="checkbox" name="question_required_val[_new_' + i + ']" value="1" checked> Required</label></div>'
                     + '</div>'
                     + '<div class="hl-survey-lang-fields">'
                     + '  <div><label>English</label><br><textarea name="question_text_en[]" rows="2" class="large-text" required></textarea></div>'
@@ -495,7 +493,8 @@ class HL_Admin_Survey {
                 </div>
                 <div style="display:flex;align-items:center;padding-top:20px;">
                     <label>
-                        <input type="checkbox" name="question_required[<?php echo $idx; ?>]" value="1"
+                        <input type="hidden" name="question_required_key[]" value="<?php echo esc_attr($key); ?>">
+                        <input type="checkbox" name="question_required_val[<?php echo esc_attr($key); ?>]" value="1"
                                <?php checked($required); ?><?php echo $disabled; ?>> Required
                     </label>
                 </div>
@@ -535,8 +534,8 @@ class HL_Admin_Survey {
         $status        = in_array($_POST['status'] ?? '', array('draft', 'published'), true)
                             ? $_POST['status'] : 'draft';
 
-        // Validate type.
-        if (!in_array($survey_type, array('end_of_course', 'mid_course', 'program_exit'), true)) {
+        // Validate type — DB ENUM only has 'end_of_course'.
+        if (!in_array($survey_type, array('end_of_course'), true)) {
             $survey_type = 'end_of_course';
         }
 
@@ -689,7 +688,7 @@ class HL_Admin_Survey {
         $texts_en = isset($_POST['question_text_en']) && is_array($_POST['question_text_en']) ? $_POST['question_text_en'] : array();
         $texts_es = isset($_POST['question_text_es']) && is_array($_POST['question_text_es']) ? $_POST['question_text_es'] : array();
         $texts_pt = isset($_POST['question_text_pt']) && is_array($_POST['question_text_pt']) ? $_POST['question_text_pt'] : array();
-        $required_map = isset($_POST['question_required']) && is_array($_POST['question_required']) ? $_POST['question_required'] : array();
+        $required_val = isset($_POST['question_required_val']) && is_array($_POST['question_required_val']) ? $_POST['question_required_val'] : array();
 
         $questions = array();
         foreach ($keys as $i => $key) {
@@ -703,7 +702,7 @@ class HL_Admin_Survey {
                 'question_key' => $key,
                 'type'         => $type,
                 'group'        => sanitize_text_field($groups[$i] ?? ''),
-                'required'     => !empty($required_map[$i]),
+                'required'     => !empty($required_val[$key]),
                 'text_en'      => sanitize_textarea_field($texts_en[$i] ?? ''),
                 'text_es'      => sanitize_textarea_field($texts_es[$i] ?? ''),
                 'text_pt'      => sanitize_textarea_field($texts_pt[$i] ?? ''),
