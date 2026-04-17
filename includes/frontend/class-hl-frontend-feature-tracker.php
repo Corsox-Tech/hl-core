@@ -339,10 +339,10 @@ class HL_Frontend_Feature_Tracker {
         $this->verify_ajax();
 
         $result = HL_Ticket_Service::instance()->create_ticket( array(
-            'title'           => isset( $_POST['title'] ) ? $_POST['title'] : '',
+            'title'           => isset( $_POST['title'] ) ? wp_unslash( $_POST['title'] ) : '',
             'type'            => isset( $_POST['type'] ) ? $_POST['type'] : '',
             'priority'        => isset( $_POST['priority'] ) ? $_POST['priority'] : 'medium',
-            'description'     => isset( $_POST['description'] ) ? $_POST['description'] : '',
+            'description'     => isset( $_POST['description'] ) ? wp_unslash( $_POST['description'] ) : '',
             'category'        => isset( $_POST['category'] ) ? sanitize_text_field( $_POST['category'] ) : '',
             'context_mode'    => isset( $_POST['context_mode'] ) ? sanitize_text_field( $_POST['context_mode'] ) : 'self',
             'context_user_id' => ! empty( $_POST['context_user_id'] ) ? absint( $_POST['context_user_id'] ) : null,
@@ -361,10 +361,10 @@ class HL_Frontend_Feature_Tracker {
         $uuid = isset( $_POST['ticket_uuid'] ) ? sanitize_text_field( $_POST['ticket_uuid'] ) : '';
 
         $result = HL_Ticket_Service::instance()->update_ticket( $uuid, array(
-            'title'           => isset( $_POST['title'] ) ? $_POST['title'] : '',
+            'title'           => isset( $_POST['title'] ) ? wp_unslash( $_POST['title'] ) : '',
             'type'            => isset( $_POST['type'] ) ? $_POST['type'] : '',
             'priority'        => isset( $_POST['priority'] ) ? $_POST['priority'] : '',
-            'description'     => isset( $_POST['description'] ) ? $_POST['description'] : '',
+            'description'     => isset( $_POST['description'] ) ? wp_unslash( $_POST['description'] ) : '',
             'category'        => isset( $_POST['category'] ) ? sanitize_text_field( $_POST['category'] ) : '',
             'context_mode'    => isset( $_POST['context_mode'] ) ? sanitize_text_field( $_POST['context_mode'] ) : 'self',
             'context_user_id' => ! empty( $_POST['context_user_id'] ) ? absint( $_POST['context_user_id'] ) : null,
@@ -381,7 +381,7 @@ class HL_Frontend_Feature_Tracker {
         $this->verify_ajax();
 
         $uuid = isset( $_POST['ticket_uuid'] ) ? sanitize_text_field( $_POST['ticket_uuid'] ) : '';
-        $text = isset( $_POST['comment_text'] ) ? $_POST['comment_text'] : '';
+        $text = isset( $_POST['comment_text'] ) ? wp_unslash( $_POST['comment_text'] ) : '';
 
         $result = HL_Ticket_Service::instance()->add_comment( $uuid, $text );
 
