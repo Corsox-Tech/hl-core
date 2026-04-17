@@ -137,6 +137,9 @@ class HL_Installer {
             dbDelta($table_sql);
         }
 
+        // Seed survey data for fresh installs.
+        self::seed_surveys();
+
         // Update schema version
         update_option('hl_core_db_version', HL_CORE_VERSION);
     }
@@ -273,9 +276,12 @@ class HL_Installer {
                 }
             }
 
-            // Rev 42: Add survey_id column to hl_cycle for course survey assignment.
+            // Rev 42: Course Survey Builder — 3 tables (dbDelta), 3 migrations, seed data.
             if ( (int) $stored < 42 ) {
-                self::migrate_cycle_add_survey_id();
+                self::migrate_add_catalog_requires_survey();
+                self::migrate_add_cycle_survey_id();
+                self::migrate_add_survey_pending_status();
+                self::seed_surveys();
             }
 
             // Migrate coaching.session_scheduled → coaching.session_status conditions.
@@ -2233,6 +2239,66 @@ class HL_Installer {
             UNIQUE KEY user_window (user_id, window_key, window_start)
         ) $charset_collate;";
 
+        // Survey table (Course Survey Builder)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_survey (
+            survey_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            survey_uuid char(36) NOT NULL,
+            internal_name varchar(255) NOT NULL,
+            display_name varchar(255) NOT NULL,
+            survey_type enum('end_of_course') NOT NULL DEFAULT 'end_of_course',
+            version int unsigned NOT NULL DEFAULT 1,
+            questions_json longtext NOT NULL,
+            scale_labels_json longtext DEFAULT NULL,
+            intro_text_json longtext DEFAULT NULL,
+            group_labels_json longtext DEFAULT NULL,
+            status enum('draft','published') NOT NULL DEFAULT 'draft',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (survey_id),
+            UNIQUE KEY survey_uuid (survey_uuid),
+            UNIQUE KEY unique_type_version (survey_type, version),
+            KEY idx_type_status (survey_type, status)
+        ) $charset_collate;";
+
+        // Course Survey Response table
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_course_survey_response (
+            response_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            response_uuid char(36) NOT NULL,
+            survey_id bigint(20) unsigned NOT NULL,
+            user_id bigint(20) unsigned NOT NULL,
+            enrollment_id bigint(20) unsigned NOT NULL,
+            catalog_id bigint(20) unsigned NOT NULL,
+            cycle_id bigint(20) unsigned NOT NULL,
+            responses_json longtext NOT NULL,
+            language varchar(5) NOT NULL DEFAULT 'en',
+            submitted_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (response_id),
+            UNIQUE KEY response_uuid (response_uuid),
+            UNIQUE KEY one_per_enrollment_course_survey (enrollment_id, catalog_id, survey_id),
+            KEY idx_survey (survey_id),
+            KEY idx_cycle (cycle_id),
+            KEY idx_catalog (catalog_id),
+            KEY idx_user (user_id),
+            KEY idx_submitted (submitted_at),
+            KEY idx_survey_cycle (survey_id, cycle_id)
+        ) $charset_collate;";
+
+        // Pending Survey table (queued surveys awaiting completion)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_pending_survey (
+            pending_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) unsigned NOT NULL,
+            survey_id bigint(20) unsigned NOT NULL,
+            enrollment_id bigint(20) unsigned NOT NULL,
+            catalog_id bigint(20) unsigned NOT NULL,
+            cycle_id bigint(20) unsigned NOT NULL,
+            component_id bigint(20) unsigned NOT NULL,
+            triggered_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (pending_id),
+            UNIQUE KEY one_pending (enrollment_id, catalog_id, survey_id),
+            KEY idx_user (user_id)
+        ) $charset_collate;";
+
         return $tables;
     }
 
@@ -3851,11 +3917,8 @@ class HL_Installer {
         global $wpdb;
         $table = $wpdb->prefix . 'hl_ticket';
 
-        // 1. Expand status enum.
-        $res = $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN `status`
-            enum('draft','open','in_review','in_progress','ready_for_test','test_failed','resolved','closed')
-            NOT NULL DEFAULT 'open'
-            CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" );
+        // 1. Expand status enum (single-line to match rev 33 MariaDB-compatible pattern).
+        $res = $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN `status` enum('draft','open','in_review','in_progress','ready_for_test','test_failed','resolved','closed') NOT NULL DEFAULT 'open' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" );
 
         if ( $res === false ) {
             error_log( '[HL_INSTALLER] Rev 41 failed on status enum expansion: ' . $wpdb->last_error );
@@ -3984,6 +4047,7 @@ class HL_Installer {
     }
 
     /**
+<<<<<<< HEAD
      * Rev 42: Add survey_id column to hl_cycle for course survey assignment.
      */
     private static function migrate_cycle_add_survey_id() {
@@ -3999,4 +4063,263 @@ class HL_Installer {
             $wpdb->query( "ALTER TABLE {$table} ADD COLUMN survey_id BIGINT UNSIGNED NULL AFTER cycle_type" );
         }
     }
+=======
+     * Rev 42: Add requires_survey column to hl_course_catalog.
+     */
+    private static function migrate_add_catalog_requires_survey() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_course_catalog';
+
+        // Guard: skip if column already exists.
+        $col = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'requires_survey'" );
+        if ( ! empty( $col ) ) {
+            return;
+        }
+
+        $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `requires_survey` tinyint(1) NOT NULL DEFAULT 1" );
+
+        if ( $wpdb->last_error ) {
+            error_log( '[HL_INSTALLER] Rev 42 migrate_add_catalog_requires_survey failed: ' . $wpdb->last_error );
+        }
+    }
+
+    /**
+     * Rev 42: Add survey_id column to hl_cycle.
+     */
+    private static function migrate_add_cycle_survey_id() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_cycle';
+
+        // Guard: skip if column already exists.
+        $col = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'survey_id'" );
+        if ( ! empty( $col ) ) {
+            return;
+        }
+
+        $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `survey_id` bigint(20) unsigned DEFAULT NULL" );
+
+        if ( $wpdb->last_error ) {
+            error_log( '[HL_INSTALLER] Rev 42 migrate_add_cycle_survey_id failed: ' . $wpdb->last_error );
+        }
+    }
+
+    /**
+     * Rev 42: Add 'survey_pending' to hl_component_state.completion_status ENUM.
+     *
+     * Guarded: reads current ENUM definition and only modifies if
+     * 'survey_pending' is not already present. This prevents overwriting
+     * values that a future revision may have added.
+     */
+    private static function migrate_add_survey_pending_status() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_component_state';
+
+        // Read current column type to check if 'survey_pending' already exists.
+        $row = $wpdb->get_row( "SHOW COLUMNS FROM `{$table}` LIKE 'completion_status'" );
+        if ( ! $row ) {
+            error_log( '[HL_INSTALLER] Rev 42 migrate_add_survey_pending_status: completion_status column not found.' );
+            return;
+        }
+
+        // $row->Type looks like: enum('not_started','in_progress','complete')
+        if ( strpos( $row->Type, 'survey_pending' ) !== false ) {
+            return; // Already present.
+        }
+
+        $wpdb->query(
+            "ALTER TABLE `{$table}` MODIFY COLUMN `completion_status`
+             enum('not_started','in_progress','complete','survey_pending')
+             NOT NULL DEFAULT 'not_started'"
+        );
+
+        if ( $wpdb->last_error ) {
+            error_log( '[HL_INSTALLER] Rev 42 migrate_add_survey_pending_status failed: ' . $wpdb->last_error );
+        }
+    }
+
+    /**
+     * Rev 42: Seed survey data — creates 2 end-of-course surveys.
+     *
+     * Idempotent: checks internal_name before inserting.
+     */
+    private static function seed_surveys() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_survey';
+
+        // Guard: table must exist (fresh install runs dbDelta first).
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return;
+        }
+
+        // --- Survey 1: 2025 (draft, empty questions, version 1) ---
+        $exists_2025 = $wpdb->get_var( $wpdb->prepare(
+            "SELECT survey_id FROM `{$table}` WHERE internal_name = %s LIMIT 1",
+            'End of Course Survey - 2025'
+        ) );
+
+        if ( ! $exists_2025 ) {
+            $wpdb->insert( $table, array(
+                'survey_uuid'    => HL_DB_Utils::generate_uuid(),
+                'internal_name'  => 'End of Course Survey - 2025',
+                'display_name'   => 'End of Course Survey',
+                'survey_type'    => 'end_of_course',
+                'version'        => 1,
+                'questions_json' => wp_json_encode( array() ),
+                'status'         => 'draft',
+            ), array( '%s', '%s', '%s', '%s', '%d', '%s', '%s' ) );
+        }
+
+        // --- Survey 2: 2026 (published, full 8 questions, version 2) ---
+        $exists_2026 = $wpdb->get_var( $wpdb->prepare(
+            "SELECT survey_id FROM `{$table}` WHERE internal_name = %s LIMIT 1",
+            'End of Course Survey - 2026'
+        ) );
+
+        if ( ! $exists_2026 ) {
+            $wpdb->insert( $table, array(
+                'survey_uuid'       => HL_DB_Utils::generate_uuid(),
+                'internal_name'     => 'End of Course Survey - 2026',
+                'display_name'      => 'End of Course Survey',
+                'survey_type'       => 'end_of_course',
+                'version'           => 2,
+                'questions_json'    => wp_json_encode( self::get_eoc_survey_2026_questions() ),
+                'scale_labels_json' => wp_json_encode( self::get_eoc_survey_scale_labels() ),
+                'intro_text_json'   => wp_json_encode( array(
+                    'en' => 'Please fill out this end-of-course survey to let us know how we are doing and how we can better support you in the future!',
+                    'es' => 'Por favor, complete esta encuesta de fin de curso para informarnos como lo estamos haciendo y como podemos apoyarle mejor en el futuro.',
+                    'pt' => 'Por favor, preencha esta pesquisa de final de curso para nos informar como estamos indo e como podemos apoiar voce melhor no futuro!',
+                ) ),
+                'group_labels_json' => wp_json_encode( array(
+                    'agreement_scale' => array(
+                        'en' => 'Please indicate your level of agreement with each statement based on your experiences with this course.',
+                        'es' => 'Por favor, indique su nivel de acuerdo con cada afirmacion basandose en sus experiencias con este curso.',
+                        'pt' => 'Por favor, indique seu nivel de concordancia com cada afirmacao com base em suas experiencias com este curso.',
+                    ),
+                ) ),
+                'status'            => 'published',
+            ), array( '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s' ) );
+        }
+    }
+
+    /**
+     * Get the 8 questions for the 2026 End of Course Survey.
+     *
+     * @return array
+     */
+    private static function get_eoc_survey_2026_questions() {
+        return array(
+            // 6 Likert questions (agreement_scale group)
+            array(
+                'question_key' => 'time_worthwhile',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'The time I spent on this course was worthwhile.',
+                'text_es'      => 'El tiempo que dedique a este curso valio la pena.',
+                'text_pt'      => 'O tempo que dediquei a este curso valeu a pena.',
+            ),
+            array(
+                'question_key' => 'prepared_to_apply',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'I feel prepared to apply information from this course in real-world situations.',
+                'text_es'      => 'Me siento preparado/a para aplicar la informacion de este curso en situaciones de la vida real.',
+                'text_pt'      => 'Sinto-me preparado(a) para aplicar as informacoes deste curso em situacoes da vida real.',
+            ),
+            array(
+                'question_key' => 'emotional_development',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'The strategies covered in this course will be useful in supporting my students\' emotional development.',
+                'text_es'      => 'Las estrategias cubiertas en este curso seran utiles para apoyar el desarrollo emocional de mis estudiantes.',
+                'text_pt'      => 'As estrategias abordadas neste curso serao uteis para apoiar o desenvolvimento emocional dos meus alunos.',
+            ),
+            array(
+                'question_key' => 'emotional_wellbeing',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'The strategies covered in this course will be useful in supporting my own emotional wellbeing.',
+                'text_es'      => 'Las estrategias cubiertas en este curso seran utiles para apoyar mi propio bienestar emocional.',
+                'text_pt'      => 'As estrategias abordadas neste curso serao uteis para apoiar meu proprio bem-estar emocional.',
+            ),
+            array(
+                'question_key' => 'classroom_routine',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'The strategies covered in this course will fit into my classroom routine.',
+                'text_es'      => 'Las estrategias cubiertas en este curso se adaptaran a mi rutina del salon de clases.',
+                'text_pt'      => 'As estrategias abordadas neste curso se encaixarao na minha rotina de sala de aula.',
+            ),
+            array(
+                'question_key' => 'resources_supports',
+                'type'         => 'likert_5',
+                'group'        => 'agreement_scale',
+                'required'     => true,
+                'text_en'      => 'I have the necessary resources and supports to implement the strategies covered in this course.',
+                'text_es'      => 'Tengo los recursos y apoyos necesarios para implementar las estrategias cubiertas en este curso.',
+                'text_pt'      => 'Tenho os recursos e apoios necessarios para implementar as estrategias abordadas neste curso.',
+            ),
+            // 2 Open text questions
+            array(
+                'question_key' => 'liked_most',
+                'type'         => 'open_text',
+                'group'        => null,
+                'required'     => true,
+                'text_en'      => 'What did you like the most about this e-learning course?',
+                'text_es'      => 'Que fue lo que mas le gusto de este curso en linea?',
+                'text_pt'      => 'O que voce mais gostou neste curso online?',
+            ),
+            array(
+                'question_key' => 'could_improve',
+                'type'         => 'open_text',
+                'group'        => null,
+                'required'     => true,
+                'text_en'      => 'How could this e-learning course be improved?',
+                'text_es'      => 'Como se podria mejorar este curso en linea?',
+                'text_pt'      => 'Como este curso online poderia ser melhorado?',
+            ),
+        );
+    }
+
+    /**
+     * Get the Likert scale labels for the End of Course Survey.
+     *
+     * @return array
+     */
+    private static function get_eoc_survey_scale_labels() {
+        return array(
+            'likert_5' => array(
+                1 => array(
+                    'en' => 'Strongly Disagree',
+                    'es' => 'Totalmente en desacuerdo',
+                    'pt' => 'Discordo totalmente',
+                ),
+                2 => array(
+                    'en' => 'Disagree',
+                    'es' => 'En desacuerdo',
+                    'pt' => 'Discordo',
+                ),
+                3 => array(
+                    'en' => 'No Opinion',
+                    'es' => 'Sin Opinion',
+                    'pt' => 'Sem Opiniao',
+                ),
+                4 => array(
+                    'en' => 'Agree',
+                    'es' => 'De acuerdo',
+                    'pt' => 'Concordo',
+                ),
+                5 => array(
+                    'en' => 'Strongly Agree',
+                    'es' => 'Totalmente de acuerdo',
+                    'pt' => 'Concordo totalmente',
+                ),
+            ),
+        );
+    }
+>>>>>>> feature/course-survey-builder
 }

@@ -562,7 +562,7 @@ jQuery(function ($) {
             var evtLabel = (MAP[catKey] && MAP[catKey].events && MAP[catKey].events[evtKey])
                 ? MAP[catKey].events[evtKey].label : '';
             var triggerLabel = catLabel && evtLabel ? catLabel + ' \u2014 ' + evtLabel : (catLabel || evtLabel || '');
-            var evt = (MAP[catKey] && MAP[catKey].events) ? MAP[catKey].events[evtKey] : null;
+            var triggerEvt = (MAP[catKey] && MAP[catKey].events) ? MAP[catKey].events[evtKey] : null;
 
             // Build recipient list from checked tokens.
             var primaryTokens = [];
@@ -609,7 +609,7 @@ jQuery(function ($) {
             if (triggerLabel) {
                 sentence += '<br><br><strong>When:</strong> ' + escHtml(triggerLabel);
                 // Add timing translation for cron events.
-                if (evt && evt.type === 'cron') {
+                if (triggerEvt && triggerEvt.type === 'cron') {
                     var offsetVal  = parseInt($('input[name="trigger_offset_value"]').val(), 10) || 0;
                     var offsetUnit = $('select[name="trigger_offset_unit"] option:selected').text() || 'Days';
                     if (offsetVal > 0) {

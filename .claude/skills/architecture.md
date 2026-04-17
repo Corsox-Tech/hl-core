@@ -231,7 +231,7 @@ Block-based email template builder + workflow automation engine. Three admin pag
     class-hl-installer.php       # DB schema (revision 40) + activation + migrations
     /domain/                     # Entity models (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (11 classes incl. HL_Tour_Repository, HL_Course_Catalog_Repository)
-    /cli/                        # WP-CLI commands (23 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav, seed-beginnings, migrate-routing-types, email-v2-test, test-email-renderer, sync-tickets, translate-content) + data files
+    /cli/                        # WP-CLI commands (22 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav, seed-beginnings, migrate-routing-types, email-v2-test, test-email-renderer, translate-content) + data files
     /services/                   # Business logic (36 services incl. HL_Tour_Service, HL_Pathway_Routing_Service, HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service, HL_Ticket_Service, HL_Email_Automation_Service, HL_Email_Condition_Evaluator, HL_Email_Merge_Tag_Registry, HL_Email_Queue_Processor, HL_Email_Block_Renderer, HL_Email_Rate_Limit_Service, HL_Email_Recipient_Resolver)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (4 classes)

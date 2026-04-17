@@ -174,6 +174,7 @@
 
             var nonce   = $wrap.data('nonce');
             var isAdmin = $wrap.data('is-admin') === 1 || $wrap.data('is-admin') === '1';
+            var currentUserId = parseInt($wrap.data('current-user-id'), 10) || 0;
             var currentUuid = null; // UUID of currently viewed ticket in detail modal
 
             // ── Helpers ──
@@ -202,7 +203,7 @@
 
             var typeLabels = { bug: 'Bug', improvement: 'Improvement', feature_request: 'Feature Request' };
             var typeIcons = { bug: '\uD83D\uDC1E', improvement: '\u2728', feature_request: '\uD83D\uDE80' }; // 🐞 ✨ 🚀
-            var statusLabels = { open: 'Open', in_review: 'In Review', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
+            var statusLabels = { draft: 'Draft', open: 'Open', in_review: 'In Review', in_progress: 'In Progress', ready_for_test: 'Ready for Review', test_failed: 'Needs Revision', resolved: 'Resolved', closed: 'Closed' };
 
             var categoryLabels = {
                 course_content: 'Course Content',
@@ -338,6 +339,20 @@
                     $actions.empty();
                     if (t.can_edit) {
                         $actions.html('<button type="button" class="hl-btn hl-btn-small" id="hlft-edit-btn">Edit</button>');
+                    }
+
+                    // Creator review buttons (non-admin creator, ready_for_test only)
+                    if (!isAdmin && parseInt(t.creator_user_id, 10) === currentUserId && t.status === 'ready_for_test') {
+                        $actions.append(
+                            '<div class="hlft-review-panel">' +
+                                '<button type="button" class="hl-btn hl-btn-small hl-btn-success" id="hlft-approve-btn">Approve</button>' +
+                                '<button type="button" class="hl-btn hl-btn-small hl-btn-danger" id="hlft-reject-btn">Reject</button>' +
+                            '</div>' +
+                            '<div class="hlft-reject-form" id="hlft-reject-form" style="display:none;">' +
+                                '<textarea id="hlft-reject-comment" class="hlft-reject-textarea" rows="3" placeholder="Describe what\'s still not working..."></textarea>' +
+                                '<button type="button" class="hl-btn hl-btn-small hl-btn-danger" id="hlft-reject-submit-btn">Submit</button>' +
+                            '</div>'
+                        );
                     }
 
                     // Status dropdown (admin only)
@@ -726,6 +741,61 @@
                 // Fetch fresh ticket data for edit form
                 ajax('hl_ticket_get', { ticket_uuid: currentUuid }, function(t) {
                     openEditModal(t);
+                });
+            });
+
+            // Creator approve (delegated — buttons injected dynamically)
+            $(document).on('click', '#hlft-approve-btn', function() {
+                var $btn = $(this);
+                $btn.prop('disabled', true).text('Approving...');
+                $('#hlft-reject-btn').prop('disabled', true);
+
+                ajax('hl_ticket_creator_review', {
+                    ticket_uuid: currentUuid,
+                    review_action: 'approve'
+                }, function(t) {
+                    showToast('Ticket approved');
+                    openDetail(currentUuid);
+                    loadTickets();
+                }, function() {
+                    $btn.prop('disabled', false).text('Approve');
+                    $('#hlft-reject-btn').prop('disabled', false);
+                    openDetail(currentUuid);
+                });
+            });
+
+            // Creator reject — show textarea
+            $(document).on('click', '#hlft-reject-btn', function() {
+                $('#hlft-reject-form').slideDown(200);
+                $('#hlft-reject-comment').focus();
+            });
+
+            // Creator reject — submit
+            $(document).on('click', '#hlft-reject-submit-btn', function() {
+                var comment = $.trim($('#hlft-reject-comment').val());
+                if (!comment) {
+                    showToast('Please describe what failed.', true);
+                    return;
+                }
+
+                var $btn = $(this);
+                $btn.prop('disabled', true).text('Submitting...');
+                $('#hlft-approve-btn').prop('disabled', true);
+                $('#hlft-reject-btn').prop('disabled', true);
+
+                ajax('hl_ticket_creator_review', {
+                    ticket_uuid: currentUuid,
+                    review_action: 'reject',
+                    comment: comment
+                }, function(t) {
+                    showToast('Ticket marked as needs revision');
+                    openDetail(currentUuid);
+                    loadTickets();
+                }, function() {
+                    $btn.prop('disabled', false).text('Submit');
+                    $('#hlft-approve-btn').prop('disabled', false);
+                    $('#hlft-reject-btn').prop('disabled', false);
+                    openDetail(currentUuid);
                 });
             });
 

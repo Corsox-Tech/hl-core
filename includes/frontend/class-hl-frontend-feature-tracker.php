@@ -31,6 +31,7 @@ class HL_Frontend_Feature_Tracker {
         add_action( 'wp_ajax_hl_ticket_update',  array( $this, 'ajax_ticket_update' ) );
         add_action( 'wp_ajax_hl_ticket_comment', array( $this, 'ajax_ticket_comment' ) );
         add_action( 'wp_ajax_hl_ticket_status',  array( $this, 'ajax_ticket_status' ) );
+        add_action( 'wp_ajax_hl_ticket_creator_review', array( $this, 'ajax_ticket_creator_review' ) );
         add_action( 'wp_ajax_hl_ticket_upload',  array( $this, 'ajax_ticket_upload' ) );
         add_action( 'wp_ajax_hl_ticket_user_search', array( $this, 'ajax_user_search' ) );
     }
@@ -66,6 +67,7 @@ class HL_Frontend_Feature_Tracker {
         <div class="hlft-wrapper"
              data-nonce="<?php echo esc_attr( $nonce ); ?>"
              data-is-admin="<?php echo $is_admin ? '1' : '0'; ?>"
+             data-current-user-id="<?php echo esc_attr( get_current_user_id() ); ?>"
              data-user-department="<?php echo esc_attr( $current_user_dept ); ?>">
 
             <!-- Page Hero -->
@@ -90,6 +92,8 @@ class HL_Frontend_Feature_Tracker {
                         <option value="open"><?php esc_html_e( 'Open', 'hl-core' ); ?></option>
                         <option value="in_review"><?php esc_html_e( 'In Review', 'hl-core' ); ?></option>
                         <option value="in_progress"><?php esc_html_e( 'In Progress', 'hl-core' ); ?></option>
+                        <option value="ready_for_test"><?php esc_html_e( 'Ready for Review', 'hl-core' ); ?></option>
+                        <option value="test_failed"><?php esc_html_e( 'Needs Revision', 'hl-core' ); ?></option>
                         <option value="resolved"><?php esc_html_e( 'Resolved', 'hl-core' ); ?></option>
                         <option value="closed"><?php esc_html_e( 'Closed', 'hl-core' ); ?></option>
                         <option value="all"><?php esc_html_e( 'All Statuses', 'hl-core' ); ?></option>
@@ -160,6 +164,8 @@ class HL_Frontend_Feature_Tracker {
                                     <option value="open"><?php esc_html_e( 'Open', 'hl-core' ); ?></option>
                                     <option value="in_review"><?php esc_html_e( 'In Review', 'hl-core' ); ?></option>
                                     <option value="in_progress"><?php esc_html_e( 'In Progress', 'hl-core' ); ?></option>
+                                    <option value="ready_for_test"><?php esc_html_e( 'Ready for Review', 'hl-core' ); ?></option>
+                                    <option value="test_failed"><?php esc_html_e( 'Needs Revision', 'hl-core' ); ?></option>
                                     <option value="resolved"><?php esc_html_e( 'Resolved', 'hl-core' ); ?></option>
                                     <option value="closed"><?php esc_html_e( 'Closed', 'hl-core' ); ?></option>
                                 </select>
@@ -398,6 +404,21 @@ class HL_Frontend_Feature_Tracker {
             wp_send_json_error( $result->get_error_message() );
         }
 
+        wp_send_json_success( $result );
+    }
+
+    public function ajax_ticket_creator_review() {
+        $this->verify_ajax();
+
+        $uuid          = sanitize_text_field( $_POST['ticket_uuid'] ?? '' );
+        $review_action = sanitize_text_field( $_POST['review_action'] ?? '' );
+        $comment       = isset( $_POST['comment'] ) ? wp_unslash( $_POST['comment'] ) : '';
+
+        $result = HL_Ticket_Service::instance()->creator_review_ticket( $uuid, $review_action, $comment );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
+        }
         wp_send_json_success( $result );
     }
 
