@@ -971,6 +971,15 @@
             // ── Initial Load ──
             loadTickets();
 
+            // Deep-link: if URL has ?ticket=UUID, auto-open that ticket's detail modal.
+            // UUID regex prevents opening the modal on junk input.
+            (function() {
+                var match = window.location.search.match(/[?&]ticket=([0-9a-fA-F-]{36})(?:&|$)/);
+                if (match && match[1]) {
+                    openDetail(match[1]);
+                }
+            })();
+
         })();
 
     });

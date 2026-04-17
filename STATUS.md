@@ -351,6 +351,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **AJAX endpoint** — `hl_ticket_creator_review` for approve/reject.
 - [x] **Frontend UI** — Approve/Reject buttons, status pills, filter options.
 - [x] **GitHub sync removal** — CLI class, docs, GitHub Issues deleted.
+- [x] **D-1 Email notification (April 2026)** — `send_ready_for_test_email()` private method in `HL_Ticket_Service` fires from `change_status()` on every transition INTO `ready_for_test` (including re-entries from `test_failed`). HTML email via `wp_mail()` with text/html header, try/catch wrapped (email failure never breaks status change), audit logged as `ticket_email_ready_for_test`. Deep-link `?ticket={uuid}` handled in `frontend.js` IIFE (UUID regex validated) — auto-opens detail modal on page load. Plugin version bumped 1.2.5 → 1.2.6.
 - [ ] **Deployed to test** — Pending.
 
 ### B2E Group Sync (Ticket #11 — April 2026)

@@ -722,7 +722,67 @@ class HL_Ticket_Service {
             'after_data'  => array( 'status' => $new_status ),
         ) );
 
+        // Notify creator on every transition to ready_for_test (including re-entries after test_failed).
+        if ( $new_status === 'ready_for_test' && $old_status !== 'ready_for_test' ) {
+            $this->send_ready_for_test_email( $ticket );
+        }
+
         return $this->get_ticket( $uuid );
+    }
+
+    /**
+     * Send "Ready for Review" notification to the ticket creator.
+     *
+     * Fires from change_status() whenever a ticket transitions into ready_for_test.
+     * Failures are swallowed — email must never break the status change.
+     *
+     * @param array $ticket Raw ticket row from get_ticket_raw().
+     */
+    private function send_ready_for_test_email( $ticket ) {
+        try {
+            $creator = get_userdata( (int) $ticket['creator_user_id'] );
+            if ( ! $creator || empty( $creator->user_email ) ) {
+                return;
+            }
+
+            $first_name = ! empty( $creator->first_name )
+                ? $creator->first_name
+                : ( ! empty( $creator->display_name ) ? $creator->display_name : $creator->user_login );
+
+            $ticket_id    = (int) $ticket['ticket_id'];
+            $ticket_uuid  = (string) $ticket['ticket_uuid'];
+            $ticket_title = (string) $ticket['title'];
+
+            $subject = sprintf( 'Ticket #%d — Ready for Review', $ticket_id );
+
+            $deep_link = add_query_arg(
+                array( 'ticket' => $ticket_uuid ),
+                'https://academy.housmanlearning.com/feature-tracker/'
+            );
+
+            $body  = '<p>Hi ' . esc_html( $first_name ) . ',</p>';
+            $body .= '<p>Ticket #' . esc_html( $ticket_id ) . ' — "' . esc_html( $ticket_title ) . '" has been marked as Ready for Review.</p>';
+            $body .= '<p>Please <a href="' . esc_url( $deep_link ) . '">access the ticket</a>, ';
+            $body .= 'test the fix in production, and either Approve it if it works, or select Reject if you find issues.</p>';
+            $body .= '<p>Housman Learning SysAdmin</p>';
+            $body .= '<hr>';
+            $body .= '<p style="color:#888;font-size:12px;">This is an automated email. Please do not reply.</p>';
+
+            $headers = array( 'Content-Type: text/html; charset=UTF-8' );
+            $sent    = wp_mail( $creator->user_email, $subject, $body, $headers );
+
+            HL_Audit_Service::log( 'ticket_email_ready_for_test', array(
+                'entity_type' => 'ticket',
+                'entity_id'   => $ticket_id,
+                'after_data'  => array(
+                    'to_email'        => $creator->user_email,
+                    'creator_user_id' => (int) $ticket['creator_user_id'],
+                    'sent'            => (bool) $sent,
+                ),
+            ) );
+        } catch ( \Exception $e ) {
+            error_log( '[HL_TICKET] send_ready_for_test_email failed for ticket ' . ( $ticket['ticket_uuid'] ?? '?' ) . ': ' . $e->getMessage() );
+        }
     }
 
     /**
