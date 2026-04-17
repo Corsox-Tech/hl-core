@@ -107,6 +107,8 @@ class HL_Admin_Cycles {
 
         $cycle_id = isset($_POST['cycle_id']) ? absint($_POST['cycle_id']) : 0;
 
+        $survey_id = !empty($_POST['survey_id']) ? absint($_POST['survey_id']) : null;
+
         $data = array(
             'cycle_name'       => sanitize_text_field($_POST['cycle_name']),
             'cycle_code'       => sanitize_text_field($_POST['cycle_code']),
@@ -118,6 +120,7 @@ class HL_Admin_Cycles {
             'partnership_id'        => !empty($_POST['partnership_id']) ? absint($_POST['partnership_id']) : null,
             'is_control_group' => !empty($_POST['is_control_group']) ? 1 : 0,
             'cycle_type'       => isset($_POST['cycle_type']) && in_array($_POST['cycle_type'], array('program', 'course'), true) ? $_POST['cycle_type'] : 'program',
+            'survey_id'        => $survey_id,
         );
 
         if (empty($data['end_date'])) {
@@ -125,12 +128,28 @@ class HL_Admin_Cycles {
         }
 
         if ($cycle_id > 0) {
+            // Capture old survey_id for audit logging before update.
+            $old_cycle = $this->repo->get_by_id($cycle_id);
+            $old_survey_id = $old_cycle && isset($old_cycle->survey_id) ? absint($old_cycle->survey_id) : 0;
+
             $updated = $this->repo->update($cycle_id, $data);
 
             if (!$updated || $updated->partnership_id === null && $data['partnership_id'] !== null) {
                 error_log('[HL Core] Partnership assignment save may have failed for ID ' . $cycle_id
                     . ': expected=' . ($data['partnership_id'] ?? 'NULL')
                     . ' got=' . ($updated ? ($updated->partnership_id ?? 'NULL') : 'NO_RESULT'));
+            }
+
+            // Audit log when survey assignment changes from a non-null value.
+            $new_survey_id = absint($survey_id);
+            if ($old_survey_id && $old_survey_id !== $new_survey_id) {
+                if (class_exists('HL_Audit_Service')) {
+                    HL_Audit_Service::log('cycle.survey_id_changed', array(
+                        'cycle_id'      => $cycle_id,
+                        'old_survey_id' => $old_survey_id,
+                        'new_survey_id' => $new_survey_id,
+                    ));
+                }
             }
 
             $redirect = admin_url('admin.php?page=hl-cycles&action=edit&id=' . $cycle_id . '&tab=details&message=updated');
@@ -694,6 +713,22 @@ class HL_Admin_Cycles {
             }
         }
         echo '</select>';
+        echo '</div>';
+
+        // End of Course Survey (half)
+        $survey_repo = new HL_Survey_Repository();
+        $published_surveys = $survey_repo->get_published_by_type('end_of_course');
+        $current_survey_id = $is_edit ? absint($cycle->survey_id ?? 0) : 0;
+
+        echo '<div class="hl-field">';
+        echo '<label for="survey_id">' . esc_html__('End of Course Survey', 'hl-core') . '</label>';
+        echo '<select id="survey_id" name="survey_id">';
+        echo '<option value="">' . esc_html__('-- None --', 'hl-core') . '</option>';
+        foreach ($published_surveys as $s) {
+            echo '<option value="' . esc_attr($s->survey_id) . '"' . selected($current_survey_id, $s->survey_id, false) . '>' . esc_html($s->internal_name) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . esc_html__('Participants must complete this survey after finishing each course.', 'hl-core') . '</p>';
         echo '</div>';
 
         // Cycle Type (full width)

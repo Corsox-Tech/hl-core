@@ -150,7 +150,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 41;
+        $current_revision = 42;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -271,6 +271,11 @@ class HL_Installer {
                 if ( ! $ok ) {
                     return; // Bail — next plugins_loaded retries.
                 }
+            }
+
+            // Rev 42: Add survey_id column to hl_cycle for course survey assignment.
+            if ( (int) $stored < 42 ) {
+                self::migrate_cycle_add_survey_id();
             }
 
             // Migrate coaching.session_scheduled → coaching.session_status conditions.
@@ -1246,6 +1251,7 @@ class HL_Installer {
             district_id bigint(20) unsigned NULL,
             is_control_group tinyint(1) NOT NULL DEFAULT 0,
             cycle_type varchar(20) NOT NULL DEFAULT 'program',
+            survey_id bigint(20) unsigned NULL,
             status enum('draft','active','paused','archived') DEFAULT 'draft',
             start_date date NOT NULL,
             end_date date NULL,
@@ -3974,6 +3980,23 @@ class HL_Installer {
         );
         if ( ! $col_exists ) {
             $wpdb->query( "ALTER TABLE {$table} ADD COLUMN bb_group_id BIGINT UNSIGNED NULL AFTER metadata" );
+        }
+    }
+
+    /**
+     * Rev 42: Add survey_id column to hl_cycle for course survey assignment.
+     */
+    private static function migrate_cycle_add_survey_id() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_cycle';
+        $col_exists = $wpdb->get_var(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+             AND TABLE_NAME = '{$table}'
+             AND COLUMN_NAME = 'survey_id'"
+        );
+        if ( ! $col_exists ) {
+            $wpdb->query( "ALTER TABLE {$table} ADD COLUMN survey_id BIGINT UNSIGNED NULL AFTER cycle_type" );
         }
     }
 }
