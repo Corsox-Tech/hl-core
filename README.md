@@ -25,7 +25,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 - **Coaching:** `hl_coaching_session`, `hl_coaching_session_observation`, `hl_coaching_attachment`, `hl_coaching_session_submission`, `hl_coach_assignment` (coach scope assignments), `hl_coach_availability` (recurring weekly schedule blocks)
 - **Cross-Pathway Events:** `hl_rp_session`, `hl_rp_session_submission`, `hl_classroom_visit`, `hl_classroom_visit_submission`
 - **Guided Tours:** `hl_tour` (tour definitions with trigger type, target roles, status), `hl_tour_step` (ordered steps with element selector, position, step type), `hl_tour_seen` (per-user seen tracking)
-- **Feature Tracker:** `hl_ticket` (tickets with type/priority/status enums, 2hr edit window, admin-gated status changes), `hl_ticket_comment` (flat comments per ticket)
+- **Feature Tracker:** `hl_ticket` (tickets with type/priority/status enums incl. `ready_for_test`/`test_failed` QA workflow, 2hr edit window, admin-gated status changes + creator approve/reject), `hl_ticket_comment` (flat comments per ticket)
 - **Email System:** `hl_email_template` (block-based templates with UNIQUE template_key), `hl_email_workflow` (trigger-based automation with conditions/recipients/send windows + Rev 39: `trigger_offset_minutes`, `component_type_filter`), `hl_email_queue` (central send queue with UUID claim pattern, dedup tokens), `hl_email_rate_limit` (per-user floor-bucketed hourly/daily/weekly limits)
 - **System:** `hl_import_run`, `hl_audit_log`, `hl_cycle_email_log` (cycle email tracking)
 
@@ -65,7 +65,7 @@ All 11 core entities have domain model classes with proper properties. 10 of 11 
 - **MicrosoftGraph** - Microsoft Graph API client: client credentials OAuth2 flow, calendar CRUD (calendarView, create/update/delete events), token caching via transients, coach email resolution (hl_microsoft_email usermeta override).
 - **ZoomIntegration** - Zoom Server-to-Server OAuth client: S2S account credentials flow, meeting CRUD (create/update/delete), token caching, coach email resolution (hl_zoom_email usermeta override).
 - **TourService** - Guided tour context resolution: matches tours to current page + user roles + trigger type, seen tracking (mark_seen AJAX), global styles CRUD, step reorder (save_step_order AJAX), step data delivery (get_steps AJAX), element picker mode detection (is_picker_mode + get_view_as_role)
-- **TicketService** - Feature Tracker ticket CRUD + comments, permission checks (2hr edit window for creators, admin-gated status changes via ADMIN_EMAIL constant), search/filter with enum whitelisting + esc_like, status transitions with resolved_at lifecycle, audit logging on all mutations
+- **TicketService** - Feature Tracker ticket CRUD + comments, permission checks (2hr edit window, CREATOR_LOCKED_STATUSES for QA states, admin-gated status changes via ADMIN_EMAIL constant), creator_review_ticket() with optimistic locking for approve/reject from ready_for_test, search/filter with enum whitelisting + esc_like, status transitions with resolved_at lifecycle, audit logging on all mutations
 - **Email System Services** (8 services — Email System v2 Track 3 Task 1 added `HL_Roles`):
   - `HL_Roles` — Shared role matching helper (Track 3 Task 1). Reads `hl_enrollment.roles` in both legacy JSON (`["teacher","mentor"]`) and normalised CSV formats. `parse_stored()` format-agnostic parser, `has_role()` exact-match check (fixes the `LIKE '%leader%'`/`school_leader` substring bug), `sanitize_roles()` writes sorted canonical CSV and rejects comma-poisoned entries, `scrub_is_complete()` reads `OPTION_SCRUB_DONE` (gates Rev 37 `FIND_IN_SET` rollout). PHP 7.4 type hints. Not yet consumed — Track 3 Tasks 2/3/4 are the first callers.
   - `HL_Email_Block_Renderer` — Converts blocks_json to table-based HTML emails with branded header/footer, dark mode, MSO/VML. 6 block types: text, image, button, divider, spacer, columns.
@@ -224,9 +224,6 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **LD enrollment sync** — automatic `ld_update_course_access()` on 3 triggers: pathway assignment, enrollment creation (role-based fallback), new LD component added to pathway. Language-aware via course catalog. Idempotent.
 - CLI: `wp hl-core sync-ld-enrollment --cycle_id=X [--dry-run]` — retroactive bulk sync for existing enrollments
 
-### Feature Tracker → GitHub Sync
-- **`wp hl-core sync-tickets-to-github [--dry-run]`** — One-way sync from Feature Tracker (`hl_ticket`) to GitHub Issues on `Corsox-Tech/hl-core`. Creates issues for unsynced non-draft tickets with type/priority/category labels, closes issues for resolved/closed tickets, reopens issues for tickets that return to active status. Requires `gh` CLI authenticated. `--dry-run` previews without API calls or DB writes.
-
 - **`wp hl-core bb-sync [--all] [--dry-run]`** — Resync/backfill BuddyBoss group memberships from HL Core enrollment data. `--all` resyncs every active enrollment. `--dry-run` previews changes without writing.
 
 ### BuddyBoss Integration
@@ -282,12 +279,13 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 - **Session 6: Review & Polish** — Removed 230 lines dead CSS (old Section 29 PROGRAM PAGE, old DASHBOARD HOME V1). Fixed remaining non-functional inline styles. Grep audit confirmed 0 `<style>` blocks and 0 non-functional `style=""` attrs in all frontend PHP files. Visual review across 3 roles (mentor, coach, school leader) passed all 9 design system criteria.
 
 ### Feature Tracker (Complete — April 2026)
-- **Single-page AJAX app** — `[hl_feature_tracker]` shortcode, `HL_Frontend_Feature_Tracker` singleton with 6 AJAX endpoints (`hl_ticket_list`, `hl_ticket_get`, `hl_ticket_create`, `hl_ticket_update`, `hl_ticket_comment`, `hl_ticket_status`). Nonce `hl_feature_tracker` + `manage_hl_core` capability on all endpoints. No `nopriv` handlers.
-- **Ticket types** — Bug, Improvement, Feature Request. **Priorities** — Low, Medium, High, Critical. **Statuses** — Open, In Review, In Progress, Resolved, Closed.
-- **Permissions** — Creator can edit within 2 hours (non-terminal tickets). `HL_Ticket_Service::ADMIN_EMAIL` (`mateo@corsox.com`) has full control (edit any ticket, change status). Specific "edit window expired" error message.
-- **UI** — Filterable table (type/status/priority dropdowns + debounced search), "Closed tickets hidden — show all" indicator, detail modal (640px, 85vh, scroll), create/edit modal with type helper text, flat comments with avatars, toast notifications. All server values HTML-escaped via `esc()` helper. Description rendered as `.text()` (plain text V1).
+- **Single-page AJAX app** — `[hl_feature_tracker]` shortcode, `HL_Frontend_Feature_Tracker` singleton with 7 AJAX endpoints (`hl_ticket_list`, `hl_ticket_get`, `hl_ticket_create`, `hl_ticket_update`, `hl_ticket_comment`, `hl_ticket_status`, `hl_ticket_creator_review`). Nonce `hl_feature_tracker` + `manage_hl_core` capability on all endpoints. No `nopriv` handlers.
+- **Ticket types** — Bug, Improvement, Feature Request. **Priorities** — Low, Medium, High, Critical. **Statuses** — Draft, Open, In Review, In Progress, Ready for Review, Needs Revision, Resolved, Closed.
+- **QA Workflow** — Admin moves ticket to `ready_for_test` (UI: "Ready for Review"). Creator sees Approve/Reject buttons. Approve → Resolved. Reject → `test_failed` (UI: "Needs Revision") with required comment. `creator_review_ticket()` with optimistic locking via WHERE clause. `CREATOR_LOCKED_STATUSES` prevents editing at `ready_for_test`, `resolved`, `closed`. `test_failed` remains editable for reproduction details.
+- **Permissions** — Creator can edit within 2 hours (non-locked tickets). `HL_Ticket_Service::ADMIN_EMAIL` (`mateo@corsox.com`) has full control (edit any ticket, change status). Specific "edit window expired" error message.
+- **UI** — Filterable table (type/status/priority dropdowns + debounced search), "Closed tickets hidden — show all" indicator, detail modal (640px, 85vh, scroll), create/edit modal with type helper text, flat comments with avatars, toast notifications, approve/reject panel with inline reject textarea + event delegation. All server values HTML-escaped via `esc()` helper. Description rendered as `.text()` (plain text V1).
 - **Sidebar** — "Feature Tracker" menu item with `dashicons-feedback` icon for coaches and admins.
-- **Audit logging** — All mutations (create, update, status change, comment) logged via `HL_Audit_Service`.
+- **Audit logging** — All mutations (create, update, status change, comment, creator_review) logged via `HL_Audit_Service`.
 
 ### Guided Tours System (Complete — Deployed)
 - **Phase 1 — DB + Repository + Service** — 3 new tables (`hl_tour`, `hl_tour_step`, `hl_tour_seen`), schema rev 28→29. `HL_Tour_Repository` with full CRUD for tours, steps, and seen tracking. `HL_Tour_Service` with context resolution (page + role + trigger matching), global styles management, validation, and 3 AJAX endpoints (`hl_tour_mark_seen`, `hl_tour_get_steps`, `hl_tour_save_step_order`).

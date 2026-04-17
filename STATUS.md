@@ -338,10 +338,19 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Teacher reassignment UI** — "Reassign from another classroom" optgroup, hidden field, JS confirmation dialog, handler branching, empty state hint with enrollment link, `assignment_reassigned` message key.
 - [x] **Deployed to test** — All features verified via Playwright browser testing (2026-04-13).
 
-### Feature Tracker → GitHub Sync (April 2026)
-> **Spec:** `docs/superpowers/specs/2026-04-13-ticket-github-sync-design.md` | **Plan:** `docs/superpowers/plans/2026-04-13-ticket-github-sync.md`
-- [x] **Schema rev 38** — `github_issue_id` column on `hl_ticket`.
-- [x] **CLI command** — `wp hl-core sync-tickets-to-github [--dry-run]`. Creates issues, closes resolved, reopens active. Uses `gh` CLI.
+### ~~Feature Tracker → GitHub Sync~~ (REMOVED 2026-04-16)
+> Removed — Feature Tracker is the sole source of truth. GitHub Issues sync was overkill.
+- [x] ~~Schema rev 38 — `github_issue_id` column~~ (dropped in rev 41)
+- [x] ~~CLI command — `wp hl-core sync-tickets-to-github`~~ (deleted)
+- [x] GitHub Issues on Corsox-Tech/hl-core deleted.
+
+### Ticket QA Workflow (rev 41 — April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-15-ticket-qa-workflow-design.md` | **Plan:** `docs/superpowers/plans/2026-04-15-ticket-qa-workflow.md`
+- [x] **Schema rev 41** — `ready_for_test` + `test_failed` enum values. Drop `github_issue_id`.
+- [x] **Service method** — `creator_review_ticket()` with optimistic locking.
+- [x] **AJAX endpoint** — `hl_ticket_creator_review` for approve/reject.
+- [x] **Frontend UI** — Approve/Reject buttons, status pills, filter options.
+- [x] **GitHub sync removal** — CLI class, docs, GitHub Issues deleted.
 - [ ] **Deployed to test** — Pending.
 
 ### B2E Group Sync (Ticket #11 — April 2026)
