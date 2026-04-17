@@ -47,7 +47,7 @@ class HL_Admin_Survey {
      * Render the surveys tab content. Dispatches based on survey_action GET param.
      */
     public function render_tab() {
-        $action = sanitize_text_field($_GET['survey_action'] ?? '');
+        $action = sanitize_text_field($_GET['action'] ?? '');
 
         switch ($action) {
             case 'new':
@@ -110,7 +110,7 @@ class HL_Admin_Survey {
             );
         }
 
-        $new_url = admin_url('admin.php?page=hl-instruments&tab=surveys&survey_action=new');
+        $new_url = admin_url('admin.php?page=hl-assessment-hub&section=course-surveys&action=new');
 
         HL_Admin::render_page_header('Course Surveys', sprintf(
             '<a href="%s" class="page-title-action">Add New Survey</a>',
@@ -132,7 +132,7 @@ class HL_Admin_Survey {
             $response_count = $has_responses ? $repo->get_response_count($survey_id) : 0;
             $cycles         = $repo->get_cycles_using_survey($survey_id);
 
-            $edit_url = admin_url('admin.php?page=hl-instruments&tab=surveys&survey_action=edit&survey_id=' . $survey_id);
+            $edit_url = admin_url('admin.php?page=hl-assessment-hub&section=course-surveys&action=edit&survey_id=' . $survey_id);
 
             // Status pill.
             $status_class = ($survey->status === 'published') ? 'hl-status-published' : 'hl-status-draft';
@@ -237,7 +237,7 @@ class HL_Admin_Survey {
         $disabled = $read_only ? ' disabled' : '';
 
         ?>
-        <form method="post" action="<?php echo esc_url(admin_url('admin.php?page=hl-instruments&tab=surveys')); ?>" id="hl-survey-form">
+        <form method="post" action="<?php echo esc_url(admin_url('admin.php?page=hl-assessment-hub&section=course-surveys')); ?>" id="hl-survey-form">
             <?php wp_nonce_field('hl_save_survey', 'hl_save_survey_nonce'); ?>
             <input type="hidden" name="survey_id" value="<?php echo esc_attr($survey_id); ?>">
 
@@ -395,7 +395,7 @@ class HL_Admin_Survey {
             <?php endif; ?>
         </form>
 
-        <p><a href="<?php echo esc_url(admin_url('admin.php?page=hl-instruments&tab=surveys')); ?>">&larr; Back to Course Surveys</a></p>
+        <p><a href="<?php echo esc_url(admin_url('admin.php?page=hl-assessment-hub&section=course-surveys')); ?>">&larr; Back to Course Surveys</a></p>
 
         <?php if (!$read_only): ?>
         <script>
@@ -609,7 +609,7 @@ class HL_Admin_Survey {
 
         if (!empty($errors)) {
             set_transient('hl_survey_errors_' . get_current_user_id(), $errors, 30);
-            $redirect = admin_url('admin.php?page=hl-instruments&tab=surveys&survey_action='
+            $redirect = admin_url('admin.php?page=hl-assessment-hub&section=course-surveys&action='
                 . ($survey_id ? 'edit&survey_id=' . $survey_id : 'new') . '&error=1');
             wp_redirect($redirect);
             exit;
@@ -633,7 +633,7 @@ class HL_Admin_Survey {
             $result = $repo->update($survey_id, $data);
             if (is_wp_error($result)) {
                 set_transient('hl_survey_errors_' . get_current_user_id(), array($result->get_error_message()), 30);
-                wp_redirect(admin_url('admin.php?page=hl-instruments&tab=surveys&survey_action=edit&survey_id=' . $survey_id . '&error=1'));
+                wp_redirect(admin_url('admin.php?page=hl-assessment-hub&section=course-surveys&action=edit&survey_id=' . $survey_id . '&error=1'));
                 exit;
             }
             if (class_exists('HL_Audit_Service')) {
@@ -648,7 +648,7 @@ class HL_Admin_Survey {
                     ),
                 ));
             }
-            wp_redirect(admin_url('admin.php?page=hl-instruments&tab=surveys&message=updated'));
+            wp_redirect(admin_url('admin.php?page=hl-assessment-hub&section=course-surveys&message=updated'));
             exit;
         } else {
             // Create — auto-version.
@@ -656,7 +656,7 @@ class HL_Admin_Survey {
             $result = $repo->create($data);
             if (is_wp_error($result)) {
                 set_transient('hl_survey_errors_' . get_current_user_id(), array($result->get_error_message()), 30);
-                wp_redirect(admin_url('admin.php?page=hl-instruments&tab=surveys&survey_action=new&error=1'));
+                wp_redirect(admin_url('admin.php?page=hl-assessment-hub&section=course-surveys&action=new&error=1'));
                 exit;
             }
             if (class_exists('HL_Audit_Service')) {
@@ -671,7 +671,7 @@ class HL_Admin_Survey {
                     ),
                 ));
             }
-            wp_redirect(admin_url('admin.php?page=hl-instruments&tab=surveys&message=created'));
+            wp_redirect(admin_url('admin.php?page=hl-assessment-hub&section=course-surveys&message=created'));
             exit;
         }
     }
@@ -732,7 +732,7 @@ class HL_Admin_Survey {
 
         if (is_wp_error($result)) {
             set_transient('hl_survey_errors_' . get_current_user_id(), array($result->get_error_message()), 30);
-            wp_redirect(admin_url('admin.php?page=hl-instruments&tab=surveys&error=1'));
+            wp_redirect(admin_url('admin.php?page=hl-assessment-hub&section=course-surveys&error=1'));
             exit;
         }
 
@@ -747,7 +747,7 @@ class HL_Admin_Survey {
             ));
         }
 
-        wp_redirect(admin_url('admin.php?page=hl-instruments&tab=surveys&message=duplicated'));
+        wp_redirect(admin_url('admin.php?page=hl-assessment-hub&section=course-surveys&message=duplicated'));
         exit;
     }
 
@@ -813,7 +813,7 @@ class HL_Admin_Survey {
             ));
         }
 
-        wp_redirect(admin_url('admin.php?page=hl-instruments&tab=surveys&message=responses_deleted'));
+        wp_redirect(admin_url('admin.php?page=hl-assessment-hub&section=course-surveys&message=responses_deleted'));
         exit;
     }
 }

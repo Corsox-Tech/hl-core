@@ -41,6 +41,12 @@ class HL_Admin_Assessment_Hub {
             case 'teacher-instruments':
                 HL_Admin_Instruments::instance()->handle_early_actions();
                 break;
+
+            case 'course-surveys':
+                if ( class_exists( 'HL_Admin_Survey' ) ) {
+                    HL_Admin_Survey::instance()->handle_early_actions();
+                }
+                break;
         }
     }
 
@@ -86,7 +92,7 @@ class HL_Admin_Assessment_Hub {
         if (in_array($action, array('view_teacher', 'view_children'), true)) {
             return true;
         }
-        if (in_array($section, array('child-instruments', 'teacher-instruments'), true)) {
+        if (in_array($section, array('child-instruments', 'teacher-instruments', 'course-surveys'), true)) {
             if (in_array($action, array('new', 'edit', 'preview'), true)) {
                 return true;
             }
@@ -124,6 +130,10 @@ class HL_Admin_Assessment_Hub {
                     'teacher-instruments' => array(
                         'label' => __('Teacher Instruments', 'hl-core'),
                         'icon'  => 'dashicons-edit-large',
+                    ),
+                    'course-surveys'     => array(
+                        'label' => __('Course Surveys', 'hl-core'),
+                        'icon'  => 'dashicons-forms',
                     ),
                 ),
             ),
@@ -170,6 +180,12 @@ class HL_Admin_Assessment_Hub {
                     isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list'
                 );
                 break;
+
+            case 'course-surveys':
+                if ( class_exists( 'HL_Admin_Survey' ) ) {
+                    HL_Admin_Survey::instance()->render_tab();
+                }
+                break;
         }
     }
 
@@ -190,6 +206,8 @@ class HL_Admin_Assessment_Hub {
             } else {
                 HL_Admin_Instruments::instance()->render_teacher_tab($action);
             }
+        } elseif ($section === 'course-surveys' && class_exists('HL_Admin_Survey')) {
+            HL_Admin_Survey::instance()->render_tab();
         }
     }
 }
