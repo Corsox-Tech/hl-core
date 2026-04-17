@@ -865,6 +865,8 @@ jQuery(function ($) {
             var $compType = $('select[name="component_type_filter"]');
             if (evt.componentType) {
                 $compType.val(evt.componentType);
+            } else {
+                $compType.val('');
             }
 
             // Fire the existing trigger_key change handler to update offset/component-type/status-filter visibility.
