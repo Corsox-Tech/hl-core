@@ -3917,12 +3917,19 @@ class HL_Installer {
         global $wpdb;
         $table = $wpdb->prefix . 'hl_ticket';
 
-        // 1. Expand status enum (single-line to match rev 33 MariaDB-compatible pattern).
-        $res = $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN `status` enum('draft','open','in_review','in_progress','ready_for_test','test_failed','resolved','closed') NOT NULL DEFAULT 'open' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" );
+        // 1. Expand status enum (guard: skip if already applied — dbDelta may have handled it).
+        $col = $wpdb->get_row( $wpdb->prepare(
+            "SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = 'status'",
+            $table
+        ) );
 
-        if ( $res === false ) {
-            error_log( '[HL_INSTALLER] Rev 41 failed on status enum expansion: ' . $wpdb->last_error );
-            return false;
+        if ( ! $col || strpos( $col->COLUMN_TYPE, "'ready_for_test'" ) === false ) {
+            $res = $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN `status` enum('draft','open','in_review','in_progress','ready_for_test','test_failed','resolved','closed') NOT NULL DEFAULT 'open'" );
+            if ( $res === false ) {
+                error_log( '[HL_INSTALLER] Rev 41 failed on status enum expansion: ' . $wpdb->last_error );
+                return false;
+            }
         }
 
         // 2. Drop github_issue_id (idempotent guard).
@@ -4047,23 +4054,6 @@ class HL_Installer {
     }
 
     /**
-<<<<<<< HEAD
-     * Rev 42: Add survey_id column to hl_cycle for course survey assignment.
-     */
-    private static function migrate_cycle_add_survey_id() {
-        global $wpdb;
-        $table = $wpdb->prefix . 'hl_cycle';
-        $col_exists = $wpdb->get_var(
-            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-             WHERE TABLE_SCHEMA = DATABASE()
-             AND TABLE_NAME = '{$table}'
-             AND COLUMN_NAME = 'survey_id'"
-        );
-        if ( ! $col_exists ) {
-            $wpdb->query( "ALTER TABLE {$table} ADD COLUMN survey_id BIGINT UNSIGNED NULL AFTER cycle_type" );
-        }
-    }
-=======
      * Rev 42: Add requires_survey column to hl_course_catalog.
      */
     private static function migrate_add_catalog_requires_survey() {
@@ -4321,5 +4311,4 @@ class HL_Installer {
             ),
         );
     }
->>>>>>> feature/course-survey-builder
 }
