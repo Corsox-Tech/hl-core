@@ -264,6 +264,36 @@ if ( is_user_logged_in() && ! $is_picker_mode ) :
 <?php if ( $is_picker_mode ) : ?>
     <script src="<?php echo esc_url( HL_CORE_ASSETS_URL . 'js/hl-element-picker.js' ); ?>?ver=<?php echo esc_attr( HL_CORE_VERSION ); ?>"></script>
 <?php endif; ?>
+<?php
+// Survey Modal — for logged-in users on Program Page or Dashboard.
+if ( is_user_logged_in() && class_exists( 'HL_Frontend_Survey_Modal' ) ) :
+    $modal_instance = HL_Frontend_Survey_Modal::instance();
+    // Check if this is a survey trigger page (Program Page or Dashboard shortcode).
+    $is_survey_page = false;
+    if ( $post && ! empty( $post->post_content ) ) {
+        $is_survey_page = has_shortcode( $post->post_content, 'hl_program_page' )
+                       || has_shortcode( $post->post_content, 'hl_dashboard' );
+    }
+    if ( $is_survey_page ) : ?>
+        <link rel="stylesheet" href="<?php echo esc_url( HL_CORE_ASSETS_URL . 'css/survey-modal.css' ); ?>?ver=<?php echo esc_attr( HL_CORE_VERSION ); ?>">
+        <div id="hl-survey-modal-shell" style="display:none;"
+             data-check-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
+             data-check-nonce="<?php echo esc_attr( wp_create_nonce( 'hl_check_pending_surveys' ) ); ?>">
+            <div class="hl-survey-overlay" style="display:none;"></div>
+            <div class="hl-survey-modal" role="dialog" aria-modal="true" aria-labelledby="hl-survey-title" style="display:none;">
+                <div class="hl-survey-loading">
+                    <div class="hl-spinner"></div>
+                </div>
+                <div class="hl-survey-content" style="display:none;"></div>
+            </div>
+        </div>
+        <script>
+            var hlSurveyModal = { ajaxurl: '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>' };
+        </script>
+        <script src="<?php echo esc_url( HL_CORE_ASSETS_URL . 'js/survey-modal.js' ); ?>?ver=<?php echo esc_attr( HL_CORE_VERSION ); ?>"></script>
+    <?php endif;
+endif;
+?>
 <?php HL_Core::instance()->render_zoho_salesiq(); ?>
 </body>
 </html>

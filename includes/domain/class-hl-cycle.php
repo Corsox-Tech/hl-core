@@ -18,6 +18,7 @@ class HL_Cycle {
     public $partnership_id;
     public $is_control_group;
     public $cycle_type;
+    public $survey_id;
     public $status;
     public $start_date;
     public $end_date;
@@ -51,6 +52,7 @@ class HL_Cycle {
             'partnership_id' => $this->partnership_id,
             'is_control_group' => $this->is_control_group,
             'cycle_type' => $this->cycle_type,
+            'survey_id' => $this->survey_id,
             'status' => $this->status,
             'start_date' => $this->start_date,
             'end_date' => $this->end_date,
