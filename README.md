@@ -11,7 +11,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 
 ## What's Implemented
 
-### Database Schema (54 active custom tables + 1 planned)
+### Database Schema (57 active custom tables + 1 planned)
 - **Org & Partnership/Cycle:** `hl_orgunit` (+ `bb_group_id` FK to BuddyBoss group, schema rev 40), `hl_cycle` (with `is_control_group` flag + `cycle_type` column: program/course), `hl_cycle_school`, `hl_partnership` (program-level container)
 - **Individual Enrollments (PLANNED):** `hl_individual_enrollment` (user_id, course_id, enrolled_at, expires_at, status) — for standalone course purchases
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
@@ -27,11 +27,12 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 - **Guided Tours:** `hl_tour` (tour definitions with trigger type, target roles, status), `hl_tour_step` (ordered steps with element selector, position, step type), `hl_tour_seen` (per-user seen tracking)
 - **Feature Tracker:** `hl_ticket` (tickets with type/priority/status enums incl. `ready_for_test`/`test_failed` QA workflow, 2hr edit window, admin-gated status changes + creator approve/reject), `hl_ticket_comment` (flat comments per ticket)
 - **Email System:** `hl_email_template` (block-based templates with UNIQUE template_key), `hl_email_workflow` (trigger-based automation with conditions/recipients/send windows + Rev 39: `trigger_offset_minutes`, `component_type_filter`), `hl_email_queue` (central send queue with UUID claim pattern, dedup tokens), `hl_email_rate_limit` (per-user floor-bucketed hourly/daily/weekly limits)
+- **Course Surveys:** `hl_survey` (survey definitions with multilingual questions JSON, scale labels, versioning, UNIQUE type+version), `hl_course_survey_response` (per-enrollment per-course per-survey responses with UNIQUE constraint, cycle denormalized), `hl_pending_survey` (atomic queue for pending surveys with component_id for completion gate)
 - **System:** `hl_import_run`, `hl_audit_log`, `hl_cycle_email_log` (cycle email tracking)
 
 ### Domain Models & Repositories
-All 11 core entities have domain model classes with proper properties. 10 of 11 have repository classes with full CRUD (Teacher_Assessment_Instrument has a domain class but no repository):
-- OrgUnit, Partnership, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument, Cycle
+All 12 core entities have domain model classes with proper properties. 12 of 12 have repository classes with full CRUD:
+- OrgUnit, Partnership, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument, Cycle, Survey (+ Survey_Response_Repository for responses + pending queue)
 
 ### Services (Business Logic)
 - **CycleService** - Cycle CRUD with validation
@@ -49,6 +50,7 @@ All 11 core entities have domain model classes with proper properties. 10 of 11 
   - **Component eligibility** — `requires_classroom` + `eligible_roles` per component. Ineligible components excluded from completion %, shown as "Not Applicable" in frontend
 - **AssessmentService** - Teacher/Child assessment queries + completion checks + child assessment activity_state updates + rollup triggering on submission + instance auto-generation for cycle teaching assignments
 - **ObservationService** - Full observation CRUD: create draft observations, query by cycle/mentor/user with joined data, get observable teachers from team membership, teacher classroom lookup, observation component/form lookup
+- **SurveyService** - Survey completion gate (transactional pending INSERT + component state), response submission with validation (key whitelisting, type enforcement, wp_kses, 64KB max), double-submit handling, orphan resolution, survey duplication workflow
 - **CoachingService** - Full coaching session CRUD (create/update/delete) + attendance marking with activity_state updates + rollup triggering + observation linking/unlinking + attachment management (WP Media)
 - **AuditService** - Full audit logging to `hl_audit_log` table
 - **ImportService** - Thin orchestrator for CSV imports: CSV parsing (delimiter auto-detect, BOM stripping, header synonym mapping), import run CRUD, Partnership-scoped school lookups, error report generation. Delegates to **ImportParticipantHandler** (enrollment + auto-create classrooms, teaching assignments, teams, team memberships, coach assignments, pathway assignments) and **ImportChildrenHandler** (child records with required classroom, fingerprint dedup). All-or-nothing transactions. Cycle-scoped (runs inside Cycle Editor Import tab).

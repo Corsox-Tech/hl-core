@@ -1,6 +1,6 @@
 # STATUS.md — HL Core Build Status
 
-**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 23 admin controllers, 54 DB tables (schema rev 40), 34 services, 20 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools). **Email system deployed to test (April 2026).**
+**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 25 admin controllers, 57 DB tables (schema rev 42), 35 services, 20 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools). **Email system deployed to test (April 2026). Course Survey Builder implemented (April 2026).**
 
 ---
 
@@ -369,6 +369,25 @@ Pick up from the first unchecked `[ ]` item each session.
 - [ ] **Group Report page** — Reports Hub lists "Program Group Report" card with empty URL. Build dedicated page for cross-cycle aggregate metrics (see `class-hl-frontend-reports-hub.php`).
 - [ ] **Email v2: `validate_workflow_payload()` value field validation** — `class-hl-admin-emails.php` validates `field` and `op` keys against static registries but does not validate the `value` field or strip unknown keys from condition objects before storage. Not a security risk (value is only used in `loose_equals`/`in_array` comparisons, never in SQL or HTML output), but unknown keys persist in stored JSON. Fix: require `value` presence for non-null operators, validate type based on field type, strip unrecognized keys. Found during Track 1 PR #3 review.
 - [ ] **Email v2: residual `class_exists('HL_Roles')` guard** — `class-hl-email-recipient-resolver.php:501` inside `resolve_role()` post-filter loop. Out of Task 32's explicit scope. Safe to drop (HL_Roles is hard-required by bootstrap). Found during Track 3 foundation review.
+
+### Course Survey Builder (April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-15-course-survey-builder-design.md` | **Plan:** `docs/superpowers/plans/2026-04-15-course-survey-builder.md`
+> **Branch:** `feature/workflow-ux-m1` | **Schema rev:** 42 (3 new tables + 3 migrations)
+- [x] **Schema** — 3 new tables (`hl_survey`, `hl_course_survey_response`, `hl_pending_survey`), 3 ALTER TABLE migrations (`requires_survey` on catalog, `survey_id` on cycle, `survey_pending` ENUM on component_state). 2 seed surveys (2025 placeholder + 2026 active with 8 questions in EN/ES/PT). Idempotent migrations + seed.
+- [x] **Domain model** — `HL_Survey` with JSON parsing, multilingual text resolution (text_en/text_es/text_pt), scale label helpers.
+- [x] **Repositories** — `HL_Survey_Repository` (CRUD, version management, response counting) + `HL_Survey_Response_Repository` (responses + pending queue, LEFT JOIN for orphan safety, report queries with cycle/catalog/date filters).
+- [x] **Service layer** — `HL_Survey_Service`: completion gate (transactional INSERT pending → UPDATE state), response submission (transactional with double-submit handling), server-side validation (key whitelisting, likert 1-5, wp_kses, 64KB max), orphan resolution (while loop, max 50), survey duplication.
+- [x] **LD completion gate** — Survey gate in `on_course_completed()` catalog path. Lazy-init service (check cycle survey_id first). Skip survey_pending re-gate. Writes `survey_pending` / 100% to component_state.
+- [x] **Rules engine + rollups** — `survey_pending` excluded from prerequisite satisfaction (already `=== 'complete'` only). Rollup weighted sum treats `survey_pending` as 0% to prevent premature `hl_pathway_completed`.
+- [x] **Frontend modal** — `HL_Frontend_Survey_Modal` (AJAX-loaded for cache safety). `survey-modal.js` (focus trap, roving tabindex Likert nav, sessionStorage draft save, nonce expiry auto-retry, double-submit guard). `survey-modal.css` (z-index 100001/100002, 44px touch targets, 576px responsive pill stack). Conditionally enqueued on Program Page + Dashboard only.
+- [x] **Program Page state** — `survey_pending` overlay (amber badge, translated sub-label: "Complete the survey to finish this course"). Clickable to open modal.
+- [x] **Admin editor** — `HL_Admin_Survey` (814 lines) on Instruments > Course Surveys tab. List view with status pills, response counts, cycle usage. Editor with EN/ES/PT question fields, scale labels, intro/group text. Locked state when responses exist. Duplicate-as-new-version workflow. Delete responses with component completion cleanup. Orphan detection notice (>30 day pending).
+- [x] **Cycle dropdown** — Survey dropdown in Cycle editor with audit logging on change.
+- [x] **Catalog checkbox** — "Requires End of Course Survey" checkbox on Course Catalog add/edit form.
+- [x] **Reports** — `HL_Admin_Survey_Reports` (945 lines). Summary view (per-question Likert distribution + per-course comparison sorted weakest-first). Open text view (paginated). CSV export (2-row headers: keys + question text). Bulk delete with audit. Nonce-protected export.
+- [x] **Admin bypass** — Manual component completion cleans up pending rows + audit event `survey_gate.admin_bypass`.
+- [x] **Code review fixes** — 7 findings resolved: CSV nonce, transaction safety (gate + submit + double-submit), ENUM mismatch, required checkbox key-based naming, Likert required conditional, nonce "0" detection.
+- [ ] **Deployed to test** — Pending.
 
 ---
 
