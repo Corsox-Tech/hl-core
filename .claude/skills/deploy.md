@@ -81,7 +81,7 @@ ssh -i ~/.ssh/hla-test-keypair.pem bitnami@44.221.6.201 'export PATH=/opt/bitnam
 ```bash
 # From local machine:
 cd "C:/Users/MateoGonzalez/Dev Projects Mateo/housman-learning-academy/app/public/wp-content/plugins/hl-core"
-tar --exclude='.git' --exclude='data' --exclude='./vendor' --exclude='node_modules' --exclude='.superpowers' -czf /tmp/hl-core.tar.gz -C .. hl-core
+tar --exclude='.git' --exclude='data' --exclude='./vendor' --exclude='node_modules' --exclude='.superpowers' --exclude='.playwright-mcp' --exclude='.claude' -czf /tmp/hl-core.tar.gz -C .. hl-core
 scp -i ~/.ssh/hla-test-keypair.pem /tmp/hl-core.tar.gz bitnami@44.221.6.201:/tmp/
 ssh -i ~/.ssh/hla-test-keypair.pem bitnami@44.221.6.201 'cd /opt/bitnami/wordpress/wp-content/plugins && sudo rm -rf hl-core && sudo tar -xzf /tmp/hl-core.tar.gz && sudo chown -R bitnami:daemon hl-core'
 ```
@@ -124,7 +124,7 @@ ssh -p 65002 u665917738@145.223.76.150 "cd /home/u665917738/domains/academy.hous
 ```bash
 # From local machine:
 cd "C:/Users/MateoGonzalez/Dev Projects Mateo/housman-learning-academy/app/public/wp-content/plugins/hl-core"
-tar --exclude='.git' --exclude='data' --exclude='./vendor' --exclude='node_modules' --exclude='.superpowers' -czf /tmp/hl-core.tar.gz -C .. hl-core
+tar --exclude='.git' --exclude='data' --exclude='./vendor' --exclude='node_modules' --exclude='.superpowers' --exclude='.playwright-mcp' --exclude='.claude' -czf /tmp/hl-core.tar.gz -C .. hl-core
 scp -P 65002 /tmp/hl-core.tar.gz u665917738@145.223.76.150:/tmp/
 ssh -p 65002 u665917738@145.223.76.150 'cd /home/u665917738/domains/academy.housmanlearning.com/public_html/wp-content/plugins && rm -rf hl-core && tar -xzf /tmp/hl-core.tar.gz'
 ```

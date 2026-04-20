@@ -13,7 +13,8 @@ jobs:
       - name: Create tarball
         run: |
           tar --exclude='.git' --exclude='data' --exclude='vendor' --exclude='node_modules' \
-            --exclude='.superpowers' --exclude='*.xlsx' \
+            --exclude='.superpowers' --exclude='.playwright-mcp' --exclude='.claude' \
+            --exclude='*.xlsx' \
             -czf /tmp/hl-core-${{ github.sha }}.tar.gz -C . .
 
       - name: Setup SSH key
