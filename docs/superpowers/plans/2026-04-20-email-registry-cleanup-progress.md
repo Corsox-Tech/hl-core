@@ -22,7 +22,55 @@ This file is the single source of truth for session progress. Every meaningful c
 
 ## Change log (newest first)
 
-### 2026-04-20 — CRITICAL FINDING: prod was rolled back today, plan target is ambiguous
+### 2026-04-20 — SMOKING GUN: prod was overwritten with local-machine tarball (not a deliberate rollback)
+
+Investigation after Mateo said "I had no idea it was rolled back." The rollback was caused by **a tarball built from Mateo's local checkout being deployed to prod**, not an intentional version revert. The Playwright MCP artifacts that ended up on prod prove it.
+
+**Evidence:**
+
+1. **Prod `hl-core.php` mtime = `2026-04-20 14:45:32 UTC`.** Local `hl-core.php` mtime = `2026-04-20 10:45:32 EDT = 14:45:32 UTC`. **Identical.** Tar preserves file mtimes — this is the tarball source.
+
+2. **Prod `.playwright-mcp/` contains identical files to local `.playwright-mcp/`.** Console logs `console-2026-04-20T14-02-10-368Z.log` through `console-2026-04-20T14-09-05-630Z.log` all match byte-for-byte.
+
+3. **Prod `/tmp/hl-core.tar.gz` mtime = `2026-04-20 15:11:41 UTC`.** Local `/tmp/hl-core.tar.gz` mtime = `2026-04-20 11:09 EDT = 15:09 UTC`. **2-minute gap** — consistent with `scp` + `ssh tar -xzf` sequence.
+
+4. **Both tarballs contain v1.2.2 code** (verified with `tar -xzOf ... hl-core.php | grep HL_CORE_VERSION`).
+
+5. **Prod has NO `.git` directory.** Auto-pull from GitHub is not the mechanism.
+
+6. **`.github/workflows/deploy-test.yml` exists** but it targets the **TEST** server (44.221.6.201), not prod. Only fires on push to `main`. Not the culprit.
+
+7. **Prod `.bash_history` has no tarball-extract entry for today** — but the SSH user's history file only captures interactive shells; a one-line `ssh host "tar -xzf ..."` command from a remote client wouldn't write to the remote's history.
+
+**What was on prod before (lost):** Everything on `feature/workflow-ux-m1` that wasn't on `main`:
+- M2 cascade picker + `get_trigger_categories()`
+- Course Survey Builder (3 tables, schema rev 42)
+- Ticket QA workflow (`ready_for_test` / `test_failed` statuses)
+- D-1 email notification on `ready_for_test`
+- Ticket #6 Support sidebar restoration
+- Ticket #23 Community sidebar split
+- Multiple email/survey fixes
+- Version 1.2.6 (rolled back to 1.2.2)
+
+**Potential source of the rogue deploy:**
+- Another Claude Code session running in parallel on Mateo's machine
+- A script / IDE task / sync tool auto-deploying
+- A manual action Mateo doesn't recall
+
+The deploy definitely originated from Mateo's local machine (byte-identical tarball proof) — but *who/what issued the commands* is unclear. Not diagnosing further without Mateo's input.
+
+**Open risks:**
+- Schema/code drift: if prod's DB has tables from rev 29-42 (Course Surveys, Ticket QA, etc.) but the code is v1.2.2 (rev 27ish), queries will fail.
+- `.playwright-mcp/` artifacts are now on prod, visible to anyone scraping the plugin directory.
+- No `.playwright-mcp/` in `.gitignore` or tar `--exclude` list → future tarballs will re-ship them.
+
+**Halting all deploys/changes until Mateo confirms:**
+- What will prevent a repeat deploy from rolling back any recovery work?
+- Is it safe to redeploy v1.2.6 from `feature/workflow-ux-m1`, or has something on that branch been compromised too?
+
+---
+
+### 2026-04-20 — CRITICAL FINDING: prod was rolled back today, plan target is ambiguous (SUPERSEDED by above)
 
 Mateo suggested checking whether M2 might be deployed but uncommitted. Thorough check revealed something bigger:
 
