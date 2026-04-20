@@ -335,7 +335,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Component Page routing** — `HL_Frontend_Component_Page::render()` adds a `not_applicable` branch that renders a "This Component is Closed" view instead of the submission form.
 - [x] **Assessment service guard** — `HL_Assessment_Service::save_teacher_assessment_responses()` + `save_child_assessment_responses()` return `cycle_archived` WP_Error when the instance's cycle is archived (protects direct shortcode POST paths).
 - [x] **Deployed to test** — 2026-04-20. Verified via `wp eval`: 3 PB users (Antkeria Smith #305, Tasha Pagan #1408, Zariah Baugh #1490) now see 2 pathway cards each (2025 + 2026); archived-only users correctly show no cards; rules engine returns `not_applicable` for cycle-7 assessments and `available` for cycle-7 courses; component page shows closed view for archived assessments; assessment save service blocks archived writes and passes active writes.
-- [ ] **Deployed to prod** — Pending user approval.
+- [x] **Deployed to prod** — 2026-04-20. All 7 prod checks pass: 3 PB users see 2 cards each; archived-only user correctly drops; archived assessment → `not_applicable`; archived course → not gated by this rule; active assessment unaffected; Component Page shows closed view; assessment save service returns `cycle_archived` for archived writes. Baseline (92 archived-cycle submissions, last 2025-07-29) unchanged post-deploy. Ticket #18 flipped to `ready_for_test` on prod with summary comment.
 
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
