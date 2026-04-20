@@ -488,7 +488,7 @@ class HL_BuddyBoss_Integration {
                 array('community-global', null,                   __('Global Community', 'hl-core'),    'dashicons-admin-site-alt3',  $has_enrollment || $is_coach || $is_staff),
                 array('community-school', null,                   __('My School Community', 'hl-core'), 'dashicons-groups',           $has_enrollment || $is_coach || $is_staff),
                 array('feature-tracker', 'hl_feature_tracker', __('Feature Tracker', 'hl-core'), 'dashicons-feedback', $is_staff),
-                array('support',        null,                 __('Support', 'hl-core'),         'dashicons-sos',                  true),
+                array('support',        null,                 __('Support', 'hl-core'),         'dashicons-email-alt',            true),
                 // --- Admin ---
                 array('wp-admin', null, __('WP Admin', 'hl-core'), 'dashicons-admin-generic', $is_admin_level),
             );
