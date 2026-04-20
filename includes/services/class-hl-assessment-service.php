@@ -272,6 +272,15 @@ class HL_Assessment_Service {
             return new WP_Error( 'not_found', __( 'Assessment instance not found.', 'hl-core' ) );
         }
 
+        // Ticket #18 safety net: refuse writes to instances in archived cycles.
+        $cycle_status = $wpdb->get_var( $wpdb->prepare(
+            "SELECT status FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+            (int) $instance['cycle_id']
+        ) );
+        if ( $cycle_status === 'archived' ) {
+            return new WP_Error( 'cycle_archived', __( 'This assessment belongs to a program cycle that has ended and is closed for submissions.', 'hl-core' ) );
+        }
+
         if ( $instance['status'] === 'submitted' ) {
             return new WP_Error( 'already_submitted', __( 'This assessment has already been submitted.', 'hl-core' ) );
         }
@@ -710,6 +719,15 @@ class HL_Assessment_Service {
 
         if ( ! $instance ) {
             return new WP_Error( 'not_found', __( 'child assessment instance not found.', 'hl-core' ) );
+        }
+
+        // Ticket #18 safety net: refuse writes to instances in archived cycles.
+        $cycle_status = $wpdb->get_var( $wpdb->prepare(
+            "SELECT status FROM {$wpdb->prefix}hl_cycle WHERE cycle_id = %d",
+            (int) $instance['cycle_id']
+        ) );
+        if ( $cycle_status === 'archived' ) {
+            return new WP_Error( 'cycle_archived', __( 'This assessment belongs to a program cycle that has ended and is closed for submissions.', 'hl-core' ) );
         }
 
         if ( $instance['status'] === 'submitted' ) {

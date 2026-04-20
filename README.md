@@ -48,6 +48,7 @@ All 12 core entities have domain model classes with proper properties. 12 of 12 
   - Override handling (exempt, manual_unlock, grace_unlock)
   - Prerequisite cycle detection (DFS-based) with admin validation on save
   - **Component eligibility** — `requires_classroom` + `eligible_roles` per component. Ineligible components excluded from completion %, shown as "Not Applicable" in frontend
+  - **Archived-cycle gate** (Ticket #18) — Non-`learndash_course` components in archived cycles return `not_applicable`, so continuing-pathway cards surface only their courses for completion. Courses remain available. Companion guards in Component Page routing + `HL_Assessment_Service` save methods reject direct-URL POST bypasses.
 - **AssessmentService** - Teacher/Child assessment queries + completion checks + child assessment activity_state updates + rollup triggering on submission + instance auto-generation for cycle teaching assignments
 - **ObservationService** - Full observation CRUD: create draft observations, query by cycle/mentor/user with joined data, get observable teachers from team membership, teacher classroom lookup, observation component/form lookup
 - **SurveyService** - Survey completion gate (transactional pending INSERT + component state), response submission with validation (key whitelisting, type enforcement, wp_kses, 64KB max), double-submit handling, orphan resolution, survey duplication workflow

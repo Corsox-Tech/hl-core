@@ -191,7 +191,9 @@ class HL_Frontend_Component_Page {
             $form_types = array('classroom_visit', 'self_reflection', 'reflective_practice_session', 'coaching_session_attendance');
             $is_form_type = in_array($component->component_type, $form_types, true);
 
-            if ($avail_status === 'locked') {
+            if ($avail_status === 'not_applicable') {
+                $this->render_not_applicable_view($component);
+            } elseif ($avail_status === 'locked') {
                 $this->render_locked_view($availability);
             } elseif ($avail_status === 'completed' && !$is_form_type) {
                 $this->render_completed_view($component);
@@ -203,6 +205,23 @@ class HL_Frontend_Component_Page {
         <?php
 
         return ob_get_clean();
+    }
+
+    /**
+     * Render a closed-out component view for components whose window has
+     * passed with their cycle. Used when an archived-cycle non-course
+     * component is reached via direct URL.
+     */
+    private function render_not_applicable_view($component) {
+        ?>
+        <div class="hl-component-locked-view">
+            <div class="hl-lock-icon">&#128274;</div>
+            <h3><?php esc_html_e('This Component is Closed', 'hl-core'); ?></h3>
+            <p>
+                <?php esc_html_e('This component belongs to a program cycle that has ended. It is no longer open for submission. You can still continue any courses from this cycle from your My Programs page.', 'hl-core'); ?>
+            </p>
+        </div>
+        <?php
     }
 
     /**

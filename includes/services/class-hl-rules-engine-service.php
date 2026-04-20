@@ -52,6 +52,26 @@ class HL_Rules_Engine_Service {
         global $wpdb;
         $prefix = $wpdb->prefix;
 
+        // Archived-cycle gate (Ticket #18 safety net):
+        // When a user continues a pathway from a prior cycle in the same
+        // partnership, only LearnDash courses remain accessible. All other
+        // component types close out with the cycle.
+        $ctx = $wpdb->get_row($wpdb->prepare(
+            "SELECT comp.component_type, c.status AS cycle_status
+             FROM {$prefix}hl_component comp
+             JOIN {$prefix}hl_cycle c ON c.cycle_id = comp.cycle_id
+             WHERE comp.component_id = %d",
+            $component_id
+        ));
+        if ($ctx && $ctx->cycle_status === 'archived' && $ctx->component_type !== 'learndash_course') {
+            return array(
+                'availability_status' => 'not_applicable',
+                'locked_reason'       => null,
+                'blockers'            => array(),
+                'next_available_at'   => null,
+            );
+        }
+
         // Eligibility gate.
         $elig_data = $wpdb->get_row($wpdb->prepare(
             "SELECT requires_classroom, eligible_roles FROM {$prefix}hl_component WHERE component_id = %d",

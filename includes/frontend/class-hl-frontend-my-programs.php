@@ -54,12 +54,19 @@ class HL_Frontend_My_Programs {
 
         $user_id = get_current_user_id();
 
-        // Fetch active enrollments for this user.
-        $all_enrollments = $this->enrollment_repo->get_all(array('status' => 'active'));
+        // Fetch active enrollments for this user, including archived-cycle
+        // enrollments so users can continue courses from prior cycles in the
+        // same partnership (Ticket #18). Non-continuing archived enrollments
+        // are dropped by filter_continuing_enrollments().
+        $all_enrollments = $this->enrollment_repo->get_all(array(
+            'status'           => 'active',
+            'include_archived' => true,
+        ));
         $enrollments = array_filter($all_enrollments, function ($enrollment) use ($user_id) {
             return (int) $enrollment->user_id === $user_id;
         });
         $enrollments = array_values($enrollments);
+        $enrollments = $this->filter_continuing_enrollments($enrollments);
 
         // Build program cards data.
         $cards = array();
@@ -196,6 +203,71 @@ class HL_Frontend_My_Programs {
         <?php
 
         return ob_get_clean();
+    }
+
+    /**
+     * Keep archived-cycle enrollments only when the user still has an active
+     * enrollment elsewhere in the same partnership. Active-cycle enrollments
+     * pass through unchanged. See Ticket #18.
+     *
+     * @param HL_Enrollment[] $enrollments Already filtered to the current user.
+     * @return HL_Enrollment[]
+     */
+    private function filter_continuing_enrollments(array $enrollments) {
+        if (empty($enrollments)) {
+            return $enrollments;
+        }
+
+        global $wpdb;
+
+        $cycle_ids = array_values(array_unique(array_map(function ($e) {
+            return (int) $e->cycle_id;
+        }, $enrollments)));
+
+        if (empty($cycle_ids)) {
+            return $enrollments;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($cycle_ids), '%d'));
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $cycle_rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT cycle_id, status, partnership_id
+             FROM {$wpdb->prefix}hl_cycle
+             WHERE cycle_id IN ({$placeholders})",
+            $cycle_ids
+        ));
+
+        $cycle_info = array();
+        foreach ($cycle_rows as $row) {
+            $cycle_info[(int) $row->cycle_id] = array(
+                'status'         => $row->status,
+                'partnership_id' => $row->partnership_id !== null ? (int) $row->partnership_id : null,
+            );
+        }
+
+        // Partnerships where this user has ≥1 active-cycle enrollment.
+        $active_partnerships = array();
+        foreach ($enrollments as $e) {
+            $info = $cycle_info[(int) $e->cycle_id] ?? null;
+            if ($info && $info['status'] === 'active' && $info['partnership_id']) {
+                $active_partnerships[$info['partnership_id']] = true;
+            }
+        }
+
+        return array_values(array_filter($enrollments, function ($e) use ($cycle_info, $active_partnerships) {
+            $info = $cycle_info[(int) $e->cycle_id] ?? null;
+            if (!$info) {
+                return false;
+            }
+            if ($info['status'] === 'active') {
+                return true;
+            }
+            if ($info['status'] === 'archived' && $info['partnership_id']
+                && isset($active_partnerships[$info['partnership_id']])) {
+                return true;
+            }
+            return false;
+        }));
     }
 
     /**
