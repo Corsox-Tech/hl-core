@@ -459,7 +459,7 @@ class HL_BuddyBoss_Integration {
                 array('documentation',      'hl_docs',               __('Documentation', 'hl-core'),    'dashicons-media-document',       true),
                 array('community',        null,                  __('Community', 'hl-core'),        'dashicons-format-status',        true),
                 array('feature-tracker', 'hl_feature_tracker', __('Feature Tracker', 'hl-core'), 'dashicons-feedback', true),
-                array('support',         null,                 __('Support', 'hl-core'),         'dashicons-sos',                  true),
+                array('support',         null,                 __('Support', 'hl-core'),         'dashicons-email-alt',            true),
             );
         } else {
             $menu_def = array(
