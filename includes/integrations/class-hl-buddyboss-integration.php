@@ -457,7 +457,8 @@ class HL_BuddyBoss_Integration {
                 array('coach-availability', 'hl_coach_availability', __('My Availability', 'hl-core'),  'dashicons-calendar-alt',         true),
                 array('coach-reports',      'hl_coach_reports',      __('Coach Reports', 'hl-core'),    'dashicons-chart-bar',            true),
                 array('documentation',      'hl_docs',               __('Documentation', 'hl-core'),    'dashicons-media-document',       true),
-                array('community',        null,                  __('Community', 'hl-core'),        'dashicons-format-status',        true),
+                array('community-global',   null,                    __('Global Community', 'hl-core'),    'dashicons-admin-site-alt3',   true),
+                array('community-school',   null,                    __('My School Community', 'hl-core'), 'dashicons-groups',            true),
                 array('feature-tracker', 'hl_feature_tracker', __('Feature Tracker', 'hl-core'), 'dashicons-feedback', true),
                 array('support',         null,                 __('Support', 'hl-core'),         'dashicons-email-alt',            true),
             );
@@ -484,7 +485,8 @@ class HL_BuddyBoss_Integration {
                 array('reports',        'hl_reports_hub',          __('Reports', 'hl-core'),        'dashicons-chart-bar',            $is_staff || $is_leader),
                 // --- Documentation ---
                 array('documentation', 'hl_docs',                 __('Documentation', 'hl-core'),  'dashicons-media-document',       $is_admin_level),
-                array('community',      null,                  __('Community', 'hl-core'),        'dashicons-format-status',        $has_enrollment || $is_coach || $is_staff),
+                array('community-global', null,                   __('Global Community', 'hl-core'),    'dashicons-admin-site-alt3',  $has_enrollment || $is_coach || $is_staff),
+                array('community-school', null,                   __('My School Community', 'hl-core'), 'dashicons-groups',           $has_enrollment || $is_coach || $is_staff),
                 array('feature-tracker', 'hl_feature_tracker', __('Feature Tracker', 'hl-core'), 'dashicons-feedback', $is_staff),
                 array('support',        null,                 __('Support', 'hl-core'),         'dashicons-sos',                  true),
                 // --- Admin ---
@@ -501,8 +503,14 @@ class HL_BuddyBoss_Integration {
             if ($shortcode === null) {
                 if ($slug === 'wp-admin') {
                     $url = admin_url();
-                } elseif ($slug === 'community') {
+                } elseif ($slug === 'community-global') {
                     $url = home_url('/groups/begin-to-ecsel-global-community/');
+                } elseif ($slug === 'community-school') {
+                    // Resolve per-user: hide the item if the user has no mapped school.
+                    $school_slug = class_exists('HL_BB_Group_Sync_Service')
+                        ? HL_BB_Group_Sync_Service::get_user_primary_school_group_slug(get_current_user_id())
+                        : null;
+                    $url = $school_slug ? home_url('/groups/' . $school_slug . '/') : '';
                 } elseif ($slug === 'support') {
                     $support_page = get_page_by_path('support');
                     $url = $support_page ? get_permalink($support_page) : '';

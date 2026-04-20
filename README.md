@@ -230,7 +230,7 @@ Full CRUD admin pages with WordPress-styled tables and forms:
 
 ### BuddyBoss Integration
 - **HL_BuddyBoss_Integration** service (`includes/integrations/class-hl-buddyboss-integration.php`)
-- **BB Group Sync** — `HL_BB_Group_Sync_Service` automatically syncs BuddyBoss group memberships when enrollments change or coach/coaching_director roles are assigned/removed. OrgUnit-level `bb_group_id` (schema rev 40) + global Community/Mentor group settings. Admin BuddyBoss Groups settings tab. WP-CLI `bb-sync` for bulk resync.
+- **BB Group Sync** — `HL_BB_Group_Sync_Service` automatically syncs BuddyBoss group memberships when enrollments change or coach/coaching_director roles are assigned/removed. OrgUnit-level `bb_group_id` (schema rev 40) + global Community/Mentor group settings. Admin BuddyBoss Groups settings tab. WP-CLI `bb-sync` for bulk resync. Helper `get_user_primary_school_group_slug()` resolves a user's school BB group for the "My School Community" sidebar link (ticket #23) — picker-mode aware, null-safe for control-group users.
 - **Custom HL Sidebar** — Dark navy sidebar replacing BuddyBoss BuddyPanel:
   - `render_hl_sidebar()` outputs sidebar HTML via `wp_footer` (priority 5), JS repositions into grid layout
   - `add_sidebar_body_class()` adds `hl-has-sidebar` to `<body>` for CSS grid layout

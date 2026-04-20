@@ -367,6 +367,15 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Sidebar link re-added** — `Support` item appended at the bottom of both menu defs (coach + non-coach) in `HL_BuddyBoss_Integration::build_menu_items()`. URL resolved defensively via `get_page_by_path('support')` → `get_permalink()`. Visible to all menu-seeing users (teachers, mentors, leaders, coaches, staff). Icon: `dashicons-sos`. Existing Support page (ID 27383, Zoho Forms embed) unchanged.
 - [x] **Deployed to test** — 2026-04-17. WP-CLI verified: admin, teacher, and coach menus all include Support at correct position with resolved URL.
 
+### B2E School Community Sidebar Entry (Ticket #23 — April 2026)
+- [x] **South Haven BB groups created on prod** — 4 hidden BP groups (IDs 59-62) for Jefferson/Lincoln/Oakwood/Roosevelt; `hl_orgunit.bb_group_id` populated; 38 affected users auto-synced via `HL_BB_Group_Sync_Service::sync_users_in_group()`. Prod now has 10/21 schools mapped; remaining 11 are LSF control-group (intentionally unmapped).
+- [x] **Helper `HL_BB_Group_Sync_Service::get_user_primary_school_group_slug()`** — returns BB group slug for user's primary active program-cycle school; returns `null` when BP Groups unavailable, `HL_Tour_Service` picker mode active, or user has no mapped school (control users, no enrollment). Per-request static cache keyed on `$user_id`. Picker-mode guard covers view-as-role; real User Switching impersonation works naturally via `get_current_user_id()`.
+- [x] **Split Community sidebar item** — replaced single `community` entry with two flat entries in both `$menu_def` branches (coach + default) of `HL_BuddyBoss_Integration::build_menu_items()`:
+  - `community-global` (dashicons-admin-site-alt3) → `/groups/begin-to-ecsel-global-community/` — always shown to enrolled/coach/staff
+  - `community-school` (dashicons-groups) → user's school group URL — hidden gracefully when helper returns null (empty URL, skipped by existing `if ($url)` gate at line 523)
+- [x] **Deployed to test** — 2026-04-17. WP-CLI verified for 5 users: Antkeria Smith → abc-playschool, Tasha Pagan → bright-ideas, Zariah Baugh → stepping-stones, Admin Corsox (control group) → only Global, Mateo (admin no enrollment) → only Global.
+- [ ] **Multi-school disambiguation page** — follow-up. Query confirmed zero users currently enrolled at 2+ mapped schools on prod. Build when first multi-school user appears.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)

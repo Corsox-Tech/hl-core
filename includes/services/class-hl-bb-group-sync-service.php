@@ -15,6 +15,9 @@ class HL_BB_Group_Sync_Service {
     /** @var int[]|null Deferred user IDs for bulk mode, null = not in bulk */
     private static $deferred_user_ids = null;
 
+    /** @var array<int, string|null> Per-request cache of user_id => primary school group slug */
+    private static $user_school_slug_cache = array();
+
     /**
      * Check if BuddyBoss Groups API is available.
      */
@@ -56,6 +59,57 @@ class HL_BB_Group_Sync_Service {
      */
     public static function invalidate_cache(): void {
         self::$managed_group_ids_cache = null;
+        self::$user_school_slug_cache  = array();
+    }
+
+    /**
+     * Resolve the user's primary school BB group slug for the sidebar
+     * "My School Community" link. Returns null when:
+     *   - BuddyBoss Groups isn't available
+     *   - HL_Tour_Service picker mode is active (role preview, no real user)
+     *   - The user has no active program-cycle enrollment at a mapped school
+     *     (covers control-group users and users with no school_id)
+     *
+     * Picks the lowest orgunit_id when a user is enrolled at multiple mapped
+     * schools. Follow-up ticket: disambiguation page for multi-school users.
+     */
+    public static function get_user_primary_school_group_slug( int $user_id ): ?string {
+        if ( $user_id <= 0 ) {
+            return null;
+        }
+        if ( array_key_exists( $user_id, self::$user_school_slug_cache ) ) {
+            return self::$user_school_slug_cache[ $user_id ];
+        }
+        if ( ! self::is_bb_groups_available() ) {
+            return self::$user_school_slug_cache[ $user_id ] = null;
+        }
+        if ( class_exists( 'HL_Tour_Service' ) && HL_Tour_Service::is_picker_mode() ) {
+            return self::$user_school_slug_cache[ $user_id ] = null;
+        }
+
+        global $wpdb;
+        $group_id = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT o.bb_group_id
+             FROM {$wpdb->prefix}hl_enrollment e
+             JOIN {$wpdb->prefix}hl_cycle c ON c.cycle_id = e.cycle_id
+             JOIN {$wpdb->prefix}hl_orgunit o ON o.orgunit_id = e.school_id
+             WHERE e.user_id = %d
+               AND e.status = 'active'
+               AND c.cycle_type = 'program'
+               AND c.status != 'archived'
+               AND o.bb_group_id IS NOT NULL
+               AND o.bb_group_id > 0
+             ORDER BY o.orgunit_id ASC
+             LIMIT 1",
+            $user_id
+        ) );
+        if ( $group_id <= 0 ) {
+            return self::$user_school_slug_cache[ $user_id ] = null;
+        }
+
+        $group = groups_get_group( $group_id );
+        $slug  = ( is_object( $group ) && ! empty( $group->slug ) ) ? (string) $group->slug : null;
+        return self::$user_school_slug_cache[ $user_id ] = $slug;
     }
 
     /**
