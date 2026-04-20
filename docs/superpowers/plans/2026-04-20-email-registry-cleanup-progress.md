@@ -22,6 +22,23 @@ This file is the single source of truth for session progress. Every meaningful c
 
 ## Change log (newest first)
 
+### 2026-04-20 — BLOCKER: branching strategy decision needed
+
+Discovered while preparing to edit `get_trigger_categories()`: that function does not exist on the current branch (`feature/email-registry-cleanup`, cut from `feature/ticket-18-continuing-pathways`, which was cut from `main`).
+
+`get_trigger_categories()` and the M2 cascade picker were introduced on `feature/workflow-ux-m1` in commits `3c53332` (Apr 16) and `5255e06` (Apr 16). That branch has **30+ commits ahead of main** covering M2 cascade, Course Survey Builder, Ticket QA workflow, Ticket D-1 email notification, several nav/sidebar tickets, etc. None of it has merged.
+
+Options for Mateo to decide:
+
+1. **Rebase cleanup onto `feature/workflow-ux-m1`** — fastest, but this cleanup can't merge until workflow-ux-m1 merges. If workflow-ux-m1 doesn't merge, this doesn't either.
+2. **Wait for workflow-ux-m1 to merge to main**, then rebase cleanup onto main. Clean but blocked on external action.
+3. **Cherry-pick just the M2 cascade commits** onto current cleanup branch — isolates dependency, but weird history.
+4. **Merge workflow-ux-m1 → main first** as a separate action, then cut cleanup from main.
+
+Not my call to make. Logging and waiting for user direction.
+
+---
+
 ### 2026-04-20 — Audit: component_type_filter usage
 
 **Prod:** `SELECT COUNT(*) FROM wp_hl_email_workflow` → **0 rows.** Clean slate.
