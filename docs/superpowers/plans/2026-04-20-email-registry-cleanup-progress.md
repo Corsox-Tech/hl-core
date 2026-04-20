@@ -22,7 +22,40 @@ This file is the single source of truth for session progress. Every meaningful c
 
 ## Change log (newest first)
 
-### 2026-04-20 — BLOCKER: branching strategy decision needed
+### 2026-04-20 — CRITICAL FINDING: prod was rolled back today, plan target is ambiguous
+
+Mateo suggested checking whether M2 might be deployed but uncommitted. Thorough check revealed something bigger:
+
+| Environment | Version | `class-hl-admin-emails.php` lines | M2 cascade? | File mtime |
+|---|---|---|---|---|
+| **Prod** | 1.2.2 | 1896 | **No** | 2026-04-20 14:45 UTC |
+| **Test** | 1.2.6 | 2876 | **Yes** | 2026-04-20 14:41 UTC |
+| `feature/workflow-ux-m1` HEAD | 1.2.6 | (matches test) | Yes | — |
+| `main` / `feature/ticket-18-continuing-pathways` / `feature/email-registry-cleanup` | 1.2.2 | 1896 | **No** | — |
+
+**What this means:**
+
+1. **Prod was deployed today at 14:45 UTC with v1.2.2 code.** This is a rollback from v1.2.6 that was on prod previously (during the D-1 email work). Reason unknown.
+2. **Test has the M2 cascade** from `feature/workflow-ux-m1` v1.2.6. That deploy happened 4 minutes before the prod rollback.
+3. **Prod's email builder does NOT have `get_trigger_categories()` at all.** No Category→Event cascade. No `hidden: true` flag. It has the older flat-trigger-key dropdown builder (from before M2).
+
+**Consequences for Chris's 19 workflows:**
+
+- If we launch the Playwright agent **against prod**, it will encounter the pre-M2 builder. The registry cleanup plan doesn't apply. Chris would use the flat dropdown.
+- If we launch it **against test**, the cascade is available, but workflows created there won't be on prod — Chris can't actually use them until prod gets re-upgraded.
+- The cleanup plan only makes sense if we're targeting a codebase that has the cascade.
+
+**The right question to answer before proceeding:**
+
+1. Why was prod rolled back to v1.2.2 at 14:45 UTC today? Bug, deliberate revert, something else?
+2. What's the plan to get prod back on the latest code (v1.2.6 or equivalent)?
+3. Until prod upgrades, do we build Chris's workflows on test, or on prod using the old builder?
+
+The branching-strategy question I raised earlier is secondary. The deployment-state question is primary.
+
+---
+
+### 2026-04-20 — BLOCKER: branching strategy decision needed (SUPERSEDED by above)
 
 Discovered while preparing to edit `get_trigger_categories()`: that function does not exist on the current branch (`feature/email-registry-cleanup`, cut from `feature/ticket-18-continuing-pathways`, which was cut from `main`).
 
