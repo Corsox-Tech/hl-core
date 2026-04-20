@@ -22,7 +22,28 @@ This file is the single source of truth for session progress. Every meaningful c
 
 ## Change log (newest first)
 
-### 2026-04-20 — SMOKING GUN: prod was overwritten with local-machine tarball (not a deliberate rollback)
+### 2026-04-20 — CAUSE CONFIRMED: parallel Claude Code session deployed `feature/ticket-18-continuing-pathways` to prod
+
+Mateo confirmed: a parallel Claude Code session was working on `feature/ticket-18-continuing-pathways` and deployed it to prod via SCP + tar-extract. The session didn't realize that branch was cut from `main` and therefore lacks all the `feature/workflow-ux-m1` work (M2 cascade, Course Surveys, Ticket QA, D-1 email, nav tickets, etc.). The other session has already self-diagnosed — quote: "I rolled back the D-1 email feature (commit 8c97c1a, marked 'deployed to prod' in b7a463b). Function send_ready_for_test_email is absent from prod."
+
+**Division of labor going forward:**
+
+- **Other session** owns prod recovery (they caused it, they're already assessing the damage). Expected: redeploy v1.2.6 from `feature/workflow-ux-m1`, verify schema, clean up `.playwright-mcp/`.
+- **This session** owns the registry cleanup (plan + branch). Currently **paused** until prod is restored to v1.2.6, because the cleanup plan edits code that only exists in v1.2.6.
+
+**Robustness items to fix later (identified, not executed):**
+
+1. `.playwright-mcp/` is **not** in `.gitignore`. Both Claude sessions create artifacts there.
+2. `.playwright-mcp/` is **not** in the tar `--exclude` list in `.github/workflows/deploy-test.yml` (line 15) or in `.claude/skills/deploy.md`'s documented tarball commands. Any future tarball ships Playwright artifacts.
+3. The prod deploy pattern has no **branch-awareness check** — an SCP deploy from any local branch silently overwrites whatever was on prod. A pre-deploy sanity check (e.g., "prod version is X, tarball version is Y, is Y >= X?") would have caught this.
+
+These need the user to approve; they're holdbacks for the next commit wave once recovery is confirmed.
+
+**This branch stays paused** at commit `e330a99`. All work logged. Safe to resume once (a) prod back on v1.2.6, (b) user decides whether cleanup rebases onto `feature/workflow-ux-m1` or waits for main-merge.
+
+---
+
+### 2026-04-20 — SMOKING GUN: prod was overwritten with local-machine tarball (SUPERSEDED by above)
 
 Investigation after Mateo said "I had no idea it was rolled back." The rollback was caused by **a tarball built from Mateo's local checkout being deployed to prod**, not an intentional version revert. The Playwright MCP artifacts that ended up on prod prove it.
 
