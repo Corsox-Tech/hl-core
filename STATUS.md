@@ -328,6 +328,15 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Enrollment service fixes** — Admin update/delete now routes through service layer for hook consistency.
 - [x] **Import handler integration** — Bulk defer in `HL_Import_Participant_Handler` (`begin_bulk`/`end_bulk`) to prevent N recomputes.
 
+### Continuing-Pathway Access (Ticket #18 — April 2026)
+> Users should see pathway cards for all cycles in the same partnership where they have ≥1 active enrollment — so they can finish LearnDash courses from prior cycles. Non-course components from archived cycles are closed out.
+- [x] **My Programs listing widened** — `HL_Frontend_My_Programs::render()` now fetches with `include_archived => true` and filters via new `filter_continuing_enrollments()` helper: archived-cycle enrollments are kept only when the user has ≥1 active-cycle enrollment in the same partnership.
+- [x] **Rules engine safety net** — `HL_Rules_Engine_Service::compute_availability()` returns `not_applicable` for non-`learndash_course` components whose cycle is archived. Progress % auto-skips them.
+- [x] **Component Page routing** — `HL_Frontend_Component_Page::render()` adds a `not_applicable` branch that renders a "This Component is Closed" view instead of the submission form.
+- [x] **Assessment service guard** — `HL_Assessment_Service::save_teacher_assessment_responses()` + `save_child_assessment_responses()` return `cycle_archived` WP_Error when the instance's cycle is archived (protects direct shortcode POST paths).
+- [x] **Deployed to test** — 2026-04-20. Verified via `wp eval`: 3 PB users (Antkeria Smith #305, Tasha Pagan #1408, Zariah Baugh #1490) now see 2 pathway cards each (2025 + 2026); archived-only users correctly show no cards; rules engine returns `not_applicable` for cycle-7 assessments and `available` for cycle-7 courses; component page shows closed view for archived assessments; assessment save service blocks archived writes and passes active writes.
+- [ ] **Deployed to prod** — Pending user approval.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
