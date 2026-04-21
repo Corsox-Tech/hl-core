@@ -375,13 +375,19 @@ class HL_Admin_Emails {
     /**
      * Trigger category → event → trigger_key mapping.
      *
-     * Used for:
-     * 1. JS TRIGGER_MAP injection (cascading dropdown)
-     * 2. Server-side reverse mapping on edit load
+     * Each event carries a `wiring_status`:
+     *   - `wired`  — fully functional end-to-end; selectable in the cascade.
+     *   - `stub`   — registry entry for a capability that is coming but not
+     *                yet wired on the backend. Rendered disabled in the
+     *                cascade with a tooltip linking to the plan so missing
+     *                work stays visible instead of rotting invisibly.
+     *                Save-handler rejects these keys — cannot be persisted.
+     *   - `deprecated` — legacy entry, never in cascade for new workflows.
+     *                    Only used for reverse-map display of existing workflows.
+     *                    For pure legacy `trigger_key` values with no
+     *                    category home, see `get_legacy_trigger_aliases()`.
      *
-     * Categories with hidden=true are not shown in the dropdown for new
-     * workflows but are recognized during reverse mapping so existing
-     * workflows using those triggers render correctly.
+     * Plan: docs/superpowers/plans/2026-04-20-email-registry-cleanup.md
      *
      * @return array
      */
@@ -389,189 +395,338 @@ class HL_Admin_Emails {
         return array(
             'coaching' => array(
                 'label'  => 'Coaching Session',
-                'hidden' => false,
                 'events' => array(
                     'booked' => array(
-                        'label' => 'Session Booked',
-                        'key'   => 'hl_coaching_session_created',
-                        'type'  => 'hook',
+                        'label'         => 'Session Booked',
+                        'key'           => 'hl_coaching_session_created',
+                        'type'          => 'hook',
+                        'wiring_status' => 'wired',
                     ),
                     'attended' => array(
-                        'label'        => 'Session Attended',
-                        'key'          => 'hl_coaching_session_status_changed',
-                        'type'         => 'hook',
-                        'statusFilter' => 'attended',
+                        'label'         => 'Session Attended',
+                        'key'           => 'hl_coaching_session_status_changed',
+                        'type'          => 'hook',
+                        'statusFilter'  => 'attended',
+                        'wiring_status' => 'wired',
                     ),
                     'missed' => array(
-                        'label'        => 'Session Missed / Not Attended',
-                        'key'          => 'hl_coaching_session_status_changed',
-                        'type'         => 'hook',
-                        'statusFilter' => 'missed',
+                        'label'         => 'Session Missed / Not Attended',
+                        'key'           => 'hl_coaching_session_status_changed',
+                        'type'          => 'hook',
+                        'statusFilter'  => 'missed',
+                        'wiring_status' => 'wired',
                     ),
                     'cancelled' => array(
-                        'label'        => 'Session Cancelled',
-                        'key'          => 'hl_coaching_session_status_changed',
-                        'type'         => 'hook',
-                        'statusFilter' => 'cancelled',
+                        'label'         => 'Session Cancelled',
+                        'key'           => 'hl_coaching_session_status_changed',
+                        'type'          => 'hook',
+                        'statusFilter'  => 'cancelled',
+                        'wiring_status' => 'wired',
                     ),
                     'rescheduled' => array(
-                        'label'        => 'Session Rescheduled',
-                        'key'          => 'hl_coaching_session_status_changed',
-                        'type'         => 'hook',
-                        'statusFilter' => 'rescheduled',
+                        'label'         => 'Session Rescheduled',
+                        'key'           => 'hl_coaching_session_status_changed',
+                        'type'          => 'hook',
+                        'statusFilter'  => 'rescheduled',
+                        'wiring_status' => 'wired',
                     ),
                     'reminder' => array(
                         'label'         => 'Scheduling Reminder',
                         'key'           => 'cron:component_upcoming',
                         'type'          => 'cron',
                         'componentType' => 'coaching_session_attendance',
+                        'wiring_status' => 'wired',
+                    ),
+                    'reminder_5d_before_session' => array(
+                        'label'         => 'Reminder: 5 Days Before Scheduled Session',
+                        'key'           => 'cron:session_upcoming',
+                        'type'          => 'cron',
+                        'wiring_status' => 'stub',
+                        'stub_note'     => 'Needs session-datetime-anchored cron. See plan §5.2.',
+                    ),
+                    'reminder_24h_before_session' => array(
+                        'label'         => 'Reminder: 24 Hours Before Scheduled Session',
+                        'key'           => 'cron:session_upcoming',
+                        'type'          => 'cron',
+                        'wiring_status' => 'stub',
+                        'stub_note'     => 'Needs session-datetime-anchored cron. See plan §5.2.',
+                    ),
+                    'reminder_1h_before_session' => array(
+                        'label'         => 'Reminder: 1 Hour Before Scheduled Session',
+                        'key'           => 'cron:session_upcoming',
+                        'type'          => 'cron',
+                        'wiring_status' => 'stub',
+                        'stub_note'     => 'Needs session-datetime-anchored cron (sub-hour reliability). See plan §5.2.',
+                    ),
+                    'action_plan_incomplete_24h_after' => array(
+                        'label'         => 'Action Plan Incomplete 24h After Session',
+                        'key'           => 'cron:post_session_form_pending',
+                        'type'          => 'cron',
+                        'formType'      => 'action_plan',
+                        'wiring_status' => 'stub',
+                        'stub_note'     => 'Needs post-completion compound trigger (24h-after + form-not-submitted). See plan §5.3.',
+                    ),
+                    'notes_incomplete_24h_after' => array(
+                        'label'         => 'Coaching Notes Incomplete 24h After Session',
+                        'key'           => 'cron:post_session_form_pending',
+                        'type'          => 'cron',
+                        'formType'      => 'coaching_notes',
+                        'wiring_status' => 'stub',
+                        'stub_note'     => 'Needs post-completion compound trigger. See plan §5.3.',
                     ),
                 ),
             ),
             'enrollment' => array(
                 'label'  => 'Enrollment',
-                'hidden' => false,
                 'events' => array(
                     'created' => array(
-                        'label' => 'Enrollment Created',
-                        'key'   => 'hl_enrollment_created',
-                        'type'  => 'hook',
+                        'label'         => 'Enrollment Created',
+                        'key'           => 'hl_enrollment_created',
+                        'type'          => 'hook',
+                        'wiring_status' => 'wired',
                     ),
                     'pathway_assigned' => array(
-                        'label' => 'Pathway Assigned',
-                        'key'   => 'hl_pathway_assigned',
-                        'type'  => 'hook',
+                        'label'         => 'Pathway Assigned',
+                        'key'           => 'hl_pathway_assigned',
+                        'type'          => 'hook',
+                        'wiring_status' => 'wired',
                     ),
                     'pathway_completed' => array(
-                        'label' => 'Pathway Completed',
-                        'key'   => 'hl_pathway_completed',
-                        'type'  => 'hook',
+                        'label'         => 'Pathway Completed',
+                        'key'           => 'hl_pathway_completed',
+                        'type'          => 'hook',
+                        'wiring_status' => 'wired',
                     ),
                     'coach_assigned' => array(
-                        'label' => 'Coach Assigned',
-                        'key'   => 'hl_coach_assigned',
-                        'type'  => 'hook',
+                        'label'         => 'Coach Assigned',
+                        'key'           => 'hl_coach_assigned',
+                        'type'          => 'hook',
+                        'wiring_status' => 'wired',
                     ),
                 ),
             ),
             'course' => array(
                 'label'  => 'Course',
-                'hidden' => false,
                 'events' => array(
                     'completed' => array(
-                        'label' => 'Course Completed',
-                        'key'   => 'hl_learndash_course_completed',
-                        'type'  => 'hook',
+                        'label'         => 'Course Completed',
+                        'key'           => 'hl_learndash_course_completed',
+                        'type'          => 'hook',
+                        'wiring_status' => 'wired',
                     ),
                     'reminder' => array(
                         'label'         => 'Course Due Reminder',
                         'key'           => 'cron:component_upcoming',
                         'type'          => 'cron',
                         'componentType' => 'learndash_course',
+                        'wiring_status' => 'wired',
                     ),
                     'overdue' => array(
                         'label'         => 'Course Overdue',
                         'key'           => 'cron:component_overdue',
                         'type'          => 'cron',
                         'componentType' => 'learndash_course',
+                        'wiring_status' => 'wired',
                     ),
                 ),
             ),
             'classroom_visit' => array(
                 'label'  => 'Classroom Visit',
-                'hidden' => true,
                 'events' => array(
                     'submitted' => array(
-                        'label' => 'Visit Form Submitted',
-                        'key'   => 'hl_classroom_visit_submitted',
-                        'type'  => 'hook',
+                        'label'         => 'Visit Form Submitted',
+                        'key'           => 'hl_classroom_visit_submitted',
+                        'type'          => 'hook',
+                        'wiring_status' => 'wired',
                     ),
                     'reminder' => array(
                         'label'         => 'Visit Due Reminder',
                         'key'           => 'cron:component_upcoming',
                         'type'          => 'cron',
                         'componentType' => 'classroom_visit',
+                        'wiring_status' => 'wired',
+                    ),
+                    'overdue' => array(
+                        'label'         => 'Visit Overdue',
+                        'key'           => 'cron:component_overdue',
+                        'type'          => 'cron',
+                        'componentType' => 'classroom_visit',
+                        'wiring_status' => 'stub',
+                        'stub_note'     => 'cron:component_overdue currently supports only learndash_course. See plan §5.1.',
                     ),
                 ),
             ),
             'rp_session' => array(
                 'label'  => 'RP Session',
-                'hidden' => true,
                 'events' => array(
                     'created' => array(
-                        'label' => 'Session Created',
-                        'key'   => 'hl_rp_session_created',
-                        'type'  => 'hook',
+                        'label'         => 'Session Created',
+                        'key'           => 'hl_rp_session_created',
+                        'type'          => 'hook',
+                        'wiring_status' => 'wired',
                     ),
                     'attended' => array(
-                        'label'        => 'Session Attended',
-                        'key'          => 'hl_rp_session_status_changed',
-                        'type'         => 'hook',
-                        'statusFilter' => 'attended',
+                        'label'         => 'Session Attended',
+                        'key'           => 'hl_rp_session_status_changed',
+                        'type'          => 'hook',
+                        'statusFilter'  => 'attended',
+                        'wiring_status' => 'wired',
                     ),
                     'missed' => array(
-                        'label'        => 'Session Missed',
-                        'key'          => 'hl_rp_session_status_changed',
-                        'type'         => 'hook',
-                        'statusFilter' => 'missed',
+                        'label'         => 'Session Missed',
+                        'key'           => 'hl_rp_session_status_changed',
+                        'type'          => 'hook',
+                        'statusFilter'  => 'missed',
+                        'wiring_status' => 'wired',
                     ),
                     'cancelled' => array(
-                        'label'        => 'Session Cancelled',
-                        'key'          => 'hl_rp_session_status_changed',
-                        'type'         => 'hook',
-                        'statusFilter' => 'cancelled',
+                        'label'         => 'Session Cancelled',
+                        'key'           => 'hl_rp_session_status_changed',
+                        'type'          => 'hook',
+                        'statusFilter'  => 'cancelled',
+                        'wiring_status' => 'wired',
                     ),
                     'reminder' => array(
                         'label'         => 'Session Due Reminder',
                         'key'           => 'cron:component_upcoming',
                         'type'          => 'cron',
                         'componentType' => 'reflective_practice_session',
+                        'wiring_status' => 'wired',
                     ),
                 ),
             ),
             'assessment' => array(
                 'label'  => 'Assessment',
-                'hidden' => true,
                 'events' => array(
                     'tsa_submitted' => array(
-                        'label' => 'Teacher Assessment Submitted',
-                        'key'   => 'hl_teacher_assessment_submitted',
-                        'type'  => 'hook',
+                        'label'         => 'Teacher Assessment Submitted',
+                        'key'           => 'hl_teacher_assessment_submitted',
+                        'type'          => 'hook',
+                        'wiring_status' => 'wired',
                     ),
                     'ca_submitted' => array(
-                        'label' => 'Child Assessment Submitted',
-                        'key'   => 'hl_child_assessment_submitted',
-                        'type'  => 'hook',
+                        'label'         => 'Child Assessment Submitted',
+                        'key'           => 'hl_child_assessment_submitted',
+                        'type'          => 'hook',
+                        'wiring_status' => 'wired',
                     ),
                 ),
             ),
             'schedule' => array(
                 'label'  => 'Schedule',
-                'hidden' => true,
                 'events' => array(
                     'coaching_pre_end' => array(
-                        'label' => 'Pre-Cycle-End No Session',
-                        'key'   => 'cron:coaching_pre_end',
-                        'type'  => 'cron',
+                        'label'         => 'Pre-Cycle-End No Session',
+                        'key'           => 'cron:coaching_pre_end',
+                        'type'          => 'cron',
+                        'wiring_status' => 'wired',
                     ),
                     'client_success' => array(
-                        'label' => 'Client Success Touchpoint',
-                        'key'   => 'cron:client_success',
-                        'type'  => 'cron',
+                        'label'         => 'Client Success Touchpoint',
+                        'key'           => 'cron:client_success',
+                        'type'          => 'cron',
+                        'wiring_status' => 'wired',
                     ),
                     'low_engagement' => array(
-                        'label' => 'Low Engagement (14 days)',
-                        'key'   => 'cron:low_engagement_14d',
-                        'type'  => 'cron',
-                    ),
-                    'account_activated' => array(
-                        'label' => 'Account Activated',
-                        'key'   => 'user_register',
-                        'type'  => 'hook',
+                        'label'         => 'Low Engagement (14 days)',
+                        'key'           => 'cron:low_engagement_14d',
+                        'type'          => 'cron',
+                        'wiring_status' => 'wired',
                     ),
                 ),
             ),
         );
+    }
+
+    /**
+     * Legacy trigger_key aliases — for reverse-mapping existing workflows only.
+     *
+     * These keys are never offered in the cascade for new workflows. They exist
+     * so an existing workflow saved with one of these keys can still render a
+     * human-readable label in edit mode (rather than a cryptic raw key) and so
+     * the server-side validation doesn't reject previously-valid rows.
+     *
+     * Do NOT add new aliases here without a concrete migration plan.
+     *
+     * @return array  Map of legacy trigger_key => { label, note }.
+     */
+    public static function get_legacy_trigger_aliases() {
+        return array(
+            // Removed 2026-04-21 (plan §3.2). Users do not receive emails on WP
+            // user_register — they are emailed only after enrollment. This key
+            // was in the registry as `schedule.account_activated` but misled
+            // users into thinking a registration trigger existed.
+            'user_register' => array(
+                'label' => 'Account Activated (deprecated)',
+                'note'  => 'WP user registration does not trigger emails in this system. Workflows using this key will never fire. Re-route to Enrollment → Created or delete.',
+            ),
+            // Legacy cron trigger_key values from pre-Rev 39 (before generic
+            // cron:component_upcoming / cron:component_overdue consolidation).
+            // Still valid for existing workflows; new workflows use the generic keys.
+            'cron:cv_window_7d' => array(
+                'label' => 'Classroom Visit Window (legacy)',
+                'note'  => 'Superseded by Classroom Visit → Visit Due Reminder.',
+            ),
+            'cron:cv_overdue_1d' => array(
+                'label' => 'Classroom Visit Overdue (legacy)',
+                'note'  => 'Superseded by cron:component_overdue with classroom_visit filter (currently stubbed).',
+            ),
+            'cron:rp_window_7d' => array(
+                'label' => 'RP Session Window (legacy)',
+                'note'  => 'Superseded by RP Session → Session Due Reminder.',
+            ),
+            'cron:coaching_window_7d' => array(
+                'label' => 'Coaching Session Window (legacy)',
+                'note'  => 'Superseded by Coaching Session → Scheduling Reminder.',
+            ),
+            'cron:coaching_session_5d' => array(
+                'label' => 'Coaching 5-Day Reminder (legacy)',
+                'note'  => 'Superseded by Coaching Session → Reminder: 5 Days Before (stub).',
+            ),
+            'cron:session_24h' => array(
+                'label' => 'Session 24h Reminder (legacy)',
+                'note'  => 'Superseded by Coaching Session → Reminder: 24 Hours Before (stub).',
+            ),
+            'cron:session_1h' => array(
+                'label' => 'Session 1h Reminder (legacy)',
+                'note'  => 'Superseded by Coaching Session → Reminder: 1 Hour Before (stub).',
+            ),
+            'cron:action_plan_24h' => array(
+                'label' => 'Action Plan 24h Reminder (legacy)',
+                'note'  => 'Superseded by Coaching Session → Action Plan Incomplete 24h After (stub).',
+            ),
+            'cron:session_notes_24h' => array(
+                'label' => 'Session Notes 24h Reminder (legacy)',
+                'note'  => 'Superseded by Coaching Session → Coaching Notes Incomplete 24h After (stub).',
+            ),
+        );
+    }
+
+    /**
+     * Flat list of trigger_key values accepted by the save handler.
+     *
+     * Derived from the registry (wired events only) plus legacy aliases so
+     * existing workflows continue to load. Stub events are deliberately
+     * EXCLUDED — their keys cannot be persisted. Any new trigger must be
+     * added to `get_trigger_categories()` (or `get_legacy_trigger_aliases()`
+     * for transitional support), not to a hand-maintained list here.
+     *
+     * @return string[]
+     */
+    public static function get_valid_trigger_keys() {
+        $keys = array();
+        foreach ( self::get_trigger_categories() as $cat ) {
+            foreach ( $cat['events'] as $evt ) {
+                $status = $evt['wiring_status'] ?? 'wired';
+                if ( $status === 'wired' && ! empty( $evt['key'] ) ) {
+                    $keys[] = $evt['key'];
+                }
+            }
+        }
+        foreach ( array_keys( self::get_legacy_trigger_aliases() ) as $legacy_key ) {
+            $keys[] = $legacy_key;
+        }
+        return array_values( array_unique( $keys ) );
     }
 
     /**
@@ -1430,6 +1585,12 @@ class HL_Admin_Emails {
 
             if ( ! $resolved_cat ) {
                 $trigger_unrecognized = true;
+                // Surface a richer message if the key is a known legacy alias.
+                $legacy_aliases = self::get_legacy_trigger_aliases();
+                if ( isset( $legacy_aliases[ $stored_key ] ) ) {
+                    $legacy_label = $legacy_aliases[ $stored_key ]['label'] ?? $stored_key;
+                    $legacy_note  = $legacy_aliases[ $stored_key ]['note']  ?? '';
+                }
             }
         }
 
@@ -1497,7 +1658,6 @@ class HL_Admin_Emails {
                                         <?php
                                         $categories = self::get_trigger_categories();
                                         foreach ( $categories as $cat_key => $cat_def ) :
-                                            if ( ! empty( $cat_def['hidden'] ) ) continue;
                                         ?>
                                             <option value="<?php echo esc_attr( $cat_key ); ?>"><?php echo esc_html( $cat_def['label'] ); ?></option>
                                         <?php endforeach; ?>
@@ -1542,7 +1702,14 @@ class HL_Admin_Emails {
                             <?php // Warning banner for unrecognized triggers (Task 6 — populated by reverse mapping). ?>
                             <?php if ( ! empty( $trigger_unrecognized ) ) : ?>
                                 <div class="hl-wf-trigger-warning">
-                                    &#9888; <?php esc_html_e( 'This workflow uses a trigger that was configured manually. The trigger section is read-only — contact support to modify it.', 'hl-core' ); ?>
+                                    <?php if ( ! empty( $legacy_label ) ) : ?>
+                                        &#9888; <strong><?php echo esc_html( $legacy_label ); ?></strong> — <?php esc_html_e( 'this trigger is deprecated.', 'hl-core' ); ?>
+                                        <?php if ( ! empty( $legacy_note ) ) : ?>
+                                            <br><?php echo esc_html( $legacy_note ); ?>
+                                        <?php endif; ?>
+                                    <?php else : ?>
+                                        &#9888; <?php esc_html_e( 'This workflow uses a trigger that was configured manually. The trigger section is read-only — contact support to modify it.', 'hl-core' ); ?>
+                                    <?php endif; ?>
                                     <br><small><?php echo esc_html( sprintf( 'Raw trigger_key: %s', $workflow->trigger_key ) ); ?></small>
                                 </div>
                             <?php endif; ?>
@@ -1939,26 +2106,9 @@ class HL_Admin_Emails {
             $data['status'] = 'draft';
         }
 
-        // Validate trigger_key against allowed list.
-        $valid_triggers = array(
-            'user_register', 'hl_enrollment_created', 'hl_pathway_assigned',
-            'hl_learndash_course_completed', 'hl_pathway_completed',
-            'hl_coaching_session_created', 'hl_coaching_session_status_changed',
-            'hl_rp_session_created', 'hl_rp_session_status_changed',
-            'hl_classroom_visit_submitted', 'hl_teacher_assessment_submitted',
-            'hl_child_assessment_submitted', 'hl_coach_assigned',
-            // New generic keys (v2):
-            'cron:component_upcoming', 'cron:component_overdue', 'cron:session_upcoming',
-            // Retained non-offset keys:
-            'cron:coaching_pre_end',
-            'cron:action_plan_24h', 'cron:session_notes_24h', 'cron:low_engagement_14d',
-            'cron:client_success',
-            // Legacy aliases — kept for backward compat until next release:
-            'cron:cv_window_7d', 'cron:cv_overdue_1d', 'cron:rp_window_7d',
-            'cron:coaching_window_7d', 'cron:coaching_session_5d',
-            'cron:session_24h', 'cron:session_1h',
-        );
-        if ( ! in_array( $data['trigger_key'], $valid_triggers, true ) ) {
+        // Validate trigger_key against the registry. Stub events are excluded
+        // server-side so a hand-crafted POST cannot persist an unwired key.
+        if ( ! in_array( $data['trigger_key'], self::get_valid_trigger_keys(), true ) ) {
             wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=workflows&hl_notice=invalid_trigger' ) );
             exit;
         }
