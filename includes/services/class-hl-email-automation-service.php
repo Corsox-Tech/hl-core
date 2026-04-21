@@ -386,6 +386,16 @@ class HL_Email_Automation_Service {
 
     /**
      * Load coaching session data into context.
+     *
+     * Called from two paths:
+     *   - Hook handlers (hl_coaching_session_created / _status_changed): caller
+     *     sets only entity_id/entity_type first; this method populates user_id,
+     *     cycle_id, enrollment_id from the session row.
+     *   - hydrate_context() cron branch (cron:session_upcoming, action_plan_24h,
+     *     session_notes_24h): caller already set user_id and enrollment_id from
+     *     the cron query (which for session_notes_24h deliberately routes to the
+     *     COACH, not the mentor — user_id = coach_user_id there). The !isset
+     *     guards below preserve those caller-set values.
      */
     private function load_coaching_session_context( $session_id, array $context ) {
         global $wpdb;
@@ -396,9 +406,15 @@ class HL_Email_Automation_Service {
         if ( ! $session ) {
             return $context;
         }
-        $context['user_id']       = (int) $session->mentor_user_id;
-        $context['cycle_id']      = (int) $session->cycle_id;
-        $context['enrollment_id'] = $session->enrollment_id ? (int) $session->enrollment_id : null;
+        if ( empty( $context['user_id'] ) ) {
+            $context['user_id'] = (int) $session->mentor_user_id;
+        }
+        if ( empty( $context['cycle_id'] ) ) {
+            $context['cycle_id'] = (int) $session->cycle_id;
+        }
+        if ( ! array_key_exists( 'enrollment_id', $context ) ) {
+            $context['enrollment_id'] = $session->enrollment_id ? (int) $session->enrollment_id : null;
+        }
         if ( ! empty( $session->component_id ) ) {
             $context['component_id'] = (int) $session->component_id;
         }
@@ -569,15 +585,14 @@ class HL_Email_Automation_Service {
         if ( ! empty( $context['entity_type'] ) && $context['entity_type'] === 'component' && ! empty( $context['entity_id'] ) ) {
             $context['component_id'] = (int) $context['entity_id'];
         } elseif ( ! empty( $context['entity_type'] ) && $context['entity_type'] === 'coaching_session' && ! empty( $context['entity_id'] ) ) {
-            // cron:session_upcoming returns entity_type=coaching_session, entity_id=session_id.
-            // Look up component_id from the session row.
-            $session_component = $wpdb->get_var( $wpdb->prepare(
-                "SELECT component_id FROM {$wpdb->prefix}hl_coaching_session WHERE session_id = %d",
-                $context['entity_id']
-            ) );
-            if ( $session_component ) {
-                $context['component_id'] = (int) $session_component;
-            }
+            // cron:session_upcoming / cron:action_plan_24h / cron:session_notes_24h
+            // return entity_type=coaching_session, entity_id=session_id. Load the
+            // full session context (session_date, coach_name/email, mentor_name,
+            // zoom_link) — same data the hook path gets via build_hook_context().
+            // load_coaching_session_context has guards that preserve the caller's
+            // user_id and enrollment_id (session_notes_24h routes to the COACH,
+            // whose user_id is NOT the mentor — must not be overwritten).
+            $context = $this->load_coaching_session_context( (int) $context['entity_id'], $context );
         }
 
         // Lazy hydration: coaching.session_status (component-scoped enum).

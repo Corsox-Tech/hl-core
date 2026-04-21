@@ -2,9 +2,10 @@
 /**
  * bin/seed-email-workflows.php
  *
- * Seeder for 14 client-requested email workflows driven from
+ * Seeder for 20 client-requested email workflows driven from
  * data/LMS Email Notification List - reorganized.xlsx, sheet "Updated - LMS
- * Master" (rows 4-16, 22, 24).
+ * Master" (rows 4-21, 22, 24). Rows 2 and 3 are out of scope (WP user_register
+ * is not a trigger in this system).
  *
  * Idempotent: re-runs UPDATE existing rows by their unique anchors
  * (template_key for templates, exact name for workflows). Safe to re-run.
@@ -93,6 +94,17 @@ $merge_tag_map = array(
 	'[coaching_session_name]' => 'your coaching session',
 	'[session_time]'          => '', // {{session_date}} already carries full datetime.
 	'[assessment_name]'       => 'Pre-Assessment',
+
+	// --- Registry-backed tags for rows 17-21 (coaching reminders + form reminders) ---
+	'[coach_full_name]'  => '{{coach_full_name}}',
+	'[mentor_full_name]' => '{{mentor_full_name}}',
+
+	// --- Literal fallback — no {{session_link}} tag is registered. {{zoom_link}}
+	//     populates from hl_coaching_session.meeting_url but only if that column
+	//     is set; most sessions don't have a stored meeting_url, so a literal
+	//     pointer to the dashboard is the safer default. Swap to {{zoom_link}}
+	//     later if Chris wants the actual link embedded. ---
+	'[session_link]'     => 'the meeting link in your Coaching dashboard',
 );
 
 // =========================================================================
@@ -482,6 +494,160 @@ $workflows = array(
 		'trigger_key'            => 'cron:low_engagement_14d',
 		'conditions'             => array(),
 		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array( 'assigned_coach' ) ),
+		'trigger_offset_minutes' => null,
+		'component_type_filter'  => null,
+	),
+
+	// ---------------------------------------------------------------------
+	// Row 11 — Classroom Visit Overdue (1 day after window closes)
+	// ---------------------------------------------------------------------
+	// cron:component_overdue fans out to BOTH the visitor (leader/mentor/coach
+	// enrollment assigned to conduct the visit) AND the observed teacher
+	// enrollment. The spreadsheet's original copy targeted the visitor only
+	// ("schedule a time to conduct your classroom visits"), which doesn't
+	// apply to a teacher. Body rewritten to be role-agnostic: it addresses
+	// both audiences with their respective outstanding actions.
+	//
+	// Visitors can be any non-teacher role (mentor, coach, school_leader,
+	// district_leader). The phrasing "if you are responsible for conducting
+	// visits" intentionally avoids naming a role.
+	array(
+		'tpl_key'     => 'classroom_visit_overdue_1d',
+		'tpl_name'    => 'Classroom Visit Overdue (1d after window closes)',
+		'subject'     => 'Reminder: Submit Classroom Visit Form',
+		'body_blocks' => array(
+			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
+			array( 'type' => 'text', 'content' => '<p>The Classroom Visit window for a recent round of Begin to ECSEL visits has closed, and forms for that visit remain outstanding.</p>' ),
+			array( 'type' => 'text', 'content' => '<p>If you are responsible for conducting visits, please log in to submit your Classroom Visit form for each teacher. If you are the observed teacher, please log in to complete your Self-Reflection if it\'s still pending.</p>' ),
+			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
+		),
+		'wf_name'                => 'Classroom Visit Overdue (1 day after window closes)',
+		'trigger_key'            => 'cron:component_overdue',
+		'conditions'             => array(),
+		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
+		'trigger_offset_minutes' => 1440, // 1 day past due (handler has 48h tolerance window).
+		'component_type_filter'  => 'classroom_visit',
+	),
+
+	// ---------------------------------------------------------------------
+	// Row 17 — Coaching Session Reminder (5 days before)
+	// ---------------------------------------------------------------------
+	// cron:session_upcoming fuzz at 5d offset is clamped to 30 min — send
+	// window is session_time minus 5d ± 30 min. Original "starts in 5 days"
+	// phrasing is accurate at this precision.
+	array(
+		'tpl_key'     => 'coaching_session_reminder_5d',
+		'tpl_name'    => 'Coaching Session Reminder (5 days before)',
+		'subject'     => 'Reminder: Your scheduled Coaching Session starts in 5 days',
+		'body_blocks' => array(
+			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
+			array( 'type' => 'text', 'content' => '<p>This is a reminder that your next coaching session will start in 5 days.</p>' ),
+			array( 'type' => 'text', 'content' => '<p><strong>Session details:</strong><br>- Date/time: [session_date]</p>' ),
+			array( 'type' => 'text', 'content' => '<p>If you need to make changes, please log in to reschedule your session:</p>' ),
+			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
+		),
+		'wf_name'                => 'Coaching Session Reminder (5 Days Before)',
+		'trigger_key'            => 'cron:session_upcoming',
+		'conditions'             => array(),
+		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
+		'trigger_offset_minutes' => 7200, // 5 days
+		'component_type_filter'  => null,
+	),
+
+	// ---------------------------------------------------------------------
+	// Row 18 — Coaching Session Reminder (24 hours before)
+	// ---------------------------------------------------------------------
+	// Fuzz at 24h offset is clamped to 30 min. "Your coaching session is
+	// tomorrow" is accurate at this precision.
+	array(
+		'tpl_key'     => 'coaching_session_reminder_24h',
+		'tpl_name'    => 'Coaching Session Reminder (24 hours before)',
+		'subject'     => 'Reminder: Your Coaching Session is Tomorrow',
+		'body_blocks' => array(
+			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
+			array( 'type' => 'text', 'content' => '<p>This is a reminder that your next coaching session will start in 1 day.</p>' ),
+			array( 'type' => 'text', 'content' => '<p><strong>Session details:</strong><br>- Date/time: [session_date]<br>- Meeting link: [session_link]</p>' ),
+			array( 'type' => 'text', 'content' => '<p>If you need to make changes, please log in to reschedule your session:</p>' ),
+			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
+		),
+		'wf_name'                => 'Coaching Session Reminder (24 Hours Before)',
+		'trigger_key'            => 'cron:session_upcoming',
+		'conditions'             => array(),
+		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
+		'trigger_offset_minutes' => 1440, // 24 hours
+		'component_type_filter'  => null,
+	),
+
+	// ---------------------------------------------------------------------
+	// Row 19 — Coaching Session Reminder (1 hour before)
+	// ---------------------------------------------------------------------
+	// Fuzz at 1h offset is 6 min, but the WP-Cron runs hourly — effective
+	// send window is 30-90 min before the session. Body is intentionally
+	// imprecise ("coming up in about an hour") to match that reality.
+	array(
+		'tpl_key'     => 'coaching_session_reminder_1h',
+		'tpl_name'    => 'Coaching Session Reminder (1 hour before)',
+		'subject'     => "Today's Coaching Session",
+		'body_blocks' => array(
+			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
+			array( 'type' => 'text', 'content' => '<p>This is a reminder that your next coaching session is coming up in about an hour.</p>' ),
+			array( 'type' => 'text', 'content' => '<p><strong>Session details:</strong><br>- Date/time: [session_date]<br>- Meeting link: [session_link]</p>' ),
+			array( 'type' => 'text', 'content' => '<p>See you soon!</p>' ),
+		),
+		'wf_name'                => 'Coaching Session Reminder (1 Hour Before)',
+		'trigger_key'            => 'cron:session_upcoming',
+		'conditions'             => array(),
+		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
+		'trigger_offset_minutes' => 60,
+		'component_type_filter'  => null,
+	),
+
+	// ---------------------------------------------------------------------
+	// Row 20 — Action Plan Incomplete (24h after session)
+	// ---------------------------------------------------------------------
+	// cron:action_plan_24h handler is hardcoded to 24h lookback; no offset.
+	// Recipient = triggering_user (the mentor — action plan is the mentor's
+	// supervisee-role submission). CC = assigned_coach so the coach knows
+	// the mentor hasn't submitted yet.
+	array(
+		'tpl_key'     => 'coaching_action_plan_incomplete_24h',
+		'tpl_name'    => 'Action Plan Incomplete (24 hours after session)',
+		'subject'     => 'Reminder: Complete your Action Plan',
+		'body_blocks' => array(
+			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
+			array( 'type' => 'text', 'content' => '<p>Thank you for attending your coaching session!</p>' ),
+			array( 'type' => 'text', 'content' => '<p>This is a friendly reminder to complete and submit your Action Plan for the session with your coach <strong>[coach_full_name]</strong> on Housman Learning Academy. Please reach out to your coach for any questions: [Coach email]</p>' ),
+			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
+		),
+		'wf_name'                => 'Action Plan Incomplete (24 Hours After Session)',
+		'trigger_key'            => 'cron:action_plan_24h',
+		'conditions'             => array(),
+		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array( 'assigned_coach' ) ),
+		'trigger_offset_minutes' => null,
+		'component_type_filter'  => null,
+	),
+
+	// ---------------------------------------------------------------------
+	// Row 21 — Coaching Notes Incomplete (24h after session)
+	// ---------------------------------------------------------------------
+	// cron:session_notes_24h handler routes to the COACH (who writes the
+	// notes — supervisor-role submission). user_id = coach_user_id; the
+	// coach is staff, not enrolled, so enrollment_id = NULL in context.
+	// Phase 2 confirmed this NULL propagates cleanly. No CC needed — the
+	// coach is writing the notes, no one else needs the nudge.
+	array(
+		'tpl_key'     => 'coaching_notes_incomplete_24h',
+		'tpl_name'    => 'Coaching Notes Incomplete (24 hours after session)',
+		'subject'     => 'Reminder: Submit Coaching Session Notes',
+		'body_blocks' => array(
+			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
+			array( 'type' => 'text', 'content' => '<p>This is a friendly reminder to submit your Coaching Session Notes for the session with your mentor <strong>[mentor_full_name]</strong> on Housman Learning Academy.</p>' ),
+			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
+		),
+		'wf_name'                => 'Coaching Notes Incomplete (24 Hours After Session)',
+		'trigger_key'            => 'cron:session_notes_24h',
+		'conditions'             => array(),
+		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
 		'trigger_offset_minutes' => null,
 		'component_type_filter'  => null,
 	),
