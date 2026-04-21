@@ -437,26 +437,40 @@ class HL_Admin_Emails {
                         'componentType' => 'coaching_session_attendance',
                         'wiring_status' => 'wired',
                     ),
+                    // Coaching session reminders — all three route through the
+                    // cron:session_upcoming handler, which anchors on the actual
+                    // booked cs.session_datetime and scales its fuzz window
+                    // (10% of offset, clamped 5–30 min). Each workflow's
+                    // trigger_offset_minutes drives the "X before" target; the
+                    // handler filters session_status = 'scheduled' and runs
+                    // hourly. Dedup is per-workflow so 5d/24h/1h workflows for
+                    // the same session never collide. Wired 2026-04-21 (Phase 2).
                     'reminder_5d_before_session' => array(
                         'label'         => 'Reminder: 5 Days Before Scheduled Session',
                         'key'           => 'cron:session_upcoming',
                         'type'          => 'cron',
-                        'wiring_status' => 'stub',
-                        'stub_note'     => 'Needs session-datetime-anchored cron. See plan §5.2.',
+                        'wiring_status' => 'wired',
                     ),
                     'reminder_24h_before_session' => array(
                         'label'         => 'Reminder: 24 Hours Before Scheduled Session',
                         'key'           => 'cron:session_upcoming',
                         'type'          => 'cron',
-                        'wiring_status' => 'stub',
-                        'stub_note'     => 'Needs session-datetime-anchored cron. See plan §5.2.',
+                        'wiring_status' => 'wired',
                     ),
                     'reminder_1h_before_session' => array(
+                        // NOTE on 1h reliability: the session_upcoming cron runs
+                        // hourly with a scaled fuzz of ~6 min at this offset
+                        // (10% of 60min, clamped 5–30). Effective send window
+                        // for a scheduled session is roughly 30–90 minutes
+                        // before start, not precisely 60. Accepted tradeoff vs
+                        // adding a new sub-hour WP-Cron schedule. If Chris
+                        // reports precision issues, revisit (fuzz widen OR
+                        // 15-min schedule) — don't just bump the fuzz clamp
+                        // without dedup review.
                         'label'         => 'Reminder: 1 Hour Before Scheduled Session',
                         'key'           => 'cron:session_upcoming',
                         'type'          => 'cron',
-                        'wiring_status' => 'stub',
-                        'stub_note'     => 'Needs session-datetime-anchored cron (sub-hour reliability). See plan §5.2.',
+                        'wiring_status' => 'wired',
                     ),
                     'action_plan_incomplete_24h_after' => array(
                         'label'         => 'Action Plan Incomplete 24h After Session',
