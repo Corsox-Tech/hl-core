@@ -77,11 +77,26 @@ ssh -i ~/.ssh/hla-test-keypair.pem bitnami@44.221.6.201 'export PATH=/opt/bitnam
 ssh -i ~/.ssh/hla-test-keypair.pem bitnami@44.221.6.201 'export PATH=/opt/bitnami/php/bin:/opt/bitnami/mariadb/bin:/usr/local/bin:/usr/bin:/bin && wp --path=/opt/bitnami/wordpress cache flush'
 ```
 
-**Deploying plugin updates to test (no Git auto-pull — must SCP):**
+**Deploying plugin updates to test (canonical — use this):**
 ```bash
 # From local machine:
 cd "C:/Users/MateoGonzalez/Dev Projects Mateo/housman-learning-academy/app/public/wp-content/plugins/hl-core"
-tar --exclude='.git' --exclude='data' --exclude='./vendor' --exclude='node_modules' --exclude='.superpowers' --exclude='.playwright-mcp' --exclude='.claude' -czf /tmp/hl-core.tar.gz -C .. hl-core
+bash bin/deploy.sh test
+```
+
+The script enforces two guardrails:
+- **Source from `git ls-files`** — only tracked files ship. Impossible to leak dev artifacts (`.playwright-mcp`, `data/`, untracked debug files, etc.).
+- **Descendant check** — reads test's `.deploy-manifest.json` and refuses to deploy if local HEAD is not a descendant of what's currently on test. Prevents stale branches from rolling back newer work.
+
+For first-deploy-after-adding-guardrails (no manifest yet): `bash bin/deploy.sh test --force`. Subsequent deploys do not need `--force`.
+
+**Raw tar/scp pattern (emergency escape hatch only — skips guardrails):**
+```bash
+# ONLY if the deploy script is broken and time-critical.
+cd "C:/Users/MateoGonzalez/Dev Projects Mateo/housman-learning-academy/app/public/wp-content/plugins/hl-core"
+git ls-files | grep -v '^\.claude/' > /tmp/hl-core-manifest.txt
+tar -czf /tmp/hl-core.tar.gz --transform='s,^,hl-core/,' --files-from=/tmp/hl-core-manifest.txt
+rm /tmp/hl-core-manifest.txt
 scp -i ~/.ssh/hla-test-keypair.pem /tmp/hl-core.tar.gz bitnami@44.221.6.201:/tmp/
 ssh -i ~/.ssh/hla-test-keypair.pem bitnami@44.221.6.201 'cd /opt/bitnami/wordpress/wp-content/plugins && sudo rm -rf hl-core && sudo tar -xzf /tmp/hl-core.tar.gz && sudo chown -R bitnami:daemon hl-core'
 ```
@@ -120,11 +135,25 @@ ssh -p 65002 u665917738@145.223.76.150 "cd /home/u665917738/domains/academy.hous
 - **Do NOT deploy to production without explicit approval from the user.**
 - **No .git directory** — GitHub auto-pull does NOT work. Must SCP tarball.
 
-**Deploying plugin updates to production (SCP — requires user approval):**
+**Deploying plugin updates to production (canonical — use this; requires user approval):**
 ```bash
 # From local machine:
 cd "C:/Users/MateoGonzalez/Dev Projects Mateo/housman-learning-academy/app/public/wp-content/plugins/hl-core"
-tar --exclude='.git' --exclude='data' --exclude='./vendor' --exclude='node_modules' --exclude='.superpowers' --exclude='.playwright-mcp' --exclude='.claude' -czf /tmp/hl-core.tar.gz -C .. hl-core
+bash bin/deploy.sh prod
+```
+
+The same two guardrails apply:
+- Source from `git ls-files` (no dev artifacts leak to prod).
+- Descendant check against prod's `.deploy-manifest.json`. If your local HEAD is not a descendant of what's on prod, the script aborts. This is what would have prevented the 2026-04-20 rollback incident.
+
+First-deploy-after-guardrails on prod: `bash bin/deploy.sh prod --force` (creates the initial manifest). All subsequent deploys don't need `--force`.
+
+**Raw tar/scp pattern (emergency escape hatch only — skips guardrails):**
+```bash
+cd "C:/Users/MateoGonzalez/Dev Projects Mateo/housman-learning-academy/app/public/wp-content/plugins/hl-core"
+git ls-files | grep -v '^\.claude/' > /tmp/hl-core-manifest.txt
+tar -czf /tmp/hl-core.tar.gz --transform='s,^,hl-core/,' --files-from=/tmp/hl-core-manifest.txt
+rm /tmp/hl-core-manifest.txt
 scp -P 65002 /tmp/hl-core.tar.gz u665917738@145.223.76.150:/tmp/
 ssh -p 65002 u665917738@145.223.76.150 'cd /home/u665917738/domains/academy.housmanlearning.com/public_html/wp-content/plugins && rm -rf hl-core && tar -xzf /tmp/hl-core.tar.gz'
 ```

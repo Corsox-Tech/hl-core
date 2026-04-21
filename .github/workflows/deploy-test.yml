@@ -9,13 +9,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for descendant check.
 
-      - name: Create tarball
+      - name: Create tarball (from git-tracked files only)
         run: |
-          tar --exclude='.git' --exclude='data' --exclude='vendor' --exclude='node_modules' \
-            --exclude='.superpowers' --exclude='.playwright-mcp' --exclude='.claude' \
-            --exclude='*.xlsx' \
-            -czf /tmp/hl-core-${{ github.sha }}.tar.gz -C . .
+          # Source from `git ls-files` so only tracked files ship.
+          # Exclude .claude/ (dev workspace) but let .gitignore handle everything else.
+          git ls-files | grep -v '^\.claude/' > /tmp/manifest.txt
+          tar -czf /tmp/hl-core-${{ github.sha }}.tar.gz \
+            --transform='s,^,./,' \
+            --files-from=/tmp/manifest.txt
+          rm /tmp/manifest.txt
+          # Sanity: fail if any dev artifact slipped in.
+          if tar -tzf /tmp/hl-core-${{ github.sha }}.tar.gz | grep -qE '\./(\.playwright-mcp|\.claude|\.git|\.superpowers|data)/|\.xlsx$'; then
+            echo "ERROR: tarball contains dev artifacts"
+            tar -tzf /tmp/hl-core-${{ github.sha }}.tar.gz | grep -E '\./(\.playwright-mcp|\.claude|\.git|\.superpowers|data)/|\.xlsx$' | head -10
+            exit 1
+          fi
 
       - name: Setup SSH key
         run: |
@@ -23,6 +34,27 @@ jobs:
           echo "${{ secrets.TEST_SSH_KEY }}" > ~/.ssh/key.pem
           chmod 600 ~/.ssh/key.pem
           ssh-keyscan -H 44.221.6.201 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Descendant check against test manifest
+        run: |
+          # Read current test manifest (if any) and verify our SHA is a descendant.
+          REMOTE_MANIFEST=$(ssh -i ~/.ssh/key.pem bitnami@44.221.6.201 'cat /opt/bitnami/wordpress/wp-content/plugins/hl-core/.deploy-manifest.json 2>/dev/null || true')
+          if [[ -z "$REMOTE_MANIFEST" ]]; then
+            echo "No manifest on test yet — proceeding (initial deploy)."
+          else
+            REMOTE_SHA=$(echo "$REMOTE_MANIFEST" | grep -oE '"sha":[[:space:]]*"[a-f0-9]+"' | head -1 | sed 's/.*"\([a-f0-9]\+\)".*/\1/')
+            echo "Test is at SHA: $REMOTE_SHA"
+            echo "Deploying SHA: ${{ github.sha }}"
+            if ! git cat-file -e "$REMOTE_SHA" 2>/dev/null; then
+              echo "ERROR: test's SHA $REMOTE_SHA does not exist in this checkout. Fetch history deeper or investigate."
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$REMOTE_SHA" "${{ github.sha }}"; then
+              echo "ERROR: ${{ github.sha }} is NOT a descendant of $REMOTE_SHA on test. Refusing to deploy."
+              exit 1
+            fi
+            echo "✓ Descendant check passed."
+          fi
 
       - name: Upload and extract
         env:
@@ -39,6 +71,15 @@ jobs:
             sudo chown -R bitnami:daemon hl-core &&
             rm /tmp/$ARCHIVE
           "
+
+      - name: Write deploy manifest
+        run: |
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          VERSION=$(grep "HL_CORE_VERSION" hl-core.php | grep -oE "'[0-9.]+'" | head -1 | tr -d "'")
+          MANIFEST="{\"sha\":\"${{ github.sha }}\",\"branch\":\"$BRANCH\",\"version\":\"$VERSION\",\"deployed_at\":\"$NOW\",\"deployer\":\"github-actions\"}"
+          ssh -i ~/.ssh/key.pem bitnami@44.221.6.201 "echo '$MANIFEST' | sudo tee /opt/bitnami/wordpress/wp-content/plugins/hl-core/.deploy-manifest.json > /dev/null && sudo chown bitnami:daemon /opt/bitnami/wordpress/wp-content/plugins/hl-core/.deploy-manifest.json"
+          echo "Manifest: $MANIFEST"
 
       - name: Flush cache
         run: |
