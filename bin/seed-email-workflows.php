@@ -1,28 +1,30 @@
 <?php
 /**
- * bin/seed-chris-workflows.php
+ * bin/seed-email-workflows.php
  *
- * One-off seeder for Chris's 14 email workflows (sheet: "Updated - LMS Master",
- * rows 4-16, 22, 24 of data/LMS Email Notification List - reorganized.xlsx).
+ * Seeder for 14 client-requested email workflows driven from
+ * data/LMS Email Notification List - reorganized.xlsx, sheet "Updated - LMS
+ * Master" (rows 4-16, 22, 24).
  *
  * Idempotent: re-runs UPDATE existing rows by their unique anchors
  * (template_key for templates, exact name for workflows). Safe to re-run.
  *
- * All workflows ship as status='draft'. Mateo activates in admin after review.
+ * All workflows ship as status='draft'. An admin activates each one manually
+ * in the admin UI after review — the seeder never activates.
  *
  * USAGE
  * -----
  *   # Dry run — prints every intended INSERT/UPDATE without touching DB.
- *   HL_SEED_DRY_RUN=1 wp eval-file wp-content/plugins/hl-core/bin/seed-chris-workflows.php
+ *   HL_SEED_DRY_RUN=1 wp eval-file wp-content/plugins/hl-core/bin/seed-email-workflows.php
  *
  *   # Real run.
- *   wp eval-file wp-content/plugins/hl-core/bin/seed-chris-workflows.php
+ *   wp eval-file wp-content/plugins/hl-core/bin/seed-email-workflows.php
  *
  * WHY THIS EXISTS
  * ---------------
- * Chris asked Mateo to create these workflows. Building them via Playwright
- * was ruled out. Building via a PHP seeder keeps them:
- *   - Idempotent (re-runnable from any environment as copy gets tweaked).
+ * Building these workflows via Playwright or the admin UI was rejected in
+ * favour of a PHP seeder to keep them:
+ *   - Idempotent (re-runnable from any environment as copy changes).
  *   - Auditable (every create/update lands in hl_audit_log).
  *   - Safe (calls the same HL_Admin_Emails::validate_workflow_payload()
  *     security boundary that the admin UI uses — no bypass).
@@ -50,26 +52,24 @@ if ( ! class_exists( 'HL_Admin_Emails' ) ) {
 	}
 }
 
-$dry_run     = getenv( 'HL_SEED_DRY_RUN' ) === '1';
-$name_prefix = '[Chris] ';
-$key_prefix  = 'chris_';
+$dry_run = getenv( 'HL_SEED_DRY_RUN' ) === '1';
 
 global $wpdb;
 $tpl_table = "{$wpdb->prefix}hl_email_template";
 $wf_table  = "{$wpdb->prefix}hl_email_workflow";
 
 // =========================================================================
-// Merge-tag translation map (Chris bracket syntax -> registry double-curly)
+// Merge-tag translation map (spreadsheet bracket syntax -> registry)
 // =========================================================================
 
-// Chris uses [bracket] placeholders in the spreadsheet. The block renderer
-// only substitutes {{double_curly}} tags declared in HL_Email_Merge_Tag_Registry.
-// This map is the authoritative translation for every bracket we expect in the
-// 14 source bodies.
+// The spreadsheet uses [bracket] placeholders. The block renderer only
+// substitutes {{double_curly}} tags declared in HL_Email_Merge_Tag_Registry.
+// This map is the authoritative translation for every bracket expected in
+// the 14 source bodies.
 //
 // Entries mapping to a bare string (no {{...}}) are LITERAL TEXT FALLBACKS —
 // no corresponding merge tag is registered yet. Adding them is a registry +
-// context-builder change we intentionally kept OUT of this seeder PR.
+// context-builder change intentionally kept out of this seeder's scope.
 $merge_tag_map = array(
 	// --- Registry-backed tags ---
 	'[user_first_name]' => '{{recipient_first_name}}',
@@ -100,10 +100,9 @@ $merge_tag_map = array(
 // =========================================================================
 
 /**
- * Translate Chris's [bracket] tags into registry {{double_curly}} form
- * (or literal fallback text) using strtr — which matches the LONGEST key
- * first, so combined keys like `[cv_release]-[cv_due]` beat their standalone
- * variants.
+ * Translate bracket tags into registry {{double_curly}} form (or literal
+ * fallback text) using strtr — which matches the LONGEST key first, so
+ * combined keys like `[cv_release]-[cv_due]` beat their standalone variants.
  */
 function hl_seed_translate( $str, array $map ) {
 	return strtr( (string) $str, $map );
@@ -116,15 +115,15 @@ function hl_seed_translate( $str, array $map ) {
 function hl_seed_assert_no_brackets( $str, $context_label ) {
 	if ( preg_match( '/\[[a-zA-Z_][a-zA-Z0-9_]*\]/', (string) $str, $m ) ) {
 		throw new RuntimeException(
-			"Unresolved placeholder {$m[0]} in {$context_label}. Update merge_tag_map in seed-chris-workflows.php."
+			"Unresolved placeholder {$m[0]} in {$context_label}. Update merge_tag_map in seed-email-workflows.php."
 		);
 	}
 }
 
 /**
  * Translate merge tags in every renderable string inside a block array
- * (text.content, button.label, button.url, image.src/alt/link). Strips any
- * block with unresolved brackets by throwing.
+ * (text.content, button.label, button.url, image.src/alt/link). Throws if
+ * any block still contains an unresolved bracket placeholder after translation.
  */
 function hl_seed_translate_blocks( array $blocks, array $map ) {
 	$out = array();
@@ -144,7 +143,7 @@ function hl_seed_translate_blocks( array $blocks, array $map ) {
 }
 
 // =========================================================================
-// Workflow definitions (14 rows from Chris's spreadsheet)
+// Workflow definitions (14 rows from the source spreadsheet)
 // =========================================================================
 
 // Copy is transcribed from data/LMS Email Notification List - reorganized.xlsx,
@@ -160,8 +159,8 @@ $workflows = array(
 	// Row 4 — New Pathway Enrollment (Non-Control-Group)
 	// ---------------------------------------------------------------------
 	array(
-		'tpl_key'     => 'chris_pathway_assigned_non_control_v1',
-		'tpl_name'    => '[Chris] New Pathway Enrollment',
+		'tpl_key'     => 'pathway_assigned_non_control',
+		'tpl_name'    => 'New Pathway Enrollment Notification',
 		'subject'     => 'New Enrollment on Housman Learning Academy',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
@@ -169,7 +168,7 @@ $workflows = array(
 			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
 			array( 'type' => 'text', 'content' => '<p>If you have trouble logging in, please use the password reset option or contact your program coordinator.</p>' ),
 		),
-		'wf_name'                => '[Chris] New Pathway Enrollment (Non-Control-Group)',
+		'wf_name'                => 'New Pathway Enrollment Notification (Non-Control-Group)',
 		'trigger_key'            => 'hl_pathway_assigned',
 		'conditions'             => array(
 			array( 'field' => 'cycle.is_control_group', 'op' => 'eq', 'value' => false ),
@@ -183,8 +182,8 @@ $workflows = array(
 	// Row 5 — Pathway Enrollment (Control Group)
 	// ---------------------------------------------------------------------
 	array(
-		'tpl_key'     => 'chris_pathway_assigned_control_v1',
-		'tpl_name'    => '[Chris] New Pathway Enrollment (Control Group)',
+		'tpl_key'     => 'pathway_assigned_control',
+		'tpl_name'    => 'New Pathway Enrollment Notification (Control Group)',
 		'subject'     => 'New Enrollment on Housman Learning Academy',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
@@ -193,7 +192,7 @@ $workflows = array(
 			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
 			array( 'type' => 'text', 'content' => '<p>If you have trouble logging in, please use the password reset option or contact your program coordinator.</p>' ),
 		),
-		'wf_name'                => '[Chris] New Pathway Enrollment (Control Group)',
+		'wf_name'                => 'New Pathway Enrollment Notification (Control Group)',
 		'trigger_key'            => 'hl_pathway_assigned',
 		'conditions'             => array(
 			array( 'field' => 'cycle.is_control_group', 'op' => 'eq', 'value' => true ),
@@ -206,19 +205,19 @@ $workflows = array(
 	// ---------------------------------------------------------------------
 	// Row 6 — Course Completion with Certificate
 	// ---------------------------------------------------------------------
-	// No certificate_url merge tag exists yet, and no course_url either —
-	// dropping the CTA button entirely per Mateo's decision (2026-04-21).
-	// Body rewritten to reference the course page without a broken link.
+	// No certificate_url or course_url merge tag exists — dropping the CTA
+	// button entirely. Body rewritten to reference the course page without
+	// a broken link.
 	array(
-		'tpl_key'     => 'chris_course_completion_v1',
-		'tpl_name'    => '[Chris] Course Completion with Certificate',
+		'tpl_key'     => 'course_completion_certificate',
+		'tpl_name'    => 'Course Completion with Certificate',
 		'subject'     => 'Congratulations on Completing Your Course!',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
 			array( 'type' => 'text', 'content' => '<p>Congratulations on successfully completing <strong>[course_name]</strong>! This is a meaningful milestone, and we\'re excited to recognize your hard work.</p>' ),
 			array( 'type' => 'text', 'content' => '<p>Your certificate is available on the course page in Housman Learning Academy.</p>' ),
 		),
-		'wf_name'                => '[Chris] Course Completion with Certificate',
+		'wf_name'                => 'Course Completion with Certificate',
 		'trigger_key'            => 'hl_learndash_course_completed',
 		'conditions'             => array(),
 		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
@@ -230,8 +229,8 @@ $workflows = array(
 	// Row 7 — Pathway Completion
 	// ---------------------------------------------------------------------
 	array(
-		'tpl_key'     => 'chris_pathway_completion_v1',
-		'tpl_name'    => '[Chris] Pathway Completion',
+		'tpl_key'     => 'pathway_completion',
+		'tpl_name'    => 'Pathway Completion',
 		'subject'     => 'Congratulations on Completing Your Program!',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
@@ -239,7 +238,7 @@ $workflows = array(
 			array( 'type' => 'text', 'content' => '<p>Feel free to log in and revisit your courses and resources anytime!</p>' ),
 			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
 		),
-		'wf_name'                => '[Chris] Pathway Completion',
+		'wf_name'                => 'Pathway Completion',
 		'trigger_key'            => 'hl_pathway_completed',
 		'conditions'             => array(),
 		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
@@ -254,15 +253,15 @@ $workflows = array(
 	// cycles are B2E and 'course' cycles are short-course institutional
 	// access. Short-course users don't need pre-assessment reminders.
 	array(
-		'tpl_key'     => 'chris_pre_assessment_documentation_v1',
-		'tpl_name'    => '[Chris] Pre-Assessment Documentation Reminder',
+		'tpl_key'     => 'pre_assessment_documentation',
+		'tpl_name'    => 'Pre-Assessment Documentation Reminder',
 		'subject'     => 'Action Needed: [assessment_name] Now Available',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
 			array( 'type' => 'text', 'content' => '<p>This is a friendly reminder that the [assessment_name] of your enrolled program <strong>[pathway_name]</strong> is now open and ready to be filled out. Please log in and complete the assessments on Housman Learning Academy.</p>' ),
 			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
 		),
-		'wf_name'                => '[Chris] Pre-Assessment Documentation Reminder (B2E)',
+		'wf_name'                => 'Pre-Assessment Documentation Reminder (B2E)',
 		'trigger_key'            => 'hl_pathway_assigned',
 		'conditions'             => array(
 			array( 'field' => 'cycle.cycle_type', 'op' => 'eq', 'value' => 'program' ),
@@ -277,12 +276,12 @@ $workflows = array(
 	// ---------------------------------------------------------------------
 	// cron:component_upcoming fans out to every enrollment that owns the
 	// upcoming component — for classroom_visit, that includes both the
-	// teacher's and the leader's enrollment. Chris's copy targets the
-	// "Visitor" (observer). If the teacher also receives this, Mateo will
-	// see in review and decide whether a visitor-only token is needed.
+	// teacher's and the leader's enrollment. Body targets the "Visitor"
+	// (observer). If the teacher also receives this, an admin will decide
+	// in review whether a visitor-only token is needed.
 	array(
-		'tpl_key'     => 'chris_classroom_visit_window_7d_v1',
-		'tpl_name'    => '[Chris] Classroom Visit Window Opens (7d)',
+		'tpl_key'     => 'classroom_visit_window_7d',
+		'tpl_name'    => 'Classroom Visit Window Opens (7d)',
 		'subject'     => 'Reminder: Classroom Visit is opening soon',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
@@ -290,7 +289,7 @@ $workflows = array(
 			array( 'type' => 'text', 'content' => '<p><strong>Details:</strong><br>- Program: [pathway_name]<br>- Classroom Visit: [classroom_visit_name]<br>- Window: [classroom_visit_release_date]-[classroom_visit_due_date]</p>' ),
 			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
 		),
-		'wf_name'                => '[Chris] Classroom Visit Window Opens (7d)',
+		'wf_name'                => 'Classroom Visit Window Opens (7d)',
 		'trigger_key'            => 'cron:component_upcoming',
 		'conditions'             => array(),
 		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
@@ -305,8 +304,8 @@ $workflows = array(
 	// submits the form, but the teacher they observed is the one who
 	// needs to complete the follow-up self-reflection.
 	array(
-		'tpl_key'     => 'chris_self_reflection_prompt_v1',
-		'tpl_name'    => '[Chris] Self-Reflection Prompt After Visit Submitted',
+		'tpl_key'     => 'self_reflection_prompt_after_visit',
+		'tpl_name'    => 'Self-Reflection Prompt After Visit Submitted',
 		'subject'     => 'Action Needed: Complete the Self-Reflection Form',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
@@ -314,7 +313,7 @@ $workflows = array(
 			array( 'type' => 'text', 'content' => '<p><strong>Details:</strong><br>- Program: [pathway_name]<br>- Classroom Visit: [self_reflection_name]<br>- Complete by: [self_reflection_due_date]</p>' ),
 			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
 		),
-		'wf_name'                => '[Chris] Self-Reflection Prompt After Visit Submitted',
+		'wf_name'                => 'Self-Reflection Prompt After Visit Submitted',
 		'trigger_key'            => 'hl_classroom_visit_submitted',
 		'conditions'             => array(),
 		'recipients'             => array( 'primary' => array( 'observed_teacher' ), 'cc' => array() ),
@@ -326,8 +325,8 @@ $workflows = array(
 	// Row 12 — RP Session Window Opens (1 week before)
 	// ---------------------------------------------------------------------
 	array(
-		'tpl_key'     => 'chris_rp_session_window_7d_v1',
-		'tpl_name'    => '[Chris] RP Session Window Opens (7d)',
+		'tpl_key'     => 'rp_session_window_7d',
+		'tpl_name'    => 'RP Session Window Opens (7d)',
 		'subject'     => 'Upcoming Reflective Practice Sessions',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
@@ -335,7 +334,7 @@ $workflows = array(
 			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
 			array( 'type' => 'text', 'content' => '<p><strong>Details:</strong><br>- Program: [pathway_name]<br>- Session: [reflective_practice_session_name]<br>- Window: [reflective_practice_session_release_date]-[reflective_practice_session_due_date]</p>' ),
 		),
-		'wf_name'                => '[Chris] RP Session Window Opens (7d)',
+		'wf_name'                => 'RP Session Window Opens (7d)',
 		'trigger_key'            => 'cron:component_upcoming',
 		'conditions'             => array(),
 		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
@@ -347,8 +346,8 @@ $workflows = array(
 	// Row 13 — RP Window Now Open (same day, offset 0)
 	// ---------------------------------------------------------------------
 	array(
-		'tpl_key'     => 'chris_rp_session_window_open_v1',
-		'tpl_name'    => '[Chris] RP Window Now Open',
+		'tpl_key'     => 'rp_session_window_open',
+		'tpl_name'    => 'RP Window Now Open',
 		'subject'     => 'Time to Schedule Reflective Practice Sessions',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
@@ -356,7 +355,7 @@ $workflows = array(
 			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
 			array( 'type' => 'text', 'content' => '<p><strong>Details:</strong><br>- Program: [pathway_name]<br>- Session: [reflective_practice_session_name]<br>- Window: [reflective_practice_session_release_date]-[reflective_practice_session_due_date]</p>' ),
 		),
-		'wf_name'                => '[Chris] RP Window Now Open',
+		'wf_name'                => 'RP Window Now Open',
 		'trigger_key'            => 'cron:component_upcoming',
 		'conditions'             => array(),
 		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
@@ -368,8 +367,8 @@ $workflows = array(
 	// Row 14 — Coaching Reminder: 1 Week Before (if not scheduled)
 	// ---------------------------------------------------------------------
 	array(
-		'tpl_key'     => 'chris_coaching_reminder_7d_not_scheduled_v1',
-		'tpl_name'    => '[Chris] Coaching Reminder 1 Week Before (If Not Scheduled)',
+		'tpl_key'     => 'coaching_reminder_7d_not_scheduled',
+		'tpl_name'    => 'Coaching Reminder 1 Week Before (If Not Scheduled)',
 		'subject'     => 'Time to Schedule Your Coaching Session',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
@@ -379,7 +378,7 @@ $workflows = array(
 			array( 'type' => 'text', 'content' => '<p>Once scheduled, you will receive an email and a calendar invite with the meeting link.</p>' ),
 			array( 'type' => 'text', 'content' => '<p>If you need support, please contact your ECSEL coach: [Coach Email]</p>' ),
 		),
-		'wf_name'                => '[Chris] Coaching Reminder 1 Week Before (If Not Scheduled)',
+		'wf_name'                => 'Coaching Reminder 1 Week Before (If Not Scheduled)',
 		'trigger_key'            => 'cron:component_upcoming',
 		'conditions'             => array(
 			array( 'field' => 'coaching.session_status', 'op' => 'in', 'value' => array( 'not_scheduled' ) ),
@@ -395,11 +394,11 @@ $workflows = array(
 	// NOTE: The anchor here is the COACHING COMPONENT'S complete_by date, not
 	// the cycle's end date. In practice complete_by is set near cycle close
 	// so the semantic intent holds ("2 days before cycle closes" ~ "2 days
-	// before the coaching component is due"). If Chris needs strict
-	// cycle-end-relative firing, that's a separate backend change.
+	// before the coaching component is due"). Strict cycle-end-relative
+	// firing would be a separate backend change.
 	array(
-		'tpl_key'     => 'chris_coaching_reminder_2d_not_scheduled_v1',
-		'tpl_name'    => '[Chris] Coaching Reminder 2 Days Before Close (If Not Scheduled)',
+		'tpl_key'     => 'coaching_reminder_2d_not_scheduled',
+		'tpl_name'    => 'Coaching Reminder 2 Days Before Close (If Not Scheduled)',
 		'subject'     => 'Action Needed: Schedule Your Coaching Session',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
@@ -409,7 +408,7 @@ $workflows = array(
 			array( 'type' => 'text', 'content' => '<p>Once scheduled, you will receive an email and a calendar invite with the meeting link.</p>' ),
 			array( 'type' => 'text', 'content' => '<p>If you need support, please contact your ECSEL coach: [Coach Email]</p>' ),
 		),
-		'wf_name'                => '[Chris] Coaching Reminder 2 Days Before Close (If Not Scheduled)',
+		'wf_name'                => 'Coaching Reminder 2 Days Before Close (If Not Scheduled)',
 		'trigger_key'            => 'cron:component_upcoming',
 		'conditions'             => array(
 			array( 'field' => 'coaching.session_status', 'op' => 'in', 'value' => array( 'not_scheduled' ) ),
@@ -423,8 +422,8 @@ $workflows = array(
 	// Row 16 — Coaching Session Scheduled Confirmation
 	// ---------------------------------------------------------------------
 	array(
-		'tpl_key'     => 'chris_coaching_scheduled_confirmation_v1',
-		'tpl_name'    => '[Chris] Coaching Session Scheduled Confirmation',
+		'tpl_key'     => 'coaching_scheduled_confirmation',
+		'tpl_name'    => 'Coaching Session Scheduled Confirmation',
 		'subject'     => 'Your Mentor Coaching Session Is Scheduled',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [User_name],</p>' ),
@@ -433,7 +432,7 @@ $workflows = array(
 			array( 'type' => 'text', 'content' => '<p>We look forward to connecting with you.</p>' ),
 			array( 'type' => 'text', 'content' => '<p>Thank you,<br>Housman Learning Academy</p>' ),
 		),
-		'wf_name'                => '[Chris] Coaching Session Scheduled Confirmation',
+		'wf_name'                => 'Coaching Session Scheduled Confirmation',
 		'trigger_key'            => 'hl_coaching_session_created',
 		'conditions'             => array(),
 		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array( 'assigned_coach' ) ),
@@ -445,8 +444,8 @@ $workflows = array(
 	// Row 22 — Coaching No-Show Follow-Up
 	// ---------------------------------------------------------------------
 	array(
-		'tpl_key'     => 'chris_coaching_no_show_v1',
-		'tpl_name'    => '[Chris] Coaching No-Show Follow-Up',
+		'tpl_key'     => 'coaching_no_show_follow_up',
+		'tpl_name'    => 'Coaching No-Show Follow-Up',
 		'subject'     => 'Missed Coaching Meeting',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
@@ -454,7 +453,7 @@ $workflows = array(
 			array( 'type' => 'text', 'content' => '<p>Scheduling changes are understandable, and a new session can be arranged at a more convenient time, should you like to re-schedule. Please click the link below to take you to the re-scheduling feature. Contact your coach with any questions: [Coach email]</p>' ),
 			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
 		),
-		'wf_name'                => '[Chris] Coaching No-Show Follow-Up',
+		'wf_name'                => 'Coaching No-Show Follow-Up',
 		'trigger_key'            => 'hl_coaching_session_status_changed',
 		'conditions'             => array(
 			array( 'field' => 'session.new_status', 'op' => 'eq', 'value' => 'missed' ),
@@ -468,8 +467,8 @@ $workflows = array(
 	// Row 24 — Low Engagement (14 days)
 	// ---------------------------------------------------------------------
 	array(
-		'tpl_key'     => 'chris_low_engagement_14d_v1',
-		'tpl_name'    => '[Chris] Low Engagement (14 days)',
+		'tpl_key'     => 'low_engagement_14d',
+		'tpl_name'    => 'Low Engagement (14 days)',
 		'subject'     => 'Checking In — Continue Your Learning',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
@@ -479,7 +478,7 @@ $workflows = array(
 			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
 			array( 'type' => 'text', 'content' => '<p>If you have any questions or need support, please reach out to your coach.</p>' ),
 		),
-		'wf_name'                => '[Chris] Low Engagement (14 days)',
+		'wf_name'                => 'Low Engagement (14 days)',
 		'trigger_key'            => 'cron:low_engagement_14d',
 		'conditions'             => array(),
 		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array( 'assigned_coach' ) ),
@@ -515,7 +514,7 @@ $counts = array(
 	'skipped'    => 0,
 );
 
-echo $mode_banner . "Seeding " . count( $workflows ) . " Chris workflows...\n";
+echo $mode_banner . "Seeding " . count( $workflows ) . " email workflows...\n";
 
 foreach ( $workflows as $wf ) {
 	$label = $wf['wf_name'];
@@ -545,7 +544,7 @@ foreach ( $workflows as $wf ) {
 		'subject'      => $translated_subject,
 		'blocks_json'  => wp_json_encode( $translated_blocks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
 		'category'     => 'automated',
-		'merge_tags'   => null, // let admin save-handler compute when Mateo edits in UI
+		'merge_tags'   => null, // admin save-handler computes on edit
 		'status'       => 'draft',
 	);
 
@@ -586,7 +585,7 @@ foreach ( $workflows as $wf ) {
 		'send_window_start'      => null,
 		'send_window_end'        => null,
 		'send_window_days'       => null,
-		'status'                 => 'draft', // ALWAYS draft — Mateo activates after review.
+		'status'                 => 'draft', // ALWAYS draft — admin activates after review.
 		'trigger_offset_minutes' => $wf['trigger_offset_minutes'],
 		'component_type_filter'  => $wf['component_type_filter'],
 	);
@@ -618,7 +617,7 @@ foreach ( $workflows as $wf ) {
 		HL_Audit_Service::log( 'email_workflow_seeded', array(
 			'entity_type' => 'email_workflow',
 			'entity_id'   => $workflow_id,
-			'reason'      => "Chris seeder: tpl_key={$wf['tpl_key']}, trigger={$wf['trigger_key']}",
+			'reason'      => "seed-email-workflows.php: tpl_key={$wf['tpl_key']}, trigger={$wf['trigger_key']}",
 		) );
 	}
 }
