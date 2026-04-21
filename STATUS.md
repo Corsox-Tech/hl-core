@@ -353,6 +353,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Version bump 1.2.8 → 1.2.9** — marks the Phase 2 boundary.
 - [x] **Deployed to test** — 2026-04-21 18:43 UTC. SHA `9cc550e` on branch `feature/workflow-ux-m1`. Both suites re-run against the post-flip state (not pre-flip) — 69 total assertions pass.
 - [x] **Deployed to prod** — 2026-04-21 18:54 UTC. SHA `7b2ea94` @ v1.2.9. Both test suites re-run on prod, **69/69 pass**. Schema `hl_core_schema_revision` = 43 (parallel-session feature-tracker migration propagated correctly with this deploy). Zero `[Phase2Test]` fixture residue across queue/workflow/template/cycle/partnership/users (finally-block cleanup clean).
+- [x] **Post-deploy cron + audit health check** — `hl_email_last_cron_run_at` = 2026-04-21T18:55:16Z (daily pipeline executed end-to-end on prod during §5.3 test). 4 HL cron events scheduled + healthy (`hl_email_cron_hourly`, `hl_email_cron_daily`, `hl_email_process_queue`). Zero `email_cron_safety_cap_hit` events. Zero SQL errors from the rewritten handlers under real data. Email queue empty (no stuck rows).
 
 ### Classroom Management for Control Groups (Ticket #18 — April 2026)
 > **Spec:** `docs/superpowers/specs/2026-04-13-classroom-management-design.md` | **Plan:** `docs/superpowers/plans/2026-04-13-classroom-management.md`
