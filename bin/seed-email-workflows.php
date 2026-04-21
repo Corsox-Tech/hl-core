@@ -501,29 +501,32 @@ $workflows = array(
 	// ---------------------------------------------------------------------
 	// Row 11 — Classroom Visit Overdue (1 day after window closes)
 	// ---------------------------------------------------------------------
-	// cron:component_overdue fans out to BOTH the visitor (leader/mentor/coach
-	// enrollment assigned to conduct the visit) AND the observed teacher
-	// enrollment. The spreadsheet's original copy targeted the visitor only
-	// ("schedule a time to conduct your classroom visits"), which doesn't
-	// apply to a teacher. Body rewritten to be role-agnostic: it addresses
-	// both audiences with their respective outstanding actions.
-	//
-	// Visitors can be any non-teacher role (mentor, coach, school_leader,
-	// district_leader). The phrasing "if you are responsible for conducting
-	// visits" intentionally avoids naming a role.
+	// cron:component_overdue fans out to BOTH the visitor enrollment (who
+	// conducts the visit) AND the observed teacher enrollment. Only the
+	// visitor needs the "please submit your form" reminder — a teacher
+	// can't submit a Classroom Visit form, and the spreadsheet's copy is
+	// explicitly visitor-directed. Condition restricts delivery to
+	// non-teacher roles (mentor / coach / school_leader / district_leader)
+	// so the body can speak directly to the visitor audience.
 	array(
 		'tpl_key'     => 'classroom_visit_overdue_1d',
 		'tpl_name'    => 'Classroom Visit Overdue (1d after window closes)',
 		'subject'     => 'Reminder: Submit Classroom Visit Form',
 		'body_blocks' => array(
 			array( 'type' => 'text', 'content' => '<p>Hello [user_first_name],</p>' ),
-			array( 'type' => 'text', 'content' => '<p>The Classroom Visit window for a recent round of Begin to ECSEL visits has closed, and forms for that visit remain outstanding.</p>' ),
-			array( 'type' => 'text', 'content' => '<p>If you are responsible for conducting visits, please log in to submit your Classroom Visit form for each teacher. If you are the observed teacher, please log in to complete your Self-Reflection if it\'s still pending.</p>' ),
+			array( 'type' => 'text', 'content' => '<p>This is a friendly reminder that the last round of Begin to ECSEL Classroom Visit window is closed.</p>' ),
+			array( 'type' => 'text', 'content' => '<p>If you have conducted your classroom visits, please submit the Classroom Visit form for each teacher in each classroom. If you haven\'t conducted your classroom visits, please schedule a time to complete your classroom visits as soon as possible.</p>' ),
 			array( 'type' => 'button', 'label' => 'Log In Now', 'url' => '{{login_url}}', 'bg_color' => '#2C7BE5', 'text_color' => '#FFFFFF' ),
 		),
 		'wf_name'                => 'Classroom Visit Overdue (1 day after window closes)',
 		'trigger_key'            => 'cron:component_overdue',
-		'conditions'             => array(),
+		'conditions'             => array(
+			array(
+				'field' => 'enrollment.roles',
+				'op'    => 'in',
+				'value' => array( 'mentor', 'coach', 'school_leader', 'district_leader' ),
+			),
+		),
 		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
 		'trigger_offset_minutes' => 1440, // 1 day past due (handler has 48h tolerance window).
 		'component_type_filter'  => 'classroom_visit',
