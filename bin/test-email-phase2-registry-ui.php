@@ -43,11 +43,11 @@ $cats = HL_Admin_Emails::get_trigger_categories();
 $valid_keys = HL_Admin_Emails::get_valid_trigger_keys();
 
 $phase2 = array(
-    array( 'coaching_session', 'reminder_5d_before_session',  'cron:session_upcoming' ),
-    array( 'coaching_session', 'reminder_24h_before_session', 'cron:session_upcoming' ),
-    array( 'coaching_session', 'reminder_1h_before_session',  'cron:session_upcoming' ),
-    array( 'coaching_session', 'action_plan_incomplete_24h_after', 'cron:action_plan_24h' ),
-    array( 'coaching_session', 'notes_incomplete_24h_after',       'cron:session_notes_24h' ),
+    array( 'coaching', 'reminder_5d_before_session',  'cron:session_upcoming' ),
+    array( 'coaching', 'reminder_24h_before_session', 'cron:session_upcoming' ),
+    array( 'coaching', 'reminder_1h_before_session',  'cron:session_upcoming' ),
+    array( 'coaching', 'action_plan_incomplete_24h_after', 'cron:action_plan_24h' ),
+    array( 'coaching', 'notes_incomplete_24h_after',       'cron:session_notes_24h' ),
     array( 'classroom_visit',  'overdue',                     'cron:component_overdue' ),
 );
 
@@ -101,7 +101,7 @@ foreach ( $phase2 as $entry ) {
 }
 
 echo "\n=== No stubs remain in coaching_session + classroom_visit categories ===\n";
-foreach ( array( 'coaching_session', 'classroom_visit' ) as $cat_key ) {
+foreach ( array( 'coaching', 'classroom_visit' ) as $cat_key ) {
     $stub_count = 0;
     foreach ( $cats[ $cat_key ]['events'] as $evt ) {
         if ( ( $evt['wiring_status'] ?? 'wired' ) === 'stub' ) $stub_count++;
