@@ -34,9 +34,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// HL_Admin_Emails is normally only loaded inside is_admin(), which is false
+// during WP-CLI. Lazy-load it here so the seeder works under wp eval-file.
+// Same pattern used by bin/test-email-v2-track1.php.
 if ( ! class_exists( 'HL_Admin_Emails' ) ) {
-	fwrite( STDERR, "HL_Admin_Emails class not loaded. Aborting.\n" );
-	return;
+	if ( defined( 'HL_CORE_INCLUDES_DIR' ) ) {
+		$candidate = HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-emails.php';
+		if ( file_exists( $candidate ) ) {
+			require_once $candidate;
+		}
+	}
+	if ( ! class_exists( 'HL_Admin_Emails' ) ) {
+		fwrite( STDERR, "HL_Admin_Emails class not loaded and HL_CORE_INCLUDES_DIR fallback failed. Aborting.\n" );
+		return;
+	}
 }
 
 $dry_run     = getenv( 'HL_SEED_DRY_RUN' ) === '1';
