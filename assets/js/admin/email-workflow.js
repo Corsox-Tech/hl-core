@@ -875,8 +875,10 @@ jQuery(function ($) {
                 $statusFilter.val('');
             }
 
-            // Auto-set component type filter.
-            var $compType = $('select[name="component_type_filter"]');
+            // Auto-set component type filter. Always a hidden input now — the
+            // visible picker was removed (audit found zero non-default uses,
+            // and the cascade already implies component type via event.componentType).
+            var $compType = $('[name="component_type_filter"]');
             if (evt.componentType) {
                 $compType.val(evt.componentType);
             } else {

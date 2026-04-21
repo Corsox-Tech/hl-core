@@ -1714,20 +1714,13 @@ class HL_Admin_Emails {
                                 </div>
                             <?php endif; ?>
 
-                            <?php // Component type row — shown/hidden by JS for cron:component_upcoming/overdue. ?>
-                            <div class="hl-wf-form-row hl-wf-component-type-row" style="display:none;">
-                                <label class="hl-wf-form-label"><?php esc_html_e( 'Component Type', 'hl-core' ); ?></label>
-                                <select name="component_type_filter" class="hl-wf-form-select">
-                                    <option value=""><?php esc_html_e( 'All Component Types', 'hl-core' ); ?></option>
-                                    <option value="learndash_course" <?php selected( $workflow->component_type_filter ?? '', 'learndash_course' ); ?>><?php esc_html_e( 'Course', 'hl-core' ); ?></option>
-                                    <option value="coaching_session_attendance" <?php selected( $workflow->component_type_filter ?? '', 'coaching_session_attendance' ); ?>><?php esc_html_e( 'Coaching Session', 'hl-core' ); ?></option>
-                                    <option value="classroom_visit" <?php selected( $workflow->component_type_filter ?? '', 'classroom_visit' ); ?>><?php esc_html_e( 'Classroom Visit', 'hl-core' ); ?></option>
-                                    <option value="reflective_practice_session" <?php selected( $workflow->component_type_filter ?? '', 'reflective_practice_session' ); ?>><?php esc_html_e( 'Reflective Practice', 'hl-core' ); ?></option>
-                                    <option value="self_reflection" <?php selected( $workflow->component_type_filter ?? '', 'self_reflection' ); ?>><?php esc_html_e( 'Self-Reflection', 'hl-core' ); ?></option>
-                                    <option value="teacher_self_assessment" <?php selected( $workflow->component_type_filter ?? '', 'teacher_self_assessment' ); ?>><?php esc_html_e( 'Teacher Assessment', 'hl-core' ); ?></option>
-                                    <option value="child_assessment" <?php selected( $workflow->component_type_filter ?? '', 'child_assessment' ); ?>><?php esc_html_e( 'Child Assessment', 'hl-core' ); ?></option>
-                                </select>
-                            </div>
+                            <?php // Component type is auto-derived from the selected Event (cascade declares `componentType`).
+                                  // A hidden input holds the value so the save handler still receives it — the visible
+                                  // picker was removed because audit found zero non-default uses and a visible editable
+                                  // dropdown contradicted the M2 spec's "cascade is purely presentational" invariant. ?>
+                            <input type="hidden" name="component_type_filter" value="<?php echo esc_attr( $workflow->component_type_filter ?? '' ); ?>">
+                            <?php // Legacy row kept as a hidden wrapper so JS `.hl-wf-component-type-row` selector still resolves. ?>
+                            <div class="hl-wf-form-row hl-wf-component-type-row" style="display:none;" aria-hidden="true"></div>
 
                             <?php // Status filter row — shown/hidden by JS for coaching/RP triggers. ?>
                             <div class="hl-wf-form-row hl-wf-status-filter-row" style="display:none;">
