@@ -419,6 +419,12 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Deployed to test** — 2026-04-20. Verified via `wp eval`: 3 PB users (Antkeria Smith #305, Tasha Pagan #1408, Zariah Baugh #1490) now see 2 pathway cards each (2025 + 2026); archived-only users correctly show no cards; rules engine returns `not_applicable` for cycle-7 assessments and `available` for cycle-7 courses; component page shows closed view for archived assessments; assessment save service blocks archived writes and passes active writes.
 - [x] **Deployed to prod** — 2026-04-20. All 7 prod checks pass: 3 PB users see 2 cards each; archived-only user correctly drops; archived assessment → `not_applicable`; archived course → not gated by this rule; active assessment unaffected; Component Page shows closed view; assessment save service returns `cycle_archived` for archived writes. Baseline (92 archived-cycle submissions, last 2025-07-29) unchanged post-deploy. Ticket #18 flipped to `ready_for_test` on prod with summary comment. Recovery deploy 2026-04-20 after initial tarball rolled back workflow-ux-m1 commits on prod (tickets #6, #23, D-1, surveys); restored by merging ticket-18 into workflow-ux-m1 + SCP.
 
+### Module Titles in Lesson Outline (Ticket #29 — April 2026)
+> Bug: the course outline panel on lesson pages (`templates/ld-lesson.php`) rendered a flat lesson list with no section/module dividers. Course page itself was fine because LD's native `lesson/partials/row.php` drove it.
+- [x] **Fixed key scheme** — `templates/ld-lesson.php`: section lookup was `$sections[$i + 1]` but `learndash_30_get_course_sections()` returns `$sections[$first_lesson_post_id]` (see `sfwd-lms/themes/ld30/includes/helpers.php:2439`). Changed to `isset($sections[$l_id])` so module headings render between lesson rows like the course page does.
+- [ ] **Deployed to test** — Pending.
+- [ ] **Deployed to prod** — Pending.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)

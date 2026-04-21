@@ -324,13 +324,13 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
             $l_done  = learndash_is_lesson_complete(get_current_user_id(), $l_id, $course_id);
             $is_current = ($l_id === $current_lesson_id);
 
-            // Check if there's a section header at this position.
-            $order_key = $i + 1; // Sections are keyed by 1-based order.
-            if (!empty($sections) && isset($sections[$order_key])) :
+            // Section header: LD keys sections by the first lesson's post ID in each section
+            // (see learndash_30_get_course_sections → $sections[$section->steps[0]] = $section).
+            if (!empty($sections) && isset($sections[$l_id])) :
         ?>
             <div class="hl-course-outline__section">
                 <div class="hl-course-outline__section-bar"></div>
-                <span class="hl-course-outline__section-title"><?php echo esc_html($sections[$order_key]->post_title); ?></span>
+                <span class="hl-course-outline__section-title"><?php echo esc_html($sections[$l_id]->post_title); ?></span>
             </div>
         <?php endif; ?>
 
