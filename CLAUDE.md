@@ -17,6 +17,15 @@ See `docs/B2E_MASTER_REFERENCE.md` for the complete product catalog.
 
 ## Mandatory Workflow Rules
 
+### 0. Deploying to test or prod — ALWAYS use `bin/deploy.sh`
+> **Do not write ad-hoc `tar ... && scp ... && ssh ... rm -rf hl-core` chains.** Use `bash bin/deploy.sh test` or `bash bin/deploy.sh prod`. The script enforces two guardrails that prevent a class of incident that happened on **2026-04-20** (a parallel Claude session rolled back prod by deploying a stale branch):
+> 1. **Tarball source = `git ls-files`.** Only committed files ship. Dev artifacts (`.playwright-mcp/`, `.superpowers/`, untracked debug files) cannot leak.
+> 2. **Pre-deploy descendant check.** Reads `.deploy-manifest.json` on the target and aborts if local HEAD is not a descendant of the recorded SHA. Blocks stale-branch overwrites.
+>
+> Raw `tar/scp` is only acceptable as an emergency escape hatch documented in `.claude/skills/deploy.md`, and only when the script is provably broken.
+>
+> **Incident record (full detail):** `docs/superpowers/plans/2026-04-20-email-registry-cleanup-progress.md`. Read this if you find yourself confused about why prod has certain code vs not, especially around the email workflow builder, M2 cascade, Course Surveys, Ticket QA, or the D-1 email notification. Those features were on `feature/workflow-ux-m1` (30+ commits ahead of `main`) and were accidentally rolled back then restored.
+
 ### 1. Always read STATUS.md first
 Read `STATUS.md` at session start to see what's done, in-progress, and next.
 
@@ -73,8 +82,24 @@ Local files = editing workspace only (no PHP locally). Default target: **test se
 Claude Code launches from this directory (plugin root). GitHub: `Corsox-Tech/hl-core`, branch: `main`.
 
 ## On-Demand References
-- **Deployment, SSH, WP-CLI commands:** read `.claude/skills/deploy.md`
-- **Domain architecture, roles, forms, control groups:** read `.claude/skills/architecture.md`
-- **Security posture, hardening, incident log, checklists:** read `.claude/skills/security.md`
-- **Full implementation details, architecture tree:** read `README.md`
+- **Deployment (ALWAYS use `bin/deploy.sh`):** `.claude/skills/deploy.md`
+- **2026-04-20 rollback incident + guardrail design:** `docs/superpowers/plans/2026-04-20-email-registry-cleanup-progress.md` (full evidence log) + `docs/superpowers/plans/2026-04-20-email-registry-cleanup.md` (spec + architecture)
+- **Domain architecture, roles, forms, control groups:** `.claude/skills/architecture.md`
+- **Security posture, hardening, incident log, checklists:** `.claude/skills/security.md`
+- **Full implementation details, architecture tree:** `README.md`
 - **Doc file index:** in `.claude/skills/architecture.md` (top section)
+
+## Deploy quick reference
+```bash
+# Deploy to test (AWS Lightsail):
+bash bin/deploy.sh test
+
+# Deploy to prod (Hostinger; requires explicit user approval per session):
+bash bin/deploy.sh prod
+
+# Check what's currently on a target:
+ssh -p 65002 u665917738@145.223.76.150 'cat /home/u665917738/domains/academy.housmanlearning.com/public_html/wp-content/plugins/hl-core/.deploy-manifest.json'
+ssh -i ~/.ssh/hla-test-keypair.pem bitnami@44.221.6.201 'cat /opt/bitnami/wordpress/wp-content/plugins/hl-core/.deploy-manifest.json'
+```
+
+Running multiple Claude sessions in parallel is fine — the descendant check guarantees that a stale session cannot overwrite a newer one's work. If the script aborts with "NOT a descendant," **read the manifest** and investigate before using `--force`. The abort is almost always correct.
