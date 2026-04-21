@@ -352,7 +352,7 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Test harness** — `bin/test-email-phase2-stubs.php` (29 assertions: handler SQL via reflection + NULL-enrollment coach path end-to-end through `run_daily_checks()`). `bin/test-email-phase2-registry-ui.php` (40 assertions: admin-UI-equivalent registry + save-payload validation). Both all-green on test SHA `9cc550e` @ v1.2.9.
 - [x] **Version bump 1.2.8 → 1.2.9** — marks the Phase 2 boundary.
 - [x] **Deployed to test** — 2026-04-21 18:43 UTC. SHA `9cc550e` on branch `feature/workflow-ux-m1`. Both suites re-run against the post-flip state (not pre-flip) — 69 total assertions pass.
-- [ ] **Deployed to prod** — Awaiting Mateo's explicit approval per session.
+- [x] **Deployed to prod** — 2026-04-21 18:54 UTC. SHA `7b2ea94` @ v1.2.9. Both test suites re-run on prod, **69/69 pass**. Schema `hl_core_schema_revision` = 43 (parallel-session feature-tracker migration propagated correctly with this deploy). Zero `[Phase2Test]` fixture residue across queue/workflow/template/cycle/partnership/users (finally-block cleanup clean).
 
 ### Classroom Management for Control Groups (Ticket #18 — April 2026)
 > **Spec:** `docs/superpowers/specs/2026-04-13-classroom-management-design.md` | **Plan:** `docs/superpowers/plans/2026-04-13-classroom-management.md`
