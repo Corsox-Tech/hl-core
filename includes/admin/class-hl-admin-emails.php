@@ -463,10 +463,10 @@ class HL_Admin_Emails {
                         // (10% of 60min, clamped 5–30). Effective send window
                         // for a scheduled session is roughly 30–90 minutes
                         // before start, not precisely 60. Accepted tradeoff vs
-                        // adding a new sub-hour WP-Cron schedule. If Chris
-                        // reports precision issues, revisit (fuzz widen OR
-                        // 15-min schedule) — don't just bump the fuzz clamp
-                        // without dedup review.
+                        // adding a new sub-hour WP-Cron schedule. If precision
+                        // issues are reported, revisit (fuzz widen OR 15-min
+                        // schedule) — don't just bump the fuzz clamp without
+                        // dedup review.
                         'label'         => 'Reminder: 1 Hour Before Scheduled Session',
                         'key'           => 'cron:session_upcoming',
                         'type'          => 'cron',

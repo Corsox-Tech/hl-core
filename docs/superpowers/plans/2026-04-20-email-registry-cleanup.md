@@ -11,7 +11,7 @@
 
 ## 1. Background & motivation
 
-Chris (client) asked us to build 19 email workflows for him. While prepping, we spotted two problems with the email workflow builder:
+The client asked us to build 19 email workflows. While prepping, we spotted two problems with the email workflow builder:
 
 1. **The "Component Type" picker is redundant.** After picking Category → Event (cascade), the picker auto-fills but stays editable. It's a UX artifact left behind when commit `3c53332` (Apr 16, M2 cascade) was bolted on top of commit `f41ff51` (Apr 14, Rev 39 generic triggers). The spec says the cascade is "purely presentational" — so an editable override contradicts the invariant.
 
@@ -19,7 +19,7 @@ Chris (client) asked us to build 19 email workflows for him. While prepping, we 
 
 Mateo's objection to continuing the `hidden` approach: **hidden stuff becomes stale**. Without visible state, nobody knows if a category is "wired and waiting" or "half-built and abandoned."
 
-Chris's 19 workflows also revealed **genuinely missing backend wiring**:
+The 19 client workflows also revealed **genuinely missing backend wiring**:
 - Classroom Visit overdue cron (row 11)
 - Session-datetime-anchored reminders (rows 17, 18, 19)
 - Post-completion compound triggers (rows 20, 21)
@@ -185,7 +185,7 @@ No feature flag used. Shipped directly on `feature/workflow-ux-m1` with tests gr
 - Saving a stub via hand-crafted POST is rejected server-side.
 - `component_type_filter` field either (a) is not present in the form, or (b) lives behind an Advanced disclosure — verified by audit.
 - Smoke test 0 new failures.
-- Chris's 13 currently-wired workflows buildable end-to-end via the cascade (rows 4, 5, 6, 7, 9, 10, 12, 13, 14, 15, 16, 22, 24 — row 5 pending condition-field confirmation).
+- The 13 currently-wired client workflows buildable end-to-end via the cascade (rows 4, 5, 6, 7, 9, 10, 12, 13, 14, 15, 16, 22, 24 — row 5 pending condition-field confirmation).
 
 ## 8. Rollout
 
@@ -194,10 +194,10 @@ No feature flag used. Shipped directly on `feature/workflow-ux-m1` with tests gr
 3. Deploy to test, verify via `wp eval` + browser check on one wired + one stub entry.
 4. Deploy to prod.
 5. Update STATUS.md + README.md.
-6. Launch Playwright agent on Chris's 13 buildable workflows.
+6. Launch Playwright agent on the 13 buildable client workflows.
 
 ## 9. Open questions (logged for later — not blockers)
 
-- **Row 5 (Pathway Enrollment Control Group, #1B):** Needs a condition field that identifies control-group cycles. Does `partnership_type` or `cycle_type = control` exist as a condition field? If not, this workflow can't be built precisely. Log for Chris/Mateo decision.
-- **Row 8 (Pre-Assessment Documentation):** Is this truly "on pathway assignment, remind about assessment"? Or does it need a separate assessment-window trigger? Log for Chris/Mateo decision.
-- **Rows 2, 3 (User Registration in spreadsheet):** Per Mateo's correction, users don't receive emails on registration — these rows are out of scope for Chris. Confirm once more with him so the spreadsheet can be annotated.
+- **Row 5 (Pathway Enrollment Control Group, #1B):** Needs a condition field that identifies control-group cycles. Does `partnership_type` or `cycle_type = control` exist as a condition field? If not, this workflow can't be built precisely. Log for client/Mateo decision.
+- **Row 8 (Pre-Assessment Documentation):** Is this truly "on pathway assignment, remind about assessment"? Or does it need a separate assessment-window trigger? Log for client/Mateo decision.
+- **Rows 2, 3 (User Registration in spreadsheet):** Per Mateo's correction, users don't receive emails on registration — these rows are out of scope. Confirm once more with the client so the spreadsheet can be annotated.
