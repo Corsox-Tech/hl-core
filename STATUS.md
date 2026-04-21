@@ -1,6 +1,6 @@
 # STATUS.md — HL Core Build Status
 
-**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 25 admin controllers, 57 DB tables (schema rev 42), 35 services, 20 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools). **Email system deployed to test (April 2026). Course Survey Builder implemented (April 2026).**
+**Phases 1-32 + 35 complete. Deployed to production (March 2026).** 40 shortcode pages (+ 4 backward-compatible aliases), 25 admin controllers, 57 DB tables (schema rev 43), 35 services, 20 CLI commands. Lutheran control group provisioned (39 enrollments, 286 children, 11 schools). **Email system deployed to test (April 2026). Course Survey Builder implemented (April 2026).**
 
 ---
 
@@ -355,6 +355,14 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] ~~Schema rev 38 — `github_issue_id` column~~ (dropped in rev 41)
 - [x] ~~CLI command — `wp hl-core sync-tickets-to-github`~~ (deleted)
 - [x] GitHub Issues on Corsox-Tech/hl-core deleted.
+
+### Ticket "Last Updated" column (rev 43 — April 2026)
+- [x] **Schema rev 43** — `status_updated_at` column on `hl_ticket` (nullable). Backfill: existing rows set to `created_at`. Idempotent migration `migrate_ticket_add_status_updated_at()`.
+- [x] **Service — set on status transitions** — `create_ticket`, `save_draft`, `publish_draft`, `change_status`, `creator_review_ticket` (approve + reject) all write `status_updated_at = now`. `update_ticket` (content edits) intentionally does not touch it.
+- [x] **List query** — SELECT adds `status_updated_at`; `ORDER BY COALESCE(status_updated_at, created_at) DESC` so row order matches the displayed column.
+- [x] **Enrichment** — `enrich_ticket_for_list` adds `last_updated_time_ago` (falls back to `created_at`). Existing `time_ago` (created-at) kept for detail modal.
+- [x] **Frontend** — Table header "Date" → "Last Updated"; JS row renders `t.last_updated_time_ago`. Plugin version 1.2.7 → 1.2.8.
+- [ ] **Deployed to test** — Pending.
 
 ### Ticket QA Workflow (rev 41 — April 2026)
 > **Spec:** `docs/superpowers/specs/2026-04-15-ticket-qa-workflow-design.md` | **Plan:** `docs/superpowers/plans/2026-04-15-ticket-qa-workflow.md`

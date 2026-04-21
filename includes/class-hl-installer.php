@@ -153,7 +153,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 42;
+        $current_revision = 43;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -282,6 +282,11 @@ class HL_Installer {
                 self::migrate_add_cycle_survey_id();
                 self::migrate_add_survey_pending_status();
                 self::seed_surveys();
+            }
+
+            // Rev 43: Add status_updated_at to hl_ticket (for "Last Updated" column).
+            if ( (int) $stored < 43 ) {
+                self::migrate_ticket_add_status_updated_at();
             }
 
             // Migrate coaching.session_scheduled → coaching.session_status conditions.
@@ -2094,6 +2099,7 @@ class HL_Installer {
             resolved_at datetime NULL DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            status_updated_at datetime NULL DEFAULT NULL,
             category enum('course_content','platform_issue','account_access','forms_assessments','reports_data','other') NOT NULL DEFAULT 'other',
             context_mode enum('self','view_as') NOT NULL DEFAULT 'self',
             context_user_id bigint(20) unsigned NULL DEFAULT NULL,
@@ -3902,6 +3908,32 @@ class HL_Installer {
         if ( $wpdb->last_error ) {
             error_log( '[HL_INSTALLER] Rev 38 failed: ' . $wpdb->last_error );
         }
+    }
+
+    /**
+     * Rev 43: Add status_updated_at to hl_ticket.
+     *
+     * Tracks the last time a ticket's status changed (separate from updated_at,
+     * which bumps on any field edit). Existing rows are backfilled with created_at
+     * so the "Last Updated" column falls back sensibly for tickets that never changed.
+     *
+     * Idempotent: guarded by SHOW COLUMNS check.
+     */
+    private static function migrate_ticket_add_status_updated_at() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_ticket';
+
+        $col = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'status_updated_at'" );
+        if ( empty( $col ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `status_updated_at` datetime NULL DEFAULT NULL AFTER `updated_at`" );
+            if ( $wpdb->last_error ) {
+                error_log( '[HL_INSTALLER] Rev 43 failed to add column: ' . $wpdb->last_error );
+                return;
+            }
+        }
+
+        // Backfill NULL rows with created_at (so never-changed tickets display their creation date).
+        $wpdb->query( "UPDATE `{$table}` SET `status_updated_at` = `created_at` WHERE `status_updated_at` IS NULL" );
     }
 
     /**

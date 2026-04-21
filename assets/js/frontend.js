@@ -277,7 +277,7 @@
                             '<td><span class="hlft-priority-badge hlft-priority-badge--' + esc(t.priority) + '">' + esc(t.priority) + '</span></td>' +
                             '<td><span class="hlft-submitter"><img class="hlft-avatar" src="' + esc(t.creator_avatar) + '" alt=""> ' + esc(t.creator_name) + '</span></td>' +
                             '<td><span class="hlft-status-pill hlft-status-pill--' + esc(t.status) + '">' + esc(statusLabels[t.status] || '') + '</span></td>' +
-                            '<td>' + esc(t.time_ago) + '</td>' +
+                            '<td>' + esc(t.last_updated_time_ago || t.time_ago) + '</td>' +
                             '</tr>';
                         $body.append(row);
                     });

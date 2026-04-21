@@ -125,7 +125,7 @@ class HL_Frontend_Feature_Tracker {
                             <th class="hlft-th-priority"><?php esc_html_e( 'Priority', 'hl-core' ); ?></th>
                             <th class="hlft-th-submitter"><?php esc_html_e( 'Submitted by', 'hl-core' ); ?></th>
                             <th class="hlft-th-status"><?php esc_html_e( 'Status', 'hl-core' ); ?></th>
-                            <th class="hlft-th-date"><?php esc_html_e( 'Date', 'hl-core' ); ?></th>
+                            <th class="hlft-th-date"><?php esc_html_e( 'Last Updated', 'hl-core' ); ?></th>
                         </tr>
                     </thead>
                     <tbody id="hlft-table-body"></tbody>

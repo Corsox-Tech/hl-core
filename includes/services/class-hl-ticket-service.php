@@ -230,12 +230,14 @@ class HL_Ticket_Service {
         $offset   = ( $page - 1 ) * $per_page;
 
         // Fetch tickets (without description for list view).
+        // Sort by status_updated_at (falling back to created_at) so the "Last Updated"
+        // column is consistent with row order.
         $select_sql = "SELECT t.ticket_id, t.ticket_uuid, t.title, t.type, t.priority, t.status,
                               t.creator_user_id, t.category, t.context_mode, t.context_user_id,
-                              t.resolved_at, t.created_at, t.updated_at
+                              t.resolved_at, t.created_at, t.updated_at, t.status_updated_at
                        FROM {$table} t
                        WHERE {$where_sql}
-                       ORDER BY t.created_at DESC
+                       ORDER BY COALESCE(t.status_updated_at, t.created_at) DESC
                        LIMIT %d OFFSET %d";
         $limit_values   = array_merge( $values, array( $per_page, $offset ) );
         $rows = $wpdb->get_results( $wpdb->prepare( $select_sql, $limit_values ), ARRAY_A );
@@ -334,18 +336,19 @@ class HL_Ticket_Service {
         $uuid   = HL_DB_Utils::generate_uuid();
         $now    = current_time( 'mysql' );
         $result = $wpdb->insert( $wpdb->prefix . 'hl_ticket', array(
-            'ticket_uuid'     => $uuid,
-            'title'           => $title,
-            'description'     => $description,
-            'type'            => $type,
-            'priority'        => $priority,
-            'category'        => $category,
-            'status'          => 'open',
-            'creator_user_id' => get_current_user_id(),
-            'context_mode'    => $context_mode,
-            'context_user_id' => $context_user,
-            'created_at'      => $now,
-            'updated_at'      => $now,
+            'ticket_uuid'       => $uuid,
+            'title'             => $title,
+            'description'       => $description,
+            'type'              => $type,
+            'priority'          => $priority,
+            'category'          => $category,
+            'status'            => 'open',
+            'creator_user_id'   => get_current_user_id(),
+            'context_mode'      => $context_mode,
+            'context_user_id'   => $context_user,
+            'created_at'        => $now,
+            'updated_at'        => $now,
+            'status_updated_at' => $now,
         ) );
 
         if ( ! $result ) {
@@ -439,17 +442,18 @@ class HL_Ticket_Service {
         $new_uuid    = HL_DB_Utils::generate_uuid();
         $now         = current_time( 'mysql' );
         $insert_data = array(
-            'ticket_uuid'     => $new_uuid,
-            'title'           => $title,
-            'description'     => $description,
-            'type'            => $type,
-            'priority'        => $priority,
-            'category'        => $category,
-            'status'          => self::DRAFT_STATUS,
-            'creator_user_id' => get_current_user_id(),
-            'context_mode'    => $context_mode,
-            'created_at'      => $now,
-            'updated_at'      => $now,
+            'ticket_uuid'       => $new_uuid,
+            'title'             => $title,
+            'description'       => $description,
+            'type'              => $type,
+            'priority'          => $priority,
+            'category'          => $category,
+            'status'            => self::DRAFT_STATUS,
+            'creator_user_id'   => get_current_user_id(),
+            'context_mode'      => $context_mode,
+            'created_at'        => $now,
+            'updated_at'        => $now,
+            'status_updated_at' => $now,
         );
         // Omit context_user_id when null so MySQL uses the column DEFAULT NULL.
         // $wpdb->insert() with any format sends '' for PHP null, which coerces to 0 in unsigned bigint.
@@ -536,17 +540,18 @@ class HL_Ticket_Service {
 
         // Use a raw query to correctly write NULL for context_user_id.
         // $wpdb->update() with any format sends '' for PHP null, which MySQL coerces to 0.
+        $now      = current_time( 'mysql' );
         $ctx_sql  = ( $context_user !== null ) ? 'context_user_id = %d,' : 'context_user_id = NULL,';
         $pub_vals = array_merge(
             array( $title, $type, $priority, $category, $description, $context_mode ),
             $context_user !== null ? array( $context_user ) : array(),
-            array( 'open', current_time( 'mysql' ), $uuid )
+            array( 'open', $now, $now, $uuid )
         );
         $wpdb->query(
             $wpdb->prepare(
                 "UPDATE {$wpdb->prefix}hl_ticket
                  SET title = %s, type = %s, priority = %s, category = %s,
-                     description = %s, context_mode = %s, {$ctx_sql} status = %s, updated_at = %s
+                     description = %s, context_mode = %s, {$ctx_sql} status = %s, updated_at = %s, status_updated_at = %s
                  WHERE ticket_uuid = %s",
                 $pub_vals
             )
@@ -694,15 +699,17 @@ class HL_Ticket_Service {
         }
 
         $old_status = $ticket['status'];
+        $now        = current_time( 'mysql' );
 
         $update_data = array(
-            'status'     => $new_status,
-            'updated_at' => current_time( 'mysql' ),
+            'status'            => $new_status,
+            'updated_at'        => $now,
+            'status_updated_at' => $now,
         );
 
         // Set resolved_at when transitioning to resolved.
         if ( $new_status === 'resolved' && $old_status !== 'resolved' ) {
-            $update_data['resolved_at'] = current_time( 'mysql' );
+            $update_data['resolved_at'] = $now;
         }
         // Clear resolved_at if moving away from resolved.
         if ( $new_status !== 'resolved' && $old_status === 'resolved' ) {
@@ -829,9 +836,10 @@ class HL_Ticket_Service {
             $rows = $wpdb->update(
                 $wpdb->prefix . 'hl_ticket',
                 array(
-                    'status'      => 'resolved',
-                    'resolved_at' => $now,
-                    'updated_at'  => $now,
+                    'status'            => 'resolved',
+                    'resolved_at'       => $now,
+                    'updated_at'        => $now,
+                    'status_updated_at' => $now,
                 ),
                 array(
                     'ticket_uuid' => $uuid,
@@ -851,9 +859,10 @@ class HL_Ticket_Service {
             // Raw query to guarantee resolved_at = NULL (not empty string).
             $rows = $wpdb->query( $wpdb->prepare(
                 "UPDATE `{$wpdb->prefix}hl_ticket`
-                 SET status = %s, updated_at = %s, resolved_at = NULL
+                 SET status = %s, updated_at = %s, status_updated_at = %s, resolved_at = NULL
                  WHERE ticket_uuid = %s AND status = 'ready_for_test'",
                 'test_failed',
+                $now,
                 $now,
                 $uuid
             ) );
@@ -978,7 +987,12 @@ class HL_Ticket_Service {
         $row['creator_name']   = $user ? $user->display_name : __( 'Unknown User', 'hl-core' );
         $row['creator_avatar'] = get_avatar_url( $row['creator_user_id'], array( 'size' => 64 ) );
         $row['can_edit']       = $this->can_edit( $row );
-        $row['time_ago']       = human_time_diff( strtotime( $row['created_at'] ), strtotime( current_time( 'mysql' ) ) ) . ' ago';
+        $now_ts                = strtotime( current_time( 'mysql' ) );
+        $row['time_ago']       = human_time_diff( strtotime( $row['created_at'] ), $now_ts ) . ' ago';
+        // status_updated_at may be NULL on detail-view rows or on rows predating rev 43;
+        // fall back to created_at so "never changed" tickets show their creation date.
+        $status_ts             = ! empty( $row['status_updated_at'] ) ? $row['status_updated_at'] : $row['created_at'];
+        $row['last_updated_time_ago'] = human_time_diff( strtotime( $status_ts ), $now_ts ) . ' ago';
         return $row;
     }
 
