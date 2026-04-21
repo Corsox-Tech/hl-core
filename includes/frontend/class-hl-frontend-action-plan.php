@@ -63,6 +63,12 @@ class HL_Frontend_Action_Plan {
 
         // If a submit just failed validation on this request, re-populate the form with
         // what the user typed (rather than the stale draft) and surface the errors.
+        //
+        // Merge assumes the submit POST carries all 9 field keys — handle_submission()
+        // initialises every key from $_POST with an empty-string / empty-array default,
+        // so keys in $posted_values always overwrite keys in the DB draft. Validation
+        // failure short-circuits before the service write (see handle_submission() early
+        // return), so a hard page reload recovers the stored draft.
         $errors = !$is_readonly ? self::$validation_errors : array();
         if (!$is_readonly && is_array(self::$posted_values)) {
             $responses = array_merge(is_array($responses) ? $responses : array(), self::$posted_values);
@@ -145,7 +151,7 @@ class HL_Frontend_Action_Plan {
             <?php if (!empty($errors)) :
                 $labels = self::required_field_labels();
                 ?>
-                <div class="hlap-alert hlap-alert-error" id="hlap-error-summary" role="alert" aria-live="polite">
+                <div class="hlap-alert hlap-alert-error" id="hlap-error-summary" role="alert" aria-live="polite" tabindex="-1">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                     <div>
                         <strong><?php esc_html_e('Please complete the required fields before submitting.', 'hl-core'); ?></strong>
@@ -475,6 +481,8 @@ class HL_Frontend_Action_Plan {
                 banner.className = 'hlap-alert hlap-alert-error';
                 banner.id = 'hlap-error-summary';
                 banner.setAttribute('role', 'alert');
+                banner.setAttribute('aria-live', 'polite');
+                banner.setAttribute('tabindex', '-1');
                 banner.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
                 var body = document.createElement('div');
                 var strong = document.createElement('strong');
@@ -513,7 +521,13 @@ class HL_Frontend_Action_Plan {
                 return invalid;
             }
 
-            submitBtn.addEventListener('click', function(e){
+            // Use the form's `submit` event + event.submitter so Enter-key submission
+            // is handled the same as a click on either button. Save Draft bypasses
+            // validation by checking submitter.value.
+            form.addEventListener('submit', function(e){
+                var submitter = e.submitter || submitBtn; // fallback for odd browsers
+                if (!submitter || submitter.value !== 'submit') return;
+
                 clearErrors();
                 var invalid = validate();
                 if (invalid.length === 0) return; // let form submit normally
@@ -524,12 +538,24 @@ class HL_Frontend_Action_Plan {
                 }
                 renderSummary(invalid);
 
-                // Scroll to first invalid field
+                // Move keyboard focus to the banner and smooth-scroll to the first
+                // invalid field. Banner has tabindex=-1 + role=alert so SR users and
+                // keyboard users both get a clear landing point.
+                var banner = document.getElementById('hlap-error-summary');
+                if (banner && banner.focus) banner.focus({preventScroll: true});
                 var first = getField(invalid[0]);
                 if (first && first.scrollIntoView) {
                     first.scrollIntoView({behavior: 'smooth', block: 'center'});
                 }
             });
+
+            // Focus the server-rendered banner on page load so users who hit submit
+            // with JS disabled (or a slow JS path) still land on the error summary.
+            var initialBanner = document.getElementById('hlap-error-summary');
+            if (initialBanner && initialBanner.focus) {
+                initialBanner.setAttribute('tabindex', '-1');
+                initialBanner.focus({preventScroll: true});
+            }
         })();
         </script>
         <?php
@@ -553,9 +579,9 @@ class HL_Frontend_Action_Plan {
         }
 
         $user_id       = get_current_user_id();
-        $session_id    = absint($_POST['hl_action_plan_session_id']);
-        $instrument_id = absint($_POST['hl_action_plan_instrument_id']);
-        $action        = sanitize_text_field($_POST['hl_action_plan_action']);
+        $session_id    = isset($_POST['hl_action_plan_session_id']) ? absint(wp_unslash($_POST['hl_action_plan_session_id'])) : 0;
+        $instrument_id = isset($_POST['hl_action_plan_instrument_id']) ? absint(wp_unslash($_POST['hl_action_plan_instrument_id'])) : 0;
+        $action        = isset($_POST['hl_action_plan_action']) ? sanitize_text_field(wp_unslash($_POST['hl_action_plan_action'])) : '';
         $status        = ($action === 'submit') ? 'submitted' : 'draft';
         $role          = 'supervisee';
 
