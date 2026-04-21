@@ -45,7 +45,8 @@ case "$TARGET" in
     REMOTE_PLUGINS_DIR="/opt/bitnami/wordpress/wp-content/plugins"
     WP_PATH_ENV='export PATH=/opt/bitnami/php/bin:/opt/bitnami/mariadb/bin:/usr/local/bin:/usr/bin:/bin'
     WP_CACHE_FLUSH="$WP_PATH_ENV && wp --path=/opt/bitnami/wordpress cache flush"
-    EXTRACT_CMD="cd $REMOTE_PLUGINS_DIR && sudo rm -rf hl-core && sudo tar -xzf /tmp/hl-core.tar.gz && sudo chown -R bitnami:daemon hl-core"
+    # Preserve data/ across deploys (seed-source files are gitignored, not in tarball).
+    EXTRACT_CMD="cd $REMOTE_PLUGINS_DIR && if [ -d hl-core/data ]; then sudo mv hl-core/data /tmp/hl-core-data-backup; fi && sudo rm -rf hl-core && sudo tar -xzf /tmp/hl-core.tar.gz && if [ -d /tmp/hl-core-data-backup ]; then sudo mv /tmp/hl-core-data-backup hl-core/data; fi && sudo chown -R bitnami:daemon hl-core"
     ;;
   prod)
     SSH_CMD=(ssh -p 65002 u665917738@145.223.76.150)
@@ -54,7 +55,7 @@ case "$TARGET" in
     REMOTE_PLUGIN_DIR="/home/u665917738/domains/academy.housmanlearning.com/public_html/wp-content/plugins/hl-core"
     REMOTE_PLUGINS_DIR="/home/u665917738/domains/academy.housmanlearning.com/public_html/wp-content/plugins"
     WP_CACHE_FLUSH="cd /home/u665917738/domains/academy.housmanlearning.com/public_html && wp cache flush 2>/dev/null || true"
-    EXTRACT_CMD="cd $REMOTE_PLUGINS_DIR && rm -rf hl-core && tar -xzf /tmp/hl-core.tar.gz"
+    EXTRACT_CMD="cd $REMOTE_PLUGINS_DIR && if [ -d hl-core/data ]; then mv hl-core/data /tmp/hl-core-data-backup; fi && rm -rf hl-core && tar -xzf /tmp/hl-core.tar.gz && if [ -d /tmp/hl-core-data-backup ]; then mv /tmp/hl-core-data-backup hl-core/data; fi"
     ;;
   *)
     echo "ERROR: unknown target '$TARGET' (use 'test' or 'prod')"
