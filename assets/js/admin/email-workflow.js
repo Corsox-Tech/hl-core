@@ -819,13 +819,27 @@ jQuery(function ($) {
         });
 
         // Populate event dropdown from category.
+        // Stub events render disabled with a tooltip so users see the capability
+        // is coming but cannot select it. Wired events render normally.
         function populateEvents(catKey, preserveEvent) {
             var cat = MAP[catKey];
             $eventSelect.empty().append('<option value="">\u2014 Select Event \u2014</option>');
             if (!cat || !cat.events) return;
             $.each(cat.events, function (evtKey, evtDef) {
+                var wiring = evtDef.wiring_status || 'wired';
+                if (wiring === 'deprecated') return; // Deprecated: edit-mode only, hide in new-workflow cascade.
+
+                var isStub = (wiring === 'stub');
+                var label  = isStub ? ('[Coming soon] ' + evtDef.label) : evtDef.label;
+                var titleAttr = isStub && evtDef.stub_note
+                    ? ' title="' + escHtml(evtDef.stub_note) + '"'
+                    : '';
+                var disabledAttr = isStub ? ' disabled' : '';
+
                 $eventSelect.append(
-                    '<option value="' + escHtml(evtKey) + '">' + escHtml(evtDef.label) + '</option>'
+                    '<option value="' + escHtml(evtKey) + '"' + disabledAttr + titleAttr + '>'
+                        + escHtml(label)
+                    + '</option>'
                 );
             });
             if (preserveEvent) {
@@ -861,8 +875,10 @@ jQuery(function ($) {
                 $statusFilter.val('');
             }
 
-            // Auto-set component type filter.
-            var $compType = $('select[name="component_type_filter"]');
+            // Auto-set component type filter. Always a hidden input now — the
+            // visible picker was removed (audit found zero non-default uses,
+            // and the cascade already implies component type via event.componentType).
+            var $compType = $('[name="component_type_filter"]');
             if (evt.componentType) {
                 $compType.val(evt.componentType);
             } else {
