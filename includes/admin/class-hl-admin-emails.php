@@ -547,12 +547,16 @@ class HL_Admin_Emails {
                         'wiring_status' => 'wired',
                     ),
                     'overdue' => array(
+                        // Wired 2026-04-21 (Phase 2). Fires via the generic
+                        // cron:component_overdue handler with componentType
+                        // = classroom_visit. Completion suppression is
+                        // per-component (matches on external_ref visit_number)
+                        // so CV #3 still fires when CV #1 is submitted.
                         'label'         => 'Visit Overdue',
                         'key'           => 'cron:component_overdue',
                         'type'          => 'cron',
                         'componentType' => 'classroom_visit',
-                        'wiring_status' => 'stub',
-                        'stub_note'     => 'cron:component_overdue currently supports only learndash_course. See plan §5.1.',
+                        'wiring_status' => 'wired',
                     ),
                 ),
             ),
