@@ -424,6 +424,16 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Deployed to test** — 2026-04-21 @ v1.2.9 (SHA `3a0e21a`). Verified with Playwright on `MC4 Mastery` course (3 sections): lesson outline now renders "MODULE 1/2/3" headings in the correct positions with the orange accent bar; course page unchanged (3 LD-native headings). No regression on the course listing side.
 - [ ] **Deployed to prod** — Pending.
 
+### Action Plan — First 4 Planning Fields Required (Ticket #9 — April 2026)
+> The Action Plan & Results form submitted with any combination of empty Planning fields. Client wanted the four Planning fields (Domain, Skills/Strategy, HOW, WHAT) to be required on submit; Save Draft should still accept partial work.
+- [x] **Server-side validation** — `HL_Frontend_Action_Plan::validate_required()` gated on `$status === 'submitted'` in `handle_submission()`. Returns `WP_Error('hlap_validation')` with per-field messages in `error_data['fields']`. Draft saves bypass validation.
+- [x] **In-memory error state** — Static props `$validation_errors` + `$posted_values` stashed on failed submit so the renderer on the same request re-populates the form with what the user typed (no clobber of their work) and surfaces errors inline + in a top-of-form summary.
+- [x] **Renderer — required markers + error UI** — Red `*` asterisk on the four labels, `aria-required` + `aria-invalid` + `aria-describedby` on inputs, per-field error text under the control, red-tinted banner with clickable jump links at the top of the form. Readonly view unchanged (no marker/validation needed).
+- [x] **Client-side validation** — Submit button click handler runs the same four checks (domain non-empty, ≥1 skill checked, HOW/WHAT non-whitespace), preventDefault on fail, marks errors dynamically, renders matching summary banner, smooth-scrolls to the first invalid field. Save Draft bypasses. No dependency on server round-trip for the common path.
+- [x] **CSS** — `.hlap-alert-error` (red banner), `.hlap-field.has-error` (red input border + pill border), `.hlap-field-error-text` (⚠ + red 13px), `.hlap-required` (red bold asterisk), `.hlap-anchor` (scroll offset target for summary links). Appended to the `.hlap-*` block in `frontend.css`.
+- [ ] **Deployed to test** — Pending.
+- [ ] **Deployed to prod** — Pending.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)

@@ -13,6 +13,36 @@ if (!defined('ABSPATH')) exit;
 class HL_Frontend_Action_Plan {
 
     /**
+     * Validation errors from a failed submit, keyed by field (domain, skills, how, what).
+     * Populated by handle_submission() and consumed by render() on the same request.
+     *
+     * @var array<string,string>
+     */
+    public static $validation_errors = array();
+
+    /**
+     * Sanitized POST values from a failed submit, so the re-rendered form re-populates
+     * the user's input instead of resetting to the stored draft.
+     *
+     * @var array|null
+     */
+    public static $posted_values = null;
+
+    /**
+     * Labels for the four required fields, used in the top-of-form error summary.
+     *
+     * @return array<string,string>
+     */
+    private static function required_field_labels() {
+        return array(
+            'domain' => __('Domain', 'hl-core'),
+            'skills' => __('Skills / Strategy', 'hl-core'),
+            'how'    => __('HOW you will practice', 'hl-core'),
+            'what'   => __('WHAT behaviors to track', 'hl-core'),
+        );
+    }
+
+    /**
      * Render the Action Plan form.
      *
      * @param string      $context             'coaching' or 'mentoring'
@@ -30,6 +60,13 @@ class HL_Frontend_Action_Plan {
         // Teachers (mentoring context) can always edit their Action Plan
         $is_readonly = ($context !== 'mentoring') && ($existing_submission && $existing_submission['status'] === 'submitted');
         $is_draft    = ($existing_submission && $existing_submission['status'] === 'draft');
+
+        // If a submit just failed validation on this request, re-populate the form with
+        // what the user typed (rather than the stale draft) and surface the errors.
+        $errors = !$is_readonly ? self::$validation_errors : array();
+        if (!$is_readonly && is_array(self::$posted_values)) {
+            $responses = array_merge(is_array($responses) ? $responses : array(), self::$posted_values);
+        }
 
         // Build domain/skills maps from instrument sections.
         // Sections may use 'key' or 'title' (lowercased) for identification.
@@ -105,6 +142,24 @@ class HL_Frontend_Action_Plan {
                 </div>
             <?php endif; ?>
 
+            <?php if (!empty($errors)) :
+                $labels = self::required_field_labels();
+                ?>
+                <div class="hlap-alert hlap-alert-error" id="hlap-error-summary" role="alert" aria-live="polite">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <div>
+                        <strong><?php esc_html_e('Please complete the required fields before submitting.', 'hl-core'); ?></strong>
+                        <ul class="hlap-error-list">
+                            <?php foreach ($errors as $field_key => $msg) :
+                                $label = isset($labels[$field_key]) ? $labels[$field_key] : $field_key;
+                                ?>
+                                <li><a href="#hl-ap-<?php echo esc_attr($field_key); ?>-anchor"><?php echo esc_html($label); ?></a> — <?php echo esc_html($msg); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <form method="post" id="hl-action-plan-form">
                 <?php if (!$is_readonly) : ?>
                     <?php wp_nonce_field('hl_action_plan_submit', 'hl_action_plan_nonce'); ?>
@@ -122,14 +177,20 @@ class HL_Frontend_Action_Plan {
                     <div class="hlap-section-body">
 
                         <!-- Domain -->
-                        <div class="hlap-field">
-                            <label class="hlap-field-label" for="hl-ap-domain"><?php esc_html_e('Domain', 'hl-core'); ?></label>
+                        <div class="hlap-field<?php echo isset($errors['domain']) ? ' has-error' : ''; ?>" data-required-field="domain">
+                            <span class="hlap-anchor" id="hl-ap-domain-anchor"></span>
+                            <label class="hlap-field-label" for="hl-ap-domain">
+                                <?php esc_html_e('Domain', 'hl-core'); ?>
+                                <?php if (!$is_readonly) : ?><span class="hlap-required" aria-label="<?php esc_attr_e('required', 'hl-core'); ?>">*</span><?php endif; ?>
+                            </label>
                             <?php if ($is_readonly) : ?>
                                 <div class="hlap-readonly-value">
                                     <span class="hlap-domain-badge"><?php echo esc_html(isset($domain_options[$selected_domain]) ? $domain_options[$selected_domain] : $selected_domain); ?></span>
                                 </div>
                             <?php else : ?>
-                                <select name="hl_ap[domain]" id="hl-ap-domain" class="hlap-select">
+                                <select name="hl_ap[domain]" id="hl-ap-domain" class="hlap-select"
+                                        aria-required="true"
+                                        <?php if (isset($errors['domain'])) : ?>aria-invalid="true" aria-describedby="hl-ap-domain-error"<?php endif; ?>>
                                     <option value=""><?php esc_html_e('— Select a domain —', 'hl-core'); ?></option>
                                     <?php foreach ($domain_options as $key => $label) : ?>
                                         <option value="<?php echo esc_attr($key); ?>" <?php selected($selected_domain, $key); ?>>
@@ -137,12 +198,19 @@ class HL_Frontend_Action_Plan {
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
+                                <?php if (isset($errors['domain'])) : ?>
+                                    <p class="hlap-field-error-text" id="hl-ap-domain-error"><?php echo esc_html($errors['domain']); ?></p>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
 
                         <!-- Skills/Strategy (conditional on domain) -->
-                        <div class="hlap-field" id="hl-ap-skills-group" style="<?php echo empty($selected_domain) ? 'display:none;' : ''; ?>">
-                            <label class="hlap-field-label"><?php esc_html_e('Skills / Strategy', 'hl-core'); ?></label>
+                        <div class="hlap-field<?php echo isset($errors['skills']) ? ' has-error' : ''; ?>" id="hl-ap-skills-group" data-required-field="skills" style="<?php echo empty($selected_domain) ? 'display:none;' : ''; ?>">
+                            <span class="hlap-anchor" id="hl-ap-skills-anchor"></span>
+                            <label class="hlap-field-label">
+                                <?php esc_html_e('Skills / Strategy', 'hl-core'); ?>
+                                <?php if (!$is_readonly) : ?><span class="hlap-required" aria-label="<?php esc_attr_e('required', 'hl-core'); ?>">*</span><?php endif; ?>
+                            </label>
                             <?php if ($is_readonly) : ?>
                                 <div class="hlap-pills-ro">
                                     <?php if (!empty($selected_skills)) : ?>
@@ -171,30 +239,51 @@ class HL_Frontend_Action_Plan {
                                         <?php endforeach; ?>
                                     </div>
                                 <?php endforeach; ?>
+                                <?php if (isset($errors['skills'])) : ?>
+                                    <p class="hlap-field-error-text" id="hl-ap-skills-error"><?php echo esc_html($errors['skills']); ?></p>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
 
                         <!-- HOW -->
-                        <div class="hlap-field">
-                            <label class="hlap-field-label" for="hl-ap-how"><?php esc_html_e('Describe HOW you will practice the skill(s)', 'hl-core'); ?></label>
+                        <div class="hlap-field<?php echo isset($errors['how']) ? ' has-error' : ''; ?>" data-required-field="how">
+                            <span class="hlap-anchor" id="hl-ap-how-anchor"></span>
+                            <label class="hlap-field-label" for="hl-ap-how">
+                                <?php esc_html_e('Describe HOW you will practice the skill(s)', 'hl-core'); ?>
+                                <?php if (!$is_readonly) : ?><span class="hlap-required" aria-label="<?php esc_attr_e('required', 'hl-core'); ?>">*</span><?php endif; ?>
+                            </label>
                             <?php if ($is_readonly) : ?>
                                 <div class="hlap-readonly-value"><?php echo wp_kses_post(isset($responses['how']) ? $responses['how'] : ''); ?></div>
                             <?php else : ?>
                                 <textarea name="hl_ap[how]" id="hl-ap-how" rows="4" class="hlap-textarea"
+                                          aria-required="true"
+                                          <?php if (isset($errors['how'])) : ?>aria-invalid="true" aria-describedby="hl-ap-how-error"<?php endif; ?>
                                           placeholder="<?php esc_attr_e('Describe the specific activities and strategies you plan to use...', 'hl-core'); ?>"
                                 ><?php echo esc_textarea(isset($responses['how']) ? $responses['how'] : ''); ?></textarea>
+                                <?php if (isset($errors['how'])) : ?>
+                                    <p class="hlap-field-error-text" id="hl-ap-how-error"><?php echo esc_html($errors['how']); ?></p>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
 
                         <!-- WHAT -->
-                        <div class="hlap-field">
-                            <label class="hlap-field-label" for="hl-ap-what"><?php esc_html_e('WHAT behaviors will you track to know this is effective?', 'hl-core'); ?></label>
+                        <div class="hlap-field<?php echo isset($errors['what']) ? ' has-error' : ''; ?>" data-required-field="what">
+                            <span class="hlap-anchor" id="hl-ap-what-anchor"></span>
+                            <label class="hlap-field-label" for="hl-ap-what">
+                                <?php esc_html_e('WHAT behaviors will you track to know this is effective?', 'hl-core'); ?>
+                                <?php if (!$is_readonly) : ?><span class="hlap-required" aria-label="<?php esc_attr_e('required', 'hl-core'); ?>">*</span><?php endif; ?>
+                            </label>
                             <?php if ($is_readonly) : ?>
                                 <div class="hlap-readonly-value"><?php echo wp_kses_post(isset($responses['what']) ? $responses['what'] : ''); ?></div>
                             <?php else : ?>
                                 <textarea name="hl_ap[what]" id="hl-ap-what" rows="4" class="hlap-textarea"
+                                          aria-required="true"
+                                          <?php if (isset($errors['what'])) : ?>aria-invalid="true" aria-describedby="hl-ap-what-error"<?php endif; ?>
                                           placeholder="<?php esc_attr_e('What observable changes will indicate success?', 'hl-core'); ?>"
                                 ><?php echo esc_textarea(isset($responses['what']) ? $responses['what'] : ''); ?></textarea>
+                                <?php if (isset($errors['what'])) : ?>
+                                    <p class="hlap-field-error-text" id="hl-ap-what-error"><?php echo esc_html($errors['what']); ?></p>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -336,6 +425,113 @@ class HL_Frontend_Action_Plan {
             domainSelect.addEventListener('change', updateSkills);
         })();
         </script>
+
+        <!-- JS for submit-time required-field validation (Save Draft bypasses) -->
+        <script>
+        (function(){
+            var form = document.getElementById('hl-action-plan-form');
+            if (!form) return;
+            var submitBtn = form.querySelector('button[value="submit"]');
+            if (!submitBtn) return;
+
+            var requiredLabels = {
+                domain: <?php echo wp_json_encode(__('Domain is required.', 'hl-core')); ?>,
+                skills: <?php echo wp_json_encode(__('Select at least one skill.', 'hl-core')); ?>,
+                how:    <?php echo wp_json_encode(__('Describe how you will practice.', 'hl-core')); ?>,
+                what:   <?php echo wp_json_encode(__('Describe what behaviors you will track.', 'hl-core')); ?>
+            };
+            var summaryTitle = <?php echo wp_json_encode(__('Please complete the required fields before submitting.', 'hl-core')); ?>;
+
+            function getField(key) {
+                return form.querySelector('[data-required-field="' + key + '"]');
+            }
+
+            function clearErrors() {
+                var fields = form.querySelectorAll('[data-required-field].has-error');
+                for (var i = 0; i < fields.length; i++) {
+                    fields[i].classList.remove('has-error');
+                    var existing = fields[i].querySelector('.hlap-field-error-text');
+                    if (existing) existing.parentNode.removeChild(existing);
+                }
+                var existingSummary = document.getElementById('hlap-error-summary');
+                if (existingSummary) existingSummary.parentNode.removeChild(existingSummary);
+            }
+
+            function markError(key, message) {
+                var field = getField(key);
+                if (!field) return;
+                field.classList.add('has-error');
+                if (field.querySelector('.hlap-field-error-text')) return;
+                var p = document.createElement('p');
+                p.className = 'hlap-field-error-text';
+                p.id = 'hl-ap-' + key + '-error';
+                p.textContent = message;
+                field.appendChild(p);
+            }
+
+            function renderSummary(invalidKeys) {
+                var wrapper = form.parentNode;
+                var banner = document.createElement('div');
+                banner.className = 'hlap-alert hlap-alert-error';
+                banner.id = 'hlap-error-summary';
+                banner.setAttribute('role', 'alert');
+                banner.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+                var body = document.createElement('div');
+                var strong = document.createElement('strong');
+                strong.textContent = summaryTitle;
+                body.appendChild(strong);
+                var ul = document.createElement('ul');
+                ul.className = 'hlap-error-list';
+                for (var i = 0; i < invalidKeys.length; i++) {
+                    var li = document.createElement('li');
+                    li.textContent = requiredLabels[invalidKeys[i]];
+                    ul.appendChild(li);
+                }
+                body.appendChild(ul);
+                banner.appendChild(body);
+                // Insert above form
+                wrapper.insertBefore(banner, form);
+            }
+
+            function validate() {
+                var invalid = [];
+
+                // Domain
+                var domainEl = document.getElementById('hl-ap-domain');
+                if (!domainEl || !domainEl.value) invalid.push('domain');
+
+                // Skills — at least 1 checked within the currently-visible domain block
+                var checked = form.querySelectorAll('input[name="hl_ap[skills][]"]:checked');
+                if (checked.length === 0) invalid.push('skills');
+
+                // HOW + WHAT — non-empty trimmed
+                var howEl = document.getElementById('hl-ap-how');
+                if (!howEl || !howEl.value.replace(/\s+/g, '')) invalid.push('how');
+                var whatEl = document.getElementById('hl-ap-what');
+                if (!whatEl || !whatEl.value.replace(/\s+/g, '')) invalid.push('what');
+
+                return invalid;
+            }
+
+            submitBtn.addEventListener('click', function(e){
+                clearErrors();
+                var invalid = validate();
+                if (invalid.length === 0) return; // let form submit normally
+
+                e.preventDefault();
+                for (var i = 0; i < invalid.length; i++) {
+                    markError(invalid[i], requiredLabels[invalid[i]]);
+                }
+                renderSummary(invalid);
+
+                // Scroll to first invalid field
+                var first = getField(invalid[0]);
+                if (first && first.scrollIntoView) {
+                    first.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }
+            });
+        })();
+        </script>
         <?php
 
         return ob_get_clean();
@@ -376,6 +572,23 @@ class HL_Frontend_Action_Plan {
         $responses['what_learned']        = isset($raw['what_learned']) ? wp_kses_post($raw['what_learned']) : '';
         $responses['still_wondering']     = isset($raw['still_wondering']) ? wp_kses_post($raw['still_wondering']) : '';
 
+        // Required-field validation — only enforced on submit. Save Draft bypasses
+        // so users can park incomplete work.
+        if ($status === 'submitted') {
+            $errors = self::validate_required($responses);
+            if (!empty($errors)) {
+                // Stash state so render() on the same request re-populates the form
+                // with the user's input and shows inline + summary errors.
+                self::$validation_errors = $errors;
+                self::$posted_values     = $responses;
+                return new WP_Error(
+                    'hlap_validation',
+                    __('Please complete the required fields before submitting your Action Plan.', 'hl-core'),
+                    array( 'fields' => $errors )
+                );
+            }
+        }
+
         $responses_json = wp_json_encode($responses);
 
         if ($context === 'coaching') {
@@ -402,5 +615,37 @@ class HL_Frontend_Action_Plan {
             'status'        => $status,
             'message'       => ($status === 'submitted') ? 'submitted' : 'saved',
         );
+    }
+
+    /**
+     * Validate the four required Planning fields for a submit action.
+     *
+     * Returns an empty array when the payload is valid, or a map of
+     * field_key => user-facing error message when it isn't.
+     *
+     * @param array $responses Sanitized responses.
+     * @return array<string,string>
+     */
+    private static function validate_required( array $responses ) {
+        $errors = array();
+
+        if ( empty( $responses['domain'] ) ) {
+            $errors['domain'] = __( 'Please select a domain.', 'hl-core' );
+        }
+
+        $skills = isset( $responses['skills'] ) ? $responses['skills'] : array();
+        if ( ! is_array( $skills ) || count( $skills ) === 0 ) {
+            $errors['skills'] = __( 'Please select at least one skill.', 'hl-core' );
+        }
+
+        if ( ! isset( $responses['how'] ) || trim( wp_strip_all_tags( (string) $responses['how'] ) ) === '' ) {
+            $errors['how'] = __( 'Please describe how you will practice the skill(s).', 'hl-core' );
+        }
+
+        if ( ! isset( $responses['what'] ) || trim( wp_strip_all_tags( (string) $responses['what'] ) ) === '' ) {
+            $errors['what'] = __( 'Please describe what behaviors you will track.', 'hl-core' );
+        }
+
+        return $errors;
     }
 }
