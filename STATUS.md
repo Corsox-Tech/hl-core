@@ -421,7 +421,7 @@ Pick up from the first unchecked `[ ]` item each session.
 ### Module Titles in Lesson Outline (Ticket #29 — April 2026)
 > Bug: the course outline panel on lesson pages (`templates/ld-lesson.php`) rendered a flat lesson list with no section/module dividers. Course page itself was fine because LD's native `lesson/partials/row.php` drove it.
 - [x] **Fixed key scheme** — `templates/ld-lesson.php`: section lookup was `$sections[$i + 1]` but `learndash_30_get_course_sections()` returns `$sections[$first_lesson_post_id]` (see `sfwd-lms/themes/ld30/includes/helpers.php:2439`). Changed to `isset($sections[$l_id])` so module headings render between lesson rows like the course page does.
-- [ ] **Deployed to test** — Pending.
+- [x] **Deployed to test** — 2026-04-21 @ v1.2.9 (SHA `3a0e21a`). Verified with Playwright on `MC4 Mastery` course (3 sections): lesson outline now renders "MODULE 1/2/3" headings in the correct positions with the orange accent bar; course page unchanged (3 LD-native headings). No regression on the course listing side.
 - [ ] **Deployed to prod** — Pending.
 
 ### Lower Priority (Future)
