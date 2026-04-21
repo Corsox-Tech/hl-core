@@ -43,6 +43,24 @@ class HL_Frontend_Action_Plan {
     }
 
     /**
+     * Per-field validation error messages.
+     *
+     * Single source of truth shared by server-side validation (validate_required)
+     * and the client-side JS validator, so messaging is identical whether the
+     * user has JS enabled or not.
+     *
+     * @return array<string,string>
+     */
+    private static function required_field_messages() {
+        return array(
+            'domain' => __('Please select a domain.', 'hl-core'),
+            'skills' => __('Please select at least one skill.', 'hl-core'),
+            'how'    => __('Please describe how you will practice the skill(s).', 'hl-core'),
+            'what'   => __('Please describe what behaviors you will track.', 'hl-core'),
+        );
+    }
+
+    /**
      * Render the Action Plan form.
      *
      * @param string      $context             'coaching' or 'mentoring'
@@ -440,12 +458,7 @@ class HL_Frontend_Action_Plan {
             var submitBtn = form.querySelector('button[value="submit"]');
             if (!submitBtn) return;
 
-            var requiredLabels = {
-                domain: <?php echo wp_json_encode(__('Domain is required.', 'hl-core')); ?>,
-                skills: <?php echo wp_json_encode(__('Select at least one skill.', 'hl-core')); ?>,
-                how:    <?php echo wp_json_encode(__('Describe how you will practice.', 'hl-core')); ?>,
-                what:   <?php echo wp_json_encode(__('Describe what behaviors you will track.', 'hl-core')); ?>
-            };
+            var requiredLabels = <?php echo wp_json_encode(self::required_field_messages()); ?>;
             var summaryTitle = <?php echo wp_json_encode(__('Please complete the required fields before submitting.', 'hl-core')); ?>;
 
             function getField(key) {
@@ -653,23 +666,24 @@ class HL_Frontend_Action_Plan {
      * @return array<string,string>
      */
     private static function validate_required( array $responses ) {
-        $errors = array();
+        $messages = self::required_field_messages();
+        $errors   = array();
 
         if ( empty( $responses['domain'] ) ) {
-            $errors['domain'] = __( 'Please select a domain.', 'hl-core' );
+            $errors['domain'] = $messages['domain'];
         }
 
         $skills = isset( $responses['skills'] ) ? $responses['skills'] : array();
         if ( ! is_array( $skills ) || count( $skills ) === 0 ) {
-            $errors['skills'] = __( 'Please select at least one skill.', 'hl-core' );
+            $errors['skills'] = $messages['skills'];
         }
 
         if ( ! isset( $responses['how'] ) || trim( wp_strip_all_tags( (string) $responses['how'] ) ) === '' ) {
-            $errors['how'] = __( 'Please describe how you will practice the skill(s).', 'hl-core' );
+            $errors['how'] = $messages['how'];
         }
 
         if ( ! isset( $responses['what'] ) || trim( wp_strip_all_tags( (string) $responses['what'] ) ) === '' ) {
-            $errors['what'] = __( 'Please describe what behaviors you will track.', 'hl-core' );
+            $errors['what'] = $messages['what'];
         }
 
         return $errors;
