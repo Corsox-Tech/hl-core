@@ -7331,8 +7331,26 @@ body.hl-has-nav .hl-lang-switcher__option:hover {
 .hlap-hero-title { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.3px; color: #fff }
 .hlap-hero-sub { font-size: 14px; opacity: .8; margin: 4px 0 0 }
 
-.hlap-alert { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-radius: var(--hl-radius-sm); font-size: 14px; margin-bottom: 20px }
+.hlap-alert { display: flex; align-items: flex-start; gap: 10px; padding: 14px 18px; border-radius: var(--hl-radius-sm); font-size: 14px; margin-bottom: 20px }
 .hlap-alert-info { background: #e8f4fd; color: #1e5f8a; border: 1px solid #b8daef }
+.hlap-alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; box-shadow: 0 2px 8px rgba(220,38,38,.08) }
+.hlap-alert-error svg { flex-shrink: 0; margin-top: 2px; color: #dc2626 }
+.hlap-alert-error strong { display: block; margin-bottom: 6px; font-weight: 700; color: #7f1d1d }
+.hlap-error-list { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7 }
+.hlap-error-list li { margin: 0 }
+.hlap-error-list a { color: #991b1b; font-weight: 600; text-decoration: underline; text-underline-offset: 2px }
+.hlap-error-list a:hover { color: #7f1d1d }
+
+.hlap-required { color: #dc2626; margin-left: 4px; font-weight: 700 }
+.hlap-anchor { display: block; position: relative; top: -80px; visibility: hidden; height: 0 }
+
+.hlap-field.has-error .hlap-select,
+.hlap-field.has-error .hlap-textarea { border-color: #dc2626; background: #fffafa }
+.hlap-field.has-error .hlap-select:focus,
+.hlap-field.has-error .hlap-textarea:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.12) }
+.hlap-field.has-error .hlap-pill-label { border-color: #fca5a5 }
+.hlap-field-error-text { margin: 8px 0 0; font-size: 13px; color: #dc2626; font-weight: 500; display: flex; align-items: center; gap: 6px }
+.hlap-field-error-text::before { content: "⚠"; font-size: 14px }
 
 .hlap-section { background: var(--hl-surface); border: 1px solid var(--hl-border); border-radius: var(--hl-radius-sm); margin-bottom: 20px; overflow: hidden }
 .hlap-section-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: linear-gradient(135deg, var(--hl-bg-subtle), var(--hl-bg)); border-bottom: 1px solid var(--hl-border) }
