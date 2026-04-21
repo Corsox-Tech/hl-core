@@ -1041,13 +1041,39 @@ class HL_Email_Automation_Service {
      * Used by cron:component_upcoming and cron:component_overdue to exclude
      * users who have already completed the component.
      *
+     * $trigger_type scopes classroom_visit completion:
+     *   - 'upcoming': cycle-scoped — any submitted CV in the cycle suppresses
+     *     the reminder. Fires the "window opens" nudge once per cycle.
+     *   - 'overdue': per-component — only the CV matching this component's
+     *     visit_number is checked. An unsubmitted CV #3 still fires even if
+     *     CV #1 has been submitted. Required for ELCPB-Y2 pathways where
+     *     mentors have multiple CV components (visit_number 1..N) per cycle.
+     *
+     * Per-component match uses the same external_ref LIKE pattern as
+     * HL_Classroom_Visit_Service::update_component_state() at lines 400-404:
+     * hl_classroom_visit.visit_number is a tinyint unsigned, safe to embed
+     * unquoted in a CONCAT literal.
+     *
      * @param string $component_type Component type slug.
      * @param object $wpdb           Global wpdb instance.
+     * @param string $trigger_type   'upcoming' or 'overdue'.
      * @return string SQL NOT EXISTS clause (empty string if no check applicable).
      */
-    private function component_completion_subquery( $component_type, $wpdb ) {
+    private function component_completion_subquery( $component_type, $wpdb, $trigger_type = 'upcoming' ) {
         switch ( $component_type ) {
             case 'classroom_visit':
+                if ( $trigger_type === 'overdue' ) {
+                    return "AND NOT EXISTS (
+                        SELECT 1
+                        FROM {$wpdb->prefix}hl_classroom_visit cv
+                        INNER JOIN {$wpdb->prefix}hl_classroom_visit_submission cvs
+                            ON cvs.classroom_visit_id = cv.classroom_visit_id
+                           AND cvs.status = 'submitted'
+                        WHERE cv.cycle_id = en.cycle_id
+                          AND (cv.leader_enrollment_id = en.enrollment_id OR cv.teacher_enrollment_id = en.enrollment_id)
+                          AND c.external_ref LIKE CONCAT('%\"visit_number\":', cv.visit_number, '%')
+                    )";
+                }
                 return "AND NOT EXISTS (
                     SELECT 1
                     FROM {$wpdb->prefix}hl_classroom_visit cv
@@ -1165,8 +1191,10 @@ class HL_Email_Automation_Service {
                     $type_params = array( $comp_type );
                 }
 
-                // Component-type-specific completion check.
-                $completion_clause = $this->component_completion_subquery( $comp_type, $wpdb );
+                // Component-type-specific completion check. Use cycle-scoped
+                // CV suppression for the "window opens" reminder (one ping per
+                // cycle regardless of visit_number count).
+                $completion_clause = $this->component_completion_subquery( $comp_type, $wpdb, 'upcoming' );
 
                 $cap = self::CRON_QUERY_ROW_CAP;
                 $sql = "SELECT DISTINCT en.user_id,
@@ -1236,7 +1264,10 @@ class HL_Email_Automation_Service {
                     $type_params = array( $comp_type );
                 }
 
-                $completion_clause = $this->component_completion_subquery( $comp_type, $wpdb );
+                // Component-type-specific completion check. Use per-component
+                // CV suppression for the overdue path so CV #3 still fires
+                // when CV #1 has been submitted (ELCPB-Y2 multi-visit pathways).
+                $completion_clause = $this->component_completion_subquery( $comp_type, $wpdb, 'overdue' );
 
                 $cap = self::CRON_QUERY_ROW_CAP;
                 $sql = "SELECT DISTINCT en.user_id,
@@ -1368,18 +1399,36 @@ class HL_Email_Automation_Service {
             }
 
             case 'cron:action_plan_24h': {
-                // Sessions completed 24+ hours ago with no action plan submitted.
+                // Mentors who haven't filed an action plan ≥24h after an
+                // attended coaching session. Action plans are stored in
+                // hl_coaching_session_submission with role_in_session='supervisee'
+                // (mentor-authored) — same pattern used by
+                // HL_Coaching_Service::get_previous_coaching_action_plans().
+                //
+                // Anchor clock: cs.session_datetime (close enough to
+                // "24h after attended" for same-day attendance marking;
+                // a late back-dated attendance would fire immediately).
+                // 30-day lookback clamps the scan window.
+                //
+                // Timezone: session_datetime is stored in site TZ, so use
+                // current_time('mysql') as the clock — NOT gmdate/UTC.
+                $cutoff_24h   = wp_date( 'Y-m-d H:i:s', strtotime( current_time( 'mysql' ) . ' -24 hours' ) );
+                $lookback_30d = wp_date( 'Y-m-d H:i:s', strtotime( current_time( 'mysql' ) . ' -30 days' ) );
                 $rows = $wpdb->get_results( $wpdb->prepare(
-                    "SELECT cs.mentor_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
+                    "SELECT e.user_id, cs.mentor_enrollment_id AS enrollment_id,
+                            cs.session_id AS entity_id, 'coaching_session' AS entity_type
                      FROM {$wpdb->prefix}hl_coaching_session cs
+                     INNER JOIN {$wpdb->prefix}hl_enrollment e ON e.enrollment_id = cs.mentor_enrollment_id
                      LEFT JOIN {$wpdb->prefix}hl_coaching_session_submission sub
-                       ON sub.session_id = cs.session_id AND sub.submission_type = 'action_plan'
+                       ON sub.session_id = cs.session_id
+                      AND sub.role_in_session = 'supervisee'
+                      AND sub.status = 'submitted'
                      WHERE cs.cycle_id = %d AND cs.session_status = 'attended'
                        AND cs.session_datetime < %s
+                       AND cs.session_datetime > %s
                        AND sub.submission_id IS NULL
                      LIMIT " . self::CRON_QUERY_ROW_CAP,
-                    $cycle_id,
-                    gmdate( 'Y-m-d H:i:s', strtotime( '-24 hours' ) )
+                    $cycle_id, $cutoff_24h, $lookback_30d
                 ), ARRAY_A );
                 if ( is_array( $rows ) && count( $rows ) >= self::CRON_QUERY_ROW_CAP && class_exists( 'HL_Audit_Service' ) ) {
                     HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
@@ -1391,18 +1440,36 @@ class HL_Email_Automation_Service {
             }
 
             case 'cron:session_notes_24h': {
-                // Sessions completed 24+ hours ago with no coach notes submitted.
+                // Coaches who haven't filed session notes ≥24h after an
+                // attended session. Notes are stored in
+                // hl_coaching_session_submission with role_in_session='supervisor'.
+                //
+                // Coaches are direct staff users (cs.coach_user_id is a WP
+                // user_id, NOT an enrollment). The returned row intentionally
+                // has enrollment_id = NULL — this propagates into the cron
+                // pipeline's context and is handled by the downstream
+                // ?? null patterns in run_cron_workflow() and the recipient
+                // resolver. Covered end-to-end by test-email-phase2-stubs.php
+                // §5.3 NULL-enrollment assertions.
+                //
+                // Anchor + lookback + timezone: same as cron:action_plan_24h above.
+                $cutoff_24h   = wp_date( 'Y-m-d H:i:s', strtotime( current_time( 'mysql' ) . ' -24 hours' ) );
+                $lookback_30d = wp_date( 'Y-m-d H:i:s', strtotime( current_time( 'mysql' ) . ' -30 days' ) );
                 $rows = $wpdb->get_results( $wpdb->prepare(
-                    "SELECT cs.coach_user_id AS user_id, cs.enrollment_id, cs.session_id AS entity_id, 'coaching_session' AS entity_type
+                    "SELECT cs.coach_user_id AS user_id,
+                            NULL AS enrollment_id,
+                            cs.session_id AS entity_id, 'coaching_session' AS entity_type
                      FROM {$wpdb->prefix}hl_coaching_session cs
                      LEFT JOIN {$wpdb->prefix}hl_coaching_session_submission sub
-                       ON sub.session_id = cs.session_id AND sub.submission_type = 'coach_notes'
+                       ON sub.session_id = cs.session_id
+                      AND sub.role_in_session = 'supervisor'
+                      AND sub.status = 'submitted'
                      WHERE cs.cycle_id = %d AND cs.session_status = 'attended'
                        AND cs.session_datetime < %s
+                       AND cs.session_datetime > %s
                        AND sub.submission_id IS NULL
                      LIMIT " . self::CRON_QUERY_ROW_CAP,
-                    $cycle_id,
-                    gmdate( 'Y-m-d H:i:s', strtotime( '-24 hours' ) )
+                    $cycle_id, $cutoff_24h, $lookback_30d
                 ), ARRAY_A );
                 if ( is_array( $rows ) && count( $rows ) >= self::CRON_QUERY_ROW_CAP && class_exists( 'HL_Audit_Service' ) ) {
                     HL_Audit_Service::log( 'email_cron_safety_cap_hit', array(
