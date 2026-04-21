@@ -327,7 +327,19 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Full summary panel** — Plain-English sentence with cascade labels (Category — Event) + timing line for cron events. 24h activity display (sent/failed/pending from hl_email_queue).
 - [x] **Stale selector fixes** — 3 M1 JS refs updated from `select[name="trigger_key"]` to dual `select/input` for v1/v2 compat.
 - [x] **CSS** — `.hl-wf-trigger-cascade`, `.hl-wf-event-hint`, `.hl-wf-timing-config`, `.hl-wf-trigger-warning`, `.hl-wf-activity` styles. Responsive cascade stacking at <1100px. Version bump 1.2.5.
-- [ ] **Deployed to test** — Pending.
+- [x] **Deployed to test + prod** — 2026-04-20 via SCP (part of workflow-ux-m1 redeployment after rollback recovery).
+
+### Email Registry Cleanup (April 2026)
+> **Plan:** `docs/superpowers/plans/2026-04-20-email-registry-cleanup.md` | **Progress log:** `docs/superpowers/plans/2026-04-20-email-registry-cleanup-progress.md`
+- [x] **Replace `hidden:bool` with `wiring_status` enum** — `wired | stub | deprecated` per event. Stubs render in cascade as disabled "[Coming soon]" options with tooltip linking to plan section. No more hidden categories rotting invisibly.
+- [x] **Promote 4 previously-hidden categories** — Classroom Visit, RP Session, Assessment, Schedule all become visible with wired events.
+- [x] **Delete `schedule.account_activated → user_register`** — WP user registration is not a trigger in this system; moved to `get_legacy_trigger_aliases()` for reverse-map only. Existing workflows using this key show a deprecation notice in edit mode.
+- [x] **Add 6 stubs for Chris's needed triggers** — classroom_visit.overdue, coaching.reminder_5d/24h/1h_before_session, coaching.action_plan_incomplete_24h_after, coaching.notes_incomplete_24h_after. All wired backend work scoped in plan §5.
+- [x] **`get_valid_trigger_keys()` derives from registry** — Replaces hand-maintained `$valid_triggers` list (was drift-prone). Stubs deliberately excluded so hand-crafted POSTs can't persist unwired keys.
+- [x] **Remove visible `component_type_filter` picker** — Audit found zero active workflows use a non-default value. Visible `<select>` → `<input type="hidden">`; JS still auto-fills from event. Eliminates the foot-gun that contradicted the "cascade is purely presentational" invariant.
+- [x] **Legacy trigger aliases table** — `get_legacy_trigger_aliases()` holds 10 deprecated trigger_keys (legacy cron formats + user_register). Edit-mode renders rich deprecation note instead of cryptic "unrecognized" warning.
+- [x] **Deploy guardrails** — `bin/deploy.sh` with git-ls-files tarball source + pre-deploy manifest descendant check. Prevents the 2026-04-20 rollback class of incident. Documented in `.claude/skills/deploy.md`; also applied to `.github/workflows/deploy-test.yml`. See `2026-04-20-email-registry-cleanup-progress.md` for the incident analysis.
+- [ ] **Deployed to test + prod** — Pending.
 
 ### Classroom Management for Control Groups (Ticket #18 — April 2026)
 > **Spec:** `docs/superpowers/specs/2026-04-13-classroom-management-design.md` | **Plan:** `docs/superpowers/plans/2026-04-13-classroom-management.md`
