@@ -472,21 +472,30 @@ class HL_Admin_Emails {
                         'type'          => 'cron',
                         'wiring_status' => 'wired',
                     ),
+                    // Post-session form reminders — wired 2026-04-21 (Phase 2).
+                    // These route to the pre-existing cron:action_plan_24h and
+                    // cron:session_notes_24h handlers rather than a new
+                    // cron:post_session_form_pending key: the existing handlers
+                    // already match the spec's compound semantics (attended ≥24h
+                    // ago + form not submitted) and the spec's proposed new key
+                    // would have duplicated them. The handler SQL was rewritten
+                    // in commit 2b7c692 to fix column-reference bugs (they had
+                    // never fired in production because no active workflow used
+                    // these keys — latent bugs caught by the Phase 2 test suite).
+                    // Distinguishes action-plan vs coach-notes via
+                    // role_in_session (supervisee = mentor / action plan;
+                    // supervisor = coach / notes).
                     'action_plan_incomplete_24h_after' => array(
                         'label'         => 'Action Plan Incomplete 24h After Session',
-                        'key'           => 'cron:post_session_form_pending',
+                        'key'           => 'cron:action_plan_24h',
                         'type'          => 'cron',
-                        'formType'      => 'action_plan',
-                        'wiring_status' => 'stub',
-                        'stub_note'     => 'Needs post-completion compound trigger (24h-after + form-not-submitted). See plan §5.3.',
+                        'wiring_status' => 'wired',
                     ),
                     'notes_incomplete_24h_after' => array(
                         'label'         => 'Coaching Notes Incomplete 24h After Session',
-                        'key'           => 'cron:post_session_form_pending',
+                        'key'           => 'cron:session_notes_24h',
                         'type'          => 'cron',
-                        'formType'      => 'coaching_notes',
-                        'wiring_status' => 'stub',
-                        'stub_note'     => 'Needs post-completion compound trigger. See plan §5.3.',
+                        'wiring_status' => 'wired',
                     ),
                 ),
             ),
@@ -687,7 +696,7 @@ class HL_Admin_Emails {
             ),
             'cron:cv_overdue_1d' => array(
                 'label' => 'Classroom Visit Overdue (legacy)',
-                'note'  => 'Superseded by cron:component_overdue with classroom_visit filter (currently stubbed).',
+                'note'  => 'Superseded by cron:component_overdue with classroom_visit filter.',
             ),
             'cron:rp_window_7d' => array(
                 'label' => 'RP Session Window (legacy)',
@@ -699,24 +708,22 @@ class HL_Admin_Emails {
             ),
             'cron:coaching_session_5d' => array(
                 'label' => 'Coaching 5-Day Reminder (legacy)',
-                'note'  => 'Superseded by Coaching Session → Reminder: 5 Days Before (stub).',
+                'note'  => 'Superseded by Coaching Session → Reminder: 5 Days Before.',
             ),
             'cron:session_24h' => array(
                 'label' => 'Session 24h Reminder (legacy)',
-                'note'  => 'Superseded by Coaching Session → Reminder: 24 Hours Before (stub).',
+                'note'  => 'Superseded by Coaching Session → Reminder: 24 Hours Before.',
             ),
             'cron:session_1h' => array(
                 'label' => 'Session 1h Reminder (legacy)',
-                'note'  => 'Superseded by Coaching Session → Reminder: 1 Hour Before (stub).',
+                'note'  => 'Superseded by Coaching Session → Reminder: 1 Hour Before.',
             ),
-            'cron:action_plan_24h' => array(
-                'label' => 'Action Plan 24h Reminder (legacy)',
-                'note'  => 'Superseded by Coaching Session → Action Plan Incomplete 24h After (stub).',
-            ),
-            'cron:session_notes_24h' => array(
-                'label' => 'Session Notes 24h Reminder (legacy)',
-                'note'  => 'Superseded by Coaching Session → Coaching Notes Incomplete 24h After (stub).',
-            ),
+            // NOTE: cron:action_plan_24h and cron:session_notes_24h were
+            // previously (mis)classified here during the 2026-04-20 registry
+            // refactor. They are the canonical backend keys for the Phase 2
+            // "Action Plan Incomplete / Coaching Notes Incomplete 24h After"
+            // events — not legacy. Removed 2026-04-21 so new workflows saved
+            // against them don't render a deprecation notice in edit mode.
         );
     }
 
