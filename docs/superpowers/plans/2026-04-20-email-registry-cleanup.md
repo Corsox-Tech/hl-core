@@ -1,10 +1,10 @@
 # Email Trigger Registry Cleanup — Plan
 
-**Status:** Draft — ready to execute
-**Branch:** `feature/email-registry-cleanup`
-**Date:** 2026-04-20
+**Status:** Shipped. Phase 1 on 2026-04-21 (v1.2.7 SHA `eb1c7c9`); Phase 2 on 2026-04-21 (v1.2.9 SHA `7b2ea94`).
+**Branch:** originally `feature/email-registry-cleanup`; both phases actually shipped on `feature/workflow-ux-m1` (rebase never executed, work merged forward).
+**Date:** 2026-04-20 (plan) — 2026-04-21 (shipped both phases)
 **Author:** Mateo + Claude, synthesized from two-agent debate
-**Progress log:** `2026-04-20-email-registry-cleanup-progress.md`
+**Progress log:** `2026-04-20-email-registry-cleanup-progress.md` — read this for the executed change-log entries.
 **Spreadsheet reference:** `data/LMS Email Notification List - reorganized.xlsx` (sheet: "Updated - LMS Master")
 
 ---
@@ -127,23 +127,37 @@ Then cross-check each row against its event's declared `componentType` in the re
 
 **Never do:** hide a column entirely with no UI. That's the exact silent-drift problem we're fixing — "hidden-but-present columns with no UI cause the exact silent-drift problem Mateo is trying to avoid" (skeptic critique).
 
-## 5. Deferred backend wiring (separate branch, separate PR)
+## 5. Phase 2 — Backend wiring (SHIPPED 2026-04-21, v1.2.9 SHA `7b2ea94`)
 
-Not part of this cleanup. Each stub flips to `wired` when its wiring ships.
+> **See the progress log for the full change-log entry:** `2026-04-20-email-registry-cleanup-progress.md` (`2026-04-21 — Phase 2 backend wiring shipped to prod`).
+
+**Actual effort: ~0.5 dev-days. Original estimate: 4-6 dev-days.** The handoff spec under-inspected the existing code: §5.1 and §5.2 were already mostly implemented (the stub flags were hiding working handlers), and §5.3 could reuse existing keys once three latent SQL bugs were fixed. Each sub-section below retains its original spec language with an annotated **ACTUAL** block describing what was actually needed.
 
 ### 5.1 `cron:component_overdue` for `classroom_visit` (~1 dev-day)
 Extend existing `cron:component_overdue` to handle `classroom_visit` componentType. Currently only `learndash_course` is supported. New SQL query against `hl_component_state` for components where `available_to < now - 1 day` AND state != `complete`.
 
+**ACTUAL (2026-04-21):** The generic handler already supported arbitrary `component_type_filter` and `component_completion_subquery()` already had a `classroom_visit` case. Only missing piece was per-component scoping for the overdue path so CV #3 still fires when CV #1 is done (ELCPB-Y2 multi-visit mentor pathways). Added a `$trigger_type` parameter to the completion subquery helper; overdue path now matches via `c.external_ref LIKE CONCAT('%"visit_number":', cv.visit_number, '%')` mirroring the pattern in `HL_Classroom_Visit_Service::update_component_state()`. Reminder (upcoming) path retained cycle-scoped suppression. Commits `2b7c692` + `7ca8760`.
+
 ### 5.2 Session-datetime-anchored reminders (~2 dev-days)
 New cron: `cron:session_upcoming`. Anchors on `hl_coaching_session.session_datetime` (actual booked time), not `display_window_start` as current cron does. Offset configurable (5 days / 24h / 1h). Must handle same-session multiple triggers (one workflow for 5d, another for 24h, another for 1h) without dedup collisions.
+
+**ACTUAL (2026-04-21):** `cron:session_upcoming` was already fully implemented in Rev 39 generic triggers — configurable `trigger_offset_minutes`, scaled fuzz (5–30 min), `session_status='scheduled'` filter, hourly cron loop. Per-workflow dedup token already included `workflow_id`, so 3 different-offset workflows for the same session cannot collide — the handoff spec's claim that dedup needed to include offset was incorrect. Pure flag-flip, no handler change. 1h offset has an effective ~30–90 min send window (hourly WP-Cron + 6 min fuzz); documented inline in the registry event. Commit `fa1d38a`.
 
 ### 5.3 Post-completion compound trigger (~1.5 dev-days)
 New cron: `cron:post_session_form_pending`. Fires 24h after a coaching session is marked `attended` IF the specified form (`action_plan` or `coaching_notes`) has not been submitted. Requires: (a) form-submission timestamp lookup helper, (b) 24h-after-status-change cron query, (c) dedup-by-session so we don't re-send after admin bypasses.
 
+**ACTUAL (2026-04-21):** Rather than build a new key, re-pointed the 2 stubs at the existing `cron:action_plan_24h` and `cron:session_notes_24h` handlers (which pre-existed from Email v2 Phase 2 and covered the spec's exact semantics). This surfaced **three latent SQL bugs in those handlers** — references to `sub.submission_type`, `cs.mentor_user_id`, and `cs.enrollment_id`, all of which do not exist in the schema. The handlers had never fired because no active workflow used their keys. Rewrote both handlers to distinguish action-plan vs coach-notes via `role_in_session` (`supervisee` = mentor-authored; `supervisor` = coach-authored) per the canonical `HL_Coaching_Service::submit_form()` pattern. Mentor path joins `hl_enrollment` on `mentor_enrollment_id`. Coach path returns `enrollment_id = NULL` since coaches are staff users, not enrollment-scoped — verified end-to-end through the cron pipeline. Also fixed timezone bug (session_datetime is site-TZ; handlers now use `current_time('mysql')` not `gmdate()`). Added 30-day lookback clamp. Removed `cron:action_plan_24h` + `cron:session_notes_24h` from `get_legacy_trigger_aliases()` (they were misclassified as legacy during the Phase 1 refactor). Commits `2b7c692` + `621b1c8`.
+
 ### 5.4 Testing + QA for the above (~1 dev-day)
 CLI test assertions, manual send-test, prod rollout with feature flag.
 
-**Total Phase 2 estimate:** 4-6 dev-days, separate PR.
+**ACTUAL (2026-04-21):** Two CLI test harnesses shipped:
+- `bin/test-email-phase2-stubs.php` — 29 assertions. Handler SQL via reflection + NULL-enrollment coach path end-to-end through `run_daily_checks()`. DB fixtures under `[Phase2Test]` prefix with finally-block cleanup.
+- `bin/test-email-phase2-registry-ui.php` — 40 assertions. Admin-UI-equivalent registry + save-payload validation. Substitute for Playwright browser check when MCP Chrome profile is locked.
+
+No feature flag used. Shipped directly on `feature/workflow-ux-m1` with tests green on test before each stub flip; all 69 assertions green on prod post-deploy.
+
+**Total Phase 2 actual:** ~0.5 dev-days. Separate PR would have been overkill; shipped as 9 commits on `feature/workflow-ux-m1`.
 
 ## 6. Scope
 

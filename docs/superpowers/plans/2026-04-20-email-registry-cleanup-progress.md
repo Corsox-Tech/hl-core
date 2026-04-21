@@ -1,26 +1,65 @@
 # Email Trigger Registry Cleanup — Progress Log
 
-**Branch:** `feature/email-registry-cleanup`
+**Branch:** originally `feature/email-registry-cleanup`, shipped on `feature/workflow-ux-m1` (rebase never done; work merged forward). Phase 2 landed directly on `feature/workflow-ux-m1`.
 **Started:** 2026-04-20
+**Phase 1 shipped:** 2026-04-21 (v1.2.7, SHA `eb1c7c9`)
+**Phase 2 shipped:** 2026-04-21 (v1.2.9, SHA `7b2ea94`)
 **Owner:** Claude (with Mateo supervising)
 
 This file is the single source of truth for session progress. Every meaningful change is logged here with a commit SHA and what it did. Optimised for reading after a gap (e.g., flight WiFi).
 
 ## Current status
+### Phase 1 — registry cleanup (COMPLETE 2026-04-21)
 - [x] Plan doc written (commit `c5f6e40`)
 - [x] Audit: non-default `component_type_filter` usage on prod → **zero workflows. Safe to remove field.**
-- [ ] Registry schema: replace `hidden: bool` with `wiring_status: string`
-- [ ] Promote wired-but-hidden categories (Classroom Visit, RP Session, Schedule/Low Engagement)
-- [ ] Delete `schedule.account_activated` entry
-- [ ] Add stub entries for 6 missing triggers (rows 11, 17-19, 20-21 of Chris's spreadsheet)
-- [ ] Move legacy trigger-key reverse-mapping to separate `$legacy_trigger_aliases`
-- [ ] Admin UI: render `wiring_status: stub` entries as disabled with tooltip
-- [ ] Remove `component_type_filter` visible field OR move behind Advanced disclosure (decide from audit)
-- [ ] Deploy to test + verify
-- [ ] Deploy to prod + verify
-- [ ] Launch Playwright agent on the 13 wired workflows for Chris
+- [x] Registry schema: replace `hidden: bool` with `wiring_status: string` (commit `5e0d054`)
+- [x] Promote wired-but-hidden categories (Classroom Visit, RP Session, Assessment, Schedule) (commit `5e0d054`)
+- [x] Delete `schedule.account_activated` entry → moved to `get_legacy_trigger_aliases()` (commit `5e0d054`)
+- [x] Add stub entries for 6 missing triggers (rows 11, 17-19, 20-21 of Chris's spreadsheet) (commit `5e0d054`)
+- [x] Move legacy trigger-key reverse-mapping to separate `$legacy_trigger_aliases` (commit `5e0d054`)
+- [x] Admin UI: render `wiring_status: stub` entries as disabled with tooltip
+- [x] Remove `component_type_filter` visible field (commit `939cdac`)
+- [x] Deploy guardrails: `bin/deploy.sh` with descendant check (commits `5389f68` + `ce1c31e`)
+- [x] Deploy to test + prod (v1.2.7 @ SHA `eb1c7c9`, 2026-04-21 13:28 UTC)
+- [x] Chris workflow seeder shipped (rows 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 22, 24) — `bin/seed-chris-workflows.php`
+
+### Phase 2 — backend wiring of the 6 stubs (COMPLETE 2026-04-21)
+- [x] Handler SQL fixes committed (`2b7c692`): §5.1 CV overdue per-component tighten + §5.3 column-reference bugs in `cron:action_plan_24h` / `cron:session_notes_24h` + timezone alignment (`current_time('mysql')` not `gmdate()`).
+- [x] Test harness: `bin/test-email-phase2-stubs.php` — 29 assertions — all green on test + prod.
+- [x] Admin-UI-equivalent smoke: `bin/test-email-phase2-registry-ui.php` — 40 assertions — all green on test + prod.
+- [x] §5.1 flip: `classroom_visit.overdue` → wired (commit `7ca8760`).
+- [x] §5.2 flip: 3 coaching session reminders → wired + 1h fuzz inline note (commit `fa1d38a`).
+- [x] §5.3 flip: 2 post-session form reminders → wired, re-pointed at existing `cron:action_plan_24h` / `cron:session_notes_24h` keys + legacy alias regression fix (commit `621b1c8`).
+- [x] Version bump 1.2.8 → 1.2.9 + STATUS + README (commit `2f2cc82`).
+- [x] Deploy to test (SHA `9cc550e` → `7b2ea94` @ v1.2.9, 2026-04-21 18:43 UTC).
+- [x] Deploy to prod (SHA `7b2ea94` @ v1.2.9, 2026-04-21 18:54 UTC).
+- [x] Post-deploy verification on prod: 69/69 test assertions pass, `hl_core_schema_revision = 43` (parallel-session feature-tracker migration propagated cleanly), zero `[Phase2Test]` fixture residue.
+- [ ] Launch Playwright agent on Chris's wired workflows — **deferred to Chris + Mateo review cycle**, not this session.
 
 ## Change log (newest first)
+
+### 2026-04-21 — Phase 2 backend wiring shipped to prod (v1.2.9, SHA `7b2ea94`)
+
+All 6 stubs flipped to `wired`. Scoped estimate in plan §5 was 4–6 dev-days; actual was ~0.5 day because the handoff spec underestimated how much was already done:
+
+- **§5.1 `classroom_visit.overdue`** — The generic `cron:component_overdue` handler already supported arbitrary `component_type_filter`; `component_completion_subquery()` already had a `classroom_visit` case. Only missing piece was per-component scoping for the overdue path (ELCPB-Y2 multi-visit mentor pathways need CV #3 to fire when CV #1 is done). Added `$trigger_type` parameter to the completion subquery helper; overdue path now matches via `c.external_ref LIKE CONCAT('%"visit_number":', cv.visit_number, '%')` mirroring `HL_Classroom_Visit_Service::update_component_state()`. Reminder (upcoming) path stays cycle-scoped. One commit: `2b7c692` for the tighten, `7ca8760` for the flip.
+
+- **§5.2 three coaching session reminders (5d / 24h / 1h)** — `cron:session_upcoming` was already fully implemented in Rev 39 generic triggers with configurable `trigger_offset_minutes`, scaled fuzz (5–30 min), `session_status='scheduled'` filter, hourly cron. Per-workflow dedup token already included `workflow_id` so the 3 different-offset workflows for the same session cannot collide — the handoff's claim that dedup needed to include offset was incorrect. Pure flag-flip, no handler change. 1h offset has an effective ~30–90 min send window due to hourly WP-Cron + 6 min fuzz; documented inline in the registry (don't bump fuzz clamp without reviewing dedup). Commit: `fa1d38a`.
+
+- **§5.3 Action Plan + Coaching Notes Incomplete 24h After** — Three latent SQL bugs discovered in the pre-existing `cron:action_plan_24h` and `cron:session_notes_24h` handlers: `sub.submission_type` (column doesn't exist), `cs.mentor_user_id` (doesn't exist), `cs.enrollment_id` (doesn't exist). None had ever fired in prod because no active workflow used these keys. Rewrote both handlers: distinguish action-plan vs coach-notes by `role_in_session` (`supervisee` = mentor-authored, `supervisor` = coach-authored) per the canonical `HL_Coaching_Service::submit_form()` pattern. Mentor path joins `hl_enrollment` on `mentor_enrollment_id` for `user_id`. Coach path returns `enrollment_id = NULL` since coaches are staff users, not enrollment-scoped — verified end-to-end through the cron pipeline. Also fixed timezone bug: `session_datetime` is site-TZ; handlers now use `current_time('mysql')` instead of `gmdate()`. Added 30-day lookback clamp as perf insurance. Re-pointed the 2 stub registry entries at these (now-fixed) keys rather than building a new `cron:post_session_form_pending` key. Removed `cron:action_plan_24h` + `cron:session_notes_24h` from `get_legacy_trigger_aliases()` — they were misclassified as legacy during the Phase 1 refactor but are the canonical current keys. Commits: `2b7c692` (handler fixes), `621b1c8` (stub flip + legacy cleanup).
+
+- **Test coverage** — `bin/test-email-phase2-stubs.php` (29 assertions: handler SQL via reflection + NULL-enrollment coach path end-to-end through `run_daily_checks()`) + `bin/test-email-phase2-registry-ui.php` (40 assertions: admin-UI-equivalent registry + save-payload validation — substitute for browser click-through when Playwright's MCP Chrome profile is locked by another process).
+
+- **Schema note** — The Phase 2 deploy also carried the parallel-session's rev 43 migration (Feature Tracker's `status_updated_at` column, committed by a different session as `e18f9d5`). `hl_core_schema_revision` verified at 43 on prod post-deploy.
+
+**Key facts saved to memory** (`project_email_phase2_2026_04.md`):
+1. CV completion linkage is via `hl_component.external_ref` JSON + `hl_classroom_visit.visit_number`, not a direct FK.
+2. Coaching submissions distinguish by `role_in_session` (`supervisee` / `supervisor`), not `submission_type`.
+3. Coaches are direct WP staff users (`cs.coach_user_id`), NOT enrollment-scoped — handlers return `enrollment_id = NULL` for coach paths.
+4. `session_datetime` is stored in site TZ; cron handlers comparing against it must use `current_time('mysql')`, not `gmdate()`.
+5. Dedup token is `md5(trigger_key|workflow_id|user_id|entity_id|cycle_id)` — different workflow_ids always disambiguate, no need to include offset in the token.
+
+---
 
 ### 2026-04-20 — CAUSE CONFIRMED: parallel Claude Code session deployed `feature/ticket-18-continuing-pathways` to prod
 
