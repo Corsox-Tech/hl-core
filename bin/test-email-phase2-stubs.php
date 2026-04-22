@@ -64,6 +64,8 @@ $GLOBALS['hl_p2_ids']    = array(
     'template_ids'           => array(),
     'workflow_ids'           => array(),
     'queue_ids'              => array(),
+    'team_ids'               => array(),
+    'team_membership_keys'   => array(), // list of [team_id, enrollment_id]
 );
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -373,6 +375,20 @@ function hl_p2_cleanup() {
     }
     if ( ! empty( $ids['pathway_ids'] ) ) {
         $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_pathway WHERE pathway_id IN (" . implode( ',', array_map( 'intval', $ids['pathway_ids'] ) ) . ")" );
+    }
+    // Team memberships must drop before enrollments (FK-ish — no actual FK,
+    // but the tests rely on the mentor enrollment still existing when
+    // resolving; cleanup ordering keeps that predictable).
+    if ( ! empty( $ids['team_membership_keys'] ) ) {
+        foreach ( $ids['team_membership_keys'] as $pair ) {
+            $wpdb->query( $wpdb->prepare(
+                "DELETE FROM {$wpdb->prefix}hl_team_membership WHERE team_id = %d AND enrollment_id = %d",
+                $pair[0], $pair[1]
+            ) );
+        }
+    }
+    if ( ! empty( $ids['team_ids'] ) ) {
+        $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_team WHERE team_id IN (" . implode( ',', array_map( 'intval', $ids['team_ids'] ) ) . ")" );
     }
     if ( ! empty( $ids['enrollment_ids'] ) ) {
         $wpdb->query( "DELETE FROM {$wpdb->prefix}hl_enrollment WHERE enrollment_id IN (" . implode( ',', array_map( 'intval', $ids['enrollment_ids'] ) ) . ")" );
@@ -772,6 +788,230 @@ try {
     } else {
         hl_p2_assert( false, 'HL_Admin_Emails registry check skipped (class not loaded)' );
     }
+
+    // =========================================================================
+    // Phase 2b — mentor_team_teachers N-person token + WF 37 role gating
+    // =========================================================================
+    echo "\n=== Phase 2b: mentor_team_teachers + role condition ===\n";
+
+    // Dedicated cycle so fixture teams/enrollments are isolated from earlier
+    // sections. Uses the shared partnership + template created above.
+    $p2b_cycle_id  = hl_p2_create_cycle( $partnership_id );
+    $p2b_cycle_row = hl_p2_cycle_row( $p2b_cycle_id );
+
+    // Users: 1 mentor, 2 teachers, 1 non-teacher (school_leader), 1 off-team teacher.
+    $u_mentor     = hl_p2_create_user( 'p2b_mentor',    'p2b_mentor'  );
+    $u_teach_1    = hl_p2_create_user( 'p2b_teach_1',   'p2b_teach1'  );
+    $u_teach_2    = hl_p2_create_user( 'p2b_teach_2',   'p2b_teach2'  );
+    $u_leader     = hl_p2_create_user( 'p2b_leader',    'p2b_leader'  );
+    $u_off_team   = hl_p2_create_user( 'p2b_off_team',  'p2b_offteam' );
+    $u_lone_ment  = hl_p2_create_user( 'p2b_lone_ment', 'p2b_lonem'   );
+
+    $e_mentor   = hl_p2_create_enrollment( $p2b_cycle_id, $u_mentor,    'mentor'        );
+    $e_teach_1  = hl_p2_create_enrollment( $p2b_cycle_id, $u_teach_1,   'teacher'       );
+    $e_teach_2  = hl_p2_create_enrollment( $p2b_cycle_id, $u_teach_2,   'teacher'       );
+    $e_leader   = hl_p2_create_enrollment( $p2b_cycle_id, $u_leader,    'school_leader' );
+    $e_off_team = hl_p2_create_enrollment( $p2b_cycle_id, $u_off_team,  'teacher'       ); // teacher, NOT on mentor's team
+    $e_lone     = hl_p2_create_enrollment( $p2b_cycle_id, $u_lone_ment, 'mentor'        ); // mentor with no team
+
+    // Build a team, attach mentor + 2 teachers + the school_leader (co-assigned).
+    // Team + team_membership rows are not tracked by the standard cleanup helpers,
+    // so track them explicitly for teardown.
+    if ( ! isset( $GLOBALS['hl_p2_ids']['team_ids'] ) )                $GLOBALS['hl_p2_ids']['team_ids']                = array();
+    if ( ! isset( $GLOBALS['hl_p2_ids']['team_membership_keys'] ) )   $GLOBALS['hl_p2_ids']['team_membership_keys']   = array();
+
+    $wpdb->insert( $wpdb->prefix . 'hl_team', array(
+        'team_uuid' => wp_generate_uuid4(),
+        'team_name' => FIXTURE_PREFIX . ' RP Team',
+        'cycle_id'  => $p2b_cycle_id,
+        'school_id' => 0, // NOT NULL, no default — 0 is acceptable for the resolver's join (school_id unused)
+    ) );
+    $team_id = (int) $wpdb->insert_id;
+    $GLOBALS['hl_p2_ids']['team_ids'][] = $team_id;
+
+    foreach ( array(
+        array( $e_mentor,  'mentor' ),
+        array( $e_teach_1, 'member' ),
+        array( $e_teach_2, 'member' ),
+        array( $e_leader,  'member' ), // co-assigned non-teacher — must be filtered out
+    ) as $row ) {
+        $wpdb->insert( $wpdb->prefix . 'hl_team_membership', array(
+            'team_id'         => $team_id,
+            'enrollment_id'   => $row[0],
+            'membership_type' => $row[1],
+        ) );
+        $GLOBALS['hl_p2_ids']['team_membership_keys'][] = array( $team_id, $row[0] );
+    }
+
+    $resolver = HL_Email_Recipient_Resolver::instance();
+
+    // --- A: expected teacher set --------------------------------------------
+    $ctx_mentor = array( 'user_id' => $u_mentor, 'cycle_id' => $p2b_cycle_id );
+    $resolved = $resolver->resolve(
+        array( 'primary' => array(), 'cc' => array( 'mentor_team_teachers' ) ),
+        $ctx_mentor
+    );
+    $resolved_uids = array_map( function ( $r ) { return (int) $r['user_id']; }, $resolved );
+    sort( $resolved_uids );
+    $expected_uids = array( $u_teach_1, $u_teach_2 );
+    sort( $expected_uids );
+    hl_p2_assert(
+        $resolved_uids === $expected_uids,
+        'mentor_team_teachers: resolves exactly the two teachers on the mentor\'s team'
+    );
+    hl_p2_assert(
+        count( $resolved ) === 2 && $resolved[0]['type'] === 'cc',
+        'mentor_team_teachers: returned recipients are typed "cc"'
+    );
+
+    // --- B: mentor has no team ---------------------------------------------
+    $ctx_lone = array( 'user_id' => $u_lone_ment, 'cycle_id' => $p2b_cycle_id );
+    $resolved_lone = $resolver->resolve(
+        array( 'primary' => array(), 'cc' => array( 'mentor_team_teachers' ) ),
+        $ctx_lone
+    );
+    hl_p2_assert(
+        is_array( $resolved_lone ) && count( $resolved_lone ) === 0,
+        'mentor_team_teachers: empty array when mentor has no team'
+    );
+
+    // --- C: team exists but has no teachers --------------------------------
+    // Create a second team with only the lone mentor + the school_leader.
+    $wpdb->insert( $wpdb->prefix . 'hl_team', array(
+        'team_uuid' => wp_generate_uuid4(),
+        'team_name' => FIXTURE_PREFIX . ' No-Teachers Team',
+        'cycle_id'  => $p2b_cycle_id,
+        'school_id' => 0,
+    ) );
+    $team_id_2 = (int) $wpdb->insert_id;
+    $GLOBALS['hl_p2_ids']['team_ids'][] = $team_id_2;
+    foreach ( array(
+        array( $e_lone,   'mentor' ),
+        array( $e_leader, 'member' ), // school_leader, not a teacher
+    ) as $row ) {
+        $wpdb->insert( $wpdb->prefix . 'hl_team_membership', array(
+            'team_id'         => $team_id_2,
+            'enrollment_id'   => $row[0],
+            'membership_type' => $row[1],
+        ) );
+        $GLOBALS['hl_p2_ids']['team_membership_keys'][] = array( $team_id_2, $row[0] );
+    }
+    $resolved_no_teachers = $resolver->resolve(
+        array( 'primary' => array(), 'cc' => array( 'mentor_team_teachers' ) ),
+        $ctx_lone
+    );
+    hl_p2_assert(
+        is_array( $resolved_no_teachers ) && count( $resolved_no_teachers ) === 0,
+        'mentor_team_teachers: empty array when mentor\'s team has no teachers'
+    );
+
+    // --- D: off-team teachers must NOT be included -------------------------
+    // (The $u_off_team teacher is enrolled in the cycle but NOT on any team
+    // with the mentor. They must not leak into the result.)
+    $resolved_A = $resolver->resolve(
+        array( 'primary' => array(), 'cc' => array( 'mentor_team_teachers' ) ),
+        $ctx_mentor
+    );
+    $resolved_A_uids = array_map( function ( $r ) { return (int) $r['user_id']; }, $resolved_A );
+    hl_p2_assert(
+        ! in_array( $u_off_team, $resolved_A_uids, true ),
+        'mentor_team_teachers: off-team teacher in same cycle is excluded'
+    );
+    hl_p2_assert(
+        ! in_array( $u_leader, $resolved_A_uids, true ),
+        'mentor_team_teachers: co-assigned non-teacher (school_leader on same team) is excluded'
+    );
+
+    // --- E: missing context returns empty ----------------------------------
+    $resolved_empty = $resolver->resolve(
+        array( 'primary' => array(), 'cc' => array( 'mentor_team_teachers' ) ),
+        array( 'cycle_id' => $p2b_cycle_id ) // no user_id
+    );
+    hl_p2_assert(
+        is_array( $resolved_empty ) && count( $resolved_empty ) === 0,
+        'mentor_team_teachers: empty array when user_id missing from context'
+    );
+
+    // --- F: token registered + passes validate_workflow_payload ------------
+    if ( class_exists( 'HL_Admin_Emails' ) ) {
+        $tokens = HL_Admin_Emails::get_recipient_tokens();
+        hl_p2_assert(
+            isset( $tokens['mentor_team_teachers'] ),
+            'mentor_team_teachers: registered in get_recipient_tokens()'
+        );
+        $ok = HL_Admin_Emails::validate_workflow_payload(
+            array(),
+            array( 'primary' => array( 'triggering_user' ), 'cc' => array( 'mentor_team_teachers' ) )
+        );
+        hl_p2_assert(
+            $ok === true,
+            'validate_workflow_payload accepts mentor_team_teachers'
+        );
+    }
+
+    // --- G: WF 37 role condition gates on mentor/teacher only -------------
+    $evaluator = HL_Email_Condition_Evaluator::instance();
+    $wf37_conditions = array(
+        array( 'field' => 'enrollment.roles', 'op' => 'in', 'value' => array( 'mentor', 'teacher' ) ),
+    );
+
+    $pass_mentor = $evaluator->evaluate(
+        $wf37_conditions,
+        array( 'enrollment' => array( 'roles' => 'mentor' ) )
+    );
+    hl_p2_assert(
+        $pass_mentor === true,
+        'WF 37 role gate: mentor enrollment passes'
+    );
+
+    $pass_teacher = $evaluator->evaluate(
+        $wf37_conditions,
+        array( 'enrollment' => array( 'roles' => 'teacher' ) )
+    );
+    hl_p2_assert(
+        $pass_teacher === true,
+        'WF 37 role gate: teacher enrollment passes'
+    );
+
+    $pass_leader = $evaluator->evaluate(
+        $wf37_conditions,
+        array( 'enrollment' => array( 'roles' => 'school_leader' ) )
+    );
+    hl_p2_assert(
+        $pass_leader === false,
+        'WF 37 role gate: school_leader enrollment does NOT pass'
+    );
+
+    $pass_district = $evaluator->evaluate(
+        $wf37_conditions,
+        array( 'enrollment' => array( 'roles' => 'district_leader' ) )
+    );
+    hl_p2_assert(
+        $pass_district === false,
+        'WF 37 role gate: district_leader enrollment does NOT pass'
+    );
+
+    // Multi-role user: mentor,teacher should still pass (via `in` semantics).
+    $pass_multi = $evaluator->evaluate(
+        $wf37_conditions,
+        array( 'enrollment' => array( 'roles' => 'mentor,teacher' ) )
+    );
+    hl_p2_assert(
+        $pass_multi === true,
+        'WF 37 role gate: CSV "mentor,teacher" passes (multi-role user)'
+    );
+
+    // --- H: load_enrollment_context populates enrollment.roles ------------
+    // Verifies the pre-existing context key fix (was 'role' singular).
+    $load_ctx = hl_p2_call_private( 'load_enrollment_context', array( $e_mentor, array() ) );
+    hl_p2_assert(
+        is_array( $load_ctx['enrollment'] ?? null ) && ( $load_ctx['enrollment']['roles'] ?? null ) !== null,
+        'load_enrollment_context: populates enrollment.roles (plural, canonical)'
+    );
+    hl_p2_assert(
+        HL_Roles::has_role( $load_ctx['enrollment']['roles'] ?? '', 'mentor' ),
+        'load_enrollment_context: enrollment.roles is usable by HL_Roles::has_role'
+    );
 
     echo "\n--- ";
     $pass   = $GLOBALS['hl_p2_pass'];
