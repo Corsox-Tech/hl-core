@@ -402,4 +402,99 @@ class HL_Frontend_Coach_Dashboard {
         update_user_meta( $uid, 'hl_dismissed_coach_zoom_callout', 1 );
         wp_send_json_success();
     }
+
+    /**
+     * AJAX: save coach Zoom meeting setting overrides from the frontend modal.
+     *
+     * Registered from HL_Core::register_hooks() because this class is instantiated only when
+     * the [hl_coach_dashboard] shortcode renders — AJAX requests never hit that path.
+     *
+     * Auth model:
+     *   - A coach may save their own overrides.
+     *   - An admin with `manage_hl_core` may save any coach's overrides (F2 click-through).
+     *
+     * The service layer (`HL_Coach_Zoom_Settings_Service::save_coach_overrides`) handles
+     * validation, preflight of alternative_hosts against Zoom, audit logging, and atomic
+     * merging of partial overrides + reset-to-default field list.
+     *
+     * @since ticket-31 Task H2
+     */
+    public static function ajax_save_coach_zoom_settings() {
+        check_ajax_referer( 'hl_save_coach_zoom_settings', '_nonce' );
+
+        $coach_user_id = absint( wp_unslash( $_POST['coach_user_id'] ?? 0 ) );
+        if ( ! $coach_user_id ) {
+            wp_send_json_error( array(
+                'message'    => __( 'Missing coach.', 'hl-core' ),
+                'error_data' => array( 'field' => '' ),
+            ) );
+        }
+
+        // Authorize: self-save OR admin-override.
+        if ( get_current_user_id() !== $coach_user_id && ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( array(
+                'message'    => __( 'Permission denied.', 'hl-core' ),
+                'error_data' => array( 'field' => '' ),
+            ), 403 );
+        }
+
+        // Collect partial overrides. Only fields present in $_POST are saved; absent fields
+        // are left untouched by the service (and reset[] is handled separately below).
+        $overrides = array();
+        foreach ( array( 'waiting_room', 'mute_upon_entry', 'join_before_host' ) as $bool_field ) {
+            if ( isset( $_POST[ $bool_field ] ) ) {
+                $overrides[ $bool_field ] = ! empty( $_POST[ $bool_field ] ) ? 1 : 0;
+            }
+        }
+        if ( isset( $_POST['alternative_hosts'] ) ) {
+            $overrides['alternative_hosts'] = sanitize_textarea_field( wp_unslash( $_POST['alternative_hosts'] ) );
+        }
+
+        // Collect reset fields.
+        $reset_fields = array();
+        if ( ! empty( $_POST['reset'] ) && is_array( $_POST['reset'] ) ) {
+            $allowed = array( 'waiting_room', 'mute_upon_entry', 'join_before_host', 'alternative_hosts' );
+            foreach ( wp_unslash( $_POST['reset'] ) as $field_name ) {
+                $field_name = sanitize_key( $field_name );
+                if ( in_array( $field_name, $allowed, true ) ) {
+                    $reset_fields[] = $field_name;
+                }
+            }
+        }
+
+        // Nothing to do — still return success so the UI can confirm.
+        if ( empty( $overrides ) && empty( $reset_fields ) ) {
+            wp_send_json_success();
+        }
+
+        if ( ! class_exists( 'HL_Coach_Zoom_Settings_Service' ) ) {
+            wp_send_json_error( array(
+                'message'    => __( 'Coach Zoom settings service unavailable.', 'hl-core' ),
+                'error_data' => array( 'field' => '' ),
+            ), 500 );
+        }
+
+        $result = HL_Coach_Zoom_Settings_Service::save_coach_overrides(
+            $coach_user_id,
+            $overrides,
+            get_current_user_id(),
+            $reset_fields
+        );
+
+        if ( is_wp_error( $result ) ) {
+            $error_data = $result->get_error_data();
+            if ( ! is_array( $error_data ) ) {
+                $error_data = array( 'field' => '' );
+            } elseif ( ! isset( $error_data['field'] ) ) {
+                $error_data['field'] = '';
+            }
+            wp_send_json_error( array(
+                'message'    => $result->get_error_message(),
+                'error_code' => $result->get_error_code(),
+                'error_data' => $error_data,
+            ) );
+        }
+
+        wp_send_json_success();
+    }
 }

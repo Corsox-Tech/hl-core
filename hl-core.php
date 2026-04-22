@@ -379,6 +379,13 @@ class HL_Core {
             array( 'HL_Frontend_Coach_Dashboard', 'ajax_dismiss_coach_zoom_callout' )
         );
 
+        // Coach Zoom settings: save coach overrides from the frontend modal (ticket #31, Task H2).
+        // Same rationale — Coach Dashboard renderer isn't instantiated on AJAX calls.
+        add_action(
+            'wp_ajax_hl_save_coach_zoom_settings',
+            array( 'HL_Frontend_Coach_Dashboard', 'ajax_save_coach_zoom_settings' )
+        );
+
         // Initialize reporting service (registers rollup listener)
         HL_Reporting_Service::instance();
 

@@ -244,6 +244,30 @@ class HL_Shortcodes {
             wp_enqueue_editor();
         }
 
+        // Coach Zoom Settings modal assets (ticket #31, Task H1).
+        // Enqueued BEFORE the [hl_ early-return so the HL page template (which
+        // bypasses wp_head/wp_footer) can still flush them via its explicit
+        // wp_print_styles() + wp_print_scripts() calls.
+        if ( has_shortcode( $post->post_content, 'hl_coach_dashboard' ) ) {
+            wp_enqueue_style(
+                'hl-coach-zoom-settings',
+                HL_CORE_ASSETS_URL . 'css/coach-zoom-settings.css',
+                array(),
+                HL_CORE_VERSION
+            );
+            wp_enqueue_script(
+                'hl-coach-zoom-settings',
+                HL_CORE_ASSETS_URL . 'js/coach-zoom-settings.js',
+                array(),
+                HL_CORE_VERSION,
+                true
+            );
+            wp_localize_script( 'hl-coach-zoom-settings', 'HLCoachZoomSettings', array(
+                'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+                'dashboardUrl' => get_permalink(), // for ?coach_user_id= page-navigate from admin
+            ) );
+        }
+
         // Template handles its own assets — skip WP enqueue for HL pages.
         if (strpos($post->post_content, '[hl_') !== false) return;
 
