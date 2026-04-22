@@ -152,8 +152,150 @@ class HL_Coach_Zoom_Settings_Service {
 
         return $sparse;
     }
+    /**
+     * Persist a coach's override row with transactional audit-diff safety.
+     *
+     * Uses `$wpdb->insert` / `$wpdb->update` (which natively bind NULL when a
+     * value is null) rather than raw `INSERT … ON DUPLICATE KEY UPDATE`
+     * (whose NULL semantics through `prepare()` are subtle). The SELECT-old-row
+     * and write happen inside a `START TRANSACTION` so concurrent saves cannot
+     * produce a wrong audit diff.
+     *
+     * `$reset_fields` (4th arg) NULLs the named columns inside the same
+     * transaction BEFORE applying `$overrides` — diff is computed against the
+     * final state so the audit log fires once for the merged result.
+     *
+     * Admin-only keys (`password_required`, `meeting_authentication`) are
+     * stripped from sanitized input: coaches cannot override them and the
+     * columns don't exist on this table.
+     *
+     * @param int   $coach_user_id
+     * @param array $overrides       Partial values (validated via self::validate()).
+     * @param int   $actor_user_id   Written to `updated_by_user_id` on INSERT and UPDATE.
+     * @param array $reset_fields    Column names to force-NULL (subset of allowed_cols).
+     * @return true|WP_Error
+     */
     public static function save_coach_overrides( $coach_user_id, array $overrides, $actor_user_id, array $reset_fields = array() ) {
-        return new WP_Error( 'not_implemented', 'Pending Task B5' );
+        global $wpdb;
+        $coach_user_id = absint( $coach_user_id );
+        if ( ! $coach_user_id ) {
+            return new WP_Error( 'invalid_coach', __( 'Invalid coach user ID.', 'hl-core' ) );
+        }
+
+        $sanitized = self::validate( $overrides, $coach_user_id );
+        if ( is_wp_error( $sanitized ) ) {
+            return $sanitized;
+        }
+
+        // Strip admin-only keys — coaches can't override these.
+        unset( $sanitized['password_required'], $sanitized['meeting_authentication'] );
+
+        // Mandatory preflight when alt_hosts non-empty (per spec §"Service contracts").
+        if ( ! empty( $sanitized['alternative_hosts'] ) ) {
+            $pf = self::preflight_alternative_hosts( $coach_user_id, $sanitized['alternative_hosts'] );
+            if ( is_wp_error( $pf ) ) {
+                return $pf;
+            }
+        }
+
+        $table        = $wpdb->prefix . self::TABLE_SLUG;
+        $allowed_cols = array( 'waiting_room', 'mute_upon_entry', 'join_before_host', 'alternative_hosts' );
+
+        $wpdb->query( 'START TRANSACTION' );
+
+        $before_row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT waiting_room, mute_upon_entry, join_before_host, alternative_hosts FROM {$table} WHERE coach_user_id = %d FOR UPDATE",
+                $coach_user_id
+            ),
+            ARRAY_A
+        );
+        $row_exists = ( $before_row !== null );
+
+        // Apply resets first (raw SQL for unambiguous NULL binding).
+        foreach ( $reset_fields as $f ) {
+            if ( ! in_array( $f, $allowed_cols, true ) ) {
+                continue;
+            }
+            if ( ! $row_exists ) {
+                continue; // nothing to reset
+            }
+            $r = $wpdb->query( $wpdb->prepare(
+                "UPDATE {$table} SET {$f} = NULL WHERE coach_user_id = %d",
+                $coach_user_id
+            ) );
+            if ( $r === false ) {
+                $wpdb->query( 'ROLLBACK' );
+                return new WP_Error( 'db_write_failed', $wpdb->last_error ? $wpdb->last_error : __( 'Reset failed.', 'hl-core' ) );
+            }
+            $before_row[ $f ] = null; // reflect in our local copy for diff calc
+        }
+
+        // Compute new row (merge sanitized overrides over the post-reset before_row).
+        $col = function ( $field ) use ( $sanitized, $before_row, $row_exists ) {
+            if ( array_key_exists( $field, $sanitized ) ) {
+                return $field === 'alternative_hosts' ? (string) $sanitized[ $field ] : (int) $sanitized[ $field ];
+            }
+            return $row_exists ? $before_row[ $field ] : null;
+        };
+
+        $new_row = array(
+            'waiting_room'       => $col( 'waiting_room' ),
+            'mute_upon_entry'    => $col( 'mute_upon_entry' ),
+            'join_before_host'   => $col( 'join_before_host' ),
+            'alternative_hosts'  => $col( 'alternative_hosts' ),
+            'updated_by_user_id' => $actor_user_id,
+        );
+
+        if ( ! empty( $overrides ) ) {
+            if ( $row_exists ) {
+                $result = $wpdb->update(
+                    $table,
+                    $new_row,
+                    array( 'coach_user_id' => $coach_user_id ),
+                    null,
+                    array( '%d' )
+                );
+            } else {
+                $insert = array_merge( array( 'coach_user_id' => $coach_user_id ), $new_row );
+                $result = $wpdb->insert( $table, $insert );
+            }
+            if ( $result === false ) {
+                $wpdb->query( 'ROLLBACK' );
+                return new WP_Error( 'db_write_failed', $wpdb->last_error ? $wpdb->last_error : __( 'Failed to save coach Zoom settings.', 'hl-core' ) );
+            }
+        }
+
+        $wpdb->query( 'COMMIT' );
+
+        // Audit diff (excludes updated_at + updated_by_user_id).
+        if ( class_exists( 'HL_Audit_Service' ) ) {
+            $diff = array();
+            foreach ( $allowed_cols as $f ) {
+                $b = $row_exists ? $before_row[ $f ] : null;
+                $a = $new_row[ $f ];
+                if ( $b !== $a ) {
+                    $diff[ $f ] = array( 'before' => $b, 'after' => $a );
+                }
+            }
+            if ( ! empty( $diff ) ) {
+                HL_Audit_Service::log( 'coach_zoom_settings_updated', array(
+                    'entity_type' => 'coach_zoom_settings',
+                    'entity_id'   => $coach_user_id,
+                    'after_data'  => array( 'diff' => $diff ),
+                ) );
+
+                if ( isset( $diff['alternative_hosts'] ) ) {
+                    wp_schedule_single_event(
+                        time(),
+                        'hl_notify_alt_hosts_change',
+                        array( $coach_user_id, $actor_user_id, $diff['alternative_hosts']['before'], $diff['alternative_hosts']['after'] )
+                    );
+                }
+            }
+        }
+
+        return true;
     }
     public static function resolve_for_coach( $coach_user_id ) {
         return self::DEFAULTS; // TODO Task B6
