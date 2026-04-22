@@ -313,9 +313,16 @@ class HL_Email_Automation_Service {
                 break;
 
             case 'hl_coaching_session_status_changed':
+                // Emitter: class-hl-coaching-service.php:202
+                //   do_action('hl_coaching_session_status_changed',
+                //       $session_id, $current, $new_status, $session)
+                // $args[1] is the OLD status (pre-update), $args[2] is NEW.
+                // Previous code read them backwards, causing row 22
+                // ("Coaching No-Show Follow-Up", prod workflow #33) to fire
+                // on transitions FROM missed instead of TO missed.
                 $session_id             = $args[0] ?? null;
-                $new_status             = $args[1] ?? null;
-                $old_status             = $args[2] ?? null;
+                $old_status             = $args[1] ?? null;
+                $new_status             = $args[2] ?? null;
                 $context['entity_id']   = $session_id;
                 $context['entity_type'] = 'coaching_session';
                 $context['session']     = array(
