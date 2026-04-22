@@ -27,6 +27,7 @@ class HL_Scheduling_Service {
         add_action('wp_ajax_hl_reschedule_session', array($this, 'ajax_reschedule_session'));
         add_action('wp_ajax_hl_cancel_session', array($this, 'ajax_cancel_session'));
         add_action('wp_ajax_hl_mark_attendance', array($this, 'ajax_mark_attendance'));
+        add_action('wp_ajax_hl_retry_zoom_meeting', array($this, 'ajax_retry_zoom_meeting'));
     }
 
     // =========================================================================
@@ -938,6 +939,38 @@ class HL_Scheduling_Service {
         } finally {
             delete_transient($lock_key);
         }
+    }
+
+    /**
+     * AJAX: Admin-only retry of Zoom meeting creation for a session that is missing one.
+     *
+     * Nonce: 'hl_retry_zoom_meeting' (field '_nonce').
+     * Cap:   manage_hl_core.
+     *
+     * On success returns { meeting_id, meeting_url [, note] }.
+     * On error returns { message, error_code } so the F3 button UX can map codes to UI states.
+     */
+    public function ajax_retry_zoom_meeting() {
+        check_ajax_referer('hl_retry_zoom_meeting', '_nonce');
+
+        if (!current_user_can('manage_hl_core')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'hl-core')), 403);
+        }
+
+        $session_id = absint(wp_unslash($_POST['session_id'] ?? 0));
+        if (!$session_id) {
+            wp_send_json_error(array('message' => __('Missing session ID.', 'hl-core')));
+        }
+
+        $result = $this->retry_zoom_meeting($session_id);
+        if (is_wp_error($result)) {
+            wp_send_json_error(array(
+                'message'    => $result->get_error_message(),
+                'error_code' => $result->get_error_code(),
+            ));
+        }
+
+        wp_send_json_success($result);
     }
 
     // =========================================================================
