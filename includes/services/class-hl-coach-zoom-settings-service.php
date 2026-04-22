@@ -67,6 +67,14 @@ class HL_Coach_Zoom_Settings_Service {
             return $sanitized;
         }
 
+        if ( ! empty( $sanitized['alternative_hosts'] ) ) {
+            // coach_user_id=0 for the admin path: no specific coach to "self-host"-check against.
+            $pf = self::preflight_alternative_hosts( 0, $sanitized['alternative_hosts'] );
+            if ( is_wp_error( $pf ) ) {
+                return $pf;
+            }
+        }
+
         $before = self::get_admin_defaults();
         $after  = wp_parse_args( $sanitized, $before );
 
