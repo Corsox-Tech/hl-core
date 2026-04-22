@@ -569,7 +569,7 @@ class HL_Admin_Email_Builder {
                     $school = $wpdb->get_row( $wpdb->prepare(
                         "SELECT o.name, p.name AS parent_name
                          FROM {$wpdb->prefix}hl_orgunit o
-                         LEFT JOIN {$wpdb->prefix}hl_orgunit p ON p.orgunit_id = o.parent_id
+                         LEFT JOIN {$wpdb->prefix}hl_orgunit p ON p.orgunit_id = o.parent_orgunit_id
                          WHERE o.orgunit_id = %d",
                         $enrollment->school_id
                     ) );
