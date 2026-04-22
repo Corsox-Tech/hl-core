@@ -29,7 +29,7 @@ function _t( $label, $condition ) {
 }
 
 global $wpdb;
-$svc = new HL_Scheduling_Service();
+$svc = HL_Scheduling_Service::instance();
 
 // Elevate to an admin so permission_denied is not the blocker we hit.
 $admin_users = get_users( array( 'role' => 'administrator', 'number' => 1, 'fields' => array( 'ID' ) ) );
@@ -62,6 +62,7 @@ _t(
 
 // 3. already_has_meeting — row already has zoom_meeting_id.
 $wpdb->insert( $wpdb->prefix . 'hl_coaching_session', array(
+    'session_uuid'         => wp_generate_uuid4(),
     'cycle_id'             => 1,
     'coach_user_id'        => 1,
     'mentor_enrollment_id' => 1,
@@ -89,6 +90,7 @@ $wpdb->delete( $wpdb->prefix . 'hl_coaching_session', array( 'session_id' => $se
 
 // 4. retry_inflight — lock held before the call.
 $wpdb->insert( $wpdb->prefix . 'hl_coaching_session', array(
+    'session_uuid'         => wp_generate_uuid4(),
     'cycle_id'             => 1,
     'coach_user_id'        => 1,
     'mentor_enrollment_id' => 1,
