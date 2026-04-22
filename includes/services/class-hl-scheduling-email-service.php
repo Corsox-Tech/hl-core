@@ -63,7 +63,8 @@ class HL_Scheduling_Email_Service {
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($session_data['mentor_name'])),
                 HL_Admin_Email_Templates::merge($tpl_mentor['body'], $merge_base),
                 $mentor_time,
-                $meeting_url
+                $meeting_url,
+                true
             )
         );
 
@@ -77,7 +78,8 @@ class HL_Scheduling_Email_Service {
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($session_data['coach_name'])),
                 HL_Admin_Email_Templates::merge($tpl_coach['body'], $merge_coach),
                 $coach_time,
-                $meeting_url
+                $meeting_url,
+                true
             )
         );
     }
@@ -110,7 +112,8 @@ class HL_Scheduling_Email_Service {
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($new_session['mentor_name'])),
                 HL_Admin_Email_Templates::merge($tpl_mentor['body'], $merge_mentor),
                 $new_mentor_time,
-                $meeting_url
+                $meeting_url,
+                true
             )
         );
 
@@ -129,7 +132,8 @@ class HL_Scheduling_Email_Service {
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($new_session['coach_name'])),
                 HL_Admin_Email_Templates::merge($tpl_coach['body'], $merge_coach),
                 $new_coach_time,
-                $meeting_url
+                $meeting_url,
+                true
             )
         );
     }
@@ -339,10 +343,14 @@ class HL_Scheduling_Email_Service {
      * @param string $message     Main message HTML.
      * @param string $time_display Formatted date/time string (for details block).
      * @param string $meeting_url  Zoom link (optional).
+     * @param bool   $show_missing_url_notice When true, emit a "link coming shortly"
+     *                                        fallback block if $meeting_url is empty.
+     *                                        Default false so cancellation / admin
+     *                                        callers don't leak client-facing copy.
      * @return string Full HTML.
      */
-    private function build_body($greeting, $message, $time_display, $meeting_url) {
-        return $this->build_branded_body($greeting, $message, $time_display, $meeting_url);
+    private function build_body($greeting, $message, $time_display, $meeting_url, $show_missing_url_notice = false) {
+        return $this->build_branded_body($greeting, $message, $time_display, $meeting_url, $show_missing_url_notice);
     }
 
     /**
@@ -385,9 +393,13 @@ class HL_Scheduling_Email_Service {
      * @param string $message     Main message HTML.
      * @param string $time_display Formatted date/time string (for details block).
      * @param string $meeting_url  Zoom link (optional).
+     * @param bool   $show_missing_url_notice When true, emit a "link coming shortly"
+     *                                        fallback block if $meeting_url is empty.
+     *                                        Default false so cancellation / admin
+     *                                        callers don't leak client-facing copy.
      * @return string Full HTML.
      */
-    public function build_branded_body($greeting, $message, $time_display, $meeting_url) {
+    public function build_branded_body($greeting, $message, $time_display, $meeting_url, $show_missing_url_notice = false) {
         $logo_url = 'https://academy.housmanlearning.com/wp-content/uploads/2024/09/Housman-Learning-Logo-Horizontal-Color.svg';
 
         $html  = '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;">';
@@ -409,11 +421,17 @@ class HL_Scheduling_Email_Service {
             $html .= '</div>';
         }
 
-        // Zoom button.
+        // Zoom button (or fallback when meeting_url is empty, opt-in by caller).
         if (!empty($meeting_url)) {
             $html .= '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:24px 0;"><tr><td align="center">';
             $html .= '<a href="' . esc_url($meeting_url) . '" style="display:inline-block;background:#2d8cff;color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;padding:14px 40px;border-radius:8px;">Join Zoom Meeting</a>';
             $html .= '</td></tr></table>';
+        } elseif ($show_missing_url_notice) {
+            // Zoom create failed (or skipped). Generic copy because the reschedule
+            // path does NOT call send_zoom_fallback() today (pre-existing gap).
+            $html .= '<p style="margin:24px 0;padding:12px 16px;background:#fff7ed;border-left:4px solid #f97316;border-radius:4px;font-size:14px;color:#9a3412;">'
+                . esc_html__( 'Your Zoom meeting link will be sent shortly. We\'ll be in touch.', 'hl-core' )
+                . '</p>';
         }
 
         $html .= '</td></tr>';
