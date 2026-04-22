@@ -89,7 +89,7 @@ class HL_Frontend_Feature_Tracker {
                         <option value="feature_request"><?php esc_html_e( 'Feature Request', 'hl-core' ); ?></option>
                     </select>
                     <select id="hlft-filter-status" class="hlft-filter-select">
-                        <option value=""><?php esc_html_e( 'Open (default)', 'hl-core' ); ?></option>
+                        <option value=""><?php esc_html_e( 'Active + recent (default)', 'hl-core' ); ?></option>
                         <option value="open"><?php esc_html_e( 'Open', 'hl-core' ); ?></option>
                         <option value="in_review"><?php esc_html_e( 'In Review', 'hl-core' ); ?></option>
                         <option value="in_progress"><?php esc_html_e( 'In Progress', 'hl-core' ); ?></option>
@@ -113,7 +113,7 @@ class HL_Frontend_Feature_Tracker {
 
             <!-- Filter indicator -->
             <div class="hlft-filter-indicator" id="hlft-filter-indicator">
-                <?php esc_html_e( 'Closed and cancelled tickets hidden', 'hl-core' ); ?> — <a href="#" id="hlft-show-all"><?php esc_html_e( 'show all', 'hl-core' ); ?></a>
+                <?php esc_html_e( 'Hiding resolved, closed, and cancelled older than 7 days', 'hl-core' ); ?> — <a href="#" id="hlft-show-all"><?php esc_html_e( 'show all', 'hl-core' ); ?></a>
             </div>
 
             <!-- Ticket Table -->
