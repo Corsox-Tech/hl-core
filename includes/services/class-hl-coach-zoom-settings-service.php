@@ -297,8 +297,36 @@ class HL_Coach_Zoom_Settings_Service {
 
         return true;
     }
+    /**
+     * Resolve the fully-populated Zoom meeting settings for a coach.
+     *
+     * 3-tier fallback:
+     *   1. Coach override (sparse; per-field NON-NULL wins via `get_coach_overrides()`).
+     *   2. Admin default (WP option; filled from DEFAULTS for any missing key).
+     *   3. Hardcoded `DEFAULTS` constant (ultimate fallback, already seeded into
+     *      tier 2 by `get_admin_defaults()`).
+     *
+     * Admin-only keys (`password_required`, `meeting_authentication`) never appear
+     * in the coach overrides array — by design, coaches cannot override them — so
+     * they always flow through from the admin defaults (tier 2) unchanged. The
+     * returned array is always fully-populated with the same keys as
+     * `self::DEFAULTS` and contains NO NULL values and NO `_meta` (which is for
+     * the admin overview only, not the Zoom payload).
+     *
+     * @param int $coach_user_id
+     * @return array Fully-populated settings array (same shape as self::DEFAULTS).
+     */
     public static function resolve_for_coach( $coach_user_id ) {
-        return self::DEFAULTS; // TODO Task B6
+        $defaults  = self::get_admin_defaults();
+        $overrides = self::get_coach_overrides( $coach_user_id );
+
+        // Strip metadata before merging (used by admin overview, not by Zoom payload).
+        unset( $overrides['_meta'] );
+
+        // Coach override (non-NULL) wins. Admin-only keys (password_required,
+        // meeting_authentication) are never present in $overrides and flow through
+        // from $defaults unchanged — by design.
+        return array_merge( $defaults, $overrides );
     }
     /**
      * Validate + normalize an input array of coach Zoom meeting settings.
