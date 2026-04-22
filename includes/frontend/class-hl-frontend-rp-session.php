@@ -450,7 +450,11 @@ class HL_Frontend_RP_Session {
         }
 
         if ($result && !is_wp_error($result)) {
-            $redirect = add_query_arg('message', $result['message']);
+            // Strip edit-mode params so a successful Save Changes returns the user
+            // to the readonly "Submitted · edited <date>" view rather than staying
+            // in edit mode. Preserves other params (like `tab`).
+            $redirect = remove_query_arg(array('ap_edit', 'rpn_edit'));
+            $redirect = add_query_arg('message', $result['message'], $redirect);
             // Clean output buffers so headers can be sent (BuddyBoss may have output warnings).
             while (ob_get_level()) { ob_end_clean(); }
             if (!headers_sent()) {
