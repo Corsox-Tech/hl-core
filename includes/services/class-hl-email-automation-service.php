@@ -335,12 +335,36 @@ class HL_Email_Automation_Service {
                 break;
 
             case 'hl_rp_session_created':
-            case 'hl_rp_session_status_changed':
+                // Emitter: class-hl-rp-session-service.php:68
+                //   do_action('hl_rp_session_created', $rp_session_id, $insert_data)
+                // $args[1] is the insert-data ARRAY, not a status. The previous
+                // combined case mistakenly set session.new_status = that array.
                 $rp_session_id          = $args[0] ?? null;
                 $context['entity_id']   = $rp_session_id;
                 $context['entity_type'] = 'rp_session';
-                if ( isset( $args[1] ) ) {
-                    $context['session'] = array( 'new_status' => $args[1] );
+                if ( $rp_session_id ) {
+                    $context = $this->load_rp_session_context( (int) $rp_session_id, $context );
+                }
+                break;
+
+            case 'hl_rp_session_status_changed':
+                // Emitter: class-hl-rp-session-service.php:262
+                //   do_action('hl_rp_session_status_changed',
+                //       $rp_session_id, $current, $new_status, $session)
+                // Same layout as coaching-session-status-changed (Bug 4):
+                // $args[1] = OLD, $args[2] = NEW. Previous combined case
+                // read $args[1] as new_status — also backwards.
+                $rp_session_id          = $args[0] ?? null;
+                $old_status             = $args[1] ?? null;
+                $new_status             = $args[2] ?? null;
+                $context['entity_id']   = $rp_session_id;
+                $context['entity_type'] = 'rp_session';
+                $context['session']     = array(
+                    'new_status' => $new_status,
+                    'old_status' => $old_status,
+                );
+                if ( $rp_session_id ) {
+                    $context = $this->load_rp_session_context( (int) $rp_session_id, $context );
                 }
                 break;
 
@@ -479,6 +503,70 @@ class HL_Email_Automation_Service {
             $context['mentor_name'] = $mentor->display_name;
         }
 
+        return $context;
+    }
+
+    /**
+     * Load RP (Reflective Practice) session data into context.
+     *
+     * The hl_rp_session table stores participants as enrollment IDs
+     * (mentor_enrollment_id, teacher_enrollment_id). This loader joins
+     * hl_enrollment to resolve user_ids for the recipient resolver.
+     *
+     * The mentor is the primary recipient for RP notifications
+     * (spreadsheet rows 17/18); the teacher is exposed via
+     * `observed_teacher_user_id` for CC / alternate-recipient tokens.
+     *
+     * @trigger-keys hl_rp_session_created, hl_rp_session_status_changed
+     *
+     * @param int   $rp_session_id
+     * @param array $context Initial context (may carry session.new_status / old_status).
+     * @return array
+     */
+    private function load_rp_session_context( $rp_session_id, array $context ) {
+        global $wpdb;
+        $session = $wpdb->get_row( $wpdb->prepare(
+            "SELECT s.*,
+                    mentor_e.user_id AS mentor_user_id,
+                    teacher_e.user_id AS teacher_user_id
+             FROM {$wpdb->prefix}hl_rp_session s
+             LEFT JOIN {$wpdb->prefix}hl_enrollment mentor_e
+                    ON mentor_e.enrollment_id = s.mentor_enrollment_id
+             LEFT JOIN {$wpdb->prefix}hl_enrollment teacher_e
+                    ON teacher_e.enrollment_id = s.teacher_enrollment_id
+             WHERE s.rp_session_id = %d",
+            $rp_session_id
+        ) );
+        if ( ! $session ) {
+            return $context;
+        }
+        if ( empty( $context['user_id'] ) && ! empty( $session->mentor_user_id ) ) {
+            $context['user_id'] = (int) $session->mentor_user_id;
+        }
+        if ( empty( $context['enrollment_id'] ) && ! empty( $session->mentor_enrollment_id ) ) {
+            $context['enrollment_id'] = (int) $session->mentor_enrollment_id;
+        }
+        if ( empty( $context['cycle_id'] ) ) {
+            $context['cycle_id'] = (int) $session->cycle_id;
+        }
+        if ( ! empty( $session->teacher_user_id ) ) {
+            $context['observed_teacher_user_id'] = (int) $session->teacher_user_id;
+            $context['cc_teacher_user_id']       = (int) $session->teacher_user_id;
+        }
+        if ( ! empty( $session->mentor_user_id ) ) {
+            $mentor = get_userdata( (int) $session->mentor_user_id );
+            if ( $mentor ) {
+                $context['mentor_name'] = $mentor->display_name;
+            }
+        }
+        // Merge; preserve session.new_status / old_status set by the hook case.
+        $context['session'] = array_merge( $context['session'] ?? array(), array(
+            'session_number'        => (int) $session->session_number,
+            'status'                => $session->status ?? '',
+            'session_date'          => $session->session_date,
+            'mentor_enrollment_id'  => (int) $session->mentor_enrollment_id,
+            'teacher_enrollment_id' => (int) $session->teacher_enrollment_id,
+        ) );
         return $context;
     }
 
