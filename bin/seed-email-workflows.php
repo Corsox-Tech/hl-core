@@ -723,9 +723,16 @@ foreach ( $workflows as $wf ) {
 	) );
 
 	if ( $existing_tpl_id > 0 ) {
-		echo $mode_banner . "UPDATE template #{$existing_tpl_id} key={$wf['tpl_key']}\n";
+		// Protect admin-editable fields on UPDATE. The seeder is authoritative
+		// for copy (name/subject/blocks_json) but MUST NOT clobber `category`
+		// (admin classification) or `status` (admin activation). If an admin
+		// flips status draft->active or changes category, re-seeding preserves
+		// those choices. Drafts are sacred.
+		$tpl_update_row = $tpl_row;
+		unset( $tpl_update_row['status'], $tpl_update_row['category'] );
+		echo $mode_banner . "UPDATE template #{$existing_tpl_id} key={$wf['tpl_key']} (preserving status+category)\n";
 		if ( ! $dry_run ) {
-			$wpdb->update( $tpl_table, $tpl_row, array( 'template_id' => $existing_tpl_id ) );
+			$wpdb->update( $tpl_table, $tpl_update_row, array( 'template_id' => $existing_tpl_id ) );
 		}
 		$template_id = $existing_tpl_id;
 		$counts['tpl_update']++;
@@ -765,9 +772,17 @@ foreach ( $workflows as $wf ) {
 	) );
 
 	if ( $existing_wf_id > 0 ) {
-		echo $mode_banner . "UPDATE workflow #{$existing_wf_id} name='{$wf['wf_name']}' trigger='{$wf['trigger_key']}'\n";
+		// Protect admin-activated workflows on UPDATE. Without this guard, an
+		// admin who flips status='active' in the UI gets silently reverted to
+		// 'draft' on the next re-seed — the exact class of silent regression
+		// the "drafts are sacred" rule exists to prevent. Update the config
+		// fields (trigger/conditions/recipients/template_id/timing) but leave
+		// the admin's status alone.
+		$wf_update_row = $wf_row;
+		unset( $wf_update_row['status'] );
+		echo $mode_banner . "UPDATE workflow #{$existing_wf_id} name='{$wf['wf_name']}' trigger='{$wf['trigger_key']}' (preserving status)\n";
 		if ( ! $dry_run ) {
-			$wpdb->update( $wf_table, $wf_row, array( 'workflow_id' => $existing_wf_id ) );
+			$wpdb->update( $wf_table, $wf_update_row, array( 'workflow_id' => $existing_wf_id ) );
 		}
 		$workflow_id = $existing_wf_id;
 		$counts['wf_update']++;
