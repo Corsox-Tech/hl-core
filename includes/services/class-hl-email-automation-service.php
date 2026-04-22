@@ -285,14 +285,22 @@ class HL_Email_Automation_Service {
                 break;
 
             case 'hl_pathway_completed':
-                $user_id                = $args[0] ?? null;
+                // Emitter: class-hl-reporting-service.php:157
+                //   do_action('hl_pathway_completed', $enrollment_id, $pathway_id, $cycle_id)
+                // Args are (enrollment_id, pathway_id, cycle_id), NOT the
+                // (user_id, pathway_id, enrollment_id) the listener previously assumed.
+                $enrollment_id          = $args[0] ?? null;
                 $pathway_id             = $args[1] ?? null;
-                $enrollment_id          = $args[2] ?? null;
-                $context['user_id']     = $user_id;
+                $cycle_id               = $args[2] ?? null;
                 $context['entity_id']   = $enrollment_id;
                 $context['entity_type'] = 'enrollment';
-                $context['enrollment_id'] = $enrollment_id;
                 $context['pathway_id']  = $pathway_id;
+                if ( $cycle_id ) {
+                    $context['cycle_id'] = (int) $cycle_id;
+                }
+                if ( $enrollment_id ) {
+                    $context = $this->load_enrollment_context( $enrollment_id, $context );
+                }
                 break;
 
             case 'hl_coaching_session_created':
