@@ -304,7 +304,10 @@ $workflows = array(
 		'wf_name'                => 'Classroom Visit Window Opens (7d)',
 		'trigger_key'            => 'cron:component_upcoming',
 		'conditions'             => array(),
-		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
+		// Phase 2 targeting: spreadsheet routes this to the observer (leader),
+		// not the general triggering_user set (which fans to both teacher +
+		// observer enrollments under the cycle-scoped cron query).
+		'recipients'             => array( 'primary' => array( 'observer' ), 'cc' => array() ),
 		'trigger_offset_minutes' => 10080, // 7 days
 		'component_type_filter'  => 'classroom_visit',
 	),
@@ -447,7 +450,12 @@ $workflows = array(
 		'wf_name'                => 'Coaching Session Scheduled Confirmation',
 		'trigger_key'            => 'hl_coaching_session_created',
 		'conditions'             => array(),
-		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array( 'assigned_coach' ) ),
+		// Phase 2 targeting: confirmation goes to the mentor on THIS session
+		// and CC's the coach on THIS session — not "user's coach" (assigned_coach
+		// does a separate hl_coach_assignment lookup that can disagree with
+		// who actually shows up on the session row, especially for staff-booked
+		// sessions or during an assignment transition).
+		'recipients'             => array( 'primary' => array( 'session_mentor' ), 'cc' => array( 'session_coach' ) ),
 		'trigger_offset_minutes' => null,
 		'component_type_filter'  => null,
 	),
@@ -527,7 +535,9 @@ $workflows = array(
 				'value' => array( 'mentor', 'coach', 'school_leader', 'district_leader' ),
 			),
 		),
-		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
+		// Phase 2 targeting: route to the observer (leader on the visit) so the
+		// message reaches whoever owes the form, not the teacher being observed.
+		'recipients'             => array( 'primary' => array( 'observer' ), 'cc' => array() ),
 		'trigger_offset_minutes' => 1440, // 1 day past due (handler has 48h tolerance window).
 		'component_type_filter'  => 'classroom_visit',
 	),
@@ -552,7 +562,8 @@ $workflows = array(
 		'wf_name'                => 'Coaching Session Reminder (5 Days Before)',
 		'trigger_key'            => 'cron:session_upcoming',
 		'conditions'             => array(),
-		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
+		// Phase 2 targeting: reminders go to the mentor on THIS session.
+		'recipients'             => array( 'primary' => array( 'session_mentor' ), 'cc' => array() ),
 		'trigger_offset_minutes' => 7200, // 5 days
 		'component_type_filter'  => null,
 	),
@@ -576,7 +587,8 @@ $workflows = array(
 		'wf_name'                => 'Coaching Session Reminder (24 Hours Before)',
 		'trigger_key'            => 'cron:session_upcoming',
 		'conditions'             => array(),
-		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
+		// Phase 2 targeting: reminders go to the mentor on THIS session.
+		'recipients'             => array( 'primary' => array( 'session_mentor' ), 'cc' => array() ),
 		'trigger_offset_minutes' => 1440, // 24 hours
 		'component_type_filter'  => null,
 	),
@@ -600,7 +612,8 @@ $workflows = array(
 		'wf_name'                => 'Coaching Session Reminder (1 Hour Before)',
 		'trigger_key'            => 'cron:session_upcoming',
 		'conditions'             => array(),
-		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
+		// Phase 2 targeting: reminders go to the mentor on THIS session.
+		'recipients'             => array( 'primary' => array( 'session_mentor' ), 'cc' => array() ),
 		'trigger_offset_minutes' => 60,
 		'component_type_filter'  => null,
 	),
@@ -625,7 +638,10 @@ $workflows = array(
 		'wf_name'                => 'Action Plan Incomplete (24 Hours After Session)',
 		'trigger_key'            => 'cron:action_plan_24h',
 		'conditions'             => array(),
-		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array( 'assigned_coach' ) ),
+		// Phase 2 targeting: mentor on THIS session (action plan is the mentor's
+		// supervisee-role submission); CC the coach on THIS session (entity-
+		// specific, not the "user's coach" assignment lookup).
+		'recipients'             => array( 'primary' => array( 'session_mentor' ), 'cc' => array( 'session_coach' ) ),
 		'trigger_offset_minutes' => null,
 		'component_type_filter'  => null,
 	),
@@ -650,7 +666,9 @@ $workflows = array(
 		'wf_name'                => 'Coaching Notes Incomplete (24 Hours After Session)',
 		'trigger_key'            => 'cron:session_notes_24h',
 		'conditions'             => array(),
-		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
+		// Phase 2 targeting: notes are the coach's supervisor-role submission,
+		// so the reminder goes to the coach on THIS session.
+		'recipients'             => array( 'primary' => array( 'session_coach' ), 'cc' => array() ),
 		'trigger_offset_minutes' => null,
 		'component_type_filter'  => null,
 	),
