@@ -338,11 +338,28 @@ class HL_Email_Automation_Service {
                 break;
 
             case 'hl_classroom_visit_submitted':
-                $visit_id               = $args[0] ?? null;
-                $context['entity_id']   = $visit_id;
+                // Emitter: class-hl-classroom-visit-service.php:330
+                //   do_action('hl_classroom_visit_submitted',
+                //       $submission_id, $classroom_visit_id, $role, $user_id)
+                // Fires for BOTH leader submissions (observation) and teacher
+                // submissions (self-reflection); workflows use visit.role to
+                // distinguish. Previously this case treated $args[0] as the
+                // classroom_visit_id — it is actually the submission_id.
+                $submission_id          = $args[0] ?? null;
+                $classroom_visit_id     = $args[1] ?? null;
+                $role                   = $args[2] ?? null;
+                $submitter_user_id      = $args[3] ?? null;
+                $context['entity_id']   = $classroom_visit_id;
                 $context['entity_type'] = 'classroom_visit';
-                if ( $visit_id ) {
-                    $context = $this->load_classroom_visit_context( $visit_id, $context );
+                if ( $submitter_user_id ) {
+                    $context['user_id'] = (int) $submitter_user_id;
+                }
+                $context['visit'] = array(
+                    'role'          => $role,
+                    'submission_id' => $submission_id,
+                );
+                if ( $classroom_visit_id ) {
+                    $context = $this->load_classroom_visit_context( (int) $classroom_visit_id, $context );
                 }
                 break;
 
@@ -460,22 +477,52 @@ class HL_Email_Automation_Service {
 
     /**
      * Load classroom visit data into context.
+     *
+     * The hl_classroom_visit table stores participants as enrollment IDs
+     * (leader_enrollment_id, teacher_enrollment_id). This loader joins
+     * hl_enrollment to resolve user_ids for the recipient resolver.
+     *
+     * Sets `observed_teacher_user_id` (canonical post-rename key) and
+     * mirrors to `cc_teacher_user_id` (legacy alias) — both are read by
+     * HL_Email_Recipient_Resolver::resolve_observed_teacher().
+     *
+     * @param int   $classroom_visit_id
+     * @param array $context Initial context (may carry visit.role from the hook).
+     * @return array
      */
-    private function load_classroom_visit_context( $visit_id, array $context ) {
+    private function load_classroom_visit_context( $classroom_visit_id, array $context ) {
         global $wpdb;
         $visit = $wpdb->get_row( $wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_classroom_visit WHERE visit_id = %d",
-            $visit_id
+            "SELECT v.*,
+                    leader_e.user_id AS leader_user_id,
+                    teacher_e.user_id AS teacher_user_id
+             FROM {$wpdb->prefix}hl_classroom_visit v
+             LEFT JOIN {$wpdb->prefix}hl_enrollment leader_e
+                    ON leader_e.enrollment_id = v.leader_enrollment_id
+             LEFT JOIN {$wpdb->prefix}hl_enrollment teacher_e
+                    ON teacher_e.enrollment_id = v.teacher_enrollment_id
+             WHERE v.classroom_visit_id = %d",
+            $classroom_visit_id
         ) );
         if ( ! $visit ) {
             return $context;
         }
-        $context['user_id']              = (int) $visit->observer_user_id;
-        $context['cycle_id']             = (int) $visit->cycle_id;
-        $context['cc_teacher_user_id']   = $visit->teacher_user_id ? (int) $visit->teacher_user_id : null;
-        $context['visit']                = array(
-            'role' => $visit->observer_role ?? '',
-        );
+        $context['cycle_id'] = (int) $visit->cycle_id;
+        if ( ! empty( $visit->teacher_user_id ) ) {
+            $context['observed_teacher_user_id'] = (int) $visit->teacher_user_id;
+            // Legacy alias — HL_Email_Recipient_Resolver::resolve_observed_teacher
+            // falls back to this key. Keep it populated until the alias is retired.
+            $context['cc_teacher_user_id']       = (int) $visit->teacher_user_id;
+        }
+        if ( ! empty( $visit->leader_user_id ) ) {
+            $context['leader_user_id'] = (int) $visit->leader_user_id;
+        }
+        $context['visit'] = array_merge( $context['visit'] ?? array(), array(
+            'visit_number'          => (int) $visit->visit_number,
+            'status'                => $visit->status ?? '',
+            'leader_enrollment_id'  => (int) $visit->leader_enrollment_id,
+            'teacher_enrollment_id' => (int) $visit->teacher_enrollment_id,
+        ) );
         return $context;
     }
 
