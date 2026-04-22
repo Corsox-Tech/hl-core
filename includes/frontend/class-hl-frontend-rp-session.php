@@ -238,6 +238,18 @@ class HL_Frontend_RP_Session {
                     var nonce = form.querySelector('input[name="hl_rp_notes_nonce"], input[name="hl_action_plan_nonce"]');
                     if (!nonce) return Promise.resolve();
 
+                    // Do NOT autosave while the user is editing a previously-submitted
+                    // form (edit-submission mode, tickets #8/#10). A forced draft POST
+                    // would silently demote the submitted row back to draft status and
+                    // clobber the user's in-flight edits without pushing them through
+                    // Save Changes. Let the user explicitly choose Save Changes or
+                    // Cancel; beforeunload on the form warns about unsaved work.
+                    var wrapper = form.closest('[data-hlap-state], [data-hlrn-state]');
+                    if (wrapper && (wrapper.getAttribute('data-hlap-state') === 'editing-submission'
+                                 || wrapper.getAttribute('data-hlrn-state') === 'editing-submission')) {
+                        return Promise.resolve();
+                    }
+
                     // Sync TinyMCE editors to their textareas
                     if (window.tinyMCE) {
                         try { window.tinyMCE.triggerSave(); } catch(e) {}
