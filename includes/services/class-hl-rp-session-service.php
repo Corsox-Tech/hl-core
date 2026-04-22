@@ -281,7 +281,7 @@ class HL_RP_Session_Service {
         $table = $wpdb->prefix . 'hl_rp_session_submission';
 
         $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT submission_id FROM {$table} WHERE rp_session_id = %d AND role_in_session = %s",
+            "SELECT submission_id, submitted_at, status FROM {$table} WHERE rp_session_id = %d AND role_in_session = %s",
             $rp_session_id, $role
         ), ARRAY_A);
 
@@ -295,7 +295,9 @@ class HL_RP_Session_Service {
             'updated_at'           => current_time('mysql'),
         );
 
-        if ($status === 'submitted') {
+        // Preserve the original submitted_at on re-submit (edits to a submitted row).
+        // Only stamp it the first time a row transitions INTO 'submitted'.
+        if ($status === 'submitted' && ( ! $existing || empty($existing['submitted_at']) )) {
             $data['submitted_at'] = current_time('mysql');
         }
 
