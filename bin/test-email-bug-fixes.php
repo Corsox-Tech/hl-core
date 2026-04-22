@@ -477,6 +477,36 @@ try {
     hl_bf_assert( ! isset( $ctx8b['session']['new_status'] ) || is_string( $ctx8b['session']['new_status'] ),
         'Bug 8: rp_session_created does not corrupt session.new_status with the insert-data array' );
 
+    // =========================================================================
+    // Bug 9 — cron-path coverage (session_notes_24h routes to coach, not mentor)
+    // =========================================================================
+    echo "\n=== Bug 9 cron-path: session_notes_24h preserves coach user_id ===\n";
+
+    // Simulate the context that run_cron_workflow builds for the
+    // session_notes_24h cron row: user_id = coach (NOT mentor),
+    // enrollment_id = null (coaches have no enrollment), entity_type =
+    // 'coaching_session', entity_id = session_id. After hydrate_context
+    // runs (which calls load_coaching_session_context for the entity_type
+    // branch), the coach's user_id MUST be preserved — the guard
+    // `empty($context['user_id'])` protects it from being stomped with
+    // the mentor's user_id. Regression test: any refactor that changes
+    // the guard to overwrite-unconditionally would break the coach-notes
+    // path and previously had no assertion coverage.
+    $ctx9 = hl_bf_call_private( 'hydrate_context', array( array(
+        'trigger_key'   => 'cron:session_notes_24h',
+        'user_id'       => $coach_user_id,
+        'cycle_id'      => $cycle_id,
+        'enrollment_id' => null,
+        'entity_id'     => $session_id,
+        'entity_type'   => 'coaching_session',
+    ) ) );
+    hl_bf_assert( (int) ( $ctx9['user_id'] ?? 0 ) === $coach_user_id,
+        'Bug 9 cron-path: session_notes_24h context preserves user_id=coach through load_coaching_session_context (was stomped if guard regressed)' );
+    hl_bf_assert( ! empty( $ctx9['coach_email'] ),
+        'Bug 9 cron-path: coach_email populated by load_coaching_session_context JOIN on coach_user_id' );
+    hl_bf_assert( ! empty( $ctx9['mentor_name'] ),
+        'Bug 9 cron-path: mentor_name still populated via JOIN (so both coach recipient AND mentor merge tags work in coach-notes email)' );
+
 } catch ( \Throwable $t ) {
     $GLOBALS['hl_bf_fail']++;
     $GLOBALS['hl_bf_errors'][] = 'uncaught: ' . $t->getMessage() . ' @ ' . $t->getFile() . ':' . $t->getLine();

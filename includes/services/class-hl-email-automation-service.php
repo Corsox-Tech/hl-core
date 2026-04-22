@@ -439,8 +439,16 @@ class HL_Email_Automation_Service {
                 );
                 // For enrollment-scoped assignments, the "mentor being assigned
                 // a coach" is the user on that enrollment — resolve them as the
-                // primary recipient. Team/school scopes are fan-out cases; the
-                // recipient resolver handles those via role:mentor + cycle scope.
+                // primary recipient.
+                //
+                // TODO: team/school scopes currently leave user_id unset. The
+                // recipient resolver's role:mentor token SHOULD fan out to all
+                // mentors in the scope, but that path has not been end-to-end
+                // verified against hl_coach_assigned — no workflow seeded for
+                // this trigger today. When a team/school-scoped workflow is
+                // authored, verify the resolver emits one queue row per mentor,
+                // or fan-out here by enumerating enrollments in scope and
+                // calling load_enrollment_context per-recipient.
                 if ( ( $data['scope_type'] ?? '' ) === 'enrollment' && ! empty( $data['scope_id'] ) ) {
                     $context = $this->load_enrollment_context( (int) $data['scope_id'], $context );
                 }
@@ -499,8 +507,7 @@ class HL_Email_Automation_Service {
         // keep working.
         $session = $wpdb->get_row( $wpdb->prepare(
             "SELECT s.*,
-                    mentor_e.user_id AS mentor_user_id,
-                    mentor_e.enrollment_id AS mentor_enrollment_row_id
+                    mentor_e.user_id AS mentor_user_id
              FROM {$wpdb->prefix}hl_coaching_session s
              LEFT JOIN {$wpdb->prefix}hl_enrollment mentor_e
                     ON mentor_e.enrollment_id = s.mentor_enrollment_id
@@ -1153,11 +1160,25 @@ class HL_Email_Automation_Service {
             $cycle_context_fragment = $this->load_cycle_context_fragment( (int) $cycle->cycle_id );
 
             foreach ( $users as $user_data ) {
+                // Explicit null cast: cron queries sometimes return string "NULL"
+                // for `SELECT NULL AS enrollment_id` under certain PDO/driver
+                // configurations (MySQLi returns PHP null, PDO can return the
+                // literal string). Force PHP-null so the array_key_exists guard
+                // in load_coaching_session_context treats this as "caller
+                // deliberately set null, don't overwrite." This matters for the
+                // session_notes_24h cron path which intentionally routes to the
+                // COACH, whose enrollment_id is null.
+                $cron_enrollment_id = $user_data['enrollment_id'] ?? null;
+                if ( $cron_enrollment_id === '' || ( is_string( $cron_enrollment_id ) && strtoupper( $cron_enrollment_id ) === 'NULL' ) ) {
+                    $cron_enrollment_id = null;
+                } elseif ( $cron_enrollment_id !== null ) {
+                    $cron_enrollment_id = (int) $cron_enrollment_id;
+                }
                 $context = array_merge( $cycle_context_fragment, array(
                     'trigger_key'          => $trigger_key,
                     'user_id'              => $user_data['user_id'],
                     'cycle_id'             => (int) $cycle->cycle_id,
-                    'enrollment_id'        => $user_data['enrollment_id'] ?? null,
+                    'enrollment_id'        => $cron_enrollment_id,
                     'entity_id'            => $user_data['entity_id'] ?? null,
                     'entity_type'          => $user_data['entity_type'] ?? null,
                     '_needs_coaching_check' => $needs_coaching_check,

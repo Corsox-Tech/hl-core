@@ -1006,6 +1006,23 @@
                 isDirty = false;
                 $('#hl-eb-autosave-status').text('Saved').fadeIn().delay(2000).fadeOut();
 
+                // Body-render lint warnings (backend flag for unregistered
+                // merge tags). Not a hard fail — the template saved — but
+                // surface immediately so the admin can fix the typo before
+                // activating the workflow. Inline banner below the save
+                // button; dismissible.
+                if (res.data && res.data.warnings && res.data.warnings.notice) {
+                    var $banner = $('#hl-eb-lint-warnings');
+                    if ($banner.length === 0) {
+                        $banner = $('<div id="hl-eb-lint-warnings" class="notice notice-warning is-dismissible" style="margin:12px 0"><p></p></div>');
+                        $('#hl-eb-save').closest('.hl-eb-actions, .hl-eb-save-row, .wrap').first().after($banner);
+                    }
+                    $banner.find('p').text(res.data.warnings.notice);
+                    $banner.show();
+                } else {
+                    $('#hl-eb-lint-warnings').hide();
+                }
+
                 // A.7.8 — first save with a non-empty undo stack shows the one-time notice.
                 var hadHistory = undoStack.length > 0 || redoStack.length > 0;
                 undoStack = [];
