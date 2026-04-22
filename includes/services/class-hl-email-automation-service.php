@@ -262,13 +262,17 @@ class HL_Email_Automation_Service {
                 break;
 
             case 'hl_pathway_assigned':
-                $assignment_id          = $args[0] ?? null;
-                $user_id                = $args[1] ?? null;
-                $pathway_id             = $args[2] ?? null;
-                $context['entity_id']   = $assignment_id;
-                $context['entity_type'] = 'pathway_assignment';
-                $context['user_id']     = $user_id;
+                // Emitter: class-hl-pathway-assignment-service.php:71
+                //   do_action('hl_pathway_assigned', $enrollment_id, $pathway_id)
+                // 2 args, not 3. user_id is derived from the enrollment row.
+                $enrollment_id          = $args[0] ?? null;
+                $pathway_id             = $args[1] ?? null;
+                $context['entity_id']   = $enrollment_id;
+                $context['entity_type'] = 'enrollment';
                 $context['pathway_id']  = $pathway_id;
+                if ( $enrollment_id ) {
+                    $context = $this->load_enrollment_context( $enrollment_id, $context );
+                }
                 break;
 
             case 'hl_learndash_course_completed':
