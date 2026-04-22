@@ -164,7 +164,20 @@ class HL_Zoom_Integration {
     // =========================================================================
 
     /**
-     * Build a Zoom meeting payload from session data.
+     * Build a Zoom meeting payload from session data + resolved coach settings.
+     *
+     * If `$resolved_settings` is empty, falls back to:
+     *   1. `HL_Coach_Zoom_Settings_Service::get_admin_defaults()` when the service
+     *      class is available, OR
+     *   2. Hardcoded safe defaults when the service isn't loaded (boot-safe for
+     *      early callers / tests).
+     *
+     * The `password` key is always omitted from the payload:
+     *   - `password_required=1` → omit so Zoom auto-generates a passcode.
+     *   - `password_required=0` → omit; account-level passcode policy may still apply.
+     *
+     * `auto_recording` / `auto_start_meeting_summary` are intentionally NOT set by
+     * this builder — per spec, those are not coach-controlled.
      *
      * @param array $session_data {
      *     @type string $mentor_name
@@ -173,21 +186,51 @@ class HL_Zoom_Integration {
      *     @type string $timezone        IANA timezone, e.g. "America/New_York"
      *     @type int    $duration        Duration in minutes.
      * }
+     * @param array $resolved_settings Pre-resolved coach settings from
+     *                                 HL_Coach_Zoom_Settings_Service::resolve_for_coach().
+     *                                 Pass array() (the default) to trigger fallback.
      * @return array
      */
-    public function build_meeting_payload($session_data) {
-        return array(
+    public function build_meeting_payload($session_data, array $resolved_settings = array()) {
+        if (empty($resolved_settings)) {
+            // Boot-safe fallback (handles early callers / tests that don't pass the arg).
+            if (class_exists('HL_Coach_Zoom_Settings_Service')) {
+                $resolved_settings = HL_Coach_Zoom_Settings_Service::get_admin_defaults();
+            } else {
+                $resolved_settings = array(
+                    'waiting_room'           => 1,
+                    'mute_upon_entry'        => 0,
+                    'join_before_host'       => 0,
+                    'alternative_hosts'      => '',
+                    'password_required'      => 0,
+                    'meeting_authentication' => 0,
+                );
+            }
+        }
+
+        $payload = array(
             'topic'      => sprintf('Coaching Session - %s/%s', $session_data['mentor_name'], $session_data['coach_name']),
             'type'       => 2, // Scheduled meeting.
             'start_time' => $session_data['start_datetime'],
             'timezone'   => $session_data['timezone'],
             'duration'   => isset($session_data['duration']) ? (int) $session_data['duration'] : 30,
             'settings'   => array(
-                'join_before_host' => true,
-                'waiting_room'     => false,
-                'auto_recording'   => 'none',
+                'waiting_room'           => (bool) $resolved_settings['waiting_room'],
+                'join_before_host'       => (bool) $resolved_settings['join_before_host'],
+                'mute_upon_entry'        => (bool) $resolved_settings['mute_upon_entry'],
+                'meeting_authentication' => (bool) $resolved_settings['meeting_authentication'],
             ),
         );
+
+        if (isset($resolved_settings['alternative_hosts']) && $resolved_settings['alternative_hosts'] !== '') {
+            $payload['settings']['alternative_hosts'] = $resolved_settings['alternative_hosts'];
+        }
+
+        // password key omitted in BOTH cases:
+        //   password_required=1 → omit so Zoom auto-generates one.
+        //   password_required=0 → omit; account-level passcode policy may still apply.
+
+        return $payload;
     }
 
     // =========================================================================
