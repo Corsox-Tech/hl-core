@@ -253,6 +253,26 @@ class HL_Frontend_Coach_Dashboard {
             </div>
             <?php endif; ?>
 
+            <?php
+            // ---- Coach Zoom Settings modal (ticket #31, Task G2) ----
+            // Render the modal markup at the bottom of the dashboard. Hidden by default; H2 JS
+            // will open it when the .hlczs-edit-trigger button is clicked. Admin context
+            // (admin viewing a different coach's dashboard via ?coach_user_id=N) auto-opens it.
+            if ( class_exists( 'HL_Coach_Zoom_Settings_Service' ) ) {
+                $modal_coach_user_id = get_current_user_id();
+                if ( current_user_can( 'manage_hl_core' ) && isset( $_GET['coach_user_id'] ) ) {
+                    $modal_coach_user_id = absint( $_GET['coach_user_id'] );
+                }
+
+                if ( $modal_coach_user_id > 0 && get_userdata( $modal_coach_user_id ) ) {
+                    $resolved  = HL_Coach_Zoom_Settings_Service::resolve_for_coach( $modal_coach_user_id );
+                    $overrides = HL_Coach_Zoom_Settings_Service::get_coach_overrides( $modal_coach_user_id );
+                    $defaults  = HL_Coach_Zoom_Settings_Service::get_admin_defaults();
+                    require HL_CORE_PLUGIN_DIR . 'includes/frontend/views/coach-zoom-settings-modal.php';
+                }
+            }
+            ?>
+
         </div>
         <?php
 
