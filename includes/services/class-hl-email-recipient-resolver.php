@@ -9,7 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * to multiple recipients (one queue row per resolved recipient).
  *
  * Tokens: triggering_user, assigned_coach, assigned_mentor, school_director,
- * observed_teacher (alias: cc_teacher), role:X, static:email.
+ * observed_teacher (alias: cc_teacher), session_mentor, session_coach, observer,
+ * role:X, static:email.
  *
  * @package HL_Core
  */
@@ -177,6 +178,15 @@ class HL_Email_Recipient_Resolver {
 
             case 'observed_teacher':
                 return $this->resolve_observed_teacher( $context );
+
+            case 'session_mentor':
+                return $this->resolve_session_mentor( $context );
+
+            case 'session_coach':
+                return $this->resolve_session_coach( $context );
+
+            case 'observer':
+                return $this->resolve_observer( $context );
 
             case 'cc_teacher':
                 // Legacy alias — A.6.11 deprecation telemetry.
@@ -347,6 +357,85 @@ class HL_Email_Recipient_Resolver {
             return array();
         }
         return array( array( 'email' => $user->user_email, 'user_id' => (int) $teacher_user_id ) );
+    }
+
+    /**
+     * Resolve the mentor on a coaching session (entity-specific, NOT "user's mentor").
+     *
+     * Chris Love's spreadsheet consistently routes coaching session emails to
+     * "the mentor on THIS session" — not to the triggering_user (who can be
+     * the coach booking on behalf of the teacher). We prefer an explicit
+     * `mentor_user_id` key if set, otherwise fall back to the canonical
+     * `user_id` set by `load_coaching_session_context()` (which is the mentor).
+     *
+     * @param array $context
+     * @return array Array of { email, user_id } (0 or 1 row).
+     */
+    private function resolve_session_mentor( array $context ) {
+        $mentor_id = 0;
+        if ( ! empty( $context['mentor_user_id'] ) ) {
+            $mentor_id = (int) $context['mentor_user_id'];
+        } elseif ( ( $context['entity_type'] ?? '' ) === 'coaching_session' && ! empty( $context['user_id'] ) ) {
+            $mentor_id = (int) $context['user_id'];
+        }
+        if ( $mentor_id <= 0 ) {
+            return array();
+        }
+        $user = get_userdata( $mentor_id );
+        if ( ! $user || empty( $user->user_email ) ) {
+            return array();
+        }
+        return array( array( 'email' => $user->user_email, 'user_id' => $mentor_id ) );
+    }
+
+    /**
+     * Resolve the coach on a coaching session (entity-specific).
+     *
+     * Reads `$context['coach_user_id']` populated by
+     * `load_coaching_session_context()`. Unlike `assigned_coach`, which looks
+     * up the coach via `hl_coach_assignment` for the triggering user, this
+     * token returns the coach recorded on the session row itself — robust
+     * when the session predates an assignment change or when no assignment
+     * exists (e.g. staff-booked session).
+     *
+     * @param array $context
+     * @return array Array of { email, user_id } (0 or 1 row).
+     */
+    private function resolve_session_coach( array $context ) {
+        $coach_id = isset( $context['coach_user_id'] ) ? (int) $context['coach_user_id'] : 0;
+        if ( $coach_id <= 0 ) {
+            return array();
+        }
+        $user = get_userdata( $coach_id );
+        if ( ! $user || empty( $user->user_email ) ) {
+            return array();
+        }
+        return array( array( 'email' => $user->user_email, 'user_id' => $coach_id ) );
+    }
+
+    /**
+     * Resolve the observer on a classroom visit (the leader who does the
+     * observation). Uses `$context['leader_user_id']` populated by
+     * `load_classroom_visit_context()`.
+     *
+     * Chris Love's spreadsheet routes classroom-visit reminders and overdue
+     * notices to the observer, not the triggering_user — those two can
+     * differ under cron dispatch when `triggering_user` is resolved from
+     * the cycle-scoped query rather than the per-visit participant set.
+     *
+     * @param array $context
+     * @return array Array of { email, user_id } (0 or 1 row).
+     */
+    private function resolve_observer( array $context ) {
+        $leader_id = isset( $context['leader_user_id'] ) ? (int) $context['leader_user_id'] : 0;
+        if ( $leader_id <= 0 ) {
+            return array();
+        }
+        $user = get_userdata( $leader_id );
+        if ( ! $user || empty( $user->user_email ) ) {
+            return array();
+        }
+        return array( array( 'email' => $user->user_email, 'user_id' => $leader_id ) );
     }
 
     /**

@@ -541,8 +541,12 @@ class HL_Email_Automation_Service {
             $context['session_date'] = $auto_fmt['full'] ?: $session->session_datetime;
         }
 
-        // Load coach data.
+        // Load coach data. Expose `coach_user_id` on the context so the
+        // `session_coach` recipient token can resolve the coach on THIS
+        // session (distinct from `assigned_coach`, which does a separate
+        // lookup against hl_coach_assignment).
         if ( ! empty( $session->coach_user_id ) ) {
+            $context['coach_user_id'] = (int) $session->coach_user_id;
             $coach = get_userdata( (int) $session->coach_user_id );
             if ( $coach ) {
                 $context['coach_name']  = $coach->display_name;
@@ -551,7 +555,11 @@ class HL_Email_Automation_Service {
         }
 
         // Load mentor data (now that $session->mentor_user_id is populated via the JOIN above).
+        // Expose `mentor_user_id` on the context so the `session_mentor` token
+        // can resolve without relying solely on `user_id` (belt + suspenders
+        // against cron paths that set `user_id` to the coach).
         if ( ! empty( $session->mentor_user_id ) ) {
+            $context['mentor_user_id'] = (int) $session->mentor_user_id;
             $mentor = get_userdata( (int) $session->mentor_user_id );
             if ( $mentor ) {
                 $context['mentor_name'] = $mentor->display_name;

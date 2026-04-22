@@ -369,6 +369,45 @@ class HL_Admin_Emails {
                 'description' => 'Teacher being observed in a classroom visit.',
                 'triggers'    => array( 'hl_classroom_visit_submitted' ),
             ),
+            'session_mentor' => array(
+                'label'       => 'Mentor on This Session',
+                'description' => 'The mentor recorded on the coaching session row (entity-specific, not "user\'s mentor").',
+                'triggers'    => array(
+                    'hl_coaching_session_created',
+                    'hl_coaching_session_status_changed',
+                    'cron:session_upcoming',
+                    'cron:coaching_session_5d',
+                    'cron:session_24h',
+                    'cron:session_1h',
+                    'cron:action_plan_24h',
+                    'cron:session_notes_24h',
+                ),
+            ),
+            'session_coach' => array(
+                'label'       => 'Coach on This Session',
+                'description' => 'The coach recorded on the coaching session row (entity-specific, not "user\'s coach").',
+                'triggers'    => array(
+                    'hl_coaching_session_created',
+                    'hl_coaching_session_status_changed',
+                    'cron:session_upcoming',
+                    'cron:coaching_session_5d',
+                    'cron:session_24h',
+                    'cron:session_1h',
+                    'cron:action_plan_24h',
+                    'cron:session_notes_24h',
+                ),
+            ),
+            'observer' => array(
+                'label'       => 'Observer (Classroom Visit)',
+                'description' => 'The leader who observes a classroom visit (entity-specific).',
+                'triggers'    => array(
+                    'hl_classroom_visit_submitted',
+                    'cron:component_upcoming',
+                    'cron:component_overdue',
+                    'cron:cv_window_7d',
+                    'cron:cv_overdue_1d',
+                ),
+            ),
         );
     }
 
