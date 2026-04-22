@@ -511,6 +511,8 @@ class HL_Admin_Scheduling_Settings {
             <?php submit_button(__('Save Settings', 'hl-core')); ?>
         </form>
 
+        <?php $this->render_coach_overrides_table(); ?>
+
         <script>
         (function() {
             var nonce = '<?php echo esc_js($nonce); ?>';
@@ -556,6 +558,125 @@ class HL_Admin_Scheduling_Settings {
             });
         })();
         </script>
+        <?php
+    }
+
+    /**
+     * Render the Coach Overrides Overview table.
+     *
+     * Admin-facing table listing every coach, with override status per Zoom
+     * meeting option. Batched read (no N+1), paginated, with "overrides only"
+     * filter and sticky header.
+     */
+    private function render_coach_overrides_table() {
+        global $wpdb;
+
+        $overrides_only = ! empty( $_GET['overrides_only'] );
+        $page           = max( 1, absint( $_GET['paged_overrides'] ?? 1 ) );
+        $per_page       = 50;
+        $offset         = ( $page - 1 ) * $per_page;
+
+        // Coach role slug confirmed at class-hl-installer.php:2348.
+        $coach_ids = get_users( array(
+            'role__in' => array( 'coach' ),
+            'fields'   => 'ID',
+            'orderby'  => 'display_name',
+            'number'   => -1,
+        ) );
+
+        if ( empty( $coach_ids ) ) {
+            echo '<p>' . esc_html__( 'No coaches found.', 'hl-core' ) . '</p>';
+            return;
+        }
+
+        // One batched read of override rows (no N+1) — prepare() with %d placeholders.
+        $placeholders = implode( ',', array_fill( 0, count( $coach_ids ), '%d' ) );
+        $sql          = $wpdb->prepare(
+            "SELECT coach_user_id, waiting_room, mute_upon_entry, join_before_host, alternative_hosts, updated_at, updated_by_user_id
+             FROM {$wpdb->prefix}hl_coach_zoom_settings WHERE coach_user_id IN ($placeholders)",
+            $coach_ids
+        );
+        $rows = $wpdb->get_results( $sql, OBJECT_K );
+
+        // Warm user cache for both coach IDs and editor IDs to avoid per-row queries.
+        $editor_ids = array_filter( wp_list_pluck( $rows, 'updated_by_user_id' ) );
+        cache_users( array_unique( array_merge( $coach_ids, $editor_ids ) ) );
+
+        $defaults = HL_Coach_Zoom_Settings_Service::get_admin_defaults();
+
+        $resolved_rows = array();
+        foreach ( $coach_ids as $cid ) {
+            $row          = $rows[ $cid ] ?? null;
+            $has_override = $row && (
+                $row->waiting_room      !== null ||
+                $row->mute_upon_entry   !== null ||
+                $row->join_before_host  !== null ||
+                $row->alternative_hosts !== null
+            );
+            if ( $overrides_only && ! $has_override ) continue;
+
+            $user   = get_userdata( $cid );
+            $editor = ( $row && $row->updated_by_user_id ) ? get_userdata( $row->updated_by_user_id ) : null;
+
+            $resolved_rows[] = array(
+                'cid'              => $cid,
+                'name'             => $user ? $user->display_name : '#' . $cid,
+                'waiting_room'     => $row && $row->waiting_room      !== null ? array( 'val' => (int) $row->waiting_room,     'src' => 'override' ) : array( 'val' => $defaults['waiting_room'],     'src' => 'default' ),
+                'mute_upon_entry'  => $row && $row->mute_upon_entry   !== null ? array( 'val' => (int) $row->mute_upon_entry,  'src' => 'override' ) : array( 'val' => $defaults['mute_upon_entry'],  'src' => 'default' ),
+                'join_before_host' => $row && $row->join_before_host  !== null ? array( 'val' => (int) $row->join_before_host, 'src' => 'override' ) : array( 'val' => $defaults['join_before_host'], 'src' => 'default' ),
+                'alt_hosts'        => $row && $row->alternative_hosts !== null ? array( 'val' => (string) $row->alternative_hosts, 'src' => 'override' ) : array( 'val' => $defaults['alternative_hosts'], 'src' => 'default' ),
+                'updated_at'       => $row ? $row->updated_at : null,
+                'editor'           => $editor ? $editor->display_name : null,
+            );
+        }
+
+        $total = count( $resolved_rows );
+        $rows  = array_slice( $resolved_rows, $offset, $per_page );
+
+        ?>
+        <div class="card" style="max-width:1100px;margin-top:24px;">
+            <h2><?php esc_html_e( 'Coach Overrides Overview', 'hl-core' ); ?></h2>
+            <form method="get" style="margin-bottom:12px;">
+                <input type="hidden" name="page" value="<?php echo esc_attr( $_GET['page'] ?? 'hl-settings' ); ?>">
+                <input type="hidden" name="tab"  value="<?php echo esc_attr( $_GET['tab']  ?? 'scheduling' ); ?>">
+                <label><input type="checkbox" name="overrides_only" value="1" <?php checked( $overrides_only ); ?> onchange="this.form.submit()">
+                    <?php esc_html_e( 'Show only coaches with overrides', 'hl-core' ); ?></label>
+            </form>
+            <div style="max-height:600px;overflow:auto;">
+                <table class="wp-list-table widefat fixed striped" style="position:relative;">
+                    <thead style="position:sticky;top:0;background:#f6f7f7;z-index:1;">
+                        <tr>
+                            <th><?php esc_html_e( 'Coach', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Waiting room', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Mute on entry', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Join before host', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Alternative hosts', 'hl-core' ); ?></th>
+                            <th><?php esc_html_e( 'Last edited', 'hl-core' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ( $rows as $r ): ?>
+                        <tr>
+                            <td><?php echo esc_html( $r['name'] ); ?></td>
+                            <td><?php echo esc_html( $r['waiting_room']['val'] ? 'On' : 'Off' ); ?> <em>(<?php echo esc_html( $r['waiting_room']['src'] ); ?>)</em></td>
+                            <td><?php echo esc_html( $r['mute_upon_entry']['val'] ? 'On' : 'Off' ); ?> <em>(<?php echo esc_html( $r['mute_upon_entry']['src'] ); ?>)</em></td>
+                            <td><?php echo esc_html( $r['join_before_host']['val'] ? 'On' : 'Off' ); ?> <em>(<?php echo esc_html( $r['join_before_host']['src'] ); ?>)</em></td>
+                            <td><?php echo $r['alt_hosts']['val'] ? esc_html( $r['alt_hosts']['val'] ) : '<em>(none)</em>'; ?> <em>(<?php echo esc_html( $r['alt_hosts']['src'] ); ?>)</em></td>
+                            <td><?php echo $r['editor'] ? esc_html( $r['editor'] . ' on ' . $r['updated_at'] ) : '—'; ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php
+            echo paginate_links( array(
+                'base'    => add_query_arg( 'paged_overrides', '%#%' ),
+                'format'  => '',
+                'current' => $page,
+                'total'   => max( 1, ceil( $total / $per_page ) ),
+            ) );
+            ?>
+        </div>
         <?php
     }
 }
