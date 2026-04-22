@@ -27,6 +27,12 @@ class HL_Frontend_RP_Notes {
     public function render($context, $session_entity, $enrollment, $instrument, $supervisee_enrollment_id, $cycle_id, $existing_submission = null) {
         ob_start();
 
+        // Note: TinyMCE scripts are enqueued on wp_enqueue_scripts by
+        // HL_Shortcodes::enqueue_assets() when the page uses [hl_component_page]
+        // or [hl_my_coaching]. Calling wp_enqueue_editor() here would fire during
+        // the_content, after wp_head has already printed, so the editor scripts
+        // would never make it into the page.
+
         $responses   = $existing_submission ? json_decode($existing_submission['responses_json'], true) : array();
 
         // Edit-after-submit state machine (ticket #8):
