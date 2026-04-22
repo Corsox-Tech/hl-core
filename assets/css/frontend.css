@@ -8993,25 +8993,14 @@ body.hl-sidebar-is-collapsed.hl-course-outline-is-collapsed .hl-course-outline__
 
 /* Section headers (module names) — matches ld-lesson.php HTML */
 .hl-course-outline__section {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 20px 8px;
-    margin-top: 4px;
-}
-.hl-course-outline__section-bar {
-    width: 3px;
-    height: 16px;
+    padding: 14px 20px;
     background: #f59e0b;
-    border-radius: 2px;
-    flex-shrink: 0;
-}
-.hl-course-outline__section-title {
-    font-size: 11px;
+    color: #0f172a;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    color: rgba(255,255,255,0.45);
+    line-height: 1.3;
 }
 
 /* Lesson rows */
