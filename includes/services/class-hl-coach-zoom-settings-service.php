@@ -90,8 +90,67 @@ class HL_Coach_Zoom_Settings_Service {
 
         return true;
     }
+    /**
+     * Return the sparse set of fields a coach has explicitly overridden.
+     *
+     * Sparse output: only columns that are NOT NULL in the row appear as keys.
+     * This lets callers distinguish "coach has no override" (key absent) from
+     * "coach overrode to 0/off" (key present with value 0). Empty-string
+     * `alternative_hosts` is preserved (distinct from NULL).
+     *
+     * Always includes a `_meta` key with `updated_at` / `updated_by_user_id`
+     * (for the admin overview "last edited by X on Y" display). `_meta` is
+     * present even when every override field is NULL, as long as the row exists.
+     *
+     * Defensive: if the table is missing (e.g. failed migration), returns an
+     * empty array so `resolve_for_coach()` falls back to admin defaults and
+     * the booking flow MUST NOT die.
+     *
+     * @param int $coach_user_id
+     * @return array Sparse override fields + `_meta`, or `array()` if no row / table missing.
+     */
     public static function get_coach_overrides( $coach_user_id ) {
-        return array(); // TODO Task B4
+        global $wpdb;
+        $table = $wpdb->prefix . self::TABLE_SLUG;
+
+        // Defensive: if the table doesn't exist (failed migration), return empty
+        // so resolve_for_coach() falls back to defaults — booking flow MUST NOT die.
+        $exists = $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) );
+        if ( $exists !== $table ) {
+            return array();
+        }
+
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT waiting_room, mute_upon_entry, join_before_host, alternative_hosts, updated_at, updated_by_user_id
+                 FROM {$table} WHERE coach_user_id = %d",
+                absint( $coach_user_id )
+            ),
+            ARRAY_A
+        );
+
+        if ( ! $row ) {
+            return array();
+        }
+
+        // Sparse: drop NULL columns. Empty string for alternative_hosts is preserved.
+        $sparse = array();
+        foreach ( array( 'waiting_room', 'mute_upon_entry', 'join_before_host' ) as $f ) {
+            if ( $row[ $f ] !== null ) {
+                $sparse[ $f ] = (int) $row[ $f ];
+            }
+        }
+        if ( $row['alternative_hosts'] !== null ) {
+            $sparse['alternative_hosts'] = (string) $row['alternative_hosts'];
+        }
+
+        // Metadata for admin overview "last edited by X on Y".
+        $sparse['_meta'] = array(
+            'updated_at'         => $row['updated_at'],
+            'updated_by_user_id' => $row['updated_by_user_id'] !== null ? (int) $row['updated_by_user_id'] : null,
+        );
+
+        return $sparse;
     }
     public static function save_coach_overrides( $coach_user_id, array $overrides, $actor_user_id, array $reset_fields = array() ) {
         return new WP_Error( 'not_implemented', 'Pending Task B5' );
