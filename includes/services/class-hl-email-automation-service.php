@@ -490,21 +490,36 @@ class HL_Email_Automation_Service {
      */
     private function load_coaching_session_context( $session_id, array $context ) {
         global $wpdb;
+        // Schema note: hl_coaching_session stores mentor_enrollment_id, NOT
+        // mentor_user_id. Prior versions of this loader read $session->mentor_user_id
+        // directly — that column does not exist, so user_id silently became 0 and
+        // hook-triggered coaching emails (rows 21/22) never resolved a mentor
+        // recipient. The JOIN below resolves the mentor's user_id via hl_enrollment,
+        // aliased as mentor_user_id so the rest of the method (and @since-callers)
+        // keep working.
         $session = $wpdb->get_row( $wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}hl_coaching_session WHERE session_id = %d",
+            "SELECT s.*,
+                    mentor_e.user_id AS mentor_user_id,
+                    mentor_e.enrollment_id AS mentor_enrollment_row_id
+             FROM {$wpdb->prefix}hl_coaching_session s
+             LEFT JOIN {$wpdb->prefix}hl_enrollment mentor_e
+                    ON mentor_e.enrollment_id = s.mentor_enrollment_id
+             WHERE s.session_id = %d",
             $session_id
         ) );
         if ( ! $session ) {
             return $context;
         }
-        if ( empty( $context['user_id'] ) ) {
+        if ( empty( $context['user_id'] ) && ! empty( $session->mentor_user_id ) ) {
             $context['user_id'] = (int) $session->mentor_user_id;
         }
         if ( empty( $context['cycle_id'] ) ) {
             $context['cycle_id'] = (int) $session->cycle_id;
         }
         if ( ! array_key_exists( 'enrollment_id', $context ) ) {
-            $context['enrollment_id'] = $session->enrollment_id ? (int) $session->enrollment_id : null;
+            // mentor_enrollment_id is the canonical enrollment link; the earlier
+            // code read a non-existent `enrollment_id` column and always set null.
+            $context['enrollment_id'] = $session->mentor_enrollment_id ? (int) $session->mentor_enrollment_id : null;
         }
         if ( ! empty( $session->component_id ) ) {
             $context['component_id'] = (int) $session->component_id;
@@ -528,10 +543,12 @@ class HL_Email_Automation_Service {
             }
         }
 
-        // Load mentor data.
-        $mentor = get_userdata( (int) $session->mentor_user_id );
-        if ( $mentor ) {
-            $context['mentor_name'] = $mentor->display_name;
+        // Load mentor data (now that $session->mentor_user_id is populated via the JOIN above).
+        if ( ! empty( $session->mentor_user_id ) ) {
+            $mentor = get_userdata( (int) $session->mentor_user_id );
+            if ( $mentor ) {
+                $context['mentor_name'] = $mentor->display_name;
+            }
         }
 
         return $context;
