@@ -630,22 +630,38 @@ class HL_Frontend_Action_Plan {
 
         $responses_json = wp_json_encode($responses);
 
-        if ($context === 'coaching') {
-            $service = new HL_Coaching_Service();
-            $result  = $service->submit_form($session_id, $user_id, $instrument_id, $role, $responses_json, $status);
-        } else {
-            $service = new HL_RP_Session_Service();
-            $result  = $service->submit_form($session_id, $user_id, $instrument_id, $role, $responses_json, $status);
+        $service = ($context === 'coaching')
+            ? new HL_Coaching_Service()
+            : new HL_RP_Session_Service();
 
-            // Update component state on submit
-            if ($status === 'submitted' && !is_wp_error($result)) {
-                $session = $service->get_session($session_id);
-                if ($session) {
-                    $enrollment_id = (int) $session['teacher_enrollment_id'];
-                    $cycle_id      = (int) $session['cycle_id'];
-                    $session_number = (int) $session['session_number'];
-                    $service->update_component_state($enrollment_id, $cycle_id, $session_number);
+        // Pre-check: is the (session, role) row already submitted? If so, this POST
+        // is an edit — we keep the original submitted_at and skip completion-state
+        // side effects (component_state, rollups) so a re-submit does NOT look like
+        // a fresh completion to downstream systems (reporting, overdue email cron).
+        $was_already_submitted = false;
+        if ($status === 'submitted') {
+            foreach ($service->get_submissions($session_id) as $sub) {
+                if ($sub['role_in_session'] === $role && $sub['status'] === 'submitted') {
+                    $was_already_submitted = true;
+                    break;
                 }
+            }
+        }
+
+        $result = $service->submit_form($session_id, $user_id, $instrument_id, $role, $responses_json, $status);
+
+        // First-time completion side effects (mentoring / RP Session context only).
+        if ($context === 'mentoring'
+            && $status === 'submitted'
+            && !is_wp_error($result)
+            && !$was_already_submitted
+        ) {
+            $session = $service->get_session($session_id);
+            if ($session) {
+                $enrollment_id  = (int) $session['teacher_enrollment_id'];
+                $cycle_id       = (int) $session['cycle_id'];
+                $session_number = (int) $session['session_number'];
+                $service->update_component_state($enrollment_id, $cycle_id, $session_number);
             }
         }
 
