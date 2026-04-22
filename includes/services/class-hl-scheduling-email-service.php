@@ -85,6 +85,47 @@ class HL_Scheduling_Email_Service {
     }
 
     /**
+     * Send "Your Zoom link is ready" follow-up email after a successful retry.
+     *
+     * Distinct subject from send_session_booked() so the mentor doesn't
+     * mistake it for a duplicate booking confirmation — it's the follow-up
+     * to a previous booking where the Zoom link was not yet available.
+     *
+     * Recipient: mentor only (the coach already has the meeting on their
+     * own Zoom dashboard; no second notification needed).
+     *
+     * @param array $data {
+     *     @type string $mentor_name
+     *     @type string $mentor_email
+     *     @type string $mentor_timezone
+     *     @type string $coach_name
+     *     @type string $coach_email      (unused here, kept for caller symmetry)
+     *     @type string $coach_timezone   (unused here, kept for caller symmetry)
+     *     @type string $session_datetime WP local time (Y-m-d H:i:s).
+     *     @type string $meeting_url      Zoom join URL (required here).
+     * }
+     */
+    public function send_zoom_link_ready($data) {
+        $mentor_tz = !empty($data['mentor_timezone']) ? $data['mentor_timezone'] : wp_timezone_string();
+        $time_display = $this->format_time_in_tz(
+            $data['session_datetime'] ?? '',
+            $mentor_tz
+        );
+
+        $greeting = sprintf(__('Hi %s,', 'hl-core'), esc_html($data['mentor_name'] ?? ''));
+        $message  = sprintf(
+            /* translators: %s = coach name */
+            __('Your Zoom link for the coaching session with %s is ready. The link is below.', 'hl-core'),
+            esc_html($data['coach_name'] ?? '')
+        );
+
+        $html    = $this->build_branded_body($greeting, $message, $time_display, $data['meeting_url'] ?? '');
+        $subject = __('Your Zoom link is ready for your coaching session', 'hl-core');
+
+        $this->send($data['mentor_email'], $subject, $html);
+    }
+
+    /**
      * Send "session rescheduled" emails to mentor and coach.
      *
      * @param array $old_session Previous session data.
