@@ -1324,14 +1324,21 @@ class HL_Email_Automation_Service {
                 )";
 
             case 'reflective_practice_session':
+                // Key the completion check on role_in_session = 'supervisee' rather than
+                // submitted_by_user_id, because the supervisor (mentor) may legitimately
+                // edit/submit the supervisee's Action Plan row (tickets #8/#10). Before
+                // the fix, a coach/mentor-authored re-submit would leave `submitted_by_user_id`
+                // pointing at the supervisor and the subquery would fail, firing a false
+                // "Action Plan overdue" email to the supervisee who already completed theirs.
                 return "AND NOT EXISTS (
                     SELECT 1
                     FROM {$wpdb->prefix}hl_rp_session rps
                     LEFT JOIN {$wpdb->prefix}hl_rp_session_submission rpss
                         ON rpss.rp_session_id = rps.rp_session_id
                        AND rpss.status = 'submitted'
+                       AND rpss.role_in_session = 'supervisee'
                     WHERE rps.cycle_id = en.cycle_id
-                      AND rpss.submitted_by_user_id = en.user_id
+                      AND rps.teacher_enrollment_id = en.enrollment_id
                       AND rpss.submission_id IS NOT NULL
                 )";
 

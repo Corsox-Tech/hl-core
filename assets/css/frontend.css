@@ -7400,12 +7400,32 @@ body.hl-has-nav .hl-lang-switcher__option:hover {
 .hlap-likert-4 { background: var(--hl-status-active-bg); color: var(--hl-status-active-text) }
 .hlap-likert-5 { background: #a7f3d0; color: #064e3b }
 
-.hlap-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--hl-border) }
-.hlap-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border-radius: var(--hl-radius-sm); font-size: 15px; font-weight: 600; border: none; cursor: pointer; transition: all .2s; font-family: inherit }
+.hlap-actions { display: flex; gap: 12px; justify-content: flex-end; align-items: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--hl-border) }
+.hlap-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border-radius: var(--hl-radius-sm); font-size: 15px; font-weight: 600; border: none; cursor: pointer; transition: all .2s; font-family: inherit; text-decoration: none }
 .hlap-btn-draft { background: var(--hl-bg); color: var(--hl-text); border: 2px solid var(--hl-border) }
 .hlap-btn-draft:hover { background: var(--hl-border); border-color: var(--hl-border-medium) }
 .hlap-btn-submit { background: linear-gradient(135deg, var(--hl-primary) 0%, var(--hl-primary-light) 100%); color: #fff; border: 2px solid transparent; box-shadow: 0 4px 14px rgba(0,0,0,.12) }
 .hlap-btn-submit:hover { box-shadow: 0 6px 20px rgba(0,0,0,.15); transform: translateY(-1px) }
+.hlap-btn-submit:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; transform: none }
+.hlap-btn-submit:disabled:hover { box-shadow: none; transform: none }
+.hlap-btn-cancel { background: transparent; color: var(--hl-text-secondary); border: 2px solid var(--hl-border) }
+.hlap-btn-cancel:hover { background: var(--hl-bg-subtle); color: var(--hl-text); border-color: var(--hl-border-medium) }
+.hlap-btn-edit { background: var(--hl-surface); color: var(--hl-primary); border: 2px solid var(--hl-primary-light); padding: 8px 18px; font-size: 13px; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.04) }
+.hlap-btn-edit:hover { background: var(--hl-primary); color: #fff; border-color: var(--hl-primary); box-shadow: 0 4px 12px rgba(0,0,0,.1); transform: translateY(-1px) }
+
+/* Submitted status bar (shown when $is_submitted) */
+.hlap-status-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; background: var(--hl-surface); border: 1px solid var(--hl-border); border-radius: var(--hl-radius-sm); margin-bottom: 20px; flex-wrap: wrap }
+.hlap-status-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--hl-text-secondary) }
+.hlap-status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: var(--hl-radius-pill); font-size: 12px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase }
+.hlap-status-pill--submitted { background: var(--hl-status-active-bg); color: var(--hl-status-active-text) }
+.hlap-status-date { font-weight: 600; color: var(--hl-text) }
+.hlap-status-edited { font-style: italic; color: var(--hl-text-muted); font-size: 12px }
+.hlap-status-mode { font-size: 13px; font-weight: 600; color: var(--hl-primary); padding: 4px 12px; background: rgba(45,95,138,.08); border-radius: var(--hl-radius-pill) }
+
+/* Edit-mode dirty hint next to Save Changes */
+.hlap-dirty-hint { font-size: 13px; color: var(--hl-text-muted); font-style: italic }
+.hlap-dirty-hint--dirty { color: #b45309; font-style: normal; font-weight: 600 }
+.hlap-actions--edit-mode { justify-content: flex-end }
 
 @media (max-width: 600px) {
     .hlap-hero { flex-direction: column; text-align: center; padding: 24px 20px }
@@ -7414,6 +7434,9 @@ body.hl-has-nav .hl-lang-switcher__option:hover {
     .hlap-likert-btn { padding: 10px 12px; gap: 8px }
     .hlap-actions { flex-direction: column }
     .hlap-btn { justify-content: center }
+    .hlap-status-bar { flex-direction: column; align-items: stretch }
+    .hlap-status-meta { justify-content: center }
+    .hlap-btn-edit { justify-content: center }
 }
 
 /* --- Classroom Visit & Self-Reflection (.hlcv-*) ------------------- */
@@ -8313,12 +8336,32 @@ a.hlcm-card { cursor: pointer }
 .hlrn-form-wrapper .mce-edit-area { border-color: var(--hl-border) !important }
 .hlrn-form-wrapper .mce-edit-area iframe { min-height: 80px }
 .hlrn-form-wrapper .wp-editor-container { border: 2px solid var(--hl-border); border-radius: var(--hl-radius-sm); overflow: hidden }
-.hlrn-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--hl-border) }
-.hlrn-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border-radius: var(--hl-radius-sm); font-size: 15px; font-weight: 600; border: none; cursor: pointer; transition: all .2s; font-family: inherit }
+.hlrn-actions { display: flex; gap: 12px; justify-content: flex-end; align-items: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--hl-border) }
+.hlrn-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border-radius: var(--hl-radius-sm); font-size: 15px; font-weight: 600; border: none; cursor: pointer; transition: all .2s; font-family: inherit; text-decoration: none }
 .hlrn-btn-draft { background: var(--hl-bg); color: var(--hl-text); border: 2px solid var(--hl-border) }
 .hlrn-btn-draft:hover { background: var(--hl-border); border-color: var(--hl-border-medium) }
 .hlrn-btn-submit { background: linear-gradient(135deg, var(--hl-primary) 0%, var(--hl-primary-light) 100%); color: #fff; border: 2px solid transparent; box-shadow: 0 4px 14px rgba(0,0,0,.12) }
 .hlrn-btn-submit:hover { box-shadow: 0 6px 20px rgba(0,0,0,.15); transform: translateY(-1px) }
+.hlrn-btn-submit:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; transform: none }
+.hlrn-btn-submit:disabled:hover { box-shadow: none; transform: none }
+.hlrn-btn-cancel { background: transparent; color: var(--hl-text-secondary); border: 2px solid var(--hl-border) }
+.hlrn-btn-cancel:hover { background: var(--hl-bg-subtle); color: var(--hl-text); border-color: var(--hl-border-medium) }
+.hlrn-btn-edit { background: var(--hl-surface); color: var(--hl-primary); border: 2px solid var(--hl-primary-light); padding: 8px 18px; font-size: 13px; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.04) }
+.hlrn-btn-edit:hover { background: var(--hl-primary); color: #fff; border-color: var(--hl-primary); box-shadow: 0 4px 12px rgba(0,0,0,.1); transform: translateY(-1px) }
+
+/* Submitted status bar (shown when $is_submitted) */
+.hlrn-status-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; background: var(--hl-surface); border: 1px solid var(--hl-border); border-radius: var(--hl-radius-sm); margin-bottom: 20px; flex-wrap: wrap }
+.hlrn-status-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--hl-text-secondary) }
+.hlrn-status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: var(--hl-radius-pill); font-size: 12px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase }
+.hlrn-status-pill--submitted { background: var(--hl-status-active-bg); color: var(--hl-status-active-text) }
+.hlrn-status-date { font-weight: 600; color: var(--hl-text) }
+.hlrn-status-edited { font-style: italic; color: var(--hl-text-muted); font-size: 12px }
+.hlrn-status-mode { font-size: 13px; font-weight: 600; color: var(--hl-primary); padding: 4px 12px; background: rgba(45,95,138,.08); border-radius: var(--hl-radius-pill) }
+
+/* Edit-mode dirty hint next to Save Changes */
+.hlrn-dirty-hint { font-size: 13px; color: var(--hl-text-muted); font-style: italic }
+.hlrn-dirty-hint--dirty { color: #b45309; font-style: normal; font-weight: 600 }
+.hlrn-actions--edit-mode { justify-content: flex-end }
 .hlrn-cvr { font-size: 13px }
 .hlrn-cvr-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 10px; font-size: 12px; color: var(--hl-text-secondary) }
 .hlrn-cvr-meta strong { color: var(--hl-text) }
@@ -10384,7 +10427,7 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
 }
 .hlft-status-pill--open { background: rgba(var(--hl-interactive-rgb, 99,102,241), 0.12); color: var(--hl-interactive); }
 .hlft-status-pill--in_review { background: rgba(var(--hl-warning-rgb, 245,158,11), 0.12); color: var(--hl-warning-dark, #b45309); }
-.hlft-status-pill--in_progress { background: rgba(79,70,229, 0.12); color: var(--hl-interactive-dark); }
+.hlft-status-pill--in_progress { background: rgba(236,72,153, 0.14); color: #be185d; }
 .hlft-status-pill--resolved { background: rgba(var(--hl-accent-rgb, 46,204,113), 0.12); color: var(--hl-accent-dark); }
 .hlft-status-pill--closed { background: rgba(107,114,128, 0.12); color: var(--hl-text-secondary); }
 .hlft-status-pill--draft {

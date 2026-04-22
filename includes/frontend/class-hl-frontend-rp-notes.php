@@ -28,7 +28,19 @@ class HL_Frontend_RP_Notes {
         ob_start();
 
         $responses   = $existing_submission ? json_decode($existing_submission['responses_json'], true) : array();
-        $is_readonly = ($existing_submission && $existing_submission['status'] === 'submitted');
+
+        // Edit-after-submit state machine (ticket #8):
+        //   - Fresh / draft  → editable, Save Draft + Submit buttons.
+        //   - Submitted      → readonly by default, Edit Submission button shows;
+        //                       clicking Edit reloads with ?rpn_edit=1 which enters
+        //                       edit mode; Save Changes / Cancel replace the drafts
+        //                       buttons. Status stays 'submitted' on Save Changes;
+        //                       service preserves submitted_at on re-submit.
+        //   - Admin viewers  → rendered via render_submission_readonly() by the page
+        //                       controller, never reaches this renderer.
+        $is_submitted = $existing_submission && $existing_submission['status'] === 'submitted';
+        $is_edit_mode = $is_submitted && isset($_GET['rpn_edit']) && $_GET['rpn_edit'] === '1';
+        $is_readonly  = $is_submitted && !$is_edit_mode;
 
         // Session identifiers
         $session_id_key   = ($context === 'coaching') ? 'session_id' : 'rp_session_id';
@@ -53,7 +65,7 @@ class HL_Frontend_RP_Notes {
 
         // Styles loaded via frontend.css (Session 2)
         ?>
-        <div class="hlrn-form-wrapper">
+        <div class="hlrn-form-wrapper" data-hlrn-state="<?php echo esc_attr($is_edit_mode ? 'editing-submission' : ($is_readonly ? 'submitted' : 'draft')); ?>">
 
             <!-- Hero header -->
             <div class="hlrn-hero">
@@ -72,10 +84,34 @@ class HL_Frontend_RP_Notes {
                 </div>
             </div>
 
-            <?php if ($is_readonly) : ?>
-                <div class="hlrn-alert hlrn-alert-info">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                    <?php esc_html_e('This form has been submitted and is read-only.', 'hl-core'); ?>
+            <?php if ($is_submitted) :
+                $submitted_at = !empty($existing_submission['submitted_at']) ? $existing_submission['submitted_at'] : null;
+                $updated_at   = !empty($existing_submission['updated_at'])   ? $existing_submission['updated_at']   : null;
+                $was_edited   = $submitted_at && $updated_at && strtotime($updated_at) > strtotime($submitted_at) + 60;
+                $edit_url     = esc_url(add_query_arg('rpn_edit', '1'));
+                $date_fmt     = function($mysql) { return $mysql ? date_i18n(get_option('date_format'), strtotime($mysql)) : ''; };
+                ?>
+                <div class="hlrn-status-bar">
+                    <div class="hlrn-status-meta">
+                        <span class="hlrn-status-pill hlrn-status-pill--submitted">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                            <?php esc_html_e('Submitted', 'hl-core'); ?>
+                        </span>
+                        <?php if ($submitted_at) : ?>
+                            <span class="hlrn-status-date"><?php echo esc_html($date_fmt($submitted_at)); ?></span>
+                        <?php endif; ?>
+                        <?php if ($was_edited) : ?>
+                            <span class="hlrn-status-edited"><?php printf(esc_html__('edited %s', 'hl-core'), esc_html($date_fmt($updated_at))); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($is_edit_mode) : ?>
+                        <span class="hlrn-status-mode"><?php esc_html_e('Editing submission', 'hl-core'); ?></span>
+                    <?php else : ?>
+                        <a href="<?php echo $edit_url; ?>" class="hlrn-btn hlrn-btn-edit">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                            <?php esc_html_e('Edit Submission', 'hl-core'); ?>
+                        </a>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
 
@@ -467,7 +503,19 @@ class HL_Frontend_RP_Notes {
                     </div>
                 </div>
 
-                <?php if (!$is_readonly) : ?>
+                <?php if ($is_edit_mode) : ?>
+                    <div class="hlrn-actions hlrn-actions--edit-mode" data-edit-mode="true">
+                        <a href="<?php echo esc_url(remove_query_arg('rpn_edit')); ?>" class="hlrn-btn hlrn-btn-cancel" data-hlrn-cancel="1">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            <?php esc_html_e('Cancel', 'hl-core'); ?>
+                        </a>
+                        <button type="submit" name="hl_rp_notes_action" value="submit" class="hlrn-btn hlrn-btn-submit" data-hlrn-save="1" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            <?php esc_html_e('Save Changes', 'hl-core'); ?>
+                        </button>
+                        <span class="hlrn-dirty-hint" aria-live="polite"><?php esc_html_e('No changes yet', 'hl-core'); ?></span>
+                    </div>
+                <?php elseif (!$is_readonly) : ?>
                     <div class="hlrn-actions">
                         <button type="submit" name="hl_rp_notes_action" value="draft" class="hlrn-btn hlrn-btn-draft">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -514,6 +562,98 @@ class HL_Frontend_RP_Notes {
             toggle.addEventListener('click', open);
             close.addEventListener('click', shut);
             overlay.addEventListener('click', shut);
+        })();
+        </script>
+
+        <!-- JS for edit-submission mode: dirty tracker (TinyMCE-aware), Cancel confirm, beforeunload warn -->
+        <script>
+        (function(){
+            var wrapper = document.querySelector('.hlrn-form-wrapper[data-hlrn-state="editing-submission"]');
+            if (!wrapper) return;
+            var form      = wrapper.querySelector('form');
+            var saveBtn   = wrapper.querySelector('[data-hlrn-save="1"]');
+            var cancelA   = wrapper.querySelector('[data-hlrn-cancel="1"]');
+            var dirtyHint = wrapper.querySelector('.hlrn-dirty-hint');
+            if (!form || !saveBtn) return;
+
+            var labelClean = <?php echo wp_json_encode(__('No changes yet', 'hl-core')); ?>;
+            var labelDirty = <?php echo wp_json_encode(__('Unsaved changes', 'hl-core')); ?>;
+            var cancelMsg  = <?php echo wp_json_encode(__('Discard your changes and return to the submitted version?', 'hl-core')); ?>;
+            var leaveMsg   = <?php echo wp_json_encode(__('You have unsaved changes to your RP Notes. Leave anyway?', 'hl-core')); ?>;
+
+            function syncTinyMce() {
+                if (window.tinymce && window.tinymce.triggerSave) {
+                    try { window.tinymce.triggerSave(); } catch(e) {}
+                }
+            }
+
+            function serialize() {
+                syncTinyMce();
+                var fd = new FormData(form);
+                var pairs = [];
+                fd.forEach(function(v, k){ pairs.push(k + '=' + (typeof v === 'string' ? v : '')); });
+                pairs.sort();
+                return pairs.join('&');
+            }
+            var initialSerialized = serialize();
+            var isDirty = false;
+            var suppressBeforeUnload = false;
+
+            function checkDirty() {
+                var nowDirty = serialize() !== initialSerialized;
+                if (nowDirty !== isDirty) {
+                    isDirty = nowDirty;
+                    saveBtn.disabled = !isDirty;
+                    if (dirtyHint) {
+                        dirtyHint.textContent = isDirty ? labelDirty : labelClean;
+                        dirtyHint.classList.toggle('hlrn-dirty-hint--dirty', isDirty);
+                    }
+                }
+            }
+
+            form.addEventListener('input',  checkDirty);
+            form.addEventListener('change', checkDirty);
+
+            // TinyMCE dispatches its own events on a separate iframe. Hook them.
+            function hookTinyMce() {
+                if (!window.tinymce) return;
+                (window.tinymce.editors || []).forEach(function(ed){
+                    if (ed.__hlrnBound) return;
+                    ed.__hlrnBound = true;
+                    ed.on('input change keyup', checkDirty);
+                });
+            }
+            if (window.tinymce) {
+                if (window.tinymce.on) {
+                    window.tinymce.on('AddEditor', hookTinyMce);
+                }
+                // Hook any already-initialised editors shortly after DOM ready.
+                setTimeout(hookTinyMce, 300);
+                setTimeout(hookTinyMce, 1500);
+            }
+
+            if (cancelA) {
+                cancelA.addEventListener('click', function(e){
+                    if (isDirty && !window.confirm(cancelMsg)) {
+                        e.preventDefault();
+                        return;
+                    }
+                    suppressBeforeUnload = true;
+                });
+            }
+
+            form.addEventListener('submit', function(){
+                syncTinyMce();
+                suppressBeforeUnload = true;
+            });
+
+            window.addEventListener('beforeunload', function(e){
+                if (isDirty && !suppressBeforeUnload) {
+                    e.preventDefault();
+                    e.returnValue = leaveMsg;
+                    return leaveMsg;
+                }
+            });
         })();
         </script>
         <?php
@@ -596,9 +736,9 @@ class HL_Frontend_RP_Notes {
         }
 
         $user_id       = get_current_user_id();
-        $session_id    = absint($_POST['hl_rp_notes_session_id']);
-        $instrument_id = absint($_POST['hl_rp_notes_instrument_id']);
-        $action        = sanitize_text_field($_POST['hl_rp_notes_action']);
+        $session_id    = isset($_POST['hl_rp_notes_session_id']) ? absint(wp_unslash($_POST['hl_rp_notes_session_id'])) : 0;
+        $instrument_id = isset($_POST['hl_rp_notes_instrument_id']) ? absint(wp_unslash($_POST['hl_rp_notes_instrument_id'])) : 0;
+        $action        = isset($_POST['hl_rp_notes_action']) ? sanitize_text_field(wp_unslash($_POST['hl_rp_notes_action'])) : '';
         $status        = ($action === 'submit') ? 'submitted' : 'draft';
         $role          = 'supervisor';
 
@@ -614,22 +754,38 @@ class HL_Frontend_RP_Notes {
 
         $responses_json = wp_json_encode($responses);
 
-        if ($context === 'coaching') {
-            $service = new HL_Coaching_Service();
-            $result  = $service->submit_form($session_id, $user_id, $instrument_id, $role, $responses_json, $status);
-        } else {
-            $service = new HL_RP_Session_Service();
-            $result  = $service->submit_form($session_id, $user_id, $instrument_id, $role, $responses_json, $status);
+        $service = ($context === 'coaching')
+            ? new HL_Coaching_Service()
+            : new HL_RP_Session_Service();
 
-            // Update component state for mentor on submit
-            if ($status === 'submitted' && !is_wp_error($result)) {
-                $session = $service->get_session($session_id);
-                if ($session) {
-                    $enrollment_id  = (int) $session['mentor_enrollment_id'];
-                    $cycle_id       = (int) $session['cycle_id'];
-                    $session_number = (int) $session['session_number'];
-                    $service->update_component_state($enrollment_id, $cycle_id, $session_number);
+        // Pre-check: is the (session, role) row already submitted? If so, this POST
+        // is an edit — we keep the original submitted_at and skip completion-state
+        // side effects (component_state, rollups) so a re-submit does NOT look like
+        // a fresh completion to downstream systems.
+        $was_already_submitted = false;
+        if ($status === 'submitted') {
+            foreach ($service->get_submissions($session_id) as $sub) {
+                if ($sub['role_in_session'] === $role && $sub['status'] === 'submitted') {
+                    $was_already_submitted = true;
+                    break;
                 }
+            }
+        }
+
+        $result = $service->submit_form($session_id, $user_id, $instrument_id, $role, $responses_json, $status);
+
+        // First-time completion side effects (mentoring / RP Session context only).
+        if ($context === 'mentoring'
+            && $status === 'submitted'
+            && !is_wp_error($result)
+            && !$was_already_submitted
+        ) {
+            $session = $service->get_session($session_id);
+            if ($session) {
+                $enrollment_id  = (int) $session['mentor_enrollment_id'];
+                $cycle_id       = (int) $session['cycle_id'];
+                $session_number = (int) $session['session_number'];
+                $service->update_component_state($enrollment_id, $cycle_id, $session_number);
             }
         }
 

@@ -75,9 +75,20 @@ class HL_Frontend_Action_Plan {
 
         $sections    = json_decode($instrument->sections, true) ?: array();
         $responses   = $existing_submission ? json_decode($existing_submission['responses_json'], true) : array();
-        // Teachers (mentoring context) can always edit their Action Plan
-        $is_readonly = ($context !== 'mentoring') && ($existing_submission && $existing_submission['status'] === 'submitted');
-        $is_draft    = ($existing_submission && $existing_submission['status'] === 'draft');
+
+        // Edit-after-submit state machine (tickets #8 + #10):
+        //   - Fresh / draft  → editable, Save Draft + Submit buttons.
+        //   - Submitted      → readonly by default, Edit Submission button shows;
+        //                       clicking Edit reloads with ?ap_edit=1 which enters
+        //                       edit mode; Save Changes / Cancel replace the drafts
+        //                       buttons. Status stays 'submitted' on Save Changes;
+        //                       service preserves submitted_at on re-submit.
+        //   - Admin viewers  → rendered via render_submission_readonly() by the page
+        //                       controller, never reaches this renderer.
+        $is_submitted = $existing_submission && $existing_submission['status'] === 'submitted';
+        $is_edit_mode = $is_submitted && isset($_GET['ap_edit']) && $_GET['ap_edit'] === '1';
+        $is_readonly  = $is_submitted && !$is_edit_mode;
+        $is_draft     = $existing_submission && $existing_submission['status'] === 'draft';
 
         // If a submit just failed validation on this request, re-populate the form with
         // what the user typed (rather than the stale draft) and surface the errors.
@@ -142,7 +153,7 @@ class HL_Frontend_Action_Plan {
         $selected_skills = isset($responses['skills']) && is_array($responses['skills']) ? $responses['skills'] : array();
 
         ?>
-        <div class="hlap-form-wrapper">
+        <div class="hlap-form-wrapper" data-hlap-state="<?php echo esc_attr($is_edit_mode ? 'editing-submission' : ($is_readonly ? 'submitted' : 'draft')); ?>">
 
             <!-- Hero header -->
             <div class="hlap-hero">
@@ -159,10 +170,35 @@ class HL_Frontend_Action_Plan {
                 </div>
             </div>
 
-            <?php if ($is_readonly) : ?>
-                <div class="hlap-alert hlap-alert-info">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                    <?php esc_html_e('This form has been submitted and is read-only.', 'hl-core'); ?>
+            <?php if ($is_submitted) :
+                $submitted_at   = !empty($existing_submission['submitted_at']) ? $existing_submission['submitted_at'] : null;
+                $updated_at     = !empty($existing_submission['updated_at'])   ? $existing_submission['updated_at']   : null;
+                $was_edited     = $submitted_at && $updated_at && strtotime($updated_at) > strtotime($submitted_at) + 60; // 60s fuzz
+                $edit_url       = esc_url(add_query_arg('ap_edit', '1'));
+                $cancel_url     = esc_url(remove_query_arg('ap_edit'));
+                $date_fmt       = function($mysql) { return $mysql ? date_i18n(get_option('date_format'), strtotime($mysql)) : ''; };
+                ?>
+                <div class="hlap-status-bar">
+                    <div class="hlap-status-meta">
+                        <span class="hlap-status-pill hlap-status-pill--submitted">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                            <?php esc_html_e('Submitted', 'hl-core'); ?>
+                        </span>
+                        <?php if ($submitted_at) : ?>
+                            <span class="hlap-status-date"><?php echo esc_html($date_fmt($submitted_at)); ?></span>
+                        <?php endif; ?>
+                        <?php if ($was_edited) : ?>
+                            <span class="hlap-status-edited"><?php printf(esc_html__('edited %s', 'hl-core'), esc_html($date_fmt($updated_at))); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($is_edit_mode) : ?>
+                        <span class="hlap-status-mode"><?php esc_html_e('Editing submission', 'hl-core'); ?></span>
+                    <?php else : ?>
+                        <a href="<?php echo $edit_url; ?>" class="hlap-btn hlap-btn-edit">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                            <?php esc_html_e('Edit Submission', 'hl-core'); ?>
+                        </a>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
 
@@ -410,7 +446,19 @@ class HL_Frontend_Action_Plan {
                     </div>
                 </div>
 
-                <?php if (!$is_readonly) : ?>
+                <?php if ($is_edit_mode) : ?>
+                    <div class="hlap-actions hlap-actions--edit-mode" data-edit-mode="true">
+                        <a href="<?php echo esc_url(remove_query_arg('ap_edit')); ?>" class="hlap-btn hlap-btn-cancel" data-hlap-cancel="1">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            <?php esc_html_e('Cancel', 'hl-core'); ?>
+                        </a>
+                        <button type="submit" name="hl_action_plan_action" value="submit" class="hlap-btn hlap-btn-submit" data-hlap-save="1" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            <?php esc_html_e('Save Changes', 'hl-core'); ?>
+                        </button>
+                        <span class="hlap-dirty-hint" aria-live="polite"><?php esc_html_e('No changes yet', 'hl-core'); ?></span>
+                    </div>
+                <?php elseif (!$is_readonly) : ?>
                     <div class="hlap-actions">
                         <button type="submit" name="hl_action_plan_action" value="draft" class="hlap-btn hlap-btn-draft">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -447,6 +495,75 @@ class HL_Frontend_Action_Plan {
                 }
             }
             domainSelect.addEventListener('change', updateSkills);
+        })();
+        </script>
+
+        <!-- JS for edit-submission mode: dirty tracker, Save Changes enable, Cancel confirm, beforeunload warn -->
+        <script>
+        (function(){
+            var wrapper = document.querySelector('.hlap-form-wrapper[data-hlap-state="editing-submission"]');
+            if (!wrapper) return;
+            var form      = wrapper.querySelector('#hl-action-plan-form');
+            var saveBtn   = wrapper.querySelector('[data-hlap-save="1"]');
+            var cancelA   = wrapper.querySelector('[data-hlap-cancel="1"]');
+            var dirtyHint = wrapper.querySelector('.hlap-dirty-hint');
+            if (!form || !saveBtn) return;
+
+            var labelClean = <?php echo wp_json_encode(__('No changes yet', 'hl-core')); ?>;
+            var labelDirty = <?php echo wp_json_encode(__('Unsaved changes', 'hl-core')); ?>;
+            var cancelMsg  = <?php echo wp_json_encode(__('Discard your changes and return to the submitted version?', 'hl-core')); ?>;
+            var leaveMsg   = <?php echo wp_json_encode(__('You have unsaved changes to your Action Plan. Leave anyway?', 'hl-core')); ?>;
+
+            var initialSnapshot = new FormData(form);
+            var isDirty = false;
+            var suppressBeforeUnload = false;
+
+            function serialize(fd) {
+                // FormData → stable string for comparison. Entries may be in any order
+                // so sort by key+value. Good enough for small forms.
+                var pairs = [];
+                fd.forEach(function(v, k){ pairs.push(k + '=' + (typeof v === 'string' ? v : '')); });
+                pairs.sort();
+                return pairs.join('&');
+            }
+            var initialSerialized = serialize(initialSnapshot);
+
+            function checkDirty() {
+                var nowDirty = serialize(new FormData(form)) !== initialSerialized;
+                if (nowDirty !== isDirty) {
+                    isDirty = nowDirty;
+                    saveBtn.disabled = !isDirty;
+                    if (dirtyHint) {
+                        dirtyHint.textContent = isDirty ? labelDirty : labelClean;
+                        dirtyHint.classList.toggle('hlap-dirty-hint--dirty', isDirty);
+                    }
+                }
+            }
+
+            form.addEventListener('input',  checkDirty);
+            form.addEventListener('change', checkDirty);
+
+            if (cancelA) {
+                cancelA.addEventListener('click', function(e){
+                    if (isDirty && !window.confirm(cancelMsg)) {
+                        e.preventDefault();
+                        return;
+                    }
+                    suppressBeforeUnload = true;
+                });
+            }
+
+            form.addEventListener('submit', function(){
+                suppressBeforeUnload = true;
+            });
+
+            window.addEventListener('beforeunload', function(e){
+                if (isDirty && !suppressBeforeUnload) {
+                    e.preventDefault();
+                    e.returnValue = leaveMsg;
+                    return leaveMsg;
+                }
+            });
         })();
         </script>
 
@@ -630,22 +747,38 @@ class HL_Frontend_Action_Plan {
 
         $responses_json = wp_json_encode($responses);
 
-        if ($context === 'coaching') {
-            $service = new HL_Coaching_Service();
-            $result  = $service->submit_form($session_id, $user_id, $instrument_id, $role, $responses_json, $status);
-        } else {
-            $service = new HL_RP_Session_Service();
-            $result  = $service->submit_form($session_id, $user_id, $instrument_id, $role, $responses_json, $status);
+        $service = ($context === 'coaching')
+            ? new HL_Coaching_Service()
+            : new HL_RP_Session_Service();
 
-            // Update component state on submit
-            if ($status === 'submitted' && !is_wp_error($result)) {
-                $session = $service->get_session($session_id);
-                if ($session) {
-                    $enrollment_id = (int) $session['teacher_enrollment_id'];
-                    $cycle_id      = (int) $session['cycle_id'];
-                    $session_number = (int) $session['session_number'];
-                    $service->update_component_state($enrollment_id, $cycle_id, $session_number);
+        // Pre-check: is the (session, role) row already submitted? If so, this POST
+        // is an edit — we keep the original submitted_at and skip completion-state
+        // side effects (component_state, rollups) so a re-submit does NOT look like
+        // a fresh completion to downstream systems (reporting, overdue email cron).
+        $was_already_submitted = false;
+        if ($status === 'submitted') {
+            foreach ($service->get_submissions($session_id) as $sub) {
+                if ($sub['role_in_session'] === $role && $sub['status'] === 'submitted') {
+                    $was_already_submitted = true;
+                    break;
                 }
+            }
+        }
+
+        $result = $service->submit_form($session_id, $user_id, $instrument_id, $role, $responses_json, $status);
+
+        // First-time completion side effects (mentoring / RP Session context only).
+        if ($context === 'mentoring'
+            && $status === 'submitted'
+            && !is_wp_error($result)
+            && !$was_already_submitted
+        ) {
+            $session = $service->get_session($session_id);
+            if ($session) {
+                $enrollment_id  = (int) $session['teacher_enrollment_id'];
+                $cycle_id       = (int) $session['cycle_id'];
+                $session_number = (int) $session['session_number'];
+                $service->update_component_state($enrollment_id, $cycle_id, $session_number);
             }
         }
 
