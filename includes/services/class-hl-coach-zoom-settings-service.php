@@ -44,8 +44,97 @@ class HL_Coach_Zoom_Settings_Service {
     public static function resolve_for_coach( $coach_user_id ) {
         return self::DEFAULTS; // TODO Task B6
     }
+    /**
+     * Validate + normalize an input array of coach Zoom meeting settings.
+     *
+     * - Bool fields are coerced to 0|1.
+     * - `waiting_room=1` AND `join_before_host=1` is normalized to `join_before_host=0`
+     *   (the single canonical place for this rule; payload builders trust the resolved array).
+     * - `alternative_hosts` is a CSV string: length <= 1024, each entry must be a valid
+     *   email, <= 10 addresses total, and may not contain the coach's own Zoom email.
+     *   Empty string is preserved (distinct from NULL/missing).
+     *
+     * Returns a normalized associative array on success, or a WP_Error with structured
+     * `error_data` on failure. All field-level errors include at least
+     * `array( 'field' => '<field_name>' )`; invalid-email errors additionally
+     * include `invalid_emails`.
+     *
+     * @param array    $values         Raw input (admin defaults or coach overrides).
+     * @param int|null $coach_user_id  Coach user ID for self-email check; 0/null skips it.
+     * @return array|WP_Error
+     */
     public static function validate( array $values, $coach_user_id ) {
-        return new WP_Error( 'not_implemented', 'Pending Task B2' );
+        $out = array();
+
+        // Bool fields: coerce to 0|1.
+        foreach ( array( 'waiting_room', 'mute_upon_entry', 'join_before_host', 'password_required', 'meeting_authentication' ) as $bool_field ) {
+            if ( array_key_exists( $bool_field, $values ) ) {
+                $out[ $bool_field ] = ! empty( $values[ $bool_field ] ) ? 1 : 0;
+            }
+        }
+
+        // waiting_room=1 AND join_before_host=1 -> jbh=0 (canonical normalization).
+        if ( ! empty( $out['waiting_room'] ) && ! empty( $out['join_before_host'] ) ) {
+            $out['join_before_host'] = 0;
+        }
+
+        // alternative_hosts.
+        if ( array_key_exists( 'alternative_hosts', $values ) ) {
+            $raw = is_string( $values['alternative_hosts'] ) ? $values['alternative_hosts'] : '';
+
+            if ( strlen( $raw ) > 1024 ) {
+                return new WP_Error(
+                    'alternative_hosts_too_long',
+                    __( 'Alternative hosts list exceeds 1024 characters.', 'hl-core' ),
+                    array( 'field' => 'alternative_hosts' )
+                );
+            }
+
+            $emails  = array_filter( array_map( 'trim', explode( ',', $raw ) ) );
+            $cleaned = array();
+            $invalid = array();
+
+            foreach ( $emails as $email ) {
+                $sanitized = sanitize_email( strtolower( $email ) );
+                if ( ! $sanitized || ! is_email( $sanitized ) ) {
+                    $invalid[] = $email;
+                } else {
+                    $cleaned[] = $sanitized;
+                }
+            }
+
+            if ( ! empty( $invalid ) ) {
+                return new WP_Error(
+                    'invalid_alternative_hosts',
+                    __( 'One or more alternative-host emails are invalid.', 'hl-core' ),
+                    array( 'field' => 'alternative_hosts', 'invalid_emails' => $invalid )
+                );
+            }
+
+            if ( count( $cleaned ) > 10 ) {
+                return new WP_Error(
+                    'too_many_alternative_hosts',
+                    __( 'Up to 10 alternative hosts are allowed.', 'hl-core' ),
+                    array( 'field' => 'alternative_hosts' )
+                );
+            }
+
+            // Reject coach's own Zoom email.
+            if ( $coach_user_id && class_exists( 'HL_Zoom_Integration' ) ) {
+                $coach_email = strtolower( (string) HL_Zoom_Integration::instance()->get_coach_email( $coach_user_id ) );
+                if ( $coach_email && in_array( $coach_email, $cleaned, true ) ) {
+                    return new WP_Error(
+                        'self_in_alternative_hosts',
+                        __( 'You cannot add your own Zoom email as an alternative host.', 'hl-core' ),
+                        array( 'field' => 'alternative_hosts' )
+                    );
+                }
+            }
+
+            $out['alternative_hosts'] = implode( ',', $cleaned );
+        }
+
+        return $out;
     }
     public static function preflight_alternative_hosts( $coach_user_id, $alternative_hosts_csv ) {
         return true; // TODO Task C1
