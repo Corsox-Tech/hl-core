@@ -33,11 +33,22 @@ class HL_Ticket_Service {
     const TERMINAL_STATUSES = array( 'resolved', 'closed', 'cancelled' );
 
     /**
-     * Statuses that are hidden from the default list view (same treatment as 'closed').
+     * Statuses hidden from the default list view unless they've been updated recently
+     * (see DEFAULT_RECENT_WINDOW_DAYS). This keeps the tracker focused on active work
+     * while still surfacing fresh resolutions/closures/cancellations so follow-ups
+     * aren't missed.
      *
      * @var string[]
      */
-    const DEFAULT_HIDDEN_STATUSES = array( 'closed', 'cancelled' );
+    const DEFAULT_HIDDEN_STATUSES = array( 'resolved', 'closed', 'cancelled' );
+
+    /**
+     * How many days of recent activity keep an otherwise-hidden status visible in
+     * the default list view.
+     *
+     * @var int
+     */
+    const DEFAULT_RECENT_WINDOW_DAYS = 7;
 
     /**
      * Statuses where the ticket author may self-cancel their own ticket.
@@ -239,12 +250,16 @@ class HL_Ticket_Service {
             $where[]  = 't.status = %s';
             $values[] = $args['status'];
         } else {
-            // Default: exclude closed + cancelled AND other users' drafts (admin sees all).
+            // Default view: hide resolved/closed/cancelled UNLESS they've been touched
+            // in the last DEFAULT_RECENT_WINDOW_DAYS. Coalesces to created_at for rows
+            // that never transitioned (legacy tickets pre-rev-43 or brand-new ones).
             $hidden_placeholders = implode( ',', array_fill( 0, count( self::DEFAULT_HIDDEN_STATUSES ), '%s' ) );
-            $where[] = "t.status NOT IN ({$hidden_placeholders})";
+            $where[] = "(t.status NOT IN ({$hidden_placeholders}) OR COALESCE(t.status_updated_at, t.created_at) >= DATE_SUB(NOW(), INTERVAL %d DAY))";
             foreach ( self::DEFAULT_HIDDEN_STATUSES as $hidden_status ) {
                 $values[] = $hidden_status;
             }
+            $values[] = self::DEFAULT_RECENT_WINDOW_DAYS;
+
             if ( ! $this->is_ticket_admin() ) {
                 $where[]  = '(t.status != %s OR t.creator_user_id = %d)';
                 $values[] = self::DRAFT_STATUS;
@@ -275,8 +290,10 @@ class HL_Ticket_Service {
         }
         $total = (int) $wpdb->get_var( $count_sql );
 
-        // Pagination.
-        $per_page = isset( $args['per_page'] ) ? min( max( absint( $args['per_page'] ), 1 ), 50 ) : 25;
+        // Pagination. Cap raised from 50 to 200 (tracker is finite; the frontend
+        // renders everything in one scroll, no page UI). Revisit if ticket volume
+        // approaches the cap.
+        $per_page = isset( $args['per_page'] ) ? min( max( absint( $args['per_page'] ), 1 ), 200 ) : 200;
         $page     = isset( $args['page'] ) ? max( absint( $args['page'] ), 1 ) : 1;
         $offset   = ( $page - 1 ) * $per_page;
 
