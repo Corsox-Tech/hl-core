@@ -29,6 +29,18 @@ if ( ! class_exists( 'HL_Email_Automation_Service' ) ) {
     require_once $plugin_dir . 'includes/services/class-hl-email-automation-service.php';
 }
 
+// HL_Admin_Emails is normally only loaded inside is_admin(), which is false
+// during WP-CLI. Lazy-load it so the validate_workflow_payload() assertion
+// works under wp eval-file. Same pattern used by bin/seed-email-workflows.php.
+if ( ! class_exists( 'HL_Admin_Emails' ) ) {
+    if ( defined( 'HL_CORE_INCLUDES_DIR' ) ) {
+        $candidate = HL_CORE_INCLUDES_DIR . 'admin/class-hl-admin-emails.php';
+        if ( file_exists( $candidate ) ) {
+            require_once $candidate;
+        }
+    }
+}
+
 // Fixture prefix — used for test cycle_code, pathway_code, email_template_key,
 // workflow names. Anything starting with this gets swept by the finally block.
 const FIXTURE_PREFIX = '[Phase2Test]';
