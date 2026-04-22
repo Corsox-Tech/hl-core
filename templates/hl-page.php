@@ -222,6 +222,13 @@ if(localStorage.getItem('hl-sidebar-collapsed')==='1'){
 <?php
 // Flush any scripts enqueued during do_shortcode() (e.g. hl_docs).
 wp_print_scripts();
+
+// Fire the footer-scripts action so components that hook into it (e.g.
+// _WP_Editors::editor_js for TinyMCE initialisation — tickets #8/#10) can
+// print their init code. This template intentionally skips wp_footer() to
+// avoid pulling in BuddyBoss/admin-bar output, but the footer-scripts
+// action is safe and targeted.
+do_action('wp_print_footer_scripts');
 ?>
 <script src="<?php echo esc_url(HL_CORE_ASSETS_URL . 'js/frontend.js'); ?>?ver=<?php echo esc_attr(HL_CORE_VERSION); ?>"></script>
 <?php
