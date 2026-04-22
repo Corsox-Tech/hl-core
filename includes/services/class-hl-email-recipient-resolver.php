@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *
  * Tokens: triggering_user, assigned_coach, assigned_mentor, school_director,
  * observed_teacher (alias: cc_teacher), session_mentor, session_coach, observer,
- * role:X, static:email.
+ * mentor_team_teachers, role:X, static:email.
  *
  * @package HL_Core
  */
@@ -187,6 +187,9 @@ class HL_Email_Recipient_Resolver {
 
             case 'observer':
                 return $this->resolve_observer( $context );
+
+            case 'mentor_team_teachers':
+                return $this->resolve_mentor_team_teachers( $context );
 
             case 'cc_teacher':
                 // Legacy alias — A.6.11 deprecation telemetry.
@@ -436,6 +439,103 @@ class HL_Email_Recipient_Resolver {
             return array();
         }
         return array( array( 'email' => $user->user_email, 'user_id' => $leader_id ) );
+    }
+
+    /**
+     * Resolve all teachers on the triggering mentor's team(s) within the
+     * current cycle. Returns N recipients (zero or more).
+     *
+     * Chris Love's spreadsheet routes the RP Session Window Opens (7d) email
+     * to the triggering mentor (primary) AND the teachers on that mentor's
+     * team (CC). Fan-out to every teacher in the cycle would flood unrelated
+     * people — the body copy ("your Begin to ECSEL Reflective Practice
+     * Session window", "Mentors and Teachers should be looking to book")
+     * implies a known small group.
+     *
+     * Required context:
+     *   - user_id  — the triggering mentor's WP user ID
+     *   - cycle_id — the cycle the mentor is active in
+     *
+     * Role filtering is done in PHP via HL_Roles::has_role() (NEVER raw
+     * FIND_IN_SET or LIKE '%teacher%' — see memory reference
+     * reference_hl_enrollment_roles_json.md and Track 3 Task 1).
+     *
+     * @param array $context
+     * @return array Array of { email, user_id } — zero or more rows.
+     */
+    private function resolve_mentor_team_teachers( array $context ) {
+        global $wpdb;
+        $user_id  = $context['user_id']  ?? null;
+        $cycle_id = $context['cycle_id'] ?? null;
+
+        if ( ! $user_id || ! $cycle_id ) {
+            // Rate-limited telemetry — a misconfigured workflow could retry
+            // thousands of times per day. One row per 5 minutes is enough.
+            $lock_key = 'hl_resolver_missing_ctx_mentor_team_teachers';
+            if ( ! get_transient( $lock_key ) && class_exists( 'HL_Audit_Service' ) ) {
+                HL_Audit_Service::log( 'email_resolver_missing_context', array(
+                    'reason' => 'mentor_team_teachers requires user_id + cycle_id',
+                ) );
+                set_transient( $lock_key, 1, 5 * MINUTE_IN_SECONDS );
+            }
+            return array();
+        }
+
+        // Step 1: find the mentor's enrollment in the cycle.
+        $mentor_enrollment_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT enrollment_id FROM {$wpdb->prefix}hl_enrollment
+             WHERE user_id = %d AND cycle_id = %d AND status IN ('active','warning')
+             LIMIT 1",
+            $user_id, $cycle_id
+        ) );
+        $this->log_db_error_if_any( 'mentor_team_teachers:mentor_enrollment_lookup' );
+        if ( ! $mentor_enrollment_id ) {
+            return array();
+        }
+
+        // Step 2: join mentor → team → other members in the same cycle.
+        // We intentionally do NOT role-filter in SQL (avoids FIND_IN_SET /
+        // LIKE '%teacher%' bugs on legacy JSON rows). Post-filter in PHP
+        // via HL_Roles::has_role() so both CSV and legacy JSON stores work.
+        $rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT DISTINCT e.user_id, u.user_email, e.roles
+             FROM {$wpdb->prefix}hl_team_membership mentor_tm
+             INNER JOIN {$wpdb->prefix}hl_team t
+                 ON t.team_id = mentor_tm.team_id
+                AND t.cycle_id = %d
+             INNER JOIN {$wpdb->prefix}hl_team_membership teacher_tm
+                 ON teacher_tm.team_id = mentor_tm.team_id
+                AND teacher_tm.enrollment_id <> mentor_tm.enrollment_id
+             INNER JOIN {$wpdb->prefix}hl_enrollment e
+                 ON e.enrollment_id = teacher_tm.enrollment_id
+                AND e.status IN ('active','warning')
+             INNER JOIN {$wpdb->users} u
+                 ON u.ID = e.user_id
+             WHERE mentor_tm.enrollment_id = %d
+             ORDER BY e.user_id ASC",
+            $cycle_id, $mentor_enrollment_id
+        ) );
+        $this->log_db_error_if_any( 'mentor_team_teachers:team_join' );
+
+        $results = array();
+        $seen    = array();
+        foreach ( (array) $rows as $row ) {
+            if ( empty( $row->user_email ) ) {
+                continue;
+            }
+            // Canonical role match — exact, handles CSV + legacy JSON.
+            if ( ! class_exists( 'HL_Roles' ) || ! HL_Roles::has_role( $row->roles, 'teacher' ) ) {
+                continue;
+            }
+            $uid = (int) $row->user_id;
+            if ( isset( $seen[ $uid ] ) ) {
+                continue; // Dedup when a user appears in multiple teams.
+            }
+            $seen[ $uid ] = true;
+            $results[] = array( 'email' => $row->user_email, 'user_id' => $uid );
+        }
+
+        return $results;
     }
 
     /**

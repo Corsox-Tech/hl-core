@@ -476,7 +476,13 @@ class HL_Email_Automation_Service {
         $context['user_id']       = (int) $enrollment->user_id;
         $context['cycle_id']      = (int) $enrollment->cycle_id;
         $context['enrollment_id'] = (int) $enrollment->enrollment_id;
+        // 'roles' (plural) is the canonical key matching the condition field
+        // 'enrollment.roles' registered in HL_Admin_Emails::get_condition_fields().
+        // 'role' (singular) is kept for backward compatibility with any legacy
+        // reader — no current code reads it and the evaluator's typo-guard
+        // actively rejects enrollment.role, but holding the alias costs nothing.
         $context['enrollment']    = array(
+            'roles'  => $enrollment->roles ?? '',
             'role'   => $enrollment->roles ?? '',
             'status' => $enrollment->status ?? '',
         );

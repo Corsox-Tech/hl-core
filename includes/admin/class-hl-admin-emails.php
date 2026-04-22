@@ -408,6 +408,18 @@ class HL_Admin_Emails {
                     'cron:cv_overdue_1d',
                 ),
             ),
+            'mentor_team_teachers' => array(
+                'label'       => "Teachers on Mentor's Team",
+                'description' => 'All teachers sharing a team with the triggering mentor in the current cycle. Fans out to N recipients.',
+                'triggers'    => array(
+                    // RP component cron fan-out emails run from the mentor's
+                    // enrollment, so these are the compatible triggers.
+                    'cron:component_upcoming',
+                    'cron:component_overdue',
+                    // Legacy RP aliases kept until client workflows migrate.
+                    'cron:rp_window_7d',
+                ),
+            ),
         );
     }
 
