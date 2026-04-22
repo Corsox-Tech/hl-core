@@ -10394,6 +10394,68 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
 }
 .hlft-status-pill--ready_for_test { background: #0d9488; color: #ffffff; }
 .hlft-status-pill--test_failed { background: #ea580c; color: #ffffff; }
+.hlft-status-pill--cancelled {
+    background: rgba(107,114,128, 0.12);
+    color: var(--hl-text-secondary);
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+
+/* Cancel ticket — secondary action, muted (not destructive red) */
+.hlft-btn-cancel {
+    background: transparent;
+    border: 1px solid var(--hl-border);
+    color: var(--hl-text-secondary);
+}
+.hlft-btn-cancel:hover {
+    background: rgba(107,114,128, 0.08);
+    color: var(--hl-text-primary);
+}
+
+/* Cancelled-ticket banner (on detail modal) */
+.hlft-cancelled-banner {
+    margin: 12px 0;
+    padding: 10px 14px;
+    background: rgba(107,114,128, 0.08);
+    border-left: 3px solid var(--hl-text-secondary);
+    border-radius: var(--hl-radius-xs);
+    color: var(--hl-text-secondary);
+    font-size: 13px;
+}
+.hlft-cancelled-banner strong {
+    color: var(--hl-text-primary);
+    margin-right: 4px;
+}
+.hlft-cancelled-reason {
+    margin-top: 6px;
+    color: var(--hl-text-primary);
+    font-style: italic;
+}
+
+/* Cancel confirmation modal */
+.hlft-modal-box--confirm {
+    max-width: 480px;
+}
+.hlft-cancel-copy {
+    margin: 0 0 14px;
+    color: var(--hl-text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+}
+#hlft-cancel-reason {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--hl-border);
+    border-radius: var(--hl-radius-xs);
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+}
+#hlft-cancel-reason:focus {
+    outline: none;
+    border-color: var(--hl-interactive);
+    box-shadow: 0 0 0 3px rgba(var(--hl-interactive-rgb, 99,102,241), 0.15);
+}
 
 /* QA Review Panel */
 .hlft-review-panel {

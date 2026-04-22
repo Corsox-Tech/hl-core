@@ -14,9 +14,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class HL_Ticket_Service {
 
-    /** @var string Admin email with full ticket control (status changes, unrestricted editing). */
-    const ADMIN_EMAIL = 'mateo@corsox.com';
-
     /** @var string[] Valid ticket types. */
     const VALID_TYPES = array( 'bug', 'improvement', 'feature_request' );
 
@@ -27,13 +24,31 @@ class HL_Ticket_Service {
     const VALID_PRIORITIES = array( 'low', 'medium', 'high', 'critical' );
 
     /** @var string[] Valid statuses (includes draft — checked explicitly in get_tickets()). */
-    const VALID_STATUSES = array( 'draft', 'open', 'in_review', 'in_progress', 'ready_for_test', 'test_failed', 'resolved', 'closed' );
+    const VALID_STATUSES = array( 'draft', 'open', 'in_review', 'in_progress', 'ready_for_test', 'test_failed', 'resolved', 'closed', 'cancelled' );
 
     /** @var string Draft status identifier. */
     const DRAFT_STATUS = 'draft';
 
     /** @var string[] Terminal statuses (no editing by creator). */
-    const TERMINAL_STATUSES = array( 'resolved', 'closed' );
+    const TERMINAL_STATUSES = array( 'resolved', 'closed', 'cancelled' );
+
+    /**
+     * Statuses that are hidden from the default list view (same treatment as 'closed').
+     *
+     * @var string[]
+     */
+    const DEFAULT_HIDDEN_STATUSES = array( 'closed', 'cancelled' );
+
+    /**
+     * Statuses where the ticket author may self-cancel their own ticket.
+     *
+     * Once a ticket is picked up (in_progress) or under review flows (ready_for_test, test_failed),
+     * only an admin can cancel — someone's time is already committed and the cancel deserves
+     * an acknowledgement.
+     *
+     * @var string[]
+     */
+    const AUTHOR_CANCELLABLE_STATUSES = array( 'draft', 'open', 'in_review' );
 
     /** @var int Edit window in seconds (2 hours). */
     const EDIT_WINDOW_SECONDS = 7200;
@@ -42,13 +57,13 @@ class HL_Ticket_Service {
      * Statuses where the creator cannot edit ticket content.
      *
      * - ready_for_test: fix deployed, awaiting creator verification. Editing would change what was fixed.
-     * - resolved / closed: terminal.
+     * - resolved / closed / cancelled: terminal.
      *
      * Note: test_failed intentionally excluded — creator may add reproduction details.
      *
      * @var string[]
      */
-    const CREATOR_LOCKED_STATUSES = array( 'ready_for_test', 'resolved', 'closed' );
+    const CREATOR_LOCKED_STATUSES = array( 'ready_for_test', 'resolved', 'closed', 'cancelled' );
 
     private static $instance = null;
 
@@ -64,11 +79,18 @@ class HL_Ticket_Service {
     // ─── Permission Helpers ───
 
     /**
-     * Check if the current user is the admin (full ticket control).
+     * Check if the current user has ticket-admin powers (full ticket control).
+     *
+     * Gate: WP's built-in `manage_options` capability, which is held only by users
+     * with the `administrator` role. Coaches and Coaching Directors can access the
+     * Feature Tracker (via `manage_hl_core`, the page-level gate) but are NOT ticket
+     * admins — they can only manage their own tickets.
+     *
+     * To onboard a new ticket admin: grant them the WP `administrator` role. No code
+     * change required.
      */
     public function is_ticket_admin() {
-        $user = wp_get_current_user();
-        return $user && $user->user_email === self::ADMIN_EMAIL;
+        return current_user_can( 'manage_options' );
     }
 
     /**
@@ -142,6 +164,31 @@ class HL_Ticket_Service {
         return ( $now - $created ) < self::EDIT_WINDOW_SECONDS;
     }
 
+    /**
+     * Whether the current user can cancel this ticket.
+     *
+     * Admin: any non-terminal status.
+     * Author: AUTHOR_CANCELLABLE_STATUSES only.
+     *
+     * @param array $ticket Ticket row.
+     * @return bool
+     */
+    public function can_cancel( $ticket ) {
+        if ( in_array( $ticket['status'], self::TERMINAL_STATUSES, true ) ) {
+            return false;
+        }
+
+        if ( $this->is_ticket_admin() ) {
+            return true;
+        }
+
+        if ( (int) $ticket['creator_user_id'] !== get_current_user_id() ) {
+            return false;
+        }
+
+        return in_array( $ticket['status'], self::AUTHOR_CANCELLABLE_STATUSES, true );
+    }
+
     // ─── Ticket CRUD ───
 
     /**
@@ -192,8 +239,12 @@ class HL_Ticket_Service {
             $where[]  = 't.status = %s';
             $values[] = $args['status'];
         } else {
-            // Default: exclude closed AND other users' drafts (admin sees all).
-            $where[]  = "t.status != 'closed'";
+            // Default: exclude closed + cancelled AND other users' drafts (admin sees all).
+            $hidden_placeholders = implode( ',', array_fill( 0, count( self::DEFAULT_HIDDEN_STATUSES ), '%s' ) );
+            $where[] = "t.status NOT IN ({$hidden_placeholders})";
+            foreach ( self::DEFAULT_HIDDEN_STATUSES as $hidden_status ) {
+                $values[] = $hidden_status;
+            }
             if ( ! $this->is_ticket_admin() ) {
                 $where[]  = '(t.status != %s OR t.creator_user_id = %d)';
                 $values[] = self::DRAFT_STATUS;
@@ -716,6 +767,17 @@ class HL_Ticket_Service {
             $update_data['resolved_at'] = null;
         }
 
+        // Track cancellation metadata when entering/leaving cancelled.
+        if ( $new_status === 'cancelled' && $old_status !== 'cancelled' ) {
+            $update_data['cancelled_at']         = $now;
+            $update_data['cancelled_by_user_id'] = get_current_user_id();
+        }
+        if ( $new_status !== 'cancelled' && $old_status === 'cancelled' ) {
+            $update_data['cancelled_at']         = null;
+            $update_data['cancelled_by_user_id'] = null;
+            $update_data['cancel_reason']        = null;
+        }
+
         $wpdb->update(
             $wpdb->prefix . 'hl_ticket',
             $update_data,
@@ -733,6 +795,100 @@ class HL_Ticket_Service {
         if ( $new_status === 'ready_for_test' && $old_status !== 'ready_for_test' ) {
             $this->send_ready_for_test_email( $ticket );
         }
+
+        return $this->get_ticket( $uuid );
+    }
+
+    /**
+     * Cancel a ticket — author self-service while AUTHOR_CANCELLABLE_STATUSES, admin at any
+     * non-terminal status.
+     *
+     * Preserves full audit trail + comments; status moves to 'cancelled' and ticket is hidden
+     * from default list views. An admin can reopen via change_status().
+     *
+     * @param string $uuid   Ticket UUID.
+     * @param string $reason Optional free-text reason (max 500 chars).
+     * @return array|WP_Error Updated ticket or error.
+     */
+    public function cancel_ticket( $uuid, $reason = '' ) {
+        global $wpdb;
+
+        $ticket = $this->get_ticket_raw( $uuid );
+        if ( ! $ticket ) {
+            return new WP_Error( 'not_found', __( 'Ticket not found.', 'hl-core' ) );
+        }
+
+        if ( $ticket['status'] === 'cancelled' ) {
+            return new WP_Error( 'already_cancelled', __( 'This ticket is already cancelled.', 'hl-core' ) );
+        }
+
+        if ( in_array( $ticket['status'], self::TERMINAL_STATUSES, true ) ) {
+            return new WP_Error( 'forbidden', __( 'Resolved or closed tickets cannot be cancelled.', 'hl-core' ) );
+        }
+
+        $is_admin   = $this->is_ticket_admin();
+        $user_id    = get_current_user_id();
+        $is_author  = ( (int) $ticket['creator_user_id'] === $user_id );
+
+        if ( ! $is_admin ) {
+            if ( ! $is_author ) {
+                return new WP_Error( 'forbidden', __( 'Only the ticket author or an admin can cancel this ticket.', 'hl-core' ) );
+            }
+            if ( ! in_array( $ticket['status'], self::AUTHOR_CANCELLABLE_STATUSES, true ) ) {
+                return new WP_Error(
+                    'forbidden',
+                    __( 'This ticket has progressed past the point where you can cancel it. Ask an admin to cancel it.', 'hl-core' )
+                );
+            }
+        }
+
+        $reason = trim( wp_strip_all_tags( (string) $reason ) );
+        if ( strlen( $reason ) > 500 ) {
+            $reason = substr( $reason, 0, 500 );
+        }
+
+        $now = current_time( 'mysql' );
+
+        $update_data = array(
+            'status'               => 'cancelled',
+            'updated_at'           => $now,
+            'status_updated_at'    => $now,
+            'cancelled_at'         => $now,
+            'cancelled_by_user_id' => $user_id,
+            'cancel_reason'        => ( $reason === '' ) ? null : $reason,
+        );
+
+        $rows = $wpdb->update(
+            $wpdb->prefix . 'hl_ticket',
+            $update_data,
+            array(
+                'ticket_uuid' => $uuid,
+                'status'      => $ticket['status'], // optimistic lock
+            )
+        );
+
+        if ( $rows === false ) {
+            return new WP_Error( 'db_error', __( 'Failed to cancel ticket.', 'hl-core' ) );
+        }
+        if ( $rows === 0 ) {
+            return new WP_Error(
+                'conflict',
+                __( 'Ticket status changed while you were viewing it. Please refresh and try again.', 'hl-core' )
+            );
+        }
+
+        HL_Audit_Service::log( 'ticket_cancelled', array(
+            'entity_type' => 'ticket',
+            'entity_id'   => $ticket['ticket_id'],
+            'before_data' => array( 'status' => $ticket['status'] ),
+            'after_data'  => array(
+                'status'         => 'cancelled',
+                'cancel_reason'  => $reason,
+                'cancelled_by'   => $user_id,
+                'by_author'      => $is_author,
+                'by_admin'       => $is_admin,
+            ),
+        ) );
 
         return $this->get_ticket( $uuid );
     }
@@ -987,6 +1143,7 @@ class HL_Ticket_Service {
         $row['creator_name']   = $user ? $user->display_name : __( 'Unknown User', 'hl-core' );
         $row['creator_avatar'] = get_avatar_url( $row['creator_user_id'], array( 'size' => 64 ) );
         $row['can_edit']       = $this->can_edit( $row );
+        $row['can_cancel']     = $this->can_cancel( $row );
         $now_ts                = strtotime( current_time( 'mysql' ) );
         $row['time_ago']       = human_time_diff( strtotime( $row['created_at'] ), $now_ts ) . ' ago';
         // status_updated_at may be NULL on detail-view rows or on rows predating rev 43;
@@ -1004,6 +1161,18 @@ class HL_Ticket_Service {
         $row['comments']      = $this->get_comments( $row['ticket_id'] );
         $row['comment_count'] = count( $row['comments'] );
         $row['attachments']   = $this->get_attachments( (int) $row['ticket_id'] );
+
+        // Cancellation metadata — surfaced to frontend for the banner on cancelled tickets.
+        if ( $row['status'] === 'cancelled' ) {
+            $row['cancelled_by_name'] = '';
+            if ( ! empty( $row['cancelled_by_user_id'] ) ) {
+                $canceller = get_userdata( (int) $row['cancelled_by_user_id'] );
+                $row['cancelled_by_name'] = $canceller ? $canceller->display_name : __( 'Unknown User', 'hl-core' );
+            }
+            if ( ! empty( $row['cancelled_at'] ) ) {
+                $row['cancelled_time_ago'] = human_time_diff( strtotime( $row['cancelled_at'] ), strtotime( current_time( 'mysql' ) ) ) . ' ago';
+            }
+        }
 
         // Department from JetEngine user meta — resolve each slug to its human-readable label.
         $dept_raw = get_user_meta( $row['creator_user_id'], 'housman_learning_department', true );

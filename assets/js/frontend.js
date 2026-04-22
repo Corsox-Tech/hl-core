@@ -203,7 +203,7 @@
 
             var typeLabels = { bug: 'Bug', improvement: 'Improvement', feature_request: 'Feature Request' };
             var typeIcons = { bug: '\uD83D\uDC1E', improvement: '\u2728', feature_request: '\uD83D\uDE80' }; // 🐞 ✨ 🚀
-            var statusLabels = { draft: 'Draft', open: 'Open', in_review: 'In Review', in_progress: 'In Progress', ready_for_test: 'Ready for Review', test_failed: 'Needs Revision', resolved: 'Resolved', closed: 'Closed' };
+            var statusLabels = { draft: 'Draft', open: 'Open', in_review: 'In Review', in_progress: 'In Progress', ready_for_test: 'Ready for Review', test_failed: 'Needs Revision', resolved: 'Resolved', closed: 'Closed', cancelled: 'Cancelled' };
 
             var categoryLabels = {
                 course_content: 'Course Content',
@@ -334,11 +334,34 @@
                     // Ticket-level attachments
                     renderAttachments($('#hlft-detail-attachments'), t.attachments || []);
 
-                    // Edit button
+                    // Cancelled-ticket banner (above actions)
+                    if (t.status === 'cancelled') {
+                        var banner = '<div class="hlft-cancelled-banner">' +
+                            '<strong>Cancelled</strong>';
+                        if (t.cancelled_by_name) {
+                            banner += ' by ' + esc(t.cancelled_by_name);
+                        }
+                        if (t.cancelled_time_ago) {
+                            banner += ' &bull; ' + esc(t.cancelled_time_ago);
+                        }
+                        if (t.cancel_reason) {
+                            banner += '<div class="hlft-cancelled-reason">' + esc(t.cancel_reason) + '</div>';
+                        }
+                        banner += '</div>';
+                        $('#hlft-detail-attachments').after(banner);
+                    } else {
+                        // Remove any stale banner from a previous detail open.
+                        $('.hlft-cancelled-banner').remove();
+                    }
+
+                    // Action buttons
                     var $actions = $('#hlft-detail-actions');
                     $actions.empty();
                     if (t.can_edit) {
-                        $actions.html('<button type="button" class="hl-btn hl-btn-small" id="hlft-edit-btn">Edit</button>');
+                        $actions.append('<button type="button" class="hl-btn hl-btn-small" id="hlft-edit-btn">Edit</button>');
+                    }
+                    if (t.can_cancel) {
+                        $actions.append(' <button type="button" class="hl-btn hl-btn-small hlft-btn-cancel" id="hlft-cancel-btn">Cancel ticket</button>');
                     }
 
                     // Creator review buttons (non-admin creator, ready_for_test only)
@@ -919,6 +942,34 @@
                     }
                 }, function() {
                     $btn.prop('disabled', false).text('Post');
+                });
+            });
+
+            // Cancel ticket — open confirmation modal
+            $(document).on('click', '#hlft-cancel-btn', function() {
+                $('#hlft-cancel-reason').val('');
+                $('#hlft-cancel-confirm-btn').prop('disabled', false).text('Cancel ticket');
+                $('#hlft-cancel-modal').show();
+                $('#hlft-cancel-reason').focus();
+            });
+
+            // Cancel ticket — submit
+            $(document).on('click', '#hlft-cancel-confirm-btn', function() {
+                var $btn = $(this);
+                var reason = $.trim($('#hlft-cancel-reason').val());
+
+                $btn.prop('disabled', true).text('Cancelling...');
+
+                ajax('hl_ticket_cancel', {
+                    ticket_uuid: currentUuid,
+                    reason: reason
+                }, function(t) {
+                    $('#hlft-cancel-modal').hide();
+                    showToast('Ticket cancelled');
+                    openDetail(currentUuid);
+                    loadTickets();
+                }, function() {
+                    $btn.prop('disabled', false).text('Cancel ticket');
                 });
             });
 
