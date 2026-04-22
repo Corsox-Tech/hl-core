@@ -276,7 +276,11 @@ $workflows = array(
 		'wf_name'                => 'Pre-Assessment Documentation Reminder (B2E)',
 		'trigger_key'            => 'hl_pathway_assigned',
 		'conditions'             => array(
-			array( 'field' => 'cycle.cycle_type', 'op' => 'eq', 'value' => 'program' ),
+			array( 'field' => 'cycle.cycle_type',   'op' => 'eq', 'value' => 'program' ),
+			// Phase 2b (D1): Chris's body copy is role-agnostic, but the reminder
+			// is only meaningful for users who actually fill out pre-assessment
+			// documentation — mentors and teachers. Leaders/directors are skipped.
+			array( 'field' => 'enrollment.roles',   'op' => 'in', 'value' => array( 'mentor', 'teacher' ) ),
 		),
 		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
 		'trigger_offset_minutes' => null,
@@ -352,7 +356,12 @@ $workflows = array(
 		'wf_name'                => 'RP Session Window Opens (7d)',
 		'trigger_key'            => 'cron:component_upcoming',
 		'conditions'             => array(),
-		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array() ),
+		// Phase 2b (D2): CC the teachers on the triggering mentor's team, not
+		// cycle-wide. Chris's body copy ("your Begin to ECSEL Reflective
+		// Practice Session window", "Mentors and Teachers should be looking
+		// to book") implies a known small group — the mentor's own teachers,
+		// not every teacher in the cycle.
+		'recipients'             => array( 'primary' => array( 'triggering_user' ), 'cc' => array( 'mentor_team_teachers' ) ),
 		'trigger_offset_minutes' => 10080,
 		'component_type_filter'  => 'reflective_practice_session',
 	),
