@@ -382,11 +382,16 @@ class HL_Scheduling_Service {
             'duration'       => $duration,
         );
 
+        // Resolve coach Zoom settings ONCE, OUTSIDE the is_configured() guard.
+        // Resolution is cheap; keeping it here means a future reviewer cannot accidentally
+        // null it out by moving both lines inside the guard.
+        $resolved_zoom_settings = HL_Coach_Zoom_Settings_Service::resolve_for_coach($coach_user_id);
+
         // Step 2: Create Zoom meeting.
         $zoom = HL_Zoom_Integration::instance();
         if ($zoom->is_configured()) {
             $zoom_email   = $zoom->get_coach_email($coach_user_id);
-            $zoom_payload = $zoom->build_meeting_payload($api_data);
+            $zoom_payload = $zoom->build_meeting_payload($api_data, $resolved_zoom_settings);
             $zoom_result  = $zoom->create_meeting($zoom_email, $zoom_payload);
 
             if (is_wp_error($zoom_result)) {
