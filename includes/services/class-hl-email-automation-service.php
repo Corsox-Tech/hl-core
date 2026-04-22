@@ -410,9 +410,40 @@ class HL_Email_Automation_Service {
                 break;
 
             case 'hl_coach_assigned':
+                // Emitter: class-hl-coach-assignment-service.php:68
+                //   do_action('hl_coach_assigned', $assignment_id, $insert)
+                // $insert = coach_user_id, scope_type ('school'|'team'|'enrollment'),
+                //           scope_id, cycle_id, effective_from, effective_to.
+                // Previously this case set ONLY entity_id/entity_type —
+                // user_id, cycle_id, and coach data were all missing, so row 9
+                // ("Coach Assigned") never resolved recipients and silently
+                // enqueued nothing.
                 $assignment_id          = $args[0] ?? null;
+                $data                   = is_array( $args[1] ?? null ) ? $args[1] : array();
                 $context['entity_id']   = $assignment_id;
                 $context['entity_type'] = 'coach_assignment';
+                if ( ! empty( $data['coach_user_id'] ) ) {
+                    $context['coach_user_id'] = (int) $data['coach_user_id'];
+                    $coach = get_userdata( (int) $data['coach_user_id'] );
+                    if ( $coach ) {
+                        $context['coach_name']  = $coach->display_name;
+                        $context['coach_email'] = $coach->user_email;
+                    }
+                }
+                if ( ! empty( $data['cycle_id'] ) ) {
+                    $context['cycle_id'] = (int) $data['cycle_id'];
+                }
+                $context['coach_assignment'] = array(
+                    'scope_type' => $data['scope_type'] ?? '',
+                    'scope_id'   => isset( $data['scope_id'] ) ? (int) $data['scope_id'] : 0,
+                );
+                // For enrollment-scoped assignments, the "mentor being assigned
+                // a coach" is the user on that enrollment — resolve them as the
+                // primary recipient. Team/school scopes are fan-out cases; the
+                // recipient resolver handles those via role:mentor + cycle scope.
+                if ( ( $data['scope_type'] ?? '' ) === 'enrollment' && ! empty( $data['scope_id'] ) ) {
+                    $context = $this->load_enrollment_context( (int) $data['scope_id'], $context );
+                }
                 break;
 
             default:
