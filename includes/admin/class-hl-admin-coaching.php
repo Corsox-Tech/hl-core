@@ -483,6 +483,19 @@ class HL_Admin_Coaching {
             echo '<td>' . esc_html($obs_count) . '</td>';
             echo '<td>';
             echo '<a href="' . esc_url($edit_url) . '" class="button button-small">' . esc_html__('Edit', 'hl-core') . '</a> ';
+
+            // F3: Retry Zoom button when meeting creation previously failed.
+            // The E1 scheduling flow leaves both meeting_url and zoom_meeting_id NULL
+            // when the Zoom API errors. We show Retry while meeting_url is empty.
+            if (empty($session['meeting_url'])) {
+                printf(
+                    '<button type="button" class="button button-small hlczs-retry-zoom" data-session-id="%s" data-nonce="%s">%s</button> ',
+                    esc_attr($session['session_id']),
+                    esc_attr(wp_create_nonce('hl_retry_zoom_meeting')),
+                    esc_html__('Retry Zoom', 'hl-core')
+                );
+            }
+
             echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'' . esc_js(__('Are you sure you want to delete this coaching session? This will also remove linked observations and attachments.', 'hl-core')) . '\');">' . esc_html__('Delete', 'hl-core') . '</a>';
             echo '</td>';
             echo '</tr>';
@@ -1139,7 +1152,15 @@ class HL_Admin_Coaching {
                 echo '<tr>';
                 echo '<td>' . esc_html($coach->display_name) . '</td>';
                 echo '<td>' . esc_html($coach->user_email) . '</td>';
-                echo '<td><a href="' . esc_url($remove_url) . '" class="button button-small" onclick="return confirm(\'' . esc_js(__('Remove Coach role from this user?', 'hl-core')) . '\')">' . esc_html__('Remove Coach', 'hl-core') . '</a></td>';
+                echo '<td>';
+                // F3: Zoom Settings link (non-functional until §H2 wires the modal).
+                printf(
+                    '<a href="#" class="hlczs-admin-edit" data-coach-id="%s">%s</a> | ',
+                    esc_attr($coach->ID),
+                    esc_html__('Zoom Settings', 'hl-core')
+                );
+                echo '<a href="' . esc_url($remove_url) . '" class="button button-small" onclick="return confirm(\'' . esc_js(__('Remove Coach role from this user?', 'hl-core')) . '\')">' . esc_html__('Remove Coach', 'hl-core') . '</a>';
+                echo '</td>';
                 echo '</tr>';
             }
         }
