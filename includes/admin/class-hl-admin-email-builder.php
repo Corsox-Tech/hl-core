@@ -344,6 +344,23 @@ class HL_Admin_Email_Builder {
         // Extract merge tags used.
         $merge_tags_used = $this->extract_merge_tags( $blocks_json . ' ' . $subject );
 
+        // Body-render lint: flag merge tags used in the template that the
+        // registry doesn't know about. An unregistered {{tag}} renders as
+        // literal text in the sent email (a user-visible bug) — surface it
+        // now as a save warning so the admin sees the typo immediately.
+        // NOT a hard fail: an admin may be iterating faster than tag
+        // registrations land, so a warning is the right friction level.
+        $unresolved_tags = array();
+        if ( ! empty( $merge_tags_used ) && class_exists( 'HL_Email_Merge_Tag_Registry' ) ) {
+            $registry       = HL_Email_Merge_Tag_Registry::instance();
+            $available_keys = array_keys( $registry->get_available_tags() );
+            foreach ( $merge_tags_used as $tag_key ) {
+                if ( ! in_array( $tag_key, $available_keys, true ) ) {
+                    $unresolved_tags[] = $tag_key;
+                }
+            }
+        }
+
         $data = array(
             'template_key' => $template_key,
             'name'         => $name,
@@ -372,17 +389,32 @@ class HL_Admin_Email_Builder {
 
         // Audit log.
         if ( class_exists( 'HL_Audit_Service' ) ) {
-            HL_Audit_Service::log( 'email_template_saved', array(
-                'entity_type' => 'email_template',
-                'entity_id'   => $template_id,
-                'template_key' => $template_key,
-            ) );
+            HL_Audit_Service::log(
+                empty( $unresolved_tags ) ? 'email_template_saved' : 'email_template_saved_with_warnings',
+                array(
+                    'entity_type'     => 'email_template',
+                    'entity_id'       => $template_id,
+                    'template_key'    => $template_key,
+                    'unresolved_tags' => empty( $unresolved_tags ) ? null : $unresolved_tags,
+                )
+            );
         }
 
-        wp_send_json_success( array(
+        $response = array(
             'template_id' => $template_id,
             'message'     => __( 'Template saved.', 'hl-core' ),
-        ) );
+        );
+        if ( ! empty( $unresolved_tags ) ) {
+            $response['warnings'] = array(
+                'unresolved_merge_tags' => $unresolved_tags,
+                'notice'                => sprintf(
+                    /* translators: %s: comma-separated list of unresolved merge tags */
+                    __( 'Saved with warnings: these merge tags are not registered and will render as literal text in sent emails: %s', 'hl-core' ),
+                    implode( ', ', array_map( function ( $t ) { return '{{' . $t . '}}'; }, $unresolved_tags ) )
+                ),
+            );
+        }
+        wp_send_json_success( $response );
     }
 
     // =========================================================================
