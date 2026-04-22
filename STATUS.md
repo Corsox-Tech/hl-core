@@ -455,8 +455,8 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] **Autosave guard** — RP Session page tab-switch autosave skips forms whose wrapper advertises `data-hlap-state="editing-submission"` or `data-hlrn-state="editing-submission"`. Without the guard, a tab switch during an edit would silently demote a submitted row back to `draft` via the forced `action=draft` POST.
 - [x] **CSS** — `.hl(ap|rn)-status-bar`, `.hl(ap|rn)-status-pill--submitted`, `.hl(ap|rn)-status-date`, `.hl(ap|rn)-status-edited`, `.hl(ap|rn)-status-mode`, `.hl(ap|rn)-btn-edit`, `.hl(ap|rn)-btn-cancel`, `.hl(ap|rn)-btn-submit:disabled`, `.hl(ap|rn)-dirty-hint(--dirty)`, `.hl(ap|rn)-actions--edit-mode`.
 - [x] **Admin path unchanged** — Admins still render via `HL_Frontend_Schedule_Session::render_submission_readonly()` (never reaches the editable renderer). Per client decision, admins stay read-only; View-As-Role if they need to edit.
-- [ ] **Deployed to test** — Pending.
-- [ ] **Deployed to prod** — Pending.
+- [x] **Deployed to test** — 2026-04-22 SHA `2619c1bf` on `fix/tickets-8-10-isolated`. All 4 QA scenarios passed (Edit/dirty/Cancel/Save Changes round trip + tab autosave guard + beforeunload + TinyMCE init on all 5 RP Notes fields).
+- [x] **Deployed to prod** — 2026-04-22 v1.2.15 SHA `f9c33a80` on `fix/tickets-8-10-on-prod`. Parallel-safe cherry-pick branch from prod SHA `f964dab3`. Tickets flipped to `ready_for_test` for creator verification.
 
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
