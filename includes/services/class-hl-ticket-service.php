@@ -81,13 +81,16 @@ class HL_Ticket_Service {
     /**
      * Check if the current user has ticket-admin powers (full ticket control).
      *
-     * Gate: `manage_hl_core` capability. WP administrators have it by default;
-     * the capability can be granted to specific users by role or via a WP-CLI
-     * `wp cap add` call, which keeps this check out of code when onboarding
-     * new ticket admins.
+     * Gate: WP's built-in `manage_options` capability, which is held only by users
+     * with the `administrator` role. Coaches and Coaching Directors can access the
+     * Feature Tracker (via `manage_hl_core`, the page-level gate) but are NOT ticket
+     * admins — they can only manage their own tickets.
+     *
+     * To onboard a new ticket admin: grant them the WP `administrator` role. No code
+     * change required.
      */
     public function is_ticket_admin() {
-        return current_user_can( 'manage_hl_core' );
+        return current_user_can( 'manage_options' );
     }
 
     /**
