@@ -371,6 +371,14 @@ class HL_Core {
             ) );
         }, 10, 1 );
 
+        // Coach Zoom settings: dismiss first-visit callout on Coach Dashboard (ticket #31, Task G1).
+        // Registered here (not in the class) because HL_Frontend_Coach_Dashboard is instantiated
+        // only when the shortcode renders — AJAX requests never hit that path.
+        add_action(
+            'wp_ajax_hl_dismiss_coach_zoom_callout',
+            array( 'HL_Frontend_Coach_Dashboard', 'ajax_dismiss_coach_zoom_callout' )
+        );
+
         // Initialize reporting service (registers rollup listener)
         HL_Reporting_Service::instance();
 

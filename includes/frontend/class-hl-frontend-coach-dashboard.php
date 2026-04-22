@@ -97,6 +97,55 @@ class HL_Frontend_Coach_Dashboard {
 
             </div>
 
+            <?php
+            // ---- My Meeting Settings (ticket #31, Task G1) ----
+            // First-visit dismissible callout + tile that opens the coach Zoom settings modal.
+            // Modal markup is added in G2; JS wiring lands in H2. For G1 the Edit button
+            // just carries the expected class + data-coach-id for future JS handlers.
+            if ( class_exists( 'HL_Coach_Zoom_Settings_Service' ) ) :
+                $hlczs_overrides = HL_Coach_Zoom_Settings_Service::get_coach_overrides( $user_id );
+                unset( $hlczs_overrides['_meta'] );
+
+                $hlczs_override_count = 0;
+                foreach ( array( 'waiting_room', 'mute_upon_entry', 'join_before_host', 'alternative_hosts' ) as $hlczs_f ) {
+                    if ( array_key_exists( $hlczs_f, $hlczs_overrides ) ) {
+                        $hlczs_override_count++;
+                    }
+                }
+
+                $hlczs_dismissed = (bool) get_user_meta( $user_id, 'hl_dismissed_coach_zoom_callout', true );
+                ?>
+
+                <?php if ( ! $hlczs_dismissed ) : ?>
+                    <div class="hlczs-callout" role="status" data-callout-nonce="<?php echo esc_attr( wp_create_nonce( 'hl_dismiss_coach_zoom_callout' ) ); ?>">
+                        <p>
+                            <?php esc_html_e( 'Tip: customize how your Zoom meetings are configured for coaching sessions.', 'hl-core' ); ?>
+                            <button type="button" class="hlczs-callout-dismiss" aria-label="<?php esc_attr_e( 'Dismiss tip', 'hl-core' ); ?>">&times;</button>
+                        </p>
+                    </div>
+                <?php endif; ?>
+
+                <div class="hlczs-tile" data-coach-id="<?php echo esc_attr( $user_id ); ?>">
+                    <h3><?php esc_html_e( 'My Meeting Settings', 'hl-core' ); ?></h3>
+                    <p class="hlczs-tile-summary">
+                        <?php
+                        if ( $hlczs_override_count === 0 ) {
+                            esc_html_e( 'You\'re using the company defaults for all meeting settings.', 'hl-core' );
+                        } else {
+                            printf(
+                                /* translators: %d = number of overridden settings */
+                                esc_html( _n( '%d setting overrides the company default.', '%d settings override the company default.', $hlczs_override_count, 'hl-core' ) ),
+                                (int) $hlczs_override_count
+                            );
+                        }
+                        ?>
+                    </p>
+                    <button type="button" class="hlczs-edit-trigger button" data-coach-id="<?php echo esc_attr( $user_id ); ?>">
+                        <?php esc_html_e( 'Edit', 'hl-core' ); ?>
+                    </button>
+                </div>
+            <?php endif; ?>
+
             <!-- Quick links -->
             <div class="hlcd-section-title"><?php esc_html_e('Quick Links', 'hl-core'); ?></div>
             <div class="hlcd-links-grid">
@@ -308,5 +357,29 @@ class HL_Frontend_Coach_Dashboard {
      */
     private function find_shortcode_page_url( $shortcode ) {
         return HL_Page_Cache::get_url( $shortcode );
+    }
+
+    /**
+     * AJAX: dismiss the first-visit "My Meeting Settings" callout on the Coach Dashboard.
+     *
+     * Registered from HL_Core::register_hooks() because this class is instantiated only when
+     * the [hl_coach_dashboard] shortcode renders — AJAX requests never hit that path.
+     *
+     * Auth model: any signed-in user dismisses their OWN callout. No cap check needed because
+     * the only side effect is flipping a user_meta flag on the caller's own account. The nonce
+     * (tied to the session) prevents CSRF.
+     *
+     * @since ticket-31 Task G1
+     */
+    public static function ajax_dismiss_coach_zoom_callout() {
+        check_ajax_referer( 'hl_dismiss_coach_zoom_callout', '_nonce' );
+
+        $uid = get_current_user_id();
+        if ( ! $uid ) {
+            wp_send_json_error( array( 'message' => __( 'Not signed in.', 'hl-core' ) ), 403 );
+        }
+
+        update_user_meta( $uid, 'hl_dismissed_coach_zoom_callout', 1 );
+        wp_send_json_success();
     }
 }
