@@ -804,7 +804,11 @@ class HL_Frontend_Schedule_Session {
         }
 
         if ($result && !is_wp_error($result)) {
-            $redirect = add_query_arg(array('message' => $result['message'], 'tab' => 'forms'));
+            // Strip edit-mode params so a successful Save Changes returns the user
+            // to the readonly "Submitted · edited <date>" view rather than staying
+            // in edit mode.
+            $redirect = remove_query_arg(array('ap_edit', 'rpn_edit'));
+            $redirect = add_query_arg(array('message' => $result['message'], 'tab' => 'forms'), $redirect);
             while (ob_get_level()) { ob_end_clean(); }
             if (!headers_sent()) {
                 wp_safe_redirect($redirect);
