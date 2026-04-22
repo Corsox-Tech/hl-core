@@ -651,6 +651,116 @@ try {
     ) );
     hl_p2_assert( $coach_count_2 === $coach_count_1, '§5.3 dedup: second cron run does not enqueue duplicate coach emails' );
 
+    // =========================================================================
+    // Phase 2 recipient targeting — entity-specific tokens
+    //   session_mentor / session_coach / observer
+    // =========================================================================
+    echo "\n=== Phase 2 recipient tokens ===\n";
+
+    $resolver = HL_Email_Recipient_Resolver::instance();
+
+    // --- session_mentor -----------------------------------------------------
+    // Context populated by load_coaching_session_context(): user_id=mentor,
+    // entity_type=coaching_session. resolve_session_mentor should return the mentor.
+    $mentor_ctx = array(
+        'entity_type'     => 'coaching_session',
+        'entity_id'       => 9999,
+        'user_id'         => $mentor_user_id,       // mentor (loader convention)
+        'mentor_user_id'  => $mentor_user_id,
+        'coach_user_id'   => $coach_user_id,
+        'cycle_id'        => $cycle_id,
+    );
+    $resolved = $resolver->resolve( array( 'primary' => array( 'session_mentor' ), 'cc' => array() ), $mentor_ctx );
+    hl_p2_assert(
+        count( $resolved ) === 1 && (int) $resolved[0]['user_id'] === $mentor_user_id && $resolved[0]['type'] === 'to',
+        'session_mentor: resolves mentor from coaching_session context'
+    );
+
+    // Missing mentor_user_id and entity_type — should return empty, not error.
+    $resolved_empty = $resolver->resolve( array( 'primary' => array( 'session_mentor' ), 'cc' => array() ), array( 'cycle_id' => $cycle_id ) );
+    hl_p2_assert(
+        is_array( $resolved_empty ) && count( $resolved_empty ) === 0,
+        'session_mentor: returns empty array when required context missing'
+    );
+
+    // Fallback via user_id when entity_type=coaching_session and no explicit mentor_user_id.
+    $resolved_fallback = $resolver->resolve(
+        array( 'primary' => array( 'session_mentor' ), 'cc' => array() ),
+        array( 'entity_type' => 'coaching_session', 'user_id' => $mentor_user_id )
+    );
+    hl_p2_assert(
+        count( $resolved_fallback ) === 1 && (int) $resolved_fallback[0]['user_id'] === $mentor_user_id,
+        'session_mentor: falls back to context.user_id when entity_type=coaching_session'
+    );
+
+    // --- session_coach ------------------------------------------------------
+    $resolved = $resolver->resolve( array( 'primary' => array( 'session_coach' ), 'cc' => array() ), $mentor_ctx );
+    hl_p2_assert(
+        count( $resolved ) === 1 && (int) $resolved[0]['user_id'] === $coach_user_id && $resolved[0]['type'] === 'to',
+        'session_coach: resolves coach from context.coach_user_id'
+    );
+
+    // Missing coach_user_id — empty.
+    $resolved_empty = $resolver->resolve(
+        array( 'primary' => array( 'session_coach' ), 'cc' => array() ),
+        array( 'entity_type' => 'coaching_session', 'user_id' => $mentor_user_id )
+    );
+    hl_p2_assert(
+        is_array( $resolved_empty ) && count( $resolved_empty ) === 0,
+        'session_coach: returns empty array when coach_user_id missing'
+    );
+
+    // --- observer -----------------------------------------------------------
+    // load_classroom_visit_context sets leader_user_id to the observer's user_id.
+    $visit_ctx = array(
+        'entity_type'     => 'classroom_visit',
+        'entity_id'       => 9999,
+        'leader_user_id'  => $leader_user_id,
+        'cycle_id'        => $cycle_id,
+    );
+    $resolved = $resolver->resolve( array( 'primary' => array( 'observer' ), 'cc' => array() ), $visit_ctx );
+    hl_p2_assert(
+        count( $resolved ) === 1 && (int) $resolved[0]['user_id'] === $leader_user_id && $resolved[0]['type'] === 'to',
+        'observer: resolves leader from context.leader_user_id'
+    );
+
+    // Missing leader_user_id — empty, not error.
+    $resolved_empty = $resolver->resolve( array( 'primary' => array( 'observer' ), 'cc' => array() ), array( 'cycle_id' => $cycle_id ) );
+    hl_p2_assert(
+        is_array( $resolved_empty ) && count( $resolved_empty ) === 0,
+        'observer: returns empty array when leader_user_id missing'
+    );
+
+    // --- Loader populates coach_user_id / mentor_user_id on context ---------
+    // Verify load_coaching_session_context (Phase 2 addition) sets both keys so
+    // session_coach / session_mentor resolve end-to-end from a hook-style call.
+    $loader_ctx = hl_p2_call_private( 'load_coaching_session_context', array( $sess_5d, array() ) );
+    hl_p2_assert(
+        (int) ( $loader_ctx['coach_user_id'] ?? 0 ) === $coach_user_id,
+        'load_coaching_session_context: sets context.coach_user_id'
+    );
+    hl_p2_assert(
+        (int) ( $loader_ctx['mentor_user_id'] ?? 0 ) === $mentor_user_id,
+        'load_coaching_session_context: sets context.mentor_user_id'
+    );
+
+    // --- validate_workflow_payload accepts the 3 new tokens -----------------
+    if ( class_exists( 'HL_Admin_Emails' ) ) {
+        $ok = HL_Admin_Emails::validate_workflow_payload(
+            array(),
+            array( 'primary' => array( 'session_mentor' ), 'cc' => array( 'session_coach' ) )
+        );
+        hl_p2_assert( $ok === true, 'validate_workflow_payload accepts session_mentor + session_coach' );
+
+        $ok = HL_Admin_Emails::validate_workflow_payload(
+            array(),
+            array( 'primary' => array( 'observer' ), 'cc' => array() )
+        );
+        hl_p2_assert( $ok === true, 'validate_workflow_payload accepts observer' );
+    } else {
+        hl_p2_assert( false, 'HL_Admin_Emails registry check skipped (class not loaded)' );
+    }
+
     echo "\n--- ";
     $pass   = $GLOBALS['hl_p2_pass'];
     $fail   = $GLOBALS['hl_p2_fail'];
