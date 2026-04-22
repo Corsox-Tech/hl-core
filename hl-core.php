@@ -355,6 +355,22 @@ class HL_Core {
         add_action( 'add_user_role',    array( 'HL_BB_Group_Sync_Service', 'on_role_added' ),   10, 2 );
         add_action( 'remove_user_role', array( 'HL_BB_Group_Sync_Service', 'on_role_removed' ), 10, 2 );
 
+        // Coach Zoom settings: cleanup on user deletion (ticket #31, Task C2).
+        add_action( 'delete_user', function( $user_id ) {
+            global $wpdb;
+            $table = $wpdb->prefix . 'hl_coach_zoom_settings';
+
+            // Drop any settings row keyed on the deleted user.
+            $wpdb->delete( $table, array( 'coach_user_id' => (int) $user_id ), array( '%d' ) );
+
+            // NULL the actor reference where the deleted user was the editor.
+            // Use raw query for unambiguous NULL binding.
+            $wpdb->query( $wpdb->prepare(
+                "UPDATE {$table} SET updated_by_user_id = NULL WHERE updated_by_user_id = %d",
+                (int) $user_id
+            ) );
+        }, 10, 1 );
+
         // Initialize reporting service (registers rollup listener)
         HL_Reporting_Service::instance();
 
