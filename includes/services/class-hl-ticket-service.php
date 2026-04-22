@@ -250,14 +250,17 @@ class HL_Ticket_Service {
             $where[]  = 't.status = %s';
             $values[] = $args['status'];
         } else {
-            // Default view: hide resolved/closed/cancelled UNLESS they've been touched
-            // in the last DEFAULT_RECENT_WINDOW_DAYS. Coalesces to created_at for rows
-            // that never transitioned (legacy tickets pre-rev-43 or brand-new ones).
-            $hidden_placeholders = implode( ',', array_fill( 0, count( self::DEFAULT_HIDDEN_STATUSES ), '%s' ) );
-            $where[] = "(t.status NOT IN ({$hidden_placeholders}) OR COALESCE(t.status_updated_at, t.created_at) >= DATE_SUB(NOW(), INTERVAL %d DAY))";
-            foreach ( self::DEFAULT_HIDDEN_STATUSES as $hidden_status ) {
-                $values[] = $hidden_status;
-            }
+            // Default view:
+            //   - 'cancelled' is ALWAYS hidden (the tracker is the author's withdrawal
+            //     signal — once cancelled it should disappear, no grace window).
+            //   - 'resolved' and 'closed' are hidden UNLESS they've been touched in the
+            //     last DEFAULT_RECENT_WINDOW_DAYS so recent follow-ups stay visible.
+            $where[]  = 't.status != %s';
+            $values[] = 'cancelled';
+
+            $where[] = "(t.status NOT IN (%s, %s) OR COALESCE(t.status_updated_at, t.created_at) >= DATE_SUB(NOW(), INTERVAL %d DAY))";
+            $values[] = 'resolved';
+            $values[] = 'closed';
             $values[] = self::DEFAULT_RECENT_WINDOW_DAYS;
 
             if ( ! $this->is_ticket_admin() ) {
@@ -298,14 +301,15 @@ class HL_Ticket_Service {
         $offset   = ( $page - 1 ) * $per_page;
 
         // Fetch tickets (without description for list view).
-        // Sort by status_updated_at (falling back to created_at) so the "Last Updated"
-        // column is consistent with row order.
+        // Sort by created_at DESC — newest tickets at the top. The "Last Updated"
+        // column still displays status_updated_at via last_updated_time_ago enrichment,
+        // but row order reflects when the ticket was filed, not when it last moved.
         $select_sql = "SELECT t.ticket_id, t.ticket_uuid, t.title, t.type, t.priority, t.status,
                               t.creator_user_id, t.category, t.context_mode, t.context_user_id,
                               t.resolved_at, t.created_at, t.updated_at, t.status_updated_at
                        FROM {$table} t
                        WHERE {$where_sql}
-                       ORDER BY COALESCE(t.status_updated_at, t.created_at) DESC
+                       ORDER BY t.created_at DESC
                        LIMIT %d OFFSET %d";
         $limit_values   = array_merge( $values, array( $per_page, $offset ) );
         $rows = $wpdb->get_results( $wpdb->prepare( $select_sql, $limit_values ), ARRAY_A );
@@ -363,7 +367,7 @@ class HL_Ticket_Service {
         $title       = isset( $data['title'] ) ? sanitize_text_field( trim( $data['title'] ) ) : '';
         $type        = isset( $data['type'] ) ? $data['type'] : '';
         $priority    = isset( $data['priority'] ) ? $data['priority'] : 'medium';
-        $description = isset( $data['description'] ) ? wp_kses_post( trim( $data['description'] ) ) : '';
+        $description = isset( $data['description'] ) ? sanitize_textarea_field( trim( $data['description'] ) ) : '';
         $category      = isset( $data['category'] ) ? $data['category'] : '';
         $context_mode  = isset( $data['context_mode'] ) && $data['context_mode'] === 'view_as' ? 'view_as' : 'self';
         $context_user  = ! empty( $data['context_user_id'] ) ? absint( $data['context_user_id'] ) : null;
@@ -453,7 +457,7 @@ class HL_Ticket_Service {
             ? $data['type'] : 'bug';
         $priority     = isset( $data['priority'] ) && in_array( $data['priority'], self::VALID_PRIORITIES, true )
             ? $data['priority'] : 'medium';
-        $description  = isset( $data['description'] ) ? wp_kses_post( trim( $data['description'] ) ) : '';
+        $description  = isset( $data['description'] ) ? sanitize_textarea_field( trim( $data['description'] ) ) : '';
         $category     = isset( $data['category'] ) && in_array( $data['category'], self::VALID_CATEGORIES, true )
             ? $data['category'] : 'other';
         $context_mode = isset( $data['context_mode'] ) && $data['context_mode'] === 'view_as'
@@ -568,7 +572,7 @@ class HL_Ticket_Service {
         $type        = in_array( $type, self::VALID_TYPES, true ) ? $type : $ticket['type'];
         $priority    = isset( $data['priority'] ) && in_array( $data['priority'], self::VALID_PRIORITIES, true )
             ? $data['priority'] : $ticket['priority'];
-        $description = isset( $data['description'] ) ? wp_kses_post( trim( $data['description'] ) ) : $ticket['description'];
+        $description = isset( $data['description'] ) ? sanitize_textarea_field( trim( $data['description'] ) ) : $ticket['description'];
         $category    = isset( $data['category'] ) ? sanitize_text_field( $data['category'] ) : '';
         $category    = in_array( $category, self::VALID_CATEGORIES, true ) ? $category : $ticket['category'];
 
@@ -673,7 +677,7 @@ class HL_Ticket_Service {
         $title       = isset( $data['title'] ) ? sanitize_text_field( trim( $data['title'] ) ) : $ticket['title'];
         $type        = isset( $data['type'] ) && in_array( $data['type'], self::VALID_TYPES, true ) ? $data['type'] : $ticket['type'];
         $priority    = isset( $data['priority'] ) && in_array( $data['priority'], self::VALID_PRIORITIES, true ) ? $data['priority'] : $ticket['priority'];
-        $description = isset( $data['description'] ) ? wp_kses_post( trim( $data['description'] ) ) : $ticket['description'];
+        $description = isset( $data['description'] ) ? sanitize_textarea_field( trim( $data['description'] ) ) : $ticket['description'];
         $category     = isset( $data['category'] ) && in_array( $data['category'], self::VALID_CATEGORIES, true ) ? $data['category'] : $ticket['category'];
         $context_mode = isset( $data['context_mode'] ) && $data['context_mode'] === 'view_as' ? 'view_as' : ( isset( $data['context_mode'] ) ? 'self' : $ticket['context_mode'] );
         $context_user = null;

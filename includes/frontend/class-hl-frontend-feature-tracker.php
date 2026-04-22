@@ -113,7 +113,7 @@ class HL_Frontend_Feature_Tracker {
 
             <!-- Filter indicator -->
             <div class="hlft-filter-indicator" id="hlft-filter-indicator">
-                <?php esc_html_e( 'Hiding resolved, closed, and cancelled older than 7 days', 'hl-core' ); ?> — <a href="#" id="hlft-show-all"><?php esc_html_e( 'show all', 'hl-core' ); ?></a>
+                <?php esc_html_e( 'Hiding cancelled tickets, and resolved/closed older than 7 days', 'hl-core' ); ?> — <a href="#" id="hlft-show-all"><?php esc_html_e( 'show all', 'hl-core' ); ?></a>
             </div>
 
             <!-- Ticket Table -->
