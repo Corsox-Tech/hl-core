@@ -370,6 +370,13 @@ Pick up from the first unchecked `[ ]` item each session.
 - [x] ~~CLI command — `wp hl-core sync-tickets-to-github`~~ (deleted)
 - [x] GitHub Issues on Corsox-Tech/hl-core deleted.
 
+### Ticket Cancel + Multi-Admin (rev 44 — April 2026)
+- [x] **Schema rev 44** — `cancelled` appended to `hl_ticket.status` enum. New columns `cancelled_at`, `cancelled_by_user_id`, `cancel_reason`. Idempotent migration `migrate_ticket_add_cancelled()`.
+- [x] **Service — admin gate swapped** — `HL_Ticket_Service::is_ticket_admin()` now uses `current_user_can('manage_hl_core')`. Hardcoded `ADMIN_EMAIL` constant removed. Yuyan + Angela Edwards gain full ticket-admin power via their existing `administrator` role (no cap grant needed).
+- [x] **Service — cancel method** — `cancel_ticket($uuid, $reason)` with optimistic lock, audit `ticket_cancelled`, author-permitted in {draft, open, in_review}, admin-permitted any non-terminal. `change_status()` also handles cancel/uncancel lifecycle (sets/clears `cancelled_at`, `cancelled_by_user_id`, `cancel_reason`). Default list view hides `cancelled` like `closed` via `DEFAULT_HIDDEN_STATUSES`.
+- [x] **Frontend** — Cancel confirmation modal with optional reason textarea. "Cancel ticket" button in detail-modal actions (gated by `can_cancel`). Cancelled-ticket banner shows who/when/reason. Status filter + admin status picker include "Cancelled". Status pill styled muted with strikethrough.
+- [ ] **Deployed to test** — Pending.
+
 ### Ticket "Last Updated" column (rev 43 — April 2026)
 - [x] **Schema rev 43** — `status_updated_at` column on `hl_ticket` (nullable). Backfill: existing rows set to `created_at`. Idempotent migration `migrate_ticket_add_status_updated_at()`.
 - [x] **Service — set on status transitions** — `create_ticket`, `save_draft`, `publish_draft`, `change_status`, `creator_review_ticket` (approve + reject) all write `status_updated_at = now`. `update_ticket` (content edits) intentionally does not touch it.

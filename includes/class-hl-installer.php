@@ -153,7 +153,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 43;
+        $current_revision = 44;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -287,6 +287,11 @@ class HL_Installer {
             // Rev 43: Add status_updated_at to hl_ticket (for "Last Updated" column).
             if ( (int) $stored < 43 ) {
                 self::migrate_ticket_add_status_updated_at();
+            }
+
+            // Rev 44: Ticket cancellation — expand status enum, add cancel tracking columns.
+            if ( (int) $stored < 44 ) {
+                self::migrate_ticket_add_cancelled();
             }
 
             // Migrate coaching.session_scheduled → coaching.session_status conditions.
@@ -2094,7 +2099,7 @@ class HL_Installer {
             description longtext NOT NULL,
             type enum('bug','improvement','feature_request') NOT NULL,
             priority enum('low','medium','high','critical') NOT NULL DEFAULT 'medium',
-            status enum('draft','open','in_review','in_progress','ready_for_test','test_failed','resolved','closed') NOT NULL DEFAULT 'open',
+            status enum('draft','open','in_review','in_progress','ready_for_test','test_failed','resolved','closed','cancelled') NOT NULL DEFAULT 'open',
             creator_user_id bigint(20) unsigned NOT NULL,
             resolved_at datetime NULL DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -2103,6 +2108,9 @@ class HL_Installer {
             category enum('course_content','platform_issue','account_access','forms_assessments','reports_data','other') NOT NULL DEFAULT 'other',
             context_mode enum('self','view_as') NOT NULL DEFAULT 'self',
             context_user_id bigint(20) unsigned NULL DEFAULT NULL,
+            cancelled_at datetime NULL DEFAULT NULL,
+            cancelled_by_user_id bigint(20) unsigned NULL DEFAULT NULL,
+            cancel_reason text NULL DEFAULT NULL,
             PRIMARY KEY (ticket_id),
             UNIQUE KEY ticket_uuid (ticket_uuid),
             KEY status (status),
@@ -3934,6 +3942,64 @@ class HL_Installer {
 
         // Backfill NULL rows with created_at (so never-changed tickets display their creation date).
         $wpdb->query( "UPDATE `{$table}` SET `status_updated_at` = `created_at` WHERE `status_updated_at` IS NULL" );
+    }
+
+    /**
+     * Rev 44: Ticket cancellation — expand status enum, add cancel tracking columns.
+     *
+     * - Appends 'cancelled' to hl_ticket.status enum.
+     * - Adds cancelled_at, cancelled_by_user_id, cancel_reason columns.
+     *
+     * Idempotent: MODIFY COLUMN is additive, ADD COLUMN guarded by SHOW COLUMNS.
+     */
+    private static function migrate_ticket_add_cancelled() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'hl_ticket';
+
+        // 1. Expand status enum (guard: skip if 'cancelled' already present).
+        $col = $wpdb->get_row( $wpdb->prepare(
+            "SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = 'status'",
+            $table
+        ) );
+
+        if ( ! $col || strpos( $col->COLUMN_TYPE, "'cancelled'" ) === false ) {
+            $res = $wpdb->query( "ALTER TABLE `{$table}` MODIFY COLUMN `status` enum('draft','open','in_review','in_progress','ready_for_test','test_failed','resolved','closed','cancelled') NOT NULL DEFAULT 'open'" );
+            if ( $res === false ) {
+                error_log( '[HL_INSTALLER] Rev 44 failed on status enum expansion: ' . $wpdb->last_error );
+                return;
+            }
+        }
+
+        // 2. Add cancelled_at column.
+        $has = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'cancelled_at'" );
+        if ( empty( $has ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `cancelled_at` datetime NULL DEFAULT NULL AFTER `context_user_id`" );
+            if ( $wpdb->last_error ) {
+                error_log( '[HL_INSTALLER] Rev 44 failed to add cancelled_at: ' . $wpdb->last_error );
+                return;
+            }
+        }
+
+        // 3. Add cancelled_by_user_id column.
+        $has = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'cancelled_by_user_id'" );
+        if ( empty( $has ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `cancelled_by_user_id` bigint(20) unsigned NULL DEFAULT NULL AFTER `cancelled_at`" );
+            if ( $wpdb->last_error ) {
+                error_log( '[HL_INSTALLER] Rev 44 failed to add cancelled_by_user_id: ' . $wpdb->last_error );
+                return;
+            }
+        }
+
+        // 4. Add cancel_reason column.
+        $has = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'cancel_reason'" );
+        if ( empty( $has ) ) {
+            $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `cancel_reason` text NULL DEFAULT NULL AFTER `cancelled_by_user_id`" );
+            if ( $wpdb->last_error ) {
+                error_log( '[HL_INSTALLER] Rev 44 failed to add cancel_reason: ' . $wpdb->last_error );
+                return;
+            }
+        }
     }
 
     /**

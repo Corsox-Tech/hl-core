@@ -31,6 +31,7 @@ class HL_Frontend_Feature_Tracker {
         add_action( 'wp_ajax_hl_ticket_update',  array( $this, 'ajax_ticket_update' ) );
         add_action( 'wp_ajax_hl_ticket_comment', array( $this, 'ajax_ticket_comment' ) );
         add_action( 'wp_ajax_hl_ticket_status',  array( $this, 'ajax_ticket_status' ) );
+        add_action( 'wp_ajax_hl_ticket_cancel',  array( $this, 'ajax_ticket_cancel' ) );
         add_action( 'wp_ajax_hl_ticket_creator_review', array( $this, 'ajax_ticket_creator_review' ) );
         add_action( 'wp_ajax_hl_ticket_upload',  array( $this, 'ajax_ticket_upload' ) );
         add_action( 'wp_ajax_hl_ticket_user_search', array( $this, 'ajax_user_search' ) );
@@ -96,6 +97,7 @@ class HL_Frontend_Feature_Tracker {
                         <option value="test_failed"><?php esc_html_e( 'Needs Revision', 'hl-core' ); ?></option>
                         <option value="resolved"><?php esc_html_e( 'Resolved', 'hl-core' ); ?></option>
                         <option value="closed"><?php esc_html_e( 'Closed', 'hl-core' ); ?></option>
+                        <option value="cancelled"><?php esc_html_e( 'Cancelled', 'hl-core' ); ?></option>
                         <option value="all"><?php esc_html_e( 'All Statuses', 'hl-core' ); ?></option>
                     </select>
                     <select id="hlft-filter-priority" class="hlft-filter-select">
@@ -111,7 +113,7 @@ class HL_Frontend_Feature_Tracker {
 
             <!-- Filter indicator -->
             <div class="hlft-filter-indicator" id="hlft-filter-indicator">
-                <?php esc_html_e( 'Closed tickets hidden', 'hl-core' ); ?> — <a href="#" id="hlft-show-all"><?php esc_html_e( 'show all', 'hl-core' ); ?></a>
+                <?php esc_html_e( 'Closed and cancelled tickets hidden', 'hl-core' ); ?> — <a href="#" id="hlft-show-all"><?php esc_html_e( 'show all', 'hl-core' ); ?></a>
             </div>
 
             <!-- Ticket Table -->
@@ -168,6 +170,7 @@ class HL_Frontend_Feature_Tracker {
                                     <option value="test_failed"><?php esc_html_e( 'Needs Revision', 'hl-core' ); ?></option>
                                     <option value="resolved"><?php esc_html_e( 'Resolved', 'hl-core' ); ?></option>
                                     <option value="closed"><?php esc_html_e( 'Closed', 'hl-core' ); ?></option>
+                                    <option value="cancelled"><?php esc_html_e( 'Cancelled', 'hl-core' ); ?></option>
                                 </select>
                                 <button type="button" class="hl-btn hl-btn-small" id="hlft-status-btn"><?php esc_html_e( 'Update', 'hl-core' ); ?></button>
                             </div>
@@ -275,6 +278,27 @@ class HL_Frontend_Feature_Tracker {
                                 <button type="button" class="hl-btn" data-close-modal><?php esc_html_e( 'Cancel', 'hl-core' ); ?></button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cancel Confirmation Modal -->
+            <div class="hlft-modal" id="hlft-cancel-modal" style="display:none;">
+                <div class="hlft-modal-box hlft-modal-box--confirm">
+                    <div class="hlft-modal-header">
+                        <h2><?php esc_html_e( 'Cancel this ticket?', 'hl-core' ); ?></h2>
+                        <button type="button" class="hlft-modal-close" data-close-modal>&times;</button>
+                    </div>
+                    <div class="hlft-modal-body">
+                        <p class="hlft-cancel-copy"><?php esc_html_e( 'Cancelled tickets are hidden from the default list and comments are preserved. Only an admin can reopen a cancelled ticket.', 'hl-core' ); ?></p>
+                        <div class="hlft-form-group">
+                            <label for="hlft-cancel-reason"><?php esc_html_e( 'Reason (optional)', 'hl-core' ); ?></label>
+                            <textarea id="hlft-cancel-reason" rows="3" maxlength="500" placeholder="<?php esc_attr_e( 'Why are you cancelling this?', 'hl-core' ); ?>"></textarea>
+                        </div>
+                        <div class="hlft-form-actions">
+                            <button type="button" class="hl-btn hl-btn-danger" id="hlft-cancel-confirm-btn"><?php esc_html_e( 'Cancel ticket', 'hl-core' ); ?></button>
+                            <button type="button" class="hl-btn" data-close-modal><?php esc_html_e( 'Keep ticket', 'hl-core' ); ?></button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -399,6 +423,21 @@ class HL_Frontend_Feature_Tracker {
         $status = isset( $_POST['status'] ) ? sanitize_text_field( $_POST['status'] ) : '';
 
         $result = HL_Ticket_Service::instance()->change_status( $uuid, $status );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
+        }
+
+        wp_send_json_success( $result );
+    }
+
+    public function ajax_ticket_cancel() {
+        $this->verify_ajax();
+
+        $uuid   = isset( $_POST['ticket_uuid'] ) ? sanitize_text_field( $_POST['ticket_uuid'] ) : '';
+        $reason = isset( $_POST['reason'] ) ? wp_unslash( $_POST['reason'] ) : '';
+
+        $result = HL_Ticket_Service::instance()->cancel_ticket( $uuid, $reason );
 
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( $result->get_error_message() );
