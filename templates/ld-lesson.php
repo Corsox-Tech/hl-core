@@ -328,10 +328,7 @@ if(localStorage.getItem('hl-course-outline-collapsed')==='1'){
             // (see learndash_30_get_course_sections → $sections[$section->steps[0]] = $section).
             if (!empty($sections) && isset($sections[$l_id])) :
         ?>
-            <div class="hl-course-outline__section">
-                <div class="hl-course-outline__section-bar"></div>
-                <span class="hl-course-outline__section-title"><?php echo esc_html($sections[$l_id]->post_title); ?></span>
-            </div>
+            <div class="hl-course-outline__section"><?php echo esc_html($sections[$l_id]->post_title); ?></div>
         <?php endif; ?>
 
             <a href="<?php echo esc_url($l_url); ?>"
