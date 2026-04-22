@@ -191,6 +191,29 @@ class HL_Admin_Scheduling_Settings {
         update_option('hl_zoom_settings', wp_json_encode($zoom_settings));
 
         add_settings_error('hl_scheduling', 'settings_saved', __('Settings saved.', 'hl-core'), 'success');
+
+        // NEW: Coaching Session Defaults.
+        $defaults_input = array(
+            'waiting_room'           => isset( $_POST['hl_zoom_def_waiting_room'] )           ? 1 : 0,
+            'mute_upon_entry'        => isset( $_POST['hl_zoom_def_mute_upon_entry'] )        ? 1 : 0,
+            'join_before_host'       => isset( $_POST['hl_zoom_def_join_before_host'] )       ? 1 : 0,
+            'password_required'      => isset( $_POST['hl_zoom_def_password_required'] )      ? 1 : 0,
+            'meeting_authentication' => isset( $_POST['hl_zoom_def_meeting_authentication'] ) ? 1 : 0,
+            'alternative_hosts'      => isset( $_POST['hl_zoom_def_alternative_hosts'] )
+                ? sanitize_textarea_field( wp_unslash( $_POST['hl_zoom_def_alternative_hosts'] ) )
+                : '',
+        );
+
+        $r = HL_Coach_Zoom_Settings_Service::save_admin_defaults( $defaults_input, get_current_user_id() );
+        if ( is_wp_error( $r ) ) {
+            $msg = $r->get_error_message();
+            if ( $r->get_error_code() === 'preflight_inflight' ) {
+                $msg = __( 'Another administrator is currently saving these settings. Please retry in a moment.', 'hl-core' );
+            }
+            add_settings_error( 'hl_scheduling', 'zoom_defaults_save_failed', $msg, 'error' );
+        } else {
+            add_settings_error( 'hl_scheduling', 'zoom_defaults_saved', __( 'Coaching meeting defaults saved.', 'hl-core' ), 'updated' );
+        }
     }
 
     // =========================================================================
@@ -417,6 +440,71 @@ class HL_Admin_Scheduling_Settings {
                         <li><?php esc_html_e('Go to Scopes > Add: meeting:write:admin', 'hl-core'); ?></li>
                         <li><?php esc_html_e('Activate the app', 'hl-core'); ?></li>
                     </ol>
+                </details>
+            </div>
+
+            <!-- Coaching Session Defaults -->
+            <?php
+            $defaults = HL_Coach_Zoom_Settings_Service::get_admin_defaults();
+            $zoom_creds = self::get_zoom_settings();
+            $zoom_account_label = $zoom_creds['account_id']
+                ? sprintf( __( 'Zoom Account ID: %s', 'hl-core' ), esc_html( $zoom_creds['account_id'] ) )
+                : __( 'Zoom credentials not configured.', 'hl-core' );
+            ?>
+            <div class="hl-settings-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:24px;margin-bottom:24px;">
+                <h2 style="margin-top:0;font-size:18px;color:#1e3a5f;">
+                    <span class="dashicons dashicons-admin-generic" style="margin-right:6px;color:#2d8cff;"></span>
+                    <?php esc_html_e( 'Coaching Session Defaults', 'hl-core' ); ?>
+                </h2>
+                <p class="description" style="background:#f0f6fc;padding:12px 16px;border-left:4px solid #2271b1;border-radius:3px;">
+                    <?php esc_html_e( 'Recording and AI Companion are configured in your Zoom account settings, not here.', 'hl-core' ); ?><br>
+                    <small><?php echo esc_html( $zoom_account_label ); ?></small>
+                </p>
+
+                <table class="form-table" role="presentation">
+                    <tbody>
+                        <tr>
+                            <th scope="row"><label for="hl_zoom_def_waiting_room"><?php esc_html_e( 'Waiting room', 'hl-core' ); ?></label></th>
+                            <td><label><input type="checkbox" id="hl_zoom_def_waiting_room" name="hl_zoom_def_waiting_room" value="1" <?php checked( ! empty( $defaults['waiting_room'] ) ); ?>>
+                                <?php esc_html_e( 'Hold participants in a waiting room until admitted.', 'hl-core' ); ?></label></td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="hl_zoom_def_mute_upon_entry"><?php esc_html_e( 'Mute upon entry', 'hl-core' ); ?></label></th>
+                            <td><label><input type="checkbox" id="hl_zoom_def_mute_upon_entry" name="hl_zoom_def_mute_upon_entry" value="1" <?php checked( ! empty( $defaults['mute_upon_entry'] ) ); ?>>
+                                <?php esc_html_e( 'Participants are muted when they join.', 'hl-core' ); ?></label></td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="hl_zoom_def_join_before_host"><?php esc_html_e( 'Join before host', 'hl-core' ); ?></label></th>
+                            <td><label><input type="checkbox" id="hl_zoom_def_join_before_host" name="hl_zoom_def_join_before_host" value="1" <?php checked( ! empty( $defaults['join_before_host'] ) ); ?>>
+                                <?php esc_html_e( 'Participants can join before the host. (Auto-disabled when waiting room is on.)', 'hl-core' ); ?></label></td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="hl_zoom_def_alternative_hosts"><?php esc_html_e( 'Alternative hosts', 'hl-core' ); ?></label></th>
+                            <td>
+                                <textarea id="hl_zoom_def_alternative_hosts" name="hl_zoom_def_alternative_hosts" rows="2" cols="50" maxlength="1024" class="large-text"><?php echo esc_textarea( $defaults['alternative_hosts'] ); ?></textarea>
+                                <p class="description"><?php esc_html_e( 'Comma-separated emails. Each must be a Licensed user on the same Zoom account. Leave empty for no alternative hosts.', 'hl-core' ); ?></p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <details style="margin-top:16px;border:1px solid #c3c4c7;border-radius:4px;padding:8px 16px;">
+                    <summary style="cursor:pointer;font-weight:600;"><?php esc_html_e( 'Advanced (account-policy interactions)', 'hl-core' ); ?></summary>
+                    <p class="description" style="background:#fff7ed;padding:12px;border-left:4px solid #f97316;margin-top:12px;">
+                        <?php esc_html_e( 'These settings can be silently overridden by your Zoom account-level policies. If they don\'t take effect, check Zoom admin first.', 'hl-core' ); ?>
+                    </p>
+                    <table class="form-table" role="presentation">
+                        <tr>
+                            <th scope="row"><label for="hl_zoom_def_password_required"><?php esc_html_e( 'Require passcode', 'hl-core' ); ?></label></th>
+                            <td><label><input type="checkbox" id="hl_zoom_def_password_required" name="hl_zoom_def_password_required" value="1" <?php checked( ! empty( $defaults['password_required'] ) ); ?>>
+                                <?php esc_html_e( 'Require a passcode to join meetings.', 'hl-core' ); ?></label></td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="hl_zoom_def_meeting_authentication"><?php esc_html_e( 'Require Zoom sign-in', 'hl-core' ); ?></label></th>
+                            <td><label><input type="checkbox" id="hl_zoom_def_meeting_authentication" name="hl_zoom_def_meeting_authentication" value="1" <?php checked( ! empty( $defaults['meeting_authentication'] ) ); ?>>
+                                <?php esc_html_e( 'Participants must be signed in to a Zoom account.', 'hl-core' ); ?></label></td>
+                        </tr>
+                    </table>
                 </details>
             </div>
 
