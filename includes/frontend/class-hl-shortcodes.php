@@ -280,6 +280,18 @@ class HL_Shortcodes {
             // Also enqueue dashicons for sidebar icons.
             wp_enqueue_style('dashicons');
         }
+
+        // TinyMCE editor assets for RP Notes rich-text fields (tickets #8/#10).
+        // Must be enqueued on wp_enqueue_scripts (before wp_head) so the editor
+        // bundle prints correctly; calling wp_enqueue_editor() from inside the
+        // shortcode render is too late. RP Notes appears on the Component Page
+        // (reflective_practice_session dispatcher) and My Coaching (Schedule
+        // Session dispatcher).
+        if (function_exists('wp_enqueue_editor')
+            && (has_shortcode($post->post_content, 'hl_component_page')
+                || has_shortcode($post->post_content, 'hl_my_coaching'))) {
+            wp_enqueue_editor();
+        }
     }
 
     /**

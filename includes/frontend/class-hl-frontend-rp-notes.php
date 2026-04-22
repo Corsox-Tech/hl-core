@@ -27,13 +27,11 @@ class HL_Frontend_RP_Notes {
     public function render($context, $session_entity, $enrollment, $instrument, $supervisee_enrollment_id, $cycle_id, $existing_submission = null) {
         ob_start();
 
-        // Ensure TinyMCE scripts are enqueued for the front-end rich-text editors.
-        // Without this, shortcode contexts often render plain <textarea> fallbacks
-        // because the page lifecycle doesn't auto-enqueue wp-tinymce / wp-editor.
-        // Idempotent — safe to call multiple times in a request.
-        if ( function_exists( 'wp_enqueue_editor' ) ) {
-            wp_enqueue_editor();
-        }
+        // Note: TinyMCE scripts are enqueued on wp_enqueue_scripts by
+        // HL_Shortcodes::enqueue_assets() when the page uses [hl_component_page]
+        // or [hl_my_coaching]. Calling wp_enqueue_editor() here would fire during
+        // the_content, after wp_head has already printed, so the editor scripts
+        // would never make it into the page.
 
         $responses   = $existing_submission ? json_decode($existing_submission['responses_json'], true) : array();
 
