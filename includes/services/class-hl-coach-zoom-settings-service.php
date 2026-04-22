@@ -420,7 +420,128 @@ class HL_Coach_Zoom_Settings_Service {
 
         return $out;
     }
+    /**
+     * Preflight `alternative_hosts` against the Zoom API.
+     *
+     * Zoom's API silently drops alternative_hosts with unrecognized emails
+     * (the meeting gets created but without those hosts). To detect invalid
+     * emails BEFORE a real coaching session is scheduled, we create a
+     * disposable test meeting with the proposed alt_hosts, inspect Zoom's
+     * response, then delete the test meeting. If Zoom rejects the request
+     * outright (e.g. typoed email that fails server-side validation), we
+     * return a WP_Error so the caller can surface a clean field-level error.
+     *
+     * Guards:
+     *   - Empty CSV -> immediate `true` (skip).
+     *   - Integration class missing -> `true` (best-effort).
+     *   - Zoom not configured -> `true` (best-effort).
+     *   - Debounce transient: same coach + same value within 60s -> skip.
+     *   - Inflight transient lock: prevent concurrent saves from both
+     *     hitting Zoom (60s TTL > Zoom client timeout 15s x retry).
+     *
+     * Frontend latency contract: worst-case blocks ~30s (Zoom timeout 15s
+     * x single 401 retry). AJAX caller MUST show a spinner and disable save.
+     *
+     * @param int    $coach_user_id
+     * @param string $alternative_hosts_csv
+     * @return true|WP_Error
+     */
     public static function preflight_alternative_hosts( $coach_user_id, $alternative_hosts_csv ) {
-        return true; // TODO Task C1
+        if ( empty( $alternative_hosts_csv ) ) {
+            return true; // nothing to verify
+        }
+        if ( ! class_exists( 'HL_Zoom_Integration' ) ) {
+            return true; // integration absent — best-effort
+        }
+
+        $zoom = HL_Zoom_Integration::instance();
+        if ( ! $zoom->is_configured() ) {
+            return true; // no Zoom credentials — best-effort
+        }
+
+        // Debounce: same coach + same value within 60s -> skip.
+        $debounce_key = 'hl_zoom_alt_preflight_' . absint( $coach_user_id ) . '_' . md5( $alternative_hosts_csv );
+        if ( get_transient( $debounce_key ) ) {
+            return true;
+        }
+
+        // Inflight lock: prevent two concurrent saves from both calling Zoom.
+        // Transient (NOT wp_cache_*) for cross-process persistence; 60s TTL exceeds Zoom timeout × retry.
+        $inflight_key = 'hl_zoom_inflight_' . absint( $coach_user_id );
+        if ( get_transient( $inflight_key ) ) {
+            return new WP_Error(
+                'preflight_inflight',
+                __( 'Verifying with Zoom — try again in a moment.', 'hl-core' ),
+                array( 'field' => 'alternative_hosts' )
+            );
+        }
+        set_transient( $inflight_key, 1, 60 );
+
+        try {
+            $coach_email = $zoom->get_coach_email( $coach_user_id );
+            if ( empty( $coach_email ) ) {
+                return true;
+            }
+
+            // Minimal payload + the proposed alt_hosts. start_time is +1h; meeting deleted immediately.
+            $start = gmdate( 'Y-m-d\TH:i:s', time() + 3600 );
+            $payload = array(
+                'topic'      => '[HL Preflight] alt_hosts validation',
+                'type'       => 2,
+                'start_time' => $start,
+                'timezone'   => 'UTC',
+                'duration'   => 5,
+                'settings'   => array(
+                    'waiting_room'      => true,
+                    'alternative_hosts' => $alternative_hosts_csv,
+                ),
+            );
+
+            $created = $zoom->create_meeting( $coach_email, $payload );
+            if ( is_wp_error( $created ) ) {
+                if ( class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'coach_zoom_preflight_failed', array(
+                        'entity_type' => 'coach_zoom_settings',
+                        'entity_id'   => $coach_user_id,
+                        'after_data'  => array(
+                            'alternative_hosts' => $alternative_hosts_csv,
+                            'zoom_error'        => $created->get_error_message(),
+                            'zoom_code'         => $created->get_error_code(),
+                        ),
+                    ) );
+                }
+                return new WP_Error(
+                    'preflight_failed',
+                    sprintf(
+                        /* translators: %s = Zoom error message */
+                        __( 'Zoom rejected one or more alternative hosts: %s', 'hl-core' ),
+                        $created->get_error_message()
+                    ),
+                    array( 'field' => 'alternative_hosts' )
+                );
+            }
+
+            // Mark debounce hit only on successful preflight.
+            set_transient( $debounce_key, 1, 60 );
+
+            // Cleanup the test meeting. Failure is logged but does not fail the save.
+            if ( ! empty( $created['id'] ) ) {
+                $delete_result = $zoom->delete_meeting( $created['id'] );
+                if ( is_wp_error( $delete_result ) && class_exists( 'HL_Audit_Service' ) ) {
+                    HL_Audit_Service::log( 'zoom_api_error', array(
+                        'entity_type' => 'integration',
+                        'after_data'  => array(
+                            'context'    => 'preflight_cleanup',
+                            'meeting_id' => $created['id'],
+                            'error'      => $delete_result->get_error_message(),
+                        ),
+                    ) );
+                }
+            }
+
+            return true;
+        } finally {
+            delete_transient( $inflight_key );
+        }
     }
 }
