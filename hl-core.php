@@ -129,6 +129,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-session-prep-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-dashboard-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scheduling-email-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-zoom-settings-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scheduling-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-tour-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-ticket-service.php';
