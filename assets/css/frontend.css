@@ -10427,7 +10427,7 @@ body.hl-sidebar-is-collapsed.hl-ld-lesson .hl-topbar {
 }
 .hlft-status-pill--open { background: rgba(var(--hl-interactive-rgb, 99,102,241), 0.12); color: var(--hl-interactive); }
 .hlft-status-pill--in_review { background: rgba(var(--hl-warning-rgb, 245,158,11), 0.12); color: var(--hl-warning-dark, #b45309); }
-.hlft-status-pill--in_progress { background: rgba(236,72,153, 0.14); color: #be185d; }
+.hlft-status-pill--in_progress { background: rgba(249,115,22, 0.14); color: #c2410c; }
 .hlft-status-pill--resolved { background: rgba(var(--hl-accent-rgb, 46,204,113), 0.12); color: var(--hl-accent-dark); }
 .hlft-status-pill--closed { background: rgba(107,114,128, 0.12); color: var(--hl-text-secondary); }
 .hlft-status-pill--draft {
