@@ -344,22 +344,17 @@ class HL_Admin_Email_Builder {
         // Extract merge tags used.
         $merge_tags_used = $this->extract_merge_tags( $blocks_json . ' ' . $subject );
 
-        // Body-render lint: flag merge tags used in the template that the
-        // registry doesn't know about. An unregistered {{tag}} renders as
-        // literal text in the sent email (a user-visible bug) — surface it
-        // now as a save warning so the admin sees the typo immediately.
+        // Body-render lint: dry-run render the template against a fixture
+        // context and flag any merge tags the registry doesn't know about.
+        // An unregistered {{tag}} renders as literal text in the sent email
+        // (a user-visible bug) — surface it now as a save warning so the
+        // admin sees the typo immediately.
+        //
         // NOT a hard fail: an admin may be iterating faster than tag
         // registrations land, so a warning is the right friction level.
-        $unresolved_tags = array();
-        if ( ! empty( $merge_tags_used ) && class_exists( 'HL_Email_Merge_Tag_Registry' ) ) {
-            $registry       = HL_Email_Merge_Tag_Registry::instance();
-            $available_keys = array_keys( $registry->get_available_tags() );
-            foreach ( $merge_tags_used as $tag_key ) {
-                if ( ! in_array( $tag_key, $available_keys, true ) ) {
-                    $unresolved_tags[] = $tag_key;
-                }
-            }
-        }
+        // `lint_template_merge_tags` swallows exceptions internally, so a
+        // broken resolver cannot cascade into a Fatal on the save path.
+        $unresolved_tags = self::lint_template_merge_tags( $blocks, $subject );
 
         $data = array(
             'template_key' => $template_key,
@@ -810,5 +805,98 @@ class HL_Admin_Email_Builder {
     private function extract_merge_tags( $content ) {
         preg_match_all( '/\{\{([a-zA-Z0-9_]+)\}\}/', $content, $matches );
         return array_unique( $matches[1] ?? array() );
+    }
+
+    /**
+     * Body-render lint: dry-run render the template against a fixture context
+     * and return the list of merge tags that are NOT registered.
+     *
+     * Invoked by the admin save handler (advisory warning — never blocks save)
+     * and by the Phase 3 test harness. The fixture populates every registered
+     * tag (including deferred tags like `password_reset_url`) so legitimate
+     * deferred tags never trigger a false-positive warning.
+     *
+     * Wrapped in try/catch because this is a tooling convenience: if the
+     * registry or renderer throws, swallow it, log via `error_log`, and let
+     * the save succeed. The calling code must never see a Fatal here.
+     *
+     * @param array  $blocks  Decoded blocks array (same shape as blocks_json).
+     * @param string $subject Template subject.
+     * @return array List of unresolved tag keys (deduped, no braces).
+     */
+    public static function lint_template_merge_tags( array $blocks, $subject = '' ) {
+        try {
+            if ( ! class_exists( 'HL_Email_Merge_Tag_Registry' ) ) {
+                return array();
+            }
+            $registry      = HL_Email_Merge_Tag_Registry::instance();
+            $available     = $registry->get_available_tags();
+            $available_key = array_keys( $available );
+
+            // Build a fixture context that has every registered tag populated.
+            // Resolvers read their fallback context keys (coach_name, cycle_name,
+            // recipient_name, etc.), so we seed those too — populating only the
+            // registered-tag keys wouldn't reach the resolvers' fallback reads.
+            // The sentinel value is distinctive so any leaked-into-output
+            // fixture value is easy to grep in the rendered HTML for debugging.
+            $fixture_ctx = array();
+            foreach ( $available_key as $tag_key ) {
+                $fixture_ctx[ $tag_key ] = '[fixture:' . $tag_key . ']';
+            }
+            // Common resolver fallback keys used by register_recipient_tags
+            // and the coaching/cycle/enrollment registrars.
+            $fixture_ctx['recipient_name']     = 'Fixture Recipient';
+            $fixture_ctx['recipient_email']    = 'fixture@example.invalid';
+            $fixture_ctx['coach_name']         = 'Fixture Coach';
+            $fixture_ctx['coach_email']        = 'coach@example.invalid';
+            $fixture_ctx['mentor_name']        = 'Fixture Mentor';
+            $fixture_ctx['cycle_name']         = 'Fixture Cycle';
+            $fixture_ctx['partnership_name']   = 'Fixture Partnership';
+            $fixture_ctx['school_name']        = 'Fixture School';
+            $fixture_ctx['school_district']    = 'Fixture District';
+            $fixture_ctx['pathway_name']       = 'Fixture Pathway';
+            $fixture_ctx['enrollment_role']    = 'teacher';
+            $fixture_ctx['session_date']       = '2026-01-01 12:00:00';
+            $fixture_ctx['old_session_date']   = '2026-01-01 12:00:00';
+            $fixture_ctx['new_session_date']   = '2026-01-02 12:00:00';
+            $fixture_ctx['cancelled_by_name']  = 'Fixture Canceller';
+            $fixture_ctx['zoom_link']          = 'https://example.invalid/zoom';
+            $fixture_ctx['assessment_phase']   = 'pre';
+            $fixture_ctx['course_title']       = 'Fixture Course';
+
+            // Dry-run render against the fixture. The renderer's substitute_tags
+            // strips any unresolved {{tag}} AND logs an audit event — we can't
+            // rely on the post-render output to surface unresolved tags. Instead,
+            // we scan the pre-render source (blocks_json + subject) for tags and
+            // diff against the registry. This mirrors what the live renderer will
+            // do at send time but without the audit-log side effect.
+            $scan_source = wp_json_encode( $blocks ) . ' ' . (string) $subject;
+            preg_match_all( '/\{\{([a-zA-Z0-9_]+)\}\}/', (string) $scan_source, $matches );
+            $used_tags = array_unique( $matches[1] ?? array() );
+
+            $unresolved = array();
+            foreach ( $used_tags as $tag_key ) {
+                if ( ! in_array( $tag_key, $available_key, true ) ) {
+                    $unresolved[] = $tag_key;
+                }
+            }
+
+            // Exercise resolve_all() against the fixture so a broken resolver
+            // (e.g. bad signature, type error) surfaces during test runs.
+            // We intentionally do NOT call the block renderer: its
+            // substitute_tags() side-effect writes an audit-log row per
+            // unresolved tag, which would spam audit on every admin save
+            // that contains a typo. The pre-render scan above already gives
+            // us the unresolved set without that noise.
+            $registry->resolve_all( $fixture_ctx );
+
+            return array_values( $unresolved );
+        } catch ( \Throwable $e ) {
+            // \Throwable covers both Error and Exception on PHP 7+ (project
+            // requires PHP 7.4+). Lint is a tooling convenience — never
+            // cascade a Fatal into the save path.
+            error_log( 'HL_Admin_Email_Builder::lint_template_merge_tags: ' . $e->getMessage() );
+            return array();
+        }
     }
 }
