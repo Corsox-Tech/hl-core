@@ -3,7 +3,7 @@
  * Plugin Name: Housman LMS
  * Plugin URI: https://housmanlearning.com
  * Description: System-of-record for Housman Learning Academy Partnership management
- * Version: 1.3.0
+ * Version: 1.3.1
  * Author: Housman Learning
  * Author URI: https://housmanlearning.com
  * License: Proprietary
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('HL_CORE_VERSION', '1.3.0');
+define('HL_CORE_VERSION', '1.3.1');
 define('HL_CORE_PLUGIN_FILE', __FILE__);
 define('HL_CORE_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HL_CORE_PLUGIN_URL', plugin_dir_url(__FILE__));
