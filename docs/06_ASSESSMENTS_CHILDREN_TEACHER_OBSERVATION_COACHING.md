@@ -427,6 +427,8 @@ Coaching sessions need: attendance marking, coach notes, attachments, links to o
 
 This is an admin-side CRUD workflow, not a user-facing questionnaire.
 
+Each coach can override per-meeting Zoom settings (waiting room, mute-on-entry, join-before-host, alternative hosts) via the "My Meeting Settings" modal on their dashboard, subject to admin-managed defaults configured in Settings → Scheduling. Resolution is 3-tier: coach override → admin default → hardcoded fallback. Applied at meeting creation by `HL_Scheduling_Service::book_session()` / `reschedule_session_with_integrations()` via `HL_Coach_Zoom_Settings_Service::resolve_for_coach()`, then passed to `HL_Zoom_Integration::build_meeting_payload()`. Stored in `hl_coach_zoom_settings` (sparse NULL = not overridden). Admins can also trigger a "Retry Zoom" action from Coaching Hub to create a Zoom meeting for a session that failed to provision one.
+
 ## 5.2 Object Model
 
 ### hl_coaching_session

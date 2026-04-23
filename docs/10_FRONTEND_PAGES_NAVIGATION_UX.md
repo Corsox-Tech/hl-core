@@ -937,7 +937,7 @@ These pages serve both the sidebar navigation and provide comprehensive browseab
 
 Five dedicated pages for Coach WP role users:
 
-**Coach Dashboard** `[hl_coach_dashboard]` — Landing page with gradient hero (avatar + welcome), 3 stats cards (assigned mentors, upcoming sessions, sessions this month), quick link cards. Coach WP role or manage_hl_core only.
+**Coach Dashboard** `[hl_coach_dashboard]` — Landing page with gradient hero (avatar + welcome), 3 stats cards (assigned mentors, upcoming sessions, sessions this month), quick link cards including a "My Meeting Settings" tile (opens a modal to override per-coach Zoom settings: waiting room, mute-on-entry, join-before-host, alternative hosts; dismissible first-visit callout via user_meta `hl_dismissed_coach_zoom_callout`). Coach WP role or manage_hl_core only.
 
 **My Mentors** `[hl_coach_mentors]` — Card grid of assigned mentors with search and school filter. Each card: avatar, name, school, team badge, pathway, progress bar, last/next session dates. Links to Mentor Detail.
 

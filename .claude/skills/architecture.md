@@ -228,15 +228,15 @@ Block-based email template builder + workflow automation engine. Three admin pag
     /Lutheran - Control Group/   # Lutheran spreadsheets (.xlsx)
   /docs/                         # Spec documents (11 files, read-only reference)
   /includes/
-    class-hl-installer.php       # DB schema (revision 40) + activation + migrations
+    class-hl-installer.php       # DB schema (revision 45) + activation + migrations
     /domain/                     # Entity models (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (11 classes incl. HL_Tour_Repository, HL_Course_Catalog_Repository)
     /cli/                        # WP-CLI commands (22 commands incl. setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, diagnose-nav, seed-beginnings, migrate-routing-types, email-v2-test, test-email-renderer, translate-content) + data files
-    /services/                   # Business logic (36 services incl. HL_Tour_Service, HL_Pathway_Routing_Service, HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Scope_Service, HL_Ticket_Service, HL_Email_Automation_Service, HL_Email_Condition_Evaluator, HL_Email_Merge_Tag_Registry, HL_Email_Queue_Processor, HL_Email_Block_Renderer, HL_Email_Rate_Limit_Service, HL_Email_Recipient_Resolver)
+    /services/                   # Business logic (37 services incl. HL_Tour_Service, HL_Pathway_Routing_Service, HL_Scheduling_Service, HL_Scheduling_Email_Service, HL_Coach_Dashboard_Service, HL_Coach_Zoom_Settings_Service, HL_Scope_Service, HL_Ticket_Service, HL_Email_Automation_Service, HL_Email_Condition_Evaluator, HL_Email_Merge_Tag_Registry, HL_Email_Queue_Processor, HL_Email_Block_Renderer, HL_Email_Rate_Limit_Service, HL_Email_Recipient_Resolver)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (4 classes)
-    /admin/                      # WP admin pages (24 controllers incl. HL_Admin_Tours, HL_Admin_Course_Catalog, Coaching Hub with Coaches tab, HL_Admin_Email_Templates, HL_Admin_Email_Builder, HL_Admin_Emails (workflows + send-test), Scheduling Settings)
-    /frontend/                   # 34 shortcode page renderers (incl. User Profile, 5 coach pages) + 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + schedule session renderer + instrument/teacher-assessment renderers
+    /admin/                      # WP admin pages (24 controllers incl. HL_Admin_Tours, HL_Admin_Course_Catalog, Coaching Hub with Coaches tab + per-coach Zoom settings + Retry Zoom, HL_Admin_Email_Templates, HL_Admin_Email_Builder, HL_Admin_Emails (workflows + send-test), Scheduling Settings with Coaching Session Defaults card + Coach Overrides Overview)
+    /frontend/                   # 34 shortcode page renderers (incl. User Profile, 5 coach pages with My Meeting Settings tile + modal on Coach Dashboard) + 5 form renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + schedule session renderer + instrument/teacher-assessment renderers
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, age group helpers + label remap (legacy)
   /assets/
