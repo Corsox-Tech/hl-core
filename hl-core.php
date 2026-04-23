@@ -386,6 +386,15 @@ class HL_Core {
             array( 'HL_Frontend_Coach_Dashboard', 'ajax_save_coach_zoom_settings' )
         );
 
+        // Coach Zoom settings: notify admins when a coach changes alternative_hosts (ticket #31, Task I1).
+        // Dispatched via wp_schedule_single_event() from HL_Coach_Zoom_Settings_Service::save_coach_overrides().
+        add_action(
+            'hl_notify_alt_hosts_change',
+            array( 'HL_Coach_Zoom_Settings_Service', 'cron_notify_alt_hosts_change' ),
+            10,
+            4
+        );
+
         // Initialize reporting service (registers rollup listener)
         HL_Reporting_Service::instance();
 

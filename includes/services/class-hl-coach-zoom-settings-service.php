@@ -552,4 +552,50 @@ class HL_Coach_Zoom_Settings_Service {
             delete_transient( $inflight_key );
         }
     }
+
+    /**
+     * WP-Cron handler — emails admins when a coach changes alternative_hosts.
+     *
+     * Dispatched via `wp_schedule_single_event( 'hl_notify_alt_hosts_change', ... )`
+     * from `save_coach_overrides()` whenever the alternative_hosts CSV actually
+     * changes. Recipients: all manage_hl_core users, capped at 50 defensively.
+     *
+     * @param int    $coach_user_id
+     * @param int    $actor_user_id
+     * @param string $before CSV of previous alternative_hosts value.
+     * @param string $after  CSV of new alternative_hosts value.
+     */
+    public static function cron_notify_alt_hosts_change( $coach_user_id, $actor_user_id, $before, $after ) {
+        $coach = get_userdata( $coach_user_id );
+        if ( ! $coach ) {
+            return; // user deleted between schedule + fire — drop silently
+        }
+
+        $actor      = get_userdata( $actor_user_id );
+        $actor_name = $actor ? $actor->display_name : __( 'Unknown user', 'hl-core' );
+        $coach_name = $coach->display_name;
+
+        $recipients = get_users( array(
+            'capability__in' => array( 'manage_hl_core' ),
+            'fields'         => array( 'user_email' ),
+            'number'         => 50,
+        ) );
+        $emails = array_filter( wp_list_pluck( $recipients, 'user_email' ) );
+        if ( empty( $emails ) ) {
+            return;
+        }
+
+        $subject = sprintf(
+            /* translators: %s = coach display name */
+            __( '[HL] %s updated their Zoom alternative hosts', 'hl-core' ),
+            $coach_name
+        );
+
+        $body  = sprintf( __( '%s updated their alternative-hosts list.', 'hl-core' ), $coach_name ) . "\n\n";
+        $body .= sprintf( __( 'Edited by: %s', 'hl-core' ), $actor_name ) . "\n";
+        $body .= sprintf( __( 'Before: %s', 'hl-core' ), $before === '' ? __( '(none)', 'hl-core' ) : $before ) . "\n";
+        $body .= sprintf( __( 'After:  %s', 'hl-core' ), $after  === '' ? __( '(none)', 'hl-core' ) : $after  ) . "\n";
+
+        wp_mail( $emails, $subject, $body );
+    }
 }
