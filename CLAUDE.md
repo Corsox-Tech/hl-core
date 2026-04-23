@@ -19,24 +19,32 @@ See `docs/B2E_MASTER_REFERENCE.md` for the complete product catalog.
 
 Every session. No exceptions. Before reading STATUS.md, before writing any code, before answering the user's first message:
 
-1. Run `git worktree list` and check your current directory.
-2. Branch logic:
+1. Run `git branch --show-current` to find your branch.
+2. Run `test -f .git && echo worktree || echo main-repo` to determine isolation state. (A worktree has `.git` as a file; the canonical main repo has `.git` as a directory.)
+3. Route based on branch:
 
-   **If your cwd is the main worktree** (the folder ends in `...\hl-core`):
-   - Your FIRST response must be: *"Which ticket are you working on today? (Or say 'no ticket' if you're exploring, reviewing, or just chatting.)"*
-   - If user names a ticket (e.g., "ticket 34"):
-     - Check `git worktree list` for a matching worktree.
-     - **Exists** → tell the user to `cd` there and run `claude` again; do NOT do ticket work in the main worktree.
-     - **Doesn't exist** → offer to run `bash bin/start-ticket.sh <N> [slug]` (slug = short lowercase-dash name). After the script creates the worktree, tell the user to `cd` and restart Claude there.
+   **Branch `main`:**
+   Your FIRST response must be: *"Which ticket are you working on today? (Or say 'no ticket' if you're exploring, reviewing, or just chatting.)"*
+   - If user names a ticket (e.g., "ticket 34 csv-export"):
+     - **If `main-repo`** (you're in the canonical plugin folder, e.g., CLI opened `claude` in the hl-core dir): offer to run `bash bin/start-ticket.sh <N> [slug]` (slug = short lowercase-dash name). After the script creates a sibling worktree, tell the user to `cd` into it and restart Claude there.
+     - **If `worktree`** (Desktop auto-worktree via the "worktree" checkbox, or any other isolated worktree on `main`): run `git checkout -b ticket-<N>-<slug>` in place. Confirm: *"Switched to `ticket-<N>-<slug>`. Working on ticket <N> in this worktree."* Then proceed.
    - If user says "no ticket" / "just exploring" / etc. → read-only mode. Do NOT modify tracked files.
 
-   **If your cwd is a ticket worktree** (the folder name starts with `hl-core-ticket-`):
-   - Your FIRST response must confirm: *"I see we're in the `<ticket-NN-slug>` worktree. Continuing work on ticket NN?"*
+   **Branch matches `ticket-<N>-<slug>`:**
+   - Your FIRST response must confirm: *"I see we're on `<branch-name>`. Continuing work on ticket `<N>`?"*
    - After confirmation, proceed with work.
 
-3. Full rules for parallel sessions, commits, and deploys live in `.claude/skills/parallel-sessions.md` — read it any time the user says "commit and push", "deploy to prod", or a git hook rejects something.
+   **Any other branch name:**
+   - Unusual. Ask the user what they want to do before acting (could be legacy work-in-progress or an accidental branch).
+
+4. Full rules for parallel sessions, commits, and deploys live in `.claude/skills/parallel-sessions.md` — read it any time the user says "commit and push", "deploy to prod", or a git hook rejects something.
 
 This rule is non-negotiable even if the user says "just do X, don't ask." The orientation check takes 5 seconds and prevents the class of incident that nuked prod on 2026-04-20.
+
+### Two entry points — pick what fits the context
+
+- **Claude Code CLI** (terminal `claude` in the plugin folder): use `bash bin/start-ticket.sh <N> [slug]`. It creates a sibling folder worktree, branched from the live prod SHA, and prints the exact `cd` + `claude` command to run. This is the canonical flow.
+- **Claude Code Desktop** (app with the "worktree" checkbox): pick branch `main` in the dropdown, keep the **worktree** box checked, and start the chat. Desktop creates an isolated worktree on `main`; Rule 0 routes you to `git checkout -b ticket-<N>-<slug>` in place, inside that Desktop worktree. No terminal needed. (If you want a pre-existing ticket branch instead, pick it from the dropdown before starting.)
 
 ## Mandatory Workflow Rules
 
