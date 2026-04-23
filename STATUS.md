@@ -520,7 +520,7 @@ Builds on the lint + clobber-guard that landed earlier in the session; adds dire
 - [x] **UI** — Admin Coaching Session Defaults card + Coach Overrides Overview in Scheduling & Integrations settings. Coaching Hub Retry Zoom button per session. Coach dashboard "My Meeting Settings" tile + modal + first-visit callout.
 - [x] **Tests** — 10 PHP test snippets in `bin/test-snippets/` (~100 assertions, all PASS on test).
 - [x] **Deployed to test** — 2026-04-23 SHA `fb5be30` on `feature/ticket-31-coach-zoom-settings` (v1.3.0). All 10 snippets PASS, live Zoom preflight verified.
-- [ ] **Deployed to prod** — Pending.
+- [x] **Deployed to prod** — 2026-04-23 SHA `9f7a2db` (merged `feature/workflow-ux-m1` @ `705bc01` forward into ticket-31 first, then shipped). v1.3.0, schema rev 45 live. Ticket #31 flipped to `ready_for_test` on prod 2026-04-23 11:04:54.
 
 ### RP Sessions & Action Plan — Edit Submission after Submit (Tickets #8 + #10 — April 2026)
 > #10 said the mentor couldn't re-edit their Action Plan after submitting in a coaching session. #8 said RP Notes should also stay editable after submit, like Action Plan & Results (which was only partially true — mentoring-context teachers could edit, coaching-context mentors could not). Unified both forms into one "Edit Submission" state machine: submit → readonly view with a status bar; Edit Submission → editable again with Save Changes + Cancel; updates preserve the original `submitted_at` and don't double-fire component-state side effects.
