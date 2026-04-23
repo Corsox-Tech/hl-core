@@ -1,7 +1,10 @@
 # CLAUDE.md — HL Core Plugin
 
-> **COMMIT CHECKLIST:** 1) Update STATUS.md (build queue checkboxes) + README.md ("What's Implemented") 2) Commit both alongside code 3) A task is NOT done until both are updated.
-> **BEFORE CONTEXT COMPACTION:** Commit all code → update STATUS.md + README.md with status (`[x]` done, `[~]` partial with notes) → commit & push → THEN compact.
+> **WHEN WORK IS DONE — just ask:** *"Ready to deploy?"* On "yes" (or "ship it" / "deploy to prod"): bump patch version + commit + `bash bin/deploy.sh prod` + `bash bin/deploy.sh test` (both; neither server auto-pulls). **No other prep questions.** Pick sensible defaults silently.
+>
+> **When to also update STATUS.md / README.md:** only for **new planned features** (ticking a Build Queue item off, or adding a new section to README's "What's Implemented"). For follow-up fixes, tiny adjustments, bug fixes on already-shipped tickets — **skip both**. The git log + ticket branches + prod manifest SHA are the record; STATUS.md/README.md are for humans skimming high-level capability, not for every 3-line tweak.
+>
+> **BEFORE CONTEXT COMPACTION:** commit all code on the current ticket branch → push → THEN compact. (If the ticket is a major feature milestone, also update STATUS.md/README.md as above.)
 
 ## Project Overview
 WordPress site for Housman Learning Academy. Primary target: **hl-core** custom plugin.
@@ -53,8 +56,17 @@ This rule is non-negotiable even if the user says "just do X, don't ask." The or
 
 ## Mandatory Workflow Rules
 
-### 0. Deploying to test or prod — ALWAYS use `bin/deploy.sh`
-> **Do not write ad-hoc `tar ... && scp ... && ssh ... rm -rf hl-core` chains. Do not `git push origin main` manually — the pre-push hook will refuse.** Use `bash bin/deploy.sh test` or `bash bin/deploy.sh prod`. The script enforces three guardrails that together prevent the class of incident that happened on **2026-04-20** (a parallel Claude session rolled back prod by deploying a stale branch):
+### 0. Deploying — default: prod first, then test. One command each.
+
+**When the user says "ready to deploy" / "ship it" / "deploy to prod" / "commit and deploy":**
+1. If code changes aren't committed yet, bump the patch version (`HL_CORE_VERSION` in `hl-core.php`, e.g., `1.3.2 → 1.3.3`) and commit everything together. **Don't ask about version bumps for small fixes — just do a patch bump.** Ask only if the change is large enough to justify minor/major.
+2. Run `bash bin/deploy.sh prod` from the ticket worktree.
+3. On prod success, immediately run `bash bin/deploy.sh test` — both servers are manual-deploy (neither auto-pulls from GitHub), and test drift is what caused the 2026-04-20 incident.
+4. Report: *"Prod + test both at SHA `<x>`, v<version>. Done."*
+
+Skip test deploy only if the user explicitly says "prod only." Don't ask about it otherwise — deploy both by default.
+
+**Do not write ad-hoc `tar ... && scp ... && ssh ... rm -rf hl-core` chains. Do not `git push origin main` manually — the pre-push hook will refuse.** The script enforces three guardrails that together prevent the class of incident that happened on **2026-04-20** (a parallel Claude session rolled back prod by deploying a stale branch):
 > 1. **Tarball source = `git ls-files`.** Only committed files ship. Dev artifacts (`.playwright-mcp/`, `.superpowers/`, untracked debug files) cannot leak.
 > 2. **Pre-deploy descendant check.** Reads `.deploy-manifest.json` on the target and aborts if local HEAD is not a descendant of the recorded SHA. Blocks stale-branch overwrites.
 > 3. **Main-sync on prod deploy.** After a successful prod deploy, the script fast-forwards `origin/main` to the deployed SHA (using `HL_DEPLOY_PUSH=1` as the sanctioned pre-push-hook bypass). This keeps `main` == prod manifest SHA at all times, so the next ticket branch starts from a correct base.
@@ -75,8 +87,19 @@ When user says "continue" / "keep going" / starts a new session: **DO NOT code i
 3. Ask: "Should I continue with [specific task], or something else?"
 4. Wait for confirmation before writing code
 
-### 3. ALWAYS update STATUS.md AND README.md
-After any feature/fix/refactor: update STATUS.md (check off build queue items `[x]`, mark partial `[~]`) AND update README.md ("What's Implemented" section, file tree if new files). Self-check: "Did I update BOTH files?"
+### 3. STATUS.md / README.md — only for meaningful milestones
+Update STATUS.md + README.md when:
+- A **new planned feature** from the Build Queue is being ticked off (check `[x]` on STATUS.md, add a line to README's "What's Implemented").
+- A **new capability, page, DB table, or major refactor** ships (README file tree may also need updating).
+
+**Do NOT update STATUS.md or README.md for:**
+- Small follow-up fixes or adjustments on already-shipped tickets (e.g., tweaking a rate limit, fixing a typo, relaxing a threshold).
+- Bug fixes that don't introduce new capability.
+- UX polish on existing features.
+
+The git log + prod manifest SHA + ticket branches are the authoritative record. STATUS.md/README.md are a human-readable summary of *major* capability — keep them skimmable, not exhaustive.
+
+If you're not sure whether a change qualifies: it probably doesn't. Ship the code, skip the docs update, ask the user only if they ask you to.
 
 ### 4. Before context compaction — see top-of-file checklist
 
