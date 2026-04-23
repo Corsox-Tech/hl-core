@@ -2869,14 +2869,14 @@ class HL_Admin_Emails {
             wp_send_json_error( 'Email domain not in allowlist. Allowed: @housmanlearning.com, @corsox.com, @yopmail.com' );
         }
 
-        // Transient rate limit: 5 per admin per 10 minutes.
+        // Transient rate limit: 10 per admin per 5 minutes (runaway-JS safety net only; admin cap + domain allowlist bound blast radius to internal inboxes).
         $user_id   = get_current_user_id();
         $cache_key = 'hl_send_test_' . $user_id;
         $count     = (int) get_transient( $cache_key );
-        if ( $count >= 5 ) {
-            wp_send_json_error( 'Rate limit reached. Please wait a few minutes before sending another test.' );
+        if ( $count >= 10 ) {
+            wp_send_json_error( 'Rate limit reached (10 test sends per 5 minutes). Please wait a moment before sending another test.' );
         }
-        set_transient( $cache_key, $count + 1, 600 );
+        set_transient( $cache_key, $count + 1, 300 );
 
         // Load template.
         global $wpdb;
