@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# bin/hooks/pre-push — refuse direct pushes to main.
+#
+# Only 'bash bin/deploy.sh prod' may update origin/main. The deploy script
+# sets HL_DEPLOY_PUSH=1 to signal it's a sanctioned push-through.
+#
+# Why: if origin/main can be updated outside of a deploy, it no longer tracks
+# what's on prod, and every future ticket branch starts from a lie.
+#
+# To bypass (emergency only): git push --no-verify  (document the reason)
+
+# Read stdin: <local-ref> <local-sha> <remote-ref> <remote-sha>
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ "$remote_ref" == "refs/heads/main" ]]; then
+    if [[ "${HL_DEPLOY_PUSH:-}" != "1" ]]; then
+      echo "━━━ Pre-push REFUSED ━━━"
+      echo
+      echo "  Direct pushes to 'main' are not allowed."
+      echo
+      echo "  main must track the prod manifest SHA. Only 'bash bin/deploy.sh prod'"
+      echo "  may update it (the deploy script syncs main after the server is"
+      echo "  updated, so SHAs stay in lockstep)."
+      echo
+      echo "  To ship a ticket to prod:"
+      echo "    bash bin/deploy.sh prod"
+      echo "  Run from inside your ticket worktree."
+      echo
+      exit 1
+    fi
+  fi
+done
+
+exit 0

@@ -215,6 +215,22 @@ else
   exit 3
 fi
 
+# ─── Sync GitHub main to deployed SHA (prod only) ───
+# Keeps origin/main in lockstep with the prod manifest SHA so every future
+# ticket branch starts from a correct base. The pre-push hook rejects manual
+# pushes to main; HL_DEPLOY_PUSH=1 is the sanctioned bypass for this step only.
+if [[ "$TARGET" == "prod" ]]; then
+  echo
+  echo "━━━ Syncing origin/main to deployed SHA ━━━"
+  if HL_DEPLOY_PUSH=1 git push origin "HEAD:refs/heads/main" 2>&1; then
+    echo "  ✓ origin/main now at $LOCAL_SHA"
+  else
+    echo "  ✗ Failed to push main. Prod is deployed but GitHub main is stale."
+    echo "    Fix manually when ready:"
+    echo "      HL_DEPLOY_PUSH=1 git push origin HEAD:main"
+  fi
+fi
+
 # ─── Clean up ───
 rm -f /tmp/hl-core.tar.gz
 "${SSH_CMD[@]}" "rm -f /tmp/hl-core.tar.gz"
