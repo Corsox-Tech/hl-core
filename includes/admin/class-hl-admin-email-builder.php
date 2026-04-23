@@ -108,7 +108,25 @@ class HL_Admin_Email_Builder {
                 <div class="hl-eb-settings-fields">
                     <div class="hl-eb-field">
                         <label><?php esc_html_e( 'Template Key', 'hl-core' ); ?></label>
-                        <input type="text" id="hl-eb-template-key" value="<?php echo esc_attr( $template->template_key ?? '' ); ?>" <?php echo $template ? 'readonly' : ''; ?>>
+                        <?php
+                        // Lock the template_key only if the template is referenced by a
+                        // workflow. Duplicates load as $template but are unreferenced, so
+                        // admins can rename them before first save.
+                        $is_referenced = false;
+                        if ( $template && ! empty( $template->template_id ) ) {
+                            global $wpdb;
+                            $is_referenced = (bool) $wpdb->get_var( $wpdb->prepare(
+                                "SELECT 1 FROM {$wpdb->prefix}hl_email_workflow WHERE template_id = %d LIMIT 1",
+                                (int) $template->template_id
+                            ) );
+                        }
+                        ?>
+                        <input type="text" id="hl-eb-template-key" name="template_key" value="<?php echo esc_attr( $template->template_key ?? '' ); ?>" <?php echo $is_referenced ? 'readonly' : ''; ?>>
+                        <?php if ( $is_referenced ) : ?>
+                            <p class="description"><?php esc_html_e( 'Template key is locked because workflows reference this template.', 'hl-core' ); ?></p>
+                        <?php elseif ( $template ) : ?>
+                            <p class="description"><?php esc_html_e( 'Editing the key will change how this template is identified in seeder scripts.', 'hl-core' ); ?></p>
+                        <?php endif; ?>
                     </div>
                     <div class="hl-eb-field hl-eb-field--wide">
                         <label><?php esc_html_e( 'Name', 'hl-core' ); ?></label>
