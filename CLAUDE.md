@@ -15,12 +15,38 @@ See `docs/B2E_MASTER_REFERENCE.md` for the complete product catalog.
 - **LearnDash:** `../sfwd-lms/` — hooks/functions reference.
 - **data/** — Private Excel files. Gitignored, never commit.
 
+## Rule 0: Session Start Protocol (BEFORE anything else)
+
+Every session. No exceptions. Before reading STATUS.md, before writing any code, before answering the user's first message:
+
+1. Run `git worktree list` and check your current directory.
+2. Branch logic:
+
+   **If your cwd is the main worktree** (the folder ends in `...\hl-core`):
+   - Your FIRST response must be: *"Which ticket are you working on today? (Or say 'no ticket' if you're exploring, reviewing, or just chatting.)"*
+   - If user names a ticket (e.g., "ticket 34"):
+     - Check `git worktree list` for a matching worktree.
+     - **Exists** → tell the user to `cd` there and run `claude` again; do NOT do ticket work in the main worktree.
+     - **Doesn't exist** → offer to run `bash bin/start-ticket.sh <N> [slug]` (slug = short lowercase-dash name). After the script creates the worktree, tell the user to `cd` and restart Claude there.
+   - If user says "no ticket" / "just exploring" / etc. → read-only mode. Do NOT modify tracked files.
+
+   **If your cwd is a ticket worktree** (the folder name starts with `hl-core-ticket-`):
+   - Your FIRST response must confirm: *"I see we're in the `<ticket-NN-slug>` worktree. Continuing work on ticket NN?"*
+   - After confirmation, proceed with work.
+
+3. Full rules for parallel sessions, commits, and deploys live in `.claude/skills/parallel-sessions.md` — read it any time the user says "commit and push", "deploy to prod", or a git hook rejects something.
+
+This rule is non-negotiable even if the user says "just do X, don't ask." The orientation check takes 5 seconds and prevents the class of incident that nuked prod on 2026-04-20.
+
 ## Mandatory Workflow Rules
 
 ### 0. Deploying to test or prod — ALWAYS use `bin/deploy.sh`
-> **Do not write ad-hoc `tar ... && scp ... && ssh ... rm -rf hl-core` chains.** Use `bash bin/deploy.sh test` or `bash bin/deploy.sh prod`. The script enforces two guardrails that prevent a class of incident that happened on **2026-04-20** (a parallel Claude session rolled back prod by deploying a stale branch):
+> **Do not write ad-hoc `tar ... && scp ... && ssh ... rm -rf hl-core` chains. Do not `git push origin main` manually — the pre-push hook will refuse.** Use `bash bin/deploy.sh test` or `bash bin/deploy.sh prod`. The script enforces three guardrails that together prevent the class of incident that happened on **2026-04-20** (a parallel Claude session rolled back prod by deploying a stale branch):
 > 1. **Tarball source = `git ls-files`.** Only committed files ship. Dev artifacts (`.playwright-mcp/`, `.superpowers/`, untracked debug files) cannot leak.
 > 2. **Pre-deploy descendant check.** Reads `.deploy-manifest.json` on the target and aborts if local HEAD is not a descendant of the recorded SHA. Blocks stale-branch overwrites.
+> 3. **Main-sync on prod deploy.** After a successful prod deploy, the script fast-forwards `origin/main` to the deployed SHA (using `HL_DEPLOY_PUSH=1` as the sanctioned pre-push-hook bypass). This keeps `main` == prod manifest SHA at all times, so the next ticket branch starts from a correct base.
+>
+> The pre-commit hook also refuses direct commits on `main`, and the pre-push hook refuses any manual push to `main`. Ticket branches are mandatory (see `bin/start-ticket.sh`).
 >
 > Raw `tar/scp` is only acceptable as an emergency escape hatch documented in `.claude/skills/deploy.md`, and only when the script is provably broken.
 >
@@ -79,27 +105,37 @@ Code, DB, and UI all use the same terms now — no remapping layer needed.
 
 ## Environment
 Local files = editing workspace only (no PHP locally). Default target: **test server** (AWS Lightsail).
-Claude Code launches from this directory (plugin root). GitHub: `Corsox-Tech/hl-core`, branch: `main`.
+GitHub: `Corsox-Tech/hl-core`. Default/prod branch: `main` — `main` always equals the prod manifest SHA (enforced via `bin/deploy.sh` + hooks). Ticket work happens in sibling worktrees at `../hl-core-ticket-<N>[-<slug>]/` created by `bash bin/start-ticket.sh`. The main worktree at `...\hl-core` only ever holds the `main` branch — never ticket work.
 
 ## On-Demand References
+- **Parallel sessions / ticket worktrees / commit + deploy rules:** `.claude/skills/parallel-sessions.md`
 - **Deployment (ALWAYS use `bin/deploy.sh`):** `.claude/skills/deploy.md`
 - **2026-04-20 rollback incident + guardrail design:** `docs/superpowers/plans/2026-04-20-email-registry-cleanup-progress.md` (full evidence log) + `docs/superpowers/plans/2026-04-20-email-registry-cleanup.md` (spec + architecture)
+- **Workflow design spec (this model):** `docs/superpowers/specs/2026-04-23-parallel-sessions-workflow-design.md`
 - **Domain architecture, roles, forms, control groups:** `.claude/skills/architecture.md`
 - **Security posture, hardening, incident log, checklists:** `.claude/skills/security.md`
 - **Full implementation details, architecture tree:** `README.md`
 - **Doc file index:** in `.claude/skills/architecture.md` (top section)
 
-## Deploy quick reference
+## Workflow quick reference
 ```bash
-# Deploy to test (AWS Lightsail):
+# Start a new ticket (creates a sibling worktree, branched from live prod SHA):
+bash bin/start-ticket.sh 34 csv-export
+# Then: cd ../hl-core-ticket-34-csv-export && claude
+
+# Deploy to test (AWS Lightsail) — from inside the ticket worktree:
 bash bin/deploy.sh test
 
-# Deploy to prod (Hostinger; requires explicit user approval per session):
+# Deploy to prod (Hostinger) — from inside the ticket worktree:
 bash bin/deploy.sh prod
+# This also fast-forwards origin/main so it tracks prod.
+
+# Finish a ticket after prod is green — removes worktree + deletes branch:
+bash bin/finish-ticket.sh
 
 # Check what's currently on a target:
 ssh -p 65002 u665917738@145.223.76.150 'cat /home/u665917738/domains/academy.housmanlearning.com/public_html/wp-content/plugins/hl-core/.deploy-manifest.json'
 ssh -i ~/.ssh/hla-test-keypair.pem bitnami@44.221.6.201 'cat /opt/bitnami/wordpress/wp-content/plugins/hl-core/.deploy-manifest.json'
 ```
 
-Running multiple Claude sessions in parallel is fine — the descendant check guarantees that a stale session cannot overwrite a newer one's work. If the script aborts with "NOT a descendant," **read the manifest** and investigate before using `--force`. The abort is almost always correct.
+Multiple Claude sessions in parallel is safe BY CONSTRUCTION under this model: each ticket lives in its own worktree folder with its own branch, so `git checkout` in session A cannot mutate files session B is editing. The pre-commit/pre-push hooks + deploy-time descendant check catch anything that slips past orientation. If any hook or `bin/deploy.sh` aborts, **read the error** and fix the root cause — never `--force` or `--no-verify` without explicit user approval for that specific action.

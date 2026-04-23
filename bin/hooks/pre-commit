@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# bin/hooks/pre-commit — refuse direct commits to main.
+#
+# Why: main MUST equal the prod manifest SHA at all times. Committing on main
+# locally means main drifts from prod before the deploy step can verify anything.
+# Forcing ticket branches is what makes the parallel-sessions workflow safe.
+#
+# To bypass (emergency only): git commit --no-verify  (document the reason)
+
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+
+if [[ "$BRANCH" == "main" ]]; then
+  echo "━━━ Pre-commit REFUSED ━━━"
+  echo
+  echo "  Direct commits to 'main' are not allowed."
+  echo
+  echo "  main must track what's on prod. Commit on a ticket branch instead."
+  echo
+  echo "  To start a ticket:"
+  echo "    bash bin/start-ticket.sh <ticket-number> [slug]"
+  echo
+  echo "  Then cd into the new worktree and commit there."
+  echo
+  exit 1
+fi
+
+exit 0
