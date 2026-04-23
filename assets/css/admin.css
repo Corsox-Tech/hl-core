@@ -1571,6 +1571,7 @@
     letter-spacing: 0.5px;
     color: var(--eb-muted);
     user-select: none;
+    cursor: grab;
 }
 
 .hl-eb-block-actions {

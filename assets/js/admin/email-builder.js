@@ -715,10 +715,14 @@
         sortableInstance = new Sortable(el, {
             // A.1.1: distinct handle class for top-level, filter out nested blocks so the
             // top-level Sortable cannot intercept drags that belong to a nested column.
-            filter: '.hl-eb-block-nested',
-            preventOnFilter: false,
+            // Yuyan bug 3: widen handle from the 11px type label to the full toolbar row
+            // so the cursor:grab hint in CSS actually matches the grabbable surface.
+            // Per-block action buttons (duplicate/delete) are filtered out so clicking
+            // them doesn't initiate a drag.
+            filter: '.hl-eb-block-nested, .hl-eb-block-actions, .hl-eb-block-actions *',
+            preventOnFilter: true,
             animation: 150,
-            handle: '.hl-eb-block-type:not(.hl-eb-block-type-nested)',
+            handle: '.hl-eb-block-toolbar:not(.hl-eb-block-toolbar-nested)',
             onEnd: function (evt) {
                 pushUndo();
                 var item = blocks.splice(evt.oldIndex, 1)[0];
