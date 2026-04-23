@@ -1684,11 +1684,57 @@ class HL_Admin_Emails {
             </div>
         </div>
 
-        <?php if ( ( $_GET['hl_notice'] ?? '' ) === 'activation_blocked' ) : ?>
-            <div class="notice notice-error" style="margin:0 0 16px;">
-                <p>Cannot activate: please select an email template first.</p>
-            </div>
-        <?php endif; ?>
+        <?php
+        // Render admin notices for save/activate/error redirects. All messages are
+        // hard-coded constants here — $hl_error is the only user-adjacent string and
+        // is always escaped before render.
+        $hl_notice = sanitize_key( $_GET['hl_notice'] ?? '' );
+        $hl_error  = isset( $_GET['hl_error'] ) ? wp_unslash( $_GET['hl_error'] ) : '';
+        if ( $hl_notice ) :
+            switch ( $hl_notice ) {
+                case 'activation_blocked':
+                    ?>
+                    <div class="notice notice-error" style="margin:0 0 16px;">
+                        <p><?php esc_html_e( 'Cannot activate: please select an email template first.', 'hl-core' ); ?></p>
+                    </div>
+                    <?php
+                    break;
+                case 'workflow_saved':
+                    ?>
+                    <div class="notice notice-success" style="margin:0 0 16px;">
+                        <p><?php esc_html_e( 'Workflow saved.', 'hl-core' ); ?></p>
+                    </div>
+                    <?php
+                    break;
+                case 'workflow_activated':
+                    ?>
+                    <div class="notice notice-success" style="margin:0 0 16px;">
+                        <p><?php esc_html_e( 'Workflow activated.', 'hl-core' ); ?></p>
+                    </div>
+                    <?php
+                    break;
+                case 'invalid_trigger':
+                    ?>
+                    <div class="notice notice-error" style="margin:0 0 16px;">
+                        <p><?php esc_html_e( 'Please select a trigger category and event before saving.', 'hl-core' ); ?></p>
+                    </div>
+                    <?php
+                    break;
+                case 'invalid_payload':
+                    ?>
+                    <div class="notice notice-error" style="margin:0 0 16px;">
+                        <p>
+                            <?php esc_html_e( 'Workflow could not be saved. Check that all required fields are filled.', 'hl-core' ); ?>
+                            <?php if ( $hl_error !== '' ) : ?>
+                                <br><em><?php echo esc_html( $hl_error ); ?></em>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                    <?php
+                    break;
+            }
+        endif;
+        ?>
 
         <?php // ── Form wrapper ─────────────────────────────────────────────── ?>
         <form id="hl-wf-form-v2" method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=hl-emails&tab=workflows' ) ); ?>" class="hl-workflow-form hl-wf-v2">
@@ -2213,7 +2259,8 @@ class HL_Admin_Emails {
             }
         }
 
-        wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=workflows&hl_notice=workflow_saved' ) );
+        $notice_key = ( $data['status'] === 'active' ) ? 'workflow_activated' : 'workflow_saved';
+        wp_redirect( admin_url( 'admin.php?page=hl-emails&tab=workflows&hl_notice=' . $notice_key ) );
         exit;
     }
 
