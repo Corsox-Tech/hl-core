@@ -502,6 +502,17 @@ Builds on the lint + clobber-guard that landed earlier in the session; adds dire
 - [ ] **Deployed to test** — Pending.
 - [ ] **Deployed to prod** — Pending.
 
+### Coach Zoom Meeting Settings (Ticket #31 — April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-22-coach-zoom-meeting-settings.md` | **Plan:** `docs/superpowers/plans/2026-04-22-coach-zoom-meeting-settings.md`
+> **Branch:** `feature/ticket-31-coach-zoom-settings` | **Schema rev:** 44 → 45
+- [x] Coach Zoom Meeting Settings (ticket #31) — admin defaults + per-coach overrides for waiting room, mute on entry, join before host, alternative hosts; admin-only passcode + Zoom sign-in toggles; Retry Zoom path with idempotency lock; preflight alt_hosts validation; mentor "link coming shortly" fallback. Recording + AI Companion remain Zoom-account-level. (See `docs/superpowers/specs/2026-04-22-coach-zoom-meeting-settings.md`.)
+- [x] **Schema + service** — New `hl_coach_zoom_settings` table (schema rev 45, sparse per-coach overrides, transactional writes). `HL_Coach_Zoom_Settings_Service` with admin defaults (`hl_zoom_coaching_defaults` option), 3-tier resolve (coach → admin → hardcoded), preflight alt-host validation, delete-user cleanup, cron notification on alt-hosts change.
+- [x] **Integration wiring** — `HL_Zoom_Integration::build_meeting_payload()` now 2-arg (accepts resolved settings). `HL_Scheduling_Service::book_session()` + `reschedule_session_with_integrations()` resolve coach settings before payload build. `retry_zoom_meeting()` + AJAX for Retry Zoom admin action. `send_zoom_link_ready()` on retry success; opt-in "link coming shortly" fallback in booked/rescheduled emails.
+- [x] **UI** — Admin Coaching Session Defaults card + Coach Overrides Overview in Scheduling & Integrations settings. Coaching Hub Retry Zoom button per session. Coach dashboard "My Meeting Settings" tile + modal + first-visit callout.
+- [x] **Tests** — 9 PHP test snippets in `bin/test-snippets/` (~100 assertions, all PASS).
+- [ ] **Deployed to test** — Pending (I3).
+- [ ] **Deployed to prod** — Pending.
+
 ### Lower Priority (Future)
 - [ ] Scope-based user creation for client leaders
 - [ ] Import templates (downloadable CSV)
