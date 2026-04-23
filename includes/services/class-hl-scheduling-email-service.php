@@ -63,7 +63,8 @@ class HL_Scheduling_Email_Service {
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($session_data['mentor_name'])),
                 HL_Admin_Email_Templates::merge($tpl_mentor['body'], $merge_base),
                 $mentor_time,
-                $meeting_url
+                $meeting_url,
+                true
             )
         );
 
@@ -77,9 +78,51 @@ class HL_Scheduling_Email_Service {
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($session_data['coach_name'])),
                 HL_Admin_Email_Templates::merge($tpl_coach['body'], $merge_coach),
                 $coach_time,
-                $meeting_url
+                $meeting_url,
+                true
             )
         );
+    }
+
+    /**
+     * Send "Your Zoom link is ready" follow-up email after a successful retry.
+     *
+     * Distinct subject from send_session_booked() so the mentor doesn't
+     * mistake it for a duplicate booking confirmation — it's the follow-up
+     * to a previous booking where the Zoom link was not yet available.
+     *
+     * Recipient: mentor only (the coach already has the meeting on their
+     * own Zoom dashboard; no second notification needed).
+     *
+     * @param array $data {
+     *     @type string $mentor_name
+     *     @type string $mentor_email
+     *     @type string $mentor_timezone
+     *     @type string $coach_name
+     *     @type string $coach_email      (unused here, kept for caller symmetry)
+     *     @type string $coach_timezone   (unused here, kept for caller symmetry)
+     *     @type string $session_datetime WP local time (Y-m-d H:i:s).
+     *     @type string $meeting_url      Zoom join URL (required here).
+     * }
+     */
+    public function send_zoom_link_ready($data) {
+        $mentor_tz = !empty($data['mentor_timezone']) ? $data['mentor_timezone'] : wp_timezone_string();
+        $time_display = $this->format_time_in_tz(
+            $data['session_datetime'] ?? '',
+            $mentor_tz
+        );
+
+        $greeting = sprintf(__('Hi %s,', 'hl-core'), esc_html($data['mentor_name'] ?? ''));
+        $message  = sprintf(
+            /* translators: %s = coach name */
+            __('Your Zoom link for the coaching session with %s is ready. The link is below.', 'hl-core'),
+            esc_html($data['coach_name'] ?? '')
+        );
+
+        $html    = $this->build_branded_body($greeting, $message, $time_display, $data['meeting_url'] ?? '');
+        $subject = __('Your Zoom link is ready for your coaching session', 'hl-core');
+
+        $this->send($data['mentor_email'], $subject, $html);
     }
 
     /**
@@ -110,7 +153,8 @@ class HL_Scheduling_Email_Service {
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($new_session['mentor_name'])),
                 HL_Admin_Email_Templates::merge($tpl_mentor['body'], $merge_mentor),
                 $new_mentor_time,
-                $meeting_url
+                $meeting_url,
+                true
             )
         );
 
@@ -129,7 +173,8 @@ class HL_Scheduling_Email_Service {
                 sprintf(__('Hello %s,', 'hl-core'), esc_html($new_session['coach_name'])),
                 HL_Admin_Email_Templates::merge($tpl_coach['body'], $merge_coach),
                 $new_coach_time,
-                $meeting_url
+                $meeting_url,
+                true
             )
         );
     }
@@ -339,10 +384,14 @@ class HL_Scheduling_Email_Service {
      * @param string $message     Main message HTML.
      * @param string $time_display Formatted date/time string (for details block).
      * @param string $meeting_url  Zoom link (optional).
+     * @param bool   $show_missing_url_notice When true, emit a "link coming shortly"
+     *                                        fallback block if $meeting_url is empty.
+     *                                        Default false so cancellation / admin
+     *                                        callers don't leak client-facing copy.
      * @return string Full HTML.
      */
-    private function build_body($greeting, $message, $time_display, $meeting_url) {
-        return $this->build_branded_body($greeting, $message, $time_display, $meeting_url);
+    private function build_body($greeting, $message, $time_display, $meeting_url, $show_missing_url_notice = false) {
+        return $this->build_branded_body($greeting, $message, $time_display, $meeting_url, $show_missing_url_notice);
     }
 
     /**
@@ -385,9 +434,13 @@ class HL_Scheduling_Email_Service {
      * @param string $message     Main message HTML.
      * @param string $time_display Formatted date/time string (for details block).
      * @param string $meeting_url  Zoom link (optional).
+     * @param bool   $show_missing_url_notice When true, emit a "link coming shortly"
+     *                                        fallback block if $meeting_url is empty.
+     *                                        Default false so cancellation / admin
+     *                                        callers don't leak client-facing copy.
      * @return string Full HTML.
      */
-    public function build_branded_body($greeting, $message, $time_display, $meeting_url) {
+    public function build_branded_body($greeting, $message, $time_display, $meeting_url, $show_missing_url_notice = false) {
         $logo_url = 'https://academy.housmanlearning.com/wp-content/uploads/2024/09/Housman-Learning-Logo-Horizontal-Color.svg';
 
         $html  = '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;">';
@@ -409,11 +462,17 @@ class HL_Scheduling_Email_Service {
             $html .= '</div>';
         }
 
-        // Zoom button.
+        // Zoom button (or fallback when meeting_url is empty, opt-in by caller).
         if (!empty($meeting_url)) {
             $html .= '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:24px 0;"><tr><td align="center">';
             $html .= '<a href="' . esc_url($meeting_url) . '" style="display:inline-block;background:#2d8cff;color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;padding:14px 40px;border-radius:8px;">Join Zoom Meeting</a>';
             $html .= '</td></tr></table>';
+        } elseif ($show_missing_url_notice) {
+            // Zoom create failed (or skipped). Generic copy because the reschedule
+            // path does NOT call send_zoom_fallback() today (pre-existing gap).
+            $html .= '<p style="margin:24px 0;padding:12px 16px;background:#fff7ed;border-left:4px solid #f97316;border-radius:4px;font-size:14px;color:#9a3412;">'
+                . esc_html__( 'Your Zoom meeting link will be sent shortly. We\'ll be in touch.', 'hl-core' )
+                . '</p>';
         }
 
         $html .= '</td></tr>';

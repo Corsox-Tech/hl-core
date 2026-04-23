@@ -11,7 +11,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 
 ## What's Implemented
 
-### Database Schema (57 active custom tables + 1 planned)
+### Database Schema (58 active custom tables + 1 planned)
 - **Org & Partnership/Cycle:** `hl_orgunit` (+ `bb_group_id` FK to BuddyBoss group, schema rev 40), `hl_cycle` (with `is_control_group` flag + `cycle_type` column: program/course), `hl_cycle_school`, `hl_partnership` (program-level container)
 - **Individual Enrollments (PLANNED):** `hl_individual_enrollment` (user_id, course_id, enrolled_at, expires_at, status) — for standalone course purchases
 - **Participation:** `hl_enrollment`, `hl_team`, `hl_team_membership`
@@ -22,7 +22,7 @@ HL Core is the system-of-record plugin for Housman Learning Academy Cycle and Pa
 - **Instruments:** `hl_instrument` (child assessment instruments with `instructions` + `behavior_key` + `styles_json` columns for admin-customizable content and display styles), `hl_teacher_assessment_instrument` (custom teacher self-assessment instruments with structured sections JSON + `instructions` + `styles_json` columns for per-instrument rich text instructions and admin-customizable display styles)
 - **Assessments:** `hl_teacher_assessment_instance` (completion tracking + responses_json for custom instruments), `hl_teacher_assessment_response` (DEPRECATED), `hl_child_assessment_instance`, `hl_child_assessment_childrow`
 - **Observations:** `hl_observation`, `hl_observation_response` (DEPRECATED), `hl_observation_attachment`
-- **Coaching:** `hl_coaching_session`, `hl_coaching_session_observation`, `hl_coaching_attachment`, `hl_coaching_session_submission`, `hl_coach_assignment` (coach scope assignments), `hl_coach_availability` (recurring weekly schedule blocks)
+- **Coaching:** `hl_coaching_session`, `hl_coaching_session_observation`, `hl_coaching_attachment`, `hl_coaching_session_submission`, `hl_coach_assignment` (coach scope assignments), `hl_coach_availability` (recurring weekly schedule blocks), `hl_coach_zoom_settings` (per-coach Zoom meeting overrides: waiting_room/mute/join_before_host/alt_hosts; sparse, transactional; schema rev 45)
 - **Cross-Pathway Events:** `hl_rp_session`, `hl_rp_session_submission`, `hl_classroom_visit`, `hl_classroom_visit_submission`
 - **Guided Tours:** `hl_tour` (tour definitions with trigger type, target roles, status), `hl_tour_step` (ordered steps with element selector, position, step type), `hl_tour_seen` (per-user seen tracking)
 - **Feature Tracker:** `hl_ticket` (tickets with type/priority/status enums incl. `ready_for_test`/`test_failed` QA workflow + `cancelled` for author/admin withdrawal, 2hr edit window, `manage_hl_core`-gated status changes + creator approve/reject, `status_updated_at` + `cancelled_at`/`cancelled_by_user_id`/`cancel_reason` — schema rev 44), `hl_ticket_comment` (flat comments per ticket)
@@ -66,7 +66,8 @@ All 12 core entities have domain model classes with proper properties. 12 of 12 
 - **SchedulingService** - Coaching session scheduling orchestrator: available slot calculation (coach availability minus Outlook calendar conflicts minus existing HL sessions), booking with Zoom meeting + Outlook event + email notifications, reschedule with old integration cleanup + new creation, cancellation with integration cleanup. 4 AJAX endpoints (get_available_slots, book_session, reschedule_session, cancel_session). Permission checks (mentor own, coach assigned, admin all). Lead time rules. Transient-cached Outlook calendar queries.
 - **SchedulingEmailService** - Branded HTML email notifications for session booked/rescheduled/cancelled events, plus fallback emails for Outlook and Zoom API failures. HLA-branded template with logo, timezone-aware time display. **Subjects and body copy pulled from admin-editable templates** (HL_Admin_Email_Templates wp_options) with merge tag replacement (`{{mentor_name}}`, `{{coach_name}}`, `{{session_date}}`, etc.). Falls back to hardcoded defaults if no customization saved.
 - **MicrosoftGraph** - Microsoft Graph API client: client credentials OAuth2 flow, calendar CRUD (calendarView, create/update/delete events), token caching via transients, coach email resolution (hl_microsoft_email usermeta override).
-- **ZoomIntegration** - Zoom Server-to-Server OAuth client: S2S account credentials flow, meeting CRUD (create/update/delete), token caching, coach email resolution (hl_zoom_email usermeta override).
+- **ZoomIntegration** - Zoom Server-to-Server OAuth client: S2S account credentials flow, meeting CRUD (create/update/delete), token caching, coach email resolution (hl_zoom_email usermeta override). `build_meeting_payload($session, $resolved_settings)` 2-arg form consumes resolved coach settings.
+- **CoachZoomSettingsService** (Ticket #31) — Per-coach Zoom meeting settings with admin defaults. Admin defaults stored in `hl_zoom_coaching_defaults` wp_option. Coach overrides stored sparse in `hl_coach_zoom_settings` (only non-default values written). 3-tier resolve (coach override → admin default → hardcoded). Preflight validation for `alternative_hosts` (Zoom API lookup). Retry-Zoom path (`retry_zoom_meeting()` + AJAX) with idempotency lock; fires `send_zoom_link_ready()` email on success. Delete-user cleanup via `user_deleted` hook. WP-Cron notification when admin changes alt_hosts list (informs affected coaches). Admin-only toggles for passcode + Zoom sign-in; recording + AI Companion remain Zoom-account-level.
 - **TourService** - Guided tour context resolution: matches tours to current page + user roles + trigger type, seen tracking (mark_seen AJAX), global styles CRUD, step reorder (save_step_order AJAX), step data delivery (get_steps AJAX), element picker mode detection (is_picker_mode + get_view_as_role)
 - **TicketService** - Feature Tracker ticket CRUD + comments, permission checks (2hr edit window, CREATOR_LOCKED_STATUSES for QA + cancelled states, `current_user_can('manage_options')`-gated status changes and cancel-any — hardcoded ADMIN_EMAIL removed rev 44; coaches can use the tracker but not admin other people's tickets), creator_review_ticket() with optimistic locking for approve/reject from ready_for_test, cancel_ticket() for author withdrawal {draft,open,in_review} / admin any non-terminal with optimistic lock + audit, search/filter with enum whitelisting + esc_like + DEFAULT_HIDDEN_STATUSES (closed + cancelled), status transitions with resolved_at + cancel-metadata lifecycle, audit logging on all mutations
 - **Email System Services** (8 services — Email System v2 Track 3 Task 1 added `HL_Roles`):
@@ -330,6 +331,13 @@ Ticket #27 (Yuyan). Three confirmed UI bugs in the workflow builder. Surgical fi
 - **Template Key editable on duplicates** — `class-hl-admin-email-builder.php` Template Key input now unlocks when no workflow references the template (fresh duplicates qualify). UNIQUE index on `hl_email_template.template_key` continues to block collisions server-side.
 - **Drag-drop handle** — top-level block Sortable handle widened from `.hl-eb-block-type` (11px label) to the full `.hl-eb-block-toolbar` row; per-block action buttons filtered out so clicks don't initiate drags; `cursor: grab` added to the type label for discoverability.
 
+### Coach Zoom Meeting Settings (Ticket #31 — April 2026)
+- **Per-coach Zoom overrides + admin defaults** — New `hl_coach_zoom_settings` table (schema rev 44→45) stores sparse per-coach overrides for `waiting_room`, `mute_upon_entry`, `join_before_host`, and `alternative_hosts`. Admin defaults live in `hl_zoom_coaching_defaults` wp_option. `HL_Coach_Zoom_Settings_Service` resolves in 3 tiers (coach override → admin default → hardcoded fallback) before every Zoom meeting creation. Passcode and require-Zoom-sign-in remain admin-only toggles; recording + AI Companion stay Zoom-account-level (out of scope). Spec: `docs/superpowers/specs/2026-04-22-coach-zoom-meeting-settings.md`.
+- **Integration wiring** — `HL_Zoom_Integration::build_meeting_payload($session, $resolved_settings)` now takes resolved settings as a 2nd arg. `HL_Scheduling_Service::book_session()` and `reschedule_session_with_integrations()` call the resolver before payload build. `retry_zoom_meeting()` + AJAX provide a "Retry Zoom" admin action on the Coaching Hub (idempotency-locked); fires `send_zoom_link_ready()` email on success. Booked/rescheduled emails include an opt-in "link coming shortly" fallback when the Zoom call fails at booking time.
+- **Preflight + lifecycle** — `alternative_hosts` are preflighted against the Zoom users API before save (returns a validation error listing unmatched emails). `user_deleted` hook clears the coach's settings row. A WP-Cron job notifies affected coaches when an admin changes the shared alt-hosts list.
+- **UI** — Admin "Coaching Session Defaults" card + "Coach Overrides Overview" in Scheduling & Integrations. Coaching Hub "Retry Zoom" button per session. Coach dashboard "My Meeting Settings" tile, modal (`coach-zoom-settings-modal.php` + `coach-zoom-settings.js` + `coach-zoom-settings.css`), and first-visit callout.
+- **Tests** — 9 PHP test snippets in `bin/test-snippets/` (~100 assertions total, all PASS): admin defaults, build_payload, delete_user, get/save overrides, link_ready email, preflight, resolve, retry, validate.
+
 ---
 
 ## Build Queue
@@ -347,21 +355,29 @@ See `STATUS.md` for the current build queue and task tracking.
     /domain/                     # Entity models (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Teacher_Assessment_Instrument)
     /domain/repositories/        # CRUD repositories (11 classes: OrgUnit, Partnership, Cycle, Enrollment, Team, Classroom, Child, Pathway, Component, Course_Catalog, Tour)
     /cli/                        # WP-CLI commands (21 commands incl. seed-demo, seed-lutheran, nuke, create-pages, setup-elcpb-y2-v2, setup-ea, setup-short-courses, smoke-test, migrate-routing-types, sync-ld-enrollment, test-email-renderer, bb-sync) + data files
-    /services/                   # Business logic (34 services incl. 7 email system: HL_Email_Block_Renderer, HL_Email_Merge_Tag_Registry, HL_Email_Rate_Limit_Service, HL_Email_Condition_Evaluator, HL_Email_Recipient_Resolver, HL_Email_Queue_Processor, HL_Email_Automation_Service + HL_BB_Group_Sync_Service)
+    /services/                   # Business logic (35 services incl. 7 email system: HL_Email_Block_Renderer, HL_Email_Merge_Tag_Registry, HL_Email_Rate_Limit_Service, HL_Email_Condition_Evaluator, HL_Email_Recipient_Resolver, HL_Email_Queue_Processor, HL_Email_Automation_Service + HL_BB_Group_Sync_Service + HL_Coach_Zoom_Settings_Service (ticket #31))
+      class-hl-coach-zoom-settings-service.php  # (new) Per-coach Zoom overrides + admin defaults, 3-tier resolve, preflight, retry, delete-user cleanup
     /migrations/                 # Data migrations (HL_Email_Template_Migration)
     /security/                   # Capabilities + authorization
     /integrations/               # LearnDash + BuddyBoss + Microsoft Graph + Zoom (5 classes, JFB legacy)
     /admin/                      # WP admin pages (23 controllers incl. HL_Admin_Emails 4-tab page, HL_Admin_Email_Builder block editor, Partnerships, Cycles, Assessment Hub, Coaching Hub, Email Templates, Scheduling Settings, Tours, Course Catalog, BB Groups Settings)
     /frontend/                   # 34 shortcode page renderers + 5 form/dispatch renderers (RP Notes, Action Plan, Self-Reflection, Classroom Visit, RP Session) + schedule session renderer + instrument renderer + teacher assessment renderer
+      /views/
+        coach-zoom-settings-modal.php   # (new, ticket #31) Coach "My Meeting Settings" modal markup
     /api/                        # REST API routes
     /utils/                      # DB, date, normalization, age group helpers, HL_Page_Cache (shortcode→page-ID persistent cache) + label remap (legacy)
   /data/                         # Private data files (gitignored)
   /assets/
-    /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css
+    /css/                        # admin.css, admin-import-wizard.css, admin-teacher-editor.css, frontend.css, frontend-docs.css, coach-zoom-settings.css (ticket #31)
     /css/vendor/                 # driver.css (Driver.js 1.4.0 styles)
-    /js/                         # admin-import-wizard.js, admin-teacher-editor.js, hl-tour-admin.js, hl-tour.js, hl-element-picker.js, frontend.js, frontend-docs.js
+    /js/                         # admin-import-wizard.js, admin-teacher-editor.js, hl-tour-admin.js, hl-tour.js, hl-element-picker.js, frontend.js, frontend-docs.js, coach-zoom-settings.js (ticket #31), admin-coach-zoom-retry.js (ticket #31)
     /js/admin/                   # email-builder.js (Sortable.js CDN, block CRUD, contenteditable, autosave, preview), email-workflow.js (workflow UX v2 card layout, progressive disclosure, activation guardrails)
     /js/vendor/                  # driver.js (Driver.js 1.4.0 bundled, MIT)
+  /bin/
+    deploy.sh                    # Canonical deploy script (git ls-files + .deploy-manifest.json descendant check)
+    seed-email-workflows.php     # Idempotent seeder for 14 client-requested email workflows
+    test-email-*.php             # Email regression harnesses (phase2-stubs, bug-fixes, phase3)
+    /test-snippets/              # (new, ticket #31) 9 coach-zoom PHP test snippets (~100 assertions)
   /docs/                         # AI library (11 spec documents + B2E_MASTER_REFERENCE.md)
 ```
 

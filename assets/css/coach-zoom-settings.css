@@ -1,0 +1,342 @@
+/* ============================================================================
+   Coach Zoom Meeting Settings — tile, modal, callout
+   Class prefix: hlczs- (HL Coach Zoom Settings)
+   Ticket #31, Task H3.
+   z-index 100010+ chosen to clear existing frontend.css overlays (9998-10000).
+   ============================================================================ */
+
+/* ---- Tile ---- */
+.hlczs-tile {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+}
+.hlczs-tile h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: #1A2B47;
+}
+.hlczs-tile-summary {
+    margin: 0 0 16px;
+    color: #4B5563;
+    font-size: 14px;
+}
+
+/* ---- Callout (first-visit) ---- */
+.hlczs-callout {
+    background: #DBEAFE;
+    border-left: 4px solid #2C7BE5;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    position: relative;
+}
+.hlczs-callout p {
+    margin: 0;
+    padding-right: 32px;
+}
+.hlczs-callout-dismiss {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    line-height: 1;
+    font-size: 20px;
+    color: #6B7280;
+}
+.hlczs-callout-dismiss:hover { color: #1A2B47; }
+
+/* ---- Modal ---- */
+.hlczs-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 100010;
+}
+.hlczs-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 640px;
+    max-height: 90vh;
+    overflow: auto;
+    z-index: 100011;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.hlczs-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #E5E7EB;
+}
+.hlczs-modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #1A2B47;
+}
+.hlczs-modal-close {
+    background: transparent;
+    border: 0;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6B7280;
+    width: 32px;
+    height: 32px;
+    line-height: 1;
+}
+.hlczs-modal-close:hover { color: #1A2B47; }
+.hlczs-modal-close:focus-visible {
+    outline: 2px solid #2C7BE5;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* ---- Banner ---- */
+.hlczs-banner {
+    margin: 16px 24px 0;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.hlczs-banner-success {
+    background: #D1FAE5;
+    color: #065F46;
+    border-left: 4px solid #10B981;
+}
+.hlczs-banner-error {
+    background: #FEE2E2;
+    color: #991B1B;
+    border-left: 4px solid #EF4444;
+}
+
+/* ---- Rows ---- */
+#hlczs-form { padding: 8px 0 16px; }
+.hlczs-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1.6fr;
+    align-items: start;
+    gap: 16px;
+    padding: 16px 24px;
+    border-bottom: 1px solid #F3F4F6;
+}
+.hlczs-row-label {
+    font-weight: 600;
+    color: #1A2B47;
+    font-size: 15px;
+}
+.hlczs-row-control { display: flex; align-items: center; }
+.hlczs-row-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.hlczs-row-caption {
+    font-size: 13px;
+    color: #6B7280;
+}
+.hlczs-row-reset {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    color: #2C7BE5;
+    font-size: 13px;
+    text-align: left;
+}
+.hlczs-row-reset:hover { text-decoration: underline; }
+.hlczs-row-reset:focus-visible {
+    outline: 2px solid #2C7BE5;
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+.hlczs-row-error { background: #FEF2F2; }
+.hlczs-row-error .hlczs-row-caption { color: #991B1B; }
+
+/* ---- Toggle (button[role=switch]) ---- */
+.hlczs-toggle {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+}
+.hlczs-toggle-track {
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    border-radius: 24px;
+    background: #D1D5DB;
+    position: relative;
+    transition: background 0.15s ease;
+}
+.hlczs-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 0.15s ease;
+}
+.hlczs-toggle[aria-pressed="true"] .hlczs-toggle-track { background: #2C7BE5; }
+.hlczs-toggle[aria-pressed="true"] .hlczs-toggle-thumb { transform: translateX(20px); }
+.hlczs-toggle:focus-visible {
+    outline: 2px solid #2C7BE5;
+    outline-offset: 2px;
+    border-radius: 24px;
+}
+
+/* ---- Alt-hosts row ---- */
+.hlczs-row-althosts fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+}
+.hlczs-row-althosts label {
+    display: inline-block;
+    font-size: 14px;
+    padding: 4px 0;
+    cursor: pointer;
+}
+.hlczs-row-althosts textarea {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    padding: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+.hlczs-row-althosts textarea:disabled {
+    background: #F3F4F6;
+    color: #9CA3AF;
+}
+.hlczs-row-althosts textarea.hlczs-invalid {
+    border-color: #EF4444;
+    box-shadow: 0 0 0 1px #EF4444;
+}
+
+/* ---- Read-only "Set by your administrator" section ---- */
+.hlczs-readonly {
+    margin: 8px 24px 0;
+    padding: 16px;
+    background: #F9FAFB;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+}
+.hlczs-readonly h3 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    color: #374151;
+}
+.hlczs-readonly-help {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: #6B7280;
+}
+.hlczs-readonly ul {
+    margin: 0;
+    padding: 0 0 0 16px;
+    font-size: 14px;
+    color: #374151;
+}
+.hlczs-readonly li { margin-bottom: 4px; }
+
+/* ---- Footer ---- */
+.hlczs-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid #E5E7EB;
+    background: #F9FAFB;
+    border-radius: 0 0 12px 12px;
+    margin-top: 16px;
+}
+
+/* ---- Reset-all confirm modal (modal-in-modal) ---- */
+.hlczs-confirm-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    z-index: 100020;
+}
+.hlczs-confirm-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 400px;
+    width: 90%;
+    z-index: 100021;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.hlczs-confirm-modal h3 {
+    margin: 0 0 12px;
+    font-size: 18px;
+    color: #1A2B47;
+}
+.hlczs-confirm-modal p {
+    margin: 0 0 16px;
+    color: #4B5563;
+}
+.hlczs-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* ---- Mobile breakpoints ---- */
+@media (max-width: 600px) {
+    .hlczs-modal {
+        width: 100%;
+        height: 100vh;
+        max-height: none;
+        top: 0;
+        left: 0;
+        transform: none;
+        border-radius: 0;
+    }
+    .hlczs-modal-footer {
+        border-radius: 0;
+    }
+}
+@media (max-width: 480px) {
+    .hlczs-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    .hlczs-row-meta {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+}
+
+/* Screen-reader-only utility (in case theme doesn't define it) */
+.hlczs-modal .screen-reader-text {
+    position: absolute !important;
+    clip: rect(1px, 1px, 1px, 1px);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}

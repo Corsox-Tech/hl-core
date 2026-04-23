@@ -511,6 +511,17 @@ Builds on the lint + clobber-guard that landed earlier in the session; adds dire
 - [ ] **Deployed to test** — Pending.
 - [ ] **Deployed to prod** — Pending.
 
+### Coach Zoom Meeting Settings (Ticket #31 — April 2026)
+> **Spec:** `docs/superpowers/specs/2026-04-22-coach-zoom-meeting-settings.md` | **Plan:** `docs/superpowers/plans/2026-04-22-coach-zoom-meeting-settings.md`
+> **Branch:** `feature/ticket-31-coach-zoom-settings` | **Schema rev:** 44 → 45
+- [x] Coach Zoom Meeting Settings (ticket #31) — admin defaults + per-coach overrides for waiting room, mute on entry, join before host, alternative hosts; admin-only passcode + Zoom sign-in toggles; Retry Zoom path with idempotency lock; preflight alt_hosts validation; mentor "link coming shortly" fallback. Recording + AI Companion remain Zoom-account-level. (See `docs/superpowers/specs/2026-04-22-coach-zoom-meeting-settings.md`.)
+- [x] **Schema + service** — New `hl_coach_zoom_settings` table (schema rev 45, sparse per-coach overrides, transactional writes). `HL_Coach_Zoom_Settings_Service` with admin defaults (`hl_zoom_coaching_defaults` option), 3-tier resolve (coach → admin → hardcoded), preflight alt-host validation, delete-user cleanup, cron notification on alt-hosts change.
+- [x] **Integration wiring** — `HL_Zoom_Integration::build_meeting_payload()` now 2-arg (accepts resolved settings). `HL_Scheduling_Service::book_session()` + `reschedule_session_with_integrations()` resolve coach settings before payload build. `retry_zoom_meeting()` + AJAX for Retry Zoom admin action. `send_zoom_link_ready()` on retry success; opt-in "link coming shortly" fallback in booked/rescheduled emails.
+- [x] **UI** — Admin Coaching Session Defaults card + Coach Overrides Overview in Scheduling & Integrations settings. Coaching Hub Retry Zoom button per session. Coach dashboard "My Meeting Settings" tile + modal + first-visit callout.
+- [x] **Tests** — 10 PHP test snippets in `bin/test-snippets/` (~100 assertions, all PASS on test).
+- [x] **Deployed to test** — 2026-04-23 SHA `fb5be30` on `feature/ticket-31-coach-zoom-settings` (v1.3.0). All 10 snippets PASS, live Zoom preflight verified.
+- [x] **Deployed to prod** — 2026-04-23 SHA `9f7a2db` (merged `feature/workflow-ux-m1` @ `705bc01` forward into ticket-31 first, then shipped). v1.3.0, schema rev 45 live. Ticket #31 flipped to `ready_for_test` on prod 2026-04-23 11:04:54.
+
 ### RP Sessions & Action Plan — Edit Submission after Submit (Tickets #8 + #10 — April 2026)
 > #10 said the mentor couldn't re-edit their Action Plan after submitting in a coaching session. #8 said RP Notes should also stay editable after submit, like Action Plan & Results (which was only partially true — mentoring-context teachers could edit, coaching-context mentors could not). Unified both forms into one "Edit Submission" state machine: submit → readonly view with a status bar; Edit Submission → editable again with Save Changes + Cancel; updates preserve the original `submitted_at` and don't double-fire component-state side effects.
 - [x] **Service layer — submitted_at preservation** — `HL_Coaching_Service::submit_form()` + `HL_RP_Session_Service::submit_form()` only stamp `submitted_at` on the FIRST transition into submitted. Re-submits (edits to a submitted row) keep the original timestamp so reporting anchors and overdue-email cron anchors stay truthful.

@@ -97,6 +97,55 @@ class HL_Frontend_Coach_Dashboard {
 
             </div>
 
+            <?php
+            // ---- My Meeting Settings (ticket #31, Task G1) ----
+            // First-visit dismissible callout + tile that opens the coach Zoom settings modal.
+            // Modal markup is added in G2; JS wiring lands in H2. For G1 the Edit button
+            // just carries the expected class + data-coach-id for future JS handlers.
+            if ( class_exists( 'HL_Coach_Zoom_Settings_Service' ) ) :
+                $hlczs_overrides = HL_Coach_Zoom_Settings_Service::get_coach_overrides( $user_id );
+                unset( $hlczs_overrides['_meta'] );
+
+                $hlczs_override_count = 0;
+                foreach ( array( 'waiting_room', 'mute_upon_entry', 'join_before_host', 'alternative_hosts' ) as $hlczs_f ) {
+                    if ( array_key_exists( $hlczs_f, $hlczs_overrides ) ) {
+                        $hlczs_override_count++;
+                    }
+                }
+
+                $hlczs_dismissed = (bool) get_user_meta( $user_id, 'hl_dismissed_coach_zoom_callout', true );
+                ?>
+
+                <?php if ( ! $hlczs_dismissed ) : ?>
+                    <div class="hlczs-callout" role="status" data-callout-nonce="<?php echo esc_attr( wp_create_nonce( 'hl_dismiss_coach_zoom_callout' ) ); ?>">
+                        <p>
+                            <?php esc_html_e( 'Tip: customize how your Zoom meetings are configured for coaching sessions.', 'hl-core' ); ?>
+                            <button type="button" class="hlczs-callout-dismiss" aria-label="<?php esc_attr_e( 'Dismiss tip', 'hl-core' ); ?>">&times;</button>
+                        </p>
+                    </div>
+                <?php endif; ?>
+
+                <div class="hlczs-tile" data-coach-id="<?php echo esc_attr( $user_id ); ?>">
+                    <h3><?php esc_html_e( 'My Meeting Settings', 'hl-core' ); ?></h3>
+                    <p class="hlczs-tile-summary">
+                        <?php
+                        if ( $hlczs_override_count === 0 ) {
+                            esc_html_e( 'You\'re using the company defaults for all meeting settings.', 'hl-core' );
+                        } else {
+                            printf(
+                                /* translators: %d = number of overridden settings */
+                                esc_html( _n( '%d setting overrides the company default.', '%d settings override the company default.', $hlczs_override_count, 'hl-core' ) ),
+                                (int) $hlczs_override_count
+                            );
+                        }
+                        ?>
+                    </p>
+                    <button type="button" class="hlczs-edit-trigger button" data-coach-id="<?php echo esc_attr( $user_id ); ?>">
+                        <?php esc_html_e( 'Edit', 'hl-core' ); ?>
+                    </button>
+                </div>
+            <?php endif; ?>
+
             <!-- Quick links -->
             <div class="hlcd-section-title"><?php esc_html_e('Quick Links', 'hl-core'); ?></div>
             <div class="hlcd-links-grid">
@@ -204,6 +253,26 @@ class HL_Frontend_Coach_Dashboard {
             </div>
             <?php endif; ?>
 
+            <?php
+            // ---- Coach Zoom Settings modal (ticket #31, Task G2) ----
+            // Render the modal markup at the bottom of the dashboard. Hidden by default; H2 JS
+            // will open it when the .hlczs-edit-trigger button is clicked. Admin context
+            // (admin viewing a different coach's dashboard via ?coach_user_id=N) auto-opens it.
+            if ( class_exists( 'HL_Coach_Zoom_Settings_Service' ) ) {
+                $modal_coach_user_id = get_current_user_id();
+                if ( current_user_can( 'manage_hl_core' ) && isset( $_GET['coach_user_id'] ) ) {
+                    $modal_coach_user_id = absint( $_GET['coach_user_id'] );
+                }
+
+                if ( $modal_coach_user_id > 0 && get_userdata( $modal_coach_user_id ) ) {
+                    $resolved  = HL_Coach_Zoom_Settings_Service::resolve_for_coach( $modal_coach_user_id );
+                    $overrides = HL_Coach_Zoom_Settings_Service::get_coach_overrides( $modal_coach_user_id );
+                    $defaults  = HL_Coach_Zoom_Settings_Service::get_admin_defaults();
+                    require HL_CORE_PLUGIN_DIR . 'includes/frontend/views/coach-zoom-settings-modal.php';
+                }
+            }
+            ?>
+
         </div>
         <?php
 
@@ -308,5 +377,124 @@ class HL_Frontend_Coach_Dashboard {
      */
     private function find_shortcode_page_url( $shortcode ) {
         return HL_Page_Cache::get_url( $shortcode );
+    }
+
+    /**
+     * AJAX: dismiss the first-visit "My Meeting Settings" callout on the Coach Dashboard.
+     *
+     * Registered from HL_Core::register_hooks() because this class is instantiated only when
+     * the [hl_coach_dashboard] shortcode renders — AJAX requests never hit that path.
+     *
+     * Auth model: any signed-in user dismisses their OWN callout. No cap check needed because
+     * the only side effect is flipping a user_meta flag on the caller's own account. The nonce
+     * (tied to the session) prevents CSRF.
+     *
+     * @since ticket-31 Task G1
+     */
+    public static function ajax_dismiss_coach_zoom_callout() {
+        check_ajax_referer( 'hl_dismiss_coach_zoom_callout', '_nonce' );
+
+        $uid = get_current_user_id();
+        if ( ! $uid ) {
+            wp_send_json_error( array( 'message' => __( 'Not signed in.', 'hl-core' ) ), 403 );
+        }
+
+        update_user_meta( $uid, 'hl_dismissed_coach_zoom_callout', 1 );
+        wp_send_json_success();
+    }
+
+    /**
+     * AJAX: save coach Zoom meeting setting overrides from the frontend modal.
+     *
+     * Registered from HL_Core::register_hooks() because this class is instantiated only when
+     * the [hl_coach_dashboard] shortcode renders — AJAX requests never hit that path.
+     *
+     * Auth model:
+     *   - A coach may save their own overrides.
+     *   - An admin with `manage_hl_core` may save any coach's overrides (F2 click-through).
+     *
+     * The service layer (`HL_Coach_Zoom_Settings_Service::save_coach_overrides`) handles
+     * validation, preflight of alternative_hosts against Zoom, audit logging, and atomic
+     * merging of partial overrides + reset-to-default field list.
+     *
+     * @since ticket-31 Task H2
+     */
+    public static function ajax_save_coach_zoom_settings() {
+        check_ajax_referer( 'hl_save_coach_zoom_settings', '_nonce' );
+
+        $coach_user_id = absint( wp_unslash( $_POST['coach_user_id'] ?? 0 ) );
+        if ( ! $coach_user_id ) {
+            wp_send_json_error( array(
+                'message'    => __( 'Missing coach.', 'hl-core' ),
+                'error_data' => array( 'field' => '' ),
+            ) );
+        }
+
+        // Authorize: self-save OR admin-override.
+        if ( get_current_user_id() !== $coach_user_id && ! current_user_can( 'manage_hl_core' ) ) {
+            wp_send_json_error( array(
+                'message'    => __( 'Permission denied.', 'hl-core' ),
+                'error_data' => array( 'field' => '' ),
+            ), 403 );
+        }
+
+        // Collect partial overrides. Only fields present in $_POST are saved; absent fields
+        // are left untouched by the service (and reset[] is handled separately below).
+        $overrides = array();
+        foreach ( array( 'waiting_room', 'mute_upon_entry', 'join_before_host' ) as $bool_field ) {
+            if ( isset( $_POST[ $bool_field ] ) ) {
+                $overrides[ $bool_field ] = ! empty( $_POST[ $bool_field ] ) ? 1 : 0;
+            }
+        }
+        if ( isset( $_POST['alternative_hosts'] ) ) {
+            $overrides['alternative_hosts'] = sanitize_textarea_field( wp_unslash( $_POST['alternative_hosts'] ) );
+        }
+
+        // Collect reset fields.
+        $reset_fields = array();
+        if ( ! empty( $_POST['reset'] ) && is_array( $_POST['reset'] ) ) {
+            $allowed = array( 'waiting_room', 'mute_upon_entry', 'join_before_host', 'alternative_hosts' );
+            foreach ( wp_unslash( $_POST['reset'] ) as $field_name ) {
+                $field_name = sanitize_key( $field_name );
+                if ( in_array( $field_name, $allowed, true ) ) {
+                    $reset_fields[] = $field_name;
+                }
+            }
+        }
+
+        // Nothing to do — still return success so the UI can confirm.
+        if ( empty( $overrides ) && empty( $reset_fields ) ) {
+            wp_send_json_success();
+        }
+
+        if ( ! class_exists( 'HL_Coach_Zoom_Settings_Service' ) ) {
+            wp_send_json_error( array(
+                'message'    => __( 'Coach Zoom settings service unavailable.', 'hl-core' ),
+                'error_data' => array( 'field' => '' ),
+            ), 500 );
+        }
+
+        $result = HL_Coach_Zoom_Settings_Service::save_coach_overrides(
+            $coach_user_id,
+            $overrides,
+            get_current_user_id(),
+            $reset_fields
+        );
+
+        if ( is_wp_error( $result ) ) {
+            $error_data = $result->get_error_data();
+            if ( ! is_array( $error_data ) ) {
+                $error_data = array( 'field' => '' );
+            } elseif ( ! isset( $error_data['field'] ) ) {
+                $error_data['field'] = '';
+            }
+            wp_send_json_error( array(
+                'message'    => $result->get_error_message(),
+                'error_code' => $result->get_error_code(),
+                'error_data' => $error_data,
+            ) );
+        }
+
+        wp_send_json_success();
     }
 }

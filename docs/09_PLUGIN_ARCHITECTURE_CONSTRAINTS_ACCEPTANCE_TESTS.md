@@ -61,8 +61,9 @@ Core services to implement:
 - SessionPrepService (auto-populates session prep data — pathway progress, previous action plans, recent classroom visits — for coaching and RP session forms)
 - CoachAssignmentService (coach scope assignment CRUD — school/team/enrollment)
 - CoachDashboardService (coach frontend data queries: stats, mentor roster, availability CRUD)
-- SchedulingService (coaching session scheduling orchestrator: slot calculation, booking with Zoom + Outlook + email)
+- SchedulingService (coaching session scheduling orchestrator: slot calculation, booking with Zoom + Outlook + email; also retry_zoom_meeting for admin-triggered recovery)
 - SchedulingEmailService (branded HTML email notifications for session events, admin-editable templates)
+- CoachZoomSettingsService (per-coach Zoom meeting settings: admin defaults + sparse coach overrides, 3-tier resolution, alt-host preflight ping, cron-driven alt-host change notifications)
 - MicrosoftGraph (Microsoft Graph API client: client credentials OAuth2, calendar CRUD, token caching)
 - ZoomIntegration (Zoom S2S OAuth client: meeting CRUD, token caching)
 - ChildSnapshotService (freeze child age groups per cycle for assessment consistency)
@@ -150,6 +151,7 @@ Cross-pathway events:
 Assignments + scheduling + email:
 - hl_coach_assignment (coach ↔ enrollment scope mapping)
 - hl_coach_availability (recurring weekly schedule blocks for coaches)
+- hl_coach_zoom_settings (per-coach Zoom meeting overrides; sparse NULL = not overridden; coach_user_id PK)
 - hl_pathway_assignment (enrollment ↔ pathway assignment)
 - hl_cycle_email_log (tracks emails sent per cycle)
 

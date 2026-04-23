@@ -3,7 +3,7 @@
  * Plugin Name: Housman LMS
  * Plugin URI: https://housmanlearning.com
  * Description: System-of-record for Housman Learning Academy Partnership management
- * Version: 1.2.17
+ * Version: 1.3.0
  * Author: Housman Learning
  * Author URI: https://housmanlearning.com
  * License: Proprietary
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('HL_CORE_VERSION', '1.2.17');
+define('HL_CORE_VERSION', '1.3.0');
 define('HL_CORE_PLUGIN_FILE', __FILE__);
 define('HL_CORE_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HL_CORE_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -129,6 +129,7 @@ class HL_Core {
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-session-prep-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-dashboard-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scheduling-email-service.php';
+        require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-coach-zoom-settings-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-scheduling-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-tour-service.php';
         require_once HL_CORE_INCLUDES_DIR . 'services/class-hl-ticket-service.php';
@@ -353,6 +354,46 @@ class HL_Core {
         add_action( 'set_user_role',    array( 'HL_BB_Group_Sync_Service', 'on_role_changed' ), 10, 3 );
         add_action( 'add_user_role',    array( 'HL_BB_Group_Sync_Service', 'on_role_added' ),   10, 2 );
         add_action( 'remove_user_role', array( 'HL_BB_Group_Sync_Service', 'on_role_removed' ), 10, 2 );
+
+        // Coach Zoom settings: cleanup on user deletion (ticket #31, Task C2).
+        add_action( 'delete_user', function( $user_id ) {
+            global $wpdb;
+            $table = $wpdb->prefix . 'hl_coach_zoom_settings';
+
+            // Drop any settings row keyed on the deleted user.
+            $wpdb->delete( $table, array( 'coach_user_id' => (int) $user_id ), array( '%d' ) );
+
+            // NULL the actor reference where the deleted user was the editor.
+            // Use raw query for unambiguous NULL binding.
+            $wpdb->query( $wpdb->prepare(
+                "UPDATE {$table} SET updated_by_user_id = NULL WHERE updated_by_user_id = %d",
+                (int) $user_id
+            ) );
+        }, 10, 1 );
+
+        // Coach Zoom settings: dismiss first-visit callout on Coach Dashboard (ticket #31, Task G1).
+        // Registered here (not in the class) because HL_Frontend_Coach_Dashboard is instantiated
+        // only when the shortcode renders — AJAX requests never hit that path.
+        add_action(
+            'wp_ajax_hl_dismiss_coach_zoom_callout',
+            array( 'HL_Frontend_Coach_Dashboard', 'ajax_dismiss_coach_zoom_callout' )
+        );
+
+        // Coach Zoom settings: save coach overrides from the frontend modal (ticket #31, Task H2).
+        // Same rationale — Coach Dashboard renderer isn't instantiated on AJAX calls.
+        add_action(
+            'wp_ajax_hl_save_coach_zoom_settings',
+            array( 'HL_Frontend_Coach_Dashboard', 'ajax_save_coach_zoom_settings' )
+        );
+
+        // Coach Zoom settings: notify admins when a coach changes alternative_hosts (ticket #31, Task I1).
+        // Dispatched via wp_schedule_single_event() from HL_Coach_Zoom_Settings_Service::save_coach_overrides().
+        add_action(
+            'hl_notify_alt_hosts_change',
+            array( 'HL_Coach_Zoom_Settings_Service', 'cron_notify_alt_hosts_change' ),
+            10,
+            4
+        );
 
         // Initialize reporting service (registers rollup listener)
         HL_Reporting_Service::instance();

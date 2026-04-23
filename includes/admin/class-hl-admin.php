@@ -171,6 +171,18 @@ class HL_Admin {
         // Coaching sessions page: enqueue WP Media for attachment picker
         if (strpos($hook, 'hl-coaching') !== false) {
             wp_enqueue_media();
+
+            // F3 (Ticket #31): admin Retry Zoom button for sessions missing a meeting.
+            wp_enqueue_script(
+                'hl-admin-coach-zoom-retry',
+                HL_CORE_ASSETS_URL . 'js/admin-coach-zoom-retry.js',
+                array(),
+                HL_CORE_VERSION,
+                true
+            );
+            wp_localize_script('hl-admin-coach-zoom-retry', 'HLCoachZoomRetry', array(
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+            ));
         }
 
         // Teacher instrument visual editor (on hl-instruments or assessment-hub teacher-instruments section)

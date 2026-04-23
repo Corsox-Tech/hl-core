@@ -153,7 +153,7 @@ class HL_Installer {
     public static function maybe_upgrade() {
         $stored = get_option( 'hl_core_schema_revision', 0 );
         // Bump this number whenever a new migration is added.
-        $current_revision = 44;
+        $current_revision = 45;
 
         if ( (int) $stored < $current_revision ) {
             self::create_tables();
@@ -2311,6 +2311,19 @@ class HL_Installer {
             PRIMARY KEY (pending_id),
             UNIQUE KEY one_pending (enrollment_id, catalog_id, survey_id),
             KEY idx_user (user_id)
+        ) $charset_collate;";
+
+        // Coach Zoom Settings table (per-coach overrides for Zoom meeting defaults; NULL = inherit admin default)
+        $tables[] = "CREATE TABLE {$wpdb->prefix}hl_coach_zoom_settings (
+            coach_user_id bigint(20) unsigned NOT NULL,
+            waiting_room tinyint(1) NULL,
+            mute_upon_entry tinyint(1) NULL,
+            join_before_host tinyint(1) NULL,
+            alternative_hosts varchar(1024) NULL,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            updated_by_user_id bigint(20) unsigned NULL,
+            PRIMARY KEY  (coach_user_id),
+            KEY updated_at (updated_at)
         ) $charset_collate;";
 
         return $tables;

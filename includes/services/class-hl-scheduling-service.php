@@ -27,6 +27,7 @@ class HL_Scheduling_Service {
         add_action('wp_ajax_hl_reschedule_session', array($this, 'ajax_reschedule_session'));
         add_action('wp_ajax_hl_cancel_session', array($this, 'ajax_cancel_session'));
         add_action('wp_ajax_hl_mark_attendance', array($this, 'ajax_mark_attendance'));
+        add_action('wp_ajax_hl_retry_zoom_meeting', array($this, 'ajax_retry_zoom_meeting'));
     }
 
     // =========================================================================
@@ -382,11 +383,16 @@ class HL_Scheduling_Service {
             'duration'       => $duration,
         );
 
+        // Resolve coach Zoom settings ONCE, OUTSIDE the is_configured() guard.
+        // Resolution is cheap; keeping it here means a future reviewer cannot accidentally
+        // null it out by moving both lines inside the guard.
+        $resolved_zoom_settings = HL_Coach_Zoom_Settings_Service::resolve_for_coach($coach_user_id);
+
         // Step 2: Create Zoom meeting.
         $zoom = HL_Zoom_Integration::instance();
         if ($zoom->is_configured()) {
             $zoom_email   = $zoom->get_coach_email($coach_user_id);
-            $zoom_payload = $zoom->build_meeting_payload($api_data);
+            $zoom_payload = $zoom->build_meeting_payload($api_data, $resolved_zoom_settings);
             $zoom_result  = $zoom->create_meeting($zoom_email, $zoom_payload);
 
             if (is_wp_error($zoom_result)) {
@@ -585,13 +591,18 @@ class HL_Scheduling_Service {
             'duration'       => $duration,
         );
 
+        // Resolve coach Zoom settings ONCE, OUTSIDE the is_configured() guard.
+        // Resolution is cheap; keeping it here means a future reviewer cannot accidentally
+        // null it out by moving both lines inside the guard.
+        $resolved_zoom_settings = HL_Coach_Zoom_Settings_Service::resolve_for_coach($old_session['coach_user_id']);
+
         // Create new Zoom meeting.
         $meeting_url     = null;
         $zoom_meeting_id = null;
         $zoom            = HL_Zoom_Integration::instance();
         if ($zoom->is_configured()) {
             $zoom_email   = $zoom->get_coach_email($old_session['coach_user_id']);
-            $zoom_payload = $zoom->build_meeting_payload($api_data);
+            $zoom_payload = $zoom->build_meeting_payload($api_data, $resolved_zoom_settings);
             $zoom_result  = $zoom->create_meeting($zoom_email, $zoom_payload);
 
             if (!is_wp_error($zoom_result)) {
@@ -734,6 +745,232 @@ class HL_Scheduling_Service {
         );
 
         return true;
+    }
+
+    // =========================================================================
+    // Retry Zoom Meeting (Admin-Only Recovery)
+    // =========================================================================
+
+    /**
+     * Retry Zoom meeting creation for a session whose initial Zoom create failed.
+     *
+     * Idempotent via:
+     *  - Pre-check: row already has zoom_meeting_id -> early WP_Error (no lock taken).
+     *  - Per-session transient lock (60s TTL) to block concurrent retries.
+     *  - Atomic `UPDATE ... WHERE zoom_meeting_id IS NULL` so a race-loser cannot
+     *    clobber a winner; race-losers delete the Zoom meeting they created to
+     *    avoid orphans.
+     *
+     * Outlook event update is best-effort (non-fatal if it fails); Zoom write
+     * already succeeded.
+     *
+     * Admin-only: requires `manage_hl_core`.
+     *
+     * @param int $session_id
+     * @return array|WP_Error { meeting_id, meeting_url } on success.
+     */
+    public function retry_zoom_meeting($session_id) {
+        global $wpdb;
+
+        $session_id = absint($session_id);
+        if (!$session_id) {
+            return new WP_Error('invalid_session', __('Invalid session ID.', 'hl-core'));
+        }
+
+        if (!current_user_can('manage_hl_core')) {
+            return new WP_Error('permission_denied', __('Only administrators can retry Zoom creation.', 'hl-core'));
+        }
+
+        // Load session BEFORE acquiring the lock so early-return cases don't leak a transient.
+        $coaching_service = new HL_Coaching_Service();
+        $session          = $coaching_service->get_session($session_id);
+        if (!$session) {
+            return new WP_Error('not_found', __('Session not found.', 'hl-core'));
+        }
+        if (!empty($session['zoom_meeting_id'])) {
+            return new WP_Error('already_has_meeting', __('This session already has a Zoom meeting.', 'hl-core'));
+        }
+
+        $lock_key = 'hl_zoom_retry_lock_' . $session_id;
+        if (get_transient($lock_key)) {
+            return new WP_Error('retry_inflight', __('Retry already in progress for this session.', 'hl-core'));
+        }
+        set_transient($lock_key, 1, 60);
+
+        try {
+            $resolved = HL_Coach_Zoom_Settings_Service::resolve_for_coach($session['coach_user_id']);
+
+            $coach_user   = get_userdata($session['coach_user_id']);
+            $mentor_email = $wpdb->get_var($wpdb->prepare(
+                "SELECT u.user_email FROM {$wpdb->prefix}hl_enrollment e
+                 JOIN {$wpdb->users} u ON e.user_id = u.ID
+                 WHERE e.enrollment_id = %d",
+                $session['mentor_enrollment_id']
+            ));
+
+            $duration = (int) HL_Admin_Scheduling_Settings::get_scheduling_settings()['session_duration'];
+            $coach_tz = !empty($session['coach_timezone']) ? $session['coach_timezone'] : wp_timezone_string();
+
+            try {
+                $start_dt = new DateTime($session['session_datetime'], wp_timezone());
+                $start_dt->setTimezone(new DateTimeZone($coach_tz));
+                $end_dt   = clone $start_dt;
+                $end_dt->modify('+' . $duration . ' minutes');
+            } catch (Exception $e) {
+                return new WP_Error('invalid_datetime', __('Invalid stored session datetime.', 'hl-core'));
+            }
+
+            $api_data = array(
+                'mentor_name'    => $session['mentor_name'],
+                'mentor_email'   => $mentor_email,
+                'coach_name'     => $coach_user ? $coach_user->display_name : '',
+                'start_datetime' => $start_dt->format('Y-m-d\TH:i:s'),
+                'end_datetime'   => $end_dt->format('Y-m-d\TH:i:s'),
+                'timezone'       => $coach_tz,
+                'duration'       => $duration,
+            );
+
+            $zoom = HL_Zoom_Integration::instance();
+            if (!$zoom->is_configured()) {
+                return new WP_Error('zoom_not_configured', __('Zoom integration is not configured.', 'hl-core'));
+            }
+
+            $zoom_email   = $zoom->get_coach_email($session['coach_user_id']);
+            $zoom_payload = $zoom->build_meeting_payload($api_data, $resolved);
+            $created      = $zoom->create_meeting($zoom_email, $zoom_payload);
+
+            if (is_wp_error($created)) {
+                HL_Audit_Service::log('zoom_meeting_retried', array(
+                    'entity_type' => 'coaching_session',
+                    'entity_id'   => $session_id,
+                    'after_data'  => array(
+                        'success'    => false,
+                        'zoom_code'  => $created->get_error_code(),
+                        'zoom_error' => $created->get_error_message(),
+                    ),
+                ));
+                return $created;
+            }
+
+            $new_meeting_id  = isset($created['id']) ? (int) $created['id'] : 0;
+            $new_meeting_url = isset($created['join_url']) ? $created['join_url'] : '';
+
+            // Atomic write: only succeeds if another caller hasn't already set the meeting_id.
+            $rows = $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}hl_coaching_session
+                 SET zoom_meeting_id = %d, meeting_url = %s
+                 WHERE session_id = %d AND zoom_meeting_id IS NULL",
+                $new_meeting_id,
+                $new_meeting_url,
+                $session_id
+            ));
+
+            if ($rows === false) {
+                // DB error: delete the Zoom meeting we just created to avoid orphans.
+                $zoom->delete_meeting($new_meeting_id);
+                HL_Audit_Service::log('zoom_meeting_retried', array(
+                    'entity_type' => 'coaching_session',
+                    'entity_id'   => $session_id,
+                    'after_data'  => array(
+                        'success'           => false,
+                        'db_error'          => $wpdb->last_error,
+                        'orphan_meeting_id' => $new_meeting_id,
+                    ),
+                ));
+                return new WP_Error('db_write_failed', $wpdb->last_error ?: __('Failed to update session row.', 'hl-core'));
+            }
+
+            if ((int) $rows === 0) {
+                // Race lost — another retry already wrote a meeting_id. Clean up orphan.
+                $delete_orphan = $zoom->delete_meeting($new_meeting_id);
+                $note          = is_wp_error($delete_orphan) ? 'race_lost_orphan_DELETE_FAILED' : 'race_lost_orphan_deleted';
+                $audit_extra   = is_wp_error($delete_orphan)
+                    ? array('orphan_meeting_id' => $new_meeting_id, 'delete_error' => $delete_orphan->get_error_message())
+                    : array();
+                HL_Audit_Service::log('zoom_meeting_retried', array(
+                    'entity_type' => 'coaching_session',
+                    'entity_id'   => $session_id,
+                    'after_data'  => array_merge(
+                        array('success' => true, 'note' => $note),
+                        $audit_extra
+                    ),
+                ));
+                return array(
+                    'meeting_id'  => null,
+                    'meeting_url' => null,
+                    'note'        => 'already_set_by_concurrent_retry',
+                );
+            }
+
+            // Update Outlook event if one exists — non-fatal on failure.
+            if (!empty($session['outlook_event_id']) && class_exists('HL_Microsoft_Graph')) {
+                $graph = HL_Microsoft_Graph::instance();
+                if ($graph->is_configured()) {
+                    $coach_ms_email          = $graph->get_coach_email($session['coach_user_id']);
+                    $api_data['meeting_url'] = $new_meeting_url;
+                    $event_payload           = $graph->build_event_payload($api_data);
+                    $graph->update_calendar_event($coach_ms_email, $session['outlook_event_id'], $event_payload);
+                    // Outlook update failure is non-fatal — Zoom write already succeeded.
+                }
+            }
+
+            HL_Audit_Service::log('zoom_meeting_retried', array(
+                'entity_type' => 'coaching_session',
+                'entity_id'   => $session_id,
+                'after_data'  => array('success' => true, 'meeting_id' => $new_meeting_id),
+            ));
+
+            // Follow-up email — distinct subject from booking confirmation (Task E1b).
+            HL_Scheduling_Email_Service::instance()->send_zoom_link_ready(array(
+                'mentor_name'      => $session['mentor_name'],
+                'mentor_email'     => $mentor_email,
+                'mentor_timezone'  => !empty($session['mentor_timezone']) ? $session['mentor_timezone'] : wp_timezone_string(),
+                'coach_name'       => $coach_user ? $coach_user->display_name : '',
+                'coach_email'      => $coach_user ? $coach_user->user_email : '',
+                'coach_timezone'   => $coach_tz,
+                'session_datetime' => $session['session_datetime'],
+                'meeting_url'      => $new_meeting_url,
+            ));
+
+            return array(
+                'meeting_id'  => $new_meeting_id,
+                'meeting_url' => $new_meeting_url,
+            );
+        } finally {
+            delete_transient($lock_key);
+        }
+    }
+
+    /**
+     * AJAX: Admin-only retry of Zoom meeting creation for a session that is missing one.
+     *
+     * Nonce: 'hl_retry_zoom_meeting' (field '_nonce').
+     * Cap:   manage_hl_core.
+     *
+     * On success returns { meeting_id, meeting_url [, note] }.
+     * On error returns { message, error_code } so the F3 button UX can map codes to UI states.
+     */
+    public function ajax_retry_zoom_meeting() {
+        check_ajax_referer('hl_retry_zoom_meeting', '_nonce');
+
+        if (!current_user_can('manage_hl_core')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'hl-core')), 403);
+        }
+
+        $session_id = absint(wp_unslash($_POST['session_id'] ?? 0));
+        if (!$session_id) {
+            wp_send_json_error(array('message' => __('Missing session ID.', 'hl-core')));
+        }
+
+        $result = $this->retry_zoom_meeting($session_id);
+        if (is_wp_error($result)) {
+            wp_send_json_error(array(
+                'message'    => $result->get_error_message(),
+                'error_code' => $result->get_error_code(),
+            ));
+        }
+
+        wp_send_json_success($result);
     }
 
     // =========================================================================
