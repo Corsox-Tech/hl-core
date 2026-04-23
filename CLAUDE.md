@@ -30,9 +30,14 @@ Every session. No exceptions. Before reading STATUS.md, before writing any code,
      - **If `worktree`** (Desktop auto-worktree via the "worktree" checkbox, or any other isolated worktree on `main`): run `git checkout -b ticket-<N>-<slug>` in place. Confirm: *"Switched to `ticket-<N>-<slug>`. Working on ticket <N> in this worktree."* Then proceed.
    - If user says "no ticket" / "just exploring" / etc. → read-only mode. Do NOT modify tracked files.
 
-   **Branch matches `ticket-<N>-<slug>`:**
+   **Branch matches `ticket-<N>[-<slug>]`:**
    - Your FIRST response must confirm: *"I see we're on `<branch-name>`. Continuing work on ticket `<N>`?"*
    - After confirmation, proceed with work.
+
+   **Branch matches `claude/<adjective>-<noun>-<hex>`** (a Claude Code Desktop auto-generated session branch):
+   - Your FIRST response must be: *"Desktop created a session branch (`<branch-name>`) for us. What are we working on? If this is a Feature Tracker ticket, tell me the number and I'll rename the branch to our `ticket-<N>-<slug>` convention so the normal cleanup flow works."*
+   - If user names a ticket: run `git branch -m ticket-<N>-<slug>` to rename the branch in place. Then proceed.
+   - If user says "quick fix, no ticket" or similar: accept the Desktop-generated name, proceed with work. Deploy.sh works normally from this branch. `bin/finish-ticket.sh` also accepts `claude/*` branches for cleanup.
 
    **Any other branch name:**
    - Unusual. Ask the user what they want to do before acting (could be legacy work-in-progress or an accidental branch).
@@ -44,7 +49,7 @@ This rule is non-negotiable even if the user says "just do X, don't ask." The or
 ### Two entry points — pick what fits the context
 
 - **Claude Code CLI** (terminal `claude` in the plugin folder): use `bash bin/start-ticket.sh <N> [slug]`. It creates a sibling folder worktree, branched from the live prod SHA, and prints the exact `cd` + `claude` command to run. This is the canonical flow.
-- **Claude Code Desktop** (app with the "worktree" checkbox): pick branch `main` in the dropdown, keep the **worktree** box checked, and start the chat. Desktop creates an isolated worktree on `main`; Rule 0 routes you to `git checkout -b ticket-<N>-<slug>` in place, inside that Desktop worktree. No terminal needed. (If you want a pre-existing ticket branch instead, pick it from the dropdown before starting.)
+- **Claude Code Desktop** (app with the "worktree" checkbox): pick branch `main` in the dropdown, keep the **worktree** box checked, and start the chat. Desktop auto-generates a session branch named `claude/<adjective>-<noun>-<hex>` and drops you into an isolated worktree on it. Rule 0 accepts this branch pattern and asks what you're working on; if it's a Feature Tracker ticket, Claude renames the branch to `ticket-<N>-<slug>` so the normal finish-ticket flow applies. Otherwise Claude works on the auto-branch directly. (If you want a pre-existing ticket branch instead, pick it from the dropdown before starting.)
 
 ## Mandatory Workflow Rules
 

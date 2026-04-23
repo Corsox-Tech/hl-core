@@ -15,7 +15,8 @@
      - **MODE = `worktree`** (Desktop auto-worktree, or any isolated worktree on main): run `git checkout -b ticket-<N>-<slug>` in place and proceed.
    - If user says "no ticket" → read-only mode, no tracked-file edits.
 3. **If BRANCH matches `ticket-<N>[-<slug>]`:** confirm "continuing ticket `<N>`?" → proceed.
-4. **If BRANCH is anything else:** unusual — ask user before acting.
+4. **If BRANCH matches `claude/<adj>-<noun>-<hex>`** (Claude Code Desktop auto-generated session branch): ask "Desktop made a session branch for us. What are we working on?" If user names a ticket, `git branch -m ticket-<N>-<slug>` to rename; otherwise accept the auto-name and proceed. Deploy works either way; `finish-ticket.sh` accepts `claude/*` too.
+5. **If BRANCH is anything else:** unusual — ask user before acting.
 
 ## What "commit and push to prod" means
 

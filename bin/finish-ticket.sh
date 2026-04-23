@@ -18,8 +18,9 @@ set -euo pipefail
 CURRENT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
 CURRENT_DIR=$(pwd)
 
-if [[ ! "$CURRENT_BRANCH" =~ ^ticket- ]]; then
+if [[ ! "$CURRENT_BRANCH" =~ ^ticket- ]] && [[ ! "$CURRENT_BRANCH" =~ ^claude/ ]]; then
   echo "ERROR: not on a ticket branch (current: '$CURRENT_BRANCH')."
+  echo "       Expected 'ticket-*' or 'claude/*' (Desktop auto-session)."
   echo "       Run this from inside a ticket worktree only."
   exit 1
 fi
