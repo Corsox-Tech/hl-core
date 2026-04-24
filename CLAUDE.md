@@ -12,12 +12,12 @@ Products: **B2E Mastery Program** (2-year, 25-course), **Short Courses** (standa
 See `docs/B2E_MASTER_REFERENCE.md` for the complete product catalog.
 
 **Key paths:**
-- **WORKFLOW.md** — How we develop/ship this plugin (branches, worktrees, hooks, deploys). If you're confused about *how work happens* here, **read this first**. Self-contained; explains *why* we do it this way and *what* the user should do daily.
 - **STATUS.md** — Build queue + task tracking. Read for high-level project state.
 - **README.md** — What's Implemented detail, architecture tree.
 - **docs/** — 11 canonical spec files.
 - **LearnDash:** `../sfwd-lms/` — hooks/functions reference.
 - **data/** — Private Excel files. Gitignored, never commit.
+- **WORKFLOW.md** *(reference, not required reading)* — why/how we develop and ship. CLAUDE.md's rules already encode the behavior. Open this only if something feels wrong, the rules seem to contradict each other, or you need the design rationale (2026-04-20 incident, worktree model, etc.).
 
 ## Rule 0: Session Start Protocol (BEFORE anything else)
 
