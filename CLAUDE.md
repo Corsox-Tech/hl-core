@@ -12,7 +12,8 @@ Products: **B2E Mastery Program** (2-year, 25-course), **Short Courses** (standa
 See `docs/B2E_MASTER_REFERENCE.md` for the complete product catalog.
 
 **Key paths:**
-- **STATUS.md** — Build queue + task tracking. Read FIRST every session.
+- **WORKFLOW.md** — How we develop/ship this plugin (branches, worktrees, hooks, deploys). If you're confused about *how work happens* here, **read this first**. Self-contained; explains *why* we do it this way and *what* the user should do daily.
+- **STATUS.md** — Build queue + task tracking. Read for high-level project state.
 - **README.md** — What's Implemented detail, architecture tree.
 - **docs/** — 11 canonical spec files.
 - **LearnDash:** `../sfwd-lms/` — hooks/functions reference.
